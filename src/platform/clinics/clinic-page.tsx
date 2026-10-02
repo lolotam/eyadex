@@ -39,12 +39,12 @@ export function ClinicPage({ clinicId }: { clinicId: string }) {
         subtitle={`${data.slug} · ${t(`specialty.${data.specialty}`)}`}
         actions={<ClinicStatusBadge status={data.status} />}
       />
-      <p className="mb-4 flex items-center gap-2 text-xs text-muted-foreground">
+      <p className="mb-5 flex items-center gap-2 rounded-md border border-primary/15 bg-secondary/60 px-3 py-2 text-xs text-secondary-foreground">
         <ShieldCheck className="size-4" />
         {t("clinics.privacyNote")}
       </p>
       <Tabs defaultValue="details">
-        <TabsList className="mb-4 flex-wrap">
+        <TabsList className="mb-5 flex w-full flex-wrap justify-start overflow-x-auto">
           <TabsTrigger value="details">{t("clinics.tabs.details")}</TabsTrigger>
           <TabsTrigger value="subscription">{t("clinics.tabs.subscription")}</TabsTrigger>
           <TabsTrigger value="modules">{t("clinics.tabs.modules")}</TabsTrigger>

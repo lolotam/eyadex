@@ -11,7 +11,7 @@ export function DataTable<T>({ columns, data, isLoading, onRowClick }: Props<T>)
   return (
     <div className="overflow-hidden rounded-lg border bg-card">
       <Table>
-        <TableHeader>
+        <TableHeader className="bg-muted/70">
           {table.getHeaderGroups().map((group) => (
             <TableRow key={group.id}>
               {group.headers.map((header) => (
