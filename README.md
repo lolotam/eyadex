@@ -1,6 +1,6 @@
 # Eyadex
 
-Eyadex is an Arabic-first, multi-clinic management web application. This repository currently contains the frontend demo and its typed, browser-persisted mock API.
+Eyadex is an Arabic-first management application for clinics of every specialty and branch. This repository currently contains the frontend demo and its typed, browser-persisted mock API.
 
 Product domain: [eyadex.com](https://eyadex.com). Production hosting will be configured separately from Lovable.
 
