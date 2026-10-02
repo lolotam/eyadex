@@ -12,7 +12,7 @@
  *     scale, fps, psnr and the webp muxer, then fails with "No option name
  *     near ..." or "Unable to choose an output format", both of which read as
  *     a mistake in your command rather than a missing feature.
- *   - no KIE_AI_API_KEY, which only matters if you are generating assets.
+ *   - no HIGGSFIELD_API_KEY, which only matters if you are generating assets.
  *   - playwright-core resolving from the wrong directory. It is required from
  *     the BUILD folder, not from the skill.
  */
