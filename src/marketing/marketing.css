@@ -184,8 +184,10 @@
 .mk .mk-specialty-option { flex: 1 0 auto; min-height: 40px; border-radius: 6px; color: var(--mk-ink-soft); }
 .mk .mk-specialty-option[aria-pressed="true"] { background: var(--mk-accent); color: var(--mk-accent-ink); }
 .mk-layers { display: flex; flex-direction: column; border: 1px solid var(--mk-line); border-radius: var(--mk-radius); overflow: hidden; background: var(--mk-surface); box-shadow: var(--mk-shadow-1); }
+.mk-specialty-bands { display: grid; min-height: 156px; background: color-mix(in oklab, var(--mk-accent) 5%, var(--mk-surface)); }
 .mk-specialty-band, .mk-core-band { padding: 20px; }
-.mk-specialty-band { min-height: 156px; background: color-mix(in oklab, var(--mk-accent) 5%, var(--mk-surface)); animation: mk-in 240ms var(--mk-ease); }
+.mk-specialty-band { grid-area: 1 / 1; opacity: 0; pointer-events: none; transition: opacity 240ms var(--mk-ease); }
+.mk-specialty-band.is-selected { opacity: 1; pointer-events: auto; }
 .mk-core-band { border-top: 3px solid var(--mk-accent); background: var(--mk-surface); }
 .mk-specialty-band strong, .mk-core-band strong { display: block; margin-bottom: 12px; color: var(--mk-accent); }
 .mk-specialty-band ul, .mk-core-band ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }

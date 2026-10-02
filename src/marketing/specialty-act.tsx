@@ -5,10 +5,6 @@ import { useMk } from "./mk-context";
 export function SpecialtyAct() {
   const { d } = useMk();
   const [selected, setSelected] = useState(0);
-  const current = d.specialties.options[selected] ?? d.specialties.options[0];
-
-  if (!current) return null;
-
   return (
     <section className="mk-section mk-specialties" aria-labelledby="mk-specialties-h">
       <div className="mk-wrap mk-specialties-grid">
@@ -32,16 +28,24 @@ export function SpecialtyAct() {
             ))}
           </div>
           <div className="mk-layers">
-            <div key={current.name} className="mk-specialty-band" aria-live="polite">
-              <strong>{d.specialties.specialtyLabel}</strong>
-              <ul>
-                {current.items.map((item) => (
-                  <li key={item}>
-                    <span>{item}</span>
-                    <span className="mk-tag mk-tag--quiet">{d.roadmap.tag}</span>
-                  </li>
-                ))}
-              </ul>
+            <div className="mk-specialty-bands" aria-live="polite">
+              {d.specialties.options.map((option, index) => (
+                <div
+                  key={option.name}
+                  className={`mk-specialty-band${selected === index ? " is-selected" : ""}`}
+                  aria-hidden={selected !== index}
+                >
+                  <strong>{d.specialties.specialtyLabel}</strong>
+                  <ul>
+                    {option.items.map((item) => (
+                      <li key={item}>
+                        <span>{item}</span>
+                        <span className="mk-tag mk-tag--quiet">{d.roadmap.tag}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
             </div>
             <div className="mk-core-band">
               <strong>{d.specialties.coreLabel}</strong>
