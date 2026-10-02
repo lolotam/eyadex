@@ -1,0 +1,67 @@
+export const en = {
+  app: { name: "Clinic App", tagline: "Multi-clinic management" },
+  common: {
+    save: "Save", cancel: "Cancel", create: "Create", search: "Search", all: "All", loading: "Loading…",
+    next: "Next", previous: "Previous", back: "Back", saved: "Saved", retry: "Retry", noResults: "No results",
+    active: "Active", inactive: "Inactive", open: "Open", showing: "Showing {count} of {total}", readOnly: "Read only",
+  },
+  language: { ar: "العربية", en: "English", switch: "Language" },
+  persona: {
+    label: "Signed in as", switch: "Switch persona", clinic: "Clinic", chooseClinic: "Choose a clinic",
+    platform_admin: "Platform Admin", clinic_admin: "Clinic Admin", doctor: "Doctor", cashier: "Cashier", technician: "Technician",
+    demoNote: "Demo sign-in. No passwords.",
+  },
+  nav: {
+    platformArea: "Platform", clinicArea: "Clinic", overview: "Overview", clinics: "Clinics", team: "Platform team",
+    audit: "Audit log", settings: "Settings", branches: "Branches", users: "Users", roles: "Roles & permissions",
+    patients: "Patients", account: "My account", menu: "Menu",
+  },
+  comingNext: { title: "Coming next", body: "This screen is part of the next phase." },
+  forbidden: { title: "Not allowed", body: "Your current role does not have access to this page.", home: "Go to my home" },
+  blocked: {
+    suspendedTitle: "This clinic is suspended",
+    suspendedBody: "Sign-in is disabled while the subscription is suspended. Please contact the platform administrator.",
+    expiredTitle: "This clinic's subscription has expired",
+    expiredBody: "Sign-in is disabled until the subscription is renewed. Please contact the platform administrator.",
+  },
+  landing: { title: "Choose how to enter", body: "Pick a persona to explore the demo." , enter: "Enter" },
+  clinicStatus: { trial: "Trial", active: "Active", suspended: "Suspended" },
+  specialty: { psychiatry: "Psychiatry", psychology: "Psychology", dental: "Dental", dermatology: "Dermatology", general: "General practice" },
+  clinics: {
+    title: "Clinics", subtitle: "All clinics on the platform", new: "New clinic", searchPlaceholder: "Search by name or slug",
+    anyStatus: "Any status", anySpecialty: "Any specialty", expiringSoon: "Expires soon",
+    columns: { name: "Clinic", specialty: "Specialty", status: "Status", expiresAt: "Expires", users: "Users", branches: "Branches" },
+    createTitle: "Create clinic", createSubtitle: "The clinic starts on a 30-day trial. Its first admin receives an invitation.",
+    sectionClinic: "Clinic", sectionAdmin: "First clinic admin",
+    fields: {
+      nameAr: "Name (Arabic)", nameEn: "Name (English)", slug: "Slug", slugHint: "Lowercase letters, numbers and dashes.",
+      specialty: "Specialty", defaultLanguage: "Default language", timezone: "Timezone", adminName: "Admin full name", adminEmail: "Admin email",
+    },
+    created: "Clinic created", notFound: "Clinic not found",
+    tabs: { details: "Details", subscription: "Subscription & limits", modules: "Modules", users: "Users", branches: "Branches" },
+    detailsSaved: "Details saved",
+    subscription: {
+      status: "Status", expiry: "Expiry", byDuration: "Extend by duration", byDate: "Set exact date", durationMonths: "Months",
+      expiresOn: "Expiry date", currentExpiry: "Current expiry: {date}", maxUsers: "Max users", maxBranches: "Max branches",
+      usage: "Usage vs limits", usersUsage: "Users", branchesUsage: "Branches", saved: "Subscription saved",
+    },
+    modules: {
+      title: "Modules", body: "Turning a module off hides it from the clinic's menu and role editor.",
+      patients: "Patients", patientsBody: "Patient files, search and registration.", saved: "Module updated",
+    },
+    members: { name: "Name", email: "Email", role: "Role", branches: "Branches", status: "Status", allBranches: "All branches" },
+    memberStatus: { active: "Active", invited: "Invited", deactivated: "Deactivated" },
+    branchColumns: { name: "Branch", status: "Status" },
+    privacyNote: "Patient data is never shown in the platform area.",
+  },
+  validation: {
+    required: "Required", tooShort: "Too short", tooLong: "Too long", email: "Enter a valid email",
+    slug: "Use lowercase letters, numbers and dashes", number: "Enter a number", min: "Must be at least 1", dateRequired: "Pick a date",
+  },
+  errors: {
+    not_found: "Not found", slug_taken: "This slug is already used by another clinic",
+    limit_below_usage: "Limits cannot be lower than current usage", limit_reached: "The clinic limit has been reached",
+    forbidden: "You are not allowed to do this", module_disabled: "This module is turned off for the clinic",
+    validation: "Some fields are invalid", unknown: "Something went wrong",
+  },
+} as const;

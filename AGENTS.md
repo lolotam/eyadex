@@ -8,3 +8,15 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+## Architecture rules
+- Frontend only: no Lovable Cloud, no database, no server functions with business logic — a separate backend API comes later.
+- All data goes through the `ApiClient` interface (`src/shared/api/api-client.ts`) via `useApi()`; screens never import the mock adapter — so the adapter can be swapped for HTTP.
+- Zod schemas in top-level `contracts/` (alias `@contracts/*`) are the single source of types for forms and the API client.
+- Folders are named after the business (`src/platform`, `src/branches`, `src/users`, `src/roles`, `src/patients`, `src/audit`, `src/settings`, `src/shared`); never `utils/helpers/common/misc/services/models` — keeps the domain readable.
+- Route files are thin: head() + component re-export only — pages live in business folders.
+- UI visibility is driven by permission strings `action:resource:scope` via `can()`, never by role names — roles are user-editable.
+- All UI text goes through i18n keys (`src/shared/i18n`); use logical CSS (ps/pe/ms/me/start/end) only — Arabic RTL is the default.
+- Browser storage (persona, language, mock DB) is read in effects only — avoids SSR hydration mismatches.
+- `db/sql/*.sql` is documentation only and is never executed.
+- One component per file, max 300 lines per file.
