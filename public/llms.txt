@@ -12,7 +12,7 @@ Owners and medical directors of clinics in every specialty, with one branch or m
 - Basic patient files (no clinical notes yet).
 - An append-only audit log, including every time a patient file is opened.
 - Nothing is hard-deleted: users, branches and roles are deactivated, patients are archived.
-- Every clinic is isolated from every other inside the database itself. The Eyadex platform team has no access to patient data.
+- Every clinic is isolated from every other inside the database itself. The Eyadex platform team has no access to patient or client data.
 
 ## On the roadmap (no dates)
 Appointments and scheduling; sections and templates for each specialty; medical record; notifications by email, then WhatsApp; finance; a page for each clinic on its own address; an AI assistant.

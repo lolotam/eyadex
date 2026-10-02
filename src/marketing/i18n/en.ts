@@ -13,7 +13,7 @@ export const en: MkDict = {
   demo: { label: "Book a demo", text: "Hello, I'd like to book an Eyadex demo for my clinic." },
   hero: {
     h1: "Every file in your clinic, behind the right door.",
-    lead: "Eyadex is clinic management for every specialty and every branch: dermatology, psychiatry, OB/GYN and more. One fixed core for every clinic, extra sections for your specialty, and you decide who sees what.",
+    lead: "Eyadex is clinic management for every specialty and every branch, whether you serve patients or clients: dermatology, psychiatry, OB/GYN and more. One fixed core for every clinic, extra sections for your specialty, and you decide who sees what.",
     secondary: "Try the keys yourself",
     beat: "A quiet room. Protected files. A team that sees only what it needs.",
   },
@@ -22,7 +22,7 @@ export const en: MkDict = {
     lines: [
       "A patient file is not an ordinary file, whatever your specialty.",
       "Front desk in one branch has no reason to see another branch's patients.",
-      "And the company selling you the software has no reason to see them at all.",
+      "And the company selling you the software has no reason to see your patients and clients at all.",
     ],
   },
   keyring: {
@@ -124,7 +124,7 @@ export const en: MkDict = {
     h2: "Questions",
     items: [
       { q: "Who is Eyadex for?", a: "Clinics of every specialty, with one branch or many: dermatology, psychiatry, OB/GYN and more. The core is the same for everyone; sections for each specialty are on the roadmap." },
-      { q: "Can the Eyadex team see my patients' data?", a: "No. The platform account has no grant on the patients table in the database, so patient data never appears to it on any screen or log." },
+      { q: "Can the Eyadex team see my patients' and clients' data?", a: "No. The platform account has no access to patient or client data in the database, so that data never appears to it on any screen or log." },
       { q: "Is my clinic's data isolated from other clinics?", a: "Yes. Every record carries its clinic's identity, and the database itself refuses any request from one clinic for another clinic's data." },
       { q: "Does it support several branches?", a: "Yes. You add your branches and choose, for each user, the branches they work in or all of them." },
       { q: "Can I create my own roles?", a: "Yes. You start with ready roles (clinic admin, doctor, receptionist, technician), then edit them or build your own from the permission catalogue." },
@@ -136,7 +136,7 @@ export const en: MkDict = {
   },
   close: {
     h2: "Let's open the right door for your clinic.",
-    p: "A short walkthrough with our team. Then we set up your clinic and its branches and send the invitation to your clinic admin.",
+    p: "A short walkthrough with our team. Then we set up your clinic and its branches to serve your patients and clients, and invite your clinic admin.",
   },
   footer: { copyright: "© 2026 Eyadex" },
 };

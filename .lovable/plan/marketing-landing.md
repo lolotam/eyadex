@@ -40,7 +40,7 @@ Put this in `src/marketing/seo/marketing-head.ts` and use it from both routes' `
 
 **Arabic `/`**
 - title: `Eyadex | نظام إدارة العيادات متعددة التخصصات والفروع في الكويت`
-- description: `Eyadex نظام لإدارة العيادات بكل تخصصاتها وفروعها في الكويت: نفسية، جلدية، نساء وولادة وغيرها. فروع وأدوار وصلاحيات دقيقة وملفات مرضى محمية وسجل لكل من فتح ملفًا. احجز عرضًا.`
+- description: `Eyadex نظام لإدارة العيادات بكل تخصصاتها وفروعها في الكويت: نفسية، جلدية، نساء وولادة وغيرها. فروع وأدوار وصلاحيات دقيقة وملفات مراجعين محمية وسجل لكل من فتح ملفًا. احجز عرضًا.`
 
 **English `/en`**
 - title: `Eyadex | Clinic management software for every specialty in Kuwait`
@@ -155,15 +155,15 @@ Copy:
 - H1 ar: `كل ملف في عيادتك، خلف الباب الصحيح.`
 - H1 en: `Every file in your clinic, behind the right door.`
 - Lead ar: `Eyadex نظام لإدارة العيادات بكل تخصصاتها وفروعها: نفسية، جلدية، نساء وولادة وغيرها. أساس واحد ثابت لكل عيادة، وأقسام إضافية حسب تخصصك، وأنت تقرر من يرى ماذا.`
-- Lead en: `Eyadex is clinic management for every specialty and every branch: dermatology, psychiatry, OB/GYN and more. One fixed core for every clinic, extra sections for your specialty, and you decide who sees what.`
+- Lead en: `Eyadex is clinic management for every specialty and every branch, whether you serve patients or clients: dermatology, psychiatry, OB/GYN and more. One fixed core for every clinic, extra sections for your specialty, and you decide who sees what.`
 - Primary: `احجز عرضًا` / `Book a demo`. Secondary text link to `#keyring`: `جرّب المفاتيح بنفسك` / `Try the keys yourself`.
 - Second beat ar: `غرفة هادئة. ملفات محمية. وفريق يرى ما يحتاجه فقط.`
 - Second beat en: `A quiet room. Protected files. A team that sees only what it needs.`
 
 ### Act 2. The truth (pinned type). Feeling: unease
 Canvas ground, `200vh`, sticky stage. Three lines assemble one at a time (each enters `translateY(12px)`+opacity, previous lines dim to 35%), anchored to the inline-start column, large (h2 scale). Then an **authored silence**: ~40vh of empty canvas before Act 3.
-- ar: `ملف المريض ليس ملفًا عاديًا، أيًّا كان تخصصك.` / `موظف الاستقبال في فرع لا يحتاج مرضى فرع آخر.` / `ومن يبيعك النظام لا يحتاج أن يرى مرضاك أبدًا.`
-- en: `A patient file is not an ordinary file, whatever your specialty.` / `Front desk in one branch has no reason to see another branch's patients.` / `And the company selling you the software has no reason to see them at all.`
+- ar: `ملف المراجع ليس ملفًا عاديًا، أيًّا كان تخصصك.` / `موظف الاستقبال في فرع لا يحتاج إلى رؤية مراجعي فرع آخر.` / `ومن يبيعك النظام لا يحتاج أن يرى مراجعيك أبدًا.`
+- en: `A patient file is not an ordinary file, whatever your specialty.` / `Front desk in one branch has no reason to see another branch's patients.` / `And the company selling you the software has no reason to see your patients and clients at all.`
 - h2 (visually hidden, for the outline): `لماذا الخصوصية أولًا` / `Why privacy comes first`.
 
 ### Act 3. The Keyring (SIGNATURE MOVE + PEAK). Feeling: control, then surprise
@@ -174,16 +174,16 @@ Sub ar: `عيادة افتراضية ببيانات تجريبية. هذه هي 
 Sub en: `A fictional clinic with sample data. These are the default roles every new clinic starts with; you can edit them or build your own.`
 A small label on the panel: `بيانات تجريبية` / `Sample data`.
 
-Stage layout: inline-start column = a thin brass rail with the five key images hanging from it (`key-admin`, `key-doctor`, `key-receptionist`, `key-tech`, `key-team`), each a real `<button role="radio">` inside a `role="radiogroup"` with its role name under it (`مدير العيادة / Clinic admin`, `طبيب / Doctor`, `موظف استقبال / Receptionist`, `فني / Technician`, `فريق Eyadex / Eyadex team`). Selected key lifts 10px and swings 4deg, others dim to 55%. Inline-end column = a **real, computing** mini Eyadex window built with the app's own visual language (white surface, hairlines, teal active state, IBM Plex): a narrow sidebar (Overview, Branches, Users, Roles, Patients, Audit log, Settings), a patients table, and an open patient file panel.
+Stage layout: inline-start column = a thin brass rail with the five key images hanging from it (`key-admin`, `key-doctor`, `key-receptionist`, `key-tech`, `key-team`), each a real `<button role="radio">` inside a `role="radiogroup"` with its role name under it (`مدير العيادة / Clinic admin`, `طبيب / Doctor`, `موظف استقبال / Receptionist`, `فني / Technician`, `فريق Eyadex / Eyadex team`). Selected key lifts 10px and swings 4deg, others dim to 55%. Inline-end column = a **real, computing** mini Eyadex window built with the app's own visual language (white surface, hairlines, teal active state, IBM Plex): a narrow sidebar (Overview, Branches, Users, Roles, المراجعون / Patients, Audit log, Settings), a patients table, and an open patient file panel.
 
 Logic (pure functions in `src/marketing/keyring/keyring-model.ts`, unit-testable):
 - Import `PERMISSION_CATALOG` from `@contracts/permissions` and `ROLE_TEMPLATES` from `src/shared/api/mock/seed-roles.ts` (pure data only, never the mock store or ApiClient), so the demo always matches the real defaults.
 - Sample clinic: `مجمع السكينة الطبي (عيّنة) / Al Sakina Medical Centre (sample)`, branches `السالمية / Salmiya` and `حولي / Hawalli`. Sample personas: Clinic admin (all branches), Doctor (Salmiya), Receptionist (Salmiya), Technician (Hawalli).
 - Six sample patients, three per branch, fictional names, file numbers 1041..1046, phones masked like `+965 5••• ••37`, no civil ID, no clinical data.
 - For the chosen key compute: visible sidebar items (from `view:*` permissions), visible rows (clinic scope = all; branch scope = rows in the persona's branches; others render as a frosted row with the text `خارج فروعك / Outside your branches`), and which buttons exist (`New patient` needs create, `Edit` needs update, `Archive` needs deactivate). Buttons that are not allowed are absent, not disabled.
-- Under the window, one caption line generated from the computed result, e.g. ar `يرى مرضى فرع السالمية فقط، ويستطيع الإضافة والتعديل.`, en `Sees Salmiya patients only, and can add and edit.` (build from parts, both languages, so it is always true to ROLE_TEMPLATES).
+- Under the window, one caption line generated from the computed result, e.g. ar `يرى مراجعي فرع السالمية فقط، ويستطيع الإضافة والتعديل.`, en `Sees Salmiya patients only, and can add and edit.` (build from parts, both languages, so it is always true to ROLE_TEMPLATES).
 - Each time a key that can view is selected, the sample file 1042 opens and a line is appended to a small ledger under the window: `{persona} فتح ملف 1042 · الآن` / `{persona} opened file 1042 · just now` (max 4 lines, newest first). For a key whose branch scope excludes 1042, open the first patient it can see instead. This shows the audit log of patient access.
-- **The Eyadex team key (the peak):** the platform has no grant on patients. The whole patient area frosts over (rows, file, buttons), the sidebar shrinks to Overview only, and a stamp appears in the middle with a small lock icon: ar `مرفوض من قاعدة البيانات نفسها.` + `فريق Eyadex يدير اشتراك عيادتك، ولا يملك أي صلاحية على جدول المرضى.` en `Refused by the database itself.` + `The Eyadex team manages your clinic's subscription and has no grant on the patients table.` The ledger adds no line (nothing was opened).
+- **The Eyadex team key (the peak):** the platform has no grant on patient data. The whole patient area frosts over (rows, file, buttons), the sidebar shrinks to Overview only, and a stamp appears in the middle with a small lock icon: ar `مرفوض من قاعدة البيانات نفسها.` + `فريق Eyadex يدير اشتراك عيادتك، ولا يملك أي صلاحية للوصول إلى بيانات المراجعين.` en `Refused by the database itself.` + `The Eyadex team manages your clinic's subscription and has no grant on the patients table.` The ledger adds no line (nothing was opened).
 - Desktop scroll drives the key in order admin → doctor → receptionist → technician → team, with the team key owning the last 40% of the span (the peak gets the most room). Clicking a key selects it immediately; scrolling only changes the key when the progress crosses into a new segment. Keyboard: arrow keys move within the radiogroup.
 - Frost transitions: 280ms opacity + backdrop-filter, rows staggered 40ms.
 
@@ -193,21 +193,21 @@ Not pinned. Two-column layout: inline-start has the heading and paragraph; inlin
 - h2 ar `أساس واحد لكل العيادات. وتخصصك فوقه.` en `One core for every clinic. Your specialty on top.`
 - p ar `كل عيادة تحصل على الأساس نفسه من اليوم الأول. ومع كل تخصص تأتي أقسام إضافية تناسب طريقة عمله، دون أن يتغير شيء في الأساس.` en `Every clinic gets the same core from day one. Each specialty adds sections that fit how it works, without changing anything in the core.`
 - Selector: نفسية / Psychiatry · جلدية / Dermatology · نساء وولادة / OB/GYN · عيادة عامة / General practice. These names must be present in SSR text.
-- Core band, always unchanged: الفروع، الفريق، الأدوار والصلاحيات، ملفات المرضى، سجل التدقيق، الاشتراك / Branches, Team, Roles and permissions, Patient files, Audit log, Subscription.
+- Core band, always unchanged: الفروع، الفريق، الأدوار والصلاحيات، ملفات المراجعين، سجل التدقيق، الاشتراك / Branches, Team, Roles and permissions, Patient files, Audit log, Subscription.
 - Specialty band, labelled `حسب التخصص / By specialty`; every item carries `على خارطة الطريق / On the roadmap`: نفسية = الجلسات وملاحظات الطبيب، خطط العلاج / Sessions and doctor notes, Treatment plans; جلدية = صور قبل وبعد، جلسات الليزر والإجراءات / Before and after photos, Laser and procedure sessions; نساء وولادة = متابعة الحمل، مواعيد السونار / Pregnancy follow-up, Ultrasound visits; عيادة عامة = الزيارات والوصفات / Visits and prescriptions.
 
 ### Act 4. How it holds. Feeling: confidence
 Two parts, different devices.
 
-**4a. The plan draws itself.** A pinned (`220vh`) SVG line drawing of a clinic floor plan: the outer clinic outline draws first, then it splits into two branch wings, then rooms and doors. `stroke-dashoffset` from `--p`, 1.5px teal strokes on canvas, no fill. Three callouts arrive at their parts of the drawing (HTML text, not SVG text), asymmetric, not cards. Each callout = a short heading + a body paragraph:
+**4a. The plan draws itself.** A pinned (`220vh`) SVG line drawing of a clinic floor plan, sized about `55vw` (max 760px) on desktop and `92vw` on mobile. A substantial outer outline is visible on arrival, the first room completes by p 0.10, then the plan splits into branch wings and draws rooms and doors through p 0.75. `stroke-dashoffset` from `--p`, 1.5px teal strokes on canvas, no fill. Three callouts arrive at their parts of the drawing (HTML text, not SVG text), asymmetric, not cards. Each callout = a short heading + a body paragraph:
 - Heading ar `عيادة، ثم فروع.` Body ar `مستويان فقط وواضحان: العيادة وفروعها. لكل شخص في فريقك الفروع التي تسمح له بها، أو كل الفروع.` Heading en `A clinic, then branches.` Body en `Two clear levels: the clinic and its branches. Each person on your team works in the branches you allow, or in all of them.`
 - Heading ar `أدوار تبنيها أنت.` Body ar `اختر من كتالوج واضح: عرض، إضافة، تعديل، تعطيل، لكل قسم، على مستوى العيادة كلها أو فروع الشخص فقط. التعديل يسري فورًا.` Heading en `Roles you build.` Body en `Pick from a clear catalogue: view, add, edit, deactivate, per module, for the whole clinic or only the person's own branches. Changes apply immediately.`
-- Heading ar `لا شيء يُحذف نهائيًا.` Body ar `المستخدمون والفروع والأدوار تُعطَّل، وملفات المرضى تُؤرشف. السجل يبقى كاملًا.` Heading en `Nothing is hard-deleted.` Body en `Users, branches and roles are deactivated, patient files are archived. The record stays whole.`
+- Heading ar `لا شيء يُحذف نهائيًا.` Body ar `المستخدمون والفروع والأدوار تُعطَّل، وملفات المراجعين تُؤرشف. السجل يبقى كاملًا.` Heading en `Nothing is hard-deleted.` Body en `Users, branches and roles are deactivated, patient files are archived. The record stays whole.`
 
 **4b. The corridor (parallax + ledger).** Full-bleed `corridor.webp` with slow parallax (image translates 8vh across the section) and a frosted caption plate on the inline-start side (mask the image away from the plate, no scrim):
 - h2 ar `كل باب يُفتح لمن تختاره فقط.` en `Every door opens only for the people you choose.`
-- p ar `سجل تدقيق للإضافة فقط: من غيّر دورًا، من أوقف مستخدمًا، ومن فتح ملف مريض ومتى. لا يُعدَّل ولا يُحذف.` en `An append-only audit log: who changed a role, who deactivated a user, who opened a patient file and when. It cannot be edited or deleted.`
-- Below the plate, a ledger that writes itself line by line when in view (60ms stagger, monospace allowed here because it is data, tabular numerals), labelled Sample data: `09:12  مدير العيادة  عدّل دور «طبيب»` / `09:40  د. سارة  فتحت ملف 1042` / `10:05  مدير العيادة  أضاف فرع حولي` / `10:31  موظفة الاستقبال  سجّلت مريضًا جديدًا 1046` (English: `09:12  Clinic admin  edited role "Doctor"` / `09:40  Dr. Sara  opened file 1042` / `10:05  Clinic admin  added branch Hawalli` / `10:31  Receptionist  registered new patient 1046`).
+- p ar `سجل تدقيق للإضافة فقط: من غيّر دورًا، من أوقف مستخدمًا، ومن فتح ملف مراجع ومتى. لا يُعدَّل ولا يُحذف.` en `An append-only audit log: who changed a role, who deactivated a user, who opened a patient file and when. It cannot be edited or deleted.`
+- Below the plate, a ledger that writes itself line by line when in view (60ms stagger, monospace allowed here because it is data, tabular numerals), labelled Sample data: `09:12  مدير العيادة  عدّل دور «طبيب»` / `09:40  د. سارة  فتحت ملف 1042` / `10:05  مدير العيادة  أضاف فرع حولي` / `10:31  موظفة الاستقبال  سجّلت مراجعًا جديدًا 1046` (English: `09:12  Clinic admin  edited role "Doctor"` / `09:40  Dr. Sara  opened file 1042` / `10:05  Clinic admin  added branch Hawalli` / `10:31  Receptionist  registered new patient 1046`).
 - One more short line under it: ar `وكل عيادة معزولة عن غيرها داخل قاعدة البيانات نفسها، لا في الواجهة فقط.` en `And every clinic is isolated from every other inside the database itself, not just in the interface.`
 - One plain sentence on subscriptions (no card): ar `ترى دائمًا عدد مستخدميك وفروعك مقابل حدود اشتراكك، وتصلك تنبيهات قبل انتهائه.` en `You always see your users and branches against your subscription limits, with reminders before it ends.`
 
@@ -220,19 +220,19 @@ Short, quiet, two-column on desktop (heading + intro in one column, list in the 
 ### Act 7. Questions (FAQ, also JSON-LD). Feeling: reassurance
 shadcn `Accordion`, single column, max 760px, h2 ar `أسئلة شائعة` en `Questions`. Answers must be present in the SSR HTML (collapsed content still in the DOM).
 1. `لمن صُمّم Eyadex؟` / `للعيادات بكل تخصصاتها، بفرع واحد أو أكثر: نفسية وجلدية ونساء وولادة وغيرها. الأساس واحد للجميع، والأقسام الخاصة بكل تخصص على خارطة الطريق.` | `Who is Eyadex for?` / `Clinics of every specialty, with one branch or many: dermatology, psychiatry, OB/GYN and more. The core is the same for everyone; sections for each specialty are on the roadmap.`
-2. `هل يستطيع فريق Eyadex رؤية بيانات مرضاي؟` / `لا. حساب المنصة لا يملك أي صلاحية على جدول المرضى في قاعدة البيانات، فلا تظهر بيانات المرضى له في أي شاشة أو سجل.` | `Can the Eyadex team see my patients' data?` / `No. The platform account has no grant on the patients table in the database, so patient data never appears to it on any screen or log.`
+2. `هل يستطيع فريق Eyadex رؤية بيانات مراجعي عيادتي؟` / `لا. حساب المنصة لا يملك أي صلاحية للوصول إلى بيانات المراجعين في قاعدة البيانات، فلا تظهر له في أي شاشة أو سجل.` | `Can the Eyadex team see my patients' and clients' data?` / `No. The platform account has no access to patient or client data in the database, so that data never appears to it on any screen or log.`
 3. `هل بيانات عيادتي معزولة عن العيادات الأخرى؟` / `نعم. كل سجل يحمل هوية عيادته، وقاعدة البيانات نفسها ترفض أي طلب من عيادة على بيانات عيادة أخرى.` | `Is my clinic's data isolated from other clinics?` / `Yes. Every record carries its clinic's identity, and the database itself refuses any request from one clinic for another clinic's data.`
 4. `هل يدعم أكثر من فرع؟` / `نعم. تضيف فروعك، وتحدد لكل مستخدم الفروع التي يعمل بها أو كل الفروع.` | `Does it support several branches?` / `Yes. You add your branches and choose, for each user, the branches they work in or all of them.`
 5. `هل أستطيع إنشاء أدوار خاصة بعيادتي؟` / `نعم. تبدأ بأدوار جاهزة (مدير العيادة، طبيب، موظف استقبال، فني) ثم تعدلها أو تنشئ أدوارك من كتالوج الصلاحيات.` | `Can I create my own roles?` / `Yes. You start with ready roles (clinic admin, doctor, receptionist, technician), then edit them or build your own from the permission catalogue.`
 6. `هل الواجهة بالعربية؟` / `العربية هي اللغة الافتراضية مع دعم كامل للإنجليزية، وكل مستخدم يختار لغته.` | `Is the interface in Arabic?` / `Arabic is the default, with full English support, and every user picks their own language.`
 7. `كيف أبدأ؟` / `احجز عرضًا. بعد الحديث معك نجهز عيادتك وفروعها، ونرسل دعوة لمدير العيادة ليضع كلمة مروره بنفسه.` | `How do I get started?` / `Book a demo. After we talk, we set up your clinic and its branches and send an invitation to your clinic admin, who sets their own password.`
-8. `ما الذي يتضمنه الآن؟` / `الأساس: العيادات والفروع والمستخدمون والأدوار والصلاحيات وملفات المرضى الأساسية وسجل التدقيق. المواعيد والجلسات والمالية على خارطة الطريق.` | `What does it include today?` / `The foundation: clinics, branches, users, roles and permissions, basic patient files and the audit log. Appointments, sessions and finance are on the roadmap.`
-9. `هل يناسب عيادتي الجلدية أو عيادة النساء والولادة؟` / `نعم. الأساس من فروع وأدوار وصلاحيات وملفات مرضى وسجل يعمل لكل التخصصات اليوم، والأقسام الخاصة بتخصصك تُضاف فوقه.` | `Will it fit my dermatology or OB/GYN clinic?` / `Yes. The core (branches, roles, permissions, patient files and the log) works for every specialty today, and your specialty's sections are added on top.`
+8. `ما الذي يتضمنه الآن؟` / `الأساس: العيادات والفروع والمستخدمون والأدوار والصلاحيات وملفات المراجعين الأساسية وسجل التدقيق. المواعيد والجلسات والمالية على خارطة الطريق.` | `What does it include today?` / `The foundation: clinics, branches, users, roles and permissions, basic patient files and the audit log. Appointments, sessions and finance are on the roadmap.`
+9. `هل يناسب عيادتي الجلدية أو عيادة النساء والولادة؟` / `نعم. الأساس من فروع وأدوار وصلاحيات وملفات مراجعين وسجل يعمل لكل التخصصات اليوم، والأقسام الخاصة بتخصصك تُضاف فوقه.` | `Will it fit my dermatology or OB/GYN clinic?` / `Yes. The core (branches, roles, permissions, patient files and the log) works for every specialty today, and your specialty's sections are added on top.`
 
 ### Act 8. The door opens (close). Feeling: resolution, invitation
 Full-bleed `close.webp` (golden hour, open door), `140vh` with a gentle pin: the image settles from scale 1.06 to 1 while a frosted plate on the inline-start side resolves. The page ENDS here (it does not fade into a footer).
 - h2 ar `لنفتح الباب الصحيح لعيادتك.` en `Let's open the right door for your clinic.`
-- p ar `عرض قصير مع فريقنا. بعده نجهز عيادتك وفروعها، ونرسل الدعوة لمدير العيادة.` en `A short walkthrough with our team. Then we set up your clinic and its branches and send the invitation to your clinic admin.`
+- p ar `عرض قصير مع فريقنا. بعده نجهز عيادتك وفروعها، ونرسل الدعوة لمدير العيادة.` en `A short walkthrough with our team. Then we set up your clinic and its branches to serve your patients and clients, and invite your clinic admin.`
 - The primary button **احجز عرضًا / Book a demo** (larger here), plus the email as plain text.
 Footer under it, small and quiet: lockup, `© 2026 Eyadex`, language link, Sign in link.
 

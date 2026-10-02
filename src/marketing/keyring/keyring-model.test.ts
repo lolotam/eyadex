@@ -39,7 +39,7 @@ describe("keyring model", () => {
   it("captions read true in both languages", () => {
     const v = computeView("doctor");
     expect(buildCaption(v, ar.keyring.caption, (b) => ar.keyring.branches[b])).toBe(
-      "يرى مرضى فرع السالمية فقط، ويستطيع الإضافة والتعديل.",
+      "يرى مراجعي فرع السالمية فقط، ويستطيع الإضافة والتعديل.",
     );
     expect(buildCaption(v, en.keyring.caption, (b) => en.keyring.branches[b])).toBe(
       "Sees Salmiya patients only, and can add and edit.",
