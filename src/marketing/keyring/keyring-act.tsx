@@ -61,7 +61,9 @@ export function KeyringAct() {
     else {
       const next = e.key === "ArrowDown" || e.key === (rtl ? "ArrowLeft" : "ArrowRight");
       const step = next ? 1 : -1;
-      idx = (KEY_ORDER.indexOf(key) + step + KEY_ORDER.length) % KEY_ORDER.length;
+      const focusedIndex = keyRefs.current.indexOf(e.target as HTMLButtonElement);
+      const currentIndex = focusedIndex >= 0 ? focusedIndex : KEY_ORDER.indexOf(key);
+      idx = (currentIndex + step + KEY_ORDER.length) % KEY_ORDER.length;
     }
     const nextKey = KEY_ORDER[idx];
     if (!nextKey) return;
