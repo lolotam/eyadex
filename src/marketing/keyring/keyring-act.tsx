@@ -50,12 +50,18 @@ export function KeyringAct() {
   const caption = buildCaption(view, k.caption, (b) => k.branches[b]);
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    const forward = ["ArrowDown", "ArrowLeft", "ArrowRight", "ArrowUp"];
-    if (!forward.includes(e.key)) return;
+    const handled = ["ArrowDown", "ArrowLeft", "ArrowRight", "ArrowUp", "Home", "End"];
+    if (!handled.includes(e.key)) return;
     e.preventDefault();
     const rtl = getComputedStyle(e.currentTarget).direction === "rtl";
-    const step = e.key === "ArrowDown" || e.key === (rtl ? "ArrowLeft" : "ArrowRight") ? 1 : -1;
-    const idx = (KEY_ORDER.indexOf(key) + step + KEY_ORDER.length) % KEY_ORDER.length;
+    let idx: number;
+    if (e.key === "Home") idx = 0;
+    else if (e.key === "End") idx = KEY_ORDER.length - 1;
+    else {
+      const next = e.key === "ArrowDown" || e.key === (rtl ? "ArrowLeft" : "ArrowRight");
+      const step = next ? 1 : -1;
+      idx = (KEY_ORDER.indexOf(key) + step + KEY_ORDER.length) % KEY_ORDER.length;
+    }
     select(KEY_ORDER[idx]!);
     keyRefs.current[idx]?.focus();
   };
