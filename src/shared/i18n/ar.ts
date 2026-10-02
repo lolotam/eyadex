@@ -5,7 +5,8 @@ export const ar: Dictionary = {
   common: {
     save: "حفظ", cancel: "إلغاء", create: "إنشاء", search: "بحث", all: "الكل", loading: "جارٍ التحميل…",
     next: "التالي", previous: "السابق", back: "رجوع", saved: "تم الحفظ", retry: "إعادة المحاولة", noResults: "لا توجد نتائج",
-    active: "نشط", inactive: "غير نشط", open: "فتح", showing: "عرض {count} من {total}", readOnly: "للعرض فقط",
+    active: "نشط", inactive: "غير نشط", open: "فتح", edit: "تعديل", confirm: "تأكيد", actions: "الإجراءات",
+    showing: "عرض {count} من {total}", readOnly: "للعرض فقط", optional: "اختياري", tryAgain: "حاول مرة أخرى",
   },
   language: { ar: "العربية", en: "English", switch: "اللغة" },
   persona: {
@@ -53,8 +54,23 @@ export const ar: Dictionary = {
     },
     members: { name: "الاسم", email: "البريد", role: "الدور", branches: "الفروع", status: "الحالة", allBranches: "كل الفروع" },
     memberStatus: { active: "نشط", invited: "مدعو", deactivated: "معطّل" },
-    branchColumns: { name: "الفرع", status: "الحالة" },
+    branchColumns: { name: "الفرع", address: "العنوان", phone: "الهاتف", status: "الحالة" },
     privacyNote: "بيانات المرضى لا تظهر أبدًا في منطقة المنصة.",
+  },
+  branches: {
+    title: "الفروع", subtitle: "إدارة المواقع التي تعمل فيها العيادة.", new: "فرع جديد",
+    usage: "{active} من {limit} فروع نشطة", searchPlaceholder: "ابحث باسم الفرع", anyStatus: "كل الحالات",
+    columns: { name: "الفرع", address: "العنوان", phone: "الهاتف", status: "الحالة", actions: "الإجراءات" },
+    createTitle: "إنشاء فرع", createSubtitle: "أضف موقعًا جديدًا لهذه العيادة.",
+    editTitle: "تعديل الفرع", editSubtitle: "حدّث بيانات التواصل لهذا الموقع.",
+    fields: { nameAr: "الاسم (عربي)", nameEn: "الاسم (إنجليزي)", address: "العنوان (اختياري)", phone: "الهاتف (اختياري)" },
+    created: "تم إنشاء الفرع", updated: "تم تحديث الفرع", deactivated: "تم إيقاف الفرع", reactivated: "تم تفعيل الفرع",
+    deactivate: "إيقاف", reactivate: "إعادة تفعيل", deactivateTitle: "إيقاف الفرع؟",
+    deactivateBody: "لن يُحتسب هذا الفرع ضمن حد الفروع النشطة، وستبقى سجلاته الحالية محفوظة.",
+    reactivateTitle: "إعادة تفعيل الفرع؟", reactivateBody: "سيصبح هذا الفرع متاحًا مجددًا ويُحتسب ضمن حد الفروع النشطة.",
+    emptyTitle: "لا توجد فروع", emptyBody: "جرّب تغيير البحث أو فلتر الحالة.",
+    loadError: "تعذّر تحميل الفروع.", limitReached: "تم بلوغ حد الفروع النشطة ({active} من {limit}). تواصل مع المنصة لزيادته.",
+    lastActive: "لا يمكن إيقاف آخر فرع نشط للعيادة.",
   },
   validation: {
     required: "مطلوب", tooShort: "قصير جدًا", tooLong: "طويل جدًا", email: "أدخل بريدًا صحيحًا",
@@ -64,6 +80,7 @@ export const ar: Dictionary = {
     not_found: "غير موجود", slug_taken: "هذا المعرّف مستخدم لعيادة أخرى",
     limit_below_usage: "لا يمكن أن تكون الحدود أقل من الاستخدام الحالي", limit_reached: "تم الوصول للحد المسموح للعيادة",
     forbidden: "غير مسموح لك بهذا الإجراء", module_disabled: "هذا الموديول متوقف لهذه العيادة",
+    last_active_branch: "لا يمكن إيقاف آخر فرع نشط للعيادة",
     validation: "بعض الحقول غير صحيحة", unknown: "حدث خطأ ما",
   },
 };

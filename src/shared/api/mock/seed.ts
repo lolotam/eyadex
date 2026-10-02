@@ -40,7 +40,7 @@ export function buildSeed(): MockState {
   const makeId = idFactory();
   const now = Date.now();
   const state: MockState = {
-    clinics: [], features: {}, branches: [], roles: [], members: [], invitations: [], patients: [], platformAudit: [],
+    clinics: [], features: {}, branches: [], roles: [], members: [], invitations: [], patients: [], platformAudit: [], clinicAudit: [],
   };
 
   CLINICS.forEach((c, ci) => {
@@ -58,7 +58,11 @@ export function buildSeed(): MockState {
 
     const branches: Branch[] = [0, 1].map((bi) => {
       const pair = BRANCH_NAMES[ci * 2 + bi] ?? BRANCH_NAMES[0];
-      return { id: makeId(), clinicId, nameAr: pair[0], nameEn: pair[1], isActive: true, createdAt };
+      return {
+        id: makeId(), clinicId, nameAr: pair[0], nameEn: pair[1],
+        address: bi === 0 ? "شارع الخليج العربي، الكويت" : "شارع بيروت، الكويت",
+        phone: `+965 22${ci + 1}${bi + 1} 0000`, isActive: true, createdAt,
+      };
     });
     state.branches.push(...branches);
 
