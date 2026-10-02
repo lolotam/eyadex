@@ -28,7 +28,7 @@ const BRANCH_NAMES = [
 const STAFF = [
   { key: "clinic_admin", name: "Noura Al-Sabah", local: "admin" },
   { key: "doctor", name: "Dr. Khaled Al-Mutairi", local: "khaled" },
-  { key: "cashier", name: "Mariam Al-Enezi", local: "mariam" },
+  { key: "receptionist", name: "Mariam Al-Enezi", local: "mariam" },
   { key: "technician", name: "Yousef Al-Rashidi", local: "yousef" },
   { key: "doctor", name: "Dr. Huda Al-Kandari", local: "huda" },
 ] as const;

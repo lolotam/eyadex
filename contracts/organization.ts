@@ -50,7 +50,7 @@ export const clinicAuditEntrySchema = z.object({
 });
 export type ClinicAuditEntry = z.infer<typeof clinicAuditEntrySchema>;
 
-export const systemRoleKeySchema = z.enum(["clinic_admin", "doctor", "cashier", "technician"]);
+export const systemRoleKeySchema = z.enum(["clinic_admin", "doctor", "receptionist", "technician"]);
 export type SystemRoleKey = z.infer<typeof systemRoleKeySchema>;
 
 export const roleSchema = z.object({

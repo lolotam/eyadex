@@ -7,7 +7,7 @@ import { useScrollProgress } from "../motion/use-scroll-progress";
 import { buildCaption, computeView, KEY_ORDER, type KeyId } from "./keyring-model";
 import { KeyringWindow } from "./keyring-window";
 
-/** Admin, doctor, cashier, technician share the first 60%; the team key (the peak) owns the last 40%. */
+/** Admin, doctor, receptionist, technician share the first 60%; the team key owns the last 40%. */
 function segmentFor(p: number): number {
   return p >= 0.6 ? 4 : Math.min(3, Math.floor(p / 0.15));
 }
@@ -42,7 +42,8 @@ export function KeyringAct() {
       const s = segmentFor(p);
       if (s === seg.current) return;
       seg.current = s;
-      select(KEY_ORDER[s]!);
+      const nextKey = KEY_ORDER[s];
+      if (nextKey) select(nextKey);
     },
   });
 
@@ -62,7 +63,9 @@ export function KeyringAct() {
       const step = next ? 1 : -1;
       idx = (KEY_ORDER.indexOf(key) + step + KEY_ORDER.length) % KEY_ORDER.length;
     }
-    select(KEY_ORDER[idx]!);
+    const nextKey = KEY_ORDER[idx];
+    if (!nextKey) return;
+    select(nextKey);
     keyRefs.current[idx]?.focus();
   };
 

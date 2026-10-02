@@ -23,3 +23,4 @@
 - One component per file, max 300 lines per file.
 - The visual system uses flat clinical surfaces, compact 8px-or-less radii, thin borders, and semantic tokens; deep teal is reserved for actions, active states, and focus — keeping dense administration screens calm and scannable.
 - Marketing site (/ and /en, src/marketing, scoped .mk styles): follow .lovable/plan/marketing-landing.md.
+- Eyadex serves every clinic specialty with one shared core; specialty-specific sections are roadmap additions, and the default front-desk role key is `receptionist`.

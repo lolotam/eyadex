@@ -1,11 +1,11 @@
 import { PERMISSION_CATALOG, type PermissionAction, type PermissionResource } from "@contracts/permissions";
 import { ROLE_TEMPLATES } from "@/shared/api/mock/seed-roles";
 
-export type KeyId = "admin" | "doctor" | "cashier" | "tech" | "team";
+export type KeyId = "admin" | "doctor" | "receptionist" | "tech" | "team";
 export type BranchId = "salmiya" | "hawalli";
 export type SidebarItem = "overview" | PermissionResource;
 
-export const KEY_ORDER: readonly KeyId[] = ["admin", "doctor", "cashier", "tech", "team"];
+export const KEY_ORDER: readonly KeyId[] = ["admin", "doctor", "receptionist", "tech", "team"];
 export const BRANCHES: readonly BranchId[] = ["salmiya", "hawalli"];
 export const SIDEBAR_ORDER: readonly SidebarItem[] = [
   "overview", "branches", "users", "roles", "patients", "audit_log", "clinic_settings",
@@ -17,7 +17,7 @@ type SamplePersona = { permissions: readonly string[]; branches: readonly Branch
 export const SAMPLE_PERSONAS: Record<KeyId, SamplePersona> = {
   admin: { permissions: ROLE_TEMPLATES.clinic_admin.permissions, branches: BRANCHES },
   doctor: { permissions: ROLE_TEMPLATES.doctor.permissions, branches: ["salmiya"] },
-  cashier: { permissions: ROLE_TEMPLATES.cashier.permissions, branches: ["salmiya"] },
+  receptionist: { permissions: ROLE_TEMPLATES.receptionist.permissions, branches: ["salmiya"] },
   tech: { permissions: ROLE_TEMPLATES.technician.permissions, branches: ["hawalli"] },
   /** The platform has no grant on any clinic resource. */
   team: { permissions: [], branches: [] },
@@ -83,6 +83,8 @@ export function buildCaption(view: KeyringView, c: CaptionParts, branchName: (b:
     (x): x is string => Boolean(x),
   );
   if (abilities.length === 0) return subject + c.viewOnly;
-  const list = abilities.length === 1 ? abilities[0]! : `${abilities.slice(0, -1).join(c.sep)}${c.and}${abilities.at(-1)}`;
+  const firstAbility = abilities[0];
+  if (!firstAbility) return subject + c.viewOnly;
+  const list = abilities.length === 1 ? firstAbility : `${abilities.slice(0, -1).join(c.sep)}${c.and}${abilities.at(-1)}`;
   return subject + c.can.replace("{list}", list);
 }

@@ -16,9 +16,9 @@ export const ROLE_TEMPLATES: Record<SystemRoleKey, RoleTemplate> = {
     isLocked: false,
     permissions: ["view:patients:branch", "create:patients:branch", "update:patients:branch"],
   },
-  cashier: {
-    nameAr: "كاشير",
-    nameEn: "Cashier",
+  receptionist: {
+    nameAr: "موظف استقبال",
+    nameEn: "Receptionist",
     isLocked: false,
     permissions: ["view:patients:branch", "create:patients:branch"],
   },
@@ -30,7 +30,7 @@ export const ROLE_TEMPLATES: Record<SystemRoleKey, RoleTemplate> = {
   },
 };
 
-export const SYSTEM_ROLE_KEYS: SystemRoleKey[] = ["clinic_admin", "doctor", "cashier", "technician"];
+export const SYSTEM_ROLE_KEYS: SystemRoleKey[] = ["clinic_admin", "doctor", "receptionist", "technician"];
 
 export function buildSystemRoles(clinicId: string, makeId: () => string): Role[] {
   return SYSTEM_ROLE_KEYS.map((key) => {
