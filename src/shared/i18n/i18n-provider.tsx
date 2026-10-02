@@ -27,7 +27,8 @@ function interpolate(text: string, vars?: Vars): string {
   return text.replace(/\{(\w+)\}/g, (_, name: string) => String(vars[name] ?? `{${name}}`));
 }
 
-export function I18nProvider({ children }: { children: ReactNode }) {
+/** manageDocument=false while a marketing route owns <html lang/dir>. */
+export function I18nProvider({ children, manageDocument = true }: { children: ReactNode; manageDocument?: boolean }) {
   const [lang, setLangState] = useState<Language>("ar");
 
   useEffect(() => {
@@ -36,9 +37,10 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (!manageDocument) return;
     document.documentElement.lang = lang;
     document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
-  }, [lang]);
+  }, [lang, manageDocument]);
 
   const setLang = useCallback((next: Language) => {
     setLangState(next);
