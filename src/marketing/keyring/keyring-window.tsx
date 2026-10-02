@@ -51,13 +51,17 @@ export function KeyringWindow({ view }: { view: KeyringView }) {
                     className={`${visible ? "" : "is-frost"}${patient.file === view.openFile ? " is-open" : ""}`}
                     style={{ "--i": i } as CSSProperties}
                   >
-                    <td className="mk-num">{patient.file}</td>
-                    <td>{k.patients[patient.index]}</td>
-                    <td>{k.branches[patient.branch]}</td>
-                    <td className="mk-num" dir="ltr">{patient.phone}</td>
-                    {!visible && (
-                      <td className="mk-win-outside" aria-hidden={view.refused}>
-                        {k.outside}
+                    {visible ? (
+                      <>
+                        <td className="mk-num">{patient.file}</td>
+                        <td>{k.patients[patient.index]}</td>
+                        <td>{k.branches[patient.branch]}</td>
+                        <td className="mk-num" dir="ltr">{patient.phone}</td>
+                      </>
+                    ) : (
+                      <td colSpan={4} className="mk-win-outside">
+                        <span className="mk-frost-bar" aria-hidden="true" />
+                        {!view.refused && <span>{k.outside}</span>}
                       </td>
                     )}
                   </tr>
