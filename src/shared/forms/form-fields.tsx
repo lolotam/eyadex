@@ -73,7 +73,7 @@ export function SelectField<T extends FieldValues>({ control, name, label, disab
       render={({ field }) => (
         <FormItem>
           <FormLabel>{label}</FormLabel>
-          <Select value={field.value} onValueChange={field.onChange} disabled={disabled}>
+          <Select value={field.value} onValueChange={field.onChange} disabled={disabled ?? false}>
             <FormControl>
               <SelectTrigger>
                 <SelectValue />
