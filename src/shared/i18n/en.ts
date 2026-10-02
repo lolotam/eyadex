@@ -9,7 +9,7 @@ export const en = {
   language: { ar: "العربية", en: "English", switch: "Language" },
   persona: {
     label: "Signed in as", switch: "Switch persona", clinic: "Clinic", chooseClinic: "Choose a clinic",
-    platform_admin: "Platform Admin", clinic_admin: "Clinic Admin", doctor: "Doctor", cashier: "Cashier", technician: "Technician",
+    platform_admin: "Platform Admin", clinic_admin: "Clinic Admin", doctor: "Doctor", receptionist: "Receptionist", technician: "Technician",
     demoNote: "Demo sign-in. No passwords.", signOut: "Sign out",
   },
   nav: {
@@ -26,7 +26,7 @@ export const en = {
     expiredBody: "Sign-in is disabled until the subscription is renewed. Please contact the platform administrator.",
     toSignIn: "Back to sign-in",
   },
-  landing: { title: "Choose how to enter", body: "Pick a persona to explore the demo." , enter: "Enter" },
+  landing: { title: "Choose how to enter", body: "Explore the shared clinic-management core for every specialty with the right persona.", enter: "Enter" },
   clinicStatus: { trial: "Trial", active: "Active", suspended: "Suspended" },
   specialty: { psychiatry: "Psychiatry", psychology: "Psychology", dental: "Dental", dermatology: "Dermatology", general: "General practice" },
   clinics: {

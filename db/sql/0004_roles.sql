@@ -4,7 +4,7 @@
 CREATE TABLE roles (
   clinic_id  uuid NOT NULL REFERENCES clinics (id),
   id         uuid NOT NULL,
-  system_key text NULL CHECK (system_key IN ('clinic_admin','doctor','cashier','technician')),
+  system_key text NULL CHECK (system_key IN ('clinic_admin','doctor','receptionist','technician')),
   name_ar    text NOT NULL,
   name_en    text NOT NULL,
   is_locked  boolean NOT NULL,

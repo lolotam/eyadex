@@ -10,6 +10,7 @@ import { MarketingNav } from "./marketing-nav";
 import { MkContext } from "./mk-context";
 import { PlanDrawing } from "./plan-drawing";
 import { RoadmapAct } from "./roadmap-act";
+import { SpecialtyAct } from "./specialty-act";
 import { TruthAct } from "./truth-act";
 
 export function MarketingPage({ lang }: { lang: MkLang }) {
@@ -23,6 +24,7 @@ export function MarketingPage({ lang }: { lang: MkLang }) {
           <HeroRoom />
           <TruthAct />
           <KeyringAct />
+          <SpecialtyAct />
           <PlanDrawing />
           <CorridorAct />
           <LanguageAct />

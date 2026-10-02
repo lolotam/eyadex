@@ -6,7 +6,7 @@ export const personaKindSchema = z.enum([
   "platform_admin",
   "clinic_admin",
   "doctor",
-  "cashier",
+  "receptionist",
   "technician",
 ]);
 export type PersonaKind = z.infer<typeof personaKindSchema>;

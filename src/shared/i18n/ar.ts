@@ -11,7 +11,7 @@ export const ar: Dictionary = {
   language: { ar: "العربية", en: "English", switch: "اللغة" },
   persona: {
     label: "الدخول باسم", switch: "تبديل الشخصية", clinic: "العيادة", chooseClinic: "اختر عيادة",
-    platform_admin: "مدير المنصة", clinic_admin: "مدير العيادة", doctor: "طبيب", cashier: "كاشير", technician: "فني",
+    platform_admin: "مدير المنصة", clinic_admin: "مدير العيادة", doctor: "طبيب", receptionist: "موظف استقبال", technician: "فني",
     demoNote: "دخول تجريبي بدون كلمات مرور.", signOut: "تسجيل الخروج",
   },
   nav: {
@@ -28,7 +28,7 @@ export const ar: Dictionary = {
     expiredBody: "الدخول معطّل حتى يتم تجديد الاشتراك. يرجى التواصل مع مدير المنصة.",
     toSignIn: "العودة إلى تسجيل الدخول",
   },
-  landing: { title: "اختر طريقة الدخول", body: "اختر شخصية لاستكشاف النسخة التجريبية.", enter: "دخول" },
+  landing: { title: "اختر طريقة الدخول", body: "نسخة تجريبية لأساس إدارة العيادات بكل تخصصاتها، مع اختيار الشخصية المناسبة.", enter: "دخول" },
   clinicStatus: { trial: "تجريبي", active: "نشط", suspended: "موقوف" },
   specialty: { psychiatry: "طب نفسي", psychology: "علاج نفسي", dental: "أسنان", dermatology: "جلدية", general: "طب عام" },
   clinics: {
