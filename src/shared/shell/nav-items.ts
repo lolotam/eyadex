@@ -1,14 +1,32 @@
 import {
-  Building2, ClipboardList, GitBranch, LayoutDashboard, Settings, ShieldCheck, UserCircle, Users, UsersRound,
+  Building2,
+  ClipboardList,
+  GitBranch,
+  LayoutDashboard,
+  Settings,
+  ShieldCheck,
+  UserCircle,
+  Users,
+  UsersRound,
   type LucideIcon,
 } from "lucide-react";
 import type { PermissionResource } from "@contracts/permissions";
 import type { TranslationKey } from "@/shared/i18n/dictionary";
 
 export type NavPath =
-  | "/platform" | "/platform/clinics" | "/platform/team" | "/platform/audit" | "/platform/settings"
-  | "/clinic" | "/clinic/branches" | "/clinic/users" | "/clinic/roles" | "/clinic/patients"
-  | "/clinic/audit" | "/clinic/settings" | "/clinic/account";
+  | "/platform"
+  | "/platform/clinics"
+  | "/platform/team"
+  | "/platform/audit"
+  | "/platform/settings"
+  | "/clinic"
+  | "/clinic/branches"
+  | "/clinic/users"
+  | "/clinic/roles"
+  | "/clinic/patients"
+  | "/clinic/audit"
+  | "/clinic/settings"
+  | "/clinic/account";
 
 export type NavItem = {
   to: NavPath;

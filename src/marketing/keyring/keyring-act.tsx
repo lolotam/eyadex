@@ -30,7 +30,10 @@ export function KeyringAct() {
       const v = computeView(next);
       if (v.openFile === null) return;
       counter.current += 1;
-      const line = { id: counter.current, text: fill(k.opened, { persona: k.keys[next], file: v.openFile }) };
+      const line = {
+        id: counter.current,
+        text: fill(k.opened, { persona: k.keys[next], file: v.openFile }),
+      };
       setLedger((l) => [line, ...l].slice(0, 4));
     },
     [k],
@@ -75,11 +78,18 @@ export function KeyringAct() {
     <section id="keyring" ref={ref} className="mk-keyring" aria-labelledby="mk-keyring-h">
       <div className="mk-keyring-stage">
         <header className="mk-keyring-head">
-          <h2 id="mk-keyring-h" className="mk-h2">{k.h2}</h2>
+          <h2 id="mk-keyring-h" className="mk-h2">
+            {k.h2}
+          </h2>
           <p className="mk-body">{k.sub}</p>
         </header>
         <div className="mk-keyring-grid">
-          <div className="mk-rail" role="radiogroup" aria-label={k.groupLabel} onKeyDown={onKeyDown}>
+          <div
+            className="mk-rail"
+            role="radiogroup"
+            aria-label={k.groupLabel}
+            onKeyDown={onKeyDown}
+          >
             {KEY_ORDER.map((id, i) => (
               <button
                 key={id}
@@ -93,14 +103,23 @@ export function KeyringAct() {
                 className={`mk-key${key === id ? " is-on" : ""}`}
                 onClick={() => select(id)}
               >
-                <img src={`/marketing/key-${id}.webp`} alt="" width={226} height={520} loading="lazy" decoding="async" />
+                <img
+                  src={`/marketing/key-${id}.webp`}
+                  alt=""
+                  width={226}
+                  height={520}
+                  loading="lazy"
+                  decoding="async"
+                />
                 <span>{k.keys[id]}</span>
               </button>
             ))}
           </div>
           <div className="mk-keyring-panel">
             <KeyringWindow view={view} />
-            <p className="mk-caption" aria-live="polite">{caption}</p>
+            <p className="mk-caption" aria-live="polite">
+              {caption}
+            </p>
             <div className="mk-ledger-mini" aria-label={k.ledger}>
               <span className="mk-ledger-title">{k.ledger}</span>
               <ol>

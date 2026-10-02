@@ -1,4 +1,8 @@
-import { PERMISSION_CATALOG, type PermissionAction, type PermissionResource } from "@contracts/permissions";
+import {
+  PERMISSION_CATALOG,
+  type PermissionAction,
+  type PermissionResource,
+} from "@contracts/permissions";
 import { ROLE_TEMPLATES } from "@/shared/api/mock/seed-roles";
 
 export type KeyId = "admin" | "doctor" | "receptionist" | "tech" | "team";
@@ -8,7 +12,13 @@ export type SidebarItem = "overview" | PermissionResource;
 export const KEY_ORDER: readonly KeyId[] = ["admin", "doctor", "receptionist", "tech", "team"];
 export const BRANCHES: readonly BranchId[] = ["salmiya", "hawalli"];
 export const SIDEBAR_ORDER: readonly SidebarItem[] = [
-  "overview", "branches", "users", "roles", "patients", "audit_log", "clinic_settings",
+  "overview",
+  "branches",
+  "users",
+  "roles",
+  "patients",
+  "audit_log",
+  "clinic_settings",
 ];
 
 type SamplePersona = { permissions: readonly string[]; branches: readonly BranchId[] };
@@ -35,7 +45,12 @@ export const SAMPLE_PATIENTS: readonly SamplePatient[] = [
 
 const KNOWN = new Set(PERMISSION_CATALOG.map((p) => p.key));
 
-function holds(perms: readonly string[], action: PermissionAction, resource: PermissionResource, scope?: "clinic" | "branch") {
+function holds(
+  perms: readonly string[],
+  action: PermissionAction,
+  resource: PermissionResource,
+  scope?: "clinic" | "branch",
+) {
   return perms.some((p) => KNOWN.has(p) && p.startsWith(`${action}:${resource}:${scope ?? ""}`));
 }
 
@@ -51,10 +66,14 @@ export type KeyringView = {
 
 export function computeView(key: KeyId): KeyringView {
   const { permissions, branches } = SAMPLE_PERSONAS[key];
-  const sidebar = SIDEBAR_ORDER.filter((item) => item === "overview" || holds(permissions, "view", item));
+  const sidebar = SIDEBAR_ORDER.filter(
+    (item) => item === "overview" || holds(permissions, "view", item),
+  );
   const scope = holds(permissions, "view", "patients", "clinic")
     ? "all"
-    : holds(permissions, "view", "patients", "branch") ? "branch" : "none";
+    : holds(permissions, "view", "patients", "branch")
+      ? "branch"
+      : "none";
   const rows = SAMPLE_PATIENTS.map((patient) => ({
     patient,
     visible: scope === "all" || (scope === "branch" && branches.includes(patient.branch)),
@@ -71,20 +90,40 @@ export function computeView(key: KeyId): KeyringView {
 }
 
 export type CaptionParts = {
-  all: string; branch: string; none: string; can: string; viewOnly: string;
-  and: string; sep: string; add: string; edit: string; archive: string;
+  all: string;
+  branch: string;
+  none: string;
+  can: string;
+  viewOnly: string;
+  and: string;
+  sep: string;
+  add: string;
+  edit: string;
+  archive: string;
 };
 
 /** One caption sentence derived from the computed view, never hand-written per role. */
-export function buildCaption(view: KeyringView, c: CaptionParts, branchName: (b: BranchId) => string): string {
+export function buildCaption(
+  view: KeyringView,
+  c: CaptionParts,
+  branchName: (b: BranchId) => string,
+): string {
   if (view.scope === "none") return c.none;
-  const subject = view.scope === "all" ? c.all : c.branch.replace("{branch}", view.branches.map(branchName).join(c.and));
-  const abilities = [view.buttons.create && c.add, view.buttons.update && c.edit, view.buttons.deactivate && c.archive].filter(
-    (x): x is string => Boolean(x),
-  );
+  const subject =
+    view.scope === "all"
+      ? c.all
+      : c.branch.replace("{branch}", view.branches.map(branchName).join(c.and));
+  const abilities = [
+    view.buttons.create && c.add,
+    view.buttons.update && c.edit,
+    view.buttons.deactivate && c.archive,
+  ].filter((x): x is string => Boolean(x));
   if (abilities.length === 0) return subject + c.viewOnly;
   const firstAbility = abilities[0];
   if (!firstAbility) return subject + c.viewOnly;
-  const list = abilities.length === 1 ? firstAbility : `${abilities.slice(0, -1).join(c.sep)}${c.and}${abilities.at(-1)}`;
+  const list =
+    abilities.length === 1
+      ? firstAbility
+      : `${abilities.slice(0, -1).join(c.sep)}${c.and}${abilities.at(-1)}`;
   return subject + c.can.replace("{list}", list);
 }

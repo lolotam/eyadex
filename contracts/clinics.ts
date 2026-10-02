@@ -20,8 +20,21 @@ export const featuresSchema = z.object({ patients: z.boolean() });
 export type ClinicFeatures = z.infer<typeof featuresSchema>;
 
 export const RESERVED_CLINIC_SLUGS = [
-  "app", "platform", "api", "www", "admin", "staging", "cdn", "mail",
-  "status", "docs", "help", "support", "auth", "static", "assets",
+  "app",
+  "platform",
+  "api",
+  "www",
+  "admin",
+  "staging",
+  "cdn",
+  "mail",
+  "status",
+  "docs",
+  "help",
+  "support",
+  "auth",
+  "static",
+  "assets",
 ] as const;
 
 export const slugSchema = z
@@ -30,7 +43,10 @@ export const slugSchema = z
   .min(3, "validation.tooShort")
   .max(40, "validation.tooLong")
   .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "validation.slug")
-  .refine((slug) => !(RESERVED_CLINIC_SLUGS as readonly string[]).includes(slug), "validation.slugReserved");
+  .refine(
+    (slug) => !(RESERVED_CLINIC_SLUGS as readonly string[]).includes(slug),
+    "validation.slugReserved",
+  );
 
 export const clinicSchema = z.object({
   id: idSchema,
@@ -88,14 +104,30 @@ export const subscriptionInputSchema = z
   .object({
     status: clinicStatusSchema,
     expiryMode: z.enum(["duration", "date"]),
-    durationMonths: z.number({ invalid_type_error: "validation.number" }).int().min(1, "validation.min").max(60),
+    durationMonths: z
+      .number({ invalid_type_error: "validation.number" })
+      .int()
+      .min(1, "validation.min")
+      .max(60),
     expiresOn: z.string(),
-    maxUsers: z.number({ invalid_type_error: "validation.number" }).int().min(1, "validation.min").max(1000),
-    maxBranches: z.number({ invalid_type_error: "validation.number" }).int().min(1, "validation.min").max(100),
+    maxUsers: z
+      .number({ invalid_type_error: "validation.number" })
+      .int()
+      .min(1, "validation.min")
+      .max(1000),
+    maxBranches: z
+      .number({ invalid_type_error: "validation.number" })
+      .int()
+      .min(1, "validation.min")
+      .max(100),
   })
   .superRefine((value, ctx) => {
     if (value.expiryMode === "date" && !/^\d{4}-\d{2}-\d{2}$/.test(value.expiresOn)) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["expiresOn"], message: "validation.dateRequired" });
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["expiresOn"],
+        message: "validation.dateRequired",
+      });
     }
   });
 export type SubscriptionInput = z.infer<typeof subscriptionInputSchema>;

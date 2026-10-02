@@ -13,7 +13,9 @@ export function MarketingNav() {
   useEffect(() => {
     const hero = document.getElementById("mk-hero");
     if (!hero) return;
-    const io = new IntersectionObserver(([e]) => setSolid(!e?.isIntersecting), { rootMargin: "-64px 0px 0px 0px" });
+    const io = new IntersectionObserver(([e]) => setSolid(!e?.isIntersecting), {
+      rootMargin: "-64px 0px 0px 0px",
+    });
     io.observe(hero);
     return () => io.disconnect();
   }, []);

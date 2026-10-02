@@ -6,7 +6,9 @@ export function RoadmapAct() {
     <section className="mk-section mk-roadmap" aria-labelledby="mk-road-h">
       <div className="mk-wrap mk-roadmap-grid">
         <div>
-          <h2 id="mk-road-h" className="mk-h2">{d.roadmap.h2}</h2>
+          <h2 id="mk-road-h" className="mk-h2">
+            {d.roadmap.h2}
+          </h2>
           <p className="mk-body">{d.roadmap.p}</p>
         </div>
         <ul className="mk-road-list">

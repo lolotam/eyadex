@@ -32,7 +32,11 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   }, []);
 
-  return <PersonaContext.Provider value={{ persona, ready, setPersona }}>{children}</PersonaContext.Provider>;
+  return (
+    <PersonaContext.Provider value={{ persona, ready, setPersona }}>
+      {children}
+    </PersonaContext.Provider>
+  );
 }
 
 export function usePersona(): PersonaValue {

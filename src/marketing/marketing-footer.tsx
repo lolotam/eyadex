@@ -10,8 +10,12 @@ export function MarketingFooter() {
         <Lockup />
         <span className="mk-soft">{d.footer.copyright}</span>
         <span className="mk-footer-links">
-          <a className="mk-link" href={d.nav.otherHref}>{d.nav.otherLang}</a>
-          <Link className="mk-link" to="/login">{d.nav.signIn}</Link>
+          <a className="mk-link" href={d.nav.otherHref}>
+            {d.nav.otherLang}
+          </a>
+          <Link className="mk-link" to="/login">
+            {d.nav.signIn}
+          </Link>
         </span>
       </div>
     </footer>

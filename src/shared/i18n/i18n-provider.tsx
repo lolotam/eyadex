@@ -1,4 +1,12 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { DirectionProvider } from "@radix-ui/react-direction";
 import type { Language } from "@contracts/common";
 import { ar } from "./ar";
@@ -28,7 +36,13 @@ function interpolate(text: string, vars?: Vars): string {
 }
 
 /** manageDocument=false while a marketing route owns <html lang/dir>. */
-export function I18nProvider({ children, manageDocument = true }: { children: ReactNode; manageDocument?: boolean }) {
+export function I18nProvider({
+  children,
+  manageDocument = true,
+}: {
+  children: ReactNode;
+  manageDocument?: boolean;
+}) {
   const [lang, setLangState] = useState<Language>("ar");
 
   useEffect(() => {
@@ -49,7 +63,9 @@ export function I18nProvider({ children, manageDocument = true }: { children: Re
 
   const value = useMemo<I18nValue>(() => {
     const dict = dictionaries[lang];
-    const dateFormat = new Intl.DateTimeFormat(lang === "ar" ? "ar-KW" : "en-GB", { dateStyle: "medium" });
+    const dateFormat = new Intl.DateTimeFormat(lang === "ar" ? "ar-KW" : "en-GB", {
+      dateStyle: "medium",
+    });
     return {
       lang,
       dir: lang === "ar" ? "rtl" : "ltr",

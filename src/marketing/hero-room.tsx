@@ -85,23 +85,46 @@ export function HeroRoom() {
         <div className="mk-hero-media" aria-hidden="true">
           <div className="mk-hero-far">
             <picture>
-              <source media="(max-width: 767px)" srcSet="/marketing/hero-mobile.webp" width={720} height={1280} />
-              <img src="/marketing/hero-desktop.webp" alt="" width={1920} height={1080} fetchPriority="high" decoding="async" />
+              <source
+                media="(max-width: 767px)"
+                srcSet="/marketing/hero-mobile.webp"
+                width={720}
+                height={1280}
+              />
+              <img
+                src="/marketing/hero-desktop.webp"
+                alt=""
+                width={1920}
+                height={1080}
+                fetchPriority="high"
+                decoding="async"
+              />
             </picture>
             <video ref={video} muted playsInline preload="none" tabIndex={-1} />
           </div>
           <div className="mk-hero-sun" />
-          <img className="mk-hero-olive" src="/marketing/olive.webp" alt="" width={700} height={1054} decoding="async" />
+          <img
+            className="mk-hero-olive"
+            src="/marketing/olive.webp"
+            alt=""
+            width={700}
+            height={1054}
+            decoding="async"
+          />
         </div>
         <div className="mk-hero-door">
           <span className="mk-hero-stile" aria-hidden="true" />
           <span className="mk-hero-handle" aria-hidden="true" />
           <div className="mk-hero-copy">
-            <h1 id="mk-hero-h" className="mk-display">{d.hero.h1}</h1>
+            <h1 id="mk-hero-h" className="mk-display">
+              {d.hero.h1}
+            </h1>
             <p className="mk-lead">{d.hero.lead}</p>
             <div className="mk-actions">
               <DemoLinkInline />
-              <a className="mk-link mk-link--strong" href="#keyring">{d.hero.secondary}</a>
+              <a className="mk-link mk-link--strong" href="#keyring">
+                {d.hero.secondary}
+              </a>
             </div>
           </div>
         </div>

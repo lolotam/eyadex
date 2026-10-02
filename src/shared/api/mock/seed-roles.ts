@@ -30,7 +30,12 @@ export const ROLE_TEMPLATES: Record<SystemRoleKey, RoleTemplate> = {
   },
 };
 
-export const SYSTEM_ROLE_KEYS: SystemRoleKey[] = ["clinic_admin", "doctor", "receptionist", "technician"];
+export const SYSTEM_ROLE_KEYS: SystemRoleKey[] = [
+  "clinic_admin",
+  "doctor",
+  "receptionist",
+  "technician",
+];
 
 export function buildSystemRoles(clinicId: string, makeId: () => string): Role[] {
   return SYSTEM_ROLE_KEYS.map((key) => {

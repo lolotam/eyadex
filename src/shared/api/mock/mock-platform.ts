@@ -1,5 +1,10 @@
 import type { Clinic, ClinicDetail } from "@contracts/clinics";
-import { clinicDetailsInputSchema, createClinicInputSchema, RESERVED_CLINIC_SLUGS, subscriptionInputSchema } from "@contracts/clinics";
+import {
+  clinicDetailsInputSchema,
+  createClinicInputSchema,
+  RESERVED_CLINIC_SLUGS,
+  subscriptionInputSchema,
+} from "@contracts/clinics";
 import type { ApiClient } from "../api-client";
 import { ApiError } from "../api-error";
 import { delay, getState, newId, persist, type MockState } from "./mock-store";
@@ -16,13 +21,21 @@ function findClinic(db: MockState, id: string): Clinic {
 
 function usage(db: MockState, clinicId: string) {
   return {
-    usersCount: db.members.filter((m) => m.clinicId === clinicId && m.status !== "deactivated").length,
+    usersCount: db.members.filter((m) => m.clinicId === clinicId && m.status !== "deactivated")
+      .length,
     branchesCount: db.branches.filter((b) => b.clinicId === clinicId && b.isActive).length,
   };
 }
 
 function audit(db: MockState, action: string, clinicId: string, summary: string) {
-  db.platformAudit.unshift({ id: newId(), actorName: ACTOR, action, clinicId, summary, createdAt: new Date().toISOString() });
+  db.platformAudit.unshift({
+    id: newId(),
+    actorName: ACTOR,
+    action,
+    clinicId,
+    summary,
+    createdAt: new Date().toISOString(),
+  });
 }
 
 function addMonths(date: Date, months: number): Date {
@@ -40,7 +53,9 @@ export function createMockPlatform(): ApiClient["platform"] {
       const filtered = db.clinics
         .filter((c) => !query.status || c.status === query.status)
         .filter((c) => !query.specialty || c.specialty === query.specialty)
-        .filter((c) => !term || [c.nameAr, c.nameEn, c.slug].some((v) => v.toLowerCase().includes(term)))
+        .filter(
+          (c) => !term || [c.nameAr, c.nameEn, c.slug].some((v) => v.toLowerCase().includes(term)),
+        )
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
       const start = query.cursor ? filtered.findIndex((c) => c.id === query.cursor) + 1 : 0;
       const slice = filtered.slice(start, start + query.limit);
@@ -57,13 +72,20 @@ export function createMockPlatform(): ApiClient["platform"] {
       await delay();
       const db = getState();
       const clinic = findClinic(db, clinicId);
-      const detail: ClinicDetail = { ...clinic, ...usage(db, clinicId), features: db.features[clinicId] ?? { patients: false } };
+      const detail: ClinicDetail = {
+        ...clinic,
+        ...usage(db, clinicId),
+        features: db.features[clinicId] ?? { patients: false },
+      };
       return detail;
     },
 
     async createClinic(raw) {
       await delay();
-      if (typeof raw.slug === "string" && (RESERVED_CLINIC_SLUGS as readonly string[]).includes(raw.slug.trim())) {
+      if (
+        typeof raw.slug === "string" &&
+        (RESERVED_CLINIC_SLUGS as readonly string[]).includes(raw.slug.trim())
+      ) {
         throw new ApiError("reserved_slug");
       }
       const input = createClinicInputSchema.parse(raw);
@@ -71,9 +93,18 @@ export function createMockPlatform(): ApiClient["platform"] {
       if (db.clinics.some((c) => c.slug === input.slug)) throw new ApiError("slug_taken");
       const now = new Date();
       const clinic: Clinic = {
-        id: newId(), slug: input.slug, nameAr: input.nameAr, nameEn: input.nameEn, specialty: input.specialty,
-        defaultLanguage: input.defaultLanguage, timezone: input.timezone, status: "trial",
-        expiresAt: new Date(now.getTime() + 30 * DAY).toISOString(), maxUsers: 10, maxBranches: 3, createdAt: now.toISOString(),
+        id: newId(),
+        slug: input.slug,
+        nameAr: input.nameAr,
+        nameEn: input.nameEn,
+        specialty: input.specialty,
+        defaultLanguage: input.defaultLanguage,
+        timezone: input.timezone,
+        status: "trial",
+        expiresAt: new Date(now.getTime() + 30 * DAY).toISOString(),
+        maxUsers: 10,
+        maxBranches: 3,
+        createdAt: now.toISOString(),
       };
       db.clinics.push(clinic);
       db.features[clinic.id] = { patients: true };
@@ -83,13 +114,33 @@ export function createMockPlatform(): ApiClient["platform"] {
       if (adminRole) {
         const memberId = newId();
         db.members.push({
-          id: memberId, clinicId: clinic.id, userId: newId(), fullName: input.adminName, email: input.adminEmail,
-          roleId: adminRole.id, allBranches: true, branchIds: [], status: "invited",
-          preferredLanguage: input.defaultLanguage, createdAt: now.toISOString(),
+          id: memberId,
+          clinicId: clinic.id,
+          userId: newId(),
+          fullName: input.adminName,
+          email: input.adminEmail,
+          roleId: adminRole.id,
+          allBranches: true,
+          branchIds: [],
+          status: "invited",
+          preferredLanguage: input.defaultLanguage,
+          createdAt: now.toISOString(),
         });
-        db.invitations.push({ id: newId(), clinicId: clinic.id, memberId, email: input.adminEmail, status: "pending", sentAt: now.toISOString() });
+        db.invitations.push({
+          id: newId(),
+          clinicId: clinic.id,
+          memberId,
+          email: input.adminEmail,
+          status: "pending",
+          sentAt: now.toISOString(),
+        });
       }
-      audit(db, "clinic.created", clinic.id, `Created clinic ${clinic.nameEn} with admin ${input.adminEmail}`);
+      audit(
+        db,
+        "clinic.created",
+        clinic.id,
+        `Created clinic ${clinic.nameEn} with admin ${input.adminEmail}`,
+      );
       persist();
       return clinic;
     },
@@ -117,12 +168,20 @@ export function createMockPlatform(): ApiClient["platform"] {
       const expiresAt =
         input.expiryMode === "date"
           ? new Date(`${input.expiresOn}T23:59:59Z`)
-          : addMonths(new Date(Math.max(Date.now(), new Date(clinic.expiresAt).getTime())), input.durationMonths);
+          : addMonths(
+              new Date(Math.max(Date.now(), new Date(clinic.expiresAt).getTime())),
+              input.durationMonths,
+            );
       clinic.status = input.status;
       clinic.maxUsers = input.maxUsers;
       clinic.maxBranches = input.maxBranches;
       clinic.expiresAt = expiresAt.toISOString();
-      audit(db, "clinic.subscription_updated", clinicId, `Subscription: ${input.status}, expires ${clinic.expiresAt.slice(0, 10)}`);
+      audit(
+        db,
+        "clinic.subscription_updated",
+        clinicId,
+        `Subscription: ${input.status}, expires ${clinic.expiresAt.slice(0, 10)}`,
+      );
       persist();
       return clinic;
     },
@@ -131,8 +190,16 @@ export function createMockPlatform(): ApiClient["platform"] {
       await delay();
       const db = getState();
       const clinic = findClinic(db, clinicId);
-      db.features[clinicId] = { ...(db.features[clinicId] ?? { patients: false }), [module]: enabled };
-      audit(db, "clinic.feature_toggled", clinicId, `${module} ${enabled ? "enabled" : "disabled"} for ${clinic.nameEn}`);
+      db.features[clinicId] = {
+        ...(db.features[clinicId] ?? { patients: false }),
+        [module]: enabled,
+      };
+      audit(
+        db,
+        "clinic.feature_toggled",
+        clinicId,
+        `${module} ${enabled ? "enabled" : "disabled"} for ${clinic.nameEn}`,
+      );
       persist();
     },
 

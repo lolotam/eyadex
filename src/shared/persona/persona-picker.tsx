@@ -4,7 +4,13 @@ import { useNavigate } from "@tanstack/react-router";
 import { personaKindSchema, type PersonaKind } from "@contracts/session";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useApi } from "@/shared/api/api-provider";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { usePersona } from "./persona-provider";
@@ -17,7 +23,10 @@ export function PersonaPicker({ onDone }: { onDone?: () => void }) {
   const navigate = useNavigate();
   const [kind, setKind] = useState<PersonaKind>(persona.kind);
   const [clinicId, setClinicId] = useState<string | null>(persona.clinicId);
-  const clinics = useQuery({ queryKey: ["login-clinics"], queryFn: () => api.session.listLoginClinics() });
+  const clinics = useQuery({
+    queryKey: ["login-clinics"],
+    queryFn: () => api.session.listLoginClinics(),
+  });
 
   const needsClinic = kind !== "platform_admin";
   const effectiveClinic = clinicId ?? clinics.data?.[0]?.id ?? null;

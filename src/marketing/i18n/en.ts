@@ -9,7 +9,14 @@ export const en: MkDict = {
     locale: "en_US",
     altLocale: "ar_KW",
   },
-  nav: { otherLang: "عربي", otherHref: "/", signIn: "Sign in", menu: "Menu", skip: "Skip to content", home: "Eyadex home" },
+  nav: {
+    otherLang: "عربي",
+    otherHref: "/",
+    signIn: "Sign in",
+    menu: "Menu",
+    skip: "Skip to content",
+    home: "Eyadex home",
+  },
   demo: { label: "Book a demo", text: "Hello, I'd like to book an Eyadex demo for my clinic." },
   hero: {
     h1: "Every file in your clinic, behind the right door.",
@@ -30,12 +37,33 @@ export const en: MkDict = {
     sub: "A fictional clinic with sample data. These are the default roles every new clinic starts with; you can edit them or build your own.",
     sample: "Sample data",
     groupLabel: "Choose a role",
-    keys: { admin: "Clinic admin", doctor: "Doctor", receptionist: "Receptionist", tech: "Technician", team: "Eyadex team" },
+    keys: {
+      admin: "Clinic admin",
+      doctor: "Doctor",
+      receptionist: "Receptionist",
+      tech: "Technician",
+      team: "Eyadex team",
+    },
     clinic: "Al Sakina Medical Centre (sample)",
     branches: { salmiya: "Salmiya", hawalli: "Hawalli" },
-    side: { overview: "Overview", branches: "Branches", users: "Users", roles: "Roles", patients: "Patients", audit_log: "Audit log", clinic_settings: "Settings" },
+    side: {
+      overview: "Overview",
+      branches: "Branches",
+      users: "Users",
+      roles: "Roles",
+      patients: "Patients",
+      audit_log: "Audit log",
+      clinic_settings: "Settings",
+    },
     cols: { file: "File", name: "Name", branch: "Branch", phone: "Phone" },
-    patients: ["Reem Ahmad", "Khaled Yousef", "Maha Salem", "Abdullah Nasser", "Dana Fahad", "Yousef Ali"],
+    patients: [
+      "Reem Ahmad",
+      "Khaled Yousef",
+      "Maha Salem",
+      "Abdullah Nasser",
+      "Dana Fahad",
+      "Yousef Ali",
+    ],
     newPatient: "New patient",
     edit: "Edit",
     archive: "Archive",
@@ -44,7 +72,8 @@ export const en: MkDict = {
     opened: "{persona} opened file {file} · just now",
     ledger: "Access log",
     refusedTitle: "Refused by the database itself.",
-    refusedBody: "The Eyadex team manages your clinic's subscription and has no grant on the patients table.",
+    refusedBody:
+      "The Eyadex team manages your clinic's subscription and has no grant on the patients table.",
     caption: {
       all: "Sees patients in every branch",
       branch: "Sees {branch} patients only",
@@ -64,7 +93,14 @@ export const en: MkDict = {
     label: "Choose a specialty",
     coreLabel: "Fixed core",
     specialtyLabel: "By specialty",
-    core: ["Branches", "Team", "Roles and permissions", "Patient files", "Audit log", "Subscription"],
+    core: [
+      "Branches",
+      "Team",
+      "Roles and permissions",
+      "Patient files",
+      "Audit log",
+      "Subscription",
+    ],
     options: [
       { name: "Psychiatry", items: ["Sessions and doctor notes", "Treatment plans"] },
       { name: "Dermatology", items: ["Before and after photos", "Laser and procedure sessions"] },
@@ -75,9 +111,18 @@ export const en: MkDict = {
   plan: {
     h2: "How it holds",
     callouts: [
-      { h: "A clinic, then branches.", b: "Two clear levels: the clinic and its branches. Each person on your team works in the branches you allow, or in all of them." },
-      { h: "Roles you build.", b: "Pick from a clear catalogue: view, add, edit, deactivate, per module, for the whole clinic or only the person's own branches. Changes apply immediately." },
-      { h: "Nothing is hard-deleted.", b: "Users, branches and roles are deactivated, patient files are archived. The record stays whole." },
+      {
+        h: "A clinic, then branches.",
+        b: "Two clear levels: the clinic and its branches. Each person on your team works in the branches you allow, or in all of them.",
+      },
+      {
+        h: "Roles you build.",
+        b: "Pick from a clear catalogue: view, add, edit, deactivate, per module, for the whole clinic or only the person's own branches. Changes apply immediately.",
+      },
+      {
+        h: "Nothing is hard-deleted.",
+        b: "Users, branches and roles are deactivated, patient files are archived. The record stays whole.",
+      },
     ],
   },
   corridor: {
@@ -89,8 +134,10 @@ export const en: MkDict = {
       { time: "10:05", who: "Clinic admin", what: "added branch Hawalli" },
       { time: "10:31", who: "Receptionist", what: "registered new patient 1046" },
     ],
-    isolation: "And every clinic is isolated from every other inside the database itself, not just in the interface.",
-    subscription: "You always see your users and branches against your subscription limits, with reminders before it ends.",
+    isolation:
+      "And every clinic is isolated from every other inside the database itself, not just in the interface.",
+    subscription:
+      "You always see your users and branches against your subscription limits, with reminders before it ends.",
   },
   language: {
     h2: "Arabic first. English just as carefully.",
@@ -123,15 +170,42 @@ export const en: MkDict = {
   faq: {
     h2: "Questions",
     items: [
-      { q: "Who is Eyadex for?", a: "Clinics of every specialty, with one branch or many: dermatology, psychiatry, OB/GYN and more. The core is the same for everyone; sections for each specialty are on the roadmap." },
-      { q: "Can the Eyadex team see my patients' and clients' data?", a: "No. The platform account has no access to patient or client data in the database, so that data never appears to it on any screen or log." },
-      { q: "Is my clinic's data isolated from other clinics?", a: "Yes. Every record carries its clinic's identity, and the database itself refuses any request from one clinic for another clinic's data." },
-      { q: "Does it support several branches?", a: "Yes. You add your branches and choose, for each user, the branches they work in or all of them." },
-      { q: "Can I create my own roles?", a: "Yes. You start with ready roles (clinic admin, doctor, receptionist, technician), then edit them or build your own from the permission catalogue." },
-      { q: "Is the interface in Arabic?", a: "Arabic is the default, with full English support, and every user picks their own language." },
-      { q: "How do I get started?", a: "Book a demo. After we talk, we set up your clinic and its branches and send an invitation to your clinic admin, who sets their own password." },
-      { q: "What does it include today?", a: "The foundation: clinics, branches, users, roles and permissions, basic patient files and the audit log. Appointments, sessions and finance are on the roadmap." },
-      { q: "Will it fit my dermatology or OB/GYN clinic?", a: "Yes. The core (branches, roles, permissions, patient files and the log) works for every specialty today, and your specialty's sections are added on top." },
+      {
+        q: "Who is Eyadex for?",
+        a: "Clinics of every specialty, with one branch or many: dermatology, psychiatry, OB/GYN and more. The core is the same for everyone; sections for each specialty are on the roadmap.",
+      },
+      {
+        q: "Can the Eyadex team see my patients' and clients' data?",
+        a: "No. The platform account has no access to patient or client data in the database, so that data never appears to it on any screen or log.",
+      },
+      {
+        q: "Is my clinic's data isolated from other clinics?",
+        a: "Yes. Every record carries its clinic's identity, and the database itself refuses any request from one clinic for another clinic's data.",
+      },
+      {
+        q: "Does it support several branches?",
+        a: "Yes. You add your branches and choose, for each user, the branches they work in or all of them.",
+      },
+      {
+        q: "Can I create my own roles?",
+        a: "Yes. You start with ready roles (clinic admin, doctor, receptionist, technician), then edit them or build your own from the permission catalogue.",
+      },
+      {
+        q: "Is the interface in Arabic?",
+        a: "Arabic is the default, with full English support, and every user picks their own language.",
+      },
+      {
+        q: "How do I get started?",
+        a: "Book a demo. After we talk, we set up your clinic and its branches and send an invitation to your clinic admin, who sets their own password.",
+      },
+      {
+        q: "What does it include today?",
+        a: "The foundation: clinics, branches, users, roles and permissions, basic patient files and the audit log. Appointments, sessions and finance are on the roadmap.",
+      },
+      {
+        q: "Will it fit my dermatology or OB/GYN clinic?",
+        a: "Yes. The core (branches, roles, permissions, patient files and the log) works for every specialty today, and your specialty's sections are added on top.",
+      },
     ],
   },
   close: {

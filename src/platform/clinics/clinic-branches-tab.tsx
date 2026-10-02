@@ -13,18 +13,31 @@ export function ClinicBranchesTab({ clinicId }: { clinicId: string }) {
   const columns = useMemo<ColumnDef<Branch, unknown>[]>(
     () => [
       {
-        id: "name", header: t("clinics.branchColumns.name"), cell: ({ row }) => (
-          <div><div className="font-medium">{pick(row.original.nameAr, row.original.nameEn)}</div><div className="text-xs text-muted-foreground">{pick(row.original.nameEn, row.original.nameAr)}</div></div>
+        id: "name",
+        header: t("clinics.branchColumns.name"),
+        cell: ({ row }) => (
+          <div>
+            <div className="font-medium">{pick(row.original.nameAr, row.original.nameEn)}</div>
+            <div className="text-xs text-muted-foreground">
+              {pick(row.original.nameEn, row.original.nameAr)}
+            </div>
+          </div>
         ),
       },
-      { id: "address", header: t("clinics.branchColumns.address"), cell: ({ row }) => row.original.address || "—" },
-      { id: "phone", header: t("clinics.branchColumns.phone"), cell: ({ row }) => <span dir="ltr">{row.original.phone || "—"}</span> },
+      {
+        id: "address",
+        header: t("clinics.branchColumns.address"),
+        cell: ({ row }) => row.original.address || "—",
+      },
+      {
+        id: "phone",
+        header: t("clinics.branchColumns.phone"),
+        cell: ({ row }) => <span dir="ltr">{row.original.phone || "—"}</span>,
+      },
       {
         id: "status",
         header: t("clinics.branchColumns.status"),
-        cell: ({ row }) => (
-          <BranchStatusBadge active={row.original.isActive} />
-        ),
+        cell: ({ row }) => <BranchStatusBadge active={row.original.isActive} />,
       },
     ],
     [t, pick],

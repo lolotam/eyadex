@@ -29,7 +29,8 @@ export function useScrollProgress(ref: RefObject<HTMLElement | null>, opts: Opti
       raf = 0;
       const r = el.getBoundingClientRect();
       const vh = window.innerHeight;
-      const raw = mode === "pass" ? (vh - r.top) / (vh + r.height) : -r.top / Math.max(1, r.height - vh);
+      const raw =
+        mode === "pass" ? (vh - r.top) / (vh + r.height) : -r.top / Math.max(1, r.height - vh);
       const p = Math.min(1, Math.max(0, raw));
       if (Math.abs(p - last) < 0.0005) return;
       last = p;

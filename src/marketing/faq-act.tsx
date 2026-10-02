@@ -1,4 +1,9 @@
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { useMk } from "./mk-context";
 
 export function FaqAct() {
@@ -6,7 +11,9 @@ export function FaqAct() {
   return (
     <section className="mk-section mk-faq" aria-labelledby="mk-faq-h">
       <div className="mk-wrap mk-faq-wrap">
-        <h2 id="mk-faq-h" className="mk-h2">{d.faq.h2}</h2>
+        <h2 id="mk-faq-h" className="mk-h2">
+          {d.faq.h2}
+        </h2>
         <Accordion type="single" collapsible>
           {d.faq.items.map((item, i) => (
             <AccordionItem key={item.q} value={`q${i}`} className="mk-faq-item">

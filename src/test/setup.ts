@@ -26,7 +26,9 @@ class IntersectionObserverMock implements IntersectionObserver {
   readonly thresholds = [0];
   disconnect() {}
   observe() {}
-  takeRecords(): IntersectionObserverEntry[] { return []; }
+  takeRecords(): IntersectionObserverEntry[] {
+    return [];
+  }
   unobserve() {}
 }
 

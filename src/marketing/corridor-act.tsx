@@ -14,11 +14,20 @@ export function CorridorAct() {
   return (
     <section ref={ref} className="mk-corridor" aria-labelledby="mk-corridor-h">
       <div className="mk-corridor-bed" aria-hidden="true">
-        <img src="/marketing/corridor.webp" alt="" width={1920} height={1086} loading="lazy" decoding="async" />
+        <img
+          src="/marketing/corridor.webp"
+          alt=""
+          width={1920}
+          height={1086}
+          loading="lazy"
+          decoding="async"
+        />
       </div>
       <div className="mk-corridor-inner">
         <div className="mk-plate">
-          <h2 id="mk-corridor-h" className="mk-h2">{d.corridor.h2}</h2>
+          <h2 id="mk-corridor-h" className="mk-h2">
+            {d.corridor.h2}
+          </h2>
           <p className="mk-body">{d.corridor.p}</p>
         </div>
         <div className="mk-ledger">

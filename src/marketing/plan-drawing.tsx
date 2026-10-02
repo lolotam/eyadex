@@ -11,9 +11,17 @@ const STAGES: { cls: string; paths: string[] }[] = [
   {
     cls: "s3",
     paths: [
-      "M40 130 H200 V40", "M200 130 V200", "M120 200 H200 V360", "M120 280 H40",
-      "M400 40 V150 H560", "M400 150 V210 H480", "M400 260 H560", "M400 260 V360",
-      "M200 160 a20 20 0 0 1 20 -20", "M400 180 a20 20 0 0 0 -20 -20", "M280 360 a20 20 0 0 1 20 -20",
+      "M40 130 H200 V40",
+      "M200 130 V200",
+      "M120 200 H200 V360",
+      "M120 280 H40",
+      "M400 40 V150 H560",
+      "M400 150 V210 H480",
+      "M400 260 H560",
+      "M400 260 V360",
+      "M200 160 a20 20 0 0 1 20 -20",
+      "M400 180 a20 20 0 0 0 -20 -20",
+      "M280 360 a20 20 0 0 1 20 -20",
     ],
   },
 ];
@@ -26,7 +34,9 @@ export function PlanDrawing() {
   return (
     <section ref={ref} className="mk-plan" aria-labelledby="mk-plan-h">
       <div className="mk-plan-stage">
-        <h2 id="mk-plan-h" className="mk-sr">{d.plan.h2}</h2>
+        <h2 id="mk-plan-h" className="mk-sr">
+          {d.plan.h2}
+        </h2>
         <svg className="mk-plan-svg" viewBox="0 0 600 400" role="presentation" aria-hidden="true">
           {STAGES.map((s) => (
             <g key={s.cls} className={`mk-draw ${s.cls}`}>

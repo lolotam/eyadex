@@ -9,7 +9,13 @@ import type {
   CreateClinicInput,
   SubscriptionInput,
 } from "@contracts/clinics";
-import type { Branch, BranchInput, BranchListQuery, BranchUsage, MemberView } from "@contracts/organization";
+import type {
+  Branch,
+  BranchInput,
+  BranchListQuery,
+  BranchUsage,
+  MemberView,
+} from "@contracts/organization";
 import type { LoginClinic, Persona, SessionContext } from "@contracts/session";
 
 /**

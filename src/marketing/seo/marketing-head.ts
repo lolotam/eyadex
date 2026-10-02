@@ -33,8 +33,20 @@ export function marketingHead(lang: MkLang) {
       { rel: "alternate", hrefLang: "ar-KW", href: `${SITE.url}/` },
       { rel: "alternate", hrefLang: "en", href: `${SITE.url}/en` },
       { rel: "alternate", hrefLang: "x-default", href: `${SITE.url}/` },
-      { rel: "preload", as: "image", href: "/marketing/hero-desktop.webp", media: "(min-width: 768px)", fetchPriority: "high" as const },
-      { rel: "preload", as: "image", href: "/marketing/hero-mobile.webp", media: "(max-width: 767px)", fetchPriority: "high" as const },
+      {
+        rel: "preload",
+        as: "image",
+        href: "/marketing/hero-desktop.webp",
+        media: "(min-width: 768px)",
+        fetchPriority: "high" as const,
+      },
+      {
+        rel: "preload",
+        as: "image",
+        href: "/marketing/hero-mobile.webp",
+        media: "(max-width: 767px)",
+        fetchPriority: "high" as const,
+      },
     ],
     scripts: [{ type: "application/ld+json", children: JSON.stringify(buildJsonLd(lang)) }],
   };

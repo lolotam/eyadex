@@ -57,7 +57,9 @@ export function KeyringWindow({ view }: { view: KeyringView }) {
                         <td className="mk-num">{patient.file}</td>
                         <td>{k.patients[patient.index]}</td>
                         <td>{k.branches[patient.branch]}</td>
-                        <td className="mk-num" dir="ltr">{patient.phone}</td>
+                        <td className="mk-num" dir="ltr">
+                          {patient.phone}
+                        </td>
                       </>
                     ) : (
                       <td colSpan={4} className="mk-win-outside">
@@ -72,7 +74,9 @@ export function KeyringWindow({ view }: { view: KeyringView }) {
             <div className={`mk-win-file${open ? "" : " is-frost"}`}>
               <div>
                 <strong>{fill(k.fileTitle, { file: shown.file })}</strong>
-                <span>{k.patients[shown.index]} · {k.branches[shown.branch]}</span>
+                <span>
+                  {k.patients[shown.index]} · {k.branches[shown.branch]}
+                </span>
               </div>
               <div className="mk-win-actions">
                 {view.buttons.update && <span className="mk-win-btn">{k.edit}</span>}

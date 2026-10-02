@@ -20,7 +20,10 @@ export function ClinicDetailsFields({ control }: { control: Control<ClinicDetail
         control={control}
         name="defaultLanguage"
         label={t("clinics.fields.defaultLanguage")}
-        options={[{ value: "ar", label: t("language.ar") }, { value: "en", label: t("language.en") }]}
+        options={[
+          { value: "ar", label: t("language.ar") },
+          { value: "en", label: t("language.en") },
+        ]}
       />
       <SelectField
         control={control}

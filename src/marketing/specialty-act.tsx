@@ -9,7 +9,9 @@ export function SpecialtyAct() {
     <section className="mk-section mk-specialties" aria-labelledby="mk-specialties-h">
       <div className="mk-wrap mk-specialties-grid">
         <div className="mk-specialties-copy">
-          <h2 id="mk-specialties-h" className="mk-h2">{d.specialties.h2}</h2>
+          <h2 id="mk-specialties-h" className="mk-h2">
+            {d.specialties.h2}
+          </h2>
           <p className="mk-body">{d.specialties.p}</p>
         </div>
         <div className="mk-specialties-demo">
@@ -50,7 +52,9 @@ export function SpecialtyAct() {
             <div className="mk-core-band">
               <strong>{d.specialties.coreLabel}</strong>
               <ul>
-                {d.specialties.core.map((item) => <li key={item}>{item}</li>)}
+                {d.specialties.core.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
               </ul>
             </div>
           </div>

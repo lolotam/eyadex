@@ -34,7 +34,10 @@ export const branchInputSchema = z.object({
 });
 export type BranchInput = z.infer<typeof branchInputSchema>;
 
-export const branchUsageSchema = z.object({ active: z.number().int().nonnegative(), limit: z.number().int().positive() });
+export const branchUsageSchema = z.object({
+  active: z.number().int().nonnegative(),
+  limit: z.number().int().positive(),
+});
 export type BranchUsage = z.infer<typeof branchUsageSchema>;
 
 export const clinicAuditEntrySchema = z.object({
