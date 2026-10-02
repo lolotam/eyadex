@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Edit3, MoreHorizontal, Plus, Power, RotateCcw, Search } from "lucide-react";
+import { AlertCircle, Edit3, MoreHorizontal, Plus, Power, RotateCcw, Search } from "lucide-react";
 import { branchStatusSchema, type Branch, type BranchStatus } from "@contracts/organization";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -87,7 +87,7 @@ function BranchesContent() {
   }, [mayDeactivate, mayUpdate, pick, t]);
 
   if (list.isError) {
-    return <StatusPanel title={t("branches.loadError")} body={t(`errors.${errorCodeOf(list.error)}`)} action={<Button onClick={() => void list.refetch()}>{t("common.tryAgain")}</Button>} />;
+    return <StatusPanel icon={AlertCircle} title={t("branches.loadError")} body={t(`errors.${errorCodeOf(list.error)}`)} action={<Button onClick={() => void list.refetch()}>{t("common.tryAgain")}</Button>} />;
   }
 
   return (
