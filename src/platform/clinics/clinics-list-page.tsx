@@ -49,8 +49,8 @@ export function ClinicsListPage() {
         cell: ({ row }) => {
           const soon = new Date(row.original.expiresAt).getTime() - Date.now() < SOON_MS;
           return (
-            <div className="flex items-center gap-2">
-              {formatDate(row.original.expiresAt)}
+            <div className="flex min-w-24 flex-col items-start gap-1 whitespace-nowrap">
+              <span>{formatDate(row.original.expiresAt)}</span>
               {soon && <Badge variant="outline" className="border-destructive/40 text-destructive">{t("clinics.expiringSoon")}</Badge>}
             </div>
           );
@@ -76,11 +76,11 @@ export function ClinicsListPage() {
           </Button>
         }
       />
-      <div className="mb-4 flex flex-wrap gap-2">
+       <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border bg-card p-3">
         <div className="relative min-w-60 flex-1">
           <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            className="ps-9"
+            className="border-transparent bg-muted/60 ps-9 focus-visible:bg-card"
             placeholder={t("clinics.searchPlaceholder")}
             value={search}
             onChange={(e) => {
@@ -90,14 +90,14 @@ export function ClinicsListPage() {
           />
         </div>
         <Select value={status ?? ANY} onValueChange={(v) => { setStatus(v === ANY ? null : clinicStatusSchema.parse(v)); pages.reset(); }}>
-          <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-44 bg-card"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value={ANY}>{t("clinics.anyStatus")}</SelectItem>
             {clinicStatusSchema.options.map((s) => <SelectItem key={s} value={s}>{t(`clinicStatus.${s}`)}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={specialty ?? ANY} onValueChange={(v) => { setSpecialty(v === ANY ? null : specialtySchema.parse(v)); pages.reset(); }}>
-          <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-44 bg-card"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value={ANY}>{t("clinics.anySpecialty")}</SelectItem>
             {specialtySchema.options.map((s) => <SelectItem key={s} value={s}>{t(`specialty.${s}`)}</SelectItem>)}

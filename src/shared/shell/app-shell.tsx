@@ -14,12 +14,12 @@ type Props = { areaLabel: TranslationKey; subtitle?: string; items: NavItem[]; c
 function Brand({ areaLabel, subtitle }: { areaLabel: TranslationKey; subtitle?: string | undefined }) {
   const { t } = useI18n();
   return (
-    <div className="flex items-center gap-3 px-3 py-4">
-      <div className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-        <Stethoscope className="size-5" />
+    <div className="flex h-20 items-center gap-3 border-b border-sidebar-border px-5">
+      <div className="flex size-9 items-center justify-center rounded-md bg-primary text-primary-foreground">
+        <Stethoscope className="size-[18px]" />
       </div>
       <div className="min-w-0">
-        <div className="text-sm font-semibold">{t("app.name")}</div>
+        <div className="text-sm font-semibold text-sidebar-foreground">{t("app.name")}</div>
         <div className="truncate text-xs text-muted-foreground">{subtitle ?? t(areaLabel)}</div>
       </div>
     </div>
@@ -31,14 +31,14 @@ export function AppShell({ areaLabel, subtitle, items, children }: Props) {
   const [open, setOpen] = useState(false);
   return (
     <div className="flex min-h-screen bg-background">
-      <aside className="hidden w-64 shrink-0 flex-col border-e bg-sidebar md:flex">
+      <aside className="hidden w-60 shrink-0 flex-col border-e border-sidebar-border bg-sidebar md:flex">
         <Brand areaLabel={areaLabel} subtitle={subtitle} />
-        <div className="px-2">
+        <div className="px-3 py-4">
           <AreaNav items={items} />
         </div>
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-10 flex h-14 items-center gap-2 border-b bg-background/90 px-4 backdrop-blur">
+        <header className="sticky top-0 z-10 flex h-16 items-center gap-2 border-b bg-card/95 px-4 backdrop-blur md:px-6">
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="md:hidden" aria-label={t("nav.menu")}>
@@ -51,13 +51,13 @@ export function AppShell({ areaLabel, subtitle, items, children }: Props) {
               <AreaNav items={items} onNavigate={() => setOpen(false)} />
             </SheetContent>
           </Sheet>
-          <div className="text-sm font-medium text-muted-foreground">{t(areaLabel)}</div>
+          <div className="text-sm font-semibold text-foreground">{t(areaLabel)}</div>
           <div className="ms-auto flex items-center gap-2">
             <LanguageSwitch />
             <PersonaSwitcher />
           </div>
         </header>
-        <main className="mx-auto w-full max-w-6xl flex-1 p-4 md:p-8">{children}</main>
+        <main className="mx-auto w-full max-w-7xl flex-1 p-4 md:p-8 lg:p-10">{children}</main>
       </div>
     </div>
   );
