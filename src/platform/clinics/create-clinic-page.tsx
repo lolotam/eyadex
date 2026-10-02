@@ -27,6 +27,7 @@ export function CreateClinicPage() {
       timezone: "Asia/Kuwait", adminName: "", adminEmail: "",
     },
   });
+  const slug = form.watch("slug").trim() || "<slug>";
 
   const mutation = useMutation({
     mutationFn: (input: CreateClinicInput) => api.platform.createClinic(input),
@@ -39,6 +40,7 @@ export function CreateClinicPage() {
     onError: (error) => {
       const code = errorCodeOf(error);
       if (code === "slug_taken") form.setError("slug", { message: "errors.slug_taken" });
+      else if (code === "reserved_slug") form.setError("slug", { message: "errors.reserved_slug" });
       else toast.error(t(`errors.${code}`));
     },
   });
@@ -54,7 +56,13 @@ export function CreateClinicPage() {
           <Card>
             <CardHeader><CardTitle className="text-base">{t("clinics.sectionClinic")}</CardTitle></CardHeader>
             <CardContent className="flex flex-col gap-4">
-              <TextField control={form.control} name="slug" label={t("clinics.fields.slug")} hint={t("clinics.fields.slugHint")} dir="ltr" />
+              <TextField
+                control={form.control}
+                name="slug"
+                label={t("clinics.fields.slug")}
+                hint={`${t("clinics.fields.slugHint")} ${t("clinics.fields.slugPreview", { address: `${slug}.eyadex.com` })}`}
+                dir="ltr"
+              />
               <ClinicDetailsFields control={detailsControl} />
             </CardContent>
           </Card>

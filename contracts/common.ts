@@ -20,6 +20,7 @@ export type Page<T> = {
 export const apiErrorCodeSchema = z.enum([
   "not_found",
   "slug_taken",
+  "reserved_slug",
   "limit_below_usage",
   "limit_reached",
   "last_active_branch",

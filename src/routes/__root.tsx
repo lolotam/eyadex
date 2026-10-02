@@ -82,8 +82,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Clinic App" },
-      { name: "description", content: "Multi-clinic management platform." },
+      { title: "Eyadex" },
+      { name: "description", content: "One place for every clinic." },
     ],
     links: [
       {

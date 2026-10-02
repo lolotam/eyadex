@@ -16,7 +16,7 @@ export function createMockSession(): ApiClient["session"] {
       if (persona.kind === "platform_admin") {
         return {
           persona,
-          user: { fullName: "Waleed Mohamed", email: "waleed@clinicapp.io" },
+          user: { fullName: "Waleed Mohamed", email: "waleed@eyadex.com" },
           clinic: null,
           permissions: [],
           features: { patients: false },

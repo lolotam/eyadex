@@ -1,5 +1,5 @@
 import type { Clinic, ClinicDetail } from "@contracts/clinics";
-import { clinicDetailsInputSchema, createClinicInputSchema, subscriptionInputSchema } from "@contracts/clinics";
+import { clinicDetailsInputSchema, createClinicInputSchema, RESERVED_CLINIC_SLUGS, subscriptionInputSchema } from "@contracts/clinics";
 import type { ApiClient } from "../api-client";
 import { ApiError } from "../api-error";
 import { delay, getState, newId, persist, type MockState } from "./mock-store";
@@ -63,6 +63,9 @@ export function createMockPlatform(): ApiClient["platform"] {
 
     async createClinic(raw) {
       await delay();
+      if (typeof raw.slug === "string" && (RESERVED_CLINIC_SLUGS as readonly string[]).includes(raw.slug.trim())) {
+        throw new ApiError("reserved_slug");
+      }
       const input = createClinicInputSchema.parse(raw);
       const db = getState();
       if (db.clinics.some((c) => c.slug === input.slug)) throw new ApiError("slug_taken");
