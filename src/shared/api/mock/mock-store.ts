@@ -1,5 +1,5 @@
 import type { Clinic, ClinicFeatures } from "@contracts/clinics";
-import type { Branch, Invitation, Member, Role } from "@contracts/organization";
+import type { Branch, ClinicAuditEntry, Invitation, Member, Role } from "@contracts/organization";
 import type { Patient } from "@contracts/patients";
 import type { PlatformAuditEntry } from "@contracts/session";
 import { buildSeed } from "./seed";
@@ -13,6 +13,7 @@ export type MockState = {
   invitations: Invitation[];
   patients: Patient[];
   platformAudit: PlatformAuditEntry[];
+  clinicAudit: ClinicAuditEntry[];
 };
 
 const STORAGE_KEY = "clinic-app:mock-db:v1";
@@ -26,6 +27,8 @@ export function getState(): MockState {
     if (raw) {
       try {
         state = JSON.parse(raw) as MockState;
+        state.clinicAudit ??= [];
+        state.branches = state.branches.map((branch) => ({ ...branch, address: branch.address ?? null, phone: branch.phone ?? null }));
         return state;
       } catch {
         // fall through to fresh seed

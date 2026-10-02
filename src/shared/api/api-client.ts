@@ -9,7 +9,7 @@ import type {
   CreateClinicInput,
   SubscriptionInput,
 } from "@contracts/clinics";
-import type { Branch, MemberView } from "@contracts/organization";
+import type { Branch, BranchInput, BranchListQuery, BranchUsage, MemberView } from "@contracts/organization";
 import type { LoginClinic, Persona, SessionContext } from "@contracts/session";
 
 /**
@@ -30,5 +30,12 @@ export interface ApiClient {
     setClinicFeature(clinicId: string, module: ClinicModule, enabled: boolean): Promise<void>;
     listClinicMembers(clinicId: string): Promise<MemberView[]>;
     listClinicBranches(clinicId: string): Promise<Branch[]>;
+  };
+  branches: {
+    list(persona: Persona, query: BranchListQuery): Promise<Page<Branch> & { usage: BranchUsage }>;
+    create(persona: Persona, input: BranchInput): Promise<Branch>;
+    update(persona: Persona, branchId: string, input: BranchInput): Promise<Branch>;
+    deactivate(persona: Persona, branchId: string): Promise<Branch>;
+    reactivate(persona: Persona, branchId: string): Promise<Branch>;
   };
 }

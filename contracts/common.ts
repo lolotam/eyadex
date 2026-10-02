@@ -22,6 +22,7 @@ export const apiErrorCodeSchema = z.enum([
   "slug_taken",
   "limit_below_usage",
   "limit_reached",
+  "last_active_branch",
   "forbidden",
   "module_disabled",
   "validation",

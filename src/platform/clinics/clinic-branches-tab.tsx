@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { Branch } from "@contracts/organization";
-import { Badge } from "@/components/ui/badge";
+import { BranchStatusBadge } from "@/branches/branch-status-badge";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { DataTable } from "@/shared/table/data-table";
 import { useClinicBranches } from "./clinic-queries";
@@ -12,14 +12,18 @@ export function ClinicBranchesTab({ clinicId }: { clinicId: string }) {
 
   const columns = useMemo<ColumnDef<Branch, unknown>[]>(
     () => [
-      { id: "name", header: t("clinics.branchColumns.name"), cell: ({ row }) => <span className="font-medium">{pick(row.original.nameAr, row.original.nameEn)}</span> },
+      {
+        id: "name", header: t("clinics.branchColumns.name"), cell: ({ row }) => (
+          <div><div className="font-medium">{pick(row.original.nameAr, row.original.nameEn)}</div><div className="text-xs text-muted-foreground">{pick(row.original.nameEn, row.original.nameAr)}</div></div>
+        ),
+      },
+      { id: "address", header: t("clinics.branchColumns.address"), cell: ({ row }) => row.original.address || "—" },
+      { id: "phone", header: t("clinics.branchColumns.phone"), cell: ({ row }) => <span dir="ltr">{row.original.phone || "—"}</span> },
       {
         id: "status",
         header: t("clinics.branchColumns.status"),
         cell: ({ row }) => (
-          <Badge variant={row.original.isActive ? "default" : "secondary"}>
-            {row.original.isActive ? t("common.active") : t("common.inactive")}
-          </Badge>
+          <BranchStatusBadge active={row.original.isActive} />
         ),
       },
     ],
