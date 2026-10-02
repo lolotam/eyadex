@@ -121,13 +121,13 @@ const chrome = [
 add("verify", "Chrome", Boolean(chrome), chrome || "not found",
   "Install Chrome, or set SCROLLCRAFT_CHROME to an executable.");
 
-// ------------------------------------------------------------- kie key ----
+// ------------------------------------------------------- higgsfield key ----
 function findKey() {
-  if (process.env.KIE_AI_API_KEY) return "env";
+  if (process.env.HIGGSFIELD_API_KEY || (process.env.HF_API_KEY_ID && process.env.HF_API_KEY_SECRET)) return "env";
   let dir = process.cwd();
   for (let i = 0; i < 8; i++) {
     const p = path.join(dir, ".env");
-    if (fs.existsSync(p) && /^\s*KIE_AI_API_KEY\s*=\s*\S+/m.test(fs.readFileSync(p, "utf8"))) return p;
+    if (fs.existsSync(p) && /^\s*(HIGGSFIELD_API_KEY|HF_API_KEY_ID)\s*=\s*\S+/m.test(fs.readFileSync(p, "utf8"))) return p;
     const up = path.dirname(dir);
     if (up === dir) break;
     dir = up;
@@ -135,8 +135,8 @@ function findKey() {
   return null;
 }
 const keyWhere = findKey();
-add("optional", "KIE_AI_API_KEY", Boolean(keyWhere), keyWhere || "not set",
-  "Only needed to GENERATE imagery. Building from your own photos and footage needs no key and no spend. Copy .env.example to .env to set one.");
+add("optional", "HIGGSFIELD_API_KEY", Boolean(keyWhere), keyWhere || "not set",
+  "Only needed to GENERATE imagery. Building from your own photos and footage needs no key and no spend. Set HIGGSFIELD_API_KEY=\"key_id:key_secret\" in .env to set one.");
 
 // ----------------------------------------------------------- workspace ----
 let ws = null;
@@ -172,6 +172,6 @@ console.log(softFails.length
 if (process.argv.includes("--probe") && keyWhere) {
   const { execFileSync: x } = await import("node:child_process");
   try {
-    console.log("credit: " + x(process.execPath, [path.join(HERE, "kie.mjs"), "probe"], { encoding: "utf8" }).trim().replace(/^credit:\s*/, ""));
-  } catch (e) { console.log("balance probe failed: " + e.message); }
+    console.log("probe: " + x(process.execPath, [path.join(HERE, "higgsfield.mjs"), "probe"], { encoding: "utf8" }).trim().replace(/^credentials:\s*/, ""));
+  } catch (e) { console.log("credential probe failed: " + e.message); }
 }
