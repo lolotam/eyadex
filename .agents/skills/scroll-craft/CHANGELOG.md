@@ -1,3 +1,18 @@
+# Changelog
+
+## 2026-10-02 — Provider swap: kie.ai -> Higgsfield
+
+- `scripts/kie.mjs` replaced by `scripts/higgsfield.mjs`. Same commands
+  (`probe`, `still`, `shot`), now against the Higgsfield API
+  (`api.higgsfield.ai`): Soul for stills, Seedance 2.5 image-to-video for
+  camera moves (`--tail` maps to `end_image_url`).
+- Credentials: `HIGGSFIELD_API_KEY="key_id:key_secret"` (or `HF_API_KEY_ID` +
+  `HF_API_KEY_SECRET`) instead of `KIE_AI_API_KEY`.
+- `probe` now verifies credentials only — Higgsfield has no credit-balance
+  endpoint. Cost guidance in `references/assets.md` and `references/verify.md`
+  updated accordingly.
+- `scripts/doctor.mjs` key check and `--probe` path updated.
+
 # scroll-craft changelog
 
 Dated notes on what changed in the skill and which build's finding drove it.
