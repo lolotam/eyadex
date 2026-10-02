@@ -1,4 +1,5 @@
 import { useEffect, useRef, type PointerEvent } from "react";
+import { DemoLink as DemoLinkInline } from "./demo-link";
 import { useMk } from "./mk-context";
 import { useReducedMotion } from "./motion/use-reduced-motion";
 import { useScrollProgress } from "./motion/use-scroll-progress";
@@ -109,5 +110,3 @@ export function HeroRoom() {
     </section>
   );
 }
-
-import { DemoLink as DemoLinkInline } from "./demo-link";
