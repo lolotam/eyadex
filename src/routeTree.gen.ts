@@ -10,33 +10,252 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ClinicRouteImport } from './routes/clinic'
+import { Route as ForbiddenRouteImport } from './routes/forbidden'
+import { Route as PlatformRouteImport } from './routes/platform'
+import { Route as ClinicIndexRouteImport } from './routes/clinic.index'
+import { Route as ClinicAccountRouteImport } from './routes/clinic.account'
+import { Route as ClinicAuditRouteImport } from './routes/clinic.audit'
+import { Route as ClinicBranchesRouteImport } from './routes/clinic.branches'
+import { Route as ClinicPatientsRouteImport } from './routes/clinic.patients'
+import { Route as ClinicRolesRouteImport } from './routes/clinic.roles'
+import { Route as ClinicSettingsRouteImport } from './routes/clinic.settings'
+import { Route as ClinicUsersRouteImport } from './routes/clinic.users'
+import { Route as PlatformIndexRouteImport } from './routes/platform.index'
+import { Route as PlatformAuditRouteImport } from './routes/platform.audit'
+import { Route as PlatformSettingsRouteImport } from './routes/platform.settings'
+import { Route as PlatformTeamRouteImport } from './routes/platform.team'
+import { Route as PlatformClinicsIndexRouteImport } from './routes/platform.clinics.index'
+import { Route as PlatformClinicsClinicIdRouteImport } from './routes/platform.clinics.$clinicId'
+import { Route as PlatformClinicsNewRouteImport } from './routes/platform.clinics.new'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ClinicRoute = ClinicRouteImport.update({
+  id: '/clinic',
+  path: '/clinic',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForbiddenRoute = ForbiddenRouteImport.update({
+  id: '/forbidden',
+  path: '/forbidden',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlatformRoute = PlatformRouteImport.update({
+  id: '/platform',
+  path: '/platform',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ClinicIndexRoute = ClinicIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ClinicRoute,
+} as any)
+const ClinicAccountRoute = ClinicAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => ClinicRoute,
+} as any)
+const ClinicAuditRoute = ClinicAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => ClinicRoute,
+} as any)
+const ClinicBranchesRoute = ClinicBranchesRouteImport.update({
+  id: '/branches',
+  path: '/branches',
+  getParentRoute: () => ClinicRoute,
+} as any)
+const ClinicPatientsRoute = ClinicPatientsRouteImport.update({
+  id: '/patients',
+  path: '/patients',
+  getParentRoute: () => ClinicRoute,
+} as any)
+const ClinicRolesRoute = ClinicRolesRouteImport.update({
+  id: '/roles',
+  path: '/roles',
+  getParentRoute: () => ClinicRoute,
+} as any)
+const ClinicSettingsRoute = ClinicSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => ClinicRoute,
+} as any)
+const ClinicUsersRoute = ClinicUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => ClinicRoute,
+} as any)
+const PlatformIndexRoute = PlatformIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PlatformRoute,
+} as any)
+const PlatformAuditRoute = PlatformAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => PlatformRoute,
+} as any)
+const PlatformSettingsRoute = PlatformSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => PlatformRoute,
+} as any)
+const PlatformTeamRoute = PlatformTeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => PlatformRoute,
+} as any)
+const PlatformClinicsIndexRoute = PlatformClinicsIndexRouteImport.update({
+  id: '/clinics/',
+  path: '/clinics/',
+  getParentRoute: () => PlatformRoute,
+} as any)
+const PlatformClinicsClinicIdRoute = PlatformClinicsClinicIdRouteImport.update({
+  id: '/clinics/$clinicId',
+  path: '/clinics/$clinicId',
+  getParentRoute: () => PlatformRoute,
+} as any)
+const PlatformClinicsNewRoute = PlatformClinicsNewRouteImport.update({
+  id: '/clinics/new',
+  path: '/clinics/new',
+  getParentRoute: () => PlatformRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/clinic': typeof ClinicRouteWithChildren
+  '/forbidden': typeof ForbiddenRoute
+  '/platform': typeof PlatformRouteWithChildren
+  '/clinic/account': typeof ClinicAccountRoute
+  '/clinic/audit': typeof ClinicAuditRoute
+  '/clinic/branches': typeof ClinicBranchesRoute
+  '/clinic/patients': typeof ClinicPatientsRoute
+  '/clinic/roles': typeof ClinicRolesRoute
+  '/clinic/settings': typeof ClinicSettingsRoute
+  '/clinic/users': typeof ClinicUsersRoute
+  '/platform/audit': typeof PlatformAuditRoute
+  '/platform/settings': typeof PlatformSettingsRoute
+  '/platform/team': typeof PlatformTeamRoute
+  '/clinic/': typeof ClinicIndexRoute
+  '/platform/': typeof PlatformIndexRoute
+  '/platform/clinics/$clinicId': typeof PlatformClinicsClinicIdRoute
+  '/platform/clinics/new': typeof PlatformClinicsNewRoute
+  '/platform/clinics/': typeof PlatformClinicsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/forbidden': typeof ForbiddenRoute
+  '/clinic/account': typeof ClinicAccountRoute
+  '/clinic/audit': typeof ClinicAuditRoute
+  '/clinic/branches': typeof ClinicBranchesRoute
+  '/clinic/patients': typeof ClinicPatientsRoute
+  '/clinic/roles': typeof ClinicRolesRoute
+  '/clinic/settings': typeof ClinicSettingsRoute
+  '/clinic/users': typeof ClinicUsersRoute
+  '/platform/audit': typeof PlatformAuditRoute
+  '/platform/settings': typeof PlatformSettingsRoute
+  '/platform/team': typeof PlatformTeamRoute
+  '/clinic': typeof ClinicIndexRoute
+  '/platform': typeof PlatformIndexRoute
+  '/platform/clinics/$clinicId': typeof PlatformClinicsClinicIdRoute
+  '/platform/clinics/new': typeof PlatformClinicsNewRoute
+  '/platform/clinics': typeof PlatformClinicsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/clinic': typeof ClinicRouteWithChildren
+  '/forbidden': typeof ForbiddenRoute
+  '/platform': typeof PlatformRouteWithChildren
+  '/clinic/account': typeof ClinicAccountRoute
+  '/clinic/audit': typeof ClinicAuditRoute
+  '/clinic/branches': typeof ClinicBranchesRoute
+  '/clinic/patients': typeof ClinicPatientsRoute
+  '/clinic/roles': typeof ClinicRolesRoute
+  '/clinic/settings': typeof ClinicSettingsRoute
+  '/clinic/users': typeof ClinicUsersRoute
+  '/platform/audit': typeof PlatformAuditRoute
+  '/platform/settings': typeof PlatformSettingsRoute
+  '/platform/team': typeof PlatformTeamRoute
+  '/clinic/': typeof ClinicIndexRoute
+  '/platform/': typeof PlatformIndexRoute
+  '/platform/clinics/$clinicId': typeof PlatformClinicsClinicIdRoute
+  '/platform/clinics/new': typeof PlatformClinicsNewRoute
+  '/platform/clinics/': typeof PlatformClinicsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/clinic'
+    | '/forbidden'
+    | '/platform'
+    | '/clinic/account'
+    | '/clinic/audit'
+    | '/clinic/branches'
+    | '/clinic/patients'
+    | '/clinic/roles'
+    | '/clinic/settings'
+    | '/clinic/users'
+    | '/platform/audit'
+    | '/platform/settings'
+    | '/platform/team'
+    | '/clinic/'
+    | '/platform/'
+    | '/platform/clinics/$clinicId'
+    | '/platform/clinics/new'
+    | '/platform/clinics/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/forbidden'
+    | '/clinic/account'
+    | '/clinic/audit'
+    | '/clinic/branches'
+    | '/clinic/patients'
+    | '/clinic/roles'
+    | '/clinic/settings'
+    | '/clinic/users'
+    | '/platform/audit'
+    | '/platform/settings'
+    | '/platform/team'
+    | '/clinic'
+    | '/platform'
+    | '/platform/clinics/$clinicId'
+    | '/platform/clinics/new'
+    | '/platform/clinics'
+  id:
+    | '__root__'
+    | '/'
+    | '/clinic'
+    | '/forbidden'
+    | '/platform'
+    | '/clinic/account'
+    | '/clinic/audit'
+    | '/clinic/branches'
+    | '/clinic/patients'
+    | '/clinic/roles'
+    | '/clinic/settings'
+    | '/clinic/users'
+    | '/platform/audit'
+    | '/platform/settings'
+    | '/platform/team'
+    | '/clinic/'
+    | '/platform/'
+    | '/platform/clinics/$clinicId'
+    | '/platform/clinics/new'
+    | '/platform/clinics/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ClinicRoute: typeof ClinicRouteWithChildren
+  ForbiddenRoute: typeof ForbiddenRoute
+  PlatformRoute: typeof PlatformRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +267,189 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/clinic': {
+      id: '/clinic'
+      path: '/clinic'
+      fullPath: '/clinic'
+      preLoaderRoute: typeof ClinicRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forbidden': {
+      id: '/forbidden'
+      path: '/forbidden'
+      fullPath: '/forbidden'
+      preLoaderRoute: typeof ForbiddenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/platform': {
+      id: '/platform'
+      path: '/platform'
+      fullPath: '/platform'
+      preLoaderRoute: typeof PlatformRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/clinic/': {
+      id: '/clinic/'
+      path: '/'
+      fullPath: '/clinic/'
+      preLoaderRoute: typeof ClinicIndexRouteImport
+      parentRoute: typeof ClinicRoute
+    }
+    '/clinic/account': {
+      id: '/clinic/account'
+      path: '/account'
+      fullPath: '/clinic/account'
+      preLoaderRoute: typeof ClinicAccountRouteImport
+      parentRoute: typeof ClinicRoute
+    }
+    '/clinic/audit': {
+      id: '/clinic/audit'
+      path: '/audit'
+      fullPath: '/clinic/audit'
+      preLoaderRoute: typeof ClinicAuditRouteImport
+      parentRoute: typeof ClinicRoute
+    }
+    '/clinic/branches': {
+      id: '/clinic/branches'
+      path: '/branches'
+      fullPath: '/clinic/branches'
+      preLoaderRoute: typeof ClinicBranchesRouteImport
+      parentRoute: typeof ClinicRoute
+    }
+    '/clinic/patients': {
+      id: '/clinic/patients'
+      path: '/patients'
+      fullPath: '/clinic/patients'
+      preLoaderRoute: typeof ClinicPatientsRouteImport
+      parentRoute: typeof ClinicRoute
+    }
+    '/clinic/roles': {
+      id: '/clinic/roles'
+      path: '/roles'
+      fullPath: '/clinic/roles'
+      preLoaderRoute: typeof ClinicRolesRouteImport
+      parentRoute: typeof ClinicRoute
+    }
+    '/clinic/settings': {
+      id: '/clinic/settings'
+      path: '/settings'
+      fullPath: '/clinic/settings'
+      preLoaderRoute: typeof ClinicSettingsRouteImport
+      parentRoute: typeof ClinicRoute
+    }
+    '/clinic/users': {
+      id: '/clinic/users'
+      path: '/users'
+      fullPath: '/clinic/users'
+      preLoaderRoute: typeof ClinicUsersRouteImport
+      parentRoute: typeof ClinicRoute
+    }
+    '/platform/': {
+      id: '/platform/'
+      path: '/'
+      fullPath: '/platform/'
+      preLoaderRoute: typeof PlatformIndexRouteImport
+      parentRoute: typeof PlatformRoute
+    }
+    '/platform/audit': {
+      id: '/platform/audit'
+      path: '/audit'
+      fullPath: '/platform/audit'
+      preLoaderRoute: typeof PlatformAuditRouteImport
+      parentRoute: typeof PlatformRoute
+    }
+    '/platform/settings': {
+      id: '/platform/settings'
+      path: '/settings'
+      fullPath: '/platform/settings'
+      preLoaderRoute: typeof PlatformSettingsRouteImport
+      parentRoute: typeof PlatformRoute
+    }
+    '/platform/team': {
+      id: '/platform/team'
+      path: '/team'
+      fullPath: '/platform/team'
+      preLoaderRoute: typeof PlatformTeamRouteImport
+      parentRoute: typeof PlatformRoute
+    }
+    '/platform/clinics/': {
+      id: '/platform/clinics/'
+      path: '/clinics'
+      fullPath: '/platform/clinics/'
+      preLoaderRoute: typeof PlatformClinicsIndexRouteImport
+      parentRoute: typeof PlatformRoute
+    }
+    '/platform/clinics/$clinicId': {
+      id: '/platform/clinics/$clinicId'
+      path: '/clinics/$clinicId'
+      fullPath: '/platform/clinics/$clinicId'
+      preLoaderRoute: typeof PlatformClinicsClinicIdRouteImport
+      parentRoute: typeof PlatformRoute
+    }
+    '/platform/clinics/new': {
+      id: '/platform/clinics/new'
+      path: '/clinics/new'
+      fullPath: '/platform/clinics/new'
+      preLoaderRoute: typeof PlatformClinicsNewRouteImport
+      parentRoute: typeof PlatformRoute
+    }
   }
 }
 
+interface ClinicRouteChildren {
+  ClinicAccountRoute: typeof ClinicAccountRoute
+  ClinicAuditRoute: typeof ClinicAuditRoute
+  ClinicBranchesRoute: typeof ClinicBranchesRoute
+  ClinicPatientsRoute: typeof ClinicPatientsRoute
+  ClinicRolesRoute: typeof ClinicRolesRoute
+  ClinicSettingsRoute: typeof ClinicSettingsRoute
+  ClinicUsersRoute: typeof ClinicUsersRoute
+  ClinicIndexRoute: typeof ClinicIndexRoute
+}
+
+const ClinicRouteChildren: ClinicRouteChildren = {
+  ClinicAccountRoute: ClinicAccountRoute,
+  ClinicAuditRoute: ClinicAuditRoute,
+  ClinicBranchesRoute: ClinicBranchesRoute,
+  ClinicPatientsRoute: ClinicPatientsRoute,
+  ClinicRolesRoute: ClinicRolesRoute,
+  ClinicSettingsRoute: ClinicSettingsRoute,
+  ClinicUsersRoute: ClinicUsersRoute,
+  ClinicIndexRoute: ClinicIndexRoute,
+}
+
+const ClinicRouteWithChildren =
+  ClinicRoute._addFileChildren(ClinicRouteChildren)
+
+interface PlatformRouteChildren {
+  PlatformAuditRoute: typeof PlatformAuditRoute
+  PlatformSettingsRoute: typeof PlatformSettingsRoute
+  PlatformTeamRoute: typeof PlatformTeamRoute
+  PlatformIndexRoute: typeof PlatformIndexRoute
+  PlatformClinicsClinicIdRoute: typeof PlatformClinicsClinicIdRoute
+  PlatformClinicsNewRoute: typeof PlatformClinicsNewRoute
+  PlatformClinicsIndexRoute: typeof PlatformClinicsIndexRoute
+}
+
+const PlatformRouteChildren: PlatformRouteChildren = {
+  PlatformAuditRoute: PlatformAuditRoute,
+  PlatformSettingsRoute: PlatformSettingsRoute,
+  PlatformTeamRoute: PlatformTeamRoute,
+  PlatformIndexRoute: PlatformIndexRoute,
+  PlatformClinicsClinicIdRoute: PlatformClinicsClinicIdRoute,
+  PlatformClinicsNewRoute: PlatformClinicsNewRoute,
+  PlatformClinicsIndexRoute: PlatformClinicsIndexRoute,
+}
+
+const PlatformRouteWithChildren = PlatformRoute._addFileChildren(
+  PlatformRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ClinicRoute: ClinicRouteWithChildren,
+  ForbiddenRoute: ForbiddenRoute,
+  PlatformRoute: PlatformRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

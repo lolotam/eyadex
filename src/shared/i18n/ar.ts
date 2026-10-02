@@ -1,0 +1,69 @@
+import type { Dictionary } from "./dictionary";
+
+export const ar: Dictionary = {
+  app: { name: "Clinic App", tagline: "إدارة العيادات المتعددة" },
+  common: {
+    save: "حفظ", cancel: "إلغاء", create: "إنشاء", search: "بحث", all: "الكل", loading: "جارٍ التحميل…",
+    next: "التالي", previous: "السابق", back: "رجوع", saved: "تم الحفظ", retry: "إعادة المحاولة", noResults: "لا توجد نتائج",
+    active: "نشط", inactive: "غير نشط", open: "فتح", showing: "عرض {count} من {total}", readOnly: "للعرض فقط",
+  },
+  language: { ar: "العربية", en: "English", switch: "اللغة" },
+  persona: {
+    label: "الدخول باسم", switch: "تبديل الشخصية", clinic: "العيادة", chooseClinic: "اختر عيادة",
+    platform_admin: "مدير المنصة", clinic_admin: "مدير العيادة", doctor: "طبيب", cashier: "كاشير", technician: "فني",
+    demoNote: "دخول تجريبي بدون كلمات مرور.",
+  },
+  nav: {
+    platformArea: "المنصة", clinicArea: "العيادة", overview: "نظرة عامة", clinics: "العيادات", team: "فريق المنصة",
+    audit: "سجل التدقيق", settings: "الإعدادات", branches: "الفروع", users: "المستخدمون", roles: "الأدوار والصلاحيات",
+    patients: "المرضى", account: "حسابي", menu: "القائمة",
+  },
+  comingNext: { title: "قريبًا", body: "هذه الشاشة ضمن المرحلة التالية." },
+  forbidden: { title: "غير مسموح", body: "دورك الحالي لا يملك صلاحية الوصول لهذه الصفحة.", home: "الذهاب لصفحتي الرئيسية" },
+  blocked: {
+    suspendedTitle: "هذه العيادة موقوفة",
+    suspendedBody: "الدخول معطّل أثناء إيقاف الاشتراك. يرجى التواصل مع مدير المنصة.",
+    expiredTitle: "انتهى اشتراك هذه العيادة",
+    expiredBody: "الدخول معطّل حتى يتم تجديد الاشتراك. يرجى التواصل مع مدير المنصة.",
+  },
+  landing: { title: "اختر طريقة الدخول", body: "اختر شخصية لاستكشاف النسخة التجريبية.", enter: "دخول" },
+  clinicStatus: { trial: "تجريبي", active: "نشط", suspended: "موقوف" },
+  specialty: { psychiatry: "طب نفسي", psychology: "علاج نفسي", dental: "أسنان", dermatology: "جلدية", general: "طب عام" },
+  clinics: {
+    title: "العيادات", subtitle: "كل العيادات على المنصة", new: "عيادة جديدة", searchPlaceholder: "ابحث بالاسم أو المعرّف",
+    anyStatus: "كل الحالات", anySpecialty: "كل التخصصات", expiringSoon: "ينتهي قريبًا",
+    columns: { name: "العيادة", specialty: "التخصص", status: "الحالة", expiresAt: "الانتهاء", users: "المستخدمون", branches: "الفروع" },
+    createTitle: "إنشاء عيادة", createSubtitle: "تبدأ العيادة بفترة تجريبية 30 يومًا، ويصل لمديرها الأول دعوة.",
+    sectionClinic: "العيادة", sectionAdmin: "مدير العيادة الأول",
+    fields: {
+      nameAr: "الاسم (عربي)", nameEn: "الاسم (إنجليزي)", slug: "المعرّف", slugHint: "حروف إنجليزية صغيرة وأرقام وشرطات.",
+      specialty: "التخصص", defaultLanguage: "اللغة الافتراضية", timezone: "المنطقة الزمنية", adminName: "اسم المدير الكامل", adminEmail: "بريد المدير",
+    },
+    created: "تم إنشاء العيادة", notFound: "العيادة غير موجودة",
+    tabs: { details: "البيانات", subscription: "الاشتراك والحدود", modules: "الموديولات", users: "المستخدمون", branches: "الفروع" },
+    detailsSaved: "تم حفظ البيانات",
+    subscription: {
+      status: "الحالة", expiry: "الانتهاء", byDuration: "تمديد بمدة", byDate: "تحديد تاريخ", durationMonths: "عدد الأشهر",
+      expiresOn: "تاريخ الانتهاء", currentExpiry: "الانتهاء الحالي: {date}", maxUsers: "الحد الأقصى للمستخدمين", maxBranches: "الحد الأقصى للفروع",
+      usage: "الاستخدام مقابل الحدود", usersUsage: "المستخدمون", branchesUsage: "الفروع", saved: "تم حفظ الاشتراك",
+    },
+    modules: {
+      title: "الموديولات", body: "إيقاف الموديول يخفيه من قائمة العيادة ومن محرر الأدوار.",
+      patients: "المرضى", patientsBody: "ملفات المرضى والبحث والتسجيل.", saved: "تم تحديث الموديول",
+    },
+    members: { name: "الاسم", email: "البريد", role: "الدور", branches: "الفروع", status: "الحالة", allBranches: "كل الفروع" },
+    memberStatus: { active: "نشط", invited: "مدعو", deactivated: "معطّل" },
+    branchColumns: { name: "الفرع", status: "الحالة" },
+    privacyNote: "بيانات المرضى لا تظهر أبدًا في منطقة المنصة.",
+  },
+  validation: {
+    required: "مطلوب", tooShort: "قصير جدًا", tooLong: "طويل جدًا", email: "أدخل بريدًا صحيحًا",
+    slug: "استخدم حروفًا إنجليزية صغيرة وأرقامًا وشرطات", number: "أدخل رقمًا", min: "يجب ألا يقل عن 1", dateRequired: "اختر تاريخًا",
+  },
+  errors: {
+    not_found: "غير موجود", slug_taken: "هذا المعرّف مستخدم لعيادة أخرى",
+    limit_below_usage: "لا يمكن أن تكون الحدود أقل من الاستخدام الحالي", limit_reached: "تم الوصول للحد المسموح للعيادة",
+    forbidden: "غير مسموح لك بهذا الإجراء", module_disabled: "هذا الموديول متوقف لهذه العيادة",
+    validation: "بعض الحقول غير صحيحة", unknown: "حدث خطأ ما",
+  },
+};
