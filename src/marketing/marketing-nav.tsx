@@ -23,7 +23,7 @@ export function MarketingNav() {
       <div className="mk-nav-row">
         <Lockup />
         <nav className="mk-nav-end" aria-label="Eyadex">
-          <a className="mk-link mk-hide-sm" href={d.nav.otherHref} hrefLang={d.nav.otherHref === "/" ? "ar" : "en"}>
+          <a className="mk-link mk-hide-sm" href={d.nav.otherHref}>
             {d.nav.otherLang}
           </a>
           <Link className="mk-link mk-hide-sm" to="/login">

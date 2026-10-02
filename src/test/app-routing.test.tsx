@@ -1,21 +1,35 @@
 import { QueryClient } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
-import { cleanup, render, waitFor } from "@testing-library/react";
+import { act, cleanup } from "@testing-library/react";
+import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { routeTree } from "@/routeTree.gen";
 
-function renderAt(path: string) {
+async function renderAt(path: string) {
   const queryClient = new QueryClient();
   const router = createRouter({
     routeTree,
     context: { queryClient },
     history: createMemoryHistory({ initialEntries: [path] }),
   });
-  return render(<RouterProvider router={router} />);
+  await act(async () => {
+    await router.load();
+  });
+  const root = createRoot(document);
+  await act(async () => {
+    root.render(<RouterProvider router={router} />);
+  });
+  return { root };
 }
 
+let mountedRoot: Root | null = null;
+
 afterEach(() => {
+  if (mountedRoot) {
+    act(() => mountedRoot?.unmount());
+    mountedRoot = null;
+  }
   cleanup();
   vi.restoreAllMocks();
 });
@@ -24,16 +38,18 @@ afterEach(() => {
 // routes are rewritten as the app is built and this must keep passing.
 describe("App routing", () => {
   it("renders the index route", async () => {
-    const { container } = renderAt("/");
+    const { root } = await renderAt("/");
+    mountedRoot = root;
 
-    await waitFor(() => expect(container.firstChild).not.toBeNull());
+    await expect.poll(() => document.querySelector("main")).not.toBeNull();
   });
 
   it("renders the not-found route", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
-    const { container } = renderAt("/this-route-does-not-exist");
+    const { root } = await renderAt("/this-route-does-not-exist");
+    mountedRoot = root;
 
-    await waitFor(() => expect(container.firstChild).not.toBeNull());
+    await expect.poll(() => document.body.textContent).toContain("404");
   });
 });

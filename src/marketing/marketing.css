@@ -20,7 +20,7 @@
   --p: 0; --mx: 0; --my: 0;
   background: var(--mk-canvas); color: var(--mk-ink);
   font-family: "IBM Plex Sans Arabic", "IBM Plex Sans", system-ui, sans-serif;
-  font-size: 1.0625rem; line-height: 1.85; overflow-x: clip; position: relative;
+  font-size: 1.0625rem; line-height: 1.85; position: relative;
   caret-color: var(--mk-accent); scrollbar-color: color-mix(in oklab, var(--mk-accent) 45%, transparent) var(--mk-canvas);
 }
 .mk[dir="rtl"] { --dir: 1; }
@@ -119,10 +119,10 @@
 .mk-silence { display: none; }
 /* Act 3: the keyring */
 .mk-keyring { height: 360vh; position: relative; }
-.mk-keyring-stage { position: sticky; top: 0; min-height: 100svh; padding: 88px var(--mk-gutter) 24px; max-width: 1320px; margin-inline: auto; display: grid; align-content: center; gap: 24px; }
+.mk-keyring-stage { position: sticky; top: 0; width: 100%; height: 100svh; padding: 76px var(--mk-gutter) 20px; max-width: 1280px; margin-inline: auto; display: grid; align-content: center; gap: 20px; }
 .mk-keyring-head { display: grid; gap: 8px; }
 .mk-keyring-head .mk-h2 { font-size: clamp(1.8rem, 2.8vw, 2.8rem); }
-.mk-keyring-grid { display: grid; grid-template-columns: minmax(300px, 0.8fr) 1.6fr; gap: 40px; align-items: start; }
+.mk-keyring-grid { display: grid; grid-template-columns: minmax(0, 34fr) minmax(0, 62fr); gap: 4%; align-items: start; width: 100%; }
 .mk-rail { display: flex; justify-content: space-between; gap: 6px; padding-top: 10px; border-top: 3px solid #b8955a; }
 .mk-key { display: grid; justify-items: center; gap: 8px; padding: 0 2px 6px; background: none; border: 0; cursor: pointer; color: var(--mk-ink); font: inherit; font-size: .82rem; font-weight: 500; opacity: .55; transform-origin: 50% 0; transition: transform 260ms var(--mk-ease), opacity 200ms var(--mk-ease); }
 .mk-key img { width: 56px; height: auto; }
@@ -135,7 +135,7 @@
 .mk-ledger-mini ol { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 2px; font-variant-numeric: tabular-nums; }
 .mk-ledger-mini li:first-child { color: var(--mk-ink); animation: mk-in 240ms var(--mk-ease); }
 /* Mini Eyadex window */
-.mk-win { background: var(--mk-surface); border: 1px solid var(--mk-line); border-radius: var(--mk-radius); box-shadow: var(--mk-shadow-2), inset 0 1px 0 #fff; overflow: hidden; font-size: .85rem; line-height: 1.5; }
+.mk-win { background: var(--mk-surface); border: 1px solid var(--mk-line); border-radius: var(--mk-radius); box-shadow: var(--mk-shadow-2), inset 0 1px 0 #fff; overflow: hidden; font-size: 14px; line-height: 1.5; }
 .mk-win-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--mk-line); font-weight: 600; }
 .mk-win-body { display: grid; grid-template-columns: 132px 1fr; min-height: 340px; }
 .mk-win-side { list-style: none; margin: 0; padding: 10px 8px; border-inline-end: 1px solid var(--mk-line); background: #FBFAF7; display: grid; align-content: start; gap: 2px; }
@@ -147,8 +147,8 @@
 .mk-win-btn { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding-inline: 10px; border: 1px solid var(--mk-line); border-radius: 6px; font-weight: 500; animation: mk-in 200ms var(--mk-ease); }
 .mk-win-btn--primary { background: var(--mk-accent); color: var(--mk-accent-ink); border-color: transparent; }
 .mk-win-table { width: 100%; border-collapse: collapse; }
-.mk-win-table th { text-align: start; font-weight: 500; color: var(--mk-ink-soft); padding: 6px 8px; border-bottom: 1px solid var(--mk-line); font-size: .78rem; }
-.mk-win-table td { padding: 7px 8px; border-bottom: 1px solid var(--mk-line); height: 36px; }
+.mk-win-table th { text-align: start; font-weight: 500; color: var(--mk-ink-soft); padding: 8px; border-bottom: 1px solid var(--mk-line); font-size: 14px; }
+.mk-win-table td { padding: 8px; border-bottom: 1px solid var(--mk-line); height: 40px; }
 .mk-win-table tr.is-open td { background: color-mix(in oklab, var(--mk-accent) 6%, white); }
 .mk-win-outside { position: relative; color: var(--mk-ink-soft); font-size: .78rem; animation: mk-in 280ms var(--mk-ease) both; animation-delay: calc(var(--i) * 40ms); }
 .mk-frost-bar { position: absolute; inset: 9px 8px; border-radius: 4px; background: repeating-linear-gradient(90deg, rgba(20,33,31,.10) 0 70px, transparent 70px 90px); filter: blur(3px); }
@@ -177,15 +177,18 @@
 }
 /* Act 4a: the plan */
 .mk-plan { height: 220vh; }
-.mk-plan-stage { position: sticky; top: 0; height: 100svh; max-width: 1240px; margin-inline: auto; padding: 80px var(--mk-gutter) 24px; display: grid; grid-template-columns: 1fr 1.2fr; gap: 48px; align-items: center; }
-.mk-plan-svg { width: 100%; height: auto; order: 2; }
+.mk-plan-stage { position: sticky; top: 0; height: 100svh; max-width: 1280px; margin-inline: auto; padding: 72px var(--mk-gutter) 20px; display: grid; grid-template-columns: minmax(0, 41fr) minmax(0, 55fr); gap: 4%; align-items: center; }
+.mk-plan-svg { width: min(55vw, 704px); max-width: 100%; height: auto; order: 2; }
 .mk-draw { fill: none; stroke: var(--mk-accent); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
 .mk-draw path { stroke-dasharray: 1; stroke-dashoffset: calc(1 - var(--d)); }
-.mk-draw.s1 { --d: clamp(0, calc((var(--p) - 0.04) / 0.26), 1); stroke-width: 2; }
-.mk-draw.s2 { --d: clamp(0, calc((var(--p) - 0.30) / 0.22), 1); }
-.mk-draw.s3 { --d: clamp(0, calc((var(--p) - 0.52) / 0.30), 1); }
+.mk-draw.s1 { --d: clamp(.02, calc((var(--p) - 0.05) / 0.23), 1); stroke-width: 2; }
+.mk-draw.s2 { --d: clamp(0, calc((var(--p) - 0.28) / 0.22), 1); }
+.mk-draw.s3 { --d: clamp(0, calc((var(--p) - 0.50) / 0.25), 1); }
 .mk-plan-callouts { display: grid; gap: 32px; }
-.mk-callout { max-width: 40ch; display: grid; gap: 6px; --t: calc(0.16 + var(--i) * 0.26); --c: clamp(0, calc((var(--p) - var(--t)) / 0.1), 1); opacity: var(--c); transform: translateY(calc((1 - var(--c)) * 12px)); }
+.mk-callout { max-width: 40ch; display: grid; gap: 6px; --c: clamp(0, calc((var(--p) - var(--t)) / 0.08), 1); opacity: var(--c); transform: translateY(calc((1 - var(--c)) * 12px)); }
+.mk-callout.c1 { --t: 0.25; }
+.mk-callout.c2 { --t: 0.45; }
+.mk-callout.c3 { --t: 0.65; }
 .mk-callout.c2 { margin-inline-start: clamp(0px, 4vw, 64px); }
 .mk-callout.c3 { margin-inline-start: clamp(0px, 2vw, 28px); }
 .mk-callout h3 { font-size: 1.35rem; }
