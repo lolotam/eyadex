@@ -1,20 +1,19 @@
 # Assets
 
-Generation through kie.ai, then encoding for scrubbing. All of it via
-`scripts/kie.mjs` and `scripts/encode.sh`.
+Generation through Higgsfield, then encoding for scrubbing. All of it via
+`scripts/higgsfield.mjs` and `scripts/encode.sh`.
 
 ```bash
-node <skill>/scripts/kie.mjs probe                     # credit check first
-node <skill>/scripts/kie.mjs still "<prompt>" out/01.png --ar 16:9 [--ref brand.png]
-node <skill>/scripts/kie.mjs shot  "<move>"   out/01.png out/01.mp4 --dur 5 [--tail end.png]
+node <skill>/scripts/higgsfield.mjs probe              # credential check first
+node <skill>/scripts/higgsfield.mjs still "<prompt>" out/01.png --ar 16:9 [--ref brand.png]
+node <skill>/scripts/higgsfield.mjs shot  "<move>"   out/01.png out/01.mp4 --dur 5 [--tail end.png]
 bash  <skill>/scripts/encode.sh out/01.mp4 assets/01.mp4
 bash  <skill>/scripts/encode.sh out/01.mp4 assets/01-m.mp4 mobile
 ```
 
-Models: `seedream/5-pro-text-to-image` (and `-image-to-image` when you pass
-`--ref`) for stills, `kling/v2-1-pro` for camera moves. `aspect_ratio`,
-`quality` and `output_format` are all required by seedream; omitting any one
-returns a bare "This field is required" that does not name the field.
+Models: `higgsfield-ai/soul/standard` for stills (a `--ref` image is passed
+as `image_url`), `bytedance/seedance-2.5/image-to-video` for camera moves.
+Seedance takes `end_image_url`, which is what `--tail` maps to.
 
 **seedream rejects most aspect ratios, and does not say which it takes.** An
 unsupported value fails at `createTask` with `"This aspect_ratio is not within
@@ -90,14 +89,11 @@ backdrop when the cutout is passed every time.
 
 ---
 
-**Published unit costs** (kie.ai, as of August 2026): `seedream/5-pro` still =
-**28 credits**, `kling/v2-1-pro` 5s clip = **160 credits**. A seven-still,
-two-clip page is therefore around 520 credits. `kie.mjs probe` reports a balance,
-not a delta, so plan the spend from these numbers and probe before and after to
-confirm. Do not trust a probe delta as this build's cost if anything else is
-running against the same key (see [verify.md](verify.md)).
-
-**Plan against those rates; expect the ledger to debit roughly 0.4x of them.**
+**Costs** (Higgsfield): pricing is per-model and shown in the Higgsfield
+console; there is no credit-balance API endpoint, so `higgsfield.mjs probe`
+only verifies credentials. Check the console for current Soul and Seedance
+rates before a large batch, and treat a seven-still, two-clip page as a small
+spend, not a large one.
 Two reconciliations against the account with no other consumer put actual debits
 at about 38% of the per-call sum: 1447 summed against 530 debited, and 2252
 summed against 856 debited. That puts a still nearer ~11 credits and a 5s kling
@@ -185,7 +181,7 @@ head, so the joint is frame-identical:
 
 ```bash
 ffmpeg -y -sseof -0.05 -i leg1.mp4 -frames:v 1 -q:v 2 seam1.png
-node kie.mjs shot "<move>" seam1.png leg2.mp4 --dur 5
+node higgsfield.mjs shot "<move>" seam1.png leg2.mp4 --dur 5
 ```
 
 Extract the seam frame from the **encoded** clip, not the source: re-encoding
