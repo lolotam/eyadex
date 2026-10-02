@@ -13,7 +13,7 @@ export const en: MkDict = {
   demo: { label: "Book a demo", text: "Hello, I'd like to book an Eyadex demo for my clinic." },
   hero: {
     h1: "Every file in your clinic, behind the right door.",
-    lead: "Eyadex is clinic management for patients and clients across every specialty and every branch: dermatology, psychiatry, OB/GYN and more. One fixed core for every clinic, extra sections for your specialty, and you decide who sees what.",
+    lead: "Eyadex is clinic management for every specialty and every branch, whether you serve patients or clients: dermatology, psychiatry, OB/GYN and more. One fixed core for every clinic, extra sections for your specialty, and you decide who sees what.",
     secondary: "Try the keys yourself",
     beat: "A quiet room. Protected files. A team that sees only what it needs.",
   },
@@ -136,7 +136,7 @@ export const en: MkDict = {
   },
   close: {
     h2: "Let's open the right door for your clinic.",
-    p: "A short walkthrough with our team. Then we set up your clinic and its branches for your patients and clients, and invite your clinic admin.",
+    p: "A short walkthrough with our team. Then we set up your clinic and its branches to serve your patients and clients, and invite your clinic admin.",
   },
   footer: { copyright: "© 2026 Eyadex" },
 };

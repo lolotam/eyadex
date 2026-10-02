@@ -8,7 +8,8 @@ export function KeyringWindow({ view }: { view: KeyringView }) {
   const { d } = useMk();
   const k = d.keyring;
   const open = view.rows.find((r) => r.patient.file === view.openFile)?.patient ?? null;
-  const shown = open ?? view.rows[1]!.patient;
+  const shown = open ?? view.rows[1]?.patient ?? view.rows[0]?.patient;
+  if (!shown) return null;
 
   return (
     <div className={`mk-win${view.refused ? " is-refused" : ""}`}>
