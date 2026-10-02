@@ -175,6 +175,23 @@
   .mk-win-side li { white-space: nowrap; }
   .mk-win-table th:nth-child(4), .mk-win-table td:nth-child(4) { display: none; }
 }
+/* Specialty selector: the core remains still while the specialty layer changes. */
+.mk-specialties { border-top: 1px solid var(--mk-line); }
+.mk-specialties-grid { display: grid; grid-template-columns: minmax(0, 38fr) minmax(0, 58fr); gap: 4%; align-items: start; }
+.mk-specialties-copy { display: grid; gap: 16px; }
+.mk-specialties-demo { min-width: 0; }
+.mk-specialty-seg { display: flex; gap: 2px; overflow-x: auto; padding: 3px; margin-bottom: 18px; border: 1px solid var(--mk-line); border-radius: var(--mk-radius); background: var(--mk-surface); }
+.mk .mk-specialty-option { flex: 1 0 auto; min-height: 40px; border-radius: 6px; color: var(--mk-ink-soft); }
+.mk .mk-specialty-option[aria-pressed="true"] { background: var(--mk-accent); color: var(--mk-accent-ink); }
+.mk-layers { display: flex; flex-direction: column; border: 1px solid var(--mk-line); border-radius: var(--mk-radius); overflow: hidden; background: var(--mk-surface); box-shadow: var(--mk-shadow-1); }
+.mk-specialty-band, .mk-core-band { padding: 20px; }
+.mk-specialty-band { min-height: 156px; background: color-mix(in oklab, var(--mk-accent) 5%, var(--mk-surface)); animation: mk-in 240ms var(--mk-ease); }
+.mk-core-band { border-top: 3px solid var(--mk-accent); background: var(--mk-surface); }
+.mk-specialty-band strong, .mk-core-band strong { display: block; margin-bottom: 12px; color: var(--mk-accent); }
+.mk-specialty-band ul, .mk-core-band ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.mk-specialty-band li { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--mk-line); border-radius: 6px; background: var(--mk-surface); }
+.mk-core-band li { padding: 8px 10px; border-radius: 6px; background: color-mix(in oklab, var(--mk-accent) 9%, white); font-weight: 500; }
+@media (max-width: 899px) { .mk-specialties-grid { grid-template-columns: 1fr; gap: 28px; } .mk-specialty-option { min-width: max-content; } }
 /* Act 4a: the plan */
 .mk-plan { height: 220vh; }
 .mk-plan-stage { position: sticky; top: 0; height: 100svh; max-width: 1280px; margin-inline: auto; padding: 72px var(--mk-gutter) 20px; display: grid; grid-template-columns: minmax(0, 41fr) minmax(0, 55fr); gap: 4%; align-items: center; }
