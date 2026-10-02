@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { personaSchema, type Persona, type SessionContext } from "@contracts/session";
 import { useApi } from "@/shared/api/api-provider";
 
-const STORAGE_KEY = "clinic-app:persona";
+const STORAGE_KEY = "eyadex:persona";
 const DEFAULT_PERSONA: Persona = { kind: "platform_admin", clinicId: null };
 
 type PersonaValue = {

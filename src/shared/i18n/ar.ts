@@ -1,7 +1,7 @@
 import type { Dictionary } from "./dictionary";
 
 export const ar: Dictionary = {
-  app: { name: "Clinic App", tagline: "إدارة العيادات المتعددة" },
+  app: { name: "Eyadex", tagline: "كل عياداتك في مكان واحد" },
   common: {
     save: "حفظ", cancel: "إلغاء", create: "إنشاء", search: "بحث", all: "الكل", loading: "جارٍ التحميل…",
     next: "التالي", previous: "السابق", back: "رجوع", saved: "تم الحفظ", retry: "إعادة المحاولة", noResults: "لا توجد نتائج",
@@ -38,6 +38,7 @@ export const ar: Dictionary = {
     sectionClinic: "العيادة", sectionAdmin: "مدير العيادة الأول",
     fields: {
       nameAr: "الاسم (عربي)", nameEn: "الاسم (إنجليزي)", slug: "المعرّف", slugHint: "حروف إنجليزية صغيرة وأرقام وشرطات.",
+      slugPreview: "العنوان المستقبلي: {address}",
       specialty: "التخصص", defaultLanguage: "اللغة الافتراضية", timezone: "المنطقة الزمنية", adminName: "اسم المدير الكامل", adminEmail: "بريد المدير",
     },
     created: "تم إنشاء العيادة", notFound: "العيادة غير موجودة",
@@ -74,10 +75,10 @@ export const ar: Dictionary = {
   },
   validation: {
     required: "مطلوب", tooShort: "قصير جدًا", tooLong: "طويل جدًا", email: "أدخل بريدًا صحيحًا",
-    slug: "استخدم حروفًا إنجليزية صغيرة وأرقامًا وشرطات", number: "أدخل رقمًا", min: "يجب ألا يقل عن 1", dateRequired: "اختر تاريخًا",
+    slug: "استخدم حروفًا إنجليزية صغيرة وأرقامًا وشرطات", slugReserved: "هذا العنوان محجوز لمنصة Eyadex", number: "أدخل رقمًا", min: "يجب ألا يقل عن 1", dateRequired: "اختر تاريخًا",
   },
   errors: {
-    not_found: "غير موجود", slug_taken: "هذا المعرّف مستخدم لعيادة أخرى",
+    not_found: "غير موجود", slug_taken: "هذا المعرّف مستخدم لعيادة أخرى", reserved_slug: "هذا العنوان محجوز لمنصة Eyadex",
     limit_below_usage: "لا يمكن أن تكون الحدود أقل من الاستخدام الحالي", limit_reached: "تم الوصول للحد المسموح للعيادة",
     forbidden: "غير مسموح لك بهذا الإجراء", module_disabled: "هذا الموديول متوقف لهذه العيادة",
     last_active_branch: "لا يمكن إيقاف آخر فرع نشط للعيادة",

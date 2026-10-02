@@ -19,12 +19,18 @@ export type ClinicModule = z.infer<typeof moduleSchema>;
 export const featuresSchema = z.object({ patients: z.boolean() });
 export type ClinicFeatures = z.infer<typeof featuresSchema>;
 
+export const RESERVED_CLINIC_SLUGS = [
+  "app", "platform", "api", "www", "admin", "staging", "cdn", "mail",
+  "status", "docs", "help", "support", "auth", "static", "assets",
+] as const;
+
 export const slugSchema = z
   .string()
   .trim()
   .min(3, "validation.tooShort")
   .max(40, "validation.tooLong")
-  .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "validation.slug");
+  .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "validation.slug")
+  .refine((slug) => !(RESERVED_CLINIC_SLUGS as readonly string[]).includes(slug), "validation.slugReserved");
 
 export const clinicSchema = z.object({
   id: idSchema,

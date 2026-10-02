@@ -1,5 +1,5 @@
 export const en = {
-  app: { name: "Clinic App", tagline: "Multi-clinic management" },
+  app: { name: "Eyadex", tagline: "One place for every clinic" },
   common: {
     save: "Save", cancel: "Cancel", create: "Create", search: "Search", all: "All", loading: "Loading…",
     next: "Next", previous: "Previous", back: "Back", saved: "Saved", retry: "Retry", noResults: "No results",
@@ -36,6 +36,7 @@ export const en = {
     sectionClinic: "Clinic", sectionAdmin: "First clinic admin",
     fields: {
       nameAr: "Name (Arabic)", nameEn: "Name (English)", slug: "Slug", slugHint: "Lowercase letters, numbers and dashes.",
+      slugPreview: "Future address: {address}",
       specialty: "Specialty", defaultLanguage: "Default language", timezone: "Timezone", adminName: "Admin full name", adminEmail: "Admin email",
     },
     created: "Clinic created", notFound: "Clinic not found",
@@ -72,10 +73,10 @@ export const en = {
   },
   validation: {
     required: "Required", tooShort: "Too short", tooLong: "Too long", email: "Enter a valid email",
-    slug: "Use lowercase letters, numbers and dashes", number: "Enter a number", min: "Must be at least 1", dateRequired: "Pick a date",
+    slug: "Use lowercase letters, numbers and dashes", slugReserved: "This address is reserved by Eyadex", number: "Enter a number", min: "Must be at least 1", dateRequired: "Pick a date",
   },
   errors: {
-    not_found: "Not found", slug_taken: "This slug is already used by another clinic",
+    not_found: "Not found", slug_taken: "This slug is already used by another clinic", reserved_slug: "This address is reserved by Eyadex",
     limit_below_usage: "Limits cannot be lower than current usage", limit_reached: "The clinic limit has been reached",
     forbidden: "You are not allowed to do this", module_disabled: "This module is turned off for the clinic",
     last_active_branch: "The clinic's last active branch cannot be deactivated",

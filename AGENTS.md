@@ -10,6 +10,7 @@
 <!-- LOVABLE:END -->
 
 ## Architecture rules
+- The product brand is `Eyadex` in both languages and its domain is `eyadex.com`; `clinic` remains the business-domain term in code and URLs.
 - Frontend only: no Lovable Cloud, no database, no server functions with business logic — a separate backend API comes later.
 - All data goes through the `ApiClient` interface (`src/shared/api/api-client.ts`) via `useApi()`; screens never import the mock adapter — so the adapter can be swapped for HTTP.
 - Zod schemas in top-level `contracts/` (alias `@contracts/*`) are the single source of types for forms and the API client.

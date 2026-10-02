@@ -1,6 +1,8 @@
-# Welcome to your Lovable project
+# Eyadex
 
-This project was built with [Lovable](https://lovable.dev).
+Eyadex is an Arabic-first, multi-clinic management web application. This repository currently contains the frontend demo and its typed, browser-persisted mock API.
+
+Product domain: [eyadex.com](https://eyadex.com). Production hosting will be configured separately from Lovable.
 
 ## Build with Lovable
 

@@ -1,5 +1,5 @@
 export function pageHead(title: string, description: string) {
-  const full = `${title} — Clinic App`;
+  const full = `${title} · Eyadex`;
   return {
     meta: [
       { title: full },

@@ -15,9 +15,9 @@ function idFactory() {
 }
 
 const CLINICS = [
-  { slug: "serenity", nameAr: "عيادة السكينة للطب النفسي", nameEn: "Serenity Psychiatric Clinic", specialty: "psychiatry", status: "active", days: 210, maxUsers: 10, maxBranches: 3, domain: "serenity.kw" },
-  { slug: "al-noor", nameAr: "مركز النور للعلاج النفسي", nameEn: "Al Noor Psychology Center", specialty: "psychology", status: "trial", days: 9, maxUsers: 8, maxBranches: 2, domain: "alnoor.kw" },
-  { slug: "bright-smile", nameAr: "عيادة الابتسامة المشرقة", nameEn: "Bright Smile Dental", specialty: "dental", status: "suspended", days: 90, maxUsers: 6, maxBranches: 2, domain: "brightsmile.kw" },
+  { slug: "serenity", nameAr: "عيادة السكينة للطب النفسي", nameEn: "Serenity Psychiatric Clinic", specialty: "psychiatry", status: "active", days: 210, maxUsers: 10, maxBranches: 3 },
+  { slug: "al-noor", nameAr: "مركز النور للعلاج النفسي", nameEn: "Al Noor Psychology Center", specialty: "psychology", status: "trial", days: 9, maxUsers: 8, maxBranches: 2 },
+  { slug: "bright-smile", nameAr: "عيادة الابتسامة المشرقة", nameEn: "Bright Smile Dental", specialty: "dental", status: "suspended", days: 90, maxUsers: 6, maxBranches: 2 },
 ] as const;
 
 const BRANCH_NAMES = [
@@ -74,7 +74,7 @@ export function buildSeed(): MockState {
       if (!role) return;
       const branch = branches[si % 2];
       const member: Member = {
-        id: makeId(), clinicId, userId: makeId(), fullName: s.name, email: `${s.local}@${c.domain}`,
+        id: makeId(), clinicId, userId: makeId(), fullName: s.name, email: `${s.local}@example.com`,
         roleId: role.id, allBranches: s.key === "clinic_admin" || !branch, branchIds: branch && s.key !== "clinic_admin" ? [branch.id] : [],
         status: "active", preferredLanguage: "ar", createdAt,
       };

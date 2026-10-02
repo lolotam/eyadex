@@ -5,7 +5,7 @@ import { ar } from "./ar";
 import { en } from "./en";
 import { lookup, type Dictionary, type TranslationKey } from "./dictionary";
 
-const STORAGE_KEY = "clinic-app:language";
+const STORAGE_KEY = "eyadex:language";
 const dictionaries: Record<Language, Dictionary> = { ar, en };
 
 type Vars = Record<string, string | number>;

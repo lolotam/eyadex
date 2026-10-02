@@ -1,4 +1,4 @@
-# Clinic App — Phase 1 (frontend foundation)
+# Eyadex — Phase 1 (frontend foundation)
 
 Scope follows your brief's "Start with" line: app shell, contracts, API client + mock adapter + seed data, then Platform > Clinics screens. Then stop for review.
 
