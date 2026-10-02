@@ -13,7 +13,7 @@ function segmentFor(p: number): number {
 }
 
 export function KeyringAct() {
-  const { d } = useMk();
+  const { d, lang } = useMk();
   const k = d.keyring;
   const ref = useRef<HTMLElement>(null);
   const keyRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -54,7 +54,7 @@ export function KeyringAct() {
     const handled = ["ArrowDown", "ArrowLeft", "ArrowRight", "ArrowUp", "Home", "End"];
     if (!handled.includes(e.key)) return;
     e.preventDefault();
-    const rtl = getComputedStyle(e.currentTarget).direction === "rtl";
+    const rtl = lang === "ar";
     let idx: number;
     if (e.key === "Home") idx = 0;
     else if (e.key === "End") idx = KEY_ORDER.length - 1;
