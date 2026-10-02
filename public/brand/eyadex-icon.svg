@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Eyadex">
+  <rect width="64" height="64" rx="14" fill="#0E5C59"/>
+  <g transform="translate(17 10) scale(0.625)">
+    <path fill="#F7F5F0" fill-rule="evenodd" d="M0 64V24a24 24 0 0 1 48 0v40zM9 64V31a15 15 0 0 1 30 0v33z"/>
+    <path fill="none" stroke="#F7F5F0" stroke-width="5" d="M15 45h18a9 9 0 1 0-2.64 6.36"/>
+  </g>
+</svg>
