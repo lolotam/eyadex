@@ -1,0 +1,30 @@
+import { z } from "zod";
+
+export const idSchema = z.string().uuid();
+
+export const languageSchema = z.enum(["ar", "en"]);
+export type Language = z.infer<typeof languageSchema>;
+
+export const pageQuerySchema = z.object({
+  cursor: z.string().nullable(),
+  limit: z.number().int().min(1).max(100),
+});
+export type PageQuery = z.infer<typeof pageQuerySchema>;
+
+export type Page<T> = {
+  items: T[];
+  nextCursor: string | null;
+  total: number;
+};
+
+export const apiErrorCodeSchema = z.enum([
+  "not_found",
+  "slug_taken",
+  "limit_below_usage",
+  "limit_reached",
+  "forbidden",
+  "module_disabled",
+  "validation",
+  "unknown",
+]);
+export type ApiErrorCode = z.infer<typeof apiErrorCodeSchema>;
