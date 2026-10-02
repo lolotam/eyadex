@@ -9,7 +9,7 @@ export function CloseAct() {
   const { d } = useMk();
   const ref = useRef<HTMLElement>(null);
   const reduced = useReducedMotion();
-  useScrollProgress(ref, { mode: "pass", disabled: reduced, rest: 1 });
+  useScrollProgress(ref, { disabled: reduced, rest: 1 });
   return (
     <section ref={ref} className="mk-close" aria-labelledby="mk-close-h">
       <div className="mk-close-stage">
