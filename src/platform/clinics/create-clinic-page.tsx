@@ -3,7 +3,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { createClinicInputSchema, type ClinicDetailsInput, type CreateClinicInput } from "@contracts/clinics";
+import {
+  createClinicInputSchema,
+  type ClinicDetailsInput,
+  type CreateClinicInput,
+} from "@contracts/clinics";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form } from "@/components/ui/form";
@@ -23,8 +27,14 @@ export function CreateClinicPage() {
   const form = useForm<CreateClinicInput>({
     resolver: zodResolver(createClinicInputSchema),
     defaultValues: {
-      nameAr: "", nameEn: "", slug: "", specialty: "psychiatry", defaultLanguage: "ar",
-      timezone: "Asia/Kuwait", adminName: "", adminEmail: "",
+      nameAr: "",
+      nameEn: "",
+      slug: "",
+      specialty: "psychiatry",
+      defaultLanguage: "ar",
+      timezone: "Asia/Kuwait",
+      adminName: "",
+      adminEmail: "",
     },
   });
   const slug = form.watch("slug").trim() || "<slug>";
@@ -52,9 +62,14 @@ export function CreateClinicPage() {
     <div className="max-w-3xl">
       <PageHeader title={t("clinics.createTitle")} subtitle={t("clinics.createSubtitle")} />
       <Form {...form}>
-        <form onSubmit={form.handleSubmit((v) => mutation.mutate(v))} className="flex flex-col gap-6">
+        <form
+          onSubmit={form.handleSubmit((v) => mutation.mutate(v))}
+          className="flex flex-col gap-6"
+        >
           <Card>
-            <CardHeader><CardTitle className="text-base">{t("clinics.sectionClinic")}</CardTitle></CardHeader>
+            <CardHeader>
+              <CardTitle className="text-base">{t("clinics.sectionClinic")}</CardTitle>
+            </CardHeader>
             <CardContent className="flex flex-col gap-4">
               <TextField
                 control={form.control}
@@ -67,14 +82,28 @@ export function CreateClinicPage() {
             </CardContent>
           </Card>
           <Card>
-            <CardHeader><CardTitle className="text-base">{t("clinics.sectionAdmin")}</CardTitle></CardHeader>
+            <CardHeader>
+              <CardTitle className="text-base">{t("clinics.sectionAdmin")}</CardTitle>
+            </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-2">
-              <TextField control={form.control} name="adminName" label={t("clinics.fields.adminName")} />
-              <TextField control={form.control} name="adminEmail" label={t("clinics.fields.adminEmail")} type="email" dir="ltr" />
+              <TextField
+                control={form.control}
+                name="adminName"
+                label={t("clinics.fields.adminName")}
+              />
+              <TextField
+                control={form.control}
+                name="adminEmail"
+                label={t("clinics.fields.adminEmail")}
+                type="email"
+                dir="ltr"
+              />
             </CardContent>
           </Card>
           <div className="flex gap-2">
-            <Button type="submit" disabled={mutation.isPending}>{t("common.create")}</Button>
+            <Button type="submit" disabled={mutation.isPending}>
+              {t("common.create")}
+            </Button>
             <Button type="button" variant="outline" asChild>
               <Link to="/platform/clinics">{t("common.cancel")}</Link>
             </Button>

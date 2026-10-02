@@ -21,7 +21,11 @@ export function ClinicPage({ clinicId }: { clinicId: string }) {
 
   if (clinic.isLoading) return <LoadingBlock />;
   if (clinic.error) {
-    return errorCodeOf(clinic.error) === "forbidden" ? <ForbiddenPage /> : <p className="py-16 text-center text-muted-foreground">{t("clinics.notFound")}</p>;
+    return errorCodeOf(clinic.error) === "forbidden" ? (
+      <ForbiddenPage />
+    ) : (
+      <p className="py-16 text-center text-muted-foreground">{t("clinics.notFound")}</p>
+    );
   }
   const data = clinic.data;
   if (!data) return null;
@@ -51,11 +55,21 @@ export function ClinicPage({ clinicId }: { clinicId: string }) {
           <TabsTrigger value="users">{t("clinics.tabs.users")}</TabsTrigger>
           <TabsTrigger value="branches">{t("clinics.tabs.branches")}</TabsTrigger>
         </TabsList>
-        <TabsContent value="details"><ClinicDetailsTab clinic={data} /></TabsContent>
-        <TabsContent value="subscription"><ClinicSubscriptionTab clinic={data} /></TabsContent>
-        <TabsContent value="modules"><ClinicModulesTab clinic={data} /></TabsContent>
-        <TabsContent value="users"><ClinicUsersTab clinicId={data.id} /></TabsContent>
-        <TabsContent value="branches"><ClinicBranchesTab clinicId={data.id} /></TabsContent>
+        <TabsContent value="details">
+          <ClinicDetailsTab clinic={data} />
+        </TabsContent>
+        <TabsContent value="subscription">
+          <ClinicSubscriptionTab clinic={data} />
+        </TabsContent>
+        <TabsContent value="modules">
+          <ClinicModulesTab clinic={data} />
+        </TabsContent>
+        <TabsContent value="users">
+          <ClinicUsersTab clinicId={data.id} />
+        </TabsContent>
+        <TabsContent value="branches">
+          <ClinicBranchesTab clinicId={data.id} />
+        </TabsContent>
       </Tabs>
     </div>
   );

@@ -12,7 +12,11 @@ export const clinicKeys = {
 
 export function useClinicList(query: ClinicListQuery) {
   const api = useApi();
-  return useQuery({ queryKey: clinicKeys.list(query), queryFn: () => api.platform.listClinics(query), placeholderData: keepPreviousData });
+  return useQuery({
+    queryKey: clinicKeys.list(query),
+    queryFn: () => api.platform.listClinics(query),
+    placeholderData: keepPreviousData,
+  });
 }
 
 export function useClinic(id: string) {
@@ -22,10 +26,16 @@ export function useClinic(id: string) {
 
 export function useClinicMembers(id: string) {
   const api = useApi();
-  return useQuery({ queryKey: clinicKeys.members(id), queryFn: () => api.platform.listClinicMembers(id) });
+  return useQuery({
+    queryKey: clinicKeys.members(id),
+    queryFn: () => api.platform.listClinicMembers(id),
+  });
 }
 
 export function useClinicBranches(id: string) {
   const api = useApi();
-  return useQuery({ queryKey: clinicKeys.branches(id), queryFn: () => api.platform.listClinicBranches(id) });
+  return useQuery({
+    queryKey: clinicKeys.branches(id),
+    queryFn: () => api.platform.listClinicBranches(id),
+  });
 }

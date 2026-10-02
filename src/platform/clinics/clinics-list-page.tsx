@@ -2,11 +2,23 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Plus, Search } from "lucide-react";
-import { clinicStatusSchema, specialtySchema, type ClinicListItem, type ClinicStatus, type Specialty } from "@contracts/clinics";
+import {
+  clinicStatusSchema,
+  specialtySchema,
+  type ClinicListItem,
+  type ClinicStatus,
+  type Specialty,
+} from "@contracts/clinics";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { PageHeader } from "@/shared/shell/page-header";
 import { CursorPager } from "@/shared/table/cursor-pager";
@@ -37,12 +49,22 @@ export function ClinicsListPage() {
         cell: ({ row }) => (
           <div>
             <div className="font-medium">{pick(row.original.nameAr, row.original.nameEn)}</div>
-            <div className="text-xs text-muted-foreground" dir="ltr">{row.original.slug}</div>
+            <div className="text-xs text-muted-foreground" dir="ltr">
+              {row.original.slug}
+            </div>
           </div>
         ),
       },
-      { id: "specialty", header: t("clinics.columns.specialty"), cell: ({ row }) => t(`specialty.${row.original.specialty}`) },
-      { id: "status", header: t("clinics.columns.status"), cell: ({ row }) => <ClinicStatusBadge status={row.original.status} /> },
+      {
+        id: "specialty",
+        header: t("clinics.columns.specialty"),
+        cell: ({ row }) => t(`specialty.${row.original.specialty}`),
+      },
+      {
+        id: "status",
+        header: t("clinics.columns.status"),
+        cell: ({ row }) => <ClinicStatusBadge status={row.original.status} />,
+      },
       {
         id: "expires",
         header: t("clinics.columns.expiresAt"),
@@ -51,13 +73,25 @@ export function ClinicsListPage() {
           return (
             <div className="flex min-w-24 flex-col items-start gap-1 whitespace-nowrap">
               <span>{formatDate(row.original.expiresAt)}</span>
-              {soon && <Badge variant="outline" className="border-destructive/40 text-destructive">{t("clinics.expiringSoon")}</Badge>}
+              {soon && (
+                <Badge variant="outline" className="border-destructive/40 text-destructive">
+                  {t("clinics.expiringSoon")}
+                </Badge>
+              )}
             </div>
           );
         },
       },
-      { id: "users", header: t("clinics.columns.users"), cell: ({ row }) => `${row.original.usersCount} / ${row.original.maxUsers}` },
-      { id: "branches", header: t("clinics.columns.branches"), cell: ({ row }) => `${row.original.branchesCount} / ${row.original.maxBranches}` },
+      {
+        id: "users",
+        header: t("clinics.columns.users"),
+        cell: ({ row }) => `${row.original.usersCount} / ${row.original.maxUsers}`,
+      },
+      {
+        id: "branches",
+        header: t("clinics.columns.branches"),
+        cell: ({ row }) => `${row.original.branchesCount} / ${row.original.maxBranches}`,
+      },
     ],
     [t, pick, formatDate],
   );
@@ -76,7 +110,7 @@ export function ClinicsListPage() {
           </Button>
         }
       />
-       <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border bg-card p-3">
+      <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border bg-card p-3">
         <div className="relative min-w-60 flex-1">
           <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -89,18 +123,42 @@ export function ClinicsListPage() {
             }}
           />
         </div>
-        <Select value={status ?? ANY} onValueChange={(v) => { setStatus(v === ANY ? null : clinicStatusSchema.parse(v)); pages.reset(); }}>
-          <SelectTrigger className="w-44 bg-card"><SelectValue /></SelectTrigger>
+        <Select
+          value={status ?? ANY}
+          onValueChange={(v) => {
+            setStatus(v === ANY ? null : clinicStatusSchema.parse(v));
+            pages.reset();
+          }}
+        >
+          <SelectTrigger className="w-44 bg-card">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value={ANY}>{t("clinics.anyStatus")}</SelectItem>
-            {clinicStatusSchema.options.map((s) => <SelectItem key={s} value={s}>{t(`clinicStatus.${s}`)}</SelectItem>)}
+            {clinicStatusSchema.options.map((s) => (
+              <SelectItem key={s} value={s}>
+                {t(`clinicStatus.${s}`)}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
-        <Select value={specialty ?? ANY} onValueChange={(v) => { setSpecialty(v === ANY ? null : specialtySchema.parse(v)); pages.reset(); }}>
-          <SelectTrigger className="w-44 bg-card"><SelectValue /></SelectTrigger>
+        <Select
+          value={specialty ?? ANY}
+          onValueChange={(v) => {
+            setSpecialty(v === ANY ? null : specialtySchema.parse(v));
+            pages.reset();
+          }}
+        >
+          <SelectTrigger className="w-44 bg-card">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value={ANY}>{t("clinics.anySpecialty")}</SelectItem>
-            {specialtySchema.options.map((s) => <SelectItem key={s} value={s}>{t(`specialty.${s}`)}</SelectItem>)}
+            {specialtySchema.options.map((s) => (
+              <SelectItem key={s} value={s}>
+                {t(`specialty.${s}`)}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -108,7 +166,9 @@ export function ClinicsListPage() {
         columns={columns}
         data={list.data?.items ?? []}
         isLoading={list.isLoading}
-        onRowClick={(c) => void navigate({ to: "/platform/clinics/$clinicId", params: { clinicId: c.id } })}
+        onRowClick={(c) =>
+          void navigate({ to: "/platform/clinics/$clinicId", params: { clinicId: c.id } })
+        }
       />
       <CursorPager
         count={list.data?.items.length ?? 0}

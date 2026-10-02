@@ -2,7 +2,14 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 
-type Props = { count: number; total: number; canPrevious: boolean; canNext: boolean; onPrevious: () => void; onNext: () => void };
+type Props = {
+  count: number;
+  total: number;
+  canPrevious: boolean;
+  canNext: boolean;
+  onPrevious: () => void;
+  onNext: () => void;
+};
 
 export function CursorPager({ count, total, canPrevious, canNext, onPrevious, onNext }: Props) {
   const { t } = useI18n();

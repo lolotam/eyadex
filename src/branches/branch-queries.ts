@@ -3,7 +3,10 @@ import type { BranchListQuery } from "@contracts/organization";
 import { useApi } from "@/shared/api/api-provider";
 import { usePersona } from "@/shared/persona/persona-provider";
 
-export const branchKeys = { all: ["clinic", "branches"] as const, list: (query: BranchListQuery) => ["clinic", "branches", "list", query] as const };
+export const branchKeys = {
+  all: ["clinic", "branches"] as const,
+  list: (query: BranchListQuery) => ["clinic", "branches", "list", query] as const,
+};
 
 export function useBranchList(query: BranchListQuery) {
   const api = useApi();

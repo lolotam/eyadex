@@ -13,7 +13,9 @@ export function TruthAct() {
   return (
     <section ref={ref} className="mk-truth" aria-labelledby="mk-truth-h">
       <div className="mk-truth-stage">
-        <h2 id="mk-truth-h" className="mk-sr">{d.truth.h2}</h2>
+        <h2 id="mk-truth-h" className="mk-sr">
+          {d.truth.h2}
+        </h2>
         <div className="mk-truth-lines">
           {d.truth.lines.map((line, i) => (
             <p

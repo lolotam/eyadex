@@ -18,7 +18,9 @@ export function PersonaSwitcher() {
       <PopoverTrigger asChild>
         <Button variant="outline" size="sm" className="gap-2 bg-card">
           <UserRound className="size-4" />
-          <span className="hidden sm:inline">{session?.user.fullName ?? t(`persona.${persona.kind}`)}</span>
+          <span className="hidden sm:inline">
+            {session?.user.fullName ?? t(`persona.${persona.kind}`)}
+          </span>
           <span className="rounded-sm bg-secondary px-1.5 py-0.5 text-xs text-secondary-foreground">
             {t(`persona.${persona.kind}`)}
           </span>

@@ -28,7 +28,11 @@ export function getState(): MockState {
       try {
         state = JSON.parse(raw) as MockState;
         state.clinicAudit ??= [];
-        state.branches = state.branches.map((branch) => ({ ...branch, address: branch.address ?? null, phone: branch.phone ?? null }));
+        state.branches = state.branches.map((branch) => ({
+          ...branch,
+          address: branch.address ?? null,
+          phone: branch.phone ?? null,
+        }));
         return state;
       } catch {
         // fall through to fresh seed

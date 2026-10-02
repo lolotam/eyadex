@@ -9,9 +9,20 @@ import type { TranslationKey } from "@/shared/i18n/dictionary";
 import type { NavItem } from "./nav-items";
 import { AreaNav } from "./area-nav";
 
-type Props = { areaLabel: TranslationKey; subtitle?: string; items: NavItem[]; children: ReactNode };
+type Props = {
+  areaLabel: TranslationKey;
+  subtitle?: string;
+  items: NavItem[];
+  children: ReactNode;
+};
 
-function Brand({ areaLabel, subtitle }: { areaLabel: TranslationKey; subtitle?: string | undefined }) {
+function Brand({
+  areaLabel,
+  subtitle,
+}: {
+  areaLabel: TranslationKey;
+  subtitle?: string | undefined;
+}) {
   const { t } = useI18n();
   return (
     <div className="flex h-20 items-center gap-3 border-b border-sidebar-border px-5">

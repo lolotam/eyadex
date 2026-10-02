@@ -10,5 +10,9 @@ export function useMedia(query: string, fallback = false): boolean {
     },
     [query],
   );
-  return useSyncExternalStore(subscribe, () => window.matchMedia(query).matches, () => fallback);
+  return useSyncExternalStore(
+    subscribe,
+    () => window.matchMedia(query).matches,
+    () => fallback,
+  );
 }

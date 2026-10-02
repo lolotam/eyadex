@@ -5,6 +5,10 @@ export const SITE = {
 };
 
 export function demoHref(text: string): { href: string; external: boolean } {
-  if (SITE.whatsapp) return { href: `https://wa.me/${SITE.whatsapp}?text=${encodeURIComponent(text)}`, external: true };
+  if (SITE.whatsapp)
+    return {
+      href: `https://wa.me/${SITE.whatsapp}?text=${encodeURIComponent(text)}`,
+      external: true,
+    };
   return { href: `mailto:${SITE.email}?subject=${encodeURIComponent(text)}`, external: false };
 }

@@ -15,7 +15,9 @@ export function ForbiddenPage() {
       body={t("forbidden.body")}
       action={
         <Button asChild>
-          <Link to={persona.kind === "platform_admin" ? "/platform" : "/clinic"}>{t("forbidden.home")}</Link>
+          <Link to={persona.kind === "platform_admin" ? "/platform" : "/clinic"}>
+            {t("forbidden.home")}
+          </Link>
         </Button>
       }
     />

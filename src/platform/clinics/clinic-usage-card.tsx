@@ -9,7 +9,9 @@ function UsageRow({ label, used, max }: { label: string; used: number; max: numb
     <div className="flex flex-col gap-1.5">
       <div className="flex justify-between text-sm">
         <span>{label}</span>
-        <span className="tabular-nums text-muted-foreground">{used} / {max}</span>
+        <span className="tabular-nums text-muted-foreground">
+          {used} / {max}
+        </span>
       </div>
       <Progress value={percent} />
     </div>
@@ -20,10 +22,20 @@ export function ClinicUsageCard({ clinic }: { clinic: ClinicDetail }) {
   const { t } = useI18n();
   return (
     <Card>
-      <CardHeader><CardTitle className="text-base">{t("clinics.subscription.usage")}</CardTitle></CardHeader>
+      <CardHeader>
+        <CardTitle className="text-base">{t("clinics.subscription.usage")}</CardTitle>
+      </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <UsageRow label={t("clinics.subscription.usersUsage")} used={clinic.usersCount} max={clinic.maxUsers} />
-        <UsageRow label={t("clinics.subscription.branchesUsage")} used={clinic.branchesCount} max={clinic.maxBranches} />
+        <UsageRow
+          label={t("clinics.subscription.usersUsage")}
+          used={clinic.usersCount}
+          max={clinic.maxUsers}
+        />
+        <UsageRow
+          label={t("clinics.subscription.branchesUsage")}
+          used={clinic.branchesCount}
+          max={clinic.maxBranches}
+        />
       </CardContent>
     </Card>
   );

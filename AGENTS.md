@@ -1,4 +1,5 @@
 <!-- LOVABLE:BEGIN -->
+
 > [!IMPORTANT]
 > This project is connected to [Lovable](https://lovable.dev). Avoid rewriting
 > published git history — force pushing, or rebasing/amending/squashing commits
@@ -7,9 +8,11 @@
 >
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
+
 <!-- LOVABLE:END -->
 
 ## Architecture rules
+
 - The product brand is `Eyadex` in both languages and its domain is `eyadex.com`; `clinic` remains the business-domain term in code and URLs.
 - Frontend only: no Lovable Cloud, no database, no server functions with business logic — a separate backend API comes later.
 - All data goes through the `ApiClient` interface (`src/shared/api/api-client.ts`) via `useApi()`; screens never import the mock adapter — so the adapter can be swapped for HTTP.

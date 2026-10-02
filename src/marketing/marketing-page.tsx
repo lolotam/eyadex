@@ -18,7 +18,9 @@ export function MarketingPage({ lang }: { lang: MkLang }) {
   return (
     <MkContext.Provider value={{ lang, d }}>
       <div className="mk mk-grain" lang={lang} dir={lang === "ar" ? "rtl" : "ltr"}>
-        <a className="mk-skip" href="#mk-main">{d.nav.skip}</a>
+        <a className="mk-skip" href="#mk-main">
+          {d.nav.skip}
+        </a>
         <MarketingNav />
         <main id="mk-main" tabIndex={-1}>
           <HeroRoom />

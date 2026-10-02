@@ -26,7 +26,12 @@ describe("keyring model", () => {
   });
 
   it("buttons follow ROLE_TEMPLATES", () => {
-    const map = { admin: "clinic_admin", doctor: "doctor", receptionist: "receptionist", tech: "technician" } as const;
+    const map = {
+      admin: "clinic_admin",
+      doctor: "doctor",
+      receptionist: "receptionist",
+      tech: "technician",
+    } as const;
     for (const [key, role] of Object.entries(map)) {
       const perms = ROLE_TEMPLATES[role].permissions;
       const v = computeView(key as keyof typeof map);

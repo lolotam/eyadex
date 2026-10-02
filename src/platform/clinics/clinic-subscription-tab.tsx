@@ -2,7 +2,12 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { clinicStatusSchema, subscriptionInputSchema, type ClinicDetail, type SubscriptionInput } from "@contracts/clinics";
+import {
+  clinicStatusSchema,
+  subscriptionInputSchema,
+  type ClinicDetail,
+  type SubscriptionInput,
+} from "@contracts/clinics";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Form, FormField, FormItem, FormLabel } from "@/components/ui/form";
@@ -22,8 +27,12 @@ export function ClinicSubscriptionTab({ clinic }: { clinic: ClinicDetail }) {
   const form = useForm<SubscriptionInput>({
     resolver: zodResolver(subscriptionInputSchema),
     defaultValues: {
-      status: clinic.status, expiryMode: "duration", durationMonths: 12,
-      expiresOn: clinic.expiresAt.slice(0, 10), maxUsers: clinic.maxUsers, maxBranches: clinic.maxBranches,
+      status: clinic.status,
+      expiryMode: "duration",
+      durationMonths: 12,
+      expiresOn: clinic.expiresAt.slice(0, 10),
+      maxUsers: clinic.maxUsers,
+      maxBranches: clinic.maxBranches,
     },
   });
   const mode = form.watch("expiryMode");
@@ -43,12 +52,18 @@ export function ClinicSubscriptionTab({ clinic }: { clinic: ClinicDetail }) {
       <Card>
         <CardContent className="pt-6">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit((v) => mutation.mutate(v))} className="flex flex-col gap-5">
+            <form
+              onSubmit={form.handleSubmit((v) => mutation.mutate(v))}
+              className="flex flex-col gap-5"
+            >
               <SelectField
                 control={form.control}
                 name="status"
                 label={t("clinics.subscription.status")}
-                options={clinicStatusSchema.options.map((s) => ({ value: s, label: t(`clinicStatus.${s}`) }))}
+                options={clinicStatusSchema.options.map((s) => ({
+                  value: s,
+                  label: t(`clinicStatus.${s}`),
+                }))}
               />
               <FormField
                 control={form.control}
@@ -57,9 +72,15 @@ export function ClinicSubscriptionTab({ clinic }: { clinic: ClinicDetail }) {
                   <FormItem>
                     <FormLabel>{t("clinics.subscription.expiry")}</FormLabel>
                     <p className="text-xs text-muted-foreground">
-                      {t("clinics.subscription.currentExpiry", { date: formatDate(clinic.expiresAt) })}
+                      {t("clinics.subscription.currentExpiry", {
+                        date: formatDate(clinic.expiresAt),
+                      })}
                     </p>
-                    <RadioGroup value={field.value} onValueChange={field.onChange} className="flex flex-wrap gap-4">
+                    <RadioGroup
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      className="flex flex-wrap gap-4"
+                    >
                       <Label className="flex items-center gap-2 font-normal">
                         <RadioGroupItem value="duration" /> {t("clinics.subscription.byDuration")}
                       </Label>
@@ -71,16 +92,35 @@ export function ClinicSubscriptionTab({ clinic }: { clinic: ClinicDetail }) {
                 )}
               />
               {mode === "duration" ? (
-                <NumberField control={form.control} name="durationMonths" label={t("clinics.subscription.durationMonths")} />
+                <NumberField
+                  control={form.control}
+                  name="durationMonths"
+                  label={t("clinics.subscription.durationMonths")}
+                />
               ) : (
-                <TextField control={form.control} name="expiresOn" label={t("clinics.subscription.expiresOn")} type="date" />
+                <TextField
+                  control={form.control}
+                  name="expiresOn"
+                  label={t("clinics.subscription.expiresOn")}
+                  type="date"
+                />
               )}
               <div className="grid gap-4 sm:grid-cols-2">
-                <NumberField control={form.control} name="maxUsers" label={t("clinics.subscription.maxUsers")} />
-                <NumberField control={form.control} name="maxBranches" label={t("clinics.subscription.maxBranches")} />
+                <NumberField
+                  control={form.control}
+                  name="maxUsers"
+                  label={t("clinics.subscription.maxUsers")}
+                />
+                <NumberField
+                  control={form.control}
+                  name="maxBranches"
+                  label={t("clinics.subscription.maxBranches")}
+                />
               </div>
               <div>
-                <Button type="submit" disabled={mutation.isPending}>{t("common.save")}</Button>
+                <Button type="submit" disabled={mutation.isPending}>
+                  {t("common.save")}
+                </Button>
               </div>
             </form>
           </Form>

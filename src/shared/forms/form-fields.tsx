@@ -1,7 +1,20 @@
 import type { Control, FieldPath, FieldValues } from "react-hook-form";
-import { FormControl, FormDescription, FormField, FormItem, FormLabel, useFormField } from "@/components/ui/form";
+import {
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  useFormField,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 
 /** Shows a field's validation message translated from its i18n key. */
@@ -16,9 +29,23 @@ export function FieldError() {
   );
 }
 
-type BaseProps<T extends FieldValues> = { control: Control<T>; name: FieldPath<T>; label: string; hint?: string; disabled?: boolean };
+type BaseProps<T extends FieldValues> = {
+  control: Control<T>;
+  name: FieldPath<T>;
+  label: string;
+  hint?: string;
+  disabled?: boolean;
+};
 
-export function TextField<T extends FieldValues>({ control, name, label, hint, disabled, type = "text", dir }: BaseProps<T> & { type?: string; dir?: "ltr" | "rtl" }) {
+export function TextField<T extends FieldValues>({
+  control,
+  name,
+  label,
+  hint,
+  disabled,
+  type = "text",
+  dir,
+}: BaseProps<T> & { type?: string; dir?: "ltr" | "rtl" }) {
   return (
     <FormField
       control={control}
@@ -27,7 +54,13 @@ export function TextField<T extends FieldValues>({ control, name, label, hint, d
         <FormItem>
           <FormLabel>{label}</FormLabel>
           <FormControl>
-            <Input {...field} type={type} disabled={disabled} {...(dir ? { dir } : {})} value={field.value ?? ""} />
+            <Input
+              {...field}
+              type={type}
+              disabled={disabled}
+              {...(dir ? { dir } : {})}
+              value={field.value ?? ""}
+            />
           </FormControl>
           {hint && <FormDescription>{hint}</FormDescription>}
           <FieldError />
@@ -37,7 +70,13 @@ export function TextField<T extends FieldValues>({ control, name, label, hint, d
   );
 }
 
-export function NumberField<T extends FieldValues>({ control, name, label, hint, disabled }: BaseProps<T>) {
+export function NumberField<T extends FieldValues>({
+  control,
+  name,
+  label,
+  hint,
+  disabled,
+}: BaseProps<T>) {
   return (
     <FormField
       control={control}
@@ -65,7 +104,13 @@ export function NumberField<T extends FieldValues>({ control, name, label, hint,
   );
 }
 
-export function SelectField<T extends FieldValues>({ control, name, label, disabled, options }: BaseProps<T> & { options: { value: string; label: string }[] }) {
+export function SelectField<T extends FieldValues>({
+  control,
+  name,
+  label,
+  disabled,
+  options,
+}: BaseProps<T> & { options: { value: string; label: string }[] }) {
   return (
     <FormField
       control={control}

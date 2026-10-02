@@ -24,7 +24,9 @@ export function ClinicLayout() {
   }
 
   const permissions = session?.permissions ?? [];
-  const items = session?.blocked ? [] : CLINIC_NAV.filter((i) => !i.resource || can(permissions, "view", i.resource));
+  const items = session?.blocked
+    ? []
+    : CLINIC_NAV.filter((i) => !i.resource || can(permissions, "view", i.resource));
   const subtitle = session?.clinic ? pick(session.clinic.nameAr, session.clinic.nameEn) : undefined;
 
   const signInLink = (
@@ -35,9 +37,23 @@ export function ClinicLayout() {
   let content = <Outlet />;
   if (isLoading || !session) content = <LoadingBlock />;
   else if (session.blocked === "suspended")
-    content = <StatusPanel icon={Lock} title={t("blocked.suspendedTitle")} body={t("blocked.suspendedBody")} action={signInLink} />;
+    content = (
+      <StatusPanel
+        icon={Lock}
+        title={t("blocked.suspendedTitle")}
+        body={t("blocked.suspendedBody")}
+        action={signInLink}
+      />
+    );
   else if (session.blocked === "expired")
-    content = <StatusPanel icon={Lock} title={t("blocked.expiredTitle")} body={t("blocked.expiredBody")} action={signInLink} />;
+    content = (
+      <StatusPanel
+        icon={Lock}
+        title={t("blocked.expiredTitle")}
+        body={t("blocked.expiredBody")}
+        action={signInLink}
+      />
+    );
 
   return (
     <AppShell areaLabel="nav.clinicArea" items={items} {...(subtitle ? { subtitle } : {})}>

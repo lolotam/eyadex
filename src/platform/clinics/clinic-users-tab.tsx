@@ -17,13 +17,28 @@ export function ClinicUsersTab({ clinicId }: { clinicId: string }) {
       return b ? pick(b.nameAr, b.nameEn) : "";
     };
     return [
-      { id: "name", header: t("clinics.members.name"), cell: ({ row }) => <span className="font-medium">{row.original.fullName}</span> },
-      { id: "email", header: t("clinics.members.email"), cell: ({ row }) => <span dir="ltr">{row.original.email}</span> },
-      { id: "role", header: t("clinics.members.role"), cell: ({ row }) => pick(row.original.roleNameAr, row.original.roleNameEn) },
+      {
+        id: "name",
+        header: t("clinics.members.name"),
+        cell: ({ row }) => <span className="font-medium">{row.original.fullName}</span>,
+      },
+      {
+        id: "email",
+        header: t("clinics.members.email"),
+        cell: ({ row }) => <span dir="ltr">{row.original.email}</span>,
+      },
+      {
+        id: "role",
+        header: t("clinics.members.role"),
+        cell: ({ row }) => pick(row.original.roleNameAr, row.original.roleNameEn),
+      },
       {
         id: "branches",
         header: t("clinics.members.branches"),
-        cell: ({ row }) => (row.original.allBranches ? t("clinics.members.allBranches") : row.original.branchIds.map(branchName).join("، ")),
+        cell: ({ row }) =>
+          row.original.allBranches
+            ? t("clinics.members.allBranches")
+            : row.original.branchIds.map(branchName).join("، "),
       },
       {
         id: "status",

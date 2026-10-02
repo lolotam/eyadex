@@ -20,7 +20,9 @@ export type PermissionScope = z.infer<typeof scopeSchema>;
 /** Permission string: action:resource:scope */
 export const permissionSchema = z
   .string()
-  .regex(/^(view|create|update|deactivate):(branches|users|roles|patients|audit_log|clinic_settings):(clinic|branch)$/);
+  .regex(
+    /^(view|create|update|deactivate):(branches|users|roles|patients|audit_log|clinic_settings):(clinic|branch)$/,
+  );
 export type Permission = string;
 
 export type PermissionDefinition = {
@@ -47,7 +49,13 @@ function buildCatalog(): PermissionDefinition[] {
     const scopes: PermissionScope[] = resource === "patients" ? ["clinic", "branch"] : ["clinic"];
     for (const action of actionSchema.options) {
       for (const scope of scopes) {
-        list.push({ key: `${action}:${resource}:${scope}`, action, resource, scope, module: resourceModule[resource] });
+        list.push({
+          key: `${action}:${resource}:${scope}`,
+          action,
+          resource,
+          scope,
+          module: resourceModule[resource],
+        });
       }
     }
   }

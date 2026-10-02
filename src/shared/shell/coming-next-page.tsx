@@ -5,5 +5,11 @@ import { StatusPanel } from "./status-panel";
 
 export function ComingNextPage({ title }: { title: TranslationKey }) {
   const { t } = useI18n();
-  return <StatusPanel icon={Hourglass} title={`${t(title)} — ${t("comingNext.title")}`} body={t("comingNext.body")} />;
+  return (
+    <StatusPanel
+      icon={Hourglass}
+      title={`${t(title)} — ${t("comingNext.title")}`}
+      body={t("comingNext.body")}
+    />
+  );
 }
