@@ -208,14 +208,11 @@ as a native scroll region, so confirm on the sheet that the rail shows real
 content and that items past the fold can still be got to. Nothing in the harness
 reports this; it reads as a page behaving correctly.
 
-**Credit accounting.** `kie.mjs probe` reports a balance, not a delta, so a
-build's spend is a before-and-after subtraction. That subtraction is only valid
-if nothing else is generating against the same key. When builds run in parallel,
-or when a settlement lands late, the deltas overlap and each build will claim
-some of another's spend (three parallel builds each read the same 7597 → 7067 and
-each reported 530). Either serialise generation, or cost the build from the
-per-call model prices in [assets.md](assets.md) against the calls you actually
-made, and treat the probe delta as a ceiling.
+**Cost accounting.** Higgsfield has no credit-balance endpoint, so there is
+no probe delta to subtract. Cost a build from the per-model prices in the
+Higgsfield console against the calls you actually made (see
+[assets.md](assets.md)), and check the console billing page after a large
+batch to confirm.
 
 **And the per-call sum overstates real spend in the other direction.** Two
 reconciliations against the account ledger, each with no other consumer, put

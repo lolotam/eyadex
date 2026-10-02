@@ -5,7 +5,7 @@ description: >
   drink brands. Plan the visitor journey, page grammar, emotional peak, and
   bespoke signature move. Create dimensional heroes with independent visual
   planes, restrained motion, and separate mobile composition. Use supplied
-  photos and footage or generate photoreal assets through kie.ai, write semantic
+  photos and footage or generate photoreal assets through Higgsfield, write semantic
   HTML, and verify desktop, mobile, and reduced-motion scroll states visually.
   Use for "scrollcraft", "scroll craft", "layered hero", "premium hero",
   "cinematic hero", "scrollytelling", "scroll animation site", "a site where
@@ -195,11 +195,12 @@ project root pointing at it and nothing moves.
 
 ### The rest
 
-1. `KIE_AI_API_KEY`, **only if you are generating assets.** A build from the
-   user's own photos and footage needs no key and no spend, and that is a
-   first-class route, not a fallback. Confirm balance with
-   `node <skill>/scripts/kie.mjs probe`. A still costs cents and a 5s clip costs
-   more; a six-act page with two clips is a small spend, not a large one.
+1. `HIGGSFIELD_API_KEY` (`"key_id:key_secret"`), **only if you are generating
+   assets.** A build from the user's own photos and footage needs no key and
+   no spend, and that is a first-class route, not a fallback. Confirm
+   credentials with `node <skill>/scripts/higgsfield.mjs probe`. A still costs
+   cents and a 5s clip costs more; a six-act page with two clips is a small
+   spend, not a large one.
 2. A brand kit if one exists (colours, logo, type, existing product shots). If
    the brand has a folder in this repo, read it before generating anything, and
    obey its hard rules. A brand that forbids invented numbers means no stat
@@ -315,8 +316,8 @@ Full pipeline, prompt scaffolds and model notes: [references/assets.md](referenc
 Short version:
 
 ```bash
-node <skill>/scripts/kie.mjs still "<style preamble>\n\n<scene>" out/01-hero.png --ar 16:9 [--ref brand-can.png]
-node <skill>/scripts/kie.mjs shot  "<camera move>" out/01-hero.png out/01.mp4 --dur 5
+node <skill>/scripts/higgsfield.mjs still "<style preamble>\n\n<scene>" out/01-hero.png --ar 16:9 [--ref brand-can.png]
+node <skill>/scripts/higgsfield.mjs shot  "<camera move>" out/01-hero.png out/01.mp4 --dur 5
 bash  <skill>/scripts/encode.sh out/01.mp4 assets/01.mp4
 bash  <skill>/scripts/encode.sh out/01.mp4 assets/01-m.mp4 mobile
 ```
