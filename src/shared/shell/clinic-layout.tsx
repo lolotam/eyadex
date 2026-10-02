@@ -1,4 +1,5 @@
-import { Outlet } from "@tanstack/react-router";
+import { Link, Outlet } from "@tanstack/react-router";
+import { Button } from "@/components/ui/button";
 import { Lock } from "lucide-react";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { usePersona, useSession } from "@/shared/persona/persona-provider";
@@ -26,12 +27,17 @@ export function ClinicLayout() {
   const items = session?.blocked ? [] : CLINIC_NAV.filter((i) => !i.resource || can(permissions, "view", i.resource));
   const subtitle = session?.clinic ? pick(session.clinic.nameAr, session.clinic.nameEn) : undefined;
 
+  const signInLink = (
+    <Button asChild variant="outline" size="sm">
+      <Link to="/login">{t("blocked.toSignIn")}</Link>
+    </Button>
+  );
   let content = <Outlet />;
   if (isLoading || !session) content = <LoadingBlock />;
   else if (session.blocked === "suspended")
-    content = <StatusPanel icon={Lock} title={t("blocked.suspendedTitle")} body={t("blocked.suspendedBody")} />;
+    content = <StatusPanel icon={Lock} title={t("blocked.suspendedTitle")} body={t("blocked.suspendedBody")} action={signInLink} />;
   else if (session.blocked === "expired")
-    content = <StatusPanel icon={Lock} title={t("blocked.expiredTitle")} body={t("blocked.expiredBody")} />;
+    content = <StatusPanel icon={Lock} title={t("blocked.expiredTitle")} body={t("blocked.expiredBody")} action={signInLink} />;
 
   return (
     <AppShell areaLabel="nav.clinicArea" items={items} {...(subtitle ? { subtitle } : {})}>

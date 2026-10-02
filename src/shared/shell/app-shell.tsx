@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Menu, Stethoscope } from "lucide-react";
+import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useI18n } from "@/shared/i18n/i18n-provider";
@@ -16,7 +16,7 @@ function Brand({ areaLabel, subtitle }: { areaLabel: TranslationKey; subtitle?: 
   return (
     <div className="flex h-20 items-center gap-3 border-b border-sidebar-border px-5">
       <div className="flex size-9 items-center justify-center rounded-md bg-primary text-primary-foreground">
-        <Stethoscope className="size-[18px]" />
+        <img src="/brand/eyadex-mark-white.svg" alt="" width={14} height={19} />
       </div>
       <div className="min-w-0">
         <div className="text-sm font-semibold text-sidebar-foreground">{t("app.name")}</div>

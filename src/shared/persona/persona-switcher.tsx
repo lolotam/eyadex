@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { UserRound } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { LogOut, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useI18n } from "@/shared/i18n/i18n-provider";
@@ -25,6 +26,12 @@ export function PersonaSwitcher() {
       </PopoverTrigger>
       <PopoverContent align="end" className="w-72">
         <PersonaPicker onDone={() => setOpen(false)} />
+        <Button asChild variant="ghost" size="sm" className="mt-3 w-full justify-start gap-2">
+          <Link to="/login" onClick={() => setOpen(false)}>
+            <LogOut className="size-4" />
+            {t("persona.signOut")}
+          </Link>
+        </Button>
       </PopoverContent>
     </Popover>
   );
