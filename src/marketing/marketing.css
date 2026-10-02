@@ -193,7 +193,11 @@
 .mk-specialty-band ul, .mk-core-band ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .mk-specialty-band li { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--mk-line); border-radius: 6px; background: var(--mk-surface); }
 .mk-core-band li { padding: 8px 10px; border-radius: 6px; background: color-mix(in oklab, var(--mk-accent) 9%, white); font-weight: 500; }
-@media (max-width: 899px) { .mk-specialties-grid { grid-template-columns: 1fr; gap: 28px; } .mk-specialty-option { min-width: max-content; } }
+@media (max-width: 899px) {
+  .mk-specialties-grid { grid-template-columns: 1fr; gap: 28px; }
+  .mk-specialty-seg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: visible; }
+  .mk .mk-specialty-option { min-width: 0; white-space: normal; }
+}
 /* Act 4a: the plan */
 .mk-plan { height: 220vh; }
 .mk-plan-stage { position: sticky; top: 0; height: 100svh; max-width: 1280px; margin-inline: auto; padding: 72px var(--mk-gutter) 20px; display: grid; grid-template-columns: minmax(0, 41fr) minmax(0, 55fr); gap: 4%; align-items: center; }
