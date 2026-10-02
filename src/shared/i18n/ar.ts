@@ -12,7 +12,7 @@ export const ar: Dictionary = {
   persona: {
     label: "الدخول باسم", switch: "تبديل الشخصية", clinic: "العيادة", chooseClinic: "اختر عيادة",
     platform_admin: "مدير المنصة", clinic_admin: "مدير العيادة", doctor: "طبيب", cashier: "كاشير", technician: "فني",
-    demoNote: "دخول تجريبي بدون كلمات مرور.",
+    demoNote: "دخول تجريبي بدون كلمات مرور.", signOut: "تسجيل الخروج",
   },
   nav: {
     platformArea: "المنصة", clinicArea: "العيادة", overview: "نظرة عامة", clinics: "العيادات", team: "فريق المنصة",
@@ -26,6 +26,7 @@ export const ar: Dictionary = {
     suspendedBody: "الدخول معطّل أثناء إيقاف الاشتراك. يرجى التواصل مع مدير المنصة.",
     expiredTitle: "انتهى اشتراك هذه العيادة",
     expiredBody: "الدخول معطّل حتى يتم تجديد الاشتراك. يرجى التواصل مع مدير المنصة.",
+    toSignIn: "العودة إلى تسجيل الدخول",
   },
   landing: { title: "اختر طريقة الدخول", body: "اختر شخصية لاستكشاف النسخة التجريبية.", enter: "دخول" },
   clinicStatus: { trial: "تجريبي", active: "نشط", suspended: "موقوف" },

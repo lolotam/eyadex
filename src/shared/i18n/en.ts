@@ -10,7 +10,7 @@ export const en = {
   persona: {
     label: "Signed in as", switch: "Switch persona", clinic: "Clinic", chooseClinic: "Choose a clinic",
     platform_admin: "Platform Admin", clinic_admin: "Clinic Admin", doctor: "Doctor", cashier: "Cashier", technician: "Technician",
-    demoNote: "Demo sign-in. No passwords.",
+    demoNote: "Demo sign-in. No passwords.", signOut: "Sign out",
   },
   nav: {
     platformArea: "Platform", clinicArea: "Clinic", overview: "Overview", clinics: "Clinics", team: "Platform team",
@@ -24,6 +24,7 @@ export const en = {
     suspendedBody: "Sign-in is disabled while the subscription is suspended. Please contact the platform administrator.",
     expiredTitle: "This clinic's subscription has expired",
     expiredBody: "Sign-in is disabled until the subscription is renewed. Please contact the platform administrator.",
+    toSignIn: "Back to sign-in",
   },
   landing: { title: "Choose how to enter", body: "Pick a persona to explore the demo." , enter: "Enter" },
   clinicStatus: { trial: "Trial", active: "Active", suspended: "Suspended" },
