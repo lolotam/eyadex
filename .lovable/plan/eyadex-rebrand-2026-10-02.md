@@ -8,7 +8,7 @@
 - Show the future `<slug>.eyadex.com` address beneath the clinic slug field.
 
 ## Validation
-- Type-check the project and confirm no `Clinic App` or `clinic-app` strings remain outside generated/dependency artifacts.
+- Type-check the project and confirm no retired brand strings remain outside generated/dependency artifacts.
 - Confirm old browser keys are ignored, fresh demo data seeds successfully, and reserved slugs fail in both the form and mock API.
 - Review the Arabic shell and create-clinic form at desktop and mobile widths, then inspect build/runtime logs.
 
