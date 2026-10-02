@@ -4,6 +4,7 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
   type ErrorComponentProps,
@@ -16,6 +17,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { ApiProvider } from "@/shared/api/api-provider";
 import { I18nProvider } from "@/shared/i18n/i18n-provider";
 import { PersonaProvider } from "@/shared/persona/persona-provider";
+import { marketingLang } from "@/marketing/i18n";
 
 function NotFoundComponent() {
   return (
@@ -84,13 +86,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Eyadex" },
       { name: "description", content: "One place for every clinic." },
+      { name: "theme-color", content: "#0E5C59" },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "icon", href: "/favicon.ico", sizes: "any" },
+      { rel: "icon", href: "/brand/eyadex-icon.svg", type: "image/svg+xml" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
+      { rel: "manifest", href: "/site.webmanifest" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
@@ -106,8 +112,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const mk = marketingLang(pathname);
   return (
-    <html lang="ar" dir="rtl">
+    <html lang={mk ?? "ar"} dir={mk === "en" ? "ltr" : "rtl"} suppressHydrationWarning>
       <head>
         <HeadContent />
       </head>
@@ -121,12 +129,13 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   return (
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <ApiProvider>
-        <I18nProvider>
+        <I18nProvider manageDocument={marketingLang(pathname) === null}>
           <PersonaProvider>
             <Outlet />
             <Toaster />

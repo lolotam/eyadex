@@ -1,8 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { LandingPage } from "@/shared/shell/landing-page";
-import { pageHead } from "@/shared/seo/page-head";
+import { MarketingPage } from "@/marketing/marketing-page";
+import { marketingHead } from "@/marketing/seo/marketing-head";
 
 export const Route = createFileRoute("/")({
-  head: () => pageHead("Sign in", "Choose a demo persona to enter Eyadex."),
-  component: LandingPage,
+  head: () => marketingHead("ar"),
+  component: ArabicLanding,
 });
+
+function ArabicLanding() {
+  return <MarketingPage lang="ar" />;
+}

@@ -22,3 +22,4 @@
 - `db/sql/*.sql` is documentation only and is never executed.
 - One component per file, max 300 lines per file.
 - The visual system uses flat clinical surfaces, compact 8px-or-less radii, thin borders, and semantic tokens; deep teal is reserved for actions, active states, and focus — keeping dense administration screens calm and scannable.
+- Marketing site (/ and /en, src/marketing, scoped .mk styles): follow .lovable/plan/marketing-landing.md.
