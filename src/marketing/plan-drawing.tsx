@@ -5,7 +5,8 @@ import { useScrollProgress } from "./motion/use-scroll-progress";
 
 /** Stage 1: the clinic outline. Stage 2: two branch wings. Stage 3: rooms and doors. */
 const STAGES: { cls: string; paths: string[] }[] = [
-  { cls: "s1", paths: ["M40 40 H560 V360 H40 Z"] },
+  { cls: "s0", paths: ["M40 40 H560 V360 H40 Z"] },
+  { cls: "s1", paths: ["M40 40 H200 V200 H40"] },
   { cls: "s2", paths: ["M300 40 V360", "M40 200 H120", "M480 200 H560"] },
   {
     cls: "s3",
