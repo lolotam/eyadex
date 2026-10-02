@@ -11,7 +11,9 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ClinicRouteImport } from './routes/clinic'
+import { Route as EnRouteImport } from './routes/en'
 import { Route as ForbiddenRouteImport } from './routes/forbidden'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as PlatformRouteImport } from './routes/platform'
 import { Route as ClinicIndexRouteImport } from './routes/clinic.index'
 import { Route as ClinicAccountRouteImport } from './routes/clinic.account'
@@ -39,9 +41,19 @@ const ClinicRoute = ClinicRouteImport.update({
   path: '/clinic',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EnRoute = EnRouteImport.update({
+  id: '/en',
+  path: '/en',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ForbiddenRoute = ForbiddenRouteImport.update({
   id: '/forbidden',
   path: '/forbidden',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PlatformRoute = PlatformRouteImport.update({
@@ -128,7 +140,9 @@ const PlatformClinicsNewRoute = PlatformClinicsNewRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/clinic': typeof ClinicRouteWithChildren
+  '/en': typeof EnRoute
   '/forbidden': typeof ForbiddenRoute
+  '/login': typeof LoginRoute
   '/platform': typeof PlatformRouteWithChildren
   '/clinic/account': typeof ClinicAccountRoute
   '/clinic/audit': typeof ClinicAuditRoute
@@ -148,7 +162,9 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/en': typeof EnRoute
   '/forbidden': typeof ForbiddenRoute
+  '/login': typeof LoginRoute
   '/clinic/account': typeof ClinicAccountRoute
   '/clinic/audit': typeof ClinicAuditRoute
   '/clinic/branches': typeof ClinicBranchesRoute
@@ -169,7 +185,9 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/clinic': typeof ClinicRouteWithChildren
+  '/en': typeof EnRoute
   '/forbidden': typeof ForbiddenRoute
+  '/login': typeof LoginRoute
   '/platform': typeof PlatformRouteWithChildren
   '/clinic/account': typeof ClinicAccountRoute
   '/clinic/audit': typeof ClinicAuditRoute
@@ -192,7 +210,9 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/clinic'
+    | '/en'
     | '/forbidden'
+    | '/login'
     | '/platform'
     | '/clinic/account'
     | '/clinic/audit'
@@ -212,7 +232,9 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/en'
     | '/forbidden'
+    | '/login'
     | '/clinic/account'
     | '/clinic/audit'
     | '/clinic/branches'
@@ -232,7 +254,9 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/clinic'
+    | '/en'
     | '/forbidden'
+    | '/login'
     | '/platform'
     | '/clinic/account'
     | '/clinic/audit'
@@ -254,7 +278,9 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ClinicRoute: typeof ClinicRouteWithChildren
+  EnRoute: typeof EnRoute
   ForbiddenRoute: typeof ForbiddenRoute
+  LoginRoute: typeof LoginRoute
   PlatformRoute: typeof PlatformRouteWithChildren
 }
 
@@ -274,11 +300,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ClinicRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/en': {
+      id: '/en'
+      path: '/en'
+      fullPath: '/en'
+      preLoaderRoute: typeof EnRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/forbidden': {
       id: '/forbidden'
       path: '/forbidden'
       fullPath: '/forbidden'
       preLoaderRoute: typeof ForbiddenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/platform': {
@@ -448,7 +488,9 @@ const PlatformRouteWithChildren = PlatformRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ClinicRoute: ClinicRouteWithChildren,
+  EnRoute: EnRoute,
   ForbiddenRoute: ForbiddenRoute,
+  LoginRoute: LoginRoute,
   PlatformRoute: PlatformRouteWithChildren,
 }
 export const routeTree = rootRouteImport

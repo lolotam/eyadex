@@ -60,7 +60,7 @@ export function HeroRoom() {
     };
     const kick = () => {
       if ("requestIdleCallback" in window) window.requestIdleCallback(start, { timeout: 2000 });
-      else window.setTimeout(start, 200);
+      else globalThis.setTimeout(start, 200);
     };
     if (document.readyState === "complete") kick();
     else window.addEventListener("load", kick, { once: true });
