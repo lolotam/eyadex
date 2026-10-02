@@ -49,8 +49,8 @@ export function ClinicsListPage() {
         cell: ({ row }) => {
           const soon = new Date(row.original.expiresAt).getTime() - Date.now() < SOON_MS;
           return (
-            <div className="flex items-center gap-2">
-              {formatDate(row.original.expiresAt)}
+            <div className="flex min-w-24 flex-col items-start gap-1 whitespace-nowrap">
+              <span>{formatDate(row.original.expiresAt)}</span>
               {soon && <Badge variant="outline" className="border-destructive/40 text-destructive">{t("clinics.expiringSoon")}</Badge>}
             </div>
           );
