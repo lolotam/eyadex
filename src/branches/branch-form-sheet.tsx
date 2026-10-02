@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { branchInputSchema, type Branch, type BranchInput } from "@contracts/organization";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
-import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useApi } from "@/shared/api/api-provider";
 import { errorCodeOf } from "@/shared/api/api-error";
 import { TextField } from "@/shared/forms/form-fields";
@@ -20,7 +20,7 @@ export function BranchFormSheet({ open, branch, onOpenChange }: { open: boolean;
   const api = useApi();
   const queryClient = useQueryClient();
   const { persona } = usePersona();
-  const { t, dir } = useI18n();
+  const { t } = useI18n();
   const form = useForm<BranchInput>({ resolver: zodResolver(branchInputSchema), defaultValues: EMPTY });
 
   useEffect(() => {
@@ -42,12 +42,12 @@ export function BranchFormSheet({ open, branch, onOpenChange }: { open: boolean;
   });
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side={dir === "rtl" ? "left" : "right"} className="flex w-full flex-col sm:max-w-md">
-        <SheetHeader className="text-start">
-          <SheetTitle>{t(branch ? "branches.editTitle" : "branches.createTitle")}</SheetTitle>
-          <SheetDescription>{t(branch ? "branches.editSubtitle" : "branches.createSubtitle")}</SheetDescription>
-        </SheetHeader>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] w-[calc(100%-2rem)] overflow-y-auto rounded-lg sm:max-w-md">
+        <DialogHeader className="text-start">
+          <DialogTitle>{t(branch ? "branches.editTitle" : "branches.createTitle")}</DialogTitle>
+          <DialogDescription>{t(branch ? "branches.editSubtitle" : "branches.createSubtitle")}</DialogDescription>
+        </DialogHeader>
         <Form {...form}>
           <form id="branch-form" className="flex flex-1 flex-col gap-5 overflow-y-auto py-4" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
             <TextField control={form.control} name="nameAr" label={t("branches.fields.nameAr")} dir="rtl" />
@@ -56,11 +56,11 @@ export function BranchFormSheet({ open, branch, onOpenChange }: { open: boolean;
             <TextField control={form.control} name="phone" label={t("branches.fields.phone")} type="tel" dir="ltr" />
           </form>
         </Form>
-        <SheetFooter className="gap-2 sm:space-x-0">
+        <DialogFooter className="gap-2 sm:space-x-0">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>{t("common.cancel")}</Button>
           <Button type="submit" form="branch-form" disabled={mutation.isPending}>{branch ? t("common.save") : t("common.create")}</Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
