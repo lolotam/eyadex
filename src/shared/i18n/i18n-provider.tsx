@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { DirectionProvider } from "@radix-ui/react-direction";
 import type { Language } from "@contracts/common";
 import { ar } from "./ar";
 import { en } from "./en";
@@ -58,7 +59,11 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     };
   }, [lang, setLang]);
 
-  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
+  return (
+    <I18nContext.Provider value={value}>
+      <DirectionProvider dir={value.dir}>{children}</DirectionProvider>
+    </I18nContext.Provider>
+  );
 }
 
 export function useI18n(): I18nValue {
