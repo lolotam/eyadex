@@ -120,8 +120,14 @@ export function enforcePhoneFree(
 
 /** Birth dates may not be after today in the clinic's own time zone. */
 export function enforceBirthDate(access: PatientAccess, birthDate: string): void {
-  if (!isBirthDateValid(birthDate, todayInTimeZone(access.clinic.timezone)))
+  let today: string;
+  try {
+    today = todayInTimeZone(access.clinic.timezone);
+  } catch {
+    // A stored zone the runtime doesn't know must still fail inside the error envelope.
     throw new ApiError("validation");
+  }
+  if (!isBirthDateValid(birthDate, today)) throw new ApiError("validation");
 }
 
 /** Audit snapshot: an explicit allowlist, so civilId can never reach before/after values. */

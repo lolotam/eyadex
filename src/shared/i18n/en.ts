@@ -230,6 +230,7 @@ export const en = {
   ...enRoles,
   ...enPatients,
   validation: {
+    timezone: "Choose a supported time zone",
     required: "Required",
     tooShort: "Too short",
     tooLong: "Too long",

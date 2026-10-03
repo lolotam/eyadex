@@ -226,6 +226,7 @@ export const ar: Dictionary = {
   ...arRoles,
   ...arPatients,
   validation: {
+    timezone: "اختر منطقة زمنية مدعومة",
     required: "مطلوب",
     tooShort: "قصير جدًا",
     tooLong: "طويل جدًا",

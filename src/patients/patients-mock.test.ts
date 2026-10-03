@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { isBirthDateValid, todayInTimeZone, type PatientInput } from "@contracts/patients";
+import { clinicDetailsInputSchema } from "@contracts/clinics";
 import type { Persona } from "@contracts/session";
 
 vi.mock("@/shared/api/mock/mock-store", async (importOriginal) => {
@@ -328,5 +329,11 @@ describe("patients mock", () => {
     const retry = await api.patients.create(persona, input(own, "55504444"), key);
     expect(retry).toEqual(first);
     expect(retry.detail).toBeNull();
+  });
+  it("accepts only supported clinic time zones", () => {
+    const zone = (timezone: string) =>
+      clinicDetailsInputSchema.shape.timezone.safeParse(timezone).success;
+    expect(zone("Asia/Kuwait")).toBe(true);
+    expect(zone("Mars/Olympus")).toBe(false);
   });
 });

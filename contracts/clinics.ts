@@ -1,6 +1,16 @@
 import { z } from "zod";
 import { idSchema, languageSchema, pageQuerySchema } from "./common";
 
+/** The supported clinic time zones; any other value is rejected at the contract. */
+export const timezoneOptions = [
+  "Asia/Kuwait",
+  "Asia/Riyadh",
+  "Asia/Dubai",
+  "Asia/Qatar",
+  "Asia/Bahrain",
+  "Africa/Cairo",
+] as const;
+
 export const clinicStatusSchema = z.enum(["trial", "active", "suspended"]);
 export type ClinicStatus = z.infer<typeof clinicStatusSchema>;
 
@@ -90,7 +100,10 @@ export const clinicDetailsInputSchema = z.object({
   nameEn: z.string().trim().min(2, "validation.tooShort").max(120, "validation.tooLong"),
   specialty: specialtySchema,
   defaultLanguage: languageSchema,
-  timezone: z.string().min(1, "validation.required"),
+  timezone: z
+    .string()
+    .min(1, "validation.required")
+    .refine((v) => (timezoneOptions as readonly string[]).includes(v), "validation.timezone"),
 });
 export type ClinicDetailsInput = z.infer<typeof clinicDetailsInputSchema>;
 
@@ -132,15 +145,6 @@ export const subscriptionInputSchema = z
     }
   });
 export type SubscriptionInput = z.infer<typeof subscriptionInputSchema>;
-
-export const timezoneOptions = [
-  "Asia/Kuwait",
-  "Asia/Riyadh",
-  "Asia/Dubai",
-  "Asia/Qatar",
-  "Asia/Bahrain",
-  "Africa/Cairo",
-] as const;
 
 /**
  * Platform-only: the simulated first-admin invitation link. In production it is emailed;
