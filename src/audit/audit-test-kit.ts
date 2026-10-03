@@ -60,14 +60,18 @@ export async function seedActivity(): Promise<{ patientId: string; civilId: stri
     phone: "",
   });
   const civilId = "290040112345";
-  const created = await api.patients.create(as("clinic_admin"), {
-    fullName: "مراجع تجريبي",
-    phone: "55501234",
-    birthDate: "1990-04-01",
-    gender: "male",
-    registrationBranchId: branch.id,
-    civilId,
-  });
+  const created = await api.patients.create(
+    as("clinic_admin"),
+    {
+      fullName: "مراجع تجريبي",
+      phone: "55501234",
+      birthDate: "1990-04-01",
+      gender: "male",
+      registrationBranchId: branch.id,
+      civilId,
+    },
+    crypto.randomUUID(),
+  );
   await api.patients.open(as("clinic_admin"), created.id);
   return { patientId: created.id, civilId };
 }
