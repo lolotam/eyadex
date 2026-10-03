@@ -134,3 +134,27 @@ describe("session credentials are secrets under any spelling", () => {
     expect(sanitize({ inside: "ok", outside: "ok" })).toEqual({ inside: "ok", outside: "ok" });
   });
 });
+
+describe("credentials written inside free text are redacted whatever key holds them", () => {
+  it.each([
+    ["Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.c2lnbmF0dXJl", `Bearer ${REDACTED}`],
+    ["auth failed: Basic dXNlcjpwYXNzd29yZA==", `auth failed: Basic ${REDACTED}`],
+    ["got eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.c2lnbmF0dXJl back", `got ${REDACTED} back`],
+    ["retry with token=abc123def456", `retry with token=${REDACTED}`],
+    ["accessToken=abc123def456&x=1", `accessToken=${REDACTED}&x=1`],
+    ["password: hunter22", `password: ${REDACTED}`],
+    ['x-api-key: "k3y-value-123"', `x-api-key: ${REDACTED}`],
+    ["sid=s%3Aabc.def; Path=/", `sid=${REDACTED}; Path=/`],
+    ["otp: 123456", `otp: ${REDACTED}`],
+  ])("%j", (text, redacted) => {
+    expect(sanitize({ detail: text })).toEqual({ detail: redacted });
+    expect(sanitize({ details: [text] })).toEqual({ details: [redacted] });
+  });
+
+  it.each(["pinned: true", "spin=3", "sessionCount=5", "the token expired", "Bearer"])(
+    "leaves %j alone",
+    (text) => {
+      expect(sanitize({ detail: text })).toEqual({ detail: text });
+    },
+  );
+});

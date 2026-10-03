@@ -172,6 +172,22 @@ export function maskPhone(value: unknown): string {
 // 8-digit slice and leave the rest of the ID readable.
 const CIVIL_ID_IN_TEXT = /(?<![\w٠-٩۰-۹-])[23٢٣۲۳](?:[\s-]?[0-9٠-٩۰-۹]){11}(?![\w٠-٩۰-۹-])/g;
 
+// Credentials written inside free text under a key that says nothing ({ detail: "Bearer eyJ…" }): an
+// Authorization scheme's value, any JWT, and `name=value` / `name: value` pairs whose name is a credential.
+// The long credential words match as a suffix (accessToken=, x-api-key:), the short ones only as a whole
+// word (sid=, pin:), so "pinned: true" or "spin=3" are left alone.
+const AUTH_SCHEME_VALUE = /\b(Bearer|Basic|Token)\s+[A-Za-z0-9._~+/=-]{8,}/gi;
+const JWT_IN_TEXT = /\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]*/g;
+const CREDENTIAL_ASSIGNMENT =
+  /\b([\w.-]*?(?:token|secret|password|passwd|api[_-]?key|access[_-]?key|private[_-]?key|session[_-]?id|session|authorization|cookie|signature)|sid|pwd|pin|otp)(\s*[:=]\s*)("?)[^\s&",;]+\3/gi;
+
+function scrubCredentialsInText(text: string): string {
+  return text
+    .replace(AUTH_SCHEME_VALUE, `$1 ${REDACTED}`)
+    .replace(JWT_IN_TEXT, REDACTED)
+    .replace(CREDENTIAL_ASSIGNMENT, `$1$2${REDACTED}`);
+}
+
 const KUWAIT_LOCAL_PHONE = /(?<![\w+-])(?:(?:\+|00)965[\s-]?)?[24569]\d{3}[\s-]?\d{4}(?![\w-])/g;
 
 function scrub(value: unknown, maskPhones: boolean): unknown {
@@ -181,7 +197,10 @@ function scrub(value: unknown, maskPhones: boolean): unknown {
     if (typeof node === "bigint") return node.toString();
     if (typeof node === "string") {
       // Civil IDs go in every mode (logs and audit snapshots alike); phones and emails only where masked.
-      const text = scrubUrlCredentials(node).replace(CIVIL_ID_IN_TEXT, REDACTED);
+      const text = scrubCredentialsInText(scrubUrlCredentials(node)).replace(
+        CIVIL_ID_IN_TEXT,
+        REDACTED,
+      );
       return maskPhones
         ? text
             .replace(/\+[1-9]\d{7,14}/g, maskPhone)
