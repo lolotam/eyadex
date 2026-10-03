@@ -20,8 +20,8 @@ export const platformSettingsSchema = z.object({
 export type PlatformSettings = z.infer<typeof platformSettingsSchema>;
 
 export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
-  defaultTrialDays: 30,
-  alertDaysBeforeExpiry: 14,
+  defaultTrialDays: 14,
+  alertDaysBeforeExpiry: 7,
   emailSenderName: "Eyadex",
 };
 

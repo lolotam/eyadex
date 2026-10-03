@@ -4,14 +4,19 @@ import { ApiError } from "../api-error";
 import { newId, type MockState } from "./mock-store";
 
 /**
- * The signed-in platform account: the pinned one (memberId) or the first active one.
+ * The signed-in platform account: the pinned one (memberId) or the founding account.
  * A deactivated account ends the session, as on the clinic side.
  */
 export function resolvePlatformActor(db: MockState, persona: Persona): PlatformAccount {
   if (persona.kind !== "platform_admin") throw new ApiError("forbidden");
+  // An unpinned persona is the founding account (oldest), never "whichever is active":
+  // deactivating it ends that session instead of silently switching identity.
+  const founding = [...db.platformAccounts].sort((x, y) =>
+    x.createdAt.localeCompare(y.createdAt),
+  )[0];
   const account = persona.memberId
     ? db.platformAccounts.find((a) => a.id === persona.memberId)
-    : db.platformAccounts.find((a) => a.status === "active");
+    : founding;
   if (!account) throw new ApiError("account_disabled");
   if (account.status !== "active") throw new ApiError("account_disabled");
   return account;

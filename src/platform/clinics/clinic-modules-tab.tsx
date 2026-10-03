@@ -4,6 +4,7 @@ import type { ClinicDetail } from "@contracts/clinics";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { useApi } from "@/shared/api/api-provider";
+import { usePersona } from "@/shared/persona/persona-provider";
 import { errorCodeOf } from "@/shared/api/api-error";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { clinicKeys } from "./clinic-queries";
@@ -11,9 +12,11 @@ import { clinicKeys } from "./clinic-queries";
 export function ClinicModulesTab({ clinic }: { clinic: ClinicDetail }) {
   const { t } = useI18n();
   const api = useApi();
+  const { persona } = usePersona();
   const queryClient = useQueryClient();
   const mutation = useMutation({
-    mutationFn: (enabled: boolean) => api.platform.setClinicFeature(clinic.id, "patients", enabled),
+    mutationFn: (enabled: boolean) =>
+      api.platform.setClinicFeature(persona, clinic.id, "patients", enabled),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: clinicKeys.detail(clinic.id) });
       void queryClient.invalidateQueries({ queryKey: ["session"] });

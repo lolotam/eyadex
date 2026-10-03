@@ -13,6 +13,7 @@ import { Form } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useApi } from "@/shared/api/api-provider";
+import { usePersona } from "@/shared/persona/persona-provider";
 import { errorCodeOf } from "@/shared/api/api-error";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { ClinicDetailsFields } from "./clinic-details-fields";
@@ -21,6 +22,7 @@ import { clinicKeys } from "./clinic-queries";
 export function ClinicDetailsTab({ clinic }: { clinic: ClinicDetail }) {
   const { t } = useI18n();
   const api = useApi();
+  const { persona } = usePersona();
   const queryClient = useQueryClient();
   const form = useForm<ClinicDetailsInput>({
     resolver: zodResolver(clinicDetailsInputSchema),
@@ -34,7 +36,8 @@ export function ClinicDetailsTab({ clinic }: { clinic: ClinicDetail }) {
   });
 
   const mutation = useMutation({
-    mutationFn: (input: ClinicDetailsInput) => api.platform.updateClinicDetails(clinic.id, input),
+    mutationFn: (input: ClinicDetailsInput) =>
+      api.platform.updateClinicDetails(persona, clinic.id, input),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: clinicKeys.all });
       toast.success(t("clinics.detailsSaved"));

@@ -62,7 +62,8 @@ export function createMockAccount(): ApiClient["account"] {
   return {
     async get(persona) {
       await delay();
-      const { member, role } = resolveActor(getState(), persona);
+      const { clinic, member, role } = resolveActor(getState(), persona);
+      if (clinicBlockReason(clinic)) throw new ApiError("subscription_blocked");
       return {
         fullName: member.fullName,
         email: member.email,

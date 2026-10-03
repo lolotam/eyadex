@@ -100,7 +100,10 @@ describe("patients mock: access and scope", () => {
   });
 
   it("keeps patient data out of the platform clinic detail", async () => {
-    const detail = await api.platform.getClinic(clinicId());
+    const detail = await api.platform.getClinic(
+      { kind: "platform_admin", clinicId: null, memberId: null },
+      clinicId(),
+    );
     const text = JSON.stringify(detail);
     for (const p of getState().patients.filter((x) => x.clinicId === clinicId())) {
       expect(text).not.toContain(p.fullName);

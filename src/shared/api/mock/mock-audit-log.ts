@@ -8,6 +8,7 @@ import {
 import type { Page } from "@contracts/common";
 import type { ApiClient } from "../api-client";
 import { ApiError } from "../api-error";
+import { resolvePlatformActor } from "./mock-platform-actor";
 import { authorize } from "./mock-actor";
 import { delay, getState } from "./mock-store";
 
@@ -82,7 +83,7 @@ export function createMockAuditLog(): ApiClient["audit"] {
 
     async platformList(persona, rawQuery) {
       await delay();
-      if (persona.kind !== "platform_admin") throw new ApiError("forbidden");
+      resolvePlatformActor(getState(), persona);
       const parsed = platformAuditListQuerySchema.safeParse(rawQuery);
       if (!parsed.success) throw new ApiError("validation");
       const q = parsed.data;
@@ -138,7 +139,7 @@ export function createMockAuditLog(): ApiClient["audit"] {
 
     async platformClinicOptions(persona) {
       await delay();
-      if (persona.kind !== "platform_admin") throw new ApiError("forbidden");
+      resolvePlatformActor(getState(), persona);
       return getState()
         .clinics.map((c) => ({ id: c.id, nameAr: c.nameAr, nameEn: c.nameEn }))
         .sort((x, y) => x.nameEn.localeCompare(y.nameEn));

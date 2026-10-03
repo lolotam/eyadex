@@ -72,18 +72,35 @@ export interface ApiClient {
     listLoginAccounts(clinicId: string): Promise<LoginAccount[]>;
     getContext(persona: Persona): Promise<SessionContext>;
   };
+  /** Platform admin only: every call resolves the active platform account first. */
   platform: {
-    listClinics(query: ClinicListQuery): Promise<Page<ClinicListItem>>;
-    getClinic(clinicId: string): Promise<ClinicDetail>;
-    createClinic(input: CreateClinicInput): Promise<CreatedClinic>;
+    listClinics(persona: Persona, query: ClinicListQuery): Promise<Page<ClinicListItem>>;
+    getClinic(persona: Persona, clinicId: string): Promise<ClinicDetail>;
+    createClinic(persona: Persona, input: CreateClinicInput): Promise<CreatedClinic>;
     /** Null once a clinic admin is active. */
-    getFirstAdminInvitation(clinicId: string): Promise<FirstAdminInviteStatus | null>;
-    resendFirstAdminInvitation(clinicId: string): Promise<FirstAdminInviteLink>;
-    updateClinicDetails(clinicId: string, input: ClinicDetailsInput): Promise<Clinic>;
-    updateSubscription(clinicId: string, input: SubscriptionInput): Promise<Clinic>;
-    setClinicFeature(clinicId: string, module: ClinicModule, enabled: boolean): Promise<void>;
-    listClinicMembers(clinicId: string): Promise<MembershipUserView[]>;
-    listClinicBranches(clinicId: string): Promise<Branch[]>;
+    getFirstAdminInvitation(
+      persona: Persona,
+      clinicId: string,
+    ): Promise<FirstAdminInviteStatus | null>;
+    resendFirstAdminInvitation(persona: Persona, clinicId: string): Promise<FirstAdminInviteLink>;
+    updateClinicDetails(
+      persona: Persona,
+      clinicId: string,
+      input: ClinicDetailsInput,
+    ): Promise<Clinic>;
+    updateSubscription(
+      persona: Persona,
+      clinicId: string,
+      input: SubscriptionInput,
+    ): Promise<Clinic>;
+    setClinicFeature(
+      persona: Persona,
+      clinicId: string,
+      module: ClinicModule,
+      enabled: boolean,
+    ): Promise<void>;
+    listClinicMembers(persona: Persona, clinicId: string): Promise<MembershipUserView[]>;
+    listClinicBranches(persona: Persona, clinicId: string): Promise<Branch[]>;
   };
   branches: {
     list(persona: Persona, query: BranchListQuery): Promise<Page<Branch> & { usage: BranchUsage }>;

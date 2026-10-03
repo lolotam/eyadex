@@ -30,7 +30,7 @@ describe("platform overview (stories 3-4)", () => {
     if (!a || !b) throw new Error("no clinics");
     a.status = "active";
     b.status = "active";
-    a.expiresAt = new Date(Date.now() + 10 * DAY).toISOString();
+    a.expiresAt = new Date(Date.now() + 5 * DAY).toISOString();
     b.expiresAt = new Date(Date.now() + 25 * DAY).toISOString();
     let overview = await api.platformOverview.get(PLATFORM);
     expect(overview.expiringSoon.map((c) => c.id)).toContain(a.id);
@@ -140,17 +140,57 @@ describe("platform settings (story 26)", () => {
     const entry = getState().platformAudit[0];
     expect(entry).toMatchObject({ action: "platform.settings_updated", before });
     expect(entry?.after).toMatchObject({ defaultTrialDays: 7 });
-    const { clinic } = await api.platform.createClinic({
-      nameAr: "عيادة",
-      nameEn: "Trial Clinic",
-      specialty: "general",
-      defaultLanguage: "ar",
-      timezone: "Asia/Kuwait",
-      slug: "trial-clinic",
-      adminName: "Admin Person",
-      adminEmail: "admin-trial@example.com",
-    });
+    const { clinic } = await api.platform.createClinic(
+      { kind: "platform_admin", clinicId: null, memberId: null },
+      {
+        nameAr: "عيادة",
+        nameEn: "Trial Clinic",
+        specialty: "general",
+        defaultLanguage: "ar",
+        timezone: "Asia/Kuwait",
+        slug: "trial-clinic",
+        adminName: "Admin Person",
+        adminEmail: "admin-trial@example.com",
+      },
+    );
     const days = (new Date(clinic.expiresAt).getTime() - Date.now()) / DAY;
     expect(Math.round(days)).toBe(7);
+  });
+});
+
+describe("platform access follows the signed-in account", () => {
+  beforeEach(() => resetMockData());
+
+  it("refuses every platform API once the account is deactivated, without switching identity", async () => {
+    const db = getState();
+    const founder = [...db.platformAccounts].sort((x, y) =>
+      x.createdAt.localeCompare(y.createdAt),
+    )[0];
+    if (!founder) throw new Error("seed");
+    // A second active account exists, so the last-account rule does not block this.
+    db.platformAccounts.push({
+      id: crypto.randomUUID(),
+      fullName: "Second Admin",
+      email: "second@example.com",
+      status: "active",
+      joinedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+    });
+    await api.platformTeam.deactivate(PLATFORM, founder.id);
+    const clinicId = db.clinics[0]?.id ?? "";
+    for (const call of [
+      api.platform.listClinics(PLATFORM, {
+        cursor: null,
+        limit: 10,
+        search: "",
+        status: null,
+        specialty: null,
+      }),
+      api.platform.getClinic(PLATFORM, clinicId),
+      api.platform.setClinicFeature(PLATFORM, clinicId, "patients", false),
+      api.audit.platformClinicOptions(PLATFORM),
+    ]) {
+      await expect(call).rejects.toMatchObject({ code: "account_disabled" });
+    }
   });
 });

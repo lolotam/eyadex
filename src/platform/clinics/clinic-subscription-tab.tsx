@@ -14,6 +14,7 @@ import { Form, FormField, FormItem, FormLabel } from "@/components/ui/form";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { useApi } from "@/shared/api/api-provider";
+import { usePersona } from "@/shared/persona/persona-provider";
 import { errorCodeOf } from "@/shared/api/api-error";
 import { NumberField, SelectField, TextField } from "@/shared/forms/form-fields";
 import { useI18n } from "@/shared/i18n/i18n-provider";
@@ -23,6 +24,7 @@ import { ClinicUsageCard } from "./clinic-usage-card";
 export function ClinicSubscriptionTab({ clinic }: { clinic: ClinicDetail }) {
   const { t, formatDate } = useI18n();
   const api = useApi();
+  const { persona } = usePersona();
   const queryClient = useQueryClient();
   const form = useForm<SubscriptionInput>({
     resolver: zodResolver(subscriptionInputSchema),
@@ -38,7 +40,8 @@ export function ClinicSubscriptionTab({ clinic }: { clinic: ClinicDetail }) {
   const mode = form.watch("expiryMode");
 
   const mutation = useMutation({
-    mutationFn: (input: SubscriptionInput) => api.platform.updateSubscription(clinic.id, input),
+    mutationFn: (input: SubscriptionInput) =>
+      api.platform.updateSubscription(persona, clinic.id, input),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: clinicKeys.all });
       void queryClient.invalidateQueries({ queryKey: ["session"] });

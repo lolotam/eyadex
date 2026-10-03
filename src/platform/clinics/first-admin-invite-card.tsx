@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { errorCodeOf } from "@/shared/api/api-error";
 import { useApi } from "@/shared/api/api-provider";
+import { usePersona } from "@/shared/persona/persona-provider";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { InvitationStatusBadge } from "@/shared/status/invitation-status-badge";
 import { clinicKeys } from "./clinic-queries";
@@ -12,15 +13,16 @@ import { FirstAdminLinkPanel } from "./first-admin-link-panel";
 /** Story 19: while no clinic admin has accepted, the platform can resend the first-admin invitation. */
 export function FirstAdminInviteCard({ clinicId }: { clinicId: string }) {
   const api = useApi();
+  const { persona } = usePersona();
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const key = [...clinicKeys.all, "first-admin", clinicId];
   const invite = useQuery({
     queryKey: key,
-    queryFn: () => api.platform.getFirstAdminInvitation(clinicId),
+    queryFn: () => api.platform.getFirstAdminInvitation(persona, clinicId),
   });
   const resend = useMutation({
-    mutationFn: () => api.platform.resendFirstAdminInvitation(clinicId),
+    mutationFn: () => api.platform.resendFirstAdminInvitation(persona, clinicId),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: key });
       toast.success(t("clinics.firstAdmin.resent"));
