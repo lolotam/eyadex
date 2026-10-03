@@ -62,6 +62,9 @@ export function useSession(): {
     queryFn: () => api.session.getContext(persona),
     enabled: ready,
     retry: false,
+    // Time-based state (expiry banner days, expiry block) must move while a tab stays open.
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: true,
   });
   return { session: query.data, isLoading: !ready || query.isLoading, error: query.error };
 }
