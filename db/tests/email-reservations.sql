@@ -135,9 +135,15 @@ BEGIN
   -- A converted hold admits exactly one membership: a second row with the same email is refused.
   BEGIN
     INSERT INTO memberships VALUES ('00000000-0000-7000-8000-0000000000e1', gen_random_uuid(), gen_random_uuid(),
-      'n', 'Proper@Example.com', r, true, 'active', 'ar', null, now(), now());
+      'n', 'proper@example.com', r, true, 'active', 'ar', null, now(), now());
     RAISE EXCEPTION 'EMAIL: a second membership reused a converted hold';
   EXCEPTION WHEN unique_violation THEN NULL; END;
+  -- Spacing or casing variants are not even storable.
+  BEGIN
+    INSERT INTO memberships VALUES ('00000000-0000-7000-8000-0000000000e1', gen_random_uuid(), gen_random_uuid(),
+      'n', ' Proper@Example.com ', r, true, 'active', 'ar', null, now(), now());
+    RAISE EXCEPTION 'EMAIL: a non-canonical email variant was stored';
+  EXCEPTION WHEN check_violation THEN NULL; END;
   -- An invitation may not outlive its hold, on insert or when its expiry is pushed later.
   IF NOT reserve_invitation_email('short@example.com', '00000000-0000-7000-8000-0000000001e5', now() + interval '1 day') THEN
     RAISE EXCEPTION 'EMAIL: short hold failed';

@@ -65,4 +65,8 @@ CREATE TRIGGER invitations_email_hold
 
 -- One email = one membership, enforced by a GLOBAL unique index: it holds across every clinic
 -- regardless of RLS, so even a second membership row for an already-converted hold is refused.
-CREATE UNIQUE INDEX memberships_email_unique ON memberships (lower(email));
+-- Emails are stored canonically (trimmed, lower case), so the unique key and the registry agree
+-- and no spacing or casing variant can create a second account.
+ALTER TABLE memberships ADD CONSTRAINT memberships_email_canonical CHECK (email = lower(btrim(email)));
+ALTER TABLE invitations ADD CONSTRAINT invitations_email_canonical CHECK (email = lower(btrim(email)));
+CREATE UNIQUE INDEX memberships_email_unique ON memberships (email);
