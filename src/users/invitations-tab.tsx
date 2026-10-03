@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { invitationStatusSchema, type Invitation } from "@contracts/invitations";
+import { errorCodeOf } from "@/shared/api/api-error";
 import { useApi } from "@/shared/api/api-provider";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { can } from "@/shared/permissions/can";
@@ -40,7 +41,11 @@ export function InvitationsTab() {
       refresh();
       toast.success(t("users.resent"));
     },
-    onError: (error) => toast.error(userErrorMessage(t, error)),
+    onError: (error) => {
+      const code = errorCodeOf(error);
+      const stale = code === "role_inactive" || code === "branch_inactive";
+      toast.error(stale ? t("users.resendInvalid") : userErrorMessage(t, error));
+    },
   });
   const permissions = session?.permissions ?? [];
   const columns = useInvitationColumns({

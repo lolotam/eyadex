@@ -36,7 +36,10 @@ export function PersonaPicker({ onDone }: { onDone?: () => void }) {
     queryFn: () => api.session.listLoginAccounts(effectiveClinic ?? ""),
     enabled: needsClinic && Boolean(effectiveClinic),
   });
-  const kindAccounts = (accounts.data ?? []).filter((a) => a.roleKey === kind);
+  // Accounts with a clinic-created role have no system key; they sign in under "custom".
+  const kindAccounts = (accounts.data ?? []).filter((a) =>
+    kind === "custom" ? a.roleKey === null : a.roleKey === kind,
+  );
   const chosen =
     kindAccounts.find((a) => a.memberId === memberId) ??
     kindAccounts.find((a) => a.status === "active") ??
@@ -109,6 +112,7 @@ export function PersonaPicker({ onDone }: { onDone?: () => void }) {
               {kindAccounts.map((a) => (
                 <SelectItem key={a.memberId} value={a.memberId}>
                   {a.fullName}
+                  {kind === "custom" ? ` · ${pick(a.roleNameAr, a.roleNameEn)}` : ""}
                   {a.status === "deactivated" ? ` (${t("persona.deactivatedTag")})` : ""}
                 </SelectItem>
               ))}
@@ -116,7 +120,14 @@ export function PersonaPicker({ onDone }: { onDone?: () => void }) {
           </Select>
         </div>
       )}
-      <Button type="button" onClick={apply} disabled={needsClinic && !effectiveClinic}>
+      {kind === "custom" && kindAccounts.length === 0 && (
+        <p className="text-sm text-muted-foreground">{t("persona.noCustomAccounts")}</p>
+      )}
+      <Button
+        type="button"
+        onClick={apply}
+        disabled={(needsClinic && !effectiveClinic) || (kind === "custom" && !chosen)}
+      >
         {t("landing.enter")}
       </Button>
       <p className="text-xs text-muted-foreground">{t("persona.demoNote")}</p>
