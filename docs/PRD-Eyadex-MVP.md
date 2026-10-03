@@ -146,7 +146,7 @@
 | الواجهة         | **TanStack Start** (React + TypeScript + Tailwind + shadcn/ui) | محسوم: مشروع Lovable مبني عليه فعليًا، واعتماده يلغي إعادة كتابة الواجهة |
 | الـ API         | NestJS على Fastify، Modular Monolith، تحقق بـ Zod              | كما في المرجع                                                            |
 | الـ Worker      | نفس كود NestJS، container منفصل، BullMQ                        | الإيميلات، الـ outbox، تنبيهات الانتهاء                                  |
-| قاعدة البيانات  | PostgreSQL 16 + Row-Level Security                             | —                                                                        |
+| قاعدة البيانات  | PostgreSQL 18 + Row-Level Security                             | —                                                                        |
 | الـ ORM         | Drizzle + drizzle-kit migrations                               | مصدر الحقيقة الوحيد للـ schema                                           |
 | الكاش والطوابير | Redis 7                                                        | rate limit، كاش الصلاحيات وحالة العيادة، BullMQ                          |
 | تسجيل الدخول    | Better Auth (self-hosted) مع إضافة `two-factor`                | لا يُكتب أي كود أمان يدويًا                                              |
@@ -396,7 +396,7 @@
 ### 5.3 ملفات SQL من Lovable
 
 - تُكتب كملفات نصية مرقّمة في مجلد واحد داخل المستودع، ولا تُنفَّذ على أي قاعدة من Lovable.
-- PostgreSQL 16 خام فقط. ممنوع أي شيء خاص بـ Supabase: `auth.uid()`، `auth.users`، الأدوار `anon` و `authenticated`، مخطط `storage`.
+- PostgreSQL 18 خام فقط. ممنوع أي شيء خاص بـ Supabase: `auth.uid()`، `auth.users`، الأدوار `anon` و `authenticated`، مخطط `storage`.
 - ممنوع إنشاء جداول المستخدمين أو الجلسات أو كلمات المرور؛ هذه يولّدها Better Auth لاحقًا. الإشارة للمستخدم تكون بعمود `user_id` من نوع uuid فقط.
 - تلتزم بقواعد 4.4: `clinic_id` في كل جدول عيادة، المفتاح `(clinic_id, id)`، RLS مفعّل ومفروض، والسياسة تقارن `clinic_id` بقيمة `current_setting('app.clinic_id')`، وفهارس تبدأ بـ `clinic_id`.
 - **هذه الملفات مسودة مرجعية وليست migrations نهائية.** يمكن تطبيقها على PostgreSQL في Docker للتجربة والمراجعة، لكن مصدر الحقيقة النهائي هو مخطط Drizzle و migrations المولَّدة بـ drizzle-kit في المرحلة (ب)، بعد مراجعة المسودة ونقلها.
@@ -580,7 +580,7 @@ HARD CONSTRAINTS — do not break these, and tell me if a request would require 
    in any screen.
 4. Authentication is mocked: a persona switcher (Platform Admin, Clinic Admin,
    Doctor, Receptionist, Technician). No real passwords, no auth library.
-5. SQL: write plain PostgreSQL 16 files under /db/sql/ (numbered, e.g.
+5. SQL: write plain PostgreSQL 18 files under /db/sql/ (numbered, e.g.
    0001_clinics.sql) as DOCUMENTATION ONLY. Never execute them anywhere.
    - No Supabase objects: no auth.uid(), auth.users, anon/authenticated roles,
      storage schema.
