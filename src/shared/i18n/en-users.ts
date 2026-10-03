@@ -82,6 +82,8 @@ export const enUsers = {
     validation: { branchesRequired: "Choose all branches or at least one branch" },
   },
   invite: {
+    metaTitle: "Accept invitation",
+    metaDescription: "Join your clinic on Eyadex.",
     title: "Join {clinic}",
     body: "You were invited as {role}. Set a password to finish.",
     invitedAs: "Invited as",
