@@ -217,9 +217,10 @@ function scrubCredentialsInText(text: string): string {
     .replace(CREDENTIAL_ASSIGNMENT, `$1$2${REDACTED}`);
 }
 
-// Digits may be ASCII or Arabic-Indic (an Arabic-first app: "اتصل على ٥٠٠١ ٢٣٤٥").
+// Digits may be ASCII or Arabic-Indic (an Arabic-first app: "اتصل على ٥٠٠١ ٢٣٤٥"). The country code may be
+// written +965, 00965, (+965) or bare 965 ("96550012345", the normalized form without the plus).
 const KUWAIT_LOCAL_PHONE =
-  /(?<![\w٠-٩۰-۹+-])(?:(?:\+|00|٠٠|۰۰)(?:965|٩٦٥|۹۶۵)[\s-]?)?[24569٢٤٥٦٩۲۴۵۶۹][0-9٠-٩۰-۹]{3}[\s-]?[0-9٠-٩۰-۹]{4}(?![\w٠-٩۰-۹-])/g;
+  /(?<![\w٠-٩۰-۹+-])(?:\(?(?:\+|00|٠٠|۰۰)?(?:965|٩٦٥|۹۶۵)\)?[\s-]?)?[24569٢٤٥٦٩۲۴۵۶۹][0-9٠-٩۰-۹]{3}[\s-]?[0-9٠-٩۰-۹]{4}(?![\w٠-٩۰-۹-])/g;
 
 function scrub(value: unknown, maskPhones: boolean): unknown {
   const seen = new WeakSet<object>();

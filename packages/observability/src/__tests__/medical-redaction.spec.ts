@@ -123,6 +123,10 @@ describe("a Kuwaiti phone inside free text is masked whatever key holds it", () 
     ["اتصل على ٥٠٠١ ٢٣٤٥", "اتصل على ***345"],
     ["رقم ۹۸۷۶-۵۴۳۲.", "رقم ***432."],
     ["دولي +٩٦٥٥٠٠١٢٣٤٥", "دولي ***345"],
+    ["call 96550012345", "call ***345"],
+    ["call (+965) 5001 2345", "call ***345"],
+    ["call 965 5001-2345", "call ***345"],
+    ["رقم ٩٦٥٥٠٠١٢٣٤٥", "رقم ***345"],
   ])("%j", (text, masked) => {
     expect(sanitize({ note: text })).toEqual({ note: masked });
     expect(sanitize({ notes: [text] })).toEqual({ notes: [masked] });
