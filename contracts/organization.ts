@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { idSchema, languageSchema, pageQuerySchema } from "./common";
+import { idSchema, pageQuerySchema } from "./common";
 
 const requiredName = z.string().trim().min(1, "validation.required").max(100, "validation.tooLong");
 const optionalText = z.string().trim().max(300, "validation.tooLong");
@@ -40,15 +40,17 @@ export const branchUsageSchema = z.object({
 });
 export type BranchUsage = z.infer<typeof branchUsageSchema>;
 
+export const clinicAuditEntitySchema = z.enum(["branch", "user", "invitation"]);
+
 export const clinicAuditEntrySchema = z.object({
   id: idSchema,
   clinicId: idSchema,
   actorName: z.string(),
   action: z.string(),
-  entity: z.literal("branch"),
+  entity: clinicAuditEntitySchema,
   entityId: idSchema,
-  before: branchSchema.nullable(),
-  after: branchSchema.nullable(),
+  before: z.record(z.string(), z.unknown()).nullable(),
+  after: z.record(z.string(), z.unknown()).nullable(),
   createdAt: z.string().datetime(),
 });
 export type ClinicAuditEntry = z.infer<typeof clinicAuditEntrySchema>;
@@ -67,37 +69,3 @@ export const roleSchema = z.object({
   permissions: z.array(z.string()),
 });
 export type Role = z.infer<typeof roleSchema>;
-
-export const memberStatusSchema = z.enum(["active", "invited", "deactivated"]);
-export type MemberStatus = z.infer<typeof memberStatusSchema>;
-
-export const memberSchema = z.object({
-  id: idSchema,
-  clinicId: idSchema,
-  userId: idSchema,
-  fullName: z.string(),
-  email: z.string().email(),
-  roleId: idSchema,
-  allBranches: z.boolean(),
-  branchIds: z.array(idSchema),
-  status: memberStatusSchema,
-  preferredLanguage: languageSchema,
-  createdAt: z.string().datetime(),
-});
-export type Member = z.infer<typeof memberSchema>;
-
-export const memberViewSchema = memberSchema.extend({
-  roleNameAr: z.string(),
-  roleNameEn: z.string(),
-});
-export type MemberView = z.infer<typeof memberViewSchema>;
-
-export const invitationSchema = z.object({
-  id: idSchema,
-  clinicId: idSchema,
-  memberId: idSchema,
-  email: z.string().email(),
-  status: z.enum(["pending", "accepted", "cancelled"]),
-  sentAt: z.string().datetime(),
-});
-export type Invitation = z.infer<typeof invitationSchema>;
