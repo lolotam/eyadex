@@ -1,0 +1,27 @@
+{
+  "name": "@eyadex/ids",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "UUID v7 generation with injected time and entropy — shared by api and worker. Zero dependencies",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "pnpm run test:node && vitest run",
+    "test:node": "node --test test/*.node-test.ts"
+  },
+  "devDependencies": {
+    "@eyadex/config": "workspace:*",
+    "@types/node": "24.13.6",
+    "eslint": "9.39.5",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11"
+  }
+}

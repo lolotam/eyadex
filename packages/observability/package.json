@@ -1,0 +1,29 @@
+{
+  "name": "@eyadex/observability",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Logging configuration shared by api and worker — pino options and the redaction list (CLAUDE.md §8)",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "pino": "10.3.1"
+  },
+  "devDependencies": {
+    "@eyadex/config": "workspace:*",
+    "@types/node": "24.13.6",
+    "eslint": "9.39.5",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11"
+  }
+}
