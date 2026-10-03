@@ -6,5 +6,6 @@
 - [x] Marketing positioning updated for every clinic specialty; front-desk role renamed to Receptionist throughout
 - [x] Clinic area: users and invitations
 - [x] Arabic app reviewer terminology, clinic audit categories, and three component splits
-- [ ] Clinic area: roles, patients, audit, settings — waiting for the next requested slice
+- [x] Clinic area: roles and permissions (catalog matrix, locked admin role, hidden module keys kept on save)
+- [ ] Clinic area: patients, audit, settings — waiting for the next requested slice
 - [ ] Agent integrations (MCP) — deferred until the NestJS backend exists (user decision)

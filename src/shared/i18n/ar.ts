@@ -1,3 +1,4 @@
+import { arRoles } from "./ar-roles";
 import { arUsers } from "./ar-users";
 
 import type { Dictionary } from "./dictionary";
@@ -221,6 +222,7 @@ export const ar: Dictionary = {
     lastActive: "لا يمكن إيقاف آخر فرع نشط للعيادة.",
   },
   ...arUsers,
+  ...arRoles,
   validation: {
     required: "مطلوب",
     tooShort: "قصير جدًا",
@@ -231,6 +233,8 @@ export const ar: Dictionary = {
     number: "أدخل رقمًا",
     min: "يجب ألا يقل عن 1",
     dateRequired: "اختر تاريخًا",
+    unknownPermission: "هذه الصلاحية غير موجودة في القائمة",
+    oneScope: "اختر نطاقًا واحدًا لكل إجراء",
   },
   errors: {
     email_taken: "هذا البريد مستخدم لدى مستخدم آخر أو في دعوة معلّقة",
@@ -242,6 +246,9 @@ export const ar: Dictionary = {
     invitation_expired: "انتهت صلاحية هذه الدعوة",
     invitation_cancelled: "تم إلغاء هذه الدعوة",
     invitation_used: "تم استخدام هذه الدعوة من قبل",
+    role_locked: "دور مدير العيادة مقفل ولا يمكن تعديله أو تعطيله",
+    role_in_use: "هذا الدور مُسند إلى {count} من المستخدمين النشطين. انقلهم إلى دور آخر أولًا",
+    role_name_taken: "يوجد دور آخر في العيادة بهذا الاسم",
     idempotency_conflict: "تم إرسال هذا الطلب من قبل ببيانات مختلفة، أغلق النموذج وابدأ من جديد",
     not_found: "غير موجود",
     slug_taken: "هذا المعرّف مستخدم لعيادة أخرى",

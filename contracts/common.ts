@@ -37,6 +37,9 @@ export const apiErrorCodeSchema = z.enum([
   "invitation_expired",
   "invitation_cancelled",
   "invitation_used",
+  "role_locked",
+  "role_in_use",
+  "role_name_taken",
   "unknown",
 ]);
 export type ApiErrorCode = z.infer<typeof apiErrorCodeSchema>;

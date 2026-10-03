@@ -14,13 +14,13 @@ export const ROLE_TEMPLATES: Record<SystemRoleKey, RoleTemplate> = {
     nameAr: "طبيب",
     nameEn: "Doctor",
     isLocked: false,
-    permissions: ["view:patients:branch", "create:patients:branch", "update:patients:branch"],
+    permissions: ["view:patients:branch"],
   },
   receptionist: {
     nameAr: "موظف استقبال",
     nameEn: "Receptionist",
     isLocked: false,
-    permissions: ["view:patients:branch", "create:patients:branch"],
+    permissions: ["view:patients:branch", "create:patients:branch", "update:patients:branch"],
   },
   technician: {
     nameAr: "فني",
