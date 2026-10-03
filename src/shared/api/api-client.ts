@@ -1,3 +1,9 @@
+import type {
+  ClinicAuditItem,
+  ClinicAuditListQuery,
+  PlatformAuditItem,
+  PlatformAuditListQuery,
+} from "@contracts/audit";
 import type { Page } from "@contracts/common";
 import type {
   Clinic,
@@ -134,5 +140,11 @@ export interface ApiClient {
     update(persona: Persona, patientId: string, input: PatientInput): Promise<PatientWriteResult>;
     archive(persona: Persona, patientId: string): Promise<PatientWriteResult>;
     restore(persona: Persona, patientId: string): Promise<PatientWriteResult>;
+  };
+  audit: {
+    /** Needs view:audit_log:clinic; the caller's clinic only, newest first. */
+    clinicList(persona: Persona, query: ClinicAuditListQuery): Promise<Page<ClinicAuditItem>>;
+    /** Platform admin only: platform events plus clinic administrative entries, never patient ones. */
+    platformList(persona: Persona, query: PlatformAuditListQuery): Promise<Page<PlatformAuditItem>>;
   };
 }

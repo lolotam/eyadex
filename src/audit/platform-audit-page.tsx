@@ -1,5 +1,5 @@
-import { ComingNextPage } from "@/shared/shell/coming-next-page";
+import { PlatformAuditContent } from "./platform-audit-content";
 
 export function PlatformAuditPage() {
-  return <ComingNextPage title="nav.audit" />;
+  return <PlatformAuditContent />;
 }
