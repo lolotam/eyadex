@@ -17,9 +17,16 @@ import { HealthController } from "./shared/health.controller.ts";
 export interface WorkerDependencies {
   /** Releases what main.ts opened. Runs on app.close() and on SIGTERM/SIGINT. */
   readonly release?: () => Promise<void>;
+  /**
+   * What a signal-triggered shutdown whose release failed or timed out does once it is logged. Nest swallows
+   * an error thrown from onApplicationShutdown and then exits 0 (useProcessExit), so the hook cannot throw
+   * its way to a non-zero exit: production exits 1 here, a test records the call.
+   */
+  readonly onUncleanShutdown?: (signal: string) => void;
 }
 
 const SHUTDOWN = Symbol("SHUTDOWN");
+const UNCLEAN = Symbol("UNCLEAN");
 const LOGS = Symbol("LOGS");
 // Long enough for the first job's own budget and grace, so a SIGTERM lets the work in flight record its
 // outcome instead of abandoning it. The orchestrator's stop grace period must exceed this.
@@ -35,10 +42,16 @@ export const SHUTDOWN_WATCHDOG_MS = 45_000;
 class ShutdownHook implements OnApplicationShutdown {
   readonly #logger: Logger;
   readonly #release: () => Promise<void>;
+  readonly #onUnclean: (signal: string) => void;
 
-  constructor(@Inject(LOGS) logger: Logger, @Inject(SHUTDOWN) release: () => Promise<void>) {
+  constructor(
+    @Inject(LOGS) logger: Logger,
+    @Inject(SHUTDOWN) release: () => Promise<void>,
+    @Inject(UNCLEAN) onUnclean: (signal: string) => void,
+  ) {
     this.#logger = logger;
     this.#release = release;
+    this.#onUnclean = onUnclean;
   }
 
   // `signal` is Nest's own argument: SIGTERM/SIGINT when a signal arrived, undefined on an explicit
@@ -68,6 +81,9 @@ class ShutdownHook implements OnApplicationShutdown {
     if (outcome === "released") this.#logger.info(fields, "worker shutdown completed");
     else if (outcome === "timed out") this.#logger.error(fields, "worker shutdown timed out");
     else this.#logger.error({ ...fields, err: failure }, "worker shutdown failed");
+    // A drain that failed or hung is not a clean stop: on a signal the orchestrator must see a non-zero exit.
+    // An explicit close() (tests, a caller that handles it) only gets the log line.
+    if (outcome !== "released" && signal !== undefined) this.#onUnclean(signal);
   }
 }
 
@@ -79,6 +95,7 @@ class WorkerModule {
       controllers: [HealthController],
       providers: [
         { provide: SHUTDOWN, useValue: deps.release ?? (async () => undefined) },
+        { provide: UNCLEAN, useValue: deps.onUncleanShutdown ?? (() => process.exit(1)) },
         { provide: LOGS, useValue: logger },
         ShutdownHook,
       ],

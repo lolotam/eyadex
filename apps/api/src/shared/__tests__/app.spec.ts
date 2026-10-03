@@ -102,11 +102,16 @@ describe("shutdown", () => {
 
   it("logs a failed release as failed, never as completed", async () => {
     const { lines, logger } = capture();
+    const unclean: string[] = [];
     app = await createApp(
-      { onShutdown: async () => Promise.reject(new Error("pool drain failed")) },
+      {
+        onShutdown: async () => Promise.reject(new Error("pool drain failed")),
+        onUncleanShutdown: (signal) => void unclean.push(signal),
+      },
       { logger },
     );
     await closeWith(app, "SIGTERM");
+    expect(unclean).toEqual(["SIGTERM"]);
     app = undefined;
     expect(lines.map((line) => line["msg"])).toEqual([
       "api shutdown started",
@@ -119,10 +124,18 @@ describe("shutdown", () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     try {
       const { lines, logger } = capture();
-      app = await createApp({ onShutdown: () => new Promise<void>(() => undefined) }, { logger });
+      const unclean: string[] = [];
+      app = await createApp(
+        {
+          onShutdown: () => new Promise<void>(() => undefined),
+          onUncleanShutdown: (signal) => void unclean.push(signal),
+        },
+        { logger },
+      );
       const closing = closeWith(app, "SIGTERM");
       await vi.advanceTimersByTimeAsync(10_000);
       await closing;
+      expect(unclean).toEqual(["SIGTERM"]);
       app = undefined;
       expect(lines.map((line) => line["msg"])).toEqual([
         "api shutdown started",

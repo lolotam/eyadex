@@ -111,3 +111,28 @@ describe("what the medical rules deliberately over-redact", () => {
     });
   });
 });
+
+describe("a Kuwaiti phone inside free text is masked whatever key holds it", () => {
+  it.each([
+    ["call 5001 2345", "call ***345"],
+    ["call 50012345 now", "call ***345 now"],
+    ["mobile: 9876-5432.", "mobile: ***432."],
+    ["landline 2245 6789", "landline ***789"],
+    ["intl +965 5001-2345", "intl ***345"],
+    ["intl 00965 50012345", "intl ***345"],
+  ])("%j", (text, masked) => {
+    expect(sanitize({ note: text })).toEqual({ note: masked });
+    expect(sanitize({ notes: [text] })).toEqual({ notes: [masked] });
+  });
+
+  it.each([
+    "01a10256-8025-770a-a401-f765af7fa409",
+    "0190a1b2-c3d4-7e5f-8a6b-7c8d9e0f1a2b",
+    "2026-10-03T16:06:00.230Z",
+    "invoice 123456789",
+    "ref 12345678",
+    "took 250 ms",
+  ])("leaves %j alone", (text) => {
+    expect(sanitize({ note: text })).toEqual({ note: text });
+  });
+});

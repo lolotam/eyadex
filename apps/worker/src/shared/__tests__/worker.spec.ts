@@ -107,8 +107,16 @@ describe("worker shutdown", () => {
 
   it("logs a failed release as failed, never as completed", async () => {
     const { lines, logger } = capture();
-    await start(async () => Promise.reject(new Error("queue drain failed")), logger);
-    await closeWith(worker!, "SIGTERM");
+    const unclean: string[] = [];
+    worker = await createWorker(
+      {
+        release: async () => Promise.reject(new Error("queue drain failed")),
+        onUncleanShutdown: (signal) => void unclean.push(signal),
+      },
+      logger,
+    );
+    await closeWith(worker, "SIGTERM");
+    expect(unclean).toEqual(["SIGTERM"]);
     worker = undefined;
     expect(shutdownLines(lines).map((line) => line["msg"])).toEqual([
       "worker shutdown started",

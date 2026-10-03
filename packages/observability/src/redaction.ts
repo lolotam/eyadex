@@ -154,6 +154,12 @@ export function maskPhone(value: unknown): string {
 // One walk for both entry points. Only data survives: functions (including a `toJSON` hook, which JSON
 // serialisation would call and which could return anything) are dropped, dates become ISO strings, errors
 // become diagnostics. Cycles and anything deeper than MAX_DEPTH are replaced rather than walked.
+// A Kuwaiti number written by hand inside free text ("call 5001 2345", "00965-5001-2345") under a key that
+// is not a phone key. Eight digits starting 2/4/5/6/9, optional +965/00965 and one space or dash between the
+// halves. The boundaries keep it off UUIDs, dates and longer digit runs: not glued to a letter, digit, dash
+// or plus on either side.
+const KUWAIT_LOCAL_PHONE = /(?<![\w+-])(?:(?:\+|00)965[\s-]?)?[24569]\d{3}[\s-]?\d{4}(?![\w-])/g;
+
 function scrub(value: unknown, maskPhones: boolean): unknown {
   const seen = new WeakSet<object>();
   const walk = (node: unknown, depth: number): unknown => {
@@ -164,6 +170,7 @@ function scrub(value: unknown, maskPhones: boolean): unknown {
       return maskPhones
         ? text
             .replace(/\+[1-9]\d{7,14}/g, maskPhone)
+            .replace(KUWAIT_LOCAL_PHONE, maskPhone)
             .replace(EMAIL_OR_URL, (part) => (URL_START.test(part) ? part : REDACTED))
         : text;
     }
