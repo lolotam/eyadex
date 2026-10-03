@@ -154,7 +154,11 @@ export function maskPhone(value: unknown): string {
   if (typeof value !== "string") return REDACTED;
   // Already masked (the sanitiser can run twice on one line): keep it, don't mask the mask.
   if (/^\*{3}\d{0,3}$/.test(value)) return value;
-  const digits = value.replace(/\D/g, "");
+  // Arabic-Indic digits count as digits: the last three are kept as ASCII, nothing else survives.
+  const digits = value
+    .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+    .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
+    .replace(/\D/g, "");
   return digits.length > 3 ? `***${digits.slice(-3)}` : "***";
 }
 
@@ -188,7 +192,9 @@ function scrubCredentialsInText(text: string): string {
     .replace(CREDENTIAL_ASSIGNMENT, `$1$2${REDACTED}`);
 }
 
-const KUWAIT_LOCAL_PHONE = /(?<![\w+-])(?:(?:\+|00)965[\s-]?)?[24569]\d{3}[\s-]?\d{4}(?![\w-])/g;
+// Digits may be ASCII or Arabic-Indic (an Arabic-first app: "اتصل على ٥٠٠١ ٢٣٤٥").
+const KUWAIT_LOCAL_PHONE =
+  /(?<![\w٠-٩۰-۹+-])(?:(?:\+|00|٠٠|۰۰)(?:965|٩٦٥|۹۶۵)[\s-]?)?[24569٢٤٥٦٩۲۴۵۶۹][0-9٠-٩۰-۹]{3}[\s-]?[0-9٠-٩۰-۹]{4}(?![\w٠-٩۰-۹-])/g;
 
 function scrub(value: unknown, maskPhones: boolean): unknown {
   const seen = new WeakSet<object>();
@@ -203,7 +209,7 @@ function scrub(value: unknown, maskPhones: boolean): unknown {
       );
       return maskPhones
         ? text
-            .replace(/\+[1-9]\d{7,14}/g, maskPhone)
+            .replace(/\+[1-9١-٩۱-۹][0-9٠-٩۰-۹]{7,14}/g, maskPhone)
             .replace(KUWAIT_LOCAL_PHONE, maskPhone)
             .replace(EMAIL_OR_URL, (part) => (URL_START.test(part) ? part : REDACTED))
         : text;

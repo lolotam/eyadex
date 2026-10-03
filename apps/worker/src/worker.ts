@@ -131,11 +131,13 @@ export function watchShutdown({
 }): void {
   for (const signal of signals) {
     process.once(signal, () => {
-      // Unref'd: the timer must never be the reason the process stays alive.
+      // Referenced on purpose: when every handle is already closed and a hook awaits a promise that never
+      // settles, an unref'd timer would let Node drain and exit 0 before it fired. A clean shutdown ends in
+      // process.exit (useProcessExit), so this timer never delays one.
       setTimeout(() => {
         logger.fatal({ signal }, "worker shutdown timed out");
         onTimeout(signal);
-      }, timeoutMs).unref();
+      }, timeoutMs);
     });
   }
 }
