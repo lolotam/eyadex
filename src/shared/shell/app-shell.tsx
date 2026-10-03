@@ -68,7 +68,9 @@ export function AppShell({ areaLabel, subtitle, items, children }: Props) {
             <PersonaSwitcher />
           </div>
         </header>
-        <main className="mx-auto w-full max-w-7xl flex-1 p-4 md:p-8 lg:p-10">{children}</main>
+        <main className="mx-auto w-full min-w-0 max-w-7xl flex-1 p-4 md:p-8 lg:p-10">
+          {children}
+        </main>
       </div>
     </div>
   );

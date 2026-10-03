@@ -298,6 +298,13 @@ export const en = {
     expiredBody: "This invitation has expired. Ask the clinic admin to resend it.",
     cancelledBody: "This invitation was cancelled by the clinic.",
     usedBody: "This invitation was already used. Sign in instead.",
+    roleUnavailable:
+      "This invitation's role is no longer available. Ask your clinic admin to resend it.",
+    branchUnavailable:
+      "A branch in this invitation is no longer active. Ask your clinic admin to resend it.",
+    emailUnavailable:
+      "This email already belongs to an Eyadex account. Ask your clinic admin for help.",
+    clinicUnavailable: "This clinic cannot be accessed right now. Ask your clinic admin.",
     notFoundBody: "This invitation link is not valid.",
     toSignIn: "Go to sign-in",
     validation: {
