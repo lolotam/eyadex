@@ -40,7 +40,7 @@ export const branchUsageSchema = z.object({
 });
 export type BranchUsage = z.infer<typeof branchUsageSchema>;
 
-export const clinicAuditEntitySchema = z.enum(["branch", "user", "invitation"]);
+export const clinicAuditEntitySchema = z.enum(["branch", "user", "invitation", "patient"]);
 
 export const clinicAuditEntrySchema = z.object({
   id: idSchema,
@@ -48,6 +48,7 @@ export const clinicAuditEntrySchema = z.object({
   actorName: z.string(),
   action: z.string(),
   entity: clinicAuditEntitySchema,
+  category: z.enum(["patient_access", "administrative"]),
   entityId: idSchema,
   before: z.record(z.string(), z.unknown()).nullable(),
   after: z.record(z.string(), z.unknown()).nullable(),
