@@ -25,17 +25,18 @@
 
 ---
 
-## 1. Phase A — the web app (this repo today)
+## 1. Phase A — the web app (`apps/web`, this repo today)
 
 ```
-src/<business-area>/      one folder per area: page components, dialogs, columns, queries hooks
-src/shared/api/           ApiClient interface + api-error + provider   (the boundary)
-src/shared/api/mock/      the in-memory adapter: mock-actor (auth + permission check order),
-                          mock-audit (the ONLY audit writer), per-area mock files, seed
-src/shared/permissions/   can(), RequirePermission — UI gating from permission strings
-src/shared/i18n/          ar/en dictionaries, provider, language switch
-src/routes/               thin TanStack routes: head() + re-export
-contracts/                Zod — the single source of types for forms AND the ApiClient
+apps/web/src/<business-area>/   one folder per area: page components, dialogs, columns, queries hooks
+apps/web/src/shared/api/        ApiClient interface + api-error + provider   (the boundary)
+apps/web/src/shared/api/mock/   the in-memory adapter: mock-actor (auth + permission check order),
+                                mock-audit (the ONLY audit writer), per-area mock files, seed
+apps/web/src/shared/permissions/ can(), RequirePermission — UI gating from permission strings
+apps/web/src/shared/i18n/       ar/en dictionaries, provider, language switch
+apps/web/src/routes/            thin TanStack routes: head() + re-export
+packages/contracts/src/         Zod — the single source of types for forms AND the ApiClient
+                                (imported as @eyadex/contracts/<name>)
 ```
 
 ### 1.1 Import matrix (Phase A)
@@ -52,16 +53,19 @@ A screen that imports the mock directly breaks the Phase B swap and is rejected.
 ## 2. Phase B — the target monorepo (PRD §4.2, from the PosPay foundation)
 
 ```
-apps/web        this app (TanStack Start), HTTP adapter replaces the mock
+apps/web        this app (TanStack Start), HTTP adapter replaces the mock   ✅ exists
+packages/contracts  Zod (imported as @eyadex/contracts/*) + generated OpenAPI  ✅ exists
+packages/config eslint (shared base config) + tsconfig presets                      ✅ exists
 apps/api        NestJS on Fastify: HTTP, auth handler, guards
 apps/worker     same NestJS code, BullMQ processors (emails, outbox, expiry reminders)
 packages/db     Drizzle schema + drizzle-kit migrations + RLS policies; withTenant/withUser/withNewTenant
-packages/contracts  Zod (moved from /contracts) + generated OpenAPI
 packages/auth   Better Auth config (+ two-factor). The ONLY place sessions/passwords are handled
 packages/ids    UUID v7 with injected time + entropy
 packages/observability  pino + redaction, request context
-packages/config eslint (boundaries, jsdoc), tsconfig
 ```
+
+The workspace is pnpm + Turborepo (`pnpm-workspace.yaml`, `turbo.json`); `pnpm typecheck`,
+`pnpm lint`, `pnpm test` and `pnpm build` run the pipeline across every package.
 
 ### 2.1 Backend module shape — identical in every module
 

@@ -10,4 +10,5 @@
 - [x] Clinic area: patients (branch scope, file numbers, duplicate phone, archive/restore, audited file opens)
 - [x] Audit log: clinic (filters, clinic time zone, field diff) and platform (administrative entries only)
 - [x] Settings and platform console: clinic settings, my account, expiry banner, platform overview, team and settings (last Phase A screens)
+- [x] Phase B: monorepo foundation (pnpm + Turborepo workspace; app in `apps/web`, Zod contracts in `packages/contracts`, shared presets in `packages/config`)
 - [ ] Agent integrations (MCP) — deferred until the NestJS backend exists (user decision)

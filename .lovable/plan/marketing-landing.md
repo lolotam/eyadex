@@ -1,6 +1,6 @@
 # Eyadex marketing landing page: build spec
 
-Before writing markup, read `.agents/skills/scroll-craft/SKILL.md`, `references/hero-depth.md`, `references/taste.md` and `references/devices.md`. Their taste rules are binding. This page is a React/TanStack Start port of that method: do NOT copy the vanilla engine, write the motion as small typed hooks in `src/marketing/motion/`.
+Before writing markup, read `.agents/skills/scroll-craft/SKILL.md`, `references/hero-depth.md`, `references/taste.md` and `references/devices.md`. Their taste rules are binding. This page is a React/TanStack Start port of that method: do NOT copy the vanilla engine, write the motion as small typed hooks in `apps/web/src/marketing/motion/`.
 
 Hard constraints still hold: no Lovable Cloud, no Supabase, no forms that store data, no analytics or trackers, no new component library, no global token changes, no edits to app screens except the two listed in §1.
 
@@ -21,22 +21,22 @@ Honesty rules (ship-blockers): no invented customers, testimonials, client logos
 ## 1. Routing and app changes
 
 1. Move the persona sign-in page from `/` to **`/login`**:
-   - new `src/routes/login.tsx` (thin: head + re-export of the existing `LandingPage` component, which you may rename to `SignInPage` in `src/shared/shell/sign-in-page.tsx`).
+   - new `apps/web/src/routes/login.tsx` (thin: head + re-export of the existing `LandingPage` component, which you may rename to `SignInPage` in `apps/web/src/shared/shell/sign-in-page.tsx`).
    - Update every navigation/redirect that means "go to sign-in" (sign-out, persona reset, guards, the forbidden page, suspended/expired clinic flows) to `/login`. Grep for `to="/"`, `navigate({ to: "/" })`, `href="/"` and decide each one.
    - `/login`, `/platform/*`, `/clinic/*`, `/forbidden` get `<meta name="robots" content="noindex,nofollow">`.
 2. New public routes:
-   - `src/routes/index.tsx` → Arabic landing (`lang="ar"`, `dir="rtl"`).
-   - `src/routes/en.tsx` → English landing (`lang="en"`, `dir="ltr"`).
-   - Both render `<MarketingPage lang="ar|en" />` from `src/marketing/marketing-page.tsx`.
-3. SSR language: the server HTML of `/en` must contain `<html lang="en" dir="ltr">` and `/` must contain `<html lang="ar" dir="rtl">`. Derive it in `RootShell` from the current pathname (marketing routes only). The app `I18nProvider` effect must NOT overwrite `<html lang/dir>` while a marketing route is active (pass a flag or check the route). The marketing page takes its strings from `src/marketing/i18n/{ar,en}.ts` (typed, same keys), never from localStorage. The language link is a real `<a href>` to the other route.
+   - `apps/web/src/routes/index.tsx` → Arabic landing (`lang="ar"`, `dir="rtl"`).
+   - `apps/web/src/routes/en.tsx` → English landing (`lang="en"`, `dir="ltr"`).
+   - Both render `<MarketingPage lang="ar|en" />` from `apps/web/src/marketing/marketing-page.tsx`.
+3. SSR language: the server HTML of `/en` must contain `<html lang="en" dir="ltr">` and `/` must contain `<html lang="ar" dir="rtl">`. Derive it in `RootShell` from the current pathname (marketing routes only). The app `I18nProvider` effect must NOT overwrite `<html lang/dir>` while a marketing route is active (pass a flag or check the route). The marketing page takes its strings from `apps/web/src/marketing/i18n/{ar,en}.ts` (typed, same keys), never from localStorage. The language link is a real `<a href>` to the other route.
 4. Replace the stethoscope icon on the sign-in card and in the app shell header with the new Eyadex mark (`/brand/eyadex-mark.svg`, or `/brand/eyadex-mark-white.svg` on teal). That is the only app UI change.
-5. Keep `src/test/app-routing.test.tsx` passing (index route still renders).
+5. Keep `apps/web/src/test/app-routing.test.tsx` passing (index route still renders).
 
 ---
 
 ## 2. SEO (non-negotiable)
 
-Put this in `src/marketing/seo/marketing-head.ts` and use it from both routes' `head()`.
+Put this in `apps/web/src/marketing/seo/marketing-head.ts` and use it from both routes' `head()`.
 
 **Arabic `/`**
 
@@ -65,19 +65,19 @@ Both pages:
 
 ## 3. Assets (already saved)
 
-| Path                                                                         | Use                                                     |
-| ---------------------------------------------------------------------------- | ------------------------------------------------------- |
-| `public/marketing/hero-desktop.mp4`                                          | hero scrub video, 16:9, 6.6s, dense keyframes, no audio |
-| `public/marketing/hero-desktop.webp`                                         | its own first frame (poster, LCP) 2560×1440             |
-| `public/marketing/hero-mobile.mp4`                                           | hero scrub video, 9:16                                  |
-| `public/marketing/hero-mobile.webp`                                          | its own first frame 720×1280                            |
-| `public/marketing/olive.webp`                                                | foreground olive branch, real alpha                     |
-| `public/marketing/key-{admin,doctor,receptionist,tech,team}.webp`            | the five keys, real alpha                               |
-| `public/marketing/corridor.webp`                                             | corridor of frosted doors 1920×1080                     |
-| `public/marketing/close.webp`                                                | golden-hour room, door open (close) 1920×1080           |
-| `public/brand/eyadex-mark.svg`, `eyadex-mark-white.svg`, `eyadex-icon.svg`   | logo (arch doorway with an "e")                         |
-| `public/favicon.ico`, `icon-192.png`, `icon-512.png`, `apple-touch-icon.png` | icons                                                   |
-| `public/og/og-ar.jpg`, `public/og/og-en.jpg`                                 | social cards 1200×630                                   |
+| Path                                                                                  | Use                                                     |
+| ------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| `apps/web/public/marketing/hero-desktop.mp4`                                          | hero scrub video, 16:9, 6.6s, dense keyframes, no audio |
+| `apps/web/public/marketing/hero-desktop.webp`                                         | its own first frame (poster, LCP) 2560×1440             |
+| `apps/web/public/marketing/hero-mobile.mp4`                                           | hero scrub video, 9:16                                  |
+| `apps/web/public/marketing/hero-mobile.webp`                                          | its own first frame 720×1280                            |
+| `apps/web/public/marketing/olive.webp`                                                | foreground olive branch, real alpha                     |
+| `apps/web/public/marketing/key-{admin,doctor,receptionist,tech,team}.webp`            | the five keys, real alpha                               |
+| `apps/web/public/marketing/corridor.webp`                                             | corridor of frosted doors 1920×1080                     |
+| `apps/web/public/marketing/close.webp`                                                | golden-hour room, door open (close) 1920×1080           |
+| `apps/web/public/brand/eyadex-mark.svg`, `eyadex-mark-white.svg`, `eyadex-icon.svg`   | logo (arch doorway with an "e")                         |
+| `apps/web/public/favicon.ico`, `icon-192.png`, `icon-512.png`, `apple-touch-icon.png` | icons                                                   |
+| `apps/web/public/og/og-ar.jpg`, `apps/web/public/og/og-en.jpg`                        | social cards 1200×630                                   |
 
 Do not substitute stock or generated images.
 
@@ -85,7 +85,7 @@ Do not substitute stock or generated images.
 
 ## 4. Design layer `.mk` (scoped, extends "Clinical Operations")
 
-All marketing styles live in `src/marketing/marketing.css`, scoped under `.mk`, imported by the marketing page only. Tokens:
+All marketing styles live in `apps/web/src/marketing/marketing.css`, scoped under `.mk`, imported by the marketing page only. Tokens:
 
 ```css
 .mk {
@@ -131,7 +131,7 @@ Refuse list (from taste.md): no em dashes in visible copy, no "scroll" cue or mo
 
 ## 5. The page, act by act
 
-Write all copy below exactly (both languages) into `src/marketing/i18n/ar.ts` / `en.ts`. Where a heading and its body are given separately, they are two separate elements; never join them with a dash.
+Write all copy below exactly (both languages) into `apps/web/src/marketing/i18n/ar.ts` / `en.ts`. Where a heading and its body are given separately, they are two separate elements; never join them with a dash.
 Motion lives in hooks: `useScrollProgress(ref)` (rAF, passive scroll listener, writes a CSS var `--p` 0..1 on the section, no React re-render per frame), `useReducedMotion()`, `useMedia(query)`. Pause anything offscreen with IntersectionObserver.
 
 ### Nav (fixed, minimal: no anchor index)
@@ -187,9 +187,9 @@ A small label on the panel: `بيانات تجريبية` / `Sample data`.
 
 Stage layout: inline-start column = a thin brass rail with the five key images hanging from it (`key-admin`, `key-doctor`, `key-receptionist`, `key-tech`, `key-team`), each a real `<button role="radio">` inside a `role="radiogroup"` with its role name under it (`مدير العيادة / Clinic admin`, `طبيب / Doctor`, `موظف استقبال / Receptionist`, `فني / Technician`, `فريق Eyadex / Eyadex team`). Selected key lifts 10px and swings 4deg, others dim to 55%. Inline-end column = a **real, computing** mini Eyadex window built with the app's own visual language (white surface, hairlines, teal active state, IBM Plex): a narrow sidebar (Overview, Branches, Users, Roles, المراجعون / Patients, Audit log, Settings), a patients table, and an open patient file panel.
 
-Logic (pure functions in `src/marketing/keyring/keyring-model.ts`, unit-testable):
+Logic (pure functions in `apps/web/src/marketing/keyring/keyring-model.ts`, unit-testable):
 
-- Import `PERMISSION_CATALOG` from `@contracts/permissions` and `ROLE_TEMPLATES` from `src/shared/api/mock/seed-roles.ts` (pure data only, never the mock store or ApiClient), so the demo always matches the real defaults.
+- Import `PERMISSION_CATALOG` from `@eyadex/contracts/permissions` and `ROLE_TEMPLATES` from `apps/web/src/shared/api/mock/seed-roles.ts` (pure data only, never the mock store or ApiClient), so the demo always matches the real defaults.
 - Sample clinic: `مجمع السكينة الطبي (عيّنة) / Al Sakina Medical Centre (sample)`, branches `السالمية / Salmiya` and `حولي / Hawalli`. Sample personas: Clinic admin (all branches), Doctor (Salmiya), Receptionist (Salmiya), Technician (Hawalli).
 - Six sample patients, three per branch, fictional names, file numbers 1041..1046, phones masked like `+965 5••• ••37`, no civil ID, no clinical data.
 - For the chosen key compute: visible sidebar items (from `view:*` permissions), visible rows (clinic scope = all; branch scope = rows in the persona's branches; others render as a frosted row with the text `خارج فروعك / Outside your branches`), and which buttons exist (`New patient` needs create, `Edit` needs update, `Archive` needs deactivate). Buttons that are not allowed are absent, not disabled.
@@ -260,7 +260,7 @@ Full-bleed `close.webp` (golden hour, open door), `140vh` with a gentle pin: the
 
 ### Book a demo behaviour
 
-`src/marketing/site-config.ts`:
+`apps/web/src/marketing/site-config.ts`:
 
 ```ts
 export const SITE = {
@@ -284,7 +284,7 @@ Every Book a demo button opens `https://wa.me/{whatsapp}?text=...` (prefilled ar
 
 ## 7. Files and limits
 
-- `src/marketing/` with one component per file (max 300 lines): `marketing-page.tsx`, `marketing-nav.tsx`, `hero-room.tsx`, `truth-act.tsx`, `keyring/keyring-act.tsx`, `keyring/keyring-window.tsx`, `keyring/keyring-model.ts`, `plan-drawing.tsx`, `corridor-act.tsx`, `language-act.tsx`, `roadmap-act.tsx`, `faq-act.tsx`, `close-act.tsx`, `marketing-footer.tsx`, `motion/*.ts`, `seo/*.ts`, `i18n/{ar,en}.ts`, `site-config.ts`, `marketing.css`. Banned folder names still apply.
+- `apps/web/src/marketing/` with one component per file (max 300 lines): `marketing-page.tsx`, `marketing-nav.tsx`, `hero-room.tsx`, `truth-act.tsx`, `keyring/keyring-act.tsx`, `keyring/keyring-window.tsx`, `keyring/keyring-model.ts`, `plan-drawing.tsx`, `corridor-act.tsx`, `language-act.tsx`, `roadmap-act.tsx`, `faq-act.tsx`, `close-act.tsx`, `marketing-footer.tsx`, `motion/*.ts`, `seo/*.ts`, `i18n/{ar,en}.ts`, `site-config.ts`, `marketing.css`. Banned folder names still apply.
 - Add a vitest file for `keyring-model.ts` (team key sees nothing; doctor sees only Salmiya rows; buttons follow ROLE_TEMPLATES).
 
 ## 8. Acceptance (check before you stop, in Arabic and English, 1440px and 390px)

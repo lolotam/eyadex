@@ -1,0 +1,21 @@
+{
+  "name": "@eyadex/config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared TypeScript and ESLint configuration for every Eyadex app and package",
+  "exports": {
+    "./eslint": "./eslint/index.js",
+    "./tsconfig/base.json": "./tsconfig/base.json"
+  },
+  "dependencies": {
+    "@eslint/js": "^9.32.0",
+    "eslint-config-prettier": "^10.1.1",
+    "eslint-plugin-prettier": "^5.2.6",
+    "prettier": "3.9.6",
+    "typescript-eslint": "8.65.0"
+  },
+  "devDependencies": {
+    "eslint": "^9.32.0"
+  }
+}

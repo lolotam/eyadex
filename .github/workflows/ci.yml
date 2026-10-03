@@ -15,18 +15,22 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
+      - uses: pnpm/action-setup@v4
         with:
-          bun-version: 1.4.2
-      - run: bun install --frozen-lockfile
+          version: 12.5.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
       - name: Typecheck
-        run: bunx tsc --noEmit -p .
+        run: pnpm typecheck
       - name: Lint
-        run: bun run lint
+        run: pnpm lint
       - name: Test
-        run: bunx vitest run
+        run: pnpm test
       - name: Build (node-server, as deployed by Dokploy)
-        run: bun run build
+        run: pnpm build
         env:
           NITRO_PRESET: node-server
 

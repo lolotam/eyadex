@@ -2,7 +2,18 @@
 
 Eyadex is an Arabic-first management application for clinics of every specialty and branch. This repository currently contains the frontend demo and its typed, browser-persisted mock API.
 
-Product domain: [eyadex.com](https://eyadex.com). Production hosting will be configured separately from Lovable.
+Product domain: [eyadex.com](https://eyadex.com). Production hosting is configured from the root `Dockerfile` on Dokploy.
+
+## Repository layout
+
+This is a pnpm + Turborepo workspace:
+
+```
+apps/web/            @eyadex/web — the TanStack Start application
+packages/contracts/  @eyadex/contracts — Zod schemas (the single source of types)
+packages/config/     @eyadex/config — shared TypeScript presets and ESLint base
+db/ docker/ docs/    SQL baseline, compose init scripts, PRD and ADRs
+```
 
 ## Build with Lovable
 
@@ -14,13 +25,26 @@ Open your project in the [Lovable editor](https://lovable.dev) and keep building
 
 ## Development
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+Prefer working locally? You need Node.js 24 and pnpm — install pnpm with [corepack](https://nodejs.org/api/corepack.html) (`corepack enable`), or use npm to install pnpm globally.
+
+All commands run from the repository root:
 
 ```sh
 git clone <this-repository-url>
 cd <repository-name>
-npm i
-npm run dev
+pnpm install
+pnpm dev          # start the app in apps/web
+pnpm typecheck    # tsc across every package
+pnpm lint         # eslint
+pnpm test         # vitest
+pnpm format       # prettier --write .
+```
+
+To build the production bundle exactly as Dokploy does:
+
+```sh
+NITRO_PRESET=node-server pnpm build
+docker compose up -d --build
 ```
 
 ## Built with
@@ -29,3 +53,4 @@ npm run dev
 - TypeScript
 - React
 - Tailwind CSS
+- pnpm workspaces + Turborepo
