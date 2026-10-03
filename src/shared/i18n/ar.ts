@@ -1,5 +1,6 @@
 import { arRoles } from "./ar-roles";
 import { arPatients } from "./ar-patients";
+import { arAudit } from "./ar-audit";
 import { arUsers } from "./ar-users";
 
 import type { Dictionary } from "./dictionary";
@@ -225,6 +226,7 @@ export const ar: Dictionary = {
   ...arUsers,
   ...arRoles,
   ...arPatients,
+  ...arAudit,
   validation: {
     needsView: "أي صلاحية إضافة أو تعديل أو تعطيل تحتاج صلاحية العرض في نفس القسم",
     timezone: "اختر منطقة زمنية مدعومة",

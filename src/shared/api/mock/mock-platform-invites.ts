@@ -67,6 +67,8 @@ export function createMockPlatformInvites(): Pick<
         action: "invitation.resent",
         clinicId,
         summary: `Resent the first admin invitation to ${inv.email}`,
+        before: null,
+        after: { email: inv.email },
         createdAt: new Date().toISOString(),
       });
       persist();

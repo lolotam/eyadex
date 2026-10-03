@@ -54,3 +54,4 @@ When reviewing a pull request, report only real defects, ranked by severity. Che
 - A persona may pin an exact clinic account (`memberId`); a deactivated account makes every request fail with `account_disabled`, and the clinic shell sends the user to sign-in — sessions end on deactivation.
 - Role permission keys are always read live from the role (no copies on accounts), and saving a role keeps keys of switched-off modules untouched — so module toggles and role edits take effect immediately and reversibly.
 - Patients branch scope hides out-of-scope files as `not_found` and patient audit snapshots use an explicit field allowlist (no civil ID) — so files can't be probed and sensitive IDs never reach the log.
+- The platform audit API builds its rows from platform events plus clinic entries that are administrative and not about a patient, filtered at the source — so patient activity can never reach the platform, whatever the UI asks.

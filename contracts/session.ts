@@ -53,7 +53,11 @@ export const platformAuditEntrySchema = z.object({
   actorName: z.string(),
   action: z.string(),
   clinicId: idSchema.nullable(),
+  /** Internal English note for operators; never shown in the UI (not localizable). */
   summary: z.string(),
+  /** Allowlisted values before/after the change, rendered field by field and translated. */
+  before: z.record(z.string(), z.unknown()).nullable(),
+  after: z.record(z.string(), z.unknown()).nullable(),
   createdAt: z.string().datetime(),
 });
 export type PlatformAuditEntry = z.infer<typeof platformAuditEntrySchema>;

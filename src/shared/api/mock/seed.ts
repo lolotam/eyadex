@@ -243,6 +243,8 @@ export function buildSeed(): MockState {
       action: "clinic.created",
       clinicId,
       summary: `Created clinic ${c.nameEn}`,
+      before: null,
+      after: { nameAr: c.nameAr, nameEn: c.nameEn },
       createdAt,
     });
   });

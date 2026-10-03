@@ -7,6 +7,7 @@ import { createMockUsers } from "./mock-users";
 import { createMockInvitations } from "./mock-invitations";
 import { createMockRoles } from "./mock-roles";
 import { createMockPatients } from "./mock-patients";
+import { createMockAuditLog } from "./mock-audit-log";
 
 export function createMockApiClient(): ApiClient {
   return {
@@ -17,5 +18,6 @@ export function createMockApiClient(): ApiClient {
     invitations: createMockInvitations(),
     roles: createMockRoles(),
     patients: createMockPatients(),
+    audit: createMockAuditLog(),
   };
 }

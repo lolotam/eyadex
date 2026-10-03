@@ -1,10 +1,10 @@
 import { RequirePermission } from "@/shared/permissions/require-permission";
-import { ComingNextPage } from "@/shared/shell/coming-next-page";
+import { ClinicAuditContent } from "./clinic-audit-content";
 
 export function ClinicAuditPage() {
   return (
     <RequirePermission resource="audit_log">
-      <ComingNextPage title="nav.audit" />
+      <ClinicAuditContent />
     </RequirePermission>
   );
 }

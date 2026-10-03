@@ -77,8 +77,25 @@ export function DataTable<T>({
             table.getRowModel().rows.map((row) => (
               <TableRow
                 key={row.id}
-                className={onRowClick ? "cursor-pointer" : undefined}
+                className={
+                  onRowClick
+                    ? "cursor-pointer focus-visible:bg-muted/60 focus-visible:outline-none"
+                    : undefined
+                }
                 onClick={onRowClick ? () => onRowClick(row.original) : undefined}
+                // Clickable rows are reachable and operable from the keyboard too.
+                tabIndex={onRowClick ? 0 : undefined}
+                onKeyDown={
+                  onRowClick
+                    ? (event) => {
+                        if (event.target !== event.currentTarget) return;
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          onRowClick(row.original);
+                        }
+                      }
+                    : undefined
+                }
               >
                 {row.getVisibleCells().map((cell) => (
                   <TableCell
