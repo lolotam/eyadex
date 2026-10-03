@@ -41,7 +41,10 @@ export function AuditDetailDialog({ entry, timeZone, onClose }: Props) {
   const show = (value: unknown): string => {
     if (value === undefined || value === null || value === "") return "—";
     if (typeof value === "boolean") return t(value ? "audit.yes" : "audit.no");
-    if (Array.isArray(value)) return value.length ? value.map(one).join("، ") : "—";
+    if (Array.isArray(value))
+      return value.length
+        ? new Intl.ListFormat(lang === "ar" ? "ar" : "en", { type: "unit" }).format(value.map(one))
+        : "—";
     return one(value);
   };
   const label = (field: string) => {
