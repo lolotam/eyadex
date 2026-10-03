@@ -216,7 +216,7 @@ export function buildSeed(): MockState {
 
     const patientCount = ci === 0 ? 25 : 6;
     for (let pi = 0; pi < patientCount; pi += 1) {
-      const name = PATIENT_NAMES[(pi + ci * 7) % PATIENT_NAMES.length] ?? "أحمد العنزي";
+      const name = PATIENT_NAMES[(pi + ci * 8) % PATIENT_NAMES.length] ?? "أحمد العنزي";
       const branch = branches[pi % 2];
       if (!branch) continue;
       const patient: Patient = {
