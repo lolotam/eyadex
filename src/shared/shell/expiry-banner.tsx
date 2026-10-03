@@ -5,7 +5,11 @@ import { useI18n } from "@/shared/i18n/i18n-provider";
 export function ExpiryBanner({ days }: { days: number }) {
   const { t } = useI18n();
   const text =
-    days <= 0 ? t("expiryBanner.today") : days === 1 ? t("expiryBanner.one") : t("expiryBanner.days", { days });
+    days <= 0
+      ? t("expiryBanner.today")
+      : days === 1
+        ? t("expiryBanner.one")
+        : t("expiryBanner.days", { days });
   return (
     <div
       role="status"

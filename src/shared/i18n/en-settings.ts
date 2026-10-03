@@ -44,7 +44,8 @@ export const enSettings = {
     subtitle: "Accounts that run Eyadex. Each email is one account across Eyadex.",
     invite: "Invite member",
     inviteTitle: "Invite to the platform team",
-    inviteBody: "In production an invitation email is sent. In this demo the account is listed as invited.",
+    inviteBody:
+      "In production an invitation email is sent. In this demo the account is listed as invited.",
     invited: "Invitation recorded",
     columns: { name: "Name", email: "Email", status: "Status", since: "Added" },
     status: { active: "Active", invited: "Invited", deactivated: "Deactivated" },

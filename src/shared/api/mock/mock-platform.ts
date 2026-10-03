@@ -138,7 +138,9 @@ export function createMockPlatform(): Omit<
         defaultLanguage: input.defaultLanguage,
         timezone: input.timezone,
         status: "trial",
-        expiresAt: new Date(now.getTime() + db.platformSettings.defaultTrialDays * DAY).toISOString(),
+        expiresAt: new Date(
+          now.getTime() + db.platformSettings.defaultTrialDays * DAY,
+        ).toISOString(),
         maxUsers: 10,
         maxBranches: 3,
         createdAt: now.toISOString(),

@@ -84,7 +84,11 @@ export function daysUntil(expiresAt: string, now = Date.now()): number {
  * Story 30: days left to show in the clinic banner, or null when no banner is due.
  * Expired clinics are blocked elsewhere, so they never get a banner.
  */
-export function expiryAlertDays(expiresAt: string, alertDays: number, now = Date.now()): number | null {
+export function expiryAlertDays(
+  expiresAt: string,
+  alertDays: number,
+  now = Date.now(),
+): number | null {
   const ms = new Date(expiresAt).getTime() - now;
   if (ms < 0) return null;
   const days = daysUntil(expiresAt, now);
