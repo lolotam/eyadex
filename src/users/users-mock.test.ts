@@ -301,4 +301,28 @@ describe("users and invitations mock", () => {
     });
     expect(adminPage.items.some((i) => typeof i.token === "string")).toBe(true);
   });
+  it("refuses to reactivate a user whose only branch was deactivated, until it is repaired", async () => {
+    const db = getState();
+    const member = db.members.find(
+      (m) => m.status === "active" && !m.allBranches && m.branchIds.length > 0,
+    );
+    if (!member) throw new Error("seed: no branch-scoped member");
+    const persona = admin(member.clinicId);
+    const otherBranch = db.branches.find(
+      (b) => b.clinicId === member.clinicId && b.isActive && !member.branchIds.includes(b.id),
+    );
+    if (!otherBranch) throw new Error("seed: clinic needs a second active branch");
+    await api.users.deactivate(persona, member.id);
+    for (const b of db.branches) if (member.branchIds.includes(b.id)) b.isActive = false;
+    await expect(api.users.reactivate(persona, member.id)).rejects.toMatchObject({
+      code: "branch_inactive",
+    });
+    await api.users.changeBranches(persona, member.id, {
+      allBranches: false,
+      branchIds: [otherBranch.id],
+    });
+    await expect(api.users.reactivate(persona, member.id)).resolves.toMatchObject({
+      status: "active",
+    });
+  });
 });

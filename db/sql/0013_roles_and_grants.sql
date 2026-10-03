@@ -44,7 +44,7 @@ REVOKE ALL ON audit_log FROM eyadex_platform;
 CREATE VIEW platform_clinic_admin_audit WITH (security_barrier = true) AS
   SELECT clinic_id, id, actor_user_id, action, entity_type, entity_id, branch_id, details, created_at
   FROM audit_log
-  WHERE category = 'administrative';
+  WHERE category = 'administrative' AND entity_type <> 'patient';
 GRANT SELECT ON platform_clinic_admin_audit TO eyadex_platform;
 
 -- eyadex_auth (Better Auth identity tables) and eyadex_dispatcher (outbox) get their

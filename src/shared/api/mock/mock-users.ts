@@ -157,6 +157,13 @@ export function createMockUsers(): ApiClient["users"] {
       const member = findMember(db, clinic.id, memberId);
       if (member.status === "active") return toUserView(db, member);
       enforceUserLimit(db, clinic.id);
+      // A role or branch may have been deactivated while the account was off; reactivating must
+      // not create an active account whose access points only at inactive assignments.
+      enforceAssignableRole(db, clinic.id, member.roleId);
+      enforceAssignableBranches(db, clinic.id, {
+        allBranches: member.allBranches,
+        branchIds: member.branchIds,
+      });
       const before = { ...member };
       member.status = "active";
       writeClinicAudit(db, {

@@ -73,7 +73,8 @@ export function useUserColumns(h: Handlers): ColumnDef<MembershipUserView, unkno
         cell: ({ row }) => {
           const u = row.original;
           const actions: RowAction[] = [];
-          if (mayUpdate && u.status === "active") {
+          // Editable while deactivated too, so an admin can repair a stale role or branch before reactivating.
+          if (mayUpdate) {
             actions.push(
               {
                 label: t("users.actions.changeRole"),

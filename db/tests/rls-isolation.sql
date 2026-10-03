@@ -31,6 +31,17 @@ BEGIN
   END LOOP;
 END $$;
 
+-- A patient event can never be filed as administrative (keeps the platform view patient-free).
+DO $$
+BEGIN
+  BEGIN
+    INSERT INTO audit_log VALUES ('00000000-0000-7000-8000-00000000000a', gen_random_uuid(),
+      '00000000-0000-7000-8000-0000000002a5', 'patient.updated', 'administrative', 'patient',
+      null, null, '{}', now());
+    RAISE EXCEPTION 'PLAT-01: a patient event was accepted as administrative';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+END $$;
+
 -- ISO-01 as the runtime role scoped to clinic A.
 SET LOCAL ROLE eyadex_app;
 SET LOCAL app.clinic_id = '00000000-0000-7000-8000-00000000000a';

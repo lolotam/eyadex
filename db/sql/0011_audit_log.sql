@@ -14,7 +14,11 @@ CREATE TABLE audit_log (
   branch_id     uuid NULL,
   details       jsonb NOT NULL,
   created_at    timestamptz NOT NULL,
-  PRIMARY KEY (clinic_id, id)
+  PRIMARY KEY (clinic_id, id),
+  -- Patient events can never be filed as administrative, so the platform's admin-audit view
+  -- cannot receive patient data even if a writer mislabels an event.
+  CONSTRAINT audit_log_patient_events_are_patient_access
+    CHECK (entity_type <> 'patient' OR category = 'patient_access')
 );
 CREATE INDEX audit_log_clinic_created_idx ON audit_log (clinic_id, created_at DESC);
 CREATE INDEX audit_log_clinic_category_created_idx ON audit_log (clinic_id, category, created_at DESC);
