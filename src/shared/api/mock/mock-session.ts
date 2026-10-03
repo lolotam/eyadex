@@ -2,7 +2,11 @@ import type { ApiClient } from "../api-client";
 import { ApiError } from "../api-error";
 import { clinicBlockReason, effectivePermissions, resolveActor } from "./mock-actor";
 import { delay, getState, persist } from "./mock-store";
-import { resolvePlatformActor } from "./mock-platform-actor";
+import {
+  platformAccountSnapshot,
+  resolvePlatformActor,
+  writePlatformAudit,
+} from "./mock-platform-actor";
 import { expiryAlertDays } from "@contracts/platform";
 
 const LOGIN_REFRESH_MS = 5 * 60 * 1000;
@@ -34,6 +38,29 @@ export function createMockSession(): ApiClient["session"] {
       return [...getState().platformAccounts]
         .sort((x, y) => x.createdAt.localeCompare(y.createdAt))
         .map((a) => ({ memberId: a.id, fullName: a.fullName, status: a.status }));
+    },
+
+    async acceptPlatformInvitation(memberId) {
+      await delay(80);
+      const db = getState();
+      const account = db.platformAccounts.find((a) => a.id === memberId);
+      if (!account) throw new ApiError("not_found");
+      // Only a pending invitation can be accepted; a deactivated account stays out.
+      if (account.status !== "invited") throw new ApiError("invitation_used");
+      const before = platformAccountSnapshot(account);
+      account.status = "active";
+      account.joinedAt = new Date().toISOString();
+      writePlatformAudit(db, {
+        actorName: account.fullName,
+        action: "platform_account.joined",
+        clinicId: null,
+        entityId: account.id,
+        summary: `${account.email} joined the platform team`,
+        before,
+        after: platformAccountSnapshot(account),
+      });
+      persist();
+      return { memberId: account.id, fullName: account.fullName, status: account.status };
     },
 
     async getContext(persona) {

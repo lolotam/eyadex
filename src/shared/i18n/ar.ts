@@ -49,6 +49,7 @@ export const ar: Dictionary = {
     demoNote: "دخول تجريبي بدون كلمات مرور.",
     account: "الحساب",
     deactivatedTag: "معطّل",
+    invitedTag: "مدعو: الدخول يقبل الدعوة",
     disabledNotice: "تم تعطيل حسابك وتسجيل خروجك. تواصل مع مدير العيادة.",
     signOut: "تسجيل الخروج",
   },

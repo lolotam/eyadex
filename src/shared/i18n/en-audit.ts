@@ -83,6 +83,7 @@ export const enAudit = {
         invited: "Platform member invited",
         deactivated: "Platform member deactivated",
         reactivated: "Platform member reactivated",
+        joined: "Platform member joined",
       },
       platform: {
         settings_updated: "Platform settings updated",

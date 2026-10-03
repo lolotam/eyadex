@@ -73,6 +73,8 @@ export interface ApiClient {
     listLoginAccounts(clinicId: string): Promise<LoginAccount[]>;
     /** Demo sign-in: platform team accounts, so the platform persona is pinned to one of them. */
     listLoginPlatformAccounts(): Promise<PlatformLoginAccount[]>;
+    /** Demo stand-in for the emailed link: an invited platform account joins (once). */
+    acceptPlatformInvitation(memberId: string): Promise<PlatformLoginAccount>;
     getContext(persona: Persona): Promise<SessionContext>;
   };
   /** Platform admin only: every call resolves the active platform account first. */

@@ -1,7 +1,7 @@
 import { computeInvitationStatus, INVITATION_TTL_DAYS } from "@contracts/invitations";
 import type { ApiClient } from "../api-client";
 import { ApiError } from "../api-error";
-import { resolvePlatformActor } from "./mock-platform-actor";
+import { resolvePlatformActor, writePlatformAudit } from "./mock-platform-actor";
 import { invitationAuditSnapshot, issueInviteToken } from "./mock-invite-tokens";
 import { writeClinicAudit } from "./mock-audit";
 import { delay, getState, newId, persist, type MockState } from "./mock-store";
@@ -63,15 +63,14 @@ export function createMockPlatformInvites(): Pick<
         after: invitationAuditSnapshot(inv),
       });
       // The summary names the email only; the link token never reaches the audit log.
-      db.platformAudit.unshift({
-        id: newId(),
+      writePlatformAudit(db, {
         actorName: actor.fullName,
         action: "invitation.resent",
         clinicId,
+        entityId: inv.id,
         summary: `Resent the first admin invitation to ${inv.email}`,
         before: null,
         after: { email: inv.email },
-        createdAt: new Date().toISOString(),
       });
       persist();
       return { email: inv.email, token, expiresAt: inv.expiresAt };

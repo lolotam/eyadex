@@ -47,6 +47,7 @@ export const en = {
     demoNote: "Demo sign-in. No passwords.",
     account: "Account",
     deactivatedTag: "deactivated",
+    invitedTag: "invited: signing in accepts",
     disabledNotice:
       "Your account was deactivated. You have been signed out. Contact your clinic admin.",
     signOut: "Sign out",

@@ -215,4 +215,31 @@ describe("platform access follows the signed-in account", () => {
     expect(ctx.user.email).toBe(second.email);
     await expect(api.platform.getClinic(pinned, db.clinics[0]?.id ?? "")).resolves.toBeDefined();
   });
+  it("activates an invited platform account when it accepts, once", async () => {
+    const invited = await api.platformTeam.invite(PLATFORM, {
+      fullName: "New Operator",
+      email: "new.operator@example.com",
+    });
+    const pinned = { kind: "platform_admin" as const, clinicId: null, memberId: invited.id };
+    await expect(api.session.getContext(pinned)).rejects.toMatchObject({
+      code: "account_disabled",
+    });
+    await api.session.acceptPlatformInvitation(invited.id);
+    expect((await api.session.getContext(pinned)).user.email).toBe("new.operator@example.com");
+    await expect(api.session.acceptPlatformInvitation(invited.id)).rejects.toMatchObject({
+      code: "invitation_used",
+    });
+    const audit = await api.audit.platformList(pinned, {
+      cursor: null,
+      limit: 50,
+      actor: "",
+      action: "platform_account.joined",
+      from: null,
+      to: null,
+      entity: null,
+      source: null,
+      clinicId: null,
+    });
+    expect(audit.items[0]?.entityId).toBe(invited.id);
+  });
 });

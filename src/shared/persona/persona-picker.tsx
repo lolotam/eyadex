@@ -45,6 +45,12 @@ export function PersonaPicker({ onDone }: { onDone?: () => void }) {
   const platformChosen =
     (platformAccounts.data ?? []).find((a) => a.memberId === memberId) ??
     (platformAccounts.data ?? []).find((a) => a.status === "active");
+  const platformTag = (status: string) =>
+    status === "invited"
+      ? ` (${t("persona.invitedTag")})`
+      : status === "deactivated"
+        ? ` (${t("persona.deactivatedTag")})`
+        : "";
   // A pinned account keeps its identity: if its role changed since the persona was saved,
   // follow the account's current role instead of silently choosing another person.
   const pinned = (accounts.data ?? []).find((a) => a.memberId === memberId);
@@ -66,7 +72,10 @@ export function PersonaPicker({ onDone }: { onDone?: () => void }) {
     kindAccounts.find((a) => a.status === "active") ??
     kindAccounts[0];
 
-  function apply() {
+  async function apply() {
+    // An invited platform account accepts its invitation on first sign-in (demo of the link).
+    if (!needsClinic && platformChosen?.status === "invited")
+      await api.session.acceptPlatformInvitation(platformChosen.memberId);
     const next = {
       kind,
       clinicId: needsClinic ? effectiveClinic : null,
@@ -152,7 +161,7 @@ export function PersonaPicker({ onDone }: { onDone?: () => void }) {
               {(platformAccounts.data ?? []).map((a) => (
                 <SelectItem key={a.memberId} value={a.memberId}>
                   {a.fullName}
-                  {a.status !== "active" ? ` (${t("persona.deactivatedTag")})` : ""}
+                  {platformTag(a.status)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -166,7 +175,7 @@ export function PersonaPicker({ onDone }: { onDone?: () => void }) {
       )}
       <Button
         type="button"
-        onClick={apply}
+        onClick={() => void apply()}
         disabled={needsClinic ? !effectiveClinic || !chosen : !platformChosen}
       >
         {t("landing.enter")}

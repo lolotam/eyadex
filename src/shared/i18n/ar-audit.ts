@@ -83,6 +83,7 @@ export const arAudit = {
         invited: "دعوة عضو منصة",
         deactivated: "تعطيل عضو منصة",
         reactivated: "إعادة تفعيل عضو منصة",
+        joined: "انضمام عضو منصة",
       },
       platform: {
         settings_updated: "تحديث إعدادات المنصة",
