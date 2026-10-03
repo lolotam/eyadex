@@ -1,10 +1,13 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useSearch } from "@tanstack/react-router";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { LanguageSwitch } from "@/shared/i18n/language-switch";
 import { PersonaPicker } from "@/shared/persona/persona-picker";
 
 export function SignInPage() {
   const { t } = useI18n();
+  const search = useSearch({ strict: false });
+  const disabled = (search as { reason?: string }).reason === "disabled";
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <div className="flex justify-end p-4">
@@ -20,6 +23,14 @@ export function SignInPage() {
             <CardDescription>{t("landing.body")}</CardDescription>
           </CardHeader>
           <CardContent>
+            {disabled && (
+              <p
+                role="alert"
+                className="mb-4 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+              >
+                {t("persona.disabledNotice")}
+              </p>
+            )}
             <PersonaPicker />
           </CardContent>
         </Card>
