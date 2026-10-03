@@ -136,3 +136,25 @@ describe("a Kuwaiti phone inside free text is masked whatever key holds it", () 
     expect(sanitize({ note: text })).toEqual({ note: text });
   });
 });
+
+describe("a civil ID inside free text is replaced whole, whatever key holds it", () => {
+  it.each([
+    ["search 290040112347", `search ${REDACTED}`],
+    ["id: 3051-1200-0029.", `id: ${REDACTED}.`],
+    ["رقم ٢٩٠٠٤٠١١٢٣٤٧ هنا", `رقم ${REDACTED} هنا`],
+    ["spaced 2900 4011 2347 end", `spaced ${REDACTED} end`],
+  ])("%j", (text, redacted) => {
+    expect(sanitize({ note: text })).toEqual({ note: redacted });
+    expect(sanitize({ terms: [text] })).toEqual({ terms: [redacted] });
+    expect(redactSecrets({ note: text })).toEqual({ note: redacted });
+  });
+
+  it.each([
+    "01a10256-8025-770a-a401-f765af7fa409",
+    "2026-10-03T16:06:00.230Z",
+    "1791039111000 ms epoch",
+    "order 123456789012",
+  ])("leaves %j alone", (text) => {
+    expect(sanitize({ note: text })).toEqual({ note: text });
+  });
+});

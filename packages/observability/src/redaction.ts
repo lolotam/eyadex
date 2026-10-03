@@ -165,6 +165,13 @@ export function maskPhone(value: unknown): string {
 // is not a phone key. Eight digits starting 2/4/5/6/9, optional +965/00965 and one space or dash between the
 // halves. The boundaries keep it off UUIDs, dates and longer digit runs: not glued to a letter, digit, dash
 // or plus on either side.
+// A civil ID written inside free text (a search term, a note), under a key that says nothing: 12 digits,
+// ASCII or Arabic-Indic, starting with the century digit 2 or 3, optionally split by spaces or dashes. Any
+// such run is replaced whole, valid checksum or not — over-redacting a 12-digit reference costs nothing,
+// printing a civil ID breaks CLAUDE.md §5. It runs before phone masking, which would otherwise mask an
+// 8-digit slice and leave the rest of the ID readable.
+const CIVIL_ID_IN_TEXT = /(?<![\w٠-٩۰-۹-])[23٢٣۲۳](?:[\s-]?[0-9٠-٩۰-۹]){11}(?![\w٠-٩۰-۹-])/g;
+
 const KUWAIT_LOCAL_PHONE = /(?<![\w+-])(?:(?:\+|00)965[\s-]?)?[24569]\d{3}[\s-]?\d{4}(?![\w-])/g;
 
 function scrub(value: unknown, maskPhones: boolean): unknown {
@@ -173,7 +180,8 @@ function scrub(value: unknown, maskPhones: boolean): unknown {
     if (typeof node === "function" || typeof node === "symbol") return undefined;
     if (typeof node === "bigint") return node.toString();
     if (typeof node === "string") {
-      const text = scrubUrlCredentials(node);
+      // Civil IDs go in every mode (logs and audit snapshots alike); phones and emails only where masked.
+      const text = scrubUrlCredentials(node).replace(CIVIL_ID_IN_TEXT, REDACTED);
       return maskPhones
         ? text
             .replace(/\+[1-9]\d{7,14}/g, maskPhone)
