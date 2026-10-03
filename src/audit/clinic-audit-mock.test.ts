@@ -126,4 +126,29 @@ describe("clinic audit log", () => {
     expect(text).not.toContain("civilId");
     expect(text).not.toContain(civilId);
   });
+  it("shows role and branch references by name, not as ids", async () => {
+    const db = getState();
+    const clinicId = clinicIdAt(0);
+    const member = db.members.find((m) => m.clinicId === clinicId && !m.allBranches);
+    const role = db.roles.find((r) => r.clinicId === clinicId && r.id === member?.roleId);
+    if (!member || !role) throw new Error("seed");
+    db.clinicAudit.push({
+      id: crypto.randomUUID(),
+      clinicId,
+      createdAt: new Date().toISOString(),
+      actorName: "Tester",
+      action: "user.role_changed",
+      entity: "user",
+      category: "administrative",
+      entityId: member.id,
+      before: null,
+      after: { roleId: role.id, branchIds: member.branchIds },
+    });
+    const list = await api.audit.clinicList(as("clinic_admin"), CLINIC_QUERY);
+    const entry = list.items.find((e) => e.action === "user.role_changed");
+    expect(entry?.after?.["roleId"]).toEqual({ nameAr: role.nameAr, nameEn: role.nameEn });
+    const branches = entry?.after?.["branchIds"] as { nameEn: string }[];
+    expect(branches.every((b) => typeof b.nameEn === "string")).toBe(true);
+    expect(JSON.stringify(entry?.after)).not.toContain(role.id);
+  });
 });

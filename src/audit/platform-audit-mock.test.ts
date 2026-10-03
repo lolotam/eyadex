@@ -83,16 +83,28 @@ describe("platform audit log", () => {
     } while (cursor);
     expect(seen).toEqual(all.items.map((e) => e.id));
   });
-  it("filters to one clinic and keeps platform event summaries", async () => {
+
+  it("filters to one clinic and lists every clinic for the filter", async () => {
     const all = await api.audit.platformList(PLATFORM, PLATFORM_QUERY);
     const target = all.items.find((e) => e.clinicId)?.clinicId;
     if (!target) throw new Error("seed");
     const one = await api.audit.platformList(PLATFORM, { ...PLATFORM_QUERY, clinicId: target });
     expect(one.items.length).toBeGreaterThan(0);
     expect(one.items.every((e) => e.clinicId === target)).toBe(true);
-    for (const e of all.items) {
-      if (e.source === "platform") expect(e.summary).toEqual(expect.any(String));
-      else expect(e.summary).toBeNull();
-    }
+    const options = await api.audit.platformClinicOptions(PLATFORM);
+    expect(options).toHaveLength(getState().clinics.length);
+    await expect(api.audit.platformClinicOptions(as("clinic_admin"))).rejects.toMatchObject({
+      code: "forbidden",
+    });
+  });
+
+  it("records structured values for platform events, never free text", async () => {
+    const clinicId = getState().clinics[0]?.id;
+    if (!clinicId) throw new Error("seed");
+    await api.platform.setClinicFeature(clinicId, "patients", false);
+    const list = await api.audit.platformList(PLATFORM, { ...PLATFORM_QUERY, clinicId });
+    const toggle = list.items.find((e) => e.action === "clinic.feature_toggled");
+    expect(toggle?.after).toEqual({ module: "patients", enabled: false });
+    expect(toggle && "summary" in toggle).toBe(false);
   });
 });

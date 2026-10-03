@@ -19,22 +19,31 @@ export type AuditDetailEntry = {
   category: AuditCategory;
   before: Record<string, unknown> | null;
   after: Record<string, unknown> | null;
-  /** Platform events describe their change in words instead of before/after. */
-  summary?: string | null;
 };
 
 type Props = { entry: AuditDetailEntry | null; timeZone: string; onClose: () => void };
 
 /** A dialog rather than a side sheet: sheets clip on mobile in RTL (project rule). */
 export function AuditDetailDialog({ entry, timeZone, onClose }: Props) {
-  const { t, tDynamic, lang } = useI18n();
+  const { t, tDynamic, lang, pick } = useI18n();
   const rows = entry ? auditDiff(entry.before, entry.after) : [];
+  // Names come resolved from the API ({ nameAr, nameEn }); coded values are translated.
+  const one = (value: unknown): string => {
+    if (value && typeof value === "object" && "nameAr" in value && "nameEn" in value) {
+      const named = value as { nameAr: unknown; nameEn: unknown };
+      return pick(String(named.nameAr), String(named.nameEn));
+    }
+    if (typeof value === "object") return "—";
+    const text = String(value);
+    const key = `audit.values.${text}`;
+    const translated = tDynamic(key);
+    return translated === key ? text : translated;
+  };
   const show = (value: unknown): string => {
     if (value === undefined || value === null || value === "") return "—";
     if (typeof value === "boolean") return t(value ? "audit.yes" : "audit.no");
-    if (Array.isArray(value)) return value.length ? value.map(String).join("، ") : "—";
-    if (typeof value === "object") return "—";
-    return String(value);
+    if (Array.isArray(value)) return value.length ? value.map(one).join("، ") : "—";
+    return one(value);
   };
   const label = (field: string) => {
     const text = tDynamic(`audit.fields.${field}`);
@@ -57,10 +66,7 @@ export function AuditDetailDialog({ entry, timeZone, onClose }: Props) {
             <AuditCategoryBadge category={entry.category} />
           </div>
         )}
-        {entry?.summary && (
-          <p className="rounded-md border bg-muted/40 px-3 py-3 text-sm">{entry.summary}</p>
-        )}
-        {rows.length === 0 && entry?.summary ? null : rows.length === 0 ? (
+        {rows.length === 0 ? (
           <p className="rounded-md border bg-muted/40 px-3 py-4 text-sm text-muted-foreground">
             {t("audit.noDetails")}
           </p>

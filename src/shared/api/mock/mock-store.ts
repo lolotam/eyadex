@@ -26,7 +26,7 @@ export type MockState = {
   clinicAudit: ClinicAuditEntry[];
 };
 
-const STORAGE_KEY = "eyadex:mock-db:v8";
+const STORAGE_KEY = "eyadex:mock-db:v9";
 
 let state: MockState | null = null;
 

@@ -76,7 +76,7 @@ export function PlatformAuditContent() {
           value={clinicId}
           label={t("audit.columns.clinic")}
           anyLabel={t("audit.filters.anyClinic")}
-          options={(clinics.data?.items ?? []).map((c) => ({
+          options={(clinics.data ?? []).map((c) => ({
             value: c.id,
             label: pick(c.nameAr, c.nameEn),
           }))}

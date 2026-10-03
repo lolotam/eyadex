@@ -9,7 +9,35 @@ import type { Page } from "@contracts/common";
 import type { ApiClient } from "../api-client";
 import { ApiError } from "../api-error";
 import { authorize } from "./mock-actor";
-import { delay, getState } from "./mock-store";
+import { delay, getState, type MockState } from "./mock-store";
+
+/** Reference fields shown by name, never as a raw id (the lookup is clinic-scoped). */
+const ROLE_REFS = new Set(["roleId"]);
+const BRANCH_REFS = new Set(["branchId", "branchIds", "registrationBranchId"]);
+
+type Named = { nameAr: string; nameEn: string };
+
+function resolveRefs(
+  db: MockState,
+  clinicId: string | null,
+  snap: Record<string, unknown> | null,
+): Record<string, unknown> | null {
+  if (!snap || !clinicId) return snap;
+  const role = (id: unknown): Named | unknown => {
+    const r = db.roles.find((x) => x.clinicId === clinicId && x.id === id);
+    return r ? { nameAr: r.nameAr, nameEn: r.nameEn } : id;
+  };
+  const branch = (id: unknown): Named | unknown => {
+    const b = db.branches.find((x) => x.clinicId === clinicId && x.id === id);
+    return b ? { nameAr: b.nameAr, nameEn: b.nameEn } : id;
+  };
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(snap)) {
+    const map = ROLE_REFS.has(key) ? role : BRANCH_REFS.has(key) ? branch : null;
+    out[key] = map ? (Array.isArray(value) ? value.map(map) : map(value)) : value;
+  }
+  return out;
+}
 
 type Dated = { id: string; at: string; actorName: string; action: string };
 type CommonFilters = {
@@ -64,8 +92,8 @@ export function createMockAuditLog(): ApiClient["audit"] {
           entity: e.entity,
           category: e.category,
           entityId: e.entityId,
-          before: e.before,
-          after: e.after,
+          before: resolveRefs(db, clinic.id, e.before),
+          after: resolveRefs(db, clinic.id, e.after),
         }))
         .filter((e) => !q.entity || e.entity === q.entity)
         .filter((e) => !q.category || e.category === q.category)
@@ -96,9 +124,8 @@ export function createMockAuditLog(): ApiClient["audit"] {
           clinicId: e.clinicId,
           clinicNameAr: c?.nameAr ?? null,
           clinicNameEn: c?.nameEn ?? null,
-          before: null,
-          after: null,
-          summary: e.summary,
+          before: e.before,
+          after: e.after,
         };
       });
       // Filtered at the source: patient entities and patient-access entries never leave here.
@@ -118,9 +145,8 @@ export function createMockAuditLog(): ApiClient["audit"] {
           clinicId: e.clinicId,
           clinicNameAr: c?.nameAr ?? null,
           clinicNameEn: c?.nameEn ?? null,
-          before: e.before,
-          after: e.after,
-          summary: null,
+          before: resolveRefs(db, e.clinicId, e.before),
+          after: resolveRefs(db, e.clinicId, e.after),
         });
       }
       const items = [...platform, ...clinicSide]
@@ -129,6 +155,14 @@ export function createMockAuditLog(): ApiClient["audit"] {
         .filter((e) => !q.clinicId || e.clinicId === q.clinicId)
         .filter((e) => matches(e, q, PLATFORM_AUDIT_TIME_ZONE));
       return paginate(items, q.cursor, q.limit);
+    },
+
+    async platformClinicOptions(persona) {
+      await delay();
+      if (persona.kind !== "platform_admin") throw new ApiError("forbidden");
+      return getState()
+        .clinics.map((c) => ({ id: c.id, nameAr: c.nameAr, nameEn: c.nameEn }))
+        .sort((x, y) => x.nameEn.localeCompare(y.nameEn));
     },
   };
 }

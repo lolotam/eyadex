@@ -17,20 +17,13 @@ export function useClinicAudit(query: ClinicAuditListQuery) {
   });
 }
 
-/** Clinic names for the platform audit filter (platform admins only). */
+/** Every clinic's name for the platform audit filter (platform admins only). */
 export function usePlatformAuditClinics() {
   const api = useApi();
   const { persona, ready } = usePersona();
   return useQuery({
     queryKey: ["platform", "audit", "clinics", persona.kind],
-    queryFn: () =>
-      api.platform.listClinics({
-        cursor: null,
-        limit: 100,
-        search: "",
-        status: null,
-        specialty: null,
-      }),
+    queryFn: () => api.audit.platformClinicOptions(persona),
     enabled: ready && persona.kind === "platform_admin",
     gcTime: 0,
     retry: false,

@@ -30,15 +30,45 @@ function usage(db: MockState, clinicId: string) {
   };
 }
 
-function audit(db: MockState, action: string, clinicId: string, summary: string) {
+type Snapshot = Record<string, unknown> | null;
+
+function audit(
+  db: MockState,
+  action: string,
+  clinicId: string,
+  summary: string,
+  before: Snapshot,
+  after: Snapshot,
+) {
   db.platformAudit.unshift({
     id: newId(),
     actorName: ACTOR,
     action,
     clinicId,
     summary,
+    before,
+    after,
     createdAt: new Date().toISOString(),
   });
+}
+
+/** Allowlisted clinic fields for the platform log (names, settings, subscription). */
+function clinicDetails(c: Clinic) {
+  return {
+    nameAr: c.nameAr,
+    nameEn: c.nameEn,
+    specialty: c.specialty,
+    defaultLanguage: c.defaultLanguage,
+    timezone: c.timezone,
+  };
+}
+function clinicSubscription(c: Clinic) {
+  return {
+    status: c.status,
+    expiresAt: c.expiresAt.slice(0, 10),
+    maxUsers: c.maxUsers,
+    maxBranches: c.maxBranches,
+  };
 }
 
 function addMonths(date: Date, months: number): Date {
@@ -155,6 +185,8 @@ export function createMockPlatform(): Omit<
         "clinic.created",
         clinic.id,
         `Created clinic ${clinic.nameEn} with admin ${input.adminEmail}`,
+        null,
+        { ...clinicDetails(clinic), ...clinicSubscription(clinic), email: input.adminEmail },
       );
       persist();
       if (!firstAdminInvite) throw new ApiError("not_found");
@@ -166,8 +198,16 @@ export function createMockPlatform(): Omit<
       const input = clinicDetailsInputSchema.parse(raw);
       const db = getState();
       const clinic = findClinic(db, clinicId);
+      const before = clinicDetails(clinic);
       Object.assign(clinic, input);
-      audit(db, "clinic.details_updated", clinicId, `Updated details of ${clinic.nameEn}`);
+      audit(
+        db,
+        "clinic.details_updated",
+        clinicId,
+        `Updated details of ${clinic.nameEn}`,
+        before,
+        clinicDetails(clinic),
+      );
       persist();
       return clinic;
     },
@@ -188,6 +228,7 @@ export function createMockPlatform(): Omit<
               new Date(Math.max(Date.now(), new Date(clinic.expiresAt).getTime())),
               input.durationMonths,
             );
+      const before = clinicSubscription(clinic);
       clinic.status = input.status;
       clinic.maxUsers = input.maxUsers;
       clinic.maxBranches = input.maxBranches;
@@ -197,6 +238,8 @@ export function createMockPlatform(): Omit<
         "clinic.subscription_updated",
         clinicId,
         `Subscription: ${input.status}, expires ${clinic.expiresAt.slice(0, 10)}`,
+        before,
+        clinicSubscription(clinic),
       );
       persist();
       return clinic;
@@ -206,6 +249,7 @@ export function createMockPlatform(): Omit<
       await delay();
       const db = getState();
       const clinic = findClinic(db, clinicId);
+      const was = Boolean((db.features[clinicId] ?? { patients: false })[module]);
       db.features[clinicId] = {
         ...(db.features[clinicId] ?? { patients: false }),
         [module]: enabled,
@@ -215,6 +259,8 @@ export function createMockPlatform(): Omit<
         "clinic.feature_toggled",
         clinicId,
         `${module} ${enabled ? "enabled" : "disabled"} for ${clinic.nameEn}`,
+        { module, enabled: was },
+        { module, enabled },
       );
       persist();
     },

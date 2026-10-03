@@ -67,8 +67,6 @@ export const platformAuditItemSchema = z.object({
   clinicNameEn: z.string().nullable(),
   before: snapshotSchema,
   after: snapshotSchema,
-  /** What a platform event changed, in words; null for clinic entries (they carry before/after). */
-  summary: z.string().nullable(),
 });
 export type PlatformAuditItem = z.infer<typeof platformAuditItemSchema>;
 
@@ -113,3 +111,11 @@ export const AUDIT_ACTIONS = [
   "clinic.subscription_updated",
   "clinic.feature_toggled",
 ] as const;
+
+/** Every clinic, by name, for the platform audit filter (no paging cap). */
+export const platformAuditClinicOptionSchema = z.object({
+  id: idSchema,
+  nameAr: z.string(),
+  nameEn: z.string(),
+});
+export type PlatformAuditClinicOption = z.infer<typeof platformAuditClinicOptionSchema>;

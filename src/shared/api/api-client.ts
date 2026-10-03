@@ -1,6 +1,7 @@
 import type {
   ClinicAuditItem,
   ClinicAuditListQuery,
+  PlatformAuditClinicOption,
   PlatformAuditItem,
   PlatformAuditListQuery,
 } from "@contracts/audit";
@@ -146,5 +147,7 @@ export interface ApiClient {
     clinicList(persona: Persona, query: ClinicAuditListQuery): Promise<Page<ClinicAuditItem>>;
     /** Platform admin only: platform events plus clinic administrative entries, never patient ones. */
     platformList(persona: Persona, query: PlatformAuditListQuery): Promise<Page<PlatformAuditItem>>;
+    /** Platform admin only: every clinic's id and names, for the clinic filter. */
+    platformClinicOptions(persona: Persona): Promise<PlatformAuditClinicOption[]>;
   };
 }
