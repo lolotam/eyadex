@@ -32,6 +32,13 @@ import type {
   UserUsage,
 } from "@contracts/users";
 import type { PermissionDefinition } from "@contracts/permissions";
+import type {
+  PatientBranchOption,
+  PatientDetail,
+  PatientInput,
+  PatientListItem,
+  PatientListQuery,
+} from "@contracts/patients";
 import type { RoleInput, RoleListItem } from "@contracts/roles";
 import type { LoginClinic, Persona, SessionContext } from "@contracts/session";
 
@@ -108,5 +115,17 @@ export interface ApiClient {
     update(persona: Persona, roleId: string, input: RoleInput): Promise<RoleListItem>;
     deactivate(persona: Persona, roleId: string): Promise<RoleListItem>;
     reactivate(persona: Persona, roleId: string): Promise<RoleListItem>;
+  };
+  /** Every call is rejected with module_disabled while the clinic's patients module is off. */
+  patients: {
+    list(persona: Persona, query: PatientListQuery): Promise<Page<PatientListItem>>;
+    /** Branches inside the caller's view scope. */
+    branchOptions(persona: Persona): Promise<PatientBranchOption[]>;
+    /** Opening a file is audited as patient access. */
+    open(persona: Persona, patientId: string): Promise<PatientDetail>;
+    create(persona: Persona, input: PatientInput): Promise<PatientDetail>;
+    update(persona: Persona, patientId: string, input: PatientInput): Promise<PatientDetail>;
+    archive(persona: Persona, patientId: string): Promise<PatientDetail>;
+    restore(persona: Persona, patientId: string): Promise<PatientDetail>;
   };
 }
