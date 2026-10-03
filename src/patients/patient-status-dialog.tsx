@@ -43,8 +43,8 @@ export function PatientStatusDialog({
         ? api.patients.archive(persona, patient.id)
         : api.patients.restore(persona, patient.id);
     },
-    onSuccess: (detail) => {
-      refresh(detail);
+    onSuccess: (result) => {
+      refresh(result);
       toast.success(t(archiving ? "patients.archived" : "patients.restored"));
       onClose();
     },

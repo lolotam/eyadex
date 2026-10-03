@@ -108,7 +108,7 @@ describe("patients mock", () => {
       input(branch.id, "5550 1234"),
       crypto.randomUUID(),
     );
-    expect(created.phone).toBe("+96555501234");
+    expect(created.detail?.phone).toBe("+96555501234");
     for (const spelling of ["55501234", "+965 5550-1234", "0096555501234"]) {
       await expect(
         api.patients.create(as("clinic_admin"), input(branch.id, spelling), crypto.randomUUID()),
@@ -294,5 +294,39 @@ describe("patients mock", () => {
     await expect(api.patients.create(persona, input(own, "55506666"), key)).rejects.toMatchObject({
       code: expect.stringMatching(/not_found|forbidden/),
     });
+  });
+  it("returns no file when a write moves it out of the caller's view", async () => {
+    const db = getState();
+    const member = memberOf("receptionist");
+    const role = db.roles.find((r) => r.id === member.roleId);
+    if (!role) throw new Error("role");
+    role.permissions = ["view:patients:branch", "update:patients:clinic"];
+    const persona = as("receptionist");
+    const list = await api.patients.list(persona, ALL);
+    const mine = list.items[0];
+    if (!mine) throw new Error("seed");
+    const outside = otherBranchThan(member.branchIds);
+    const detail = await api.patients.open(persona, mine.id);
+    const result = await api.patients.update(persona, mine.id, {
+      ...input(outside.id, detail.phone),
+      civilId: detail.civilId ?? "",
+    });
+    expect(result.detail).toBeNull();
+    expect(JSON.stringify(result)).not.toContain(detail.phone);
+  });
+
+  it("replays a create for a create-only role without exposing the file", async () => {
+    const db = getState();
+    const member = memberOf("receptionist");
+    const role = db.roles.find((r) => r.id === member.roleId);
+    if (!role) throw new Error("role");
+    role.permissions = ["create:patients:branch"];
+    const persona = as("receptionist");
+    const own = member.branchIds[0] ?? "";
+    const key = crypto.randomUUID();
+    const first = await api.patients.create(persona, input(own, "55504444"), key);
+    const retry = await api.patients.create(persona, input(own, "55504444"), key);
+    expect(retry).toEqual(first);
+    expect(retry.detail).toBeNull();
   });
 });

@@ -7,6 +7,7 @@ import {
   type PatientDetail,
   type PatientListItem,
   type PatientRecordActions,
+  type PatientWriteResult,
 } from "@contracts/patients";
 import type { Persona } from "@contracts/session";
 import { ApiError } from "../api-error";
@@ -172,6 +173,13 @@ export function toDetail(db: MockState, persona: Persona, p: Patient): PatientDe
     ...branchNames(db, p.registrationBranchId),
     actions: recordActions(db, persona, p),
   };
+}
+
+/** A write's result: the full file only while the caller may open it under their view scope. */
+export function writeResult(db: MockState, persona: Persona, p: Patient): PatientWriteResult {
+  const viewer = tryAuthorizePatients(db, persona, "view");
+  const visible = viewer !== null && inScope(viewer, p.registrationBranchId);
+  return { id: p.id, fileNumber: p.fileNumber, detail: visible ? toDetail(db, persona, p) : null };
 }
 
 export function matchesSearch(p: Patient, term: string): boolean {

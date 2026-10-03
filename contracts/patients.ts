@@ -137,3 +137,14 @@ export type PatientBranchOption = z.infer<typeof patientBranchOptionSchema>;
 export function formatFileNumber(n: number): string {
   return String(n).padStart(6, "0");
 }
+
+/**
+ * What a write returns. The full file comes back only when the caller may open it right now;
+ * a write can move a file out of the caller's view (or the caller may hold no view at all).
+ */
+export const patientWriteResultSchema = z.object({
+  id: idSchema,
+  fileNumber: z.number().int().positive(),
+  detail: patientDetailSchema.nullable(),
+});
+export type PatientWriteResult = z.infer<typeof patientWriteResultSchema>;

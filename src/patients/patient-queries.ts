@@ -1,6 +1,10 @@
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
-import type { PatientBranchAction, PatientDetail, PatientListQuery } from "@contracts/patients";
+import type {
+  PatientBranchAction,
+  PatientListQuery,
+  PatientWriteResult,
+} from "@contracts/patients";
 import { useApi } from "@/shared/api/api-provider";
 import { usePersona } from "@/shared/persona/persona-provider";
 
@@ -71,12 +75,14 @@ export function useRefreshPatients() {
   const queryClient = useQueryClient();
   const { personaKey } = useClinicPersona();
   return useCallback(
-    (detail?: PatientDetail) => {
+    (result: PatientWriteResult) => {
       void queryClient.invalidateQueries({
         queryKey: [...patientKeys.all, "list"],
       });
-      if (detail)
-        queryClient.setQueryData([...patientKeys.detail(detail.id), ...personaKey], detail);
+      const key = [...patientKeys.detail(result.id), ...personaKey];
+      // A write that moved the file out of view must not leave its old copy on screen.
+      if (result.detail) queryClient.setQueryData(key, result.detail);
+      else void queryClient.resetQueries({ queryKey: key });
     },
     [queryClient, personaKey],
   );

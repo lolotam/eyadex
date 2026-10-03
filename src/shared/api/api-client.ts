@@ -39,6 +39,7 @@ import type {
   PatientInput,
   PatientListItem,
   PatientListQuery,
+  PatientWriteResult,
 } from "@contracts/patients";
 import type { RoleInput, RoleListItem } from "@contracts/roles";
 import type { LoginClinic, Persona, SessionContext } from "@contracts/session";
@@ -125,9 +126,13 @@ export interface ApiClient {
     /** Opening a file is audited as patient access. */
     open(persona: Persona, patientId: string): Promise<PatientDetail>;
     /** A retry with the same key replays the first result; a changed request is a conflict. */
-    create(persona: Persona, input: PatientInput, idempotencyKey: string): Promise<PatientDetail>;
-    update(persona: Persona, patientId: string, input: PatientInput): Promise<PatientDetail>;
-    archive(persona: Persona, patientId: string): Promise<PatientDetail>;
-    restore(persona: Persona, patientId: string): Promise<PatientDetail>;
+    create(
+      persona: Persona,
+      input: PatientInput,
+      idempotencyKey: string,
+    ): Promise<PatientWriteResult>;
+    update(persona: Persona, patientId: string, input: PatientInput): Promise<PatientWriteResult>;
+    archive(persona: Persona, patientId: string): Promise<PatientWriteResult>;
+    restore(persona: Persona, patientId: string): Promise<PatientWriteResult>;
   };
 }

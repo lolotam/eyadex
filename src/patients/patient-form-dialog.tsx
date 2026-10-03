@@ -91,8 +91,8 @@ export function PatientFormDialog({ open, patient, onOpenChange }: Props) {
       patient
         ? api.patients.update(persona, patient.id, input)
         : api.patients.create(persona, input, idempotencyKey),
-    onSuccess: (detail) => {
-      refresh(detail);
+    onSuccess: (result) => {
+      refresh(result);
       toast.success(t(patient ? "patients.updated" : "patients.created"));
       onOpenChange(false);
     },
