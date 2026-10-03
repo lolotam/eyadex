@@ -20,8 +20,10 @@ CREATE POLICY clinics_platform_all ON clinics TO eyadex_platform
 -- eyadex_app: API + worker inside withTenant(). Read/write clinic data, never delete.
 GRANT SELECT ON clinics TO eyadex_app;
 GRANT SELECT ON permissions TO eyadex_app;
+-- Feature flags are controlled by the platform only (PRD 4.8): the clinic reads them.
+GRANT SELECT ON clinic_features TO eyadex_app;
 GRANT SELECT, INSERT, UPDATE ON
-  clinic_features, branches, roles, role_permissions, memberships, membership_branches,
+  branches, roles, role_permissions, memberships, membership_branches,
   invitations, invitation_branches, patients
   TO eyadex_app;
 -- Append-only: the audit log can be written and read, never changed or deleted.

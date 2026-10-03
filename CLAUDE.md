@@ -162,6 +162,9 @@ Banned folder names anywhere: `utils/` · `helpers/` · `common/` · `misc/` · 
 
 - Phase A: vitest against the mock adapter for every business rule of the slice; typecheck,
   lint, build in CI.
+- Database (now): `db/tests/rls-isolation.sql` runs in CI (`db` job) on a fresh PostgreSQL with
+  the whole `db/sql` baseline. **Every new clinic table must be added to its table list and seed
+  in the same PR.** It also runs on production after every baseline change (it rolls back).
 - Phase B: unit tests for pure domain functions; integration tests per use case against real
   PostgreSQL connected as `eyadex_app`; **RLS negative tests for every tenant table**
   (cross-clinic read = 0 rows, write = error); the mandatory list in PRD §6.3.

@@ -29,3 +29,34 @@ jobs:
         run: bun run build
         env:
           NITRO_PRESET: node-server
+
+  db:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: eyadex
+          POSTGRES_USER: eyadex_owner
+          POSTGRES_PASSWORD: ci-only-owner
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U eyadex_owner -d eyadex"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: eyadex_owner
+      PGPASSWORD: ci-only-owner
+      PGDATABASE: eyadex
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create runtime roles (PRD 4.5)
+        run: |
+          for r in app auth platform dispatcher; do
+            psql -v ON_ERROR_STOP=1 -qc "CREATE ROLE eyadex_$r LOGIN NOBYPASSRLS PASSWORD 'ci-only-$r'"
+          done
+      - name: Apply the SQL baseline (db/sql)
+        run: for f in db/sql/*.sql; do echo "$f"; psql -v ON_ERROR_STOP=1 -q -f "$f"; done
+      - name: RLS + grant negative isolation tests
+        run: psql -v ON_ERROR_STOP=1 -q -f db/tests/rls-isolation.sql
