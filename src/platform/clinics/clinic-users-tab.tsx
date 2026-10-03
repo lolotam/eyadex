@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import type { MemberView } from "@contracts/organization";
+import type { MembershipUserView as MemberView } from "@contracts/users";
 import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { DataTable } from "@/shared/table/data-table";

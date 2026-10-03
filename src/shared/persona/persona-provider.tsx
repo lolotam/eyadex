@@ -4,7 +4,7 @@ import { personaSchema, type Persona, type SessionContext } from "@contracts/ses
 import { useApi } from "@/shared/api/api-provider";
 
 const STORAGE_KEY = "eyadex:persona";
-const DEFAULT_PERSONA: Persona = { kind: "platform_admin", clinicId: null };
+const DEFAULT_PERSONA: Persona = { kind: "platform_admin", clinicId: null, memberId: null };
 
 type PersonaValue = {
   persona: Persona;
@@ -45,13 +45,18 @@ export function usePersona(): PersonaValue {
   return value;
 }
 
-export function useSession(): { session: SessionContext | undefined; isLoading: boolean } {
+export function useSession(): {
+  session: SessionContext | undefined;
+  isLoading: boolean;
+  error: unknown;
+} {
   const api = useApi();
   const { persona, ready } = usePersona();
   const query = useQuery({
-    queryKey: ["session", persona.kind, persona.clinicId],
+    queryKey: ["session", persona.kind, persona.clinicId, persona.memberId],
     queryFn: () => api.session.getContext(persona),
     enabled: ready,
+    retry: false,
   });
-  return { session: query.data, isLoading: !ready || query.isLoading };
+  return { session: query.data, isLoading: !ready || query.isLoading, error: query.error };
 }
