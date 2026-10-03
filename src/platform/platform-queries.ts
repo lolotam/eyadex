@@ -24,6 +24,8 @@ export function usePlatformOverview() {
     enabled: ready && persona.kind === "platform_admin",
     gcTime: 0,
     retry: false,
+    // Counts and the expiring list are computed from the current time: keep them moving.
+    refetchInterval: 60_000,
   });
 }
 
