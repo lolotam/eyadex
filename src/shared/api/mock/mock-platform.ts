@@ -10,7 +10,8 @@ import { ApiError } from "../api-error";
 import { delay, getState, newId, persist, type MockState } from "./mock-store";
 import { buildSystemRoles } from "./seed-roles";
 import { INVITATION_TTL_DAYS, type InvitationRecord } from "@contracts/invitations";
-import { issueInviteToken } from "./mock-invite-tokens";
+import { invitationAuditSnapshot, issueInviteToken } from "./mock-invite-tokens";
+import { writeClinicAudit } from "./mock-audit";
 import { enforceEmailFree, toUserView, userUsage } from "./mock-user-rules";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -135,6 +136,14 @@ export function createMockPlatform(): Omit<
           tokenHash: "",
         };
         db.invitations.push(invitation);
+        writeClinicAudit(db, {
+          clinicId: clinic.id,
+          actorName: ACTOR,
+          action: "invitation.sent",
+          entity: "invitation",
+          before: null,
+          after: invitationAuditSnapshot(invitation),
+        });
         firstAdminInvite = {
           email: invitation.email,
           token: issueInviteToken(db, invitation),

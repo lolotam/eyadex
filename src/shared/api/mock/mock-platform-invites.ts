@@ -1,7 +1,8 @@
 import { computeInvitationStatus, INVITATION_TTL_DAYS } from "@contracts/invitations";
 import type { ApiClient } from "../api-client";
 import { ApiError } from "../api-error";
-import { issueInviteToken } from "./mock-invite-tokens";
+import { invitationAuditSnapshot, issueInviteToken } from "./mock-invite-tokens";
+import { writeClinicAudit } from "./mock-audit";
 import { delay, getState, newId, persist, type MockState } from "./mock-store";
 import { enforceEmailFree, enforceUserLimit, isAdminRole } from "./mock-user-rules";
 
@@ -48,8 +49,17 @@ export function createMockPlatformInvites(): Pick<
         enforceEmailFree(db, inv.email, inv.id);
         enforceUserLimit(db, clinicId);
       }
+      const before = invitationAuditSnapshot(inv);
       inv.expiresAt = new Date(Date.now() + INVITATION_TTL_DAYS * DAY).toISOString();
       const token = issueInviteToken(db, inv);
+      writeClinicAudit(db, {
+        clinicId,
+        actorName: ACTOR,
+        action: "invitation.resent",
+        entity: "invitation",
+        before,
+        after: invitationAuditSnapshot(inv),
+      });
       // The summary names the email only; the link token never reaches the audit log.
       db.platformAudit.unshift({
         id: newId(),

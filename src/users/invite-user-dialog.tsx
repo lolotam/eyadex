@@ -49,15 +49,18 @@ export function InviteUserDialog({
     defaultValues: EMPTY,
   });
 
+  // One key per opening of the dialog: a retry of the same submission replays the first result.
+  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
   useEffect(() => {
     if (open) {
       form.reset(EMPTY);
       setServerError(null);
+      setIdempotencyKey(crypto.randomUUID());
     }
   }, [open, form]);
 
   const mutation = useMutation({
-    mutationFn: (input: InviteUserInput) => api.invitations.invite(persona, input),
+    mutationFn: (input: InviteUserInput) => api.invitations.invite(persona, input, idempotencyKey),
     onSuccess: () => {
       refresh();
       toast.success(t("users.invited"));

@@ -26,13 +26,17 @@ function roleId(clinicId: string, key: string) {
   return role.id;
 }
 function invite(clinicId: string, email: string, persona = admin(clinicId)) {
-  return api.invitations.invite(persona, {
-    fullName: "Test Person",
-    email,
-    roleId: roleId(clinicId, "doctor"),
-    allBranches: true,
-    branchIds: [],
-  });
+  return api.invitations.invite(
+    persona,
+    {
+      fullName: "Test Person",
+      email,
+      roleId: roleId(clinicId, "doctor"),
+      allBranches: true,
+      branchIds: [],
+    },
+    crypto.randomUUID(),
+  );
 }
 const password = { password: "secret-123", confirmPassword: "secret-123" };
 

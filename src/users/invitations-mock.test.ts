@@ -26,13 +26,17 @@ function roleId(clinicId: string, key: string) {
   return role.id;
 }
 function invite(clinicId: string, email: string, persona = admin(clinicId)) {
-  return api.invitations.invite(persona, {
-    fullName: "Test Person",
-    email,
-    roleId: roleId(clinicId, "doctor"),
-    allBranches: true,
-    branchIds: [],
-  });
+  return api.invitations.invite(
+    persona,
+    {
+      fullName: "Test Person",
+      email,
+      roleId: roleId(clinicId, "doctor"),
+      allBranches: true,
+      branchIds: [],
+    },
+    crypto.randomUUID(),
+  );
 }
 const password = { password: "secret-123", confirmPassword: "secret-123" };
 
@@ -116,13 +120,17 @@ describe("invitations mock", () => {
     const clinic = clinicBySlug("serenity");
     const branch = getState().branches.find((b) => b.clinicId === clinic.id && b.isActive);
     if (!branch) throw new Error("no branch");
-    const sent = await api.invitations.invite(admin(clinic.id), {
-      fullName: "Branch Person",
-      email: "late-branch@example.com",
-      roleId: roleId(clinic.id, "doctor"),
-      allBranches: false,
-      branchIds: [branch.id],
-    });
+    const sent = await api.invitations.invite(
+      admin(clinic.id),
+      {
+        fullName: "Branch Person",
+        email: "late-branch@example.com",
+        roleId: roleId(clinic.id, "doctor"),
+        allBranches: false,
+        branchIds: [branch.id],
+      },
+      crypto.randomUUID(),
+    );
     branch.isActive = false;
     await expect(api.invitations.accept(sent.token ?? "", password)).rejects.toMatchObject({
       code: "branch_inactive",
@@ -154,13 +162,17 @@ describe("invitations mock", () => {
     const clinic = clinicBySlug("serenity");
     const branch = getState().branches.find((b) => b.clinicId === clinic.id && b.isActive);
     if (!branch) throw new Error("no branch");
-    const sent = await api.invitations.invite(admin(clinic.id), {
-      fullName: "Resend Person",
-      email: "resend@example.com",
-      roleId: roleId(clinic.id, "doctor"),
-      allBranches: false,
-      branchIds: [branch.id],
-    });
+    const sent = await api.invitations.invite(
+      admin(clinic.id),
+      {
+        fullName: "Resend Person",
+        email: "resend@example.com",
+        roleId: roleId(clinic.id, "doctor"),
+        allBranches: false,
+        branchIds: [branch.id],
+      },
+      crypto.randomUUID(),
+    );
     branch.isActive = false;
     await expect(api.invitations.resend(admin(clinic.id), sent.id)).rejects.toMatchObject({
       code: "branch_inactive",
@@ -234,5 +246,37 @@ describe("invitations mock", () => {
       status: "pending",
     });
     expect(adminPage.items.some((i) => typeof i.token === "string")).toBe(true);
+  });
+  it("replays an invitation retried with the same idempotency key", async () => {
+    const clinic = clinicBySlug("serenity");
+    const input = {
+      fullName: "Retry Person",
+      email: "retry@example.com",
+      roleId: roleId(clinic.id, "doctor"),
+      allBranches: true,
+      branchIds: [],
+    };
+    const first = await api.invitations.invite(admin(clinic.id), input, "key-1");
+    const retry = await api.invitations.invite(admin(clinic.id), input, "key-1");
+    expect(retry.id).toBe(first.id);
+    await expect(api.invitations.invite(admin(clinic.id), input, "key-2")).rejects.toMatchObject({
+      code: "email_taken",
+    });
+  });
+
+  it("records the platform's first-admin invitation in the clinic audit without the token", async () => {
+    const created = await api.platform.createClinic({
+      nameAr: "عيادة التدقيق",
+      nameEn: "Audit Clinic",
+      slug: "audit-clinic",
+      specialty: "obgyn",
+      defaultLanguage: "en",
+      timezone: "Asia/Kuwait",
+      adminName: "First Admin",
+      adminEmail: "first-admin@example.com",
+    });
+    const entries = getState().clinicAudit.filter((e) => e.clinicId === created.clinic.id);
+    expect(entries.some((e) => e.action === "invitation.sent")).toBe(true);
+    expect(JSON.stringify(entries)).not.toContain(created.firstAdminInvite.token);
   });
 });

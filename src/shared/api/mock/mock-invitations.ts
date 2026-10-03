@@ -70,13 +70,16 @@ export function createMockInvitations(): ApiClient["invitations"] {
       return paginate(rows, query.cursor, query.limit);
     },
 
-    async invite(persona, rawInput) {
+    async invite(persona, rawInput, idempotencyKey) {
       await delay();
       const parsed = inviteUserInputSchema.safeParse(rawInput);
       if (!parsed.success) throw new ApiError("validation");
       const input = parsed.data;
       const db = getState();
       const { clinic, actorName } = authorize(db, persona, "create", "users");
+      const replayKey = `${clinic.id}:${idempotencyKey}`;
+      const replayed = db.invitations.find((i) => i.id === db.idempotentInvites?.[replayKey]);
+      if (replayed) return toInvitationView(db, replayed, true);
       enforceEmailFree(db, input.email);
       enforceAssignableRole(db, clinic.id, input.roleId);
       const branchIds = enforceAssignableBranches(db, clinic.id, input);
@@ -98,6 +101,7 @@ export function createMockInvitations(): ApiClient["invitations"] {
         tokenHash: "",
       };
       db.invitations.push(record);
+      db.idempotentInvites = { ...db.idempotentInvites, [replayKey]: record.id };
       issueInviteToken(db, record);
       writeClinicAudit(db, {
         clinicId: clinic.id,

@@ -84,7 +84,11 @@ export interface ApiClient {
   };
   invitations: {
     list(persona: Persona, query: InvitationListQuery): Promise<Page<Invitation>>;
-    invite(persona: Persona, input: InviteUserInput): Promise<Invitation>;
+    /**
+     * Retrying with the same idempotencyKey returns the original invitation instead of a
+     * duplicate-email error, so a lost response never looks like a rejection.
+     */
+    invite(persona: Persona, input: InviteUserInput, idempotencyKey: string): Promise<Invitation>;
     /** New expiry, same invitation and link. */
     resend(persona: Persona, invitationId: string): Promise<Invitation>;
     cancel(persona: Persona, invitationId: string): Promise<Invitation>;

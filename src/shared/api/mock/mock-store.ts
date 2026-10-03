@@ -15,6 +15,8 @@ export type MockState = {
   invitations: InvitationRecord[];
   /** Mock stand-in for the invitation email: invitation id -> latest plain link token. */
   inviteOutbox: Record<string, string>;
+  /** Idempotency-Key replay: "clinicId:key" -> invitation id (optional for older saved state). */
+  idempotentInvites?: Record<string, string>;
   patients: Patient[];
   platformAudit: PlatformAuditEntry[];
   clinicAudit: ClinicAuditEntry[];
