@@ -9,9 +9,9 @@ export function ExpiryBanner({ days }: { days: number }) {
   return (
     <div
       role="status"
-      className="mb-6 flex items-start gap-3 rounded-md border border-warning/40 bg-warning/10 px-4 py-3 text-sm"
+      className="mb-6 flex items-start gap-3 rounded-md border border-primary/30 bg-secondary px-4 py-3 text-sm"
     >
-      <CalendarClock className="mt-0.5 size-4 shrink-0" aria-hidden />
+      <CalendarClock className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
       <span>{text}</span>
     </div>
   );
