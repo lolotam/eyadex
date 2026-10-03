@@ -9,5 +9,5 @@
 - [x] Clinic area: roles and permissions (catalog matrix, locked admin role, hidden module keys kept on save)
 - [x] Clinic area: patients (branch scope, file numbers, duplicate phone, archive/restore, audited file opens)
 - [x] Audit log: clinic (filters, clinic time zone, field diff) and platform (administrative entries only)
-- [ ] Clinic area: settings — waiting for the next requested slice
+- [x] Settings and platform console: clinic settings, my account, expiry banner, platform overview, team and settings (last Phase A screens)
 - [ ] Agent integrations (MCP) — deferred until the NestJS backend exists (user decision)
