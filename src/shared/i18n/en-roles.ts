@@ -38,14 +38,14 @@ export const enRoles = {
     },
     actions: { view: "View", create: "Create", update: "Update", deactivate: "Deactivate" },
     scopes: { none: "None", clinic: "All branches", branch: "Own branches" },
-    membersWarning:
-      "{count} active users hold this role. Saving changes their access immediately.",
+    membersWarning: "{count} active users hold this role. Saving changes their access immediately.",
     created: "Role created",
     updated: "Role saved",
     deactivated: "Role deactivated",
     reactivated: "Role reactivated",
     deactivateTitle: "Deactivate role?",
-    deactivateBody: "It can no longer be assigned to users or invitations. It can be reactivated later.",
+    deactivateBody:
+      "It can no longer be assigned to users or invitations. It can be reactivated later.",
     reactivateTitle: "Reactivate role?",
     reactivateBody: "It can be assigned again.",
     permissionCount: "{count} permissions",

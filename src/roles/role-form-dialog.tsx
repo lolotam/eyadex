@@ -67,7 +67,8 @@ export function RoleFormDialog({ open, role, readOnly, onOpenChange }: Props) {
       ),
   });
 
-  const title = readOnly && role ? "roles.viewTitle" : role ? "roles.editTitle" : "roles.createTitle";
+  const title =
+    readOnly && role ? "roles.viewTitle" : role ? "roles.editTitle" : "roles.createTitle";
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] w-[calc(100%-2rem)] overflow-y-auto rounded-lg sm:max-w-2xl">
@@ -117,14 +118,14 @@ export function RoleFormDialog({ open, role, readOnly, onOpenChange }: Props) {
           </form>
         </Form>
         {!readOnly && role && role.memberCount > 0 && (
-          <p className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
+          <p className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 text-destructive px-3 py-2 text-sm">
             <TriangleAlert className="mt-0.5 size-4 shrink-0" />
             {t("roles.membersWarning", { count: role.memberCount })}
           </p>
         )}
         <DialogFooter className="gap-2 sm:space-x-0">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            {readOnly ? t("common.close") : t("common.cancel")}
+            {t("common.cancel")}
           </Button>
           {!readOnly && (
             <Button type="submit" form="role-form" disabled={mutation.isPending}>

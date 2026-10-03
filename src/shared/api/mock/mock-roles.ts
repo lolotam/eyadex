@@ -40,7 +40,11 @@ function audit(
   });
 }
 
-function setActive(persona: Parameters<ApiClient["roles"]["deactivate"]>[0], roleId: string, active: boolean) {
+function setActive(
+  persona: Parameters<ApiClient["roles"]["deactivate"]>[0],
+  roleId: string,
+  active: boolean,
+) {
   const db = getState();
   const { clinic, actorName } = authorize(db, persona, "deactivate", "roles");
   const role = findRole(db, clinic.id, roleId);
@@ -65,7 +69,10 @@ export function createMockRoles(): ApiClient["roles"] {
       const { clinic } = authorize(db, persona, "view", "roles");
       return db.roles
         .filter((r) => r.clinicId === clinic.id)
-        .sort((a, b) => Number(b.isLocked) - Number(a.isLocked) || Number(b.isActive) - Number(a.isActive))
+        .sort(
+          (a, b) =>
+            Number(b.isLocked) - Number(a.isLocked) || Number(b.isActive) - Number(a.isActive),
+        )
         .map((r) => toRoleListItem(db, r));
     },
 
