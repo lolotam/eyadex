@@ -14,6 +14,8 @@ export type PersonaKind = z.infer<typeof personaKindSchema>;
 export const personaSchema = z.object({
   kind: personaKindSchema,
   clinicId: idSchema.nullable(),
+  /** The exact clinic account signed in; null = first active account holding this persona's role. */
+  memberId: idSchema.nullable().default(null),
 });
 export type Persona = z.infer<typeof personaSchema>;
 
