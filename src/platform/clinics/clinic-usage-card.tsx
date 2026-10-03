@@ -1,22 +1,7 @@
 import type { ClinicDetail } from "@contracts/clinics";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { useI18n } from "@/shared/i18n/i18n-provider";
-
-function UsageRow({ label, used, max }: { label: string; used: number; max: number }) {
-  const percent = max > 0 ? Math.min(100, Math.round((used / max) * 100)) : 0;
-  return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex justify-between text-sm">
-        <span>{label}</span>
-        <span className="tabular-nums text-muted-foreground">
-          {used} / {max}
-        </span>
-      </div>
-      <Progress value={percent} />
-    </div>
-  );
-}
+import { UsageRow } from "./usage-row";
 
 export function ClinicUsageCard({ clinic }: { clinic: ClinicDetail }) {
   const { t } = useI18n();
