@@ -10,7 +10,7 @@ import { API_LOG_EVENTS } from "../log-events.ts";
 
 // UUID v7, as @eyadex/ids produces it.
 const UUID_V7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-const INCOMING = "edge-request-0001";
+const INCOMING = "0190a1b2-c3d4-7e5f-8a6b-7c8d9e0f1a2b";
 
 const lines: Record<string, unknown>[] = [];
 // The text of every line: a JSON object cannot hold the same key twice, so only the raw text shows whether
@@ -78,7 +78,7 @@ describe("a request without an id", () => {
 });
 
 describe("a request that brings its own id", () => {
-  it("is kept when it is a plain token, so a trace spans the web app and the API", async () => {
+  it("is kept when it is a UUID, so a trace spans the web app and the API", async () => {
     const res = await get({ "x-request-id": INCOMING });
     expect(res.id).toBe(INCOMING);
     expect(completedLines().some((line) => line["request_id"] === INCOMING)).toBe(true);
@@ -89,6 +89,9 @@ describe("a request that brings its own id", () => {
     ["with a space", "not a token"],
     ["too long", "x".repeat(129)],
     ["not a token character", "edge-request-0001#fragment"],
+    ["an opaque token that may be a credential", "ghp_16C7e42F292c6912E7710c838347Ae178B4a"],
+    ["a plain token", "edge-request-0001"],
+    ["a UUID with trailing text", "0190a1b2-c3d4-7e5f-8a6b-7c8d9e0f1a2b-x"],
   ])("is replaced when it is %s", async (_label, given) => {
     const res = await get({ "x-request-id": given });
     expect(res.id).toMatch(UUID_V7);

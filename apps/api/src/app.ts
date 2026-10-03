@@ -49,7 +49,9 @@ export interface AppOptions {
   readonly controllers?: readonly Type<unknown>[];
 }
 
-const REQUEST_ID = /^[A-Za-z0-9._-]{8,128}$/;
+// An incoming id is kept only when it is a canonical UUID (any version): an arbitrary token could be a
+// credential a client put in the wrong header, and it would then be printed on every line of the request.
+const REQUEST_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 // Each request's own log context, looked up by the request so a callback running elsewhere can restore it.
 const contexts = new WeakMap<FastifyRequest, RequestContext>();
