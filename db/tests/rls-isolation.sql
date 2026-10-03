@@ -88,7 +88,8 @@ BEGIN
   BEGIN
     INSERT INTO memberships VALUES (b, gen_random_uuid(), gen_random_uuid(), 'x', 'x@example.com', '00000000-0000-7000-8000-0000000001b3', true, 'active', 'ar', null, now(), now());
     RAISE EXCEPTION 'ISO-01 write leak: memberships';
-  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  -- RLS or the email-hold trigger (0017) rejects it; either way the write is refused.
+  EXCEPTION WHEN insufficient_privilege OR check_violation THEN NULL; END;
   BEGIN
     INSERT INTO membership_branches VALUES (b, gen_random_uuid(), '00000000-0000-7000-8000-0000000001b5', '00000000-0000-7000-8000-0000000001b2', now());
     RAISE EXCEPTION 'ISO-01 write leak: membership_branches';
@@ -96,7 +97,8 @@ BEGIN
   BEGIN
     INSERT INTO invitations VALUES (b, gen_random_uuid(), 'x@example.com', 'x', '00000000-0000-7000-8000-0000000001b3', true, 'pending', now() + interval '7 days', gen_random_uuid(), 'hash-probe', now(), null);
     RAISE EXCEPTION 'ISO-01 write leak: invitations';
-  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  -- RLS or the email-hold trigger (0017) rejects it; either way the write is refused.
+  EXCEPTION WHEN insufficient_privilege OR check_violation THEN NULL; END;
   BEGIN
     INSERT INTO audit_log VALUES (b, gen_random_uuid(), gen_random_uuid(), 'user.invited', 'administrative', 'user', null, null, '{}', now());
     RAISE EXCEPTION 'ISO-01 write leak: audit_log';
@@ -109,7 +111,7 @@ BEGIN
       BEGIN
         EXECUTE format('UPDATE %I SET clinic_id = $1', t) USING b;
         RAISE EXCEPTION 'ISO-01 write leak: % rows can be moved to another clinic', t;
-      EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+      EXCEPTION WHEN insufficient_privilege OR check_violation THEN NULL; END;
     END LOOP;
   END;
   -- Updating another clinic's rows silently affects nothing (rows are invisible).

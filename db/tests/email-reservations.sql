@@ -107,5 +107,33 @@ BEGIN
 END $$;
 RESET ROLE;
 
+-- The database refuses memberships and invitations whose email the registry does not hold.
+INSERT INTO roles VALUES ('00000000-0000-7000-8000-0000000000e1', '00000000-0000-7000-8000-0000000001e3',
+  null, 'د', 'R', false, true, now(), now());
+SET LOCAL ROLE eyadex_app;
+SET LOCAL app.clinic_id = '00000000-0000-7000-8000-0000000000e1';
+DO $$
+DECLARE r uuid := '00000000-0000-7000-8000-0000000001e3'; inv uuid := '00000000-0000-7000-8000-0000000001e4';
+BEGIN
+  BEGIN
+    INSERT INTO memberships VALUES ('00000000-0000-7000-8000-0000000000e1', gen_random_uuid(), gen_random_uuid(),
+      'n', 'bypass@example.com', r, true, 'active', 'ar', null, now(), now());
+    RAISE EXCEPTION 'EMAIL: membership inserted without a membership hold';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    INSERT INTO invitations VALUES ('00000000-0000-7000-8000-0000000000e1', inv, 'bypass@example.com', 'n', r, true,
+      'pending', now() + interval '7 days', gen_random_uuid(), 'hash-bypass', now(), null);
+    RAISE EXCEPTION 'EMAIL: invitation inserted without a hold';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  -- The intended path: hold, invite, accept (convert), then the membership.
+  IF NOT reserve_invitation_email('proper@example.com', inv, now() + interval '7 days') THEN RAISE EXCEPTION 'EMAIL: proper hold failed'; END IF;
+  INSERT INTO invitations VALUES ('00000000-0000-7000-8000-0000000000e1', inv, 'proper@example.com', 'n', r, true,
+    'pending', now() + interval '7 days', gen_random_uuid(), 'hash-proper', now(), null);
+  IF NOT convert_invitation_email_to_membership('proper@example.com', inv) THEN RAISE EXCEPTION 'EMAIL: proper accept failed'; END IF;
+  INSERT INTO memberships VALUES ('00000000-0000-7000-8000-0000000000e1', gen_random_uuid(), gen_random_uuid(),
+    'n', 'proper@example.com', r, true, 'active', 'ar', null, now(), now());
+END $$;
+RESET ROLE;
+
 \echo 'Email reservation tests: all passed'
 ROLLBACK;

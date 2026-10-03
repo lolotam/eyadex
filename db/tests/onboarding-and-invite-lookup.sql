@@ -11,6 +11,8 @@ INSERT INTO clinics VALUES ('00000000-0000-7000-8000-0000000000c1', 'gamma', 'ج
   'Asia/Kuwait', 'trial', now() + interval '14 days', 5, 2, now(), now());
 INSERT INTO roles VALUES ('00000000-0000-7000-8000-0000000000c1', '00000000-0000-7000-8000-0000000000c2',
   'clinic_admin', 'مدير العيادة', 'Clinic admin', true, true, now(), now());
+DO $$ BEGIN PERFORM reserve_invitation_email('admin@example.com', '00000000-0000-7000-8000-0000000000c3',
+  now() + interval '7 days'); END $$;
 INSERT INTO invitations VALUES ('00000000-0000-7000-8000-0000000000c1', '00000000-0000-7000-8000-0000000000c3',
   'admin@example.com', 'Admin', '00000000-0000-7000-8000-0000000000c2', true, 'pending',
   now() + interval '7 days', '00000000-0000-7000-8000-0000000000c4', 'tokenhash-c', now(), null);
