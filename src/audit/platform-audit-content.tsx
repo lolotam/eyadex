@@ -12,7 +12,7 @@ import { FilterSelect } from "@/shared/table/filter-select";
 import { useCursorPages } from "@/shared/table/use-cursor-pages";
 import { AuditDetailDialog } from "./audit-detail-dialog";
 import { AuditListBody } from "./audit-list-body";
-import { usePlatformAudit } from "./audit-queries";
+import { usePlatformAudit, usePlatformAuditClinics } from "./audit-queries";
 import { ALL_AUDIT_ACTIONS, AuditToolbar, type AuditFilterValues } from "./audit-toolbar";
 import { useAuditColumns } from "./use-audit-columns";
 
@@ -22,7 +22,7 @@ const PLATFORM_ACTIONS = ALL_AUDIT_ACTIONS.filter((a) => !a.startsWith("patient.
 type Source = PlatformAuditItem["source"];
 
 export function PlatformAuditContent() {
-  const { t, tDynamic } = useI18n();
+  const { t, tDynamic, pick } = useI18n();
   const pages = useCursorPages();
   const [filters, setFilters] = useState<AuditFilterValues>({
     actor: "",
@@ -32,6 +32,8 @@ export function PlatformAuditContent() {
   });
   const [entity, setEntity] = useState<PlatformAuditEntity | null>(null);
   const [source, setSource] = useState<Source | null>(null);
+  const [clinicId, setClinicId] = useState<string | null>(null);
+  const clinics = usePlatformAuditClinics();
   const [selected, setSelected] = useState<PlatformAuditItem | null>(null);
   const list = usePlatformAudit({
     cursor: pages.cursor,
@@ -39,10 +41,11 @@ export function PlatformAuditContent() {
     ...filters,
     entity,
     source,
+    clinicId,
   });
   const columns = useAuditColumns<PlatformAuditItem>(PLATFORM_AUDIT_TIME_ZONE, true);
   const filtered = Boolean(
-    filters.actor || filters.action || filters.from || filters.to || entity || source,
+    filters.actor || filters.action || filters.from || filters.to || entity || source || clinicId,
   );
 
   return (
@@ -66,6 +69,19 @@ export function PlatformAuditContent() {
           }))}
           onChange={(v) => {
             setEntity(v ? platformAuditEntitySchema.parse(v) : null);
+            pages.reset();
+          }}
+        />
+        <FilterSelect
+          value={clinicId}
+          label={t("audit.columns.clinic")}
+          anyLabel={t("audit.filters.anyClinic")}
+          options={(clinics.data?.items ?? []).map((c) => ({
+            value: c.id,
+            label: pick(c.nameAr, c.nameEn),
+          }))}
+          onChange={(v) => {
+            setClinicId(v);
             pages.reset();
           }}
         />

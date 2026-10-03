@@ -47,6 +47,8 @@ export const platformAuditListQuerySchema = pageQuerySchema.extend({
   ...auditFilters,
   entity: platformAuditEntitySchema.nullable(),
   source: platformAuditSourceSchema.nullable(),
+  /** One clinic's events only (PRD story 22); null = every clinic. */
+  clinicId: idSchema.nullable(),
 });
 export type PlatformAuditListQuery = z.infer<typeof platformAuditListQuerySchema>;
 
@@ -65,6 +67,8 @@ export const platformAuditItemSchema = z.object({
   clinicNameEn: z.string().nullable(),
   before: snapshotSchema,
   after: snapshotSchema,
+  /** What a platform event changed, in words; null for clinic entries (they carry before/after). */
+  summary: z.string().nullable(),
 });
 export type PlatformAuditItem = z.infer<typeof platformAuditItemSchema>;
 

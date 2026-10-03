@@ -19,6 +19,8 @@ export type AuditDetailEntry = {
   category: AuditCategory;
   before: Record<string, unknown> | null;
   after: Record<string, unknown> | null;
+  /** Platform events describe their change in words instead of before/after. */
+  summary?: string | null;
 };
 
 type Props = { entry: AuditDetailEntry | null; timeZone: string; onClose: () => void };
@@ -55,7 +57,10 @@ export function AuditDetailDialog({ entry, timeZone, onClose }: Props) {
             <AuditCategoryBadge category={entry.category} />
           </div>
         )}
-        {rows.length === 0 ? (
+        {entry?.summary && (
+          <p className="rounded-md border bg-muted/40 px-3 py-3 text-sm">{entry.summary}</p>
+        )}
+        {rows.length === 0 && entry?.summary ? null : rows.length === 0 ? (
           <p className="rounded-md border bg-muted/40 px-3 py-4 text-sm text-muted-foreground">
             {t("audit.noDetails")}
           </p>

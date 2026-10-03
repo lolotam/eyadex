@@ -83,4 +83,16 @@ describe("platform audit log", () => {
     } while (cursor);
     expect(seen).toEqual(all.items.map((e) => e.id));
   });
+  it("filters to one clinic and keeps platform event summaries", async () => {
+    const all = await api.audit.platformList(PLATFORM, PLATFORM_QUERY);
+    const target = all.items.find((e) => e.clinicId)?.clinicId;
+    if (!target) throw new Error("seed");
+    const one = await api.audit.platformList(PLATFORM, { ...PLATFORM_QUERY, clinicId: target });
+    expect(one.items.length).toBeGreaterThan(0);
+    expect(one.items.every((e) => e.clinicId === target)).toBe(true);
+    for (const e of all.items) {
+      if (e.source === "platform") expect(e.summary).toEqual(expect.any(String));
+      else expect(e.summary).toBeNull();
+    }
+  });
 });

@@ -98,6 +98,7 @@ export function createMockAuditLog(): ApiClient["audit"] {
           clinicNameEn: c?.nameEn ?? null,
           before: null,
           after: null,
+          summary: e.summary,
         };
       });
       // Filtered at the source: patient entities and patient-access entries never leave here.
@@ -119,11 +120,13 @@ export function createMockAuditLog(): ApiClient["audit"] {
           clinicNameEn: c?.nameEn ?? null,
           before: e.before,
           after: e.after,
+          summary: null,
         });
       }
       const items = [...platform, ...clinicSide]
         .filter((e) => !q.entity || e.entity === q.entity)
         .filter((e) => !q.source || e.source === q.source)
+        .filter((e) => !q.clinicId || e.clinicId === q.clinicId)
         .filter((e) => matches(e, q, PLATFORM_AUDIT_TIME_ZONE));
       return paginate(items, q.cursor, q.limit);
     },

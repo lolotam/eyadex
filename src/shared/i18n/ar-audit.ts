@@ -22,6 +22,7 @@ export const arAudit = {
       anyEntity: "كل السجلات",
       anyCategory: "كل التصنيفات",
       anySource: "كل المصادر",
+      anyClinic: "كل العيادات",
       from: "من",
       to: "إلى",
     },

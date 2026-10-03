@@ -22,6 +22,7 @@ export const enAudit = {
       anyEntity: "All records",
       anyCategory: "All categories",
       anySource: "All sources",
+      anyClinic: "All clinics",
       from: "From",
       to: "To",
     },

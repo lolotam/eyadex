@@ -17,6 +17,26 @@ export function useClinicAudit(query: ClinicAuditListQuery) {
   });
 }
 
+/** Clinic names for the platform audit filter (platform admins only). */
+export function usePlatformAuditClinics() {
+  const api = useApi();
+  const { persona, ready } = usePersona();
+  return useQuery({
+    queryKey: ["platform", "audit", "clinics", persona.kind],
+    queryFn: () =>
+      api.platform.listClinics({
+        cursor: null,
+        limit: 100,
+        search: "",
+        status: null,
+        specialty: null,
+      }),
+    enabled: ready && persona.kind === "platform_admin",
+    gcTime: 0,
+    retry: false,
+  });
+}
+
 export function usePlatformAudit(query: PlatformAuditListQuery) {
   const api = useApi();
   const { persona, ready } = usePersona();

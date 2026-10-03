@@ -41,6 +41,7 @@ export const PLATFORM_QUERY = {
   action: null,
   entity: null,
   source: null,
+  clinicId: null,
   from: null,
   to: null,
 };
