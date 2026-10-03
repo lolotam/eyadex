@@ -78,8 +78,21 @@ export function createMockInvitations(): ApiClient["invitations"] {
       const db = getState();
       const { clinic, actorName } = authorize(db, persona, "create", "users");
       const replayKey = `${clinic.id}:${idempotencyKey}`;
-      const replayed = db.invitations.find((i) => i.id === db.idempotentInvites?.[replayKey]);
-      if (replayed) return toInvitationView(db, replayed, true);
+      // The same key must carry the same request; a changed recipient or assignment is a conflict,
+      // never a silent success for the old invitation.
+      const fingerprint = JSON.stringify({
+        email: input.email.trim().toLowerCase(),
+        fullName: input.fullName,
+        roleId: input.roleId,
+        allBranches: input.allBranches,
+        branchIds: [...input.branchIds].sort(),
+      });
+      const previous = db.idempotentInvites?.[replayKey];
+      if (previous) {
+        if (previous.fingerprint !== fingerprint) throw new ApiError("idempotency_conflict");
+        const replayed = db.invitations.find((i) => i.id === previous.invitationId);
+        if (replayed) return toInvitationView(db, replayed, true);
+      }
       enforceEmailFree(db, input.email);
       enforceAssignableRole(db, clinic.id, input.roleId);
       const branchIds = enforceAssignableBranches(db, clinic.id, input);
@@ -101,7 +114,10 @@ export function createMockInvitations(): ApiClient["invitations"] {
         tokenHash: "",
       };
       db.invitations.push(record);
-      db.idempotentInvites = { ...db.idempotentInvites, [replayKey]: record.id };
+      db.idempotentInvites = {
+        ...db.idempotentInvites,
+        [replayKey]: { invitationId: record.id, fingerprint },
+      };
       issueInviteToken(db, record);
       writeClinicAudit(db, {
         clinicId: clinic.id,
@@ -178,6 +194,19 @@ export function createMockInvitations(): ApiClient["invitations"] {
       const clinic = db.clinics.find((c) => c.id === inv.clinicId);
       const role = db.roles.find((r) => r.id === inv.roleId);
       if (!clinic) throw new ApiError("not_found");
+      const status = computeInvitationStatus(inv);
+      // A token that can no longer be accepted reveals its status only, never the invitee's details.
+      if (status !== "pending") {
+        return {
+          clinicNameAr: "",
+          clinicNameEn: "",
+          roleNameAr: "",
+          roleNameEn: "",
+          fullName: "",
+          email: "",
+          status,
+        };
+      }
       return {
         clinicNameAr: clinic.nameAr,
         clinicNameEn: clinic.nameEn,
@@ -185,7 +214,7 @@ export function createMockInvitations(): ApiClient["invitations"] {
         roleNameEn: role?.nameEn ?? "",
         fullName: inv.fullName,
         email: inv.email,
-        status: computeInvitationStatus(inv),
+        status,
       };
     },
 

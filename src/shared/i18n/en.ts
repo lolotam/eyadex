@@ -247,6 +247,8 @@ export const en = {
     invitation_expired: "This invitation has expired",
     invitation_cancelled: "This invitation was cancelled",
     invitation_used: "This invitation was already used",
+    idempotency_conflict:
+      "This request was already sent with different details; close the form and start again",
     not_found: "Not found",
     slug_taken: "This slug is already used by another clinic",
     reserved_slug: "This address is reserved by Eyadex",

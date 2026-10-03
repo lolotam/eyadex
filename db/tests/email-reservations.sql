@@ -132,6 +132,15 @@ BEGIN
   IF NOT convert_invitation_email_to_membership('proper@example.com', inv) THEN RAISE EXCEPTION 'EMAIL: proper accept failed'; END IF;
   INSERT INTO memberships VALUES ('00000000-0000-7000-8000-0000000000e1', gen_random_uuid(), gen_random_uuid(),
     'n', 'proper@example.com', r, true, 'active', 'ar', null, now(), now());
+  -- The hold check answers for the caller's clinic only: clinic B's membership is invisible.
+  IF email_hold_matches('person@example.com', 'membership', NULL) THEN
+    NULL; -- person@example.com is clinic A's own membership; visible to A, as expected
+  ELSE
+    RAISE EXCEPTION 'EMAIL: own membership hold not visible';
+  END IF;
+  IF email_hold_matches('temp@example.com', 'invitation', '00000000-0000-7000-8000-0000000001f3') THEN
+    RAISE EXCEPTION 'EMAIL: hold check leaked another clinic''s invitation';
+  END IF;
 END $$;
 RESET ROLE;
 

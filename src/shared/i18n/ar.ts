@@ -242,6 +242,7 @@ export const ar: Dictionary = {
     invitation_expired: "انتهت صلاحية هذه الدعوة",
     invitation_cancelled: "تم إلغاء هذه الدعوة",
     invitation_used: "تم استخدام هذه الدعوة من قبل",
+    idempotency_conflict: "تم إرسال هذا الطلب من قبل ببيانات مختلفة، أغلق النموذج وابدأ من جديد",
     not_found: "غير موجود",
     slug_taken: "هذا المعرّف مستخدم لعيادة أخرى",
     reserved_slug: "هذا العنوان محجوز لمنصة Eyadex",
