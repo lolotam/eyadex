@@ -4,6 +4,7 @@ import type { Logger } from "pino";
 import { describe, expect, it } from "vitest";
 
 import { createLogger } from "../logger.ts";
+import { REDACTED, sanitize } from "../redaction.ts";
 
 // Everything that reaches a log line as a credential rather than as a secret-named key: the keys that
 // merely end in "key", and the URLs whose scheme looks harmless while their userinfo, path or query do
@@ -113,5 +114,23 @@ describe("a URL keeps only scheme, host and port", () => {
     );
     for (const leak of ["space_tail_leak", "word_leak", "pw_leak"]) expect(raw).not.toContain(leak);
     expect(raw).toContain("see https://***@db.example/[REDACTED] for details");
+  });
+});
+
+describe("session credentials are secrets under any spelling", () => {
+  it.each([
+    "session",
+    "sessionId",
+    "session_id",
+    "SESSION-ID",
+    "userSession",
+    "sid",
+    "connect.sid",
+  ])("%s", (key) => {
+    expect(sanitize({ [key]: "s3cr3t-session-value" })).toEqual({ [key]: REDACTED });
+  });
+
+  it("does not catch ordinary words that merely end in 'sid'", () => {
+    expect(sanitize({ inside: "ok", outside: "ok" })).toEqual({ inside: "ok", outside: "ok" });
   });
 });

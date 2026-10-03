@@ -9,6 +9,10 @@ import { errorDiagnostic } from "./serializers.ts";
 // clinic product has no use for today (card CVV, a code MAC): a rule that costs nothing and would have
 // been there when they become relevant is cheaper than the gap they would leave.
 const SECRET_SUFFIXES = [
+  // a session id or session token is a bearer credential (Better Auth sessions, cookies): session, sessionId,
+  // userSession, session_id
+  "session",
+  "sessionid",
   "token",
   "secret",
   "password",
@@ -89,8 +93,11 @@ const endsWithAny = (key: string, suffixes: readonly string[]): boolean => {
   const forms = [normalized, normalized.replace(/es$/, ""), normalized.replace(/s$/, "")];
   return forms.some((form) => suffixes.some((suffix) => form.endsWith(suffix)));
 };
+// Too short to match by suffix ("inside", "outside"), so only the whole key: a session cookie's usual name.
+const SECRET_EXACT_KEYS: ReadonlySet<string> = new Set(["sid", "connectsid"]);
 const isSecretKey = (key: string): boolean =>
-  endsWithAny(key, SECRET_SUFFIXES) && !STRUCTURAL_KEYS.has(normalizeKey(key));
+  (endsWithAny(key, SECRET_SUFFIXES) || SECRET_EXACT_KEYS.has(normalizeKey(key))) &&
+  !STRUCTURAL_KEYS.has(normalizeKey(key));
 const isPhoneKey = (key: string): boolean => endsWithAny(key, PHONE_SUFFIXES);
 const isEmailKey = (key: string): boolean =>
   endsWithAny(key, ["email", "emails", "emailaddress", "emailaddresses"]);

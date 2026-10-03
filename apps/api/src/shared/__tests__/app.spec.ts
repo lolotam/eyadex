@@ -120,6 +120,27 @@ describe("shutdown", () => {
     expect(lines[1]?.["level"]).toBe(50);
   });
 
+  it("treats a release that throws before returning its promise as failed", async () => {
+    const { lines, logger } = capture();
+    const unclean: string[] = [];
+    app = await createApp(
+      {
+        onShutdown: () => {
+          throw new Error("sync release failure");
+        },
+        onUncleanShutdown: (signal) => void unclean.push(signal),
+      },
+      { logger },
+    );
+    await closeWith(app, "SIGTERM");
+    app = undefined;
+    expect(lines.map((line) => line["msg"])).toEqual([
+      "api shutdown started",
+      "api shutdown failed",
+    ]);
+    expect(unclean).toEqual(["SIGTERM"]);
+  });
+
   it("logs a release that outlives its budget as timed out", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     try {

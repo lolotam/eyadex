@@ -124,6 +124,27 @@ describe("worker shutdown", () => {
     ]);
   });
 
+  it("treats a release that throws before returning its promise as failed", async () => {
+    const { lines, logger } = capture();
+    const unclean: string[] = [];
+    worker = await createWorker(
+      {
+        release: () => {
+          throw new Error("sync release failure");
+        },
+        onUncleanShutdown: (signal) => void unclean.push(signal),
+      },
+      logger,
+    );
+    await closeWith(worker, "SIGTERM");
+    worker = undefined;
+    expect(shutdownLines(lines).map((line) => line["msg"])).toEqual([
+      "worker shutdown started",
+      "worker shutdown failed",
+    ]);
+    expect(unclean).toEqual(["SIGTERM"]);
+  });
+
   it("names the trigger when it closes without a signal", async () => {
     const { lines, logger } = capture();
     await start(undefined, logger);

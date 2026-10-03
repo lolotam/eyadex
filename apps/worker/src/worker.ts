@@ -66,13 +66,17 @@ class ShutdownHook implements OnApplicationShutdown {
       timer = setTimeout(() => resolve("timed out"), SHUTDOWN_TIMEOUT_MS);
     });
     const outcome = await Promise.race([
-      this.#release().then(
-        () => "released" as const,
-        (error: unknown) => {
-          failure = error;
-          return "failed" as const;
-        },
-      ),
+      // Started inside a continuation, so a release that throws before returning its promise is a
+      // failed release too, not an escape from this handler.
+      Promise.resolve()
+        .then(() => this.#release())
+        .then(
+          () => "released" as const,
+          (error: unknown) => {
+            failure = error;
+            return "failed" as const;
+          },
+        ),
       limit,
     ]);
     clearTimeout(timer);
