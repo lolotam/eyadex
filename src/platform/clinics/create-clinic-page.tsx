@@ -18,6 +18,7 @@ import { useI18n } from "@/shared/i18n/i18n-provider";
 import { PageHeader } from "@/shared/shell/page-header";
 import { ClinicDetailsFields } from "./clinic-details-fields";
 import { clinicKeys } from "./clinic-queries";
+import { FirstAdminLinkPanel } from "./first-admin-link-panel";
 
 export function CreateClinicPage() {
   const { t } = useI18n();
@@ -41,11 +42,10 @@ export function CreateClinicPage() {
 
   const mutation = useMutation({
     mutationFn: (input: CreateClinicInput) => api.platform.createClinic(input),
-    onSuccess: (clinic) => {
+    onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: clinicKeys.all });
       void queryClient.invalidateQueries({ queryKey: ["login-clinics"] });
       toast.success(t("clinics.created"));
-      void navigate({ to: "/platform/clinics/$clinicId", params: { clinicId: clinic.id } });
     },
     onError: (error) => {
       const code = errorCodeOf(error);
@@ -54,6 +54,26 @@ export function CreateClinicPage() {
       else toast.error(t(`errors.${code}`));
     },
   });
+
+  if (mutation.data) {
+    const { clinic, firstAdminInvite } = mutation.data;
+    return (
+      <div className="flex max-w-3xl flex-col gap-4">
+        <PageHeader title={t("clinics.created")} subtitle={t("clinics.firstAdmin.createdBody")} />
+        <FirstAdminLinkPanel invite={firstAdminInvite} />
+        <div>
+          <Button
+            type="button"
+            onClick={() =>
+              void navigate({ to: "/platform/clinics/$clinicId", params: { clinicId: clinic.id } })
+            }
+          >
+            {t("clinics.firstAdmin.goToClinic")}
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   // The create schema extends the details schema, so the shared fields accept this control.
   const detailsControl = form.control as unknown as Control<ClinicDetailsInput>;
