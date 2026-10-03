@@ -26,6 +26,7 @@ BEGIN
     INSERT INTO invitations VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'7')::uuid, 'i'||s||'@example.com', 'n', ('00000000-0000-7000-8000-0000000001'||s||'3')::uuid, false, 'pending', now()+interval '7 days', ('00000000-0000-7000-8000-0000000002'||s||'5')::uuid, 'hash-'||s, now(), null);
     INSERT INTO invitation_branches VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'8')::uuid, ('00000000-0000-7000-8000-0000000001'||s||'7')::uuid, ('00000000-0000-7000-8000-0000000001'||s||'2')::uuid);
     INSERT INTO patients VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'9')::uuid, '1', 'x', '+9650000000'||s, '1990-01-01', 'female', ('00000000-0000-7000-8000-0000000001'||s||'2')::uuid, null, 'active', now(), now());
+    INSERT INTO clinic_counters VALUES (c, 'patient_file_number', 1, now());
     INSERT INTO audit_log VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'a')::uuid, ('00000000-0000-7000-8000-0000000002'||s||'5')::uuid, 'user.invited', 'administrative', 'user', null, null, '{}', now());
     INSERT INTO audit_log VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'b')::uuid, ('00000000-0000-7000-8000-0000000002'||s||'5')::uuid, 'patient.opened', 'patient_access', 'patient', null, null, '{}', now());
   END LOOP;
@@ -51,7 +52,7 @@ DECLARE t text; n bigint; other uuid := '00000000-0000-7000-8000-00000000000b';
 BEGIN
   -- Every clinic table: clinic A sees zero rows of clinic B.
   FOREACH t IN ARRAY ARRAY['clinic_features','branches','roles','role_permissions','memberships',
-      'membership_branches','invitations','invitation_branches','patients','audit_log'] LOOP
+      'membership_branches','invitations','invitation_branches','patients','audit_log','clinic_counters'] LOOP
     EXECUTE format('SELECT count(*) FROM %I WHERE clinic_id = $1', t) INTO n USING other;
     IF n <> 0 THEN RAISE EXCEPTION 'ISO-01 read leak: % shows % rows of another clinic', t, n; END IF;
     EXECUTE format('SELECT count(*) FROM %I', t) INTO n;
@@ -76,6 +77,11 @@ BEGIN
   BEGIN
     INSERT INTO patients VALUES (b, gen_random_uuid(), '9', 'z', '+96500000099', '1990-01-01', 'male', '00000000-0000-7000-8000-0000000001b2', null, 'active', now(), now());
     RAISE EXCEPTION 'ISO-01 write leak: patients';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    INSERT INTO clinic_counters VALUES (b, 'patient_file_number', 99, now())
+      ON CONFLICT (clinic_id, name) DO UPDATE SET value = clinic_counters.value + 1;
+    RAISE EXCEPTION 'ISO-01 write leak: clinic_counters';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   BEGIN
     INSERT INTO roles VALUES (b, gen_random_uuid(), null, 'x', 'x', false, true, now(), now());
@@ -107,7 +113,7 @@ BEGIN
   DECLARE t text;
   BEGIN
     FOREACH t IN ARRAY ARRAY['branches','roles','role_permissions','memberships','membership_branches',
-        'invitations','invitation_branches','patients'] LOOP
+        'invitations','invitation_branches','patients','clinic_counters'] LOOP
       BEGIN
         EXECUTE format('UPDATE %I SET clinic_id = $1', t) USING b;
         RAISE EXCEPTION 'ISO-01 write leak: % rows can be moved to another clinic', t;
@@ -142,6 +148,8 @@ BEGIN
   SELECT count(*) INTO n FROM clinics;
   IF n < 2 THEN RAISE EXCEPTION 'PLAT: platform sees % clinics', n; END IF;
   BEGIN PERFORM 1 FROM patients LIMIT 1; RAISE EXCEPTION 'PLAT-01: platform can read patients';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN PERFORM 1 FROM clinic_counters LIMIT 1; RAISE EXCEPTION 'PLAT-01: platform can read clinic_counters';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   BEGIN PERFORM 1 FROM audit_log LIMIT 1; RAISE EXCEPTION 'PLAT-01: platform can read audit_log';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
