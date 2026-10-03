@@ -2,6 +2,8 @@ import type { ApiClient } from "../api-client";
 import { ApiError } from "../api-error";
 import { clinicBlockReason, effectivePermissions, resolveActor } from "./mock-actor";
 import { delay, getState, persist } from "./mock-store";
+import { resolvePlatformActor } from "./mock-platform-actor";
+import { expiryAlertDays } from "@contracts/platform";
 
 const LOGIN_REFRESH_MS = 5 * 60 * 1000;
 
@@ -31,13 +33,15 @@ export function createMockSession(): ApiClient["session"] {
       await delay(80);
       const db = getState();
       if (persona.kind === "platform_admin") {
+        const account = resolvePlatformActor(db, persona);
         return {
           persona,
-          user: { fullName: "Waleed Mohamed", email: "waleed@eyadex.com" },
+          user: { fullName: account.fullName, email: account.email },
           clinic: null,
           permissions: [],
           features: { patients: false },
           blocked: null,
+          expiresInDays: null,
         };
       }
       const actor = resolveActor(db, persona);
@@ -63,6 +67,9 @@ export function createMockSession(): ApiClient["session"] {
         permissions: blocked ? [] : effectivePermissions(db, actor),
         features: db.features[clinic.id] ?? { patients: false },
         blocked,
+        expiresInDays: blocked
+          ? null
+          : expiryAlertDays(clinic.expiresAt, db.platformSettings.alertDaysBeforeExpiry),
       };
     },
   };

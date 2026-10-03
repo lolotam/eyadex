@@ -2,6 +2,7 @@ import type { Clinic, ClinicFeatures } from "@contracts/clinics";
 import type { InvitationRecord } from "@contracts/invitations";
 import type { Branch, ClinicAuditEntry, Role } from "@contracts/organization";
 import type { Patient } from "@contracts/patients";
+import type { PlatformAccount, PlatformSettings } from "@contracts/platform";
 import type { PlatformAuditEntry } from "@contracts/session";
 import type { MembershipUser } from "@contracts/users";
 import { buildSeed } from "./seed";
@@ -22,11 +23,13 @@ export type MockState = {
   idempotentPatients?: Record<string, { patientId: string; fingerprint: string }>;
   /** Per-clinic file-number counter: last number issued, never reused. */
   patientCounters: Record<string, number>;
+  platformAccounts: PlatformAccount[];
+  platformSettings: PlatformSettings;
   platformAudit: PlatformAuditEntry[];
   clinicAudit: ClinicAuditEntry[];
 };
 
-const STORAGE_KEY = "eyadex:mock-db:v10";
+const STORAGE_KEY = "eyadex:mock-db:v11";
 
 let state: MockState | null = null;
 

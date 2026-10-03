@@ -45,6 +45,8 @@ export const sessionContextSchema = z.object({
   permissions: z.array(z.string()),
   features: featuresSchema,
   blocked: z.enum(["suspended", "expired"]).nullable(),
+  /** Days left when the expiry is within the platform alert window; null = no banner. */
+  expiresInDays: z.number().int().nullable(),
 });
 export type SessionContext = z.infer<typeof sessionContextSchema>;
 
@@ -53,6 +55,8 @@ export const platformAuditEntrySchema = z.object({
   actorName: z.string(),
   action: z.string(),
   clinicId: idSchema.nullable(),
+  /** The record the event is about when it is not the clinic (e.g. a platform account). */
+  entityId: idSchema.nullable().optional(),
   /** Internal English note for operators; never shown in the UI (not localizable). */
   summary: z.string(),
   /** Allowlisted values before/after the change, rendered field by field and translated. */

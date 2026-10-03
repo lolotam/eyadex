@@ -38,7 +38,15 @@ export const clinicAuditItemSchema = z.object({
 export type ClinicAuditItem = z.infer<typeof clinicAuditItemSchema>;
 
 /** Entities the platform may ever see: "patient" is not in this list by construction. */
-export const platformAuditEntitySchema = z.enum(["clinic", "branch", "user", "invitation", "role"]);
+export const platformAuditEntitySchema = z.enum([
+  "clinic",
+  "branch",
+  "user",
+  "invitation",
+  "role",
+  "platform_account",
+  "platform_settings",
+]);
 export type PlatformAuditEntity = z.infer<typeof platformAuditEntitySchema>;
 
 export const platformAuditSourceSchema = z.enum(["platform", "clinic"]);
@@ -93,6 +101,7 @@ export const AUDIT_ACTIONS = [
   "user.branches_changed",
   "user.deactivated",
   "user.reactivated",
+  "user.profile_updated",
   "invitation.sent",
   "invitation.resent",
   "invitation.cancelled",
@@ -110,6 +119,11 @@ export const AUDIT_ACTIONS = [
   "clinic.details_updated",
   "clinic.subscription_updated",
   "clinic.feature_toggled",
+  "clinic.settings_updated",
+  "platform_account.invited",
+  "platform_account.deactivated",
+  "platform_account.reactivated",
+  "platform.settings_updated",
 ] as const;
 
 /** Every clinic, by name, for the platform audit filter (no paging cap). */

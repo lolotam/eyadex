@@ -45,6 +45,13 @@ function paginate<T extends Dated>(items: T[], cursor: string | null, limit: num
   };
 }
 
+function platformEntity(action: string): PlatformAuditItem["entity"] {
+  if (action.startsWith("invitation.")) return "invitation";
+  if (action.startsWith("platform_account.")) return "platform_account";
+  if (action.startsWith("platform.")) return "platform_settings";
+  return "clinic";
+}
+
 export function createMockAuditLog(): ApiClient["audit"] {
   return {
     async clinicList(persona, rawQuery) {
@@ -90,9 +97,9 @@ export function createMockAuditLog(): ApiClient["audit"] {
           actorName: e.actorName,
           action: e.action,
           source: "platform",
-          entity: e.action.startsWith("invitation.") ? "invitation" : "clinic",
+          entity: platformEntity(e.action),
           category: "administrative",
-          entityId: e.clinicId,
+          entityId: e.entityId ?? e.clinicId,
           clinicId: e.clinicId,
           clinicNameAr: c?.nameAr ?? null,
           clinicNameEn: c?.nameEn ?? null,
