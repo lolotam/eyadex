@@ -95,8 +95,8 @@ export function enforceRegistrationBranch(
 }
 
 /**
- * One phone per clinic. The error names the existing file only when the caller could open it
- * under their own view scope; otherwise it carries no details.
+ * One phone per clinic. Only a caller who could open the existing file learns it is a duplicate
+ * (with a link to it); anyone else gets a plain validation error, so no hidden file is confirmed.
  */
 export function enforcePhoneFree(
   db: MockState,
@@ -111,11 +111,11 @@ export function enforcePhoneFree(
   if (!existing) return;
   const viewer = tryAuthorizePatients(db, persona, "view");
   const visible = viewer !== null && inScope(viewer, existing.registrationBranchId);
-  throw new ApiError(
-    "patient_phone_taken",
-    undefined,
-    visible ? { patientId: existing.id, fileNumber: existing.fileNumber } : {},
-  );
+  if (!visible) throw new ApiError("validation");
+  throw new ApiError("patient_phone_taken", undefined, {
+    patientId: existing.id,
+    fileNumber: existing.fileNumber,
+  });
 }
 
 /** Birth dates may not be after today in the clinic's own time zone. */

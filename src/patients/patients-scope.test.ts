@@ -94,7 +94,9 @@ describe("patients mock: access and scope", () => {
     const error = await api.patients
       .create(as("receptionist"), input(own[0] ?? "", foreign.phone), crypto.randomUUID())
       .catch((e: unknown) => e);
-    expect(error).toMatchObject({ code: "patient_phone_taken", details: {} });
+    // Indistinguishable from any other invalid input: no hidden file is confirmed.
+    expect(error).toMatchObject({ code: "validation" });
+    expect(JSON.stringify(error)).not.toContain(foreign.id);
   });
 
   it("keeps patient data out of the platform clinic detail", async () => {
