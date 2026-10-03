@@ -119,6 +119,33 @@ check_names() {
   done
 }
 
+# Refuses every ledger row with no matching file on disk, in every mode that
+# reads the ledger. Prints MISSING lines to stderr (and to stdout for
+# --status) and fails before applying or recording anything.
+check_missing() {
+  tmp=$(mktemp)
+  # Called under `||`, where set -e is off: a failed ledger read must not look clean.
+  if ! psql -X -q -tA -v ON_ERROR_STOP=1 \
+    -c "SELECT filename FROM public.schema_migrations ORDER BY filename;" >"$tmp"; then
+    rm -f "$tmp"
+    echo "migrate: cannot read the ledger" >&2
+    return 2
+  fi
+  missing=0
+  while IFS= read -r name; do
+    [ -n "$name" ] || continue
+    if [ ! -f "$sql_dir/$name" ]; then
+      echo "MISSING $name" >&2
+      if [ "$mode" = "status" ]; then
+        echo "MISSING $name"
+      fi
+      missing=1
+    fi
+  done <"$tmp"
+  rm -f "$tmp"
+  return "$missing"
+}
+
 mode="apply"
 upto=""
 if [ "$#" -gt 0 ]; then
@@ -142,6 +169,7 @@ fi
 
 check_names
 ensure_ledger
+check_missing || exit 1
 
 case "$mode" in
   status)

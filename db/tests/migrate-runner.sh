@@ -14,6 +14,7 @@ admin_db="${PGDATABASE:-postgres}"
 suffix="$$_$(date +%s)"
 db1="eyadex_migrate_test_${suffix}_a"
 db2="eyadex_migrate_test_${suffix}_b"
+db3="eyadex_migrate_test_${suffix}_c"
 work=$(mktemp -d)
 
 fail() {
@@ -28,7 +29,8 @@ pass() {
 cleanup() {
   PGDATABASE="$admin_db" psql -X -q -v ON_ERROR_STOP=1 \
     -c "DROP DATABASE IF EXISTS \"$db1\";" \
-    -c "DROP DATABASE IF EXISTS \"$db2\";" >/dev/null 2>&1 || true
+    -c "DROP DATABASE IF EXISTS \"$db2\";" \
+    -c "DROP DATABASE IF EXISTS \"$db3\";" >/dev/null 2>&1 || true
   rm -rf "$work"
 }
 trap cleanup EXIT INT TERM
@@ -79,7 +81,9 @@ END $roles$;
 SQL
 
 PGDATABASE="$admin_db" psql -X -q -v ON_ERROR_STOP=1 \
-  -c "CREATE DATABASE \"$db1\";" -c "CREATE DATABASE \"$db2\";" >/dev/null \
+  -c "CREATE DATABASE \"$db1\";" \
+  -c "CREATE DATABASE \"$db2\";" \
+  -c "CREATE DATABASE \"$db3\";" >/dev/null \
   || fail "cannot create scratch databases"
 
 # Work on copies, so editing an applied file never touches the real baseline.
@@ -173,5 +177,37 @@ if PGDATABASE="$db2" MIGRATE_SQL_DIR="$work" sh "$migrate" --baseline 0010x >/de
   fail "baseline accepted a non-numeric prefix"
 fi
 pass "baseline refuses prefixes that are not exactly 4 digits"
+
+# 7. Applied file removed from disk is reported MISSING.
+work3="$work/missing"
+mkdir -p "$work3"
+cp "$repo_sql"/*.sql "$work3"/
+out=$(PGDATABASE="$db3" MIGRATE_SQL_DIR="$work3" sh "$migrate" 2>&1) \
+  || fail "fresh apply failed on scratch database: $out"
+[ "$(ledger_count "$db3")" = "$expected" ] \
+  || fail "ledger has $(ledger_count "$db3") rows, expected $expected"
+
+missing_file="0001_clinics.sql"
+rm "$work3/$missing_file"
+
+if PGDATABASE="$db3" MIGRATE_SQL_DIR="$work3" sh "$migrate" >/dev/null 2>&1; then
+  fail "apply accepted a missing applied file"
+fi
+if PGDATABASE="$db3" MIGRATE_SQL_DIR="$work3" sh "$migrate" --dry-run >/dev/null 2>&1; then
+  fail "dry-run accepted a missing applied file"
+fi
+if PGDATABASE="$db3" MIGRATE_SQL_DIR="$work3" sh "$migrate" --status >/dev/null 2>&1; then
+  fail "status accepted a missing applied file"
+fi
+
+status_out=$(PGDATABASE="$db3" MIGRATE_SQL_DIR="$work3" sh "$migrate" --status 2>&1 || true)
+case "$status_out" in
+  *"MISSING $missing_file"*) ;;
+  *) fail "--status output did not contain 'MISSING $missing_file': $status_out" ;;
+esac
+
+[ "$(ledger_count "$db3")" = "$expected" ] \
+  || fail "ledger row count changed after missing file checks"
+pass "applied file removed from disk is reported MISSING"
 
 echo "migrate-runner: all passed"
