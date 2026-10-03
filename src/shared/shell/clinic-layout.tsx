@@ -4,6 +4,7 @@ import { Lock } from "lucide-react";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { usePersona, useSession } from "@/shared/persona/persona-provider";
 import { can } from "@/shared/permissions/can";
+import { useAccountDisabledGuard } from "@/shared/persona/use-account-guard";
 import { AppShell } from "./app-shell";
 import { ForbiddenPage } from "./forbidden-page";
 import { LoadingBlock } from "./loading-block";
@@ -14,6 +15,7 @@ export function ClinicLayout() {
   const { t, pick } = useI18n();
   const { persona } = usePersona();
   const { session, isLoading } = useSession();
+  useAccountDisabledGuard();
 
   if (persona.kind === "platform_admin") {
     return (

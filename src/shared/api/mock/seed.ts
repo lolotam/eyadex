@@ -1,5 +1,6 @@
 import type { Clinic, ClinicFeatures } from "@contracts/clinics";
-import type { Branch, Member } from "@contracts/organization";
+import type { Branch } from "@contracts/organization";
+import type { MembershipUser } from "@contracts/users";
 import type { Patient } from "@contracts/patients";
 import type { MockState } from "./mock-store";
 import { buildSystemRoles } from "./seed-roles";
@@ -32,7 +33,7 @@ const CLINICS = [
     specialty: "psychology",
     status: "trial",
     days: 9,
-    maxUsers: 8,
+    maxUsers: 6,
     maxBranches: 2,
   },
   {
@@ -42,7 +43,7 @@ const CLINICS = [
     specialty: "dental",
     status: "suspended",
     days: 90,
-    maxUsers: 6,
+    maxUsers: 8,
     maxBranches: 2,
   },
 ] as const;
@@ -62,7 +63,11 @@ const STAFF = [
   { key: "receptionist", name: "Mariam Al-Enezi", local: "mariam" },
   { key: "technician", name: "Yousef Al-Rashidi", local: "yousef" },
   { key: "doctor", name: "Dr. Huda Al-Kandari", local: "huda" },
+  { key: "receptionist", name: "Salem Al-Ajmi", local: "salem" },
 ] as const;
+
+/** Index into STAFF of the seeded deactivated account. */
+const DEACTIVATED_STAFF = 5;
 
 const FIRST = ["أحمد", "فاطمة", "محمد", "سارة", "عبدالله", "نورة", "علي", "مريم", "حمد", "دانة"];
 const LAST = ["العنزي", "المطيري", "الرشيدي", "الكندري", "العجمي"];
@@ -125,21 +130,58 @@ export function buildSeed(): MockState {
       const role = roles.find((r) => r.systemKey === s.key);
       if (!role) return;
       const branch = branches[si % 2];
-      const member: Member = {
+      const member: MembershipUser = {
         id: makeId(),
         clinicId,
         userId: makeId(),
         fullName: s.name,
-        email: `${s.local}@example.com`,
+        email: `${s.local}.${c.slug}@example.com`,
         roleId: role.id,
         allBranches: s.key === "clinic_admin" || !branch,
         branchIds: branch && s.key !== "clinic_admin" ? [branch.id] : [],
-        status: "active",
+        status: si === DEACTIVATED_STAFF ? "deactivated" : "active",
         preferredLanguage: "ar",
+        lastLoginAt: si < 3 ? new Date(now - (si + 1) * DAY).toISOString() : null,
         createdAt,
       };
       state.members.push(member);
     });
+
+    const doctorRole = roles.find((r) => r.systemKey === "doctor");
+    const technicianRole = roles.find((r) => r.systemKey === "technician");
+    const firstBranch = branches[0];
+    if (doctorRole && technicianRole && firstBranch) {
+      state.invitations.push(
+        {
+          id: makeId(),
+          clinicId,
+          email: `layla.${c.slug}@example.com`,
+          fullName: "Dr. Layla Al-Hajri",
+          roleId: doctorRole.id,
+          allBranches: false,
+          branchIds: [firstBranch.id],
+          status: "pending",
+          expiresAt: new Date(now + 5 * DAY).toISOString(),
+          createdAt: new Date(now - 2 * DAY).toISOString(),
+          invitedBy: "Noura Al-Sabah",
+          respondedAt: null,
+        },
+        {
+          id: makeId(),
+          clinicId,
+          email: `fahad.${c.slug}@example.com`,
+          fullName: "Fahad Al-Shammari",
+          roleId: technicianRole.id,
+          allBranches: true,
+          branchIds: [],
+          status: "pending",
+          expiresAt: new Date(now - 3 * DAY).toISOString(),
+          createdAt: new Date(now - 10 * DAY).toISOString(),
+          invitedBy: "Noura Al-Sabah",
+          respondedAt: null,
+        },
+      );
+    }
 
     for (let pi = 0; pi < 20; pi += 1) {
       const first = FIRST[pi % FIRST.length] ?? "أحمد";

@@ -27,3 +27,5 @@
 - The visual system uses flat clinical surfaces, compact 8px-or-less radii, thin borders, and semantic tokens; deep teal is reserved for actions, active states, and focus — keeping dense administration screens calm and scannable.
 - Marketing site (/ and /en, src/marketing, scoped .mk styles): follow .lovable/plan/marketing-landing.md.
 - Eyadex serves every clinic specialty with one shared core; specialty-specific sections are roadmap additions, and the default front-desk role key is `receptionist`.
+- Mock rules live in `src/shared/api/mock/`: `mock-actor.ts` resolves the signed-in account and applies the permission check order, `mock-audit.ts` is the only clinic audit writer — so every namespace enforces the same rules.
+- A persona may pin an exact clinic account (`memberId`); a deactivated account makes every request fail with `account_disabled`, and the clinic shell sends the user to sign-in — sessions end on deactivation.

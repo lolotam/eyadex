@@ -1,25 +1,10 @@
 import type { Branch, BranchInput, BranchListQuery } from "@contracts/organization";
 import { branchInputSchema, branchListQuerySchema } from "@contracts/organization";
-import type { PermissionAction } from "@contracts/permissions";
-import type { Persona } from "@contracts/session";
 import type { ApiClient } from "../api-client";
 import { ApiError } from "../api-error";
+import { authorize } from "./mock-actor";
+import { writeClinicAudit } from "./mock-audit";
 import { delay, getState, newId, persist, type MockState } from "./mock-store";
-
-function clinicContext(db: MockState, persona: Persona, action: PermissionAction) {
-  if (persona.kind === "platform_admin" || !persona.clinicId) throw new ApiError("forbidden");
-  const clinic = db.clinics.find((item) => item.id === persona.clinicId);
-  if (!clinic) throw new ApiError("not_found");
-  const role = db.roles.find(
-    (item) => item.clinicId === clinic.id && item.systemKey === persona.kind && item.isActive,
-  );
-  const member = db.members.find(
-    (item) => item.clinicId === clinic.id && item.roleId === role?.id && item.status === "active",
-  );
-  if (!role || !member || !role.permissions.includes(`${action}:branches:clinic`))
-    throw new ApiError("forbidden");
-  return { clinic, actorName: member.fullName };
-}
 
 function validateInput(raw: BranchInput): BranchInput {
   const result = branchInputSchema.safeParse(raw);
@@ -55,19 +40,7 @@ function audit(
   before: Branch | null,
   after: Branch | null,
 ) {
-  const entity = after ?? before;
-  if (!entity) return;
-  db.clinicAudit.unshift({
-    id: newId(),
-    clinicId,
-    actorName,
-    action,
-    entity: "branch",
-    entityId: entity.id,
-    before: before ? { ...before } : null,
-    after: after ? { ...after } : null,
-    createdAt: new Date().toISOString(),
-  });
+  writeClinicAudit(db, { clinicId, actorName, action, entity: "branch", before, after });
 }
 
 export function createMockBranches(): ApiClient["branches"] {
@@ -78,7 +51,7 @@ export function createMockBranches(): ApiClient["branches"] {
       if (!parsed.success) throw new ApiError("validation");
       const query: BranchListQuery = parsed.data;
       const db = getState();
-      const { clinic } = clinicContext(db, persona, "view");
+      const { clinic } = authorize(db, persona, "view", "branches");
       const term = query.search.toLocaleLowerCase();
       const filtered = db.branches
         .filter((branch) => branch.clinicId === clinic.id)
@@ -111,7 +84,7 @@ export function createMockBranches(): ApiClient["branches"] {
       await delay();
       const input = validateInput(rawInput);
       const db = getState();
-      const { clinic, actorName } = clinicContext(db, persona, "create");
+      const { clinic, actorName } = authorize(db, persona, "create", "branches");
       enforceLimit(db, clinic.id);
       const branch: Branch = {
         id: newId(),
@@ -133,7 +106,7 @@ export function createMockBranches(): ApiClient["branches"] {
       await delay();
       const input = validateInput(rawInput);
       const db = getState();
-      const { clinic, actorName } = clinicContext(db, persona, "update");
+      const { clinic, actorName } = authorize(db, persona, "update", "branches");
       const branch = findBranch(db, clinic.id, branchId);
       const before = { ...branch };
       Object.assign(branch, {
@@ -149,7 +122,7 @@ export function createMockBranches(): ApiClient["branches"] {
     async deactivate(persona, branchId) {
       await delay();
       const db = getState();
-      const { clinic, actorName } = clinicContext(db, persona, "deactivate");
+      const { clinic, actorName } = authorize(db, persona, "deactivate", "branches");
       const branch = findBranch(db, clinic.id, branchId);
       if (!branch.isActive) return branch;
       if (usage(db, clinic.id).active <= 1) throw new ApiError("last_active_branch");
@@ -163,7 +136,7 @@ export function createMockBranches(): ApiClient["branches"] {
     async reactivate(persona, branchId) {
       await delay();
       const db = getState();
-      const { clinic, actorName } = clinicContext(db, persona, "deactivate");
+      const { clinic, actorName } = authorize(db, persona, "deactivate", "branches");
       const branch = findBranch(db, clinic.id, branchId);
       if (branch.isActive) return branch;
       enforceLimit(db, clinic.id);
