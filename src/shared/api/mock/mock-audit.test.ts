@@ -8,7 +8,12 @@ describe("clinic audit categories", () => {
     const clinicId = db.clinics[0]?.id;
     if (!clinicId) throw new Error("Missing clinic seed");
 
-    for (const action of ["patient.opened", "patient.created", "patient.updated", "patient.archived"]) {
+    for (const action of [
+      "patient.opened",
+      "patient.created",
+      "patient.updated",
+      "patient.archived",
+    ]) {
       writeClinicAudit(db, {
         clinicId,
         actorName: "Test actor",
@@ -29,8 +34,11 @@ describe("clinic audit categories", () => {
 
     expect(db.clinicAudit).toHaveLength(5);
     expect(db.clinicAudit.filter((entry) => entry.entity === "patient")).toHaveLength(4);
-    expect(db.clinicAudit.every((entry) =>
-      entry.category === (entry.entity === "patient" ? "patient_access" : "administrative"),
-    )).toBe(true);
+    expect(
+      db.clinicAudit.every(
+        (entry) =>
+          entry.category === (entry.entity === "patient" ? "patient_access" : "administrative"),
+      ),
+    ).toBe(true);
   });
 });

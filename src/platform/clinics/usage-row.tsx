@@ -14,4 +14,3 @@ export function UsageRow({ label, used, max }: { label: string; used: number; ma
     </div>
   );
 }
-
