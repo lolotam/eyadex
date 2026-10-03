@@ -1,0 +1,81 @@
+# Eyadex local / staging stack (PRD §4.14).
+# Today: web + postgres + redis. api + worker arrive in Phase B (NestJS) — stubs below.
+# Usage:  cp .env.example .env  &&  docker compose up -d --build
+
+name: eyadex
+
+services:
+  web:
+    build: .
+    image: eyadex-web:local
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    mem_limit: 512m
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-eyadex}
+      POSTGRES_USER: ${POSTGRES_OWNER_USER:-eyadex_owner}
+      POSTGRES_PASSWORD: ${POSTGRES_OWNER_PASSWORD:?set POSTGRES_OWNER_PASSWORD in .env}
+      # Runtime roles created by docker/postgres/init (PRD §4.5). None has BYPASSRLS.
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?set APP_DB_PASSWORD in .env}
+      AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD:?set AUTH_DB_PASSWORD in .env}
+      PLATFORM_DB_PASSWORD: ${PLATFORM_DB_PASSWORD:?set PLATFORM_DB_PASSWORD in .env}
+      DISPATCHER_DB_PASSWORD: ${DISPATCHER_DB_PASSWORD:?set DISPATCHER_DB_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432" # local only, never public
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 1g
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}", "--maxmemory", "256mb", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redisdata:/data
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379" # local only, never public
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    mem_limit: 320m
+
+  # ---- Phase B (NestJS on Fastify, same code, two entry points) ----
+  # api:
+  #   build: ../eyadex-api            # monorepo apps/api later
+  #   restart: unless-stopped
+  #   environment:
+  #     DATABASE_URL: postgres://eyadex_app:${APP_DB_PASSWORD}@postgres:5432/${POSTGRES_DB:-eyadex}
+  #     REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+  #   depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_healthy } }
+  # worker:
+  #   build: ../eyadex-api
+  #   command: ["node", "dist/worker.js"]
+  #   restart: unless-stopped
+  #   depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_healthy } }
+
+volumes:
+  pgdata:
+  redisdata:
