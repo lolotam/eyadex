@@ -21,6 +21,8 @@ export function createMockSession(): ApiClient["session"] {
           memberId: m.id,
           fullName: m.fullName,
           roleKey: db.roles.find((r) => r.id === m.roleId)?.systemKey ?? null,
+          roleNameAr: db.roles.find((r) => r.id === m.roleId)?.nameAr ?? "",
+          roleNameEn: db.roles.find((r) => r.id === m.roleId)?.nameEn ?? "",
           status: m.status,
         }));
     },

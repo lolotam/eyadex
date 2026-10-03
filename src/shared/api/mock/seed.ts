@@ -3,6 +3,7 @@ import type { Branch } from "@contracts/organization";
 import type { MembershipUser } from "@contracts/users";
 import type { Patient } from "@contracts/patients";
 import type { MockState } from "./mock-store";
+import { issueInviteToken } from "./mock-invite-tokens";
 import { buildSystemRoles } from "./seed-roles";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -82,6 +83,7 @@ export function buildSeed(): MockState {
     roles: [],
     members: [],
     invitations: [],
+    inviteOutbox: {},
     patients: [],
     platformAudit: [],
     clinicAudit: [],
@@ -165,6 +167,7 @@ export function buildSeed(): MockState {
           createdAt: new Date(now - 2 * DAY).toISOString(),
           invitedBy: "Noura Al-Sabah",
           respondedAt: null,
+          tokenHash: "",
         },
         {
           id: makeId(),
@@ -179,6 +182,7 @@ export function buildSeed(): MockState {
           createdAt: new Date(now - 10 * DAY).toISOString(),
           invitedBy: "Noura Al-Sabah",
           respondedAt: null,
+          tokenHash: "",
         },
       );
     }
@@ -214,5 +218,6 @@ export function buildSeed(): MockState {
     });
   });
 
+  for (const inv of state.invitations) issueInviteToken(state, inv);
   return state;
 }
