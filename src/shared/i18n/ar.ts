@@ -59,7 +59,7 @@ export const ar: Dictionary = {
     branches: "الفروع",
     users: "المستخدمون",
     roles: "الأدوار والصلاحيات",
-    patients: "المرضى",
+    patients: "المراجعون",
     account: "حسابي",
     menu: "القائمة",
   },
@@ -164,8 +164,8 @@ export const ar: Dictionary = {
     modules: {
       title: "الموديولات",
       body: "إيقاف الموديول يخفيه من قائمة العيادة ومن محرر الأدوار.",
-      patients: "المرضى",
-      patientsBody: "ملفات المرضى والبحث والتسجيل.",
+      patients: "المراجعون",
+      patientsBody: "ملفات المراجعين والبحث والتسجيل.",
       saved: "تم تحديث الموديول",
     },
     members: {
@@ -178,7 +178,7 @@ export const ar: Dictionary = {
     },
     memberStatus: { active: "نشط", invited: "مدعو", deactivated: "معطّل" },
     branchColumns: { name: "الفرع", address: "العنوان", phone: "الهاتف", status: "الحالة" },
-    privacyNote: "بيانات المرضى لا تظهر أبدًا في منطقة المنصة.",
+    privacyNote: "بيانات المراجعين لا تظهر أبدًا في منطقة المنصة.",
   },
   branches: {
     title: "الفروع",

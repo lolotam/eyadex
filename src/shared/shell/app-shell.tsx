@@ -7,6 +7,7 @@ import { LanguageSwitch } from "@/shared/i18n/language-switch";
 import { PersonaSwitcher } from "@/shared/persona/persona-switcher";
 import type { TranslationKey } from "@/shared/i18n/dictionary";
 import type { NavItem } from "./nav-items";
+import { Brand } from "./brand";
 import { AreaNav } from "./area-nav";
 
 type Props = {
@@ -15,27 +16,6 @@ type Props = {
   items: NavItem[];
   children: ReactNode;
 };
-
-function Brand({
-  areaLabel,
-  subtitle,
-}: {
-  areaLabel: TranslationKey;
-  subtitle?: string | undefined;
-}) {
-  const { t } = useI18n();
-  return (
-    <div className="flex h-20 items-center gap-3 border-b border-sidebar-border px-5">
-      <div className="flex size-9 items-center justify-center rounded-md bg-primary text-primary-foreground">
-        <img src="/brand/eyadex-mark-white.svg" alt="" width={14} height={19} />
-      </div>
-      <div className="min-w-0">
-        <div className="text-sm font-semibold text-sidebar-foreground">{t("app.name")}</div>
-        <div className="truncate text-xs text-muted-foreground">{subtitle ?? t(areaLabel)}</div>
-      </div>
-    </div>
-  );
-}
 
 export function AppShell({ areaLabel, subtitle, items, children }: Props) {
   const { t, dir } = useI18n();

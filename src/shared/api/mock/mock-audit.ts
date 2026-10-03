@@ -23,6 +23,7 @@ export function writeClinicAudit(
     actorName: entry.actorName,
     action: entry.action,
     entity: entry.entity,
+    category: entry.entity === "patient" ? "patient_access" : "administrative",
     entityId: subject.id,
     before: entry.before ? structuredClone(entry.before) : null,
     after: entry.after ? structuredClone(entry.after) : null,
