@@ -46,3 +46,10 @@ REVOKE ALL ON clinic_counters FROM eyadex_platform;
 
 -- File numbers are stored as plain positive integers; the UI pads them for display.
 ALTER TABLE patients ADD CONSTRAINT patients_file_number_numeric CHECK (file_number ~ '^[1-9][0-9]*$');
+
+-- Clinics that already have patients continue after their highest file number, never from 1.
+INSERT INTO clinic_counters (clinic_id, name, value, updated_at)
+SELECT clinic_id, 'patient_file_number', max(file_number::bigint), now()
+FROM patients
+GROUP BY clinic_id
+ON CONFLICT (clinic_id, name) DO NOTHING;

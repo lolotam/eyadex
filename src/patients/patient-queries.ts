@@ -80,9 +80,14 @@ export function useRefreshPatients() {
         queryKey: [...patientKeys.all, "list"],
       });
       const key = [...patientKeys.detail(result.id), ...personaKey];
-      // A write that moved the file out of view must not leave its old copy on screen.
-      if (result.detail) queryClient.setQueryData(key, result.detail);
-      else void queryClient.resetQueries({ queryKey: key });
+      // Only a file that is open on screen right now is updated in place. Anything else is
+      // dropped, so a write never seeds a cache entry that could outlive the caller's access.
+      const open = queryClient.getQueryCache().find({ queryKey: key, exact: true });
+      if (result.detail && open && open.getObserversCount() > 0)
+        queryClient.setQueryData(key, result.detail);
+      else if (open && open.getObserversCount() > 0)
+        void queryClient.resetQueries({ queryKey: key });
+      else queryClient.removeQueries({ queryKey: key, exact: true });
     },
     [queryClient, personaKey],
   );
