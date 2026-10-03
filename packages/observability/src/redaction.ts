@@ -1,241 +1,202 @@
-import { errorDiagnostic } from "./serializers.ts";
+import { isSecretKey } from "./credential-words.ts";
+import { redactEmails } from "./emails.ts";
 import { maskPhonesInText, scrubSecretsInText } from "./free-text.ts";
+import {
+  isCodeKey,
+  isCodeSecretValue,
+  isEmailKey,
+  isMedicalKey,
+  isNonAsciiKey,
+  isPatientKey,
+  isPhoneKey,
+  isPrivatePayloadKey,
+  isStructuralCodeKey,
+  isUrlKey,
+} from "./keys.ts";
 import { maskPhone, REDACTED } from "./masks.ts";
+import { normalizeValue } from "./normalize.ts";
+import { errorDiagnostic } from "./serializers.ts";
+import { scrubUrlCredentials } from "./urls.ts";
 
 export { maskPhone, REDACTED } from "./masks.ts";
 
-// CLAUDE.md §8: never log PINs, tokens, credentials, or a full phone number (last 3 digits only).
-// Keys are matched case-insensitively at ANY depth and inside arrays — pino's own `redact` paths only
+// CLAUDE.md §8: never log PINs, tokens, credentials, or a full phone number (last 3 digits only). Keys are
+// matched case- and separator-insensitively at ANY depth and inside arrays — pino's own `redact` paths only
 // reach the levels they name, so a secret one level deeper than expected would be printed.
-// Keys are compared after removing case and separators, so accessToken, access_token and ACCESS-TOKEN are
-// one key, and by suffix, so sessionToken, bearer_token or card_cvv are caught without being listed.
-// The rules carried over from the reference implementation are kept as they are, including the ones a
-// clinic product has no use for today (card CVV, a code MAC): a rule that costs nothing and would have
-// been there when they become relevant is cheaper than the gap they would leave.
-const SECRET_SUFFIXES = [
-  // a session id or session token is a bearer credential (Better Auth sessions, cookies): session, sessionId,
-  // userSession, session_id
-  "session",
-  "sessionid",
-  "token",
-  "secret",
-  "password",
-  "passwordhash",
-  "apikey",
-  "credential",
-  "credentials",
-  "cookie",
-  "authorization",
-  "pin",
-  "otp",
-  // "code" alone is not a secret (error_code, status_code); a PIN, OTP or pass code under a code-named key is
-  "pincode",
-  "passcode",
-  "otpcode",
-  "securitycode",
-  "verificationcode",
-  "codemac",
-  "derivationkey",
-  "verificationkey",
-  "cvv",
-  // a hash of a secret (pin_hash, token_hash, password_hash) is still sensitive
-  "hash",
-  // any key ending in "key" is a credential (secret_key, hmac_key, api_key, a bare key) unless it is
-  // one of the structural names below — enumerating credential prefixes always misses the next one
-  "key",
-  "passphrase",
-  // a connection string carries its password inline
-  "dsn",
-  // presigned-URL and webhook signatures (X-Amz-Signature, sig)
-  "signature",
-  "connectionstring",
-];
-const STRUCTURAL_KEYS = new Set([
-  "sortkey",
-  "cachekey",
-  "primarykey",
-  "foreignkey",
-  "partitionkey",
-  "groupkey",
-  "lookupkey",
-  "routekey",
-  "eventkey",
-  "messagekey",
-  "translationkey",
-  "i18nkey",
-]);
-const PHONE_SUFFIXES = ["phone", "phones", "phonenumber", "phonenumbers", "mobile", "mobiles"];
-// Notification/source payloads and provider bodies never belong in technical diagnostics, and neither does
-// the body of a request a caller sent us.
-const PRIVATE_PAYLOAD_KEYS = new Set([
-  "payload",
-  "eventpayload",
-  "jobdata",
-  "providerbody",
-  "rawbody",
-  "requestbody",
-  "safeparameters",
-  "components",
-  "emailbody",
-  "emailhtml",
-  "emailtext",
-]);
-// CLAUDE.md §5 and §8: a civil ID and a birth date are NEVER printed, not even partially, not even one
-// digit — inside a log line or inside an audit snapshot. Unlike a phone number there is no "last 3" that
-// is safe to keep, and unlike a secret the value cannot be re-derived from the key.
-// Matched as a PART of the normalized key, not as its suffix: the field will reach the logs under
-// whatever name the caller gave it (civilId, civil_id, CIVIL_ID, patientCivilId, civilIdNumber,
-// nationalId, dateOfBirth, dob, birthDate, birth_date), and guessing the exact spelling is exactly how a
-// medical identifier escapes the list. A false positive only hides one more field, which is the safe
-// direction for the data this project holds.
-const MEDICAL_KEY_PARTS = ["civilid", "nationalid", "birth", "dob"];
-const normalizeKey = (key: string): string => key.toLowerCase().replace(/[^a-z0-9]/g, "");
-// A plural container ("passwords", "tokens", "hashes") holds secrets under ordinary child keys, so the key
-// is also tested with a trailing "s" or "es" removed — the container is redacted before its children.
-const endsWithAny = (key: string, suffixes: readonly string[]): boolean => {
-  const normalized = normalizeKey(key);
-  const forms = [normalized, normalized.replace(/es$/, ""), normalized.replace(/s$/, "")];
-  return forms.some((form) => suffixes.some((suffix) => form.endsWith(suffix)));
-};
-// Too short to match by suffix ("inside", "outside"), so only the whole key: a session cookie's usual name.
-const SECRET_EXACT_KEYS: ReadonlySet<string> = new Set(["sid", "connectsid"]);
-const isSecretKey = (key: string): boolean =>
-  (endsWithAny(key, SECRET_SUFFIXES) || SECRET_EXACT_KEYS.has(normalizeKey(key))) &&
-  !STRUCTURAL_KEYS.has(normalizeKey(key));
-const isPhoneKey = (key: string): boolean => endsWithAny(key, PHONE_SUFFIXES);
-const isEmailKey = (key: string): boolean =>
-  endsWithAny(key, ["email", "emails", "emailaddress", "emailaddresses"]);
-// Operational logs are readable by the platform team, which never sees patient data (CLAUDE.md §8): a
-// patient container (patient, patients, patientRecord…) is replaced whole, and so are identity fields under
-// any container. A patient's id is kept (patientId, patient_ids): it identifies nobody and is what a
-// support trace needs. Audit snapshots (redactSecrets) keep their own allowlist policy and are unaffected.
-const PATIENT_IDENTITY_KEYS: ReadonlySet<string> = new Set([
-  "fullname",
-  "firstname",
-  "lastname",
-  "middlename",
-  "familyname",
-  "givenname",
-  "patientname",
-  "gender",
-  "sex",
-  "address",
-  "homeaddress",
-  "nationality",
-]);
-const isPatientKey = (key: string): boolean => {
-  const normalized = normalizeKey(key);
-  if (PATIENT_IDENTITY_KEYS.has(normalized)) return true;
-  return normalized.includes("patient") && !/ids?$/.test(normalized);
-};
-const isMedicalKey = (key: string): boolean => {
-  const normalized = normalizeKey(key);
-  return MEDICAL_KEY_PARTS.some((part) => normalized.includes(part));
-};
-
-// URLs are checked in every string value, because their key (DATABASE_URL, url, link) looks harmless. A URL
-// is PARSED, not pattern-matched: the parser knows that the last "@" before the host ends the userinfo (a
-// password may contain "@"). Only scheme, host and port survive; userinfo, path, query and fragment are
-// withheld: a reset link carries its token in the path, an OAuth callback in the fragment, an invitation a
-// token in the query (even a bare `?token`), and no name or pattern tells those from harmless ones.
-const URL_START = /^\s*[a-z][a-z0-9+.-]*:\/\//i;
-const URL_IN_TEXT = /\b[a-z][a-z0-9+.-]*:\/\/[^\s"'<>]+/gi;
-const EMAIL_OR_URL =
-  /\b[a-z][a-z0-9+.-]*:\/\/[^\s"'<>]+|[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9.-]+/gi;
-
-function scrubUrl(candidate: string): string {
-  try {
-    const url = new URL(candidate);
-    const userinfo = url.username !== "" || url.password !== "" ? "***@" : "";
-    const path = url.pathname === "" || url.pathname === "/" ? url.pathname : "/[REDACTED]";
-    const query = url.search === "" ? "" : "?[REDACTED]";
-    const fragment = url.hash === "" ? "" : "#[REDACTED]";
-    return `${url.protocol}//${userinfo}${url.host}${path}${query}${fragment}`;
-  } catch {
-    // Unparseable: no pattern can tell where its userinfo ends, so only the scheme survives.
-    return candidate.replace(/^(\s*[a-z][a-z0-9+.-]*:\/\/)[\s\S]*$/i, "$1[REDACTED]");
-  }
-}
-
-// A value that IS a URL is parsed whole (a password may even contain whitespace). A URL embedded in longer
-// text is found and parsed on its own — but in text its end is a guess: "postgres://user:with space@db" is
-// matched only up to the space. If an "@" still follows a "://" once every parsed userinfo is masked, the
-// boundary was ambiguous and the whole value is withheld.
-const AMBIGUOUS_USERINFO = /:\/\/[\s\S]*@/;
-function scrubUrlCredentials(text: string): string {
-  if (URL_START.test(text)) return scrubUrl(text.trim());
-  const scrubbed = text.replace(URL_IN_TEXT, scrubUrl);
-  return AMBIGUOUS_USERINFO.test(scrubbed.replaceAll("://***@", "://")) ? "[REDACTED]" : scrubbed;
-}
 
 const MAX_DEPTH = 8;
-// One walk for both entry points. Only data survives: functions (including a `toJSON` hook, which JSON
-// serialisation would call and which could return anything) are dropped, dates become ISO strings, errors
-// become diagnostics. Cycles and anything deeper than MAX_DEPTH are replaced rather than walked.
+// A log field is not a data store. Anything larger than this is replaced without being scanned, so a
+// caller-supplied or provider-supplied body cannot spend the event loop on an unbounded regex.
+const MAX_STRING_LENGTH = 64 * 1024;
+
+// A percent-encoded value hides its content from every regex, so one guarded decode is attempted; when the
+// decoded text matches a rule, the decoded-and-redacted text is what gets emitted.
+const tryDecode = (text: string): string | undefined => {
+  if (!text.includes("%")) return undefined;
+  try {
+    const decoded = decodeURIComponent(text);
+    return decoded === text ? undefined : decoded;
+  } catch {
+    return undefined;
+  }
+};
+
+// The one pass over a string: URL credentials, then credentials/civil IDs, then (log mode) phones and
+// emails. Credentials and civil IDs run in both modes; names, phones and emails are audit-policy choices.
+function scanText(text: string, urlKey: boolean, maskPhones: boolean): string {
+  if (text.length > MAX_STRING_LENGTH) return REDACTED;
+  let out = scrubUrlCredentials(text, urlKey);
+  out = scrubSecretsInText(out);
+  if (maskPhones) out = redactEmails(maskPhonesInText(out));
+  return out;
+}
+
+// Normalise first; if no rule matched, the ORIGINAL string is kept, so a value that merely contains an
+// invisible control is not silently rewritten. The length cap is checked before normalising as well.
+function scrubString(original: string, urlKey: boolean, maskPhones: boolean): string {
+  if (original.length > MAX_STRING_LENGTH) return REDACTED;
+  const decoded = tryDecode(original);
+  if (decoded !== undefined) {
+    const normalizedDecoded = normalizeValue(decoded);
+    const scrubbedDecoded = scanText(normalizedDecoded, urlKey, maskPhones);
+    if (scrubbedDecoded !== normalizedDecoded) return scrubbedDecoded;
+  }
+  const normalized = normalizeValue(original);
+  const scrubbed = scanText(normalized, urlKey, maskPhones);
+  return scrubbed === normalized ? original : scrubbed;
+}
+
+// A number or bigint can BE a civil ID or phone number under a neutral key. Its decimal string is scanned
+// by those two rules; a match replaces the value with the masked/REDACTED string, otherwise the value is
+// untouched. Birth dates as plain dates are an accepted risk (see docs/adr/0001-log-redaction.md).
+function scanNumber(text: string, maskPhones: boolean): string {
+  const afterCivil = scrubSecretsInText(text);
+  return maskPhones ? maskPhonesInText(afterCivil) : afterCivil;
+}
+
+type Decision = { handled: true; value: unknown } | { handled: false };
+
+// The key rule for one property, applied to log objects and to Map entries alike. Credentials and a
+// non-ASCII key (which cannot be reasoned about from its spelling) apply in BOTH modes.
+function decide(key: string, child: unknown, maskPhones: boolean): Decision {
+  if (isMedicalKey(key) || isSecretKey(key)) return { handled: true, value: REDACTED };
+  if (isCodeKey(key) && !isStructuralCodeKey(key) && isCodeSecretValue(child))
+    return { handled: true, value: REDACTED };
+  if (isNonAsciiKey(key)) return { handled: true, value: REDACTED };
+  if (!maskPhones) return { handled: false };
+  if (isEmailKey(key) || isPatientKey(key) || isPrivatePayloadKey(key))
+    return { handled: true, value: REDACTED };
+  if (isPhoneKey(key))
+    return {
+      handled: true,
+      value: Array.isArray(child) ? child.map(maskPhone) : maskPhone(child),
+    };
+  return { handled: false };
+}
+
+// One walk for both entry points. Only data survives: functions are dropped, dates become ISO strings,
+// errors become diagnostics. A true cycle (an object that is its own ancestor) and anything deeper than
+// MAX_DEPTH are replaced rather than walked; a repeated sibling is walked again, because it is not a cycle.
+// Output objects have a null prototype so an own `__proto__` key is kept as an ordinary key and walked.
 function scrub(value: unknown, maskPhones: boolean): unknown {
-  const seen = new WeakSet<object>();
-  const walk = (node: unknown, depth: number): unknown => {
+  const walk = (node: unknown, depth: number, urlKey: boolean, ancestors: object[]): unknown => {
     if (typeof node === "function" || typeof node === "symbol") return undefined;
-    if (typeof node === "bigint") return node.toString();
-    if (typeof node === "string") {
-      // Credentials and civil IDs go in every mode (logs and audit snapshots alike); phones and emails only
-      // where masked. Civil IDs before phones, or an 8-digit slice of an ID would be taken for a phone.
-      const text = scrubSecretsInText(scrubUrlCredentials(node));
-      return maskPhones
-        ? maskPhonesInText(text).replace(EMAIL_OR_URL, (part) =>
-            URL_START.test(part) ? part : REDACTED,
-          )
-        : text;
+    if (typeof node === "string") return scrubString(node, urlKey, maskPhones);
+    if (typeof node === "bigint") return scanNumber(node.toString(), maskPhones);
+    if (typeof node === "number") {
+      if (!Number.isFinite(node)) return node;
+      const text = String(node);
+      const scrubbed = scanNumber(text, maskPhones);
+      return scrubbed === text ? node : scrubbed;
     }
     if (node === null || typeof node !== "object") return node;
     if (node instanceof Date) return Number.isNaN(node.getTime()) ? null : node.toISOString();
-    // pino runs this before its serializers, so an Error anywhere in the object is reduced here — its
-    // message, causes and extra properties can all carry secrets.
     if (node instanceof Error) return errorDiagnostic(node);
-    if (seen.has(node)) return "[Circular]";
+    // A buffer or typed array is raw bytes; nothing about them is safe to print.
+    if (ArrayBuffer.isView(node) || node instanceof ArrayBuffer) return REDACTED;
+    if (ancestors.includes(node)) return "[Circular]";
     if (depth >= MAX_DEPTH) return "[Truncated]";
-    seen.add(node);
-    if (Array.isArray(node)) return node.map((item) => walk(item, depth + 1));
-    const out: Record<string, unknown> = {};
-    for (const [key, child] of Object.entries(node)) {
-      if (typeof child === "function") continue;
-      if (
-        isMedicalKey(key) ||
-        isSecretKey(key) ||
-        (normalizeKey(key) === "code" && typeof child === "string" && /^\d{6}$/.test(child)) ||
-        (maskPhones &&
-          (isEmailKey(key) || isPatientKey(key) || PRIVATE_PAYLOAD_KEYS.has(normalizeKey(key))))
-      )
+    const path = [...ancestors, node];
+    if (node instanceof Map) return walkMap(node, depth, path);
+    if (node instanceof Set) return [...node].map((item) => walk(item, depth + 1, urlKey, path));
+    if (Array.isArray(node)) return node.map((item) => walk(item, depth + 1, urlKey, path));
+    return walkObject(node, depth, path);
+  };
+
+  const walkObject = (
+    node: object,
+    depth: number,
+    ancestors: object[],
+  ): Record<string, unknown> => {
+    const out: Record<string, unknown> = Object.create(null);
+    for (const key of Object.keys(node)) {
+      let child: unknown;
+      try {
+        // An enumerable getter can throw; a sanitiser that throws is a sanitiser that gets bypassed.
+        child = (node as Record<string, unknown>)[key];
+      } catch {
         out[key] = REDACTED;
-      else if (maskPhones && isPhoneKey(key))
-        out[key] = Array.isArray(child) ? child.map(maskPhone) : maskPhone(child);
-      else out[key] = walk(child, depth + 1);
+        continue;
+      }
+      if (typeof child === "function") continue;
+      const decision = decide(key, child, maskPhones);
+      out[key] = decision.handled
+        ? decision.value
+        : walk(child, depth + 1, isUrlKey(key), ancestors);
     }
     return out;
   };
-  return walk(value, 0);
+
+  const walkMap = (
+    node: Map<unknown, unknown>,
+    depth: number,
+    ancestors: object[],
+  ): Record<string, unknown> => {
+    const out: Record<string, unknown> = Object.create(null);
+    for (const [rawKey, child] of node) {
+      const isStringKey = typeof rawKey === "string";
+      const key = isStringKey ? rawKey : String(rawKey);
+      const decision = isStringKey ? decide(key, child, maskPhones) : { handled: false as const };
+      out[key] = decision.handled
+        ? decision.value
+        : walk(child, depth + 1, isStringKey && isUrlKey(key), ancestors);
+    }
+    return out;
+  };
+
+  return walk(value, 0, false, []);
 }
 
 /**
  * Returns an inert copy of a log object with every secret replaced, at any depth and inside arrays, and
  * every phone number reduced to its last 3 digits (CLAUDE.md §8). Civil IDs and birth dates are always
- * replaced whole, here and in redactSecrets.
+ * replaced whole, here and in redactSecrets. This is a defence-in-depth safety net: the primary control is
+ * structured logging with catalogued events and allowlisted fields (see docs/adr/0001-log-redaction.md).
  *
  * @param value the object about to be logged
  * @returns a sanitised copy safe to write
  */
 export function sanitize(value: unknown): unknown {
-  return scrub(value, true);
+  try {
+    return scrub(value, true);
+  } catch {
+    return REDACTED;
+  }
 }
 
 /**
- * The same walk for a business record that is kept, not a technical log: secrets and URL credentials are
- * replaced, phone numbers are kept as they are. Used for the audit trail's before/after snapshots, where
- * CLAUDE.md §5 forbids the civil ID in any form — so that field is still replaced.
+ * The same walk for a business record that is kept, not a technical log: secrets, PEM blocks, civil IDs and
+ * URL tokens are replaced; names, emails and phone numbers are kept (clinic-side, allowlisted at the
+ * writer). Used for the audit trail's before/after snapshots, where CLAUDE.md §5 forbids the civil ID in
+ * any form.
  *
  * @param value the snapshot about to be stored
- * @returns a copy with no secret and no civil ID in it
+ * @returns a copy with no secret, PEM, civil ID or URL token in it
  */
 export function redactSecrets(value: unknown): unknown {
-  return scrub(value, false);
+  try {
+    return scrub(value, false);
+  } catch {
+    return REDACTED;
+  }
 }

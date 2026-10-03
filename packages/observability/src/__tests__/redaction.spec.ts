@@ -74,16 +74,16 @@ describe("secrets are removed at any depth (CLAUDE.md §8)", () => {
   });
 
   it("survives a circular object instead of hanging or throwing", () => {
-    const loop: Record<string, unknown> = { name: "loop" };
+    const loop: Record<string, unknown> = { label: "loop" };
     loop["self"] = loop;
     expect(JSON.parse(logLine({ loop }))).toMatchObject({
-      loop: { name: "loop", self: "[Circular]" },
+      loop: { label: "loop", self: "[Circular]" },
     });
   });
 
   it("still prints ordinary fields", () => {
-    expect(JSON.parse(logLine({ clinicName: "Clinic One" }))).toMatchObject({
-      clinicName: "Clinic One",
+    expect(JSON.parse(logLine({ clinicLabel: "Clinic One" }))).toMatchObject({
+      clinicLabel: "Clinic One",
       msg: "probe",
     });
   });
@@ -197,11 +197,13 @@ describe("plural secret containers", () => {
       expect(raw).not.toContain(leak);
   });
 
-  it("ordinary plurals are kept (addresses, statuses)", () => {
+  it("ordinary plurals are kept (statuses, tags)", () => {
+    // "addresses" is deliberately not used: it contains a patient-identity part (address) and is redacted by
+    // design in log mode.
     const line = JSON.parse(
-      capture((log) => log.info({ addresses: ["x"], statuses: ["open"] }, "probe")),
+      capture((log) => log.info({ statuses: ["open"], tags: ["x"] }, "probe")),
     );
-    expect(line).toMatchObject({ addresses: ["x"], statuses: ["open"] });
+    expect(line).toMatchObject({ statuses: ["open"], tags: ["x"] });
   });
 });
 
