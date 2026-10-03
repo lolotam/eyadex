@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
@@ -53,7 +53,7 @@ export function PatientFormDialog({ open, patient, onOpenChange }: Props) {
   const { persona } = usePersona();
   const { t, pick } = useI18n();
   const refresh = useRefreshPatients();
-  const branches = usePatientBranches(patient ? "update" : "create");
+  const branches = usePatientBranches(patient ? "update" : "create", open);
   const [duplicate, setDuplicate] = useState<Duplicate | null>(null);
   // One key per opening of the dialog: a retried submission replays the first create.
   const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
@@ -68,23 +68,35 @@ export function PatientFormDialog({ open, patient, onOpenChange }: Props) {
     .map((b) => ({ value: b.id, label: pick(b.nameAr, b.nameEn) }));
   const firstBranch = options[0]?.value ?? "";
 
+  // Reset only for a new opening (or a different patient), never when branches arrive later.
+  const patientRef = useRef(patient);
+  patientRef.current = patient;
+  const patientId = patient?.id ?? null;
   useEffect(() => {
     if (!open) return;
+    const current = patientRef.current;
     setDuplicate(null);
     setIdempotencyKey(crypto.randomUUID());
     form.reset(
-      patient
+      current
         ? {
-            fullName: patient.fullName,
-            phone: patient.phone,
-            birthDate: patient.birthDate,
-            gender: patient.gender,
-            registrationBranchId: patient.registrationBranchId,
-            civilId: patient.civilId ?? "",
+            fullName: current.fullName,
+            phone: current.phone,
+            birthDate: current.birthDate,
+            gender: current.gender,
+            registrationBranchId: current.registrationBranchId,
+            civilId: current.civilId ?? "",
           }
-        : blank(firstBranch),
+        : blank(""),
     );
-  }, [open, patient, firstBranch, form]);
+  }, [open, patientId, form]);
+
+  // Once branches load, fill the default branch only if the user hasn't picked one.
+  useEffect(() => {
+    if (!open || patientId || !firstBranch) return;
+    if (!form.getValues("registrationBranchId"))
+      form.setValue("registrationBranchId", firstBranch, { shouldDirty: false });
+  }, [open, patientId, firstBranch, form]);
 
   const mutation = useMutation({
     mutationFn: (input: PatientInput) =>

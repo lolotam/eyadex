@@ -38,13 +38,15 @@ export function usePatientList(query: PatientListQuery) {
 }
 
 /** Branches within the scope of one action: view for filters, create or update for the form. */
-export function usePatientBranches(action: PatientBranchAction) {
+export function usePatientBranches(action: PatientBranchAction, active = true) {
   const api = useApi();
   const { persona, enabled, personaKey } = useClinicPersona();
   return useQuery({
     queryKey: [...patientKeys.branches(action), ...personaKey],
     queryFn: () => api.patients.branchOptions(persona, action),
-    enabled,
+    // Only fetched while the screen that needs it is open (a closed form asks for nothing).
+    enabled: enabled && active,
+    retry: false,
     gcTime: 0,
   });
 }
