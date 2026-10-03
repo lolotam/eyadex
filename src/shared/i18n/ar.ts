@@ -226,6 +226,7 @@ export const ar: Dictionary = {
   ...arRoles,
   ...arPatients,
   validation: {
+    needsView: "أي صلاحية إضافة أو تعديل أو تعطيل تحتاج صلاحية العرض في نفس القسم",
     timezone: "اختر منطقة زمنية مدعومة",
     required: "مطلوب",
     tooShort: "قصير جدًا",

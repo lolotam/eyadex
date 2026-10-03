@@ -30,10 +30,18 @@ export function PermissionMatrix({ catalog, value, onChange, readOnly }: Props) 
     { id: "patients" as const, items: resources.filter((r) => isModule(catalog, r)) },
   ].filter((g) => g.items.length > 0);
 
+  // Writes need view on the same resource: granting a write grants view, dropping view drops writes.
   function setScope(resource: PermissionResource, action: string, scope: string | null) {
     const prefix = `${action}:${resource}:`;
-    const rest = value.filter((k) => !k.startsWith(prefix));
-    onChange(scope ? [...rest, `${prefix}${scope}`] : rest);
+    let next = value.filter((k) => !k.startsWith(prefix));
+    if (scope) {
+      next.push(`${prefix}${scope}`);
+      if (action !== "view" && !next.some((k) => k.startsWith(`view:${resource}:`)))
+        next.push(`view:${resource}:${scope}`);
+    } else if (action === "view") {
+      next = next.filter((k) => k.split(":")[1] !== resource);
+    }
+    onChange(next);
   }
 
   return (

@@ -230,6 +230,7 @@ export const en = {
   ...enRoles,
   ...enPatients,
   validation: {
+    needsView: "Any create, edit or deactivate permission needs view on the same area",
     timezone: "Choose a supported time zone",
     required: "Required",
     tooShort: "Too short",

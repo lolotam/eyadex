@@ -169,4 +169,15 @@ describe("roles mock", () => {
     expect((await api.roles.list(admin())).find((r) => r.id === created.id)?.memberCount).toBe(1);
     await rejectsWith(api.roles.deactivate(admin(), created.id), "role_in_use");
   });
+  it("rejects a write permission without view on the same resource", async () => {
+    await rejectsWith(
+      api.roles.create(admin(), { ...NAMES, permissionKeys: ["create:patients:branch"] }),
+      "validation",
+    );
+    const ok = await api.roles.create(admin(), {
+      ...NAMES,
+      permissionKeys: ["view:patients:clinic", "create:patients:branch"],
+    });
+    expect(ok.permissionKeys).toContain("create:patients:branch");
+  });
 });

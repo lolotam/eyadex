@@ -38,6 +38,14 @@ export const permissionKeysSchema = z
         return;
       }
     }
+    // Any write on a resource needs view on it too, so every granted action is reachable.
+    for (const key of keys) {
+      const [action, resource] = key.split(":");
+      if (action !== "view" && !keys.some((k) => k.startsWith(`view:${resource}:`))) {
+        ctx.addIssue({ code: "custom", message: "validation.needsView" });
+        return;
+      }
+    }
   })
   .transform((keys) => [...new Set(keys)]);
 
