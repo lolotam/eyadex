@@ -236,8 +236,8 @@ describe("credentials inside URLs", () => {
 });
 
 describe("sanitize on the values a screen or a job hands over", () => {
-  it("an audit snapshot keeps the clinic fields and loses the medical ones", () => {
-    const snapshot = sanitize({
+  it("an audit snapshot keeps the clinic fields and the name, and loses the medical ones", () => {
+    const snapshot = redactSecrets({
       clinicId: "01920000-0000-7000-8000-00000000c001",
       branchId: "01920000-0000-7000-8000-00000000b001",
       status: "active",
@@ -249,5 +249,14 @@ describe("sanitize on the values a screen or a job hands over", () => {
       status: "active",
       patients: [{ fullName: "SYNTHETIC NAME", civilId: REDACTED, birthDate: REDACTED }],
     });
+  });
+
+  it("an operational log line loses the patient container whole", () => {
+    expect(
+      sanitize({
+        clinicId: "01920000-0000-7000-8000-00000000c001",
+        patients: [{ fullName: "SYNTHETIC NAME", civilId: "300000000000" }],
+      }),
+    ).toEqual({ clinicId: "01920000-0000-7000-8000-00000000c001", patients: REDACTED });
   });
 });

@@ -36,7 +36,7 @@ describe("a civil ID is replaced whole at any depth", () => {
 
   it("three levels deep and inside arrays", () => {
     const line = logLine({
-      patients: [
+      records: [
         { civilId: CIVIL },
         { profile: { identity: { civil_id: CIVIL } } },
         { links: [{ nationalId: CIVIL }] },
@@ -44,7 +44,7 @@ describe("a civil ID is replaced whole at any depth", () => {
     });
     expect(line).not.toContain(CIVIL);
     expect(JSON.parse(line)).toMatchObject({
-      patients: [
+      records: [
         { civilId: REDACTED },
         { profile: { identity: { civil_id: REDACTED } } },
         { links: [{ nationalId: REDACTED }] },
@@ -90,9 +90,9 @@ describe("what the medical rules deliberately over-redact", () => {
   });
 
   it("phone numbers keep PosPay's rule: last 3 digits only, never the whole number", () => {
-    const line = logLine({ patient: { phone: "+965 5001 2345" } });
+    const line = logLine({ contact: { phone: "+965 5001 2345" } });
     expect(line).not.toContain("50012345");
-    expect(JSON.parse(line)).toMatchObject({ patient: { phone: "***345" } });
+    expect(JSON.parse(line)).toMatchObject({ contact: { phone: "***345" } });
   });
 
   it("the clinic, branch and request ids a log line legitimately carries are kept", () => {
@@ -159,5 +159,36 @@ describe("a civil ID inside free text is replaced whole, whatever key holds it",
     "order 123456789012",
   ])("leaves %j alone", (text) => {
     expect(sanitize({ note: text })).toEqual({ note: text });
+  });
+});
+
+describe("patient identity never reaches operational logs", () => {
+  it("replaces a patient container whole, at any depth", () => {
+    const out = sanitize({
+      patient: { fullName: "مراجع تجريبي", gender: "male" },
+      ctx: { patients: [{ fullName: "x" }], patientRecord: { a: 1 } },
+    });
+    expect(out).toEqual({
+      patient: REDACTED,
+      ctx: { patients: REDACTED, patientRecord: REDACTED },
+    });
+  });
+
+  it.each([
+    "fullName",
+    "full_name",
+    "firstName",
+    "lastName",
+    "patientName",
+    "gender",
+    "address",
+    "nationality",
+  ])("replaces %s under any container", (key) => {
+    expect(sanitize({ row: { [key]: "value" } })).toEqual({ row: { [key]: REDACTED } });
+  });
+
+  it("keeps patient ids, which identify nobody and are what a trace needs", () => {
+    const ids = { patientId: "0190a1b2-c3d4-7e5f-8a6b-7c8d9e0f1a2b", patient_ids: ["a", "b"] };
+    expect(sanitize(ids)).toEqual(ids);
   });
 });

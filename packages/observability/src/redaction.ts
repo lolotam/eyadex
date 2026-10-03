@@ -101,6 +101,29 @@ const isSecretKey = (key: string): boolean =>
 const isPhoneKey = (key: string): boolean => endsWithAny(key, PHONE_SUFFIXES);
 const isEmailKey = (key: string): boolean =>
   endsWithAny(key, ["email", "emails", "emailaddress", "emailaddresses"]);
+// Operational logs are readable by the platform team, which never sees patient data (CLAUDE.md §8): a
+// patient container (patient, patients, patientRecord…) is replaced whole, and so are identity fields under
+// any container. A patient's id is kept (patientId, patient_ids): it identifies nobody and is what a
+// support trace needs. Audit snapshots (redactSecrets) keep their own allowlist policy and are unaffected.
+const PATIENT_IDENTITY_KEYS: ReadonlySet<string> = new Set([
+  "fullname",
+  "firstname",
+  "lastname",
+  "middlename",
+  "familyname",
+  "givenname",
+  "patientname",
+  "gender",
+  "sex",
+  "address",
+  "homeaddress",
+  "nationality",
+]);
+const isPatientKey = (key: string): boolean => {
+  const normalized = normalizeKey(key);
+  if (PATIENT_IDENTITY_KEYS.has(normalized)) return true;
+  return normalized.includes("patient") && !/ids?$/.test(normalized);
+};
 const isMedicalKey = (key: string): boolean => {
   const normalized = normalizeKey(key);
   return MEDICAL_KEY_PARTS.some((part) => normalized.includes(part));
@@ -182,8 +205,10 @@ const CIVIL_ID_IN_TEXT = /(?<![\w٠-٩۰-۹-])[23٢٣۲۳](?:[\s-]?[0-9٠-٩۰-�
 // word (sid=, pin:), so "pinned: true" or "spin=3" are left alone.
 const AUTH_SCHEME_VALUE = /\b(Bearer|Basic|Token)\s+[A-Za-z0-9._~+/=-]{8,}/gi;
 const JWT_IN_TEXT = /\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]*/g;
+// The value is a whole quoted string ("two words", 'two words') or, unquoted, everything up to the next
+// separator; the name may itself be quoted, as in JSON text ("password": "…").
 const CREDENTIAL_ASSIGNMENT =
-  /\b([\w.-]*?(?:token|secret|password|passwd|api[_-]?key|access[_-]?key|private[_-]?key|session[_-]?id|session|authorization|cookie|signature)|sid|pwd|pin|otp)(\s*[:=]\s*)("?)[^\s&",;]+\3/gi;
+  /\b([\w.-]*?(?:token|secret|password|passwd|api[_-]?key|access[_-]?key|private[_-]?key|session[_-]?id|session|authorization|cookie|signature)|sid|pwd|pin|otp)(["']?\s*[:=]\s*)(?:"[^"]*"|'[^']*'|[^\s&",;']+)/gi;
 
 function scrubCredentialsInText(text: string): string {
   return text
@@ -230,7 +255,8 @@ function scrub(value: unknown, maskPhones: boolean): unknown {
         isMedicalKey(key) ||
         isSecretKey(key) ||
         (normalizeKey(key) === "code" && typeof child === "string" && /^\d{6}$/.test(child)) ||
-        (maskPhones && (isEmailKey(key) || PRIVATE_PAYLOAD_KEYS.has(normalizeKey(key))))
+        (maskPhones &&
+          (isEmailKey(key) || isPatientKey(key) || PRIVATE_PAYLOAD_KEYS.has(normalizeKey(key))))
       )
         out[key] = REDACTED;
       else if (maskPhones && isPhoneKey(key))

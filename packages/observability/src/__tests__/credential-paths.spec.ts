@@ -146,6 +146,10 @@ describe("credentials written inside free text are redacted whatever key holds t
     ['x-api-key: "k3y-value-123"', `x-api-key: ${REDACTED}`],
     ["sid=s%3Aabc.def; Path=/", `sid=${REDACTED}; Path=/`],
     ["otp: 123456", `otp: ${REDACTED}`],
+    ['password: "two words here"', `password: ${REDACTED}`],
+    ["password='two words' next", `password=${REDACTED} next`],
+    ['{"password": "a b c", "user": "x"}', `{"password": ${REDACTED}, "user": "x"}`],
+    ["{'apiKey': 'k e y'}", `{'apiKey': ${REDACTED}}`],
   ])("%j", (text, redacted) => {
     expect(sanitize({ detail: text })).toEqual({ detail: redacted });
     expect(sanitize({ details: [text] })).toEqual({ details: [redacted] });
