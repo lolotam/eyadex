@@ -53,7 +53,7 @@ export function PatientFormDialog({ open, patient, onOpenChange }: Props) {
   const { persona } = usePersona();
   const { t, pick } = useI18n();
   const refresh = useRefreshPatients();
-  const branches = usePatientBranches();
+  const branches = usePatientBranches(patient ? "update" : "create");
   const [duplicate, setDuplicate] = useState<Duplicate | null>(null);
   const form = useForm<PatientInput>({
     resolver: zodResolver(patientInputSchema),

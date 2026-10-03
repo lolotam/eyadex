@@ -87,7 +87,7 @@ describe("patients mock", () => {
     const admin = as("clinic_admin");
     for (const call of [
       api.patients.list(admin, ALL),
-      api.patients.branchOptions(admin),
+      api.patients.branchOptions(admin, "view"),
       api.patients.open(admin, patient.id),
       api.patients.create(admin, input(branch.id)),
       api.patients.update(admin, patient.id, input(branch.id)),
@@ -194,5 +194,30 @@ describe("patients mock", () => {
     }
     expect(Object.keys(detail).filter((k) => /patient/i.test(k))).toEqual([]);
     expect(Object.keys(api.platform).filter((k) => /patient/i.test(k))).toEqual([]);
+  });
+  it("checks access before validating the request", async () => {
+    const bad = { ...ALL, limit: -1 };
+    getState().features[clinicId()] = { patients: false };
+    await expect(api.patients.list(as("doctor"), bad)).rejects.toMatchObject({
+      code: "module_disabled",
+    });
+    getState().features[clinicId()] = { patients: true };
+    await expect(
+      api.patients.create(as("doctor"), { ...input(branches()[0]!.id), phone: "x" }),
+    ).rejects.toMatchObject({ code: "forbidden" });
+  });
+
+  it("offers form branches from the create scope, not the view scope", async () => {
+    const db = getState();
+    const member = memberOf("receptionist");
+    const role = db.roles.find((r) => r.id === member.roleId);
+    if (!role) throw new Error("role");
+    role.permissions = ["view:patients:clinic", "create:patients:branch"];
+    const persona = as("receptionist");
+    const view = await api.patients.branchOptions(persona, "view");
+    const create = await api.patients.branchOptions(persona, "create");
+    expect(view.length).toBe(branches().length);
+    expect(create.map((b) => b.id).sort()).toEqual([...member.branchIds].sort());
+    expect(create.length).toBeLessThan(view.length);
   });
 });

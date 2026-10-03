@@ -33,6 +33,7 @@ import type {
 } from "@contracts/users";
 import type { PermissionDefinition } from "@contracts/permissions";
 import type {
+  PatientBranchAction,
   PatientBranchOption,
   PatientDetail,
   PatientInput,
@@ -119,8 +120,8 @@ export interface ApiClient {
   /** Every call is rejected with module_disabled while the clinic's patients module is off. */
   patients: {
     list(persona: Persona, query: PatientListQuery): Promise<Page<PatientListItem>>;
-    /** Branches inside the caller's view scope. */
-    branchOptions(persona: Persona): Promise<PatientBranchOption[]>;
+    /** Branches inside the caller's scope for that action (view filters, create/update form). */
+    branchOptions(persona: Persona, action: PatientBranchAction): Promise<PatientBranchOption[]>;
     /** Opening a file is audited as patient access. */
     open(persona: Persona, patientId: string): Promise<PatientDetail>;
     create(persona: Persona, input: PatientInput): Promise<PatientDetail>;

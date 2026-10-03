@@ -1,5 +1,6 @@
 import {
   normalizeKuwaitPhone,
+  patientBranchActionSchema,
   patientInputSchema,
   patientListQuerySchema,
   type Patient,
@@ -74,11 +75,11 @@ export function createMockPatients(): ApiClient["patients"] {
   return {
     async list(persona, rawQuery) {
       await delay();
+      const db = getState();
+      const access = authorizePatients(db, persona, "view");
       const parsed = patientListQuerySchema.safeParse(rawQuery);
       if (!parsed.success) throw new ApiError("validation");
       const query = parsed.data;
-      const db = getState();
-      const access = authorizePatients(db, persona, "view");
       const filtered = db.patients
         .filter((p) => p.clinicId === access.clinic.id && inScope(access, p.registrationBranchId))
         .filter((p) => !query.branchId || p.registrationBranchId === query.branchId)
@@ -95,10 +96,12 @@ export function createMockPatients(): ApiClient["patients"] {
       };
     },
 
-    async branchOptions(persona) {
+    async branchOptions(persona, rawAction) {
       await delay();
       const db = getState();
-      const access = authorizePatients(db, persona, "view");
+      const action = patientBranchActionSchema.safeParse(rawAction);
+      if (!action.success) throw new ApiError("validation");
+      const access = authorizePatients(db, persona, action.data);
       return db.branches
         .filter((b) => b.clinicId === access.clinic.id && inScope(access, b.id))
         .map((b) => ({ id: b.id, nameAr: b.nameAr, nameEn: b.nameEn, isActive: b.isActive }));
@@ -124,9 +127,9 @@ export function createMockPatients(): ApiClient["patients"] {
 
     async create(persona, rawInput) {
       await delay();
-      const input = parseInput(rawInput);
       const db = getState();
       const access = authorizePatients(db, persona, "create");
+      const input = parseInput(rawInput);
       enforceRegistrationBranch(db, access, input.registrationBranchId);
       enforcePhoneFree(db, persona, access.clinic.id, input.phone, null);
       const fileNumber = (db.patientCounters[access.clinic.id] ?? 0) + 1;
@@ -152,9 +155,9 @@ export function createMockPatients(): ApiClient["patients"] {
 
     async update(persona, patientId, rawInput) {
       await delay();
-      const input = parseInput(rawInput);
       const db = getState();
       const access = authorizePatients(db, persona, "update");
+      const input = parseInput(rawInput);
       const patient = findPatientInScope(db, access, patientId);
       if (input.registrationBranchId !== patient.registrationBranchId)
         enforceRegistrationBranch(db, access, input.registrationBranchId);

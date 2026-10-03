@@ -92,6 +92,10 @@ export const patientDetailSchema = patientSchema.omit({ clinicId: true }).extend
 });
 export type PatientDetail = z.infer<typeof patientDetailSchema>;
 
+/** The patients action whose scope decides which branches are offered. */
+export const patientBranchActionSchema = z.enum(["view", "create", "update"]);
+export type PatientBranchAction = z.infer<typeof patientBranchActionSchema>;
+
 /** Branches the caller may file patients under (or filter by), within their scope. */
 export const patientBranchOptionSchema = z.object({
   id: idSchema,

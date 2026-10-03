@@ -31,7 +31,7 @@ export function PatientsContent() {
   const [formOpen, setFormOpen] = useState(false);
   const [statusTarget, setStatusTarget] = useState<PatientListItem | null>(null);
   const list = usePatientList({ cursor: pages.cursor, limit: PAGE_SIZE, q, branchId, status });
-  const branches = usePatientBranches();
+  const branches = usePatientBranches("view");
   const permissions = session?.permissions ?? [];
   const mayCreate = can(permissions, "create", "patients");
   const mayArchive = can(permissions, "deactivate", "patients");
