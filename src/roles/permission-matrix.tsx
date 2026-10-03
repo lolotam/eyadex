@@ -46,7 +46,7 @@ export function PermissionMatrix({ catalog, value, onChange, readOnly }: Props) 
           <table className="w-full min-w-[480px] text-sm">
             <thead>
               <tr className="border-b text-muted-foreground">
-                <th className="px-3 py-2 text-start font-medium">{t("roles.columns.name")}</th>
+                <th className="px-3 py-2 text-start font-medium">{t("roles.columns.resource")}</th>
                 {actionSchema.options.map((action) => (
                   <th key={action} className="px-2 py-2 text-center font-medium">
                     {t(`roles.actions.${action}`)}

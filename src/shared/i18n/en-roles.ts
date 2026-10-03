@@ -6,6 +6,7 @@ export const enRoles = {
     new: "New role",
     columns: {
       name: "Role",
+      resource: "Area",
       members: "Members",
       permissions: "Permissions",
       status: "Status",

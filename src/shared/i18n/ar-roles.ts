@@ -6,6 +6,7 @@ export const arRoles = {
     new: "دور جديد",
     columns: {
       name: "الدور",
+      resource: "القسم",
       members: "المستخدمون",
       permissions: "الصلاحيات",
       status: "الحالة",
