@@ -1,4 +1,5 @@
 import { enRoles } from "./en-roles";
+import { enPatients } from "./en-patients";
 import { enUsers } from "./en-users";
 
 export const en = {
@@ -227,6 +228,7 @@ export const en = {
   },
   ...enUsers,
   ...enRoles,
+  ...enPatients,
   validation: {
     required: "Required",
     tooShort: "Too short",
@@ -239,8 +241,12 @@ export const en = {
     dateRequired: "Pick a date",
     unknownPermission: "This permission is not in the catalog",
     oneScope: "Pick one scope per action",
+    phoneKw: "Enter 8 digits, or +965 followed by 8 digits",
+    birthDate: "Enter a valid date that is not in the future",
+    civilId: "Civil ID must be exactly 12 digits",
   },
   errors: {
+    patient_phone_taken: "This phone already belongs to another patient in this clinic",
     email_taken: "This email already belongs to a user or a pending invitation",
     last_active_admin:
       "The clinic's last active admin cannot be deactivated or moved to another role",

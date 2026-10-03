@@ -70,8 +70,34 @@ const STAFF = [
 /** Index into STAFF of the seeded deactivated account. */
 const DEACTIVATED_STAFF = 5;
 
-const FIRST = ["أحمد", "فاطمة", "محمد", "سارة", "عبدالله", "نورة", "علي", "مريم", "حمد", "دانة"];
-const LAST = ["العنزي", "المطيري", "الرشيدي", "الكندري", "العجمي"];
+/** Fictional names, Arabic and English, alternating male / female to match the seeded gender. */
+const PATIENT_NAMES = [
+  "أحمد العنزي",
+  "فاطمة المطيري",
+  "Omar Haddad",
+  "Sarah Al-Kandari",
+  "عبدالله الرشيدي",
+  "نورة العجمي",
+  "Ali Hassan",
+  "Mariam Youssef",
+  "حمد الشمري",
+  "دانة الكندري",
+  "Faisal Al-Otaibi",
+  "Reem Al-Salem",
+  "يوسف الهاجري",
+  "شيخة الدوسري",
+  "Bader Al-Mutawa",
+  "Lulwa Al-Ghanim",
+  "خالد البناي",
+  "هيا العتيبي",
+  "Nasser Al-Fadhli",
+  "Aisha Rahman",
+  "سعود الظفيري",
+  "منيرة الصباح",
+  "Tariq Mansour",
+  "Hessa Al-Qattan",
+  "جاسم الخالدي",
+];
 
 export function buildSeed(): MockState {
   const makeId = idFactory();
@@ -85,6 +111,7 @@ export function buildSeed(): MockState {
     invitations: [],
     inviteOutbox: {},
     patients: [],
+    patientCounters: {},
     platformAudit: [],
     clinicAudit: [],
   };
@@ -187,26 +214,28 @@ export function buildSeed(): MockState {
       );
     }
 
-    for (let pi = 0; pi < 20; pi += 1) {
-      const first = FIRST[pi % FIRST.length] ?? "أحمد";
-      const last = LAST[(pi + ci) % LAST.length] ?? "العنزي";
+    const patientCount = ci === 0 ? 25 : 6;
+    for (let pi = 0; pi < patientCount; pi += 1) {
+      const name = PATIENT_NAMES[(pi + ci * 8) % PATIENT_NAMES.length] ?? "أحمد العنزي";
       const branch = branches[pi % 2];
       if (!branch) continue;
       const patient: Patient = {
         id: makeId(),
         clinicId,
-        fileNumber: String(1001 + pi),
-        fullName: `${first} ${last}`,
-        phone: `+965 ${String(5000_0000 + ci * 1_000_000 + pi * 137).slice(0, 8)}`,
+        fileNumber: pi + 1,
+        fullName: name,
+        // Fake numbers in the +9655xxxxxxx range; never real ones.
+        phone: `+9655${String(1000000 + ci * 100000 + pi * 3517).slice(-7)}`,
         birthDate: `${1970 + ((pi * 3) % 40)}-${String((pi % 12) + 1).padStart(2, "0")}-15`,
         gender: pi % 2 === 0 ? "male" : "female",
         registrationBranchId: branch.id,
-        civilId: pi % 3 === 0 ? null : `2${String(90000000000 + pi * 7919 + ci).slice(0, 11)}`,
-        status: pi === 19 ? "archived" : "active",
+        civilId: pi % 3 === 0 ? null : String(280000000000 + pi * 7919 + ci),
+        status: pi === 7 || pi === patientCount - 1 ? "archived" : "active",
         createdAt,
       };
       state.patients.push(patient);
     }
+    state.patientCounters[clinicId] = patientCount;
 
     state.platformAudit.push({
       id: makeId(),
