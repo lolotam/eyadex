@@ -27,8 +27,8 @@ CREATE INDEX invitations_clinic_email_idx ON invitations (clinic_id, lower(email
 ALTER TABLE invitations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE invitations FORCE ROW LEVEL SECURITY;
 CREATE POLICY invitations_tenant_isolation ON invitations
-  USING (clinic_id = current_setting('app.clinic_id')::uuid)
-  WITH CHECK (clinic_id = current_setting('app.clinic_id')::uuid);
+  USING (clinic_id = NULLIF(current_setting('app.clinic_id', true), '')::uuid)
+  WITH CHECK (clinic_id = NULLIF(current_setting('app.clinic_id', true), '')::uuid);
 
 -- Branches offered by an invitation when all_branches = false (copied to membership_branches on accept).
 CREATE TABLE invitation_branches (
@@ -46,5 +46,5 @@ CREATE INDEX invitation_branches_clinic_branch_idx ON invitation_branches (clini
 ALTER TABLE invitation_branches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE invitation_branches FORCE ROW LEVEL SECURITY;
 CREATE POLICY invitation_branches_tenant_isolation ON invitation_branches
-  USING (clinic_id = current_setting('app.clinic_id')::uuid)
-  WITH CHECK (clinic_id = current_setting('app.clinic_id')::uuid);
+  USING (clinic_id = NULLIF(current_setting('app.clinic_id', true), '')::uuid)
+  WITH CHECK (clinic_id = NULLIF(current_setting('app.clinic_id', true), '')::uuid);

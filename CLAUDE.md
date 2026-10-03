@@ -107,7 +107,7 @@ Banned folder names anywhere: `utils/` · `helpers/` · `common/` · `misc/` · 
 
 - Every clinic-owned table has `clinic_id uuid NOT NULL`, primary key **`(clinic_id, id)`**,
   RLS **ENABLED and FORCED**, and the policy
-  `clinic_id = current_setting('app.clinic_id')::uuid` for USING and WITH CHECK.
+  `clinic_id = NULLIF(current_setting('app.clinic_id', true), '')::uuid` for USING and WITH CHECK (no clinic context = zero rows, never an error).
   The tenant root `clinics` is the only exemption (its `id` is the tenant key).
 - **New table ⇒ new policy + negative isolation test, in the same PR.**
 - Indexes start with `clinic_id`; index every RLS predicate and FK.

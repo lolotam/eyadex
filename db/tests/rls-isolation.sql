@@ -96,6 +96,8 @@ END $$;
 RESET ROLE;
 
 -- PLAT-01: the platform role sees every clinic, never patients or patient-access audit rows.
+-- The view must cross clinics without relying on a clinic context or a superuser owner.
+RESET app.clinic_id;
 SET LOCAL ROLE eyadex_platform;
 DO $$
 DECLARE n bigint;

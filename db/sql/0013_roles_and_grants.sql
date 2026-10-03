@@ -13,7 +13,7 @@ GRANT USAGE ON SCHEMA public TO eyadex_app, eyadex_auth, eyadex_platform, eyadex
 ALTER TABLE clinics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE clinics FORCE ROW LEVEL SECURITY;
 CREATE POLICY clinics_own_clinic ON clinics FOR SELECT TO eyadex_app
-  USING (id = current_setting('app.clinic_id')::uuid);
+  USING (id = NULLIF(current_setting('app.clinic_id', true), '')::uuid);
 CREATE POLICY clinics_platform_all ON clinics TO eyadex_platform
   USING (true) WITH CHECK (true);
 
@@ -39,12 +39,26 @@ REVOKE ALL ON patients FROM eyadex_platform;
 REVOKE ALL ON audit_log FROM eyadex_platform;
 
 -- The platform reads clinics' administrative events only, through this view.
--- It runs with the owner's rights (crossing clinics on purpose) and filters out
--- every patient-access event, so patient activity is unreachable from the platform role.
+-- The view crosses clinics on purpose, so it must not depend on its owner being a superuser:
+-- it is owned by a NOLOGIN role whose ONLY access to audit_log is a policy that returns
+-- administrative, non-patient rows. Nobody can log in as that role.
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'eyadex_audit_view_owner') THEN
+    CREATE ROLE eyadex_audit_view_owner NOLOGIN NOBYPASSRLS;
+  END IF;
+END $$;
+GRANT USAGE ON SCHEMA public TO eyadex_audit_view_owner;
+GRANT SELECT ON audit_log TO eyadex_audit_view_owner;
+-- Tenant isolation applies to the clinic runtime role; the view owner has its own policy.
+ALTER POLICY audit_log_tenant_isolation ON audit_log TO eyadex_app;
+CREATE POLICY audit_log_platform_admin_rows ON audit_log FOR SELECT TO eyadex_audit_view_owner
+  USING (category = 'administrative' AND entity_type <> 'patient');
+
 CREATE VIEW platform_clinic_admin_audit WITH (security_barrier = true) AS
   SELECT clinic_id, id, actor_user_id, action, entity_type, entity_id, branch_id, details, created_at
   FROM audit_log
   WHERE category = 'administrative' AND entity_type <> 'patient';
+ALTER VIEW platform_clinic_admin_audit OWNER TO eyadex_audit_view_owner;
 GRANT SELECT ON platform_clinic_admin_audit TO eyadex_platform;
 
 -- eyadex_auth (Better Auth identity tables) and eyadex_dispatcher (outbox) get their

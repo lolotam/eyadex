@@ -17,5 +17,5 @@ CREATE INDEX branches_clinic_active_idx ON branches (clinic_id, is_active);
 ALTER TABLE branches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE branches FORCE ROW LEVEL SECURITY;
 CREATE POLICY branches_tenant_isolation ON branches
-  USING (clinic_id = current_setting('app.clinic_id')::uuid)
-  WITH CHECK (clinic_id = current_setting('app.clinic_id')::uuid);
+  USING (clinic_id = NULLIF(current_setting('app.clinic_id', true), '')::uuid)
+  WITH CHECK (clinic_id = NULLIF(current_setting('app.clinic_id', true), '')::uuid);

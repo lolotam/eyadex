@@ -18,5 +18,5 @@ CREATE INDEX membership_branches_clinic_branch_idx ON membership_branches (clini
 ALTER TABLE membership_branches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE membership_branches FORCE ROW LEVEL SECURITY;
 CREATE POLICY membership_branches_tenant_isolation ON membership_branches
-  USING (clinic_id = current_setting('app.clinic_id')::uuid)
-  WITH CHECK (clinic_id = current_setting('app.clinic_id')::uuid);
+  USING (clinic_id = NULLIF(current_setting('app.clinic_id', true), '')::uuid)
+  WITH CHECK (clinic_id = NULLIF(current_setting('app.clinic_id', true), '')::uuid);

@@ -15,5 +15,5 @@ CREATE TABLE clinic_features (
 ALTER TABLE clinic_features ENABLE ROW LEVEL SECURITY;
 ALTER TABLE clinic_features FORCE ROW LEVEL SECURITY;
 CREATE POLICY clinic_features_tenant_isolation ON clinic_features
-  USING (clinic_id = current_setting('app.clinic_id')::uuid)
-  WITH CHECK (clinic_id = current_setting('app.clinic_id')::uuid);
+  USING (clinic_id = NULLIF(current_setting('app.clinic_id', true), '')::uuid)
+  WITH CHECK (clinic_id = NULLIF(current_setting('app.clinic_id', true), '')::uuid);

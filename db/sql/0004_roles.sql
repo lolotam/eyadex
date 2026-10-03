@@ -19,5 +19,5 @@ CREATE TABLE roles (
 ALTER TABLE roles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE roles FORCE ROW LEVEL SECURITY;
 CREATE POLICY roles_tenant_isolation ON roles
-  USING (clinic_id = current_setting('app.clinic_id')::uuid)
-  WITH CHECK (clinic_id = current_setting('app.clinic_id')::uuid);
+  USING (clinic_id = NULLIF(current_setting('app.clinic_id', true), '')::uuid)
+  WITH CHECK (clinic_id = NULLIF(current_setting('app.clinic_id', true), '')::uuid);

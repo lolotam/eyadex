@@ -27,5 +27,5 @@ CREATE INDEX patients_clinic_civil_id_idx ON patients (clinic_id, civil_id);
 ALTER TABLE patients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE patients FORCE ROW LEVEL SECURITY;
 CREATE POLICY patients_tenant_isolation ON patients
-  USING (clinic_id = current_setting('app.clinic_id')::uuid)
-  WITH CHECK (clinic_id = current_setting('app.clinic_id')::uuid);
+  USING (clinic_id = NULLIF(current_setting('app.clinic_id', true), '')::uuid)
+  WITH CHECK (clinic_id = NULLIF(current_setting('app.clinic_id', true), '')::uuid);
