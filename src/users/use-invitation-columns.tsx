@@ -5,7 +5,7 @@ import type { Invitation } from "@contracts/invitations";
 import type { BranchOption } from "@contracts/users";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { BranchChips } from "./branch-chips";
-import { InvitationStatusBadge } from "./invitation-status-badge";
+import { InvitationStatusBadge } from "@/shared/status/invitation-status-badge";
 import { RowActionsMenu, type RowAction } from "./row-actions-menu";
 
 type Handlers = {

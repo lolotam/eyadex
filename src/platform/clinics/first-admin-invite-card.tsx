@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { errorCodeOf } from "@/shared/api/api-error";
 import { useApi } from "@/shared/api/api-provider";
 import { useI18n } from "@/shared/i18n/i18n-provider";
-import { InvitationStatusBadge } from "@/users/invitation-status-badge";
+import { InvitationStatusBadge } from "@/shared/status/invitation-status-badge";
 import { clinicKeys } from "./clinic-queries";
 import { FirstAdminLinkPanel } from "./first-admin-link-panel";
 
