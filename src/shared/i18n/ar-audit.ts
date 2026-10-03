@@ -35,6 +35,8 @@ export const arAudit = {
       invitation: "دعوة",
       role: "دور",
       patient: "مراجع",
+      platform_account: "حساب منصة",
+      platform_settings: "إعدادات المنصة",
     },
     actions: {
       branch: {
@@ -49,6 +51,7 @@ export const arAudit = {
         branches_changed: "تغيير فروع مستخدم",
         deactivated: "تعطيل مستخدم",
         reactivated: "إعادة تفعيل مستخدم",
+        profile_updated: "تحديث الملف الشخصي",
       },
       invitation: {
         sent: "إرسال دعوة",
@@ -74,6 +77,15 @@ export const arAudit = {
         details_updated: "تعديل بيانات العيادة",
         subscription_updated: "تعديل الاشتراك",
         feature_toggled: "تشغيل أو إيقاف قسم",
+        settings_updated: "تحديث إعدادات العيادة",
+      },
+      platform_account: {
+        invited: "دعوة عضو منصة",
+        deactivated: "تعطيل عضو منصة",
+        reactivated: "إعادة تفعيل عضو منصة",
+      },
+      platform: {
+        settings_updated: "تحديث إعدادات المنصة",
       },
     },
     fields: {
@@ -107,6 +119,9 @@ export const arAudit = {
       isOwner: "مالك العيادة",
       isLocked: "مقفول",
       systemKey: "دور النظام",
+      defaultTrialDays: "أيام التجربة الافتراضية",
+      alertDaysBeforeExpiry: "أيام التنبيه قبل الانتهاء",
+      emailSenderName: "اسم مرسل البريد",
     },
     values: {
       trial: "تجريبي",
