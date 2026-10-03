@@ -4,7 +4,7 @@
 
 -- Created only when an invitation is accepted; invited people live in invitations until then.
 -- One email = one membership across ALL clinics: enforced by the global email registry in
--- 0015 (reserve_email / release_invitation_email), because a per-clinic UNIQUE cannot see other clinics.
+-- 0015 (reserve_invitation_email, convert_invitation_email_to_membership, reserve_platform_email), because a per-clinic UNIQUE cannot see other clinics.
 -- A membership links an external user (user_id, owned by the identity system) to one clinic with ONE role.
 CREATE TABLE memberships (
   clinic_id          uuid NOT NULL REFERENCES clinics (id),
