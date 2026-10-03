@@ -203,7 +203,10 @@ const CIVIL_ID_IN_TEXT = /(?<![\w٠-٩۰-۹-])[23٢٣۲۳](?:[\s-]?[0-9٠-٩۰-�
 // Authorization scheme's value, any JWT, and `name=value` / `name: value` pairs whose name is a credential.
 // The long credential words match as a suffix (accessToken=, x-api-key:), the short ones only as a whole
 // word (sid=, pin:), so "pinned: true" or "spin=3" are left alone.
-const AUTH_SCHEME_VALUE = /\b(Bearer|Basic|Token)\s+[A-Za-z0-9._~+/=-]{8,}/gi;
+// Any length: "Basic dTpw" (u:p) is a credential too. Scheme names are matched as written in headers
+// (Bearer, bearer, Basic, Digest, Token), case-sensitively, so prose like "basic setup" or "the token expired"
+// is not taken for one.
+const AUTH_SCHEME_VALUE = /\b([Bb]earer|Basic|Digest|Token)\s+[A-Za-z0-9._~+/=-]+/g;
 const JWT_IN_TEXT = /\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]*/g;
 // The value is a whole quoted string ("two words", 'two words') or, unquoted, everything up to the next
 // separator; the name may itself be quoted, as in JSON text ("password": "…").

@@ -139,6 +139,9 @@ describe("credentials written inside free text are redacted whatever key holds t
   it.each([
     ["Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.c2lnbmF0dXJl", `Bearer ${REDACTED}`],
     ["auth failed: Basic dXNlcjpwYXNzd29yZA==", `auth failed: Basic ${REDACTED}`],
+    ["short Basic dTpw end", `short Basic ${REDACTED} end`],
+    ["short Bearer abc123 end", `short Bearer ${REDACTED} end`],
+    ["lower bearer x9 end", `lower bearer ${REDACTED} end`],
     ["got eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.c2lnbmF0dXJl back", `got ${REDACTED} back`],
     ["retry with token=abc123def456", `retry with token=${REDACTED}`],
     ["accessToken=abc123def456&x=1", `accessToken=${REDACTED}&x=1`],
@@ -155,10 +158,14 @@ describe("credentials written inside free text are redacted whatever key holds t
     expect(sanitize({ details: [text] })).toEqual({ details: [redacted] });
   });
 
-  it.each(["pinned: true", "spin=3", "sessionCount=5", "the token expired", "Bearer"])(
-    "leaves %j alone",
-    (text) => {
-      expect(sanitize({ detail: text })).toEqual({ detail: text });
-    },
-  );
+  it.each([
+    "pinned: true",
+    "spin=3",
+    "sessionCount=5",
+    "the token expired",
+    "Bearer",
+    "a basic setup",
+  ])("leaves %j alone", (text) => {
+    expect(sanitize({ detail: text })).toEqual({ detail: text });
+  });
 });
