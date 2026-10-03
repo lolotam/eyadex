@@ -9,7 +9,8 @@ import type { ApiClient } from "../api-client";
 import { ApiError } from "../api-error";
 import { delay, getState, newId, persist, type MockState } from "./mock-store";
 import { buildSystemRoles } from "./seed-roles";
-import { INVITATION_TTL_DAYS } from "@contracts/invitations";
+import { INVITATION_TTL_DAYS, type InvitationRecord } from "@contracts/invitations";
+import { issueInviteToken } from "./mock-invite-tokens";
 import { enforceEmailFree, toUserView, userUsage } from "./mock-user-rules";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -114,7 +115,7 @@ export function createMockPlatform(): ApiClient["platform"] {
       db.roles.push(...roles);
       const adminRole = roles.find((r) => r.systemKey === "clinic_admin");
       if (adminRole) {
-        db.invitations.push({
+        const invitation: InvitationRecord = {
           id: newId(),
           clinicId: clinic.id,
           email: input.adminEmail.trim().toLowerCase(),
@@ -127,7 +128,10 @@ export function createMockPlatform(): ApiClient["platform"] {
           createdAt: now.toISOString(),
           invitedBy: ACTOR,
           respondedAt: null,
-        });
+          tokenHash: "",
+        };
+        db.invitations.push(invitation);
+        issueInviteToken(db, invitation);
       }
       audit(
         db,

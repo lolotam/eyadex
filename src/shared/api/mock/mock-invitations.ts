@@ -10,6 +10,11 @@ import type { ApiClient } from "../api-client";
 import { ApiError } from "../api-error";
 import { authorize, clinicBlockReason } from "./mock-actor";
 import { writeClinicAudit } from "./mock-audit";
+import {
+  findInvitationByToken,
+  invitationAuditSnapshot,
+  issueInviteToken,
+} from "./mock-invite-tokens";
 import { delay, getState, newId, persist, type MockState } from "./mock-store";
 import {
   enforceAssignableBranches,
@@ -30,7 +35,7 @@ function findInvitation(db: MockState, clinicId: string, id: string): Invitation
 
 /** INV-01: only a pending, unexpired invitation can be used. */
 function usableInvitation(db: MockState, token: string): InvitationRecord {
-  const inv = db.invitations.find((i) => i.id === token);
+  const inv = findInvitationByToken(db, token);
   if (!inv) throw new ApiError("not_found");
   const status = computeInvitationStatus(inv);
   if (status === "expired") throw new ApiError("invitation_expired");
@@ -88,15 +93,17 @@ export function createMockInvitations(): ApiClient["invitations"] {
         createdAt: new Date(now).toISOString(),
         invitedBy: actorName,
         respondedAt: null,
+        tokenHash: "",
       };
       db.invitations.push(record);
+      issueInviteToken(db, record);
       writeClinicAudit(db, {
         clinicId: clinic.id,
         actorName,
         action: "invitation.sent",
         entity: "invitation",
         before: null,
-        after: record,
+        after: invitationAuditSnapshot(record),
       });
       persist();
       return toInvitationView(db, record);
@@ -110,20 +117,25 @@ export function createMockInvitations(): ApiClient["invitations"] {
       const status = computeInvitationStatus(inv);
       if (status === "cancelled") throw new ApiError("invitation_cancelled");
       if (status === "accepted") throw new ApiError("invitation_used");
+      // The role or branches may have been deactivated since sending: re-check before renewing.
+      enforceAssignableRole(db, clinic.id, inv.roleId);
+      enforceAssignableBranches(db, clinic.id, inv);
       if (status === "expired") {
         // An expired invitation stops counting; renewing it must fit the limit and the email rule again.
         enforceEmailFree(db, inv.email, inv.id);
         enforceUserLimit(db, clinic.id);
       }
-      const before = { ...inv };
+      const before = invitationAuditSnapshot(inv);
       inv.expiresAt = new Date(Date.now() + INVITATION_TTL_DAYS * DAY).toISOString();
+      // A resend issues a new link; the previous one stops working.
+      issueInviteToken(db, inv);
       writeClinicAudit(db, {
         clinicId: clinic.id,
         actorName,
         action: "invitation.resent",
         entity: "invitation",
         before,
-        after: inv,
+        after: invitationAuditSnapshot(inv),
       });
       persist();
       return toInvitationView(db, inv);
@@ -137,7 +149,7 @@ export function createMockInvitations(): ApiClient["invitations"] {
       const status = computeInvitationStatus(inv);
       if (status === "accepted") throw new ApiError("invitation_used");
       if (status === "cancelled") return toInvitationView(db, inv);
-      const before = { ...inv };
+      const before = invitationAuditSnapshot(inv);
       inv.status = "cancelled";
       inv.respondedAt = new Date().toISOString();
       writeClinicAudit(db, {
@@ -146,7 +158,7 @@ export function createMockInvitations(): ApiClient["invitations"] {
         action: "invitation.cancelled",
         entity: "invitation",
         before,
-        after: inv,
+        after: invitationAuditSnapshot(inv),
       });
       persist();
       return toInvitationView(db, inv);
@@ -155,7 +167,7 @@ export function createMockInvitations(): ApiClient["invitations"] {
     async preview(token) {
       await delay(80);
       const db = getState();
-      const inv = db.invitations.find((i) => i.id === token);
+      const inv = findInvitationByToken(db, token);
       if (!inv) throw new ApiError("not_found");
       const clinic = db.clinics.find((c) => c.id === inv.clinicId);
       const role = db.roles.find((r) => r.id === inv.roleId);
@@ -186,7 +198,7 @@ export function createMockInvitations(): ApiClient["invitations"] {
       enforceAssignableRole(db, inv.clinicId, inv.roleId);
       enforceAssignableBranches(db, inv.clinicId, inv);
       const now = new Date().toISOString();
-      const before = { ...inv };
+      const before = invitationAuditSnapshot(inv);
       inv.status = "accepted";
       inv.respondedAt = now;
       const member: MembershipUser = {
@@ -210,7 +222,7 @@ export function createMockInvitations(): ApiClient["invitations"] {
         action: "invitation.accepted",
         entity: "invitation",
         before,
-        after: inv,
+        after: invitationAuditSnapshot(inv),
       });
       writeClinicAudit(db, {
         ...base,
@@ -219,6 +231,7 @@ export function createMockInvitations(): ApiClient["invitations"] {
         before: null,
         after: member,
       });
+      delete db.inviteOutbox[inv.id];
       persist();
       const roleKey = db.roles.find((r) => r.id === inv.roleId)?.systemKey ?? null;
       return { clinicId: inv.clinicId, memberId: member.id, roleKey };

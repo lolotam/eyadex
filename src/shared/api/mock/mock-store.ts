@@ -13,12 +13,14 @@ export type MockState = {
   roles: Role[];
   members: MembershipUser[];
   invitations: InvitationRecord[];
+  /** Mock stand-in for the invitation email: invitation id -> latest plain link token. */
+  inviteOutbox: Record<string, string>;
   patients: Patient[];
   platformAudit: PlatformAuditEntry[];
   clinicAudit: ClinicAuditEntry[];
 };
 
-const STORAGE_KEY = "eyadex:mock-db:v3";
+const STORAGE_KEY = "eyadex:mock-db:v4";
 
 let state: MockState | null = null;
 

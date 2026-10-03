@@ -37,6 +37,8 @@ export const ar: Dictionary = {
     doctor: "طبيب",
     receptionist: "موظف استقبال",
     technician: "فني",
+    custom: "دور مخصص",
+    noCustomAccounts: "لا توجد حسابات بدور مخصص في هذه العيادة بعد.",
     demoNote: "دخول تجريبي بدون كلمات مرور.",
     account: "الحساب",
     deactivatedTag: "معطّل",
@@ -265,6 +267,8 @@ export const ar: Dictionary = {
     resent: "أُعيد إرسال الدعوة بصلاحية جديدة لمدة 7 أيام",
     cancelled: "تم إلغاء الدعوة",
     linkCopied: "تم نسخ رابط الدعوة",
+    resendInvalid:
+      "الدور أو أحد الفروع في هذه الدعوة لم يعد نشطًا. ألغِ الدعوة وأرسل دعوة جديدة بدور وفروع صالحة.",
     roleChanged: "تم تغيير الدور",
     branchesChanged: "تم تحديث الفروع",
     deactivated: "تم تعطيل المستخدم",

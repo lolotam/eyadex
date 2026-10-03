@@ -101,7 +101,9 @@ describe("users and invitations mock", () => {
       (i) => i.clinicId === clinic.id && new Date(i.expiresAt).getTime() < Date.now(),
     );
     if (!expired) throw new Error("no expired");
-    await expect(api.invitations.accept(expired.id, password)).rejects.toMatchObject({
+    await expect(
+      api.invitations.accept(getState().inviteOutbox[expired.id] ?? "", password),
+    ).rejects.toMatchObject({
       code: "invitation_expired",
     });
     const sent = await invite(clinic.id, "joiner@example.com");
@@ -164,5 +166,78 @@ describe("users and invitations mock", () => {
       code: "branch_inactive",
     });
     expect(getState().invitations.find((i) => i.id === sent.id)?.status).toBe("pending");
+  });
+
+  it("keeps link tokens and their hashes out of every audit entry", async () => {
+    const clinic = clinicBySlug("serenity");
+    const sent = await invite(clinic.id, "audit-token@example.com");
+    const first = sent.token;
+    const resent = await api.invitations.resend(admin(clinic.id), sent.id);
+    expect(resent.token).not.toBe(first);
+    await expect(api.invitations.preview(first)).rejects.toMatchObject({ code: "not_found" });
+    await api.invitations.accept(resent.token, password);
+    const audit = JSON.stringify(getState().clinicAudit);
+    const hashes = getState().invitations.map((i) => i.tokenHash);
+    for (const secret of [
+      first,
+      resent.token,
+      ...Object.values(getState().inviteOutbox),
+      ...hashes,
+    ])
+      expect(audit.includes(secret)).toBe(false);
+    expect(audit.includes("tokenHash")).toBe(false);
+  });
+
+  it("refuses to resend an invitation whose role or branch is no longer active", async () => {
+    const clinic = clinicBySlug("serenity");
+    const branch = getState().branches.find((b) => b.clinicId === clinic.id && b.isActive);
+    if (!branch) throw new Error("no branch");
+    const sent = await api.invitations.invite(admin(clinic.id), {
+      fullName: "Resend Person",
+      email: "resend@example.com",
+      roleId: roleId(clinic.id, "doctor"),
+      allBranches: false,
+      branchIds: [branch.id],
+    });
+    branch.isActive = false;
+    await expect(api.invitations.resend(admin(clinic.id), sent.id)).rejects.toMatchObject({
+      code: "branch_inactive",
+    });
+    branch.isActive = true;
+    const role = getState().roles.find((r) => r.id === sent.roleId);
+    if (!role) throw new Error("no role");
+    role.isActive = false;
+    await expect(api.invitations.resend(admin(clinic.id), sent.id)).rejects.toMatchObject({
+      code: "role_inactive",
+    });
+    expect(getState().inviteOutbox[sent.id]).toBe(sent.token);
+  });
+
+  it("lists custom-role accounts for sign-in and lets them sign in", async () => {
+    const clinic = clinicBySlug("serenity");
+    const base = getState().roles.find((r) => r.id === roleId(clinic.id, "doctor"));
+    if (!base) throw new Error("no role");
+    const custom = {
+      ...base,
+      id: crypto.randomUUID(),
+      systemKey: null,
+      nameAr: "مشرف",
+      nameEn: "Supervisor",
+    };
+    getState().roles.push(custom as typeof base);
+    const member = getState().members.find(
+      (m) => m.clinicId === clinic.id && m.status === "active",
+    );
+    if (!member) throw new Error("no member");
+    member.roleId = custom.id;
+    const accounts = await api.session.listLoginAccounts(clinic.id);
+    const row = accounts.find((a) => a.memberId === member.id);
+    expect(row).toMatchObject({ roleKey: null, roleNameEn: "Supervisor", roleNameAr: "مشرف" });
+    const ctx = await api.session.getContext({
+      kind: "custom",
+      clinicId: clinic.id,
+      memberId: member.id,
+    });
+    expect(ctx.user.email).toBe(member.email);
   });
 });

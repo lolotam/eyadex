@@ -24,10 +24,12 @@ export const invitationRecordSchema = z.object({
   createdAt: z.string().datetime(),
   invitedBy: z.string(),
   respondedAt: z.string().datetime().nullable(),
+  /** Hash of the current link token; the plain token is never stored on the record. */
+  tokenHash: z.string(),
 });
 export type InvitationRecord = z.infer<typeof invitationRecordSchema>;
 
-export const invitationSchema = invitationRecordSchema.extend({
+export const invitationSchema = invitationRecordSchema.omit({ tokenHash: true }).extend({
   status: invitationStatusSchema,
   roleNameAr: z.string(),
   roleNameEn: z.string(),

@@ -8,6 +8,8 @@ export const personaKindSchema = z.enum([
   "doctor",
   "receptionist",
   "technician",
+  /** Any account holding a clinic-created role; always pinned to an exact memberId. */
+  "custom",
 ]);
 export type PersonaKind = z.infer<typeof personaKindSchema>;
 

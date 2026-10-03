@@ -87,11 +87,12 @@ export function toUserView(db: MockState, member: MembershipUser): MembershipUse
 }
 
 export function toInvitationView(db: MockState, record: InvitationRecord): Invitation {
+  const { tokenHash: _hash, ...rest } = record;
   return {
-    ...record,
+    ...rest,
     ...roleNames(db, record.roleId),
     status: computeInvitationStatus(record),
-    token: record.id,
+    token: db.inviteOutbox[record.id] ?? "",
   };
 }
 

@@ -83,6 +83,8 @@ export const loginAccountSchema = z.object({
   memberId: idSchema,
   fullName: z.string(),
   roleKey: z.string().nullable(),
+  roleNameAr: z.string(),
+  roleNameEn: z.string(),
   status: membershipUserStatusSchema,
 });
 export type LoginAccount = z.infer<typeof loginAccountSchema>;
