@@ -252,7 +252,8 @@ export const en = {
     invitation_cancelled: "This invitation was cancelled",
     invitation_used: "This invitation was already used",
     role_locked: "The Clinic Admin role is locked and cannot be changed or deactivated",
-    role_in_use: "This role is held by {count} active users. Move them to another role first",
+    role_in_use:
+      "This role is held by {count} users, deactivated ones included. Move them to another role first",
     role_name_taken: "Another role in this clinic already uses this name",
     idempotency_conflict:
       "This request was already sent with different details; close the form and start again",

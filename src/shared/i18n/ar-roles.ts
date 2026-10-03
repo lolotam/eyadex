@@ -38,7 +38,7 @@ export const arRoles = {
     },
     actions: { view: "عرض", create: "إضافة", update: "تعديل", deactivate: "تعطيل" },
     scopes: { none: "بدون", clinic: "كل الفروع", branch: "فروعه فقط" },
-    membersWarning: "يحمل هذا الدور {count} من المستخدمين النشطين. الحفظ يغيّر صلاحياتهم فورًا.",
+    membersWarning: "يحمل هذا الدور {count} من المستخدمين. الحفظ يغيّر صلاحياتهم فورًا.",
     created: "تم إنشاء الدور",
     updated: "تم حفظ الدور",
     deactivated: "تم تعطيل الدور",

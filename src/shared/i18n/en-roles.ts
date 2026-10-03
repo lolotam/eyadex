@@ -39,7 +39,7 @@ export const enRoles = {
     },
     actions: { view: "View", create: "Create", update: "Update", deactivate: "Deactivate" },
     scopes: { none: "None", clinic: "All branches", branch: "Own branches" },
-    membersWarning: "{count} active users hold this role. Saving changes their access immediately.",
+    membersWarning: "{count} users hold this role. Saving changes their access immediately.",
     created: "Role created",
     updated: "Role saved",
     deactivated: "Role deactivated",

@@ -11,10 +11,9 @@ export function findRole(db: MockState, clinicId: string, roleId: string): Role 
   return role;
 }
 
+/** Every membership on the role, deactivated ones included: they must be reassigned first. */
 export function memberCount(db: MockState, role: Role): number {
-  return db.members.filter(
-    (m) => m.clinicId === role.clinicId && m.roleId === role.id && m.status === "active",
-  ).length;
+  return db.members.filter((m) => m.clinicId === role.clinicId && m.roleId === role.id).length;
 }
 
 export function toRoleListItem(db: MockState, role: Role): RoleListItem {

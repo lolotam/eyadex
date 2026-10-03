@@ -68,7 +68,11 @@ export function PermissionMatrix({ catalog, value, onChange, readOnly }: Props) 
                     const current = defs.find((d) => value.includes(d.key))?.scope ?? null;
                     return (
                       <td key={action} className="px-2 py-2 text-center">
-                        {defs.length > 1 ? (
+                        {defs.length === 0 ? (
+                          <span aria-hidden className="text-muted-foreground">
+                            —
+                          </span>
+                        ) : defs.length > 1 ? (
                           <Select
                             value={current ?? NONE}
                             disabled={readOnly}

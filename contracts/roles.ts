@@ -12,7 +12,7 @@ export const roleListItemSchema = z.object({
   nameEn: z.string(),
   isLocked: z.boolean(),
   isActive: z.boolean(),
-  /** Active members holding the role. */
+  /** Members holding the role, in any status. */
   memberCount: z.number().int().nonnegative(),
   permissionKeys: z.array(z.string()),
 });

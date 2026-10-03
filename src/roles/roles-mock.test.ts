@@ -143,4 +143,30 @@ describe("roles mock", () => {
     await rejectsWith(api.roles.deactivate(doctor, target.id), "forbidden");
     await rejectsWith(api.roles.reactivate(doctor, target.id), "forbidden");
   });
+  it("defines only the PRD actions for audit log and clinic settings", async () => {
+    const keys = (await api.roles.catalog(admin())).map((d) => d.key);
+    expect(keys.filter((k) => k.includes(":audit_log:"))).toEqual(["view:audit_log:clinic"]);
+    expect(keys.filter((k) => k.includes(":clinic_settings:")).sort()).toEqual([
+      "update:clinic_settings:clinic",
+      "view:clinic_settings:clinic",
+    ]);
+    await rejectsWith(
+      api.roles.create(admin(), { ...NAMES, permissionKeys: ["deactivate:audit_log:clinic"] }),
+      "validation",
+    );
+  });
+
+  it("counts deactivated holders, so their role cannot be deactivated under them", async () => {
+    const created = await api.roles.create(admin(), { ...NAMES, permissionKeys: [] });
+    const db = getState();
+    const adminRoleId = role("clinic_admin").id;
+    const holder = db.members.find(
+      (m) => m.clinicId === clinicId() && m.status === "active" && m.roleId !== adminRoleId,
+    );
+    if (!holder) throw new Error("no member");
+    holder.roleId = created.id;
+    holder.status = "deactivated";
+    expect((await api.roles.list(admin())).find((r) => r.id === created.id)?.memberCount).toBe(1);
+    await rejectsWith(api.roles.deactivate(admin(), created.id), "role_in_use");
+  });
 });
