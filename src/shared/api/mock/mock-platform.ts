@@ -7,7 +7,7 @@ import {
 } from "@contracts/clinics";
 import type { ApiClient } from "../api-client";
 import { ApiError } from "../api-error";
-import { resolvePlatformActor } from "./mock-platform-actor";
+import { resolvePlatformActor, writePlatformAudit } from "./mock-platform-actor";
 import { delay, getState, newId, persist, type MockState } from "./mock-store";
 import { buildSystemRoles } from "./seed-roles";
 import { INVITATION_TTL_DAYS, type InvitationRecord } from "@contracts/invitations";
@@ -32,6 +32,7 @@ function usage(db: MockState, clinicId: string) {
 
 type Snapshot = Record<string, unknown> | null;
 
+/** Clinic-management events, written through the single platform audit writer. */
 function audit(
   db: MockState,
   actorName: string,
@@ -41,15 +42,14 @@ function audit(
   before: Snapshot,
   after: Snapshot,
 ) {
-  db.platformAudit.unshift({
-    id: newId(),
+  writePlatformAudit(db, {
     actorName,
     action,
     clinicId,
+    entityId: clinicId,
     summary,
     before,
     after,
-    createdAt: new Date().toISOString(),
   });
 }
 
