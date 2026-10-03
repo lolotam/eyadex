@@ -23,7 +23,7 @@ BEGIN
     INSERT INTO role_permissions VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'4')::uuid, ('00000000-0000-7000-8000-0000000001'||s||'3')::uuid, '00000000-0000-7000-8000-0000000000f1', now());
     INSERT INTO memberships VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'5')::uuid, ('00000000-0000-7000-8000-0000000002'||s||'5')::uuid, 'n', s||'@example.com', ('00000000-0000-7000-8000-0000000001'||s||'3')::uuid, false, 'active', 'ar', null, now(), now());
     INSERT INTO membership_branches VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'6')::uuid, ('00000000-0000-7000-8000-0000000001'||s||'5')::uuid, ('00000000-0000-7000-8000-0000000001'||s||'2')::uuid, now());
-    INSERT INTO invitations VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'7')::uuid, 'i'||s||'@example.com', 'n', ('00000000-0000-7000-8000-0000000001'||s||'3')::uuid, false, 'pending', now()+interval '7 days', ('00000000-0000-7000-8000-0000000002'||s||'5')::uuid, 'hash', now(), null);
+    INSERT INTO invitations VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'7')::uuid, 'i'||s||'@example.com', 'n', ('00000000-0000-7000-8000-0000000001'||s||'3')::uuid, false, 'pending', now()+interval '7 days', ('00000000-0000-7000-8000-0000000002'||s||'5')::uuid, 'hash-'||s, now(), null);
     INSERT INTO invitation_branches VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'8')::uuid, ('00000000-0000-7000-8000-0000000001'||s||'7')::uuid, ('00000000-0000-7000-8000-0000000001'||s||'2')::uuid);
     INSERT INTO patients VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'9')::uuid, '1', 'x', '+9650000000'||s, '1990-01-01', 'female', ('00000000-0000-7000-8000-0000000001'||s||'2')::uuid, null, 'active', now(), now());
     INSERT INTO audit_log VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'a')::uuid, ('00000000-0000-7000-8000-0000000002'||s||'5')::uuid, 'user.invited', 'administrative', 'user', null, null, '{}', now());
@@ -94,7 +94,7 @@ BEGIN
     RAISE EXCEPTION 'ISO-01 write leak: membership_branches';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   BEGIN
-    INSERT INTO invitations VALUES (b, gen_random_uuid(), 'x@example.com', 'x', '00000000-0000-7000-8000-0000000001b3', true, 'pending', now() + interval '7 days', gen_random_uuid(), 'hash', now(), null);
+    INSERT INTO invitations VALUES (b, gen_random_uuid(), 'x@example.com', 'x', '00000000-0000-7000-8000-0000000001b3', true, 'pending', now() + interval '7 days', gen_random_uuid(), 'hash-probe', now(), null);
     RAISE EXCEPTION 'ISO-01 write leak: invitations';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   BEGIN

@@ -59,4 +59,4 @@ jobs:
       - name: Apply the SQL baseline (db/sql)
         run: for f in db/sql/*.sql; do echo "$f"; psql -v ON_ERROR_STOP=1 -q -f "$f"; done
       - name: RLS + grant negative isolation tests
-        run: psql -v ON_ERROR_STOP=1 -q -f db/tests/rls-isolation.sql
+        run: for f in db/tests/*.sql; do echo "$f"; psql -v ON_ERROR_STOP=1 -q -f "$f"; done
