@@ -34,7 +34,16 @@ export const CLINIC_QUERY = {
   from: null,
   to: null,
 };
-export const PLATFORM_QUERY = { ...CLINIC_QUERY, category: undefined, source: null };
+export const PLATFORM_QUERY = {
+  cursor: null,
+  limit: 100,
+  actor: "",
+  action: null,
+  entity: null,
+  source: null,
+  from: null,
+  to: null,
+};
 
 /** Writes administrative and patient-access entries in clinic 0 (and a branch edit in clinic 1). */
 export async function seedActivity(): Promise<{ patientId: string; civilId: string }> {
