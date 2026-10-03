@@ -11,7 +11,30 @@
 
 <!-- LOVABLE:END -->
 
-## Architecture rules
+# AGENTS.md — entry point for Codex, Lovable and every other agent
+
+Read these files fully, in this order, before any task or any review:
+
+1. [`CLAUDE.md`](./CLAUDE.md) — day-to-day rules (workflow, delivery loop, DB, API, security, testing)
+2. [`CLAUDE.architecture.md`](./CLAUDE.architecture.md) — where code goes and what it may import
+3. [`docs/PRD-Eyadex-MVP.md`](./docs/PRD-Eyadex-MVP.md) — product scope, user stories, decisions
+4. [`.lovable/plan/marketing-landing.md`](./.lovable/plan/marketing-landing.md) — marketing site spec
+
+The names say "CLAUDE", but the rules apply to every agent equally.
+
+## Review guidelines
+
+When reviewing a pull request, report only real defects, ranked by severity. Check first:
+
+- patient data reachable from the platform area, the platform API or the `eyadex_platform` DB role
+- a clinic table without forced RLS and a negative isolation test in the same PR
+- a token, secret, password or real phone number in code, tests, logs or audit snapshots
+- a mock or API method that skips the permission check order (`CLAUDE.architecture.md` §3)
+- a screen importing `src/shared/api/mock/*`, or business logic inside a React component
+- hardcoded UI strings, left/right CSS, checks on role names instead of permissions, hard deletes
+- the word "كاشير"/"Cashier", or "المريض/المرضى" in Arabic UI copy (use "المراجع/المراجعون")
+
+## Quick rules (Lovable-maintained)
 
 - The product brand is `Eyadex` in both languages and its domain is `eyadex.com`; `clinic` remains the business-domain term in code and URLs.
 - Frontend only: no Lovable Cloud, no database, no server functions with business logic — a separate backend API comes later.
@@ -22,7 +45,7 @@
 - UI visibility is driven by permission strings `action:resource:scope` via `can()`, never by role names — roles are user-editable.
 - All UI text goes through i18n keys (`src/shared/i18n`); use logical CSS (ps/pe/ms/me/start/end) only — Arabic RTL is the default.
 - Browser storage (persona, language, mock DB) is read in effects only — avoids SSR hydration mismatches.
-- `db/sql/*.sql` is documentation only and is never executed.
+- `db/sql/*.sql` is the SQL baseline applied to the production database (2026-10-03); every schema change adds or edits a file here in the same PR, and is applied by the orchestrator after review. Phase B replaces it with Drizzle migrations starting from this state.
 - One component per file, max 300 lines per file.
 - The visual system uses flat clinical surfaces, compact 8px-or-less radii, thin borders, and semantic tokens; deep teal is reserved for actions, active states, and focus — keeping dense administration screens calm and scannable.
 - Marketing site (/ and /en, src/marketing, scoped .mk styles): follow .lovable/plan/marketing-landing.md.
