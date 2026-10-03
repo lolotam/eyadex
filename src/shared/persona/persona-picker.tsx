@@ -17,7 +17,7 @@ import { usePersona } from "./persona-provider";
 
 export function PersonaPicker({ onDone }: { onDone?: () => void }) {
   const api = useApi();
-  const { t, pick } = useI18n();
+  const { t, pick, setLang } = useI18n();
   const { persona, setPersona } = usePersona();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -36,6 +36,21 @@ export function PersonaPicker({ onDone }: { onDone?: () => void }) {
     queryFn: () => api.session.listLoginAccounts(effectiveClinic ?? ""),
     enabled: needsClinic && Boolean(effectiveClinic),
   });
+  const platformAccounts = useQuery({
+    queryKey: ["login-platform-accounts"],
+    queryFn: () => api.session.listLoginPlatformAccounts(),
+    enabled: !needsClinic,
+  });
+  // The platform persona is pinned to one team account, never "whichever is active".
+  const platformChosen =
+    (platformAccounts.data ?? []).find((a) => a.memberId === memberId) ??
+    (platformAccounts.data ?? []).find((a) => a.status === "active");
+  const platformTag = (status: string) =>
+    status === "invited"
+      ? ` (${t("persona.invitedTag")})`
+      : status === "deactivated"
+        ? ` (${t("persona.deactivatedTag")})`
+        : "";
   // A pinned account keeps its identity: if its role changed since the persona was saved,
   // follow the account's current role instead of silently choosing another person.
   const pinned = (accounts.data ?? []).find((a) => a.memberId === memberId);
@@ -57,13 +72,19 @@ export function PersonaPicker({ onDone }: { onDone?: () => void }) {
     kindAccounts.find((a) => a.status === "active") ??
     kindAccounts[0];
 
-  function apply() {
+  async function apply() {
+    // An invited platform account accepts its invitation on first sign-in (demo of the link).
+    if (!needsClinic && platformChosen?.status === "invited")
+      await api.session.acceptPlatformInvitation(platformChosen.memberId);
     const next = {
       kind,
       clinicId: needsClinic ? effectiveClinic : null,
-      memberId: needsClinic ? (chosen?.memberId ?? null) : null,
+      memberId: needsClinic ? (chosen?.memberId ?? null) : (platformChosen?.memberId ?? null),
     };
     setPersona(next);
+    // The UI language follows the signed-in account's saved preference, not the browser's last one.
+    const context = await api.session.getContext(next).catch(() => null);
+    if (context?.user.preferredLanguage) setLang(context.user.preferredLanguage);
     void queryClient.invalidateQueries({ queryKey: ["session"] });
     void navigate({ to: needsClinic ? "/clinic" : "/platform" });
     onDone?.();
@@ -132,12 +153,34 @@ export function PersonaPicker({ onDone }: { onDone?: () => void }) {
           </Select>
         </div>
       )}
+      {!needsClinic && (platformAccounts.data ?? []).length > 0 && (
+        <div className="flex flex-col gap-2">
+          <Label>{t("persona.account")}</Label>
+          <Select value={platformChosen?.memberId ?? ""} onValueChange={setMemberId}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(platformAccounts.data ?? []).map((a) => (
+                <SelectItem key={a.memberId} value={a.memberId}>
+                  {a.fullName}
+                  {platformTag(a.status)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
       {needsClinic && accounts.isSuccess && kindAccounts.length === 0 && (
         <p className="text-sm text-muted-foreground">
           {t(kind === "custom" ? "persona.noCustomAccounts" : "persona.noAccountsForRole")}
         </p>
       )}
-      <Button type="button" onClick={apply} disabled={needsClinic && (!effectiveClinic || !chosen)}>
+      <Button
+        type="button"
+        onClick={() => void apply()}
+        disabled={needsClinic ? !effectiveClinic || !chosen : !platformChosen}
+      >
         {t("landing.enter")}
       </Button>
       <p className="text-xs text-muted-foreground">{t("persona.demoNote")}</p>

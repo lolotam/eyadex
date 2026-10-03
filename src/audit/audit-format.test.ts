@@ -3,6 +3,7 @@ import { clinicStatusSchema, moduleSchema, specialtySchema } from "@contracts/cl
 import { languageSchema } from "@contracts/common";
 import { invitationStatusSchema } from "@contracts/invitations";
 import { genderSchema, patientStatusSchema } from "@contracts/patients";
+import { AUDIT_ACTIONS, CLINIC_AUDIT_ACTIONS, PLATFORM_AUDIT_ACTIONS } from "@contracts/audit";
 import { PERMISSION_CATALOG } from "@contracts/permissions";
 import { membershipUserStatusSchema } from "@contracts/users";
 import { ar } from "@/shared/i18n/ar";
@@ -46,4 +47,23 @@ describe("audit value translations", () => {
       expect(missing).toEqual([]);
     });
   }
+  it("keeps the action filter catalog and the action labels in sync", () => {
+    for (const dict of [ar, en]) {
+      const labelled: string[] = [];
+      for (const [group, actions] of Object.entries(dict.audit.actions))
+        for (const action of Object.keys(actions as Record<string, string>))
+          labelled.push(`${group}.${action}`);
+      expect([...labelled].sort()).toEqual([...AUDIT_ACTIONS].sort());
+    }
+  });
+
+  it("offers each screen exactly the actions its log can contain", () => {
+    const clinic: readonly string[] = CLINIC_AUDIT_ACTIONS;
+    const platform: readonly string[] = PLATFORM_AUDIT_ACTIONS;
+    expect(clinic).toContain("clinic.settings_updated");
+    expect(clinic).not.toContain("clinic.subscription_updated");
+    expect(platform.some((a) => a.startsWith("patient."))).toBe(false);
+    expect(platform).toContain("clinic.settings_updated");
+    expect(platform).toContain("platform_account.joined");
+  });
 });

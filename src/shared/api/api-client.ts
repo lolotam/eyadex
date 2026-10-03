@@ -18,6 +18,8 @@ import type {
   CreatedClinic,
   FirstAdminInviteLink,
   FirstAdminInviteStatus,
+  ClinicSettings,
+  ClinicSettingsInput,
 } from "@contracts/clinics";
 import type { Branch, BranchInput, BranchListQuery, BranchUsage } from "@contracts/organization";
 import type {
@@ -33,10 +35,13 @@ import type {
   ChangeRoleInput,
   InviteUserInput,
   LoginAccount,
+  PlatformLoginAccount,
   MembershipUserView,
   RoleOption,
   UserListQuery,
   UserUsage,
+  AccountProfile,
+  AccountProfileInput,
 } from "@contracts/users";
 import type { PermissionDefinition } from "@contracts/permissions";
 import type {
@@ -50,6 +55,12 @@ import type {
 } from "@contracts/patients";
 import type { RoleInput, RoleListItem } from "@contracts/roles";
 import type { LoginClinic, Persona, SessionContext } from "@contracts/session";
+import type {
+  InvitePlatformAccountInput,
+  PlatformAccount,
+  PlatformOverview,
+  PlatformSettings,
+} from "@contracts/platform";
 
 /**
  * The single data boundary of the app. Screens only talk to this interface.
@@ -60,20 +71,41 @@ export interface ApiClient {
     listLoginClinics(): Promise<LoginClinic[]>;
     /** Demo sign-in: every account of a clinic, including deactivated ones (they are refused). */
     listLoginAccounts(clinicId: string): Promise<LoginAccount[]>;
+    /** Demo sign-in: platform team accounts, so the platform persona is pinned to one of them. */
+    listLoginPlatformAccounts(): Promise<PlatformLoginAccount[]>;
+    /** Demo stand-in for the emailed link: an invited platform account joins (once). */
+    acceptPlatformInvitation(memberId: string): Promise<PlatformLoginAccount>;
     getContext(persona: Persona): Promise<SessionContext>;
   };
+  /** Platform admin only: every call resolves the active platform account first. */
   platform: {
-    listClinics(query: ClinicListQuery): Promise<Page<ClinicListItem>>;
-    getClinic(clinicId: string): Promise<ClinicDetail>;
-    createClinic(input: CreateClinicInput): Promise<CreatedClinic>;
+    listClinics(persona: Persona, query: ClinicListQuery): Promise<Page<ClinicListItem>>;
+    getClinic(persona: Persona, clinicId: string): Promise<ClinicDetail>;
+    createClinic(persona: Persona, input: CreateClinicInput): Promise<CreatedClinic>;
     /** Null once a clinic admin is active. */
-    getFirstAdminInvitation(clinicId: string): Promise<FirstAdminInviteStatus | null>;
-    resendFirstAdminInvitation(clinicId: string): Promise<FirstAdminInviteLink>;
-    updateClinicDetails(clinicId: string, input: ClinicDetailsInput): Promise<Clinic>;
-    updateSubscription(clinicId: string, input: SubscriptionInput): Promise<Clinic>;
-    setClinicFeature(clinicId: string, module: ClinicModule, enabled: boolean): Promise<void>;
-    listClinicMembers(clinicId: string): Promise<MembershipUserView[]>;
-    listClinicBranches(clinicId: string): Promise<Branch[]>;
+    getFirstAdminInvitation(
+      persona: Persona,
+      clinicId: string,
+    ): Promise<FirstAdminInviteStatus | null>;
+    resendFirstAdminInvitation(persona: Persona, clinicId: string): Promise<FirstAdminInviteLink>;
+    updateClinicDetails(
+      persona: Persona,
+      clinicId: string,
+      input: ClinicDetailsInput,
+    ): Promise<Clinic>;
+    updateSubscription(
+      persona: Persona,
+      clinicId: string,
+      input: SubscriptionInput,
+    ): Promise<Clinic>;
+    setClinicFeature(
+      persona: Persona,
+      clinicId: string,
+      module: ClinicModule,
+      enabled: boolean,
+    ): Promise<void>;
+    listClinicMembers(persona: Persona, clinicId: string): Promise<MembershipUserView[]>;
+    listClinicBranches(persona: Persona, clinicId: string): Promise<Branch[]>;
   };
   branches: {
     list(persona: Persona, query: BranchListQuery): Promise<Page<Branch> & { usage: BranchUsage }>;
@@ -149,5 +181,30 @@ export interface ApiClient {
     platformList(persona: Persona, query: PlatformAuditListQuery): Promise<Page<PlatformAuditItem>>;
     /** Platform admin only: every clinic's id and names, for the clinic filter. */
     platformClinicOptions(persona: Persona): Promise<PlatformAuditClinicOption[]>;
+  };
+  /** Story 55: view:clinic_settings:clinic to read, update:clinic_settings:clinic to save. */
+  clinicSettings: {
+    get(persona: Persona): Promise<ClinicSettings>;
+    update(persona: Persona, input: ClinicSettingsInput): Promise<ClinicSettings>;
+  };
+  /** Story 64: any active clinic account, its own profile only. */
+  account: {
+    get(persona: Persona): Promise<AccountProfile>;
+    update(persona: Persona, input: AccountProfileInput): Promise<AccountProfile>;
+  };
+  /** Platform admin only. Clinic names and statuses; never patient data or counts. */
+  platformOverview: {
+    get(persona: Persona): Promise<PlatformOverview>;
+  };
+  /** Platform admin only. The last active platform account cannot be deactivated. */
+  platformTeam: {
+    list(persona: Persona): Promise<PlatformAccount[]>;
+    invite(persona: Persona, input: InvitePlatformAccountInput): Promise<PlatformAccount>;
+    deactivate(persona: Persona, accountId: string): Promise<PlatformAccount>;
+    reactivate(persona: Persona, accountId: string): Promise<PlatformAccount>;
+  };
+  platformSettings: {
+    get(persona: Persona): Promise<PlatformSettings>;
+    update(persona: Persona, input: PlatformSettings): Promise<PlatformSettings>;
   };
 }

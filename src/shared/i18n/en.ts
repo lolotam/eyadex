@@ -2,6 +2,7 @@ import { enRoles } from "./en-roles";
 import { enPatients } from "./en-patients";
 import { enAudit } from "./en-audit";
 import { enUsers } from "./en-users";
+import { enSettings } from "./en-settings";
 
 export const en = {
   app: { name: "Eyadex", tagline: "One place for every clinic" },
@@ -46,6 +47,7 @@ export const en = {
     demoNote: "Demo sign-in. No passwords.",
     account: "Account",
     deactivatedTag: "deactivated",
+    invitedTag: "invited: signing in accepts",
     disabledNotice:
       "Your account was deactivated. You have been signed out. Contact your clinic admin.",
     signOut: "Sign out",
@@ -231,6 +233,7 @@ export const en = {
   ...enRoles,
   ...enPatients,
   ...enAudit,
+  ...enSettings,
   validation: {
     needsView: "Any create, edit or deactivate permission needs view on the same area",
     timezone: "Choose a supported time zone",
@@ -248,6 +251,7 @@ export const en = {
     phoneKw: "Enter 8 digits, or +965 followed by 8 digits",
     birthDate: "Enter a valid date that is not in the future",
     civilId: "Civil ID must be exactly 12 digits",
+    outOfRange: "Outside the allowed range",
   },
   errors: {
     patient_phone_taken: "This phone already belongs to another patient in this clinic",
@@ -276,6 +280,7 @@ export const en = {
     module_disabled: "This module is turned off for the clinic",
     last_active_branch: "The clinic's last active branch cannot be deactivated",
     validation: "Some fields are invalid",
+    last_active_platform_account: "The last active platform account cannot be deactivated",
     unknown: "Something went wrong",
   },
 } as const;

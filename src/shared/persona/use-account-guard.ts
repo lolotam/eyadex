@@ -17,6 +17,7 @@ export function useAccountDisabledGuard(): void {
       if (leaving || errorCodeOf(error) !== "account_disabled") return;
       leaving = true;
       queryClient.removeQueries({ queryKey: ["clinic"] });
+      queryClient.removeQueries({ queryKey: ["platform"] });
       void navigate({ to: "/login", search: { reason: "disabled" } });
     };
     const unsubQueries = queryClient.getQueryCache().subscribe((event) => {

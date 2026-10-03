@@ -4,7 +4,7 @@ import { GitBranch, Power, RotateCcw, ShieldCheck } from "lucide-react";
 import type { BranchOption, MembershipUserView } from "@contracts/users";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { BranchChips } from "./branch-chips";
-import { RowActionsMenu, type RowAction } from "./row-actions-menu";
+import { RowActionsMenu, type RowAction } from "@/shared/table/row-actions-menu";
 import { UserStatusBadge } from "./user-status-badge";
 
 type Handlers = {

@@ -188,26 +188,44 @@ describe("invitations mock", () => {
   });
 
   it("lets a new clinic's first admin accept with the link returned by createClinic", async () => {
-    const created = await api.platform.createClinic({
-      nameAr: "عيادة الاختبار",
-      nameEn: "Test Clinic",
-      slug: "test-clinic",
-      specialty: "dermatology",
-      defaultLanguage: "en",
-      timezone: "Asia/Kuwait",
-      adminName: "First Admin",
-      adminEmail: "first.admin@example.com",
-    });
+    const created = await api.platform.createClinic(
+      { kind: "platform_admin", clinicId: null, memberId: null },
+      {
+        nameAr: "عيادة الاختبار",
+        nameEn: "Test Clinic",
+        slug: "test-clinic",
+        specialty: "dermatology",
+        defaultLanguage: "en",
+        timezone: "Asia/Kuwait",
+        adminName: "First Admin",
+        adminEmail: "first.admin@example.com",
+      },
+    );
     expect(JSON.stringify(getState().platformAudit)).not.toContain(created.firstAdminInvite.token);
-    expect(await api.platform.getFirstAdminInvitation(created.clinic.id)).toMatchObject({
+    expect(
+      await api.platform.getFirstAdminInvitation(
+        { kind: "platform_admin", clinicId: null, memberId: null },
+        created.clinic.id,
+      ),
+    ).toMatchObject({
       status: "pending",
     });
     const accepted = await api.invitations.accept(created.firstAdminInvite.token, password);
     expect(accepted.roleKey).toBe("clinic_admin");
     const member = getState().members.find((m) => m.id === accepted.memberId);
     expect(member?.preferredLanguage).toBe("en");
-    expect(await api.platform.getFirstAdminInvitation(created.clinic.id)).toBeNull();
-    await expect(api.platform.resendFirstAdminInvitation(created.clinic.id)).rejects.toMatchObject({
+    expect(
+      await api.platform.getFirstAdminInvitation(
+        { kind: "platform_admin", clinicId: null, memberId: null },
+        created.clinic.id,
+      ),
+    ).toBeNull();
+    await expect(
+      api.platform.resendFirstAdminInvitation(
+        { kind: "platform_admin", clinicId: null, memberId: null },
+        created.clinic.id,
+      ),
+    ).rejects.toMatchObject({
       code: "invitation_used",
     });
   });
@@ -265,16 +283,19 @@ describe("invitations mock", () => {
   });
 
   it("records the platform's first-admin invitation in the clinic audit without the token", async () => {
-    const created = await api.platform.createClinic({
-      nameAr: "عيادة التدقيق",
-      nameEn: "Audit Clinic",
-      slug: "audit-clinic",
-      specialty: "obgyn",
-      defaultLanguage: "en",
-      timezone: "Asia/Kuwait",
-      adminName: "First Admin",
-      adminEmail: "  First-Admin@Example.com ",
-    });
+    const created = await api.platform.createClinic(
+      { kind: "platform_admin", clinicId: null, memberId: null },
+      {
+        nameAr: "عيادة التدقيق",
+        nameEn: "Audit Clinic",
+        slug: "audit-clinic",
+        specialty: "obgyn",
+        defaultLanguage: "en",
+        timezone: "Asia/Kuwait",
+        adminName: "First Admin",
+        adminEmail: "  First-Admin@Example.com ",
+      },
+    );
     const entries = getState().clinicAudit.filter((e) => e.clinicId === created.clinic.id);
     expect(entries.some((e) => e.action === "invitation.sent")).toBe(true);
     expect(created.firstAdminInvite.email).toBe("first-admin@example.com");

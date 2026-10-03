@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { idSchema } from "./common";
+import { idSchema, languageSchema } from "./common";
 import { clinicStatusSchema, featuresSchema } from "./clinics";
 
 export const personaKindSchema = z.enum([
@@ -30,7 +30,12 @@ export type LoginClinic = z.infer<typeof loginClinicSchema>;
 
 export const sessionContextSchema = z.object({
   persona: personaSchema,
-  user: z.object({ fullName: z.string(), email: z.string() }),
+  user: z.object({
+    fullName: z.string(),
+    email: z.string(),
+    /** The account's saved UI language; null when the account has none (platform team). */
+    preferredLanguage: languageSchema.nullable(),
+  }),
   clinic: z
     .object({
       id: idSchema,
@@ -45,6 +50,8 @@ export const sessionContextSchema = z.object({
   permissions: z.array(z.string()),
   features: featuresSchema,
   blocked: z.enum(["suspended", "expired"]).nullable(),
+  /** Days left when the expiry is within the platform alert window; null = no banner. */
+  expiresInDays: z.number().int().nullable(),
 });
 export type SessionContext = z.infer<typeof sessionContextSchema>;
 
@@ -53,6 +60,8 @@ export const platformAuditEntrySchema = z.object({
   actorName: z.string(),
   action: z.string(),
   clinicId: idSchema.nullable(),
+  /** The record the event is about when it is not the clinic (e.g. a platform account). */
+  entityId: idSchema.nullable().optional(),
   /** Internal English note for operators; never shown in the UI (not localizable). */
   summary: z.string(),
   /** Allowlisted values before/after the change, rendered field by field and translated. */

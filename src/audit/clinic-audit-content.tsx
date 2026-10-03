@@ -9,11 +9,12 @@ import { useCursorPages } from "@/shared/table/use-cursor-pages";
 import { AuditDetailDialog } from "./audit-detail-dialog";
 import { AuditListBody } from "./audit-list-body";
 import { useClinicAudit } from "./audit-queries";
-import { ALL_AUDIT_ACTIONS, AuditToolbar, type AuditFilterValues } from "./audit-toolbar";
+import { CLINIC_AUDIT_ACTIONS } from "@contracts/audit";
+import { AuditToolbar, type AuditFilterValues } from "./audit-toolbar";
 import { useAuditColumns } from "./use-audit-columns";
 
 const PAGE_SIZE = 15;
-const CLINIC_ACTIONS = ALL_AUDIT_ACTIONS.filter((a) => !a.startsWith("clinic."));
+const CLINIC_ACTIONS = CLINIC_AUDIT_ACTIONS;
 type Entity = ClinicAuditItem["entity"];
 
 export function ClinicAuditContent() {

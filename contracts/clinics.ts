@@ -171,3 +171,18 @@ export const firstAdminInviteStatusSchema = z.object({
   expiresAt: z.string().datetime(),
 });
 export type FirstAdminInviteStatus = z.infer<typeof firstAdminInviteStatusSchema>;
+
+/** Story 55: what a clinic admin may change about their own clinic. */
+export const clinicSettingsInputSchema = clinicDetailsInputSchema.pick({
+  nameAr: true,
+  nameEn: true,
+  defaultLanguage: true,
+  timezone: true,
+});
+export type ClinicSettingsInput = z.infer<typeof clinicSettingsInputSchema>;
+
+export const clinicSettingsSchema = clinicSettingsInputSchema.extend({
+  slug: z.string(),
+  specialty: specialtySchema,
+});
+export type ClinicSettings = z.infer<typeof clinicSettingsSchema>;

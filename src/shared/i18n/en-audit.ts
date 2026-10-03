@@ -35,6 +35,8 @@ export const enAudit = {
       invitation: "Invitation",
       role: "Role",
       patient: "Patient",
+      platform_account: "Platform account",
+      platform_settings: "Platform settings",
     },
     actions: {
       branch: {
@@ -49,6 +51,7 @@ export const enAudit = {
         branches_changed: "User branches changed",
         deactivated: "User deactivated",
         reactivated: "User reactivated",
+        profile_updated: "Profile updated",
       },
       invitation: {
         sent: "Invitation sent",
@@ -74,6 +77,16 @@ export const enAudit = {
         details_updated: "Clinic details updated",
         subscription_updated: "Subscription updated",
         feature_toggled: "Module switched",
+        settings_updated: "Clinic settings updated",
+      },
+      platform_account: {
+        invited: "Platform member invited",
+        deactivated: "Platform member deactivated",
+        reactivated: "Platform member reactivated",
+        joined: "Platform member joined",
+      },
+      platform: {
+        settings_updated: "Platform settings updated",
       },
     },
     fields: {
@@ -107,6 +120,9 @@ export const enAudit = {
       isOwner: "Clinic owner",
       isLocked: "Locked",
       systemKey: "System role",
+      defaultTrialDays: "Default trial days",
+      alertDaysBeforeExpiry: "Expiry alert days",
+      emailSenderName: "Email sender name",
     },
     values: {
       trial: "Trial",

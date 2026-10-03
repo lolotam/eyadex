@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form } from "@/components/ui/form";
 import { useApi } from "@/shared/api/api-provider";
+import { usePersona } from "@/shared/persona/persona-provider";
 import { errorCodeOf } from "@/shared/api/api-error";
 import { TextField } from "@/shared/forms/form-fields";
 import { useI18n } from "@/shared/i18n/i18n-provider";
@@ -23,6 +24,7 @@ import { FirstAdminLinkPanel } from "./first-admin-link-panel";
 export function CreateClinicPage() {
   const { t } = useI18n();
   const api = useApi();
+  const { persona } = usePersona();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const form = useForm<CreateClinicInput>({
@@ -41,7 +43,7 @@ export function CreateClinicPage() {
   const slug = form.watch("slug").trim() || "<slug>";
 
   const mutation = useMutation({
-    mutationFn: (input: CreateClinicInput) => api.platform.createClinic(input),
+    mutationFn: (input: CreateClinicInput) => api.platform.createClinic(persona, input),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: clinicKeys.all });
       void queryClient.invalidateQueries({ queryKey: ["login-clinics"] });

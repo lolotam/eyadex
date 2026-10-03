@@ -7,9 +7,6 @@ import type { MembershipUser, MembershipUserView, UserUsage } from "@contracts/u
 import { ApiError } from "../api-error";
 import type { MockState } from "./mock-store";
 
-/** Accounts that belong to the platform team and can never join a clinic. */
-export const PLATFORM_ACCOUNT_EMAILS = ["waleed@eyadex.com"];
-
 export function isLiveInvitation(inv: InvitationRecord, now = Date.now()): boolean {
   return computeInvitationStatus(inv, now) === "pending";
 }
@@ -30,11 +27,11 @@ export function enforceUserLimit(db: MockState, clinicId: string): void {
   if (usage.used >= usage.limit) throw new ApiError("limit_reached", undefined, usage);
 }
 
-/** One email = one membership, across every clinic and the platform team. */
+/** One email = one account, across every clinic, invitation and the platform team. */
 export function enforceEmailFree(db: MockState, email: string, ignoreInvitationId?: string): void {
   const normalized = email.trim().toLowerCase();
   const taken =
-    PLATFORM_ACCOUNT_EMAILS.includes(normalized) ||
+    db.platformAccounts.some((a) => a.email.toLowerCase() === normalized) ||
     db.members.some((m) => m.email.toLowerCase() === normalized) ||
     db.invitations.some(
       (i) =>

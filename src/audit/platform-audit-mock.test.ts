@@ -101,10 +101,34 @@ describe("platform audit log", () => {
   it("records structured values for platform events, never free text", async () => {
     const clinicId = getState().clinics[0]?.id;
     if (!clinicId) throw new Error("seed");
-    await api.platform.setClinicFeature(clinicId, "patients", false);
+    await api.platform.setClinicFeature(
+      { kind: "platform_admin", clinicId: null, memberId: null },
+      clinicId,
+      "patients",
+      false,
+    );
     const list = await api.audit.platformList(PLATFORM, { ...PLATFORM_QUERY, clinicId });
     const toggle = list.items.find((e) => e.action === "clinic.feature_toggled");
     expect(toggle?.after).toEqual({ module: "patients", enabled: false });
     expect(toggle && "summary" in toggle).toBe(false);
+  });
+  it("records a first-admin resend once in the platform feed", async () => {
+    const created = await api.platform.createClinic(PLATFORM, {
+      nameAr: "عيادة الاختبار",
+      nameEn: "Resend Test Clinic",
+      slug: "resend-test",
+      specialty: "general",
+      defaultLanguage: "ar",
+      timezone: "Asia/Kuwait",
+      adminName: "Admin Person",
+      adminEmail: "resend.admin@example.com",
+    });
+    await api.platform.resendFirstAdminInvitation(PLATFORM, created.clinic.id);
+    const feed = await api.audit.platformList(PLATFORM, {
+      ...PLATFORM_QUERY,
+      clinicId: created.clinic.id,
+      action: "invitation.resent",
+    });
+    expect(feed.items).toHaveLength(1);
   });
 });

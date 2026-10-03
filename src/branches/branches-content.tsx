@@ -28,7 +28,7 @@ import { DataTable } from "@/shared/table/data-table";
 import { useCursorPages } from "@/shared/table/use-cursor-pages";
 import { BranchFormSheet } from "./branch-form-sheet";
 import { useBranchList } from "./branch-queries";
-import { BranchStatusBadge } from "./branch-status-badge";
+import { BranchStatusBadge } from "@/shared/status/branch-status-badge";
 import { BranchStatusDialog } from "./branch-status-dialog";
 
 const PAGE_SIZE = 10;

@@ -10,6 +10,7 @@ import { ForbiddenPage } from "./forbidden-page";
 import { LoadingBlock } from "./loading-block";
 import { CLINIC_NAV } from "./nav-items";
 import { StatusPanel } from "./status-panel";
+import { ExpiryBanner } from "./expiry-banner";
 
 export function ClinicLayout() {
   const { t, pick } = useI18n();
@@ -36,7 +37,12 @@ export function ClinicLayout() {
       <Link to="/login">{t("blocked.toSignIn")}</Link>
     </Button>
   );
-  let content = <Outlet />;
+  let content = (
+    <>
+      {session?.expiresInDays != null && <ExpiryBanner days={session.expiresInDays} />}
+      <Outlet />
+    </>
+  );
   if (isLoading || !session) content = <LoadingBlock />;
   else if (session.blocked === "suspended")
     content = (

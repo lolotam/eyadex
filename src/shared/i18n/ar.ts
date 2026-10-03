@@ -2,6 +2,7 @@ import { arRoles } from "./ar-roles";
 import { arPatients } from "./ar-patients";
 import { arAudit } from "./ar-audit";
 import { arUsers } from "./ar-users";
+import { arSettings } from "./ar-settings";
 
 import type { Dictionary } from "./dictionary";
 
@@ -48,6 +49,7 @@ export const ar: Dictionary = {
     demoNote: "دخول تجريبي بدون كلمات مرور.",
     account: "الحساب",
     deactivatedTag: "معطّل",
+    invitedTag: "مدعو: الدخول يقبل الدعوة",
     disabledNotice: "تم تعطيل حسابك وتسجيل خروجك. تواصل مع مدير العيادة.",
     signOut: "تسجيل الخروج",
   },
@@ -227,6 +229,7 @@ export const ar: Dictionary = {
   ...arRoles,
   ...arPatients,
   ...arAudit,
+  ...arSettings,
   validation: {
     needsView: "أي صلاحية إضافة أو تعديل أو تعطيل تحتاج صلاحية العرض في نفس القسم",
     timezone: "اختر منطقة زمنية مدعومة",
@@ -244,6 +247,7 @@ export const ar: Dictionary = {
     phoneKw: "أدخل 8 أرقام، أو ‎+965 ثم 8 أرقام",
     birthDate: "أدخل تاريخًا صحيحًا ليس في المستقبل",
     civilId: "الرقم المدني 12 رقمًا بالضبط",
+    outOfRange: "خارج النطاق المسموح",
   },
   errors: {
     patient_phone_taken: "هذا الهاتف مسجّل لمراجع آخر في هذه العيادة",
@@ -270,6 +274,7 @@ export const ar: Dictionary = {
     module_disabled: "هذا الموديول متوقف لهذه العيادة",
     last_active_branch: "لا يمكن إيقاف آخر فرع نشط للعيادة",
     validation: "بعض الحقول غير صحيحة",
+    last_active_platform_account: "لا يمكن تعطيل آخر حساب نشط في المنصة",
     unknown: "حدث خطأ ما",
   },
 };

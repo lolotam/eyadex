@@ -1,13 +1,13 @@
 import { computeInvitationStatus, INVITATION_TTL_DAYS } from "@contracts/invitations";
 import type { ApiClient } from "../api-client";
 import { ApiError } from "../api-error";
+import { resolvePlatformActor } from "./mock-platform-actor";
 import { invitationAuditSnapshot, issueInviteToken } from "./mock-invite-tokens";
 import { writeClinicAudit } from "./mock-audit";
 import { delay, getState, newId, persist, type MockState } from "./mock-store";
 import { enforceEmailFree, enforceUserLimit, isAdminRole } from "./mock-user-rules";
 
 const DAY = 24 * 60 * 60 * 1000;
-const ACTOR = "Waleed Mohamed";
 
 /** The latest clinic-admin invitation, while no clinic admin is active yet (story 19). */
 function openFirstAdminInvitation(db: MockState, clinicId: string) {
@@ -29,8 +29,9 @@ export function createMockPlatformInvites(): Pick<
   "getFirstAdminInvitation" | "resendFirstAdminInvitation"
 > {
   return {
-    async getFirstAdminInvitation(clinicId) {
+    async getFirstAdminInvitation(persona, clinicId) {
       await delay(80);
+      resolvePlatformActor(getState(), persona);
       const inv = openFirstAdminInvitation(getState(), clinicId);
       if (!inv) return null;
       const status = computeInvitationStatus(inv);
@@ -38,8 +39,9 @@ export function createMockPlatformInvites(): Pick<
       return { email: inv.email, fullName: inv.fullName, status, expiresAt: inv.expiresAt };
     },
 
-    async resendFirstAdminInvitation(clinicId) {
+    async resendFirstAdminInvitation(persona, clinicId) {
       await delay();
+      const actor = resolvePlatformActor(getState(), persona);
       const db = getState();
       const inv = openFirstAdminInvitation(db, clinicId);
       if (!inv) throw new ApiError("invitation_used");
@@ -54,22 +56,11 @@ export function createMockPlatformInvites(): Pick<
       const token = issueInviteToken(db, inv);
       writeClinicAudit(db, {
         clinicId,
-        actorName: ACTOR,
+        actorName: actor.fullName,
         action: "invitation.resent",
         entity: "invitation",
         before,
         after: invitationAuditSnapshot(inv),
-      });
-      // The summary names the email only; the link token never reaches the audit log.
-      db.platformAudit.unshift({
-        id: newId(),
-        actorName: ACTOR,
-        action: "invitation.resent",
-        clinicId,
-        summary: `Resent the first admin invitation to ${inv.email}`,
-        before: null,
-        after: { email: inv.email },
-        createdAt: new Date().toISOString(),
       });
       persist();
       return { email: inv.email, token, expiresAt: inv.expiresAt };

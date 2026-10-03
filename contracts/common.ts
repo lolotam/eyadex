@@ -41,6 +41,7 @@ export const apiErrorCodeSchema = z.enum([
   "role_in_use",
   "role_name_taken",
   "patient_phone_taken",
+  "last_active_platform_account",
   "unknown",
 ]);
 export type ApiErrorCode = z.infer<typeof apiErrorCodeSchema>;

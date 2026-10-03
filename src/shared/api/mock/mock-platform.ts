@@ -7,6 +7,7 @@ import {
 } from "@contracts/clinics";
 import type { ApiClient } from "../api-client";
 import { ApiError } from "../api-error";
+import { resolvePlatformActor, writePlatformAudit } from "./mock-platform-actor";
 import { delay, getState, newId, persist, type MockState } from "./mock-store";
 import { buildSystemRoles } from "./seed-roles";
 import { INVITATION_TTL_DAYS, type InvitationRecord } from "@contracts/invitations";
@@ -15,7 +16,6 @@ import { writeClinicAudit } from "./mock-audit";
 import { enforceEmailFree, toUserView, userUsage } from "./mock-user-rules";
 
 const DAY = 24 * 60 * 60 * 1000;
-const ACTOR = "Waleed Mohamed";
 
 function findClinic(db: MockState, id: string): Clinic {
   const clinic = db.clinics.find((c) => c.id === id);
@@ -32,23 +32,24 @@ function usage(db: MockState, clinicId: string) {
 
 type Snapshot = Record<string, unknown> | null;
 
+/** Clinic-management events, written through the single platform audit writer. */
 function audit(
   db: MockState,
+  actorName: string,
   action: string,
   clinicId: string,
   summary: string,
   before: Snapshot,
   after: Snapshot,
 ) {
-  db.platformAudit.unshift({
-    id: newId(),
-    actorName: ACTOR,
+  writePlatformAudit(db, {
+    actorName,
     action,
     clinicId,
+    entityId: clinicId,
     summary,
     before,
     after,
-    createdAt: new Date().toISOString(),
   });
 }
 
@@ -82,8 +83,9 @@ export function createMockPlatform(): Omit<
   "getFirstAdminInvitation" | "resendFirstAdminInvitation"
 > {
   return {
-    async listClinics(query) {
+    async listClinics(persona, query) {
       await delay();
+      resolvePlatformActor(getState(), persona);
       const db = getState();
       const term = query.search.trim().toLowerCase();
       const filtered = db.clinics
@@ -104,8 +106,9 @@ export function createMockPlatform(): Omit<
       };
     },
 
-    async getClinic(clinicId) {
+    async getClinic(persona, clinicId) {
       await delay();
+      resolvePlatformActor(getState(), persona);
       const db = getState();
       const clinic = findClinic(db, clinicId);
       const detail: ClinicDetail = {
@@ -116,8 +119,9 @@ export function createMockPlatform(): Omit<
       return detail;
     },
 
-    async createClinic(raw) {
+    async createClinic(persona, raw) {
       await delay();
+      const actor = resolvePlatformActor(getState(), persona);
       if (
         typeof raw.slug === "string" &&
         (RESERVED_CLINIC_SLUGS as readonly string[]).includes(raw.slug.trim())
@@ -138,7 +142,9 @@ export function createMockPlatform(): Omit<
         defaultLanguage: input.defaultLanguage,
         timezone: input.timezone,
         status: "trial",
-        expiresAt: new Date(now.getTime() + 30 * DAY).toISOString(),
+        expiresAt: new Date(
+          now.getTime() + db.platformSettings.defaultTrialDays * DAY,
+        ).toISOString(),
         maxUsers: 10,
         maxBranches: 3,
         createdAt: now.toISOString(),
@@ -161,14 +167,14 @@ export function createMockPlatform(): Omit<
           status: "pending",
           expiresAt: new Date(now.getTime() + INVITATION_TTL_DAYS * DAY).toISOString(),
           createdAt: now.toISOString(),
-          invitedBy: ACTOR,
+          invitedBy: actor.fullName,
           respondedAt: null,
           tokenHash: "",
         };
         db.invitations.push(invitation);
         writeClinicAudit(db, {
           clinicId: clinic.id,
-          actorName: ACTOR,
+          actorName: actor.fullName,
           action: "invitation.sent",
           entity: "invitation",
           before: null,
@@ -182,6 +188,7 @@ export function createMockPlatform(): Omit<
       }
       audit(
         db,
+        actor.fullName,
         "clinic.created",
         clinic.id,
         `Created clinic ${clinic.nameEn} with admin ${input.adminEmail}`,
@@ -193,8 +200,9 @@ export function createMockPlatform(): Omit<
       return { clinic, firstAdminInvite };
     },
 
-    async updateClinicDetails(clinicId, raw) {
+    async updateClinicDetails(persona, clinicId, raw) {
       await delay();
+      const actor = resolvePlatformActor(getState(), persona);
       const input = clinicDetailsInputSchema.parse(raw);
       const db = getState();
       const clinic = findClinic(db, clinicId);
@@ -202,6 +210,7 @@ export function createMockPlatform(): Omit<
       Object.assign(clinic, input);
       audit(
         db,
+        actor.fullName,
         "clinic.details_updated",
         clinicId,
         `Updated details of ${clinic.nameEn}`,
@@ -212,8 +221,9 @@ export function createMockPlatform(): Omit<
       return clinic;
     },
 
-    async updateSubscription(clinicId, raw) {
+    async updateSubscription(persona, clinicId, raw) {
       await delay();
+      const actor = resolvePlatformActor(getState(), persona);
       const input = subscriptionInputSchema.parse(raw);
       const db = getState();
       const clinic = findClinic(db, clinicId);
@@ -235,6 +245,7 @@ export function createMockPlatform(): Omit<
       clinic.expiresAt = expiresAt.toISOString();
       audit(
         db,
+        actor.fullName,
         "clinic.subscription_updated",
         clinicId,
         `Subscription: ${input.status}, expires ${clinic.expiresAt.slice(0, 10)}`,
@@ -245,8 +256,9 @@ export function createMockPlatform(): Omit<
       return clinic;
     },
 
-    async setClinicFeature(clinicId, module, enabled) {
+    async setClinicFeature(persona, clinicId, module, enabled) {
       await delay();
+      const actor = resolvePlatformActor(getState(), persona);
       const db = getState();
       const clinic = findClinic(db, clinicId);
       const was = Boolean((db.features[clinicId] ?? { patients: false })[module]);
@@ -256,6 +268,7 @@ export function createMockPlatform(): Omit<
       };
       audit(
         db,
+        actor.fullName,
         "clinic.feature_toggled",
         clinicId,
         `${module} ${enabled ? "enabled" : "disabled"} for ${clinic.nameEn}`,
@@ -265,15 +278,17 @@ export function createMockPlatform(): Omit<
       persist();
     },
 
-    async listClinicMembers(clinicId) {
+    async listClinicMembers(persona, clinicId) {
       await delay();
+      resolvePlatformActor(getState(), persona);
       const db = getState();
       findClinic(db, clinicId);
       return db.members.filter((m) => m.clinicId === clinicId).map((m) => toUserView(db, m));
     },
 
-    async listClinicBranches(clinicId) {
+    async listClinicBranches(persona, clinicId) {
       await delay();
+      resolvePlatformActor(getState(), persona);
       const db = getState();
       findClinic(db, clinicId);
       return db.branches.filter((b) => b.clinicId === clinicId);
