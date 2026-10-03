@@ -5,6 +5,7 @@ import type { MembershipUser } from "@contracts/users";
 import type { Patient } from "@contracts/patients";
 import type { MockState } from "./mock-store";
 import { issueInviteToken } from "./mock-invite-tokens";
+import { seedCivilId } from "./seed-civil-id";
 import { buildSystemRoles } from "./seed-roles";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -247,6 +248,7 @@ export function buildSeed(): MockState {
       const name = PATIENT_NAMES[(pi + ci * 8) % PATIENT_NAMES.length] ?? "أحمد العنزي";
       const branch = branches[pi % 2];
       if (!branch) continue;
+      const birthDate = `${1970 + ((pi * 3) % 40)}-${String((pi % 12) + 1).padStart(2, "0")}-15`;
       const patient: Patient = {
         id: makeId(),
         clinicId,
@@ -254,10 +256,11 @@ export function buildSeed(): MockState {
         fullName: name,
         // Fake numbers in the +9655xxxxxxx range; never real ones.
         phone: `+9655${String(1000000 + ci * 100000 + pi * 3517).slice(-7)}`,
-        birthDate: `${1970 + ((pi * 3) % 40)}-${String((pi % 12) + 1).padStart(2, "0")}-15`,
+        birthDate,
         gender: pi % 2 === 0 ? "male" : "female",
         registrationBranchId: branch.id,
-        civilId: pi % 3 === 0 ? null : String(280000000000 + pi * 7919 + ci),
+        // Fictional, and every one encodes the birth date above.
+        civilId: pi % 3 === 0 ? null : seedCivilId(birthDate, pi * 97 + ci * 31),
         status: pi === 7 || pi === patientCount - 1 ? "archived" : "active",
         createdAt,
       };

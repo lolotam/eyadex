@@ -118,6 +118,33 @@ export function enforcePhoneFree(
   });
 }
 
+/**
+ * One civil ID per clinic, archived files included, so a number is never reused by another
+ * person. Disclosure follows the phone rule exactly: only a caller who could open the existing
+ * file learns it is a duplicate; anyone else gets a plain validation error, so no hidden file is
+ * confirmed. The ID itself is never echoed back.
+ */
+export function enforceCivilIdFree(
+  db: MockState,
+  persona: Persona,
+  clinicId: string,
+  civilId: string | null,
+  exceptId: string | null,
+): void {
+  if (!civilId) return;
+  const existing = db.patients.find(
+    (p) => p.clinicId === clinicId && p.civilId === civilId && p.id !== exceptId,
+  );
+  if (!existing) return;
+  const viewer = tryAuthorizePatients(db, persona, "view");
+  const visible = viewer !== null && inScope(viewer, existing.registrationBranchId);
+  if (!visible) throw new ApiError("validation");
+  throw new ApiError("patient_civil_id_taken", undefined, {
+    patientId: existing.id,
+    fileNumber: existing.fileNumber,
+  });
+}
+
 /** Birth dates may not be after today in the clinic's own time zone. */
 export function enforceBirthDate(access: PatientAccess, birthDate: string): void {
   let today: string;

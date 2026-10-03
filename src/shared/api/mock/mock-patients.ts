@@ -12,6 +12,7 @@ import { writeClinicAudit } from "./mock-audit";
 import {
   authorizePatients,
   enforceBirthDate,
+  enforceCivilIdFree,
   guardPatients,
   writeResult,
   enforcePhoneFree,
@@ -149,6 +150,7 @@ export function createMockPatients(): ApiClient["patients"] {
       }
       enforceRegistrationBranch(db, access, input.registrationBranchId);
       enforcePhoneFree(db, persona, access.clinic.id, input.phone, null);
+      enforceCivilIdFree(db, persona, access.clinic.id, input.civilId || null, null);
       const fileNumber = (db.patientCounters[access.clinic.id] ?? 0) + 1;
       db.patientCounters[access.clinic.id] = fileNumber;
       const patient: Patient = {
@@ -184,6 +186,7 @@ export function createMockPatients(): ApiClient["patients"] {
       if (input.registrationBranchId !== patient.registrationBranchId)
         enforceRegistrationBranch(db, access, input.registrationBranchId);
       enforcePhoneFree(db, persona, access.clinic.id, input.phone, patient.id);
+      enforceCivilIdFree(db, persona, access.clinic.id, input.civilId || null, patient.id);
       const before = { ...patient };
       Object.assign(patient, {
         fullName: input.fullName,

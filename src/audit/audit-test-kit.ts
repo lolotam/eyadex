@@ -46,7 +46,7 @@ export async function seedActivity(): Promise<{ patientId: string; civilId: stri
     address: "",
     phone: "",
   });
-  const civilId = "290040112345";
+  const civilId = "290040112347";
   const created = await api.patients.create(
     as("clinic_admin"),
     {
