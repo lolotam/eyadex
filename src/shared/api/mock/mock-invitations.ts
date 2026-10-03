@@ -8,7 +8,7 @@ import {
 import { inviteUserInputSchema, type MembershipUser } from "@contracts/users";
 import type { ApiClient } from "../api-client";
 import { ApiError } from "../api-error";
-import { authorize, clinicBlockReason } from "./mock-actor";
+import { authorize, clinicBlockReason, effectivePermissions } from "./mock-actor";
 import { writeClinicAudit } from "./mock-audit";
 import {
   findInvitationByToken,
@@ -52,11 +52,13 @@ export function createMockInvitations(): ApiClient["invitations"] {
       if (!parsed.success) throw new ApiError("validation");
       const query = parsed.data;
       const db = getState();
-      const { clinic } = authorize(db, persona, "view", "users");
+      const actor = authorize(db, persona, "view", "users");
+      const { clinic } = actor;
+      const mayCreate = effectivePermissions(db, actor).includes("create:users:clinic");
       const term = query.search.toLocaleLowerCase();
       const rows = db.invitations
         .filter((i) => i.clinicId === clinic.id)
-        .map((i) => toInvitationView(db, i))
+        .map((i) => toInvitationView(db, i, mayCreate))
         .filter((i) => !query.status || i.status === query.status)
         .filter(
           (i) =>
@@ -211,7 +213,7 @@ export function createMockInvitations(): ApiClient["invitations"] {
         allBranches: inv.allBranches,
         branchIds: [...inv.branchIds],
         status: "active",
-        preferredLanguage: "ar",
+        preferredLanguage: clinic.defaultLanguage,
         lastLoginAt: null,
         createdAt: now,
       };

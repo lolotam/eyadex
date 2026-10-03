@@ -33,8 +33,8 @@ export const invitationSchema = invitationRecordSchema.omit({ tokenHash: true })
   status: invitationStatusSchema,
   roleNameAr: z.string(),
   roleNameEn: z.string(),
-  /** Opaque token used in the invitation link. */
-  token: z.string(),
+  /** Bearer token for the invitation link; null unless the caller may create users. */
+  token: z.string().nullable(),
 });
 export type Invitation = z.infer<typeof invitationSchema>;
 
