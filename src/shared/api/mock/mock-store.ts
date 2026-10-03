@@ -18,6 +18,8 @@ export type MockState = {
   /** Idempotency-Key replay: "clinicId:key" -> invitation id (optional for older saved state). */
   idempotentInvites?: Record<string, { invitationId: string; fingerprint: string }>;
   patients: Patient[];
+  /** Idempotency-Key replay for patient creates: "clinicId:key" -> patient id + request fingerprint. */
+  idempotentPatients?: Record<string, { patientId: string; fingerprint: string }>;
   /** Per-clinic file-number counter: last number issued, never reused. */
   patientCounters: Record<string, number>;
   platformAudit: PlatformAuditEntry[];

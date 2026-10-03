@@ -128,12 +128,20 @@ export function createMockPatients(): ApiClient["patients"] {
       return toDetail(db, patient);
     },
 
-    async create(persona, rawInput) {
+    async create(persona, rawInput, idempotencyKey) {
       await delay();
       const db = getState();
       const access = authorizePatients(db, persona, "create");
       const input = parseInput(rawInput);
       enforceBirthDate(access, input.birthDate);
+      const replayKey = `${access.clinic.id}:${idempotencyKey}`;
+      const fingerprint = JSON.stringify({ ...input, civilId: input.civilId || null });
+      const previous = db.idempotentPatients?.[replayKey];
+      if (previous) {
+        if (previous.fingerprint !== fingerprint) throw new ApiError("idempotency_conflict");
+        const replayed = db.patients.find((p) => p.id === previous.patientId);
+        if (replayed) return toDetail(db, replayed);
+      }
       enforceRegistrationBranch(db, access, input.registrationBranchId);
       enforcePhoneFree(db, persona, access.clinic.id, input.phone, null);
       const fileNumber = (db.patientCounters[access.clinic.id] ?? 0) + 1;
@@ -152,6 +160,10 @@ export function createMockPatients(): ApiClient["patients"] {
         createdAt: new Date().toISOString(),
       };
       db.patients.push(patient);
+      db.idempotentPatients = {
+        ...db.idempotentPatients,
+        [replayKey]: { patientId: patient.id, fingerprint },
+      };
       audit(db, access, "patient.created", null, patient);
       persist();
       return toDetail(db, patient);

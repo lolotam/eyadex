@@ -54,6 +54,8 @@ export function usePatientDetail(patientId: string) {
     queryFn: () => api.patients.open(persona, patientId),
     enabled,
     staleTime: Infinity,
+    // Nothing stays cached after leaving the file, so revoked access can never show an old copy.
+    gcTime: 0,
     refetchOnMount: "always",
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,

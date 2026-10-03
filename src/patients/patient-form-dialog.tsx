@@ -55,6 +55,8 @@ export function PatientFormDialog({ open, patient, onOpenChange }: Props) {
   const refresh = useRefreshPatients();
   const branches = usePatientBranches(patient ? "update" : "create");
   const [duplicate, setDuplicate] = useState<Duplicate | null>(null);
+  // One key per opening of the dialog: a retried submission replays the first create.
+  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
   const form = useForm<PatientInput>({
     resolver: zodResolver(patientInputSchema),
     defaultValues: blank(""),
@@ -69,6 +71,7 @@ export function PatientFormDialog({ open, patient, onOpenChange }: Props) {
   useEffect(() => {
     if (!open) return;
     setDuplicate(null);
+    setIdempotencyKey(crypto.randomUUID());
     form.reset(
       patient
         ? {
@@ -87,7 +90,7 @@ export function PatientFormDialog({ open, patient, onOpenChange }: Props) {
     mutationFn: (input: PatientInput) =>
       patient
         ? api.patients.update(persona, patient.id, input)
-        : api.patients.create(persona, input),
+        : api.patients.create(persona, input, idempotencyKey),
     onSuccess: (detail) => {
       refresh(detail);
       toast.success(t(patient ? "patients.updated" : "patients.created"));

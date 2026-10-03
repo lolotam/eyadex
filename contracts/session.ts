@@ -38,6 +38,8 @@ export const sessionContextSchema = z.object({
       nameEn: z.string(),
       status: clinicStatusSchema,
       expiresAt: z.string(),
+      /** IANA zone; timestamps are shown in the clinic's time, not the browser's. */
+      timezone: z.string(),
     })
     .nullable(),
   permissions: z.array(z.string()),

@@ -67,7 +67,9 @@ describe("patients mock", () => {
 
   it("rejects a branch-scoped create outside the user's branches", async () => {
     const outside = otherBranchThan(memberOf("receptionist").branchIds);
-    await expect(api.patients.create(as("receptionist"), input(outside.id))).rejects.toMatchObject({
+    await expect(
+      api.patients.create(as("receptionist"), input(outside.id), crypto.randomUUID()),
+    ).rejects.toMatchObject({
       code: "forbidden",
     });
   });
@@ -89,7 +91,7 @@ describe("patients mock", () => {
       api.patients.list(admin, ALL),
       api.patients.branchOptions(admin, "view"),
       api.patients.open(admin, patient.id),
-      api.patients.create(admin, input(branch.id)),
+      api.patients.create(admin, input(branch.id), crypto.randomUUID()),
       api.patients.update(admin, patient.id, input(branch.id)),
       api.patients.archive(admin, patient.id),
       api.patients.restore(admin, patient.id),
@@ -101,11 +103,15 @@ describe("patients mock", () => {
   it("rejects duplicate phones written in different forms", async () => {
     const branch = branches()[0];
     if (!branch) throw new Error("no branch");
-    const created = await api.patients.create(as("clinic_admin"), input(branch.id, "5550 1234"));
+    const created = await api.patients.create(
+      as("clinic_admin"),
+      input(branch.id, "5550 1234"),
+      crypto.randomUUID(),
+    );
     expect(created.phone).toBe("+96555501234");
     for (const spelling of ["55501234", "+965 5550-1234", "0096555501234"]) {
       await expect(
-        api.patients.create(as("clinic_admin"), input(branch.id, spelling)),
+        api.patients.create(as("clinic_admin"), input(branch.id, spelling), crypto.randomUUID()),
       ).rejects.toMatchObject({
         code: "patient_phone_taken",
         details: { patientId: created.id, fileNumber: created.fileNumber },
@@ -117,9 +123,17 @@ describe("patients mock", () => {
     const branch = branches()[0];
     if (!branch) throw new Error("no branch");
     const start = getState().patientCounters[clinicId()] ?? 0;
-    const a = await api.patients.create(as("clinic_admin"), input(branch.id, "55500001"));
+    const a = await api.patients.create(
+      as("clinic_admin"),
+      input(branch.id, "55500001"),
+      crypto.randomUUID(),
+    );
     await api.patients.archive(as("clinic_admin"), a.id);
-    const b = await api.patients.create(as("clinic_admin"), input(branch.id, "55500002"));
+    const b = await api.patients.create(
+      as("clinic_admin"),
+      input(branch.id, "55500002"),
+      crypto.randomUUID(),
+    );
     expect(a.fileNumber).toBe(start + 1);
     expect(b.fileNumber).toBe(start + 2);
   });
@@ -142,7 +156,7 @@ describe("patients mock", () => {
     const branch = branches()[0];
     if (!branch) throw new Error("no branch");
     const admin = as("clinic_admin");
-    const p = await api.patients.create(admin, input(branch.id));
+    const p = await api.patients.create(admin, input(branch.id), crypto.randomUUID());
     await api.patients.update(admin, p.id, { ...input(branch.id), civilId: "299999999999" });
     await api.patients.open(admin, p.id);
     await api.patients.archive(admin, p.id);
@@ -162,7 +176,9 @@ describe("patients mock", () => {
     await expect(api.patients.open(doctor, patient.id)).resolves.toMatchObject({
       id: patient.id,
     });
-    await expect(api.patients.create(doctor, input(own))).rejects.toMatchObject({
+    await expect(
+      api.patients.create(doctor, input(own), crypto.randomUUID()),
+    ).rejects.toMatchObject({
       code: "forbidden",
     });
     await expect(api.patients.update(doctor, patient.id, input(own))).rejects.toMatchObject({
@@ -180,7 +196,7 @@ describe("patients mock", () => {
     );
     if (!foreign) throw new Error("no foreign patient");
     const error = await api.patients
-      .create(as("receptionist"), input(own[0] ?? "", foreign.phone))
+      .create(as("receptionist"), input(own[0] ?? "", foreign.phone), crypto.randomUUID())
       .catch((e: unknown) => e);
     expect(error).toMatchObject({ code: "patient_phone_taken", details: {} });
   });
@@ -203,7 +219,11 @@ describe("patients mock", () => {
     });
     getState().features[clinicId()] = { patients: true };
     await expect(
-      api.patients.create(as("doctor"), { ...input(branches()[0]!.id), phone: "x" }),
+      api.patients.create(
+        as("doctor"),
+        { ...input(branches()[0]!.id), phone: "x" },
+        crypto.randomUUID(),
+      ),
     ).rejects.toMatchObject({ code: "forbidden" });
   });
 
@@ -234,5 +254,17 @@ describe("patients mock", () => {
     await expect(
       api.patients.branchOptions(as("doctor"), "nope" as unknown as "view"),
     ).rejects.toMatchObject({ code: "module_disabled" });
+  });
+  it("replays a retried create with the same key and refuses a changed request", async () => {
+    const branch = branches()[0]!;
+    const admin = as("clinic_admin");
+    const key = crypto.randomUUID();
+    const first = await api.patients.create(admin, input(branch.id, "55507777"), key);
+    const retry = await api.patients.create(admin, input(branch.id, "55507777"), key);
+    expect(retry.id).toBe(first.id);
+    expect(getState().patients.filter((p) => p.phone === "+96555507777")).toHaveLength(1);
+    await expect(
+      api.patients.create(admin, input(branch.id, "55508888"), key),
+    ).rejects.toMatchObject({ code: "idempotency_conflict" });
   });
 });

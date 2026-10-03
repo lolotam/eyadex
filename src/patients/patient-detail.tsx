@@ -24,7 +24,7 @@ export function PatientDetail({ patientId }: { patientId: string }) {
   const permissions = session?.permissions ?? [];
 
   if (detail.isLoading) return <LoadingBlock />;
-  const patient = detail.data;
+  const patient = detail.isError ? undefined : detail.data;
   if (!patient)
     return (
       <div>
@@ -37,18 +37,25 @@ export function PatientDetail({ patientId }: { patientId: string }) {
       </div>
     );
 
-  const fmtDate = (iso: string) =>
-    new Intl.DateTimeFormat(lang === "ar" ? "ar-KW" : "en-GB", { dateStyle: "medium" }).format(
-      new Date(iso),
+  const locale = lang === "ar" ? "ar-KW" : "en-GB";
+  // A birth date is a calendar date: read and print it in UTC so no zone can shift the day.
+  const fmtDay = (day: string) =>
+    new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: "UTC" }).format(
+      new Date(`${day}T00:00:00Z`),
     );
+  const fmtInstant = (iso: string) =>
+    new Intl.DateTimeFormat(locale, {
+      dateStyle: "medium",
+      timeZone: session?.clinic?.timezone ?? "Asia/Kuwait",
+    }).format(new Date(iso));
   const rows: [string, string, boolean?][] = [
     [t("patients.columns.fileNumber"), formatFileNumber(patient.fileNumber), true],
     [t("patients.fields.phone"), patient.phone, true],
-    [t("patients.fields.birthDate"), fmtDate(`${patient.birthDate}T00:00:00Z`)],
+    [t("patients.fields.birthDate"), fmtDay(patient.birthDate)],
     [t("patients.fields.gender"), t(`patients.gender.${patient.gender}`)],
     [t("patients.fields.branch"), pick(patient.branchNameAr, patient.branchNameEn)],
     [t("patients.fields.civilId"), patient.civilId ?? t("patients.none"), true],
-    [t("patients.fields.createdAt"), fmtDate(patient.createdAt)],
+    [t("patients.fields.createdAt"), fmtInstant(patient.createdAt)],
   ];
 
   return (
