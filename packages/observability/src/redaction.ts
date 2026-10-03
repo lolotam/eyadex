@@ -1,4 +1,8 @@
 import { errorDiagnostic } from "./serializers.ts";
+import { maskPhonesInText, scrubSecretsInText } from "./free-text.ts";
+import { maskPhone, REDACTED } from "./masks.ts";
+
+export { maskPhone, REDACTED } from "./masks.ts";
 
 // CLAUDE.md §8: never log PINs, tokens, credentials, or a full phone number (last 3 digits only).
 // Keys are matched case-insensitively at ANY depth and inside arrays — pino's own `redact` paths only
@@ -165,82 +169,22 @@ function scrubUrlCredentials(text: string): string {
 }
 
 const MAX_DEPTH = 8;
-export const REDACTED = "[REDACTED]";
-
-/**
- * A phone number keeps its last 3 digits; anything else under a phone key is replaced entirely.
- *
- * @param value the value found under a phone key
- * @returns what is printed instead
- */
-export function maskPhone(value: unknown): string {
-  if (typeof value !== "string") return REDACTED;
-  // Already masked (the sanitiser can run twice on one line): keep it, don't mask the mask.
-  if (/^\*{3}\d{0,3}$/.test(value)) return value;
-  // Arabic-Indic digits count as digits: the last three are kept as ASCII, nothing else survives.
-  const digits = value
-    .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660))
-    .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
-    .replace(/\D/g, "");
-  return digits.length > 3 ? `***${digits.slice(-3)}` : "***";
-}
-
 // One walk for both entry points. Only data survives: functions (including a `toJSON` hook, which JSON
 // serialisation would call and which could return anything) are dropped, dates become ISO strings, errors
 // become diagnostics. Cycles and anything deeper than MAX_DEPTH are replaced rather than walked.
-// A Kuwaiti number written by hand inside free text ("call 5001 2345", "00965-5001-2345") under a key that
-// is not a phone key. Eight digits starting 2/4/5/6/9, optional +965/00965 and one space or dash between the
-// halves. The boundaries keep it off UUIDs, dates and longer digit runs: not glued to a letter, digit, dash
-// or plus on either side.
-// A civil ID written inside free text (a search term, a note), under a key that says nothing: 12 digits,
-// ASCII or Arabic-Indic, starting with the century digit 2 or 3, optionally split by spaces or dashes. Any
-// such run is replaced whole, valid checksum or not — over-redacting a 12-digit reference costs nothing,
-// printing a civil ID breaks CLAUDE.md §5. It runs before phone masking, which would otherwise mask an
-// 8-digit slice and leave the rest of the ID readable.
-const CIVIL_ID_IN_TEXT = /(?<![\w٠-٩۰-۹-])[23٢٣۲۳](?:[\s-]?[0-9٠-٩۰-۹]){11}(?![\w٠-٩۰-۹-])/g;
-
-// Credentials written inside free text under a key that says nothing ({ detail: "Bearer eyJ…" }): an
-// Authorization scheme's value, any JWT, and `name=value` / `name: value` pairs whose name is a credential.
-// The long credential words match as a suffix (accessToken=, x-api-key:), the short ones only as a whole
-// word (sid=, pin:), so "pinned: true" or "spin=3" are left alone.
-// Any length: "Basic dTpw" (u:p) is a credential too. Scheme names are matched as written in headers
-// (Bearer, bearer, Basic, Digest, Token), case-sensitively, so prose like "basic setup" or "the token expired"
-// is not taken for one.
-const AUTH_SCHEME_VALUE = /\b([Bb]earer|Basic|Digest|Token)\s+[A-Za-z0-9._~+/=-]+/g;
-const JWT_IN_TEXT = /\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]*/g;
-// The value is a whole quoted string ("two words", 'two words') or, unquoted, everything up to the next
-// separator; the name may itself be quoted, as in JSON text ("password": "…").
-const CREDENTIAL_ASSIGNMENT =
-  /\b([\w.-]*?(?:token|secret|password|passwd|api[_-]?key|access[_-]?key|private[_-]?key|session[_-]?id|session|authorization|cookie|signature)|sid|pwd|pin|otp)(["']?\s*[:=]\s*)(?:"[^"]*"|'[^']*'|[^\s&",;']+)/gi;
-
-function scrubCredentialsInText(text: string): string {
-  return text
-    .replace(AUTH_SCHEME_VALUE, `$1 ${REDACTED}`)
-    .replace(JWT_IN_TEXT, REDACTED)
-    .replace(CREDENTIAL_ASSIGNMENT, `$1$2${REDACTED}`);
-}
-
-// Digits may be ASCII or Arabic-Indic (an Arabic-first app: "اتصل على ٥٠٠١ ٢٣٤٥"). The country code may be
-// written +965, 00965, (+965) or bare 965 ("96550012345", the normalized form without the plus).
-const KUWAIT_LOCAL_PHONE =
-  /(?<![\w٠-٩۰-۹+-])(?:\(?(?:\+|00|٠٠|۰۰)?(?:965|٩٦٥|۹۶۵)\)?[\s-]?)?[24569٢٤٥٦٩۲۴۵۶۹][0-9٠-٩۰-۹]{3}[\s-]?[0-9٠-٩۰-۹]{4}(?![\w٠-٩۰-۹-])/g;
-
 function scrub(value: unknown, maskPhones: boolean): unknown {
   const seen = new WeakSet<object>();
   const walk = (node: unknown, depth: number): unknown => {
     if (typeof node === "function" || typeof node === "symbol") return undefined;
     if (typeof node === "bigint") return node.toString();
     if (typeof node === "string") {
-      // Civil IDs go in every mode (logs and audit snapshots alike); phones and emails only where masked.
-      const text = scrubCredentialsInText(scrubUrlCredentials(node)).replace(
-        CIVIL_ID_IN_TEXT,
-        REDACTED,
-      );
+      // Credentials and civil IDs go in every mode (logs and audit snapshots alike); phones and emails only
+      // where masked. Civil IDs before phones, or an 8-digit slice of an ID would be taken for a phone.
+      const text = scrubSecretsInText(scrubUrlCredentials(node));
       return maskPhones
-        ? text
-            .replace(/\+[1-9١-٩۱-۹][0-9٠-٩۰-۹]{7,14}/g, maskPhone)
-            .replace(KUWAIT_LOCAL_PHONE, maskPhone)
-            .replace(EMAIL_OR_URL, (part) => (URL_START.test(part) ? part : REDACTED))
+        ? maskPhonesInText(text).replace(EMAIL_OR_URL, (part) =>
+            URL_START.test(part) ? part : REDACTED,
+          )
         : text;
     }
     if (node === null || typeof node !== "object") return node;

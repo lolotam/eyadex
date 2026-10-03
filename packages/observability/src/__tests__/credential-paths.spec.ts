@@ -142,6 +142,13 @@ describe("credentials written inside free text are redacted whatever key holds t
     ["short Basic dTpw end", `short Basic ${REDACTED} end`],
     ["short Bearer abc123 end", `short Bearer ${REDACTED} end`],
     ["lower bearer x9 end", `lower bearer ${REDACTED} end`],
+    ["upper BEARER abc123 end", `upper BEARER ${REDACTED} end`],
+    ["mixed bAsIc dTpw end", `mixed bAsIc ${REDACTED} end`],
+    ['Digest username="u", nonce="n", response="h"', `Digest ${REDACTED}`],
+    [
+      "line1\nAWS4-HMAC-SHA256 Credential=AK/x, Signature=abc\nline3",
+      `line1\nAWS4-HMAC-SHA256 ${REDACTED}\nline3`,
+    ],
     ["got eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.c2lnbmF0dXJl back", `got ${REDACTED} back`],
     ["retry with token=abc123def456", `retry with token=${REDACTED}`],
     ["accessToken=abc123def456&x=1", `accessToken=${REDACTED}&x=1`],
@@ -158,14 +165,10 @@ describe("credentials written inside free text are redacted whatever key holds t
     expect(sanitize({ details: [text] })).toEqual({ details: [redacted] });
   });
 
-  it.each([
-    "pinned: true",
-    "spin=3",
-    "sessionCount=5",
-    "the token expired",
-    "Bearer",
-    "a basic setup",
-  ])("leaves %j alone", (text) => {
-    expect(sanitize({ detail: text })).toEqual({ detail: text });
-  });
+  it.each(["pinned: true", "spin=3", "sessionCount=5", "the token expired", "Bearer"])(
+    "leaves %j alone",
+    (text) => {
+      expect(sanitize({ detail: text })).toEqual({ detail: text });
+    },
+  );
 });
