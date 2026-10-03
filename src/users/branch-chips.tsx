@@ -13,7 +13,8 @@ export function BranchChips({
   branches: BranchOption[];
 }) {
   const { t, pick } = useI18n();
-  if (allBranches) return <span className="whitespace-nowrap text-sm">{t("users.allBranches")}</span>;
+  if (allBranches)
+    return <span className="whitespace-nowrap text-sm">{t("users.allBranches")}</span>;
   const names = branchIds.map((id) => {
     const b = branches.find((x) => x.id === id);
     return b ? pick(b.nameAr, b.nameEn) : "—";

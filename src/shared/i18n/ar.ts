@@ -255,8 +255,7 @@ export const ar: Dictionary = {
     changeBranchesTitle: "تغيير الفروع",
     changeBranchesSubtitle: "اختر الفروع التي يعمل فيها {name}.",
     deactivateTitle: "تعطيل {name}؟",
-    deactivateBody:
-      "سيُسجَّل خروجه فورًا ولن يتمكن من الدخول. يبقى سجله في العيادة، ويتحرر مقعده.",
+    deactivateBody: "سيُسجَّل خروجه فورًا ولن يتمكن من الدخول. يبقى سجله في العيادة، ويتحرر مقعده.",
     reactivateTitle: "إعادة تفعيل {name}؟",
     reactivateBody: "سيتمكن من الدخول مجددًا، وسيُحتسب ضمن حد المستخدمين.",
     cancelTitle: "إلغاء الدعوة المرسلة إلى {email}؟",

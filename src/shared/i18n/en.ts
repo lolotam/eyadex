@@ -38,7 +38,8 @@ export const en = {
     demoNote: "Demo sign-in. No passwords.",
     account: "Account",
     deactivatedTag: "deactivated",
-    disabledNotice: "Your account was deactivated. You have been signed out. Contact your clinic admin.",
+    disabledNotice:
+      "Your account was deactivated. You have been signed out. Contact your clinic admin.",
     signOut: "Sign out",
   },
   nav: {
@@ -317,7 +318,8 @@ export const en = {
   },
   errors: {
     email_taken: "This email already belongs to a user or a pending invitation",
-    last_active_admin: "The clinic's last active admin cannot be deactivated or moved to another role",
+    last_active_admin:
+      "The clinic's last active admin cannot be deactivated or moved to another role",
     account_disabled: "This account has been deactivated",
     subscription_blocked: "The clinic's subscription does not allow access right now",
     role_inactive: "A deactivated role cannot be assigned",

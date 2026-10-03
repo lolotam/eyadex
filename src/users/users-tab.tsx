@@ -64,7 +64,10 @@ export function UsersTab() {
           label={t("users.columns.role")}
           value={roleId}
           anyLabel={t("users.anyRole")}
-          options={(roles.data ?? []).map((r) => ({ value: r.id, label: pick(r.nameAr, r.nameEn) }))}
+          options={(roles.data ?? []).map((r) => ({
+            value: r.id,
+            label: pick(r.nameAr, r.nameEn),
+          }))}
           onChange={withReset(setRoleId)}
         />
         <FilterSelect

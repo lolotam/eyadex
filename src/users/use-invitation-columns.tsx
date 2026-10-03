@@ -70,11 +70,23 @@ export function useInvitationColumns(h: Handlers): ColumnDef<Invitation, unknown
           const open = inv.status === "pending" || inv.status === "expired";
           const actions: RowAction[] = [];
           if (inv.status === "pending")
-            actions.push({ label: t("users.actions.copyLink"), icon: Link2, onSelect: () => onCopy(inv) });
+            actions.push({
+              label: t("users.actions.copyLink"),
+              icon: Link2,
+              onSelect: () => onCopy(inv),
+            });
           if (open && mayCreate)
-            actions.push({ label: t("users.actions.resend"), icon: Send, onSelect: () => onResend(inv) });
+            actions.push({
+              label: t("users.actions.resend"),
+              icon: Send,
+              onSelect: () => onResend(inv),
+            });
           if (open && mayCancel)
-            actions.push({ label: t("users.actions.cancel"), icon: XCircle, onSelect: () => onCancel(inv) });
+            actions.push({
+              label: t("users.actions.cancel"),
+              icon: XCircle,
+              onSelect: () => onCancel(inv),
+            });
           return <RowActionsMenu label={t("users.columns.actions")} actions={actions} />;
         },
       },

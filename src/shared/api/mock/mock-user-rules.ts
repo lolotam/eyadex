@@ -1,4 +1,8 @@
-import { computeInvitationStatus, type Invitation, type InvitationRecord } from "@contracts/invitations";
+import {
+  computeInvitationStatus,
+  type Invitation,
+  type InvitationRecord,
+} from "@contracts/invitations";
 import type { MembershipUser, MembershipUserView, UserUsage } from "@contracts/users";
 import { ApiError } from "../api-error";
 import type { MockState } from "./mock-store";

@@ -9,12 +9,7 @@ import type {
   CreateClinicInput,
   SubscriptionInput,
 } from "@contracts/clinics";
-import type {
-  Branch,
-  BranchInput,
-  BranchListQuery,
-  BranchUsage,
-} from "@contracts/organization";
+import type { Branch, BranchInput, BranchListQuery, BranchUsage } from "@contracts/organization";
 import type {
   AcceptedInvitation,
   AcceptInvitationInput,
@@ -68,7 +63,11 @@ export interface ApiClient {
     usage(persona: Persona): Promise<UserUsage>;
     listRoleOptions(persona: Persona): Promise<RoleOption[]>;
     listBranchOptions(persona: Persona): Promise<BranchOption[]>;
-    changeRole(persona: Persona, memberId: string, input: ChangeRoleInput): Promise<MembershipUserView>;
+    changeRole(
+      persona: Persona,
+      memberId: string,
+      input: ChangeRoleInput,
+    ): Promise<MembershipUserView>;
     changeBranches(
       persona: Persona,
       memberId: string,

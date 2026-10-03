@@ -201,9 +201,7 @@ export function createMockPlatform(): ApiClient["platform"] {
       await delay();
       const db = getState();
       findClinic(db, clinicId);
-      return db.members
-        .filter((m) => m.clinicId === clinicId)
-        .map((m) => toUserView(db, m));
+      return db.members.filter((m) => m.clinicId === clinicId).map((m) => toUserView(db, m));
     },
 
     async listClinicBranches(clinicId) {

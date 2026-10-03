@@ -3,7 +3,11 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { changeRoleInputSchema, type ChangeRoleInput, type MembershipUserView } from "@contracts/users";
+import {
+  changeRoleInputSchema,
+  type ChangeRoleInput,
+  type MembershipUserView,
+} from "@contracts/users";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -47,8 +51,7 @@ export function ChangeRoleDialog({
   }, [user, form]);
 
   const mutation = useMutation({
-    mutationFn: (input: ChangeRoleInput) =>
-      api.users.changeRole(persona, user?.id ?? "", input),
+    mutationFn: (input: ChangeRoleInput) => api.users.changeRole(persona, user?.id ?? "", input),
     onSuccess: () => {
       refresh();
       toast.success(t("users.roleChanged"));

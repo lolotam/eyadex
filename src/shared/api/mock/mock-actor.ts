@@ -27,7 +27,9 @@ export function resolveActor(db: MockState, persona: Persona): Actor {
     ? db.members.find((m) => m.clinicId === clinic.id && m.id === persona.memberId)
     : db.members.find((m) => {
         const role = db.roles.find((r) => r.id === m.roleId);
-        return m.clinicId === clinic.id && m.status === "active" && role?.systemKey === persona.kind;
+        return (
+          m.clinicId === clinic.id && m.status === "active" && role?.systemKey === persona.kind
+        );
       });
   if (!member) throw new ApiError("not_found");
   if (member.status !== "active") throw new ApiError("account_disabled");

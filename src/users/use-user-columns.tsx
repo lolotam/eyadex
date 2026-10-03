@@ -75,7 +75,11 @@ export function useUserColumns(h: Handlers): ColumnDef<MembershipUserView, unkno
           const actions: RowAction[] = [];
           if (mayUpdate && u.status === "active") {
             actions.push(
-              { label: t("users.actions.changeRole"), icon: ShieldCheck, onSelect: () => onRole(u) },
+              {
+                label: t("users.actions.changeRole"),
+                icon: ShieldCheck,
+                onSelect: () => onRole(u),
+              },
               {
                 label: t("users.actions.changeBranches"),
                 icon: GitBranch,
