@@ -145,9 +145,6 @@ export interface ApiClient {
     /** Needs view:audit_log:clinic; the caller's clinic only, newest first. */
     clinicList(persona: Persona, query: ClinicAuditListQuery): Promise<Page<ClinicAuditItem>>;
     /** Platform admin only: platform events plus clinic administrative entries, never patient ones. */
-    platformList(
-      persona: Persona,
-      query: PlatformAuditListQuery,
-    ): Promise<Page<PlatformAuditItem>>;
+    platformList(persona: Persona, query: PlatformAuditListQuery): Promise<Page<PlatformAuditItem>>;
   };
 }

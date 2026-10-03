@@ -16,9 +16,9 @@ describe("clinic audit log", () => {
     await expect(api.audit.clinicList(as("doctor"), CLINIC_QUERY)).rejects.toMatchObject({
       code: "forbidden",
     });
-    await expect(
-      api.audit.clinicList(as("platform_admin"), CLINIC_QUERY),
-    ).rejects.toMatchObject({ code: "forbidden" });
+    await expect(api.audit.clinicList(as("platform_admin"), CLINIC_QUERY)).rejects.toMatchObject({
+      code: "forbidden",
+    });
   });
 
   it("authorizes before validating the query", async () => {

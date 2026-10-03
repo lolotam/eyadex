@@ -1,5 +1,6 @@
 import { enRoles } from "./en-roles";
 import { enPatients } from "./en-patients";
+import { enAudit } from "./en-audit";
 import { enUsers } from "./en-users";
 
 export const en = {
@@ -229,6 +230,7 @@ export const en = {
   ...enUsers,
   ...enRoles,
   ...enPatients,
+  ...enAudit,
   validation: {
     needsView: "Any create, edit or deactivate permission needs view on the same area",
     timezone: "Choose a supported time zone",

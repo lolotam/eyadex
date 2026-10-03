@@ -1,5 +1,13 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { api, as, getState, PLATFORM, PLATFORM_QUERY, resetMockData, seedActivity } from "./audit-test-kit";
+import {
+  api,
+  as,
+  getState,
+  PLATFORM,
+  PLATFORM_QUERY,
+  resetMockData,
+  seedActivity,
+} from "./audit-test-kit";
 
 describe("platform audit log", () => {
   beforeEach(() => resetMockData());
