@@ -81,7 +81,7 @@ export function usePatientColumns({ mayArchive, onOpen, onStatus }: Options) {
                   <FolderOpen className="size-4" />
                   {t("patients.open")}
                 </DropdownMenuItem>
-                {mayArchive && (
+                {mayArchive && row.original.actions.deactivate && (
                   <DropdownMenuItem onSelect={() => onStatus(row.original)}>
                     {row.original.status === "active" ? (
                       <Archive className="size-4" />

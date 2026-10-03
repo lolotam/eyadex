@@ -60,7 +60,7 @@ export function createMockPatients(): ApiClient["patients"] {
     const db = getState();
     const access = authorizePatients(db, persona, "deactivate");
     const patient = findPatientInScope(db, access, patientId);
-    if (patient.status === status) return toDetail(db, patient);
+    if (patient.status === status) return toDetail(db, persona, patient);
     const before = { ...patient };
     patient.status = status;
     audit(
@@ -71,7 +71,7 @@ export function createMockPatients(): ApiClient["patients"] {
       patient,
     );
     persist();
-    return toDetail(db, patient);
+    return toDetail(db, persona, patient);
   }
 
   return {
@@ -92,7 +92,7 @@ export function createMockPatients(): ApiClient["patients"] {
       const page = filtered.slice(start, start + query.limit);
       const last = page.at(-1);
       return {
-        items: page.map((p) => toListItem(db, p)),
+        items: page.map((p) => toListItem(db, persona, p)),
         total: filtered.length,
         nextCursor: start + query.limit < filtered.length && last ? last.id : null,
       };
@@ -125,7 +125,7 @@ export function createMockPatients(): ApiClient["patients"] {
         after: { id: patient.id, fileNumber: patient.fileNumber },
       });
       persist();
-      return toDetail(db, patient);
+      return toDetail(db, persona, patient);
     },
 
     async create(persona, rawInput, idempotencyKey) {
@@ -140,7 +140,7 @@ export function createMockPatients(): ApiClient["patients"] {
       if (previous) {
         if (previous.fingerprint !== fingerprint) throw new ApiError("idempotency_conflict");
         const replayed = db.patients.find((p) => p.id === previous.patientId);
-        if (replayed) return toDetail(db, replayed);
+        if (replayed) return toDetail(db, persona, replayed);
       }
       enforceRegistrationBranch(db, access, input.registrationBranchId);
       enforcePhoneFree(db, persona, access.clinic.id, input.phone, null);
@@ -166,7 +166,7 @@ export function createMockPatients(): ApiClient["patients"] {
       };
       audit(db, access, "patient.created", null, patient);
       persist();
-      return toDetail(db, patient);
+      return toDetail(db, persona, patient);
     },
 
     async update(persona, patientId, rawInput) {
@@ -190,7 +190,7 @@ export function createMockPatients(): ApiClient["patients"] {
       });
       audit(db, access, "patient.updated", before, patient);
       persist();
-      return toDetail(db, patient);
+      return toDetail(db, persona, patient);
     },
 
     archive: (persona, patientId) => setStatus(persona, patientId, "archived"),

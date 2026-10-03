@@ -91,6 +91,13 @@ export const patientListQuerySchema = pageQuerySchema.extend({
 });
 export type PatientListQuery = z.infer<typeof patientListQuerySchema>;
 
+/** What the caller may do to this one record, under each action's own scope. */
+export const patientRecordActionsSchema = z.object({
+  update: z.boolean(),
+  deactivate: z.boolean(),
+});
+export type PatientRecordActions = z.infer<typeof patientRecordActionsSchema>;
+
 /** List rows never carry the full civil ID, only its last 4 digits. */
 export const patientListItemSchema = z.object({
   id: idSchema,
@@ -102,12 +109,14 @@ export const patientListItemSchema = z.object({
   branchNameEn: z.string(),
   civilIdLast4: z.string().nullable(),
   status: patientStatusSchema,
+  actions: patientRecordActionsSchema,
 });
 export type PatientListItem = z.infer<typeof patientListItemSchema>;
 
 export const patientDetailSchema = patientSchema.omit({ clinicId: true }).extend({
   branchNameAr: z.string(),
   branchNameEn: z.string(),
+  actions: patientRecordActionsSchema,
 });
 export type PatientDetail = z.infer<typeof patientDetailSchema>;
 

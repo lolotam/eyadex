@@ -6,6 +6,7 @@ import {
   type Patient,
   type PatientDetail,
   type PatientListItem,
+  type PatientRecordActions,
 } from "@contracts/patients";
 import type { Persona } from "@contracts/session";
 import { ApiError } from "../api-error";
@@ -141,7 +142,16 @@ function branchNames(db: MockState, branchId: string) {
   return { branchNameAr: branch?.nameAr ?? "—", branchNameEn: branch?.nameEn ?? "—" };
 }
 
-export function toListItem(db: MockState, p: Patient): PatientListItem {
+/** Per-record actions: the action's permission AND this record's branch inside that action's scope. */
+export function recordActions(db: MockState, persona: Persona, p: Patient): PatientRecordActions {
+  const allowed = (action: PermissionAction) => {
+    const access = tryAuthorizePatients(db, persona, action);
+    return access !== null && inScope(access, p.registrationBranchId);
+  };
+  return { update: allowed("update"), deactivate: allowed("deactivate") };
+}
+
+export function toListItem(db: MockState, persona: Persona, p: Patient): PatientListItem {
   return {
     id: p.id,
     fileNumber: p.fileNumber,
@@ -151,12 +161,17 @@ export function toListItem(db: MockState, p: Patient): PatientListItem {
     ...branchNames(db, p.registrationBranchId),
     civilIdLast4: p.civilId ? p.civilId.slice(-4) : null,
     status: p.status,
+    actions: recordActions(db, persona, p),
   };
 }
 
-export function toDetail(db: MockState, p: Patient): PatientDetail {
+export function toDetail(db: MockState, persona: Persona, p: Patient): PatientDetail {
   const { clinicId: _clinicId, ...rest } = p;
-  return { ...rest, ...branchNames(db, p.registrationBranchId) };
+  return {
+    ...rest,
+    ...branchNames(db, p.registrationBranchId),
+    actions: recordActions(db, persona, p),
+  };
 }
 
 export function matchesSearch(p: Patient, term: string): boolean {

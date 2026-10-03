@@ -27,6 +27,8 @@ export function usePatientList(query: PatientListQuery) {
     queryKey: [...patientKeys.list(query), ...personaKey],
     queryFn: () => api.patients.list(persona, query),
     enabled,
+    // Rows reflect the caller's branch scope at fetch time; never show an old scope's rows.
+    gcTime: 0,
     placeholderData: keepPreviousData,
   });
 }
@@ -39,6 +41,7 @@ export function usePatientBranches(action: PatientBranchAction) {
     queryKey: [...patientKeys.branches(action), ...personaKey],
     queryFn: () => api.patients.branchOptions(persona, action),
     enabled,
+    gcTime: 0,
   });
 }
 

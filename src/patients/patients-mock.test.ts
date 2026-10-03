@@ -267,4 +267,18 @@ describe("patients mock", () => {
       api.patients.create(admin, input(branch.id, "55508888"), key),
     ).rejects.toMatchObject({ code: "idempotency_conflict" });
   });
+  it("reports per-record actions from each action's own scope", async () => {
+    const db = getState();
+    const member = memberOf("receptionist");
+    const role = db.roles.find((r) => r.id === member.roleId);
+    if (!role) throw new Error("role");
+    role.permissions = ["view:patients:clinic", "update:patients:branch"];
+    const list = await api.patients.list(as("receptionist"), ALL);
+    const own = list.items.find((p) => member.branchIds.includes(p.registrationBranchId));
+    const foreign = list.items.find((p) => !member.branchIds.includes(p.registrationBranchId));
+    if (!own || !foreign) throw new Error("seed");
+    expect(own.actions).toEqual({ update: true, deactivate: false });
+    expect(foreign.actions).toEqual({ update: false, deactivate: false });
+    expect((await api.patients.open(as("receptionist"), foreign.id)).actions.update).toBe(false);
+  });
 });

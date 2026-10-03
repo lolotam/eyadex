@@ -3,7 +3,6 @@ import { AlertCircle, Archive, Edit3, RotateCcw, ShieldCheck } from "lucide-reac
 import { formatFileNumber } from "@contracts/patients";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/shared/i18n/i18n-provider";
-import { can } from "@/shared/permissions/can";
 import { useSession } from "@/shared/persona/persona-provider";
 import { LoadingBlock } from "@/shared/shell/loading-block";
 import { PageHeader } from "@/shared/shell/page-header";
@@ -21,7 +20,6 @@ export function PatientDetail({ patientId }: { patientId: string }) {
   const detail = usePatientDetail(patientId);
   const [editing, setEditing] = useState(false);
   const [statusTarget, setStatusTarget] = useState<PatientStatusTarget | null>(null);
-  const permissions = session?.permissions ?? [];
 
   if (detail.isLoading) return <LoadingBlock />;
   const patient = detail.isError ? undefined : detail.data;
@@ -67,13 +65,13 @@ export function PatientDetail({ patientId }: { patientId: string }) {
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <PatientStatusBadge status={patient.status} />
-            {can(permissions, "update", "patients") && (
+            {patient.actions.update && (
               <Button variant="outline" onClick={() => setEditing(true)}>
                 <Edit3 className="size-4" />
                 {t("patients.edit")}
               </Button>
             )}
-            {can(permissions, "deactivate", "patients") && (
+            {patient.actions.deactivate && (
               <Button variant="outline" onClick={() => setStatusTarget(patient)}>
                 {patient.status === "active" ? (
                   <Archive className="size-4" />
