@@ -46,6 +46,7 @@ export const arPatients = {
     restoreBody: "يعود الملف نشطًا.",
     phoneTaken: "هذا الهاتف مسجّل لمراجع آخر في هذه العيادة.",
     phoneTakenFile: "فتح الملف {fileNumber}",
+    civilIdTaken: "هذا الرقم المدني مسجّل لمراجع آخر في هذه العيادة.",
     empty: "لا يوجد مراجعون بعد",
     emptyBody: "سجّل أول مراجع لفتح ملفه.",
     emptyFiltered: "لا يوجد مراجعون يطابقون هذه الفلاتر",

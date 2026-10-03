@@ -35,7 +35,12 @@ type Props = {
   onOpenChange: (open: boolean) => void;
 };
 
-type Duplicate = { patientId: string | null; fileNumber: number | null };
+/** A visible file already holding this phone or civil ID: the API sends a link to it. */
+type Duplicate = {
+  field: "phone" | "civilId";
+  patientId: string | null;
+  fileNumber: number | null;
+};
 
 function blank(branchId: string): PatientInput {
   return {
@@ -109,10 +114,14 @@ export function PatientFormDialog({ open, patient, onOpenChange }: Props) {
       onOpenChange(false);
     },
     onError: (error) => {
-      if (error instanceof ApiError && error.code === "patient_phone_taken") {
+      if (
+        error instanceof ApiError &&
+        (error.code === "patient_phone_taken" || error.code === "patient_civil_id_taken")
+      ) {
         const id = error.details["patientId"];
         const no = error.details["fileNumber"];
         setDuplicate({
+          field: error.code === "patient_phone_taken" ? "phone" : "civilId",
           patientId: typeof id === "string" ? id : null,
           fileNumber: typeof no === "number" ? no : null,
         });
@@ -187,7 +196,9 @@ export function PatientFormDialog({ open, patient, onOpenChange }: Props) {
         {duplicate && (
           <div className="flex flex-wrap items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
             <TriangleAlert className="mt-0.5 size-4 shrink-0" />
-            <span className="flex-1">{t("patients.phoneTaken")}</span>
+            <span className="flex-1">
+              {t(duplicate.field === "phone" ? "patients.phoneTaken" : "patients.civilIdTaken")}
+            </span>
             {duplicate.patientId && duplicate.fileNumber !== null && (
               <Link
                 to="/clinic/patients/$patientId"

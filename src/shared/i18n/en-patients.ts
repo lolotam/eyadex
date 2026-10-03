@@ -46,6 +46,7 @@ export const enPatients = {
     restoreBody: "The file becomes active again.",
     phoneTaken: "This phone already belongs to another patient in this clinic.",
     phoneTakenFile: "Open file {fileNumber}",
+    civilIdTaken: "This civil ID already belongs to another patient in this clinic.",
     empty: "No patients yet",
     emptyBody: "Register the first patient to open their file.",
     emptyFiltered: "No patients match these filters",
