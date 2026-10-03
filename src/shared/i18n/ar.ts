@@ -87,6 +87,7 @@ export const ar: Dictionary = {
     psychology: "علاج نفسي",
     dental: "أسنان",
     dermatology: "جلدية",
+    obgyn: "نساء وولادة",
     general: "طب عام",
   },
   clinics: {

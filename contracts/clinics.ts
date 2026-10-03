@@ -9,6 +9,7 @@ export const specialtySchema = z.enum([
   "psychology",
   "dental",
   "dermatology",
+  "obgyn",
   "general",
 ]);
 export type Specialty = z.infer<typeof specialtySchema>;

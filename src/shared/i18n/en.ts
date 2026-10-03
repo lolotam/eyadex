@@ -88,6 +88,7 @@ export const en = {
     psychology: "Psychology",
     dental: "Dental",
     dermatology: "Dermatology",
+    obgyn: "OB/GYN",
     general: "General practice",
   },
   clinics: {
