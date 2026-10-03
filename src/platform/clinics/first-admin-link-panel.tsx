@@ -17,7 +17,9 @@ export function FirstAdminLinkPanel({ invite }: { invite: FirstAdminInviteLink }
       <div className="flex items-start gap-3">
         <MailCheck className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden />
         <div className="min-w-0">
-          <p className="font-medium">{t("clinics.firstAdmin.linkTitle", { email: invite.email })}</p>
+          <p className="font-medium">
+            {t("clinics.firstAdmin.linkTitle", { email: invite.email })}
+          </p>
           <p className="text-sm text-muted-foreground">
             {t("clinics.firstAdmin.expires", { date: formatDate(invite.expiresAt) })}
           </p>

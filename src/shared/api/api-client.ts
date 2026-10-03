@@ -8,7 +8,10 @@ import type {
   ClinicModule,
   CreateClinicInput,
   SubscriptionInput,
- CreatedClinic, FirstAdminInviteLink, FirstAdminInviteStatus, } from "@contracts/clinics";
+  CreatedClinic,
+  FirstAdminInviteLink,
+  FirstAdminInviteStatus,
+} from "@contracts/clinics";
 import type { Branch, BranchInput, BranchListQuery, BranchUsage } from "@contracts/organization";
 import type {
   AcceptedInvitation,

@@ -46,7 +46,10 @@ function addMonths(date: Date, months: number): Date {
   return next;
 }
 
-export function createMockPlatform(): ApiClient["platform"] {
+export function createMockPlatform(): Omit<
+  ApiClient["platform"],
+  "getFirstAdminInvitation" | "resendFirstAdminInvitation"
+> {
   return {
     async listClinics(query) {
       await delay();
