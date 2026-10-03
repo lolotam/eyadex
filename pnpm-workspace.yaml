@@ -5,6 +5,11 @@ packages:
 # pnpm reads overrides from this file, not from package.json — a top-level "overrides" key there is
 # ignored. One rolldown for vite and nitro (bun.lock pinned 1.2.1; the lock resolved 1.1.5 / 1.2.12
 # without it).
+# pnpm is enforced through engines.pnpm. package.json has no "packageManager" field, and its
+# devEngines.packageManager (which turbo needs to find the workspace) uses onFail "ignore": either
+# of the other forms makes pnpm 12 write a second YAML document at the top of pnpm-lock.yaml, and
+# single-document scanners (GitHub's dependency graph) would then see no dependencies and raise no
+# vulnerability alerts.
 overrides:
   rolldown: 1.2.1
 
