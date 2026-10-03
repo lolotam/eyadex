@@ -22,7 +22,8 @@ type Props<T> = {
   stickyEndColumnId?: string;
 };
 
-const STICKY_END = "sticky end-0 z-10 bg-card shadow-[inset_1px_0_0_var(--border)]";
+// border-s sits on the inline-start edge, so the divider faces the scrolled cells in RTL and LTR.
+const STICKY_END = "sticky end-0 z-10 bg-card border-s border-border";
 
 export function DataTable<T>({
   columns,
