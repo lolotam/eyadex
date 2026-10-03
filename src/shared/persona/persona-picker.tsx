@@ -17,7 +17,7 @@ import { usePersona } from "./persona-provider";
 
 export function PersonaPicker({ onDone }: { onDone?: () => void }) {
   const api = useApi();
-  const { t, pick } = useI18n();
+  const { t, pick, setLang } = useI18n();
   const { persona, setPersona } = usePersona();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -82,6 +82,9 @@ export function PersonaPicker({ onDone }: { onDone?: () => void }) {
       memberId: needsClinic ? (chosen?.memberId ?? null) : (platformChosen?.memberId ?? null),
     };
     setPersona(next);
+    // The UI language follows the signed-in account's saved preference, not the browser's last one.
+    const context = await api.session.getContext(next).catch(() => null);
+    if (context?.user.preferredLanguage) setLang(context.user.preferredLanguage);
     void queryClient.invalidateQueries({ queryKey: ["session"] });
     void navigate({ to: needsClinic ? "/clinic" : "/platform" });
     onDone?.();

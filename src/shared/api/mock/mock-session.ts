@@ -70,7 +70,7 @@ export function createMockSession(): ApiClient["session"] {
         const account = resolvePlatformActor(db, persona);
         return {
           persona,
-          user: { fullName: account.fullName, email: account.email },
+          user: { fullName: account.fullName, email: account.email, preferredLanguage: null },
           clinic: null,
           permissions: [],
           features: { patients: false },
@@ -89,7 +89,11 @@ export function createMockSession(): ApiClient["session"] {
       const blocked = clinicBlockReason(clinic);
       return {
         persona,
-        user: { fullName: member.fullName, email: member.email },
+        user: {
+          fullName: member.fullName,
+          email: member.email,
+          preferredLanguage: member.preferredLanguage,
+        },
         clinic: {
           id: clinic.id,
           nameAr: clinic.nameAr,

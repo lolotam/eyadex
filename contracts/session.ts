@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { idSchema } from "./common";
+import { idSchema, languageSchema } from "./common";
 import { clinicStatusSchema, featuresSchema } from "./clinics";
 
 export const personaKindSchema = z.enum([
@@ -30,7 +30,12 @@ export type LoginClinic = z.infer<typeof loginClinicSchema>;
 
 export const sessionContextSchema = z.object({
   persona: personaSchema,
-  user: z.object({ fullName: z.string(), email: z.string() }),
+  user: z.object({
+    fullName: z.string(),
+    email: z.string(),
+    /** The account's saved UI language; null when the account has none (platform team). */
+    preferredLanguage: languageSchema.nullable(),
+  }),
   clinic: z
     .object({
       id: idSchema,
