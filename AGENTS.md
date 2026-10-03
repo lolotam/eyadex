@@ -52,3 +52,4 @@ When reviewing a pull request, report only real defects, ranked by severity. Che
 - Eyadex serves every clinic specialty with one shared core; specialty-specific sections are roadmap additions, and the default front-desk role key is `receptionist`.
 - Mock rules live in `src/shared/api/mock/`: `mock-actor.ts` resolves the signed-in account and applies the permission check order, `mock-audit.ts` is the only clinic audit writer — so every namespace enforces the same rules.
 - A persona may pin an exact clinic account (`memberId`); a deactivated account makes every request fail with `account_disabled`, and the clinic shell sends the user to sign-in — sessions end on deactivation.
+- Role permission keys are always read live from the role (no copies on accounts), and saving a role keeps keys of switched-off modules untouched — so module toggles and role edits take effect immediately and reversibly.

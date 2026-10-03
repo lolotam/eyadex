@@ -43,11 +43,21 @@ const resourceModule: Record<PermissionResource, ClinicModule | null> = {
   clinic_settings: null,
 };
 
+/** The actions each resource defines (PRD 4.7); no other action exists for it. */
+const resourceActions: Record<PermissionResource, readonly PermissionAction[]> = {
+  branches: ["view", "create", "update", "deactivate"],
+  users: ["view", "create", "update", "deactivate"],
+  roles: ["view", "create", "update", "deactivate"],
+  patients: ["view", "create", "update", "deactivate"],
+  audit_log: ["view"],
+  clinic_settings: ["view", "update"],
+};
+
 function buildCatalog(): PermissionDefinition[] {
   const list: PermissionDefinition[] = [];
   for (const resource of resourceSchema.options) {
     const scopes: PermissionScope[] = resource === "patients" ? ["clinic", "branch"] : ["clinic"];
-    for (const action of actionSchema.options) {
+    for (const action of resourceActions[resource]) {
       for (const scope of scopes) {
         list.push({
           key: `${action}:${resource}:${scope}`,

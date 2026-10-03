@@ -42,7 +42,7 @@ describe("keyring model", () => {
   });
 
   it("captions read true in both languages", () => {
-    const v = computeView("doctor");
+    const v = computeView("receptionist");
     expect(buildCaption(v, ar.keyring.caption, (b) => ar.keyring.branches[b])).toBe(
       "يرى مراجعي فرع السالمية فقط، ويستطيع الإضافة والتعديل.",
     );

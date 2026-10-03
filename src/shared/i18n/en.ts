@@ -1,3 +1,4 @@
+import { enRoles } from "./en-roles";
 import { enUsers } from "./en-users";
 
 export const en = {
@@ -225,6 +226,7 @@ export const en = {
     lastActive: "The clinic's last active branch cannot be deactivated.",
   },
   ...enUsers,
+  ...enRoles,
   validation: {
     required: "Required",
     tooShort: "Too short",
@@ -235,6 +237,8 @@ export const en = {
     number: "Enter a number",
     min: "Must be at least 1",
     dateRequired: "Pick a date",
+    unknownPermission: "This permission is not in the catalog",
+    oneScope: "Pick one scope per action",
   },
   errors: {
     email_taken: "This email already belongs to a user or a pending invitation",
@@ -247,6 +251,10 @@ export const en = {
     invitation_expired: "This invitation has expired",
     invitation_cancelled: "This invitation was cancelled",
     invitation_used: "This invitation was already used",
+    role_locked: "The Clinic Admin role is locked and cannot be changed or deactivated",
+    role_in_use:
+      "This role is held by {count} users, deactivated ones included. Move them to another role first",
+    role_name_taken: "Another role in this clinic already uses this name",
     idempotency_conflict:
       "This request was already sent with different details; close the form and start again",
     not_found: "Not found",

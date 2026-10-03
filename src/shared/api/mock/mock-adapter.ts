@@ -5,6 +5,7 @@ import { createMockSession } from "./mock-session";
 import { createMockBranches } from "./mock-branches";
 import { createMockUsers } from "./mock-users";
 import { createMockInvitations } from "./mock-invitations";
+import { createMockRoles } from "./mock-roles";
 
 export function createMockApiClient(): ApiClient {
   return {
@@ -13,5 +14,6 @@ export function createMockApiClient(): ApiClient {
     branches: createMockBranches(),
     users: createMockUsers(),
     invitations: createMockInvitations(),
+    roles: createMockRoles(),
   };
 }
