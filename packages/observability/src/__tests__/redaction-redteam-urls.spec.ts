@@ -111,4 +111,62 @@ describe("numeric path codes and opaque hosts", () => {
       url: "https://[REDACTED]/[REDACTED]",
     });
   });
+
+  it("judges the host label by label, so an ordinary long hostname is kept", () => {
+    expect(sanitize({ note: "webhook https://hooks.example.org/ ok" })).toEqual({
+      note: "webhook https://hooks.example.org/ ok",
+    });
+  });
+
+  it("still withholds a token spread over two subdomain labels", () => {
+    expect(sanitize({ note: "https://abcd1234.efgh5678.example.com/" })).toEqual({
+      note: "https://[REDACTED]/",
+    });
+  });
+
+  it.each([
+    "https://clinic.example.org/",
+    "https://api-v2.example.org/",
+    "https://a1.b2.example.com/",
+    "https://s3.eu-west-1.amazonaws.com/",
+  ])("keeps an ordinary host: %s", (raw) => {
+    expect(sanitize({ note: raw })).toEqual({ note: raw });
+  });
+});
+
+describe("a value that starts with a relative reference and also holds an absolute URL", () => {
+  // The old early return ran only the relative pass, so the embedded URL's userinfo survived — and it
+  // survived in audit too, which contradicts rule 5. Both passes now run on the same value.
+  it.each([
+    ["/x https://u:pw@localhost/db", "/x https://***@localhost/[REDACTED]", "u:pw"],
+    ["//x https://a:b@h.io/p?q=1", "//x https://***@h.io/[REDACTED]?[REDACTED]", "a:b"],
+    ["?a=1 https://u:pw@h.io/", "?[REDACTED]", "u:pw"],
+  ])("withholds the userinfo in %j in both modes", (raw, expected, leak) => {
+    const sanitized = sanitize({ note: raw }) as { note: string };
+    expect(sanitized.note).not.toContain(leak);
+    expect(sanitized).toEqual({ note: expected });
+    const audited = redactSecrets({ note: raw }) as { note: string };
+    expect(audited.note).not.toContain(leak);
+    expect(audited).toEqual({ note: expected });
+  });
+});
+
+describe("a URL and a separate email in one value", () => {
+  it("keeps the URL and the surrounding text instead of replacing the value whole", () => {
+    const raw = "GET https://example.com/ ok, owner@example.com notified";
+    // The email pass runs after URL scrubbing, so an over-broad ambiguity guard used to swallow the whole
+    // value. The ambiguity test is per matched URL now, so only an ambiguous URL withholds the value.
+    expect(sanitize({ note: raw })).toEqual({
+      note: "GET https://example.com/ ok, [REDACTED] notified",
+    });
+    // Audit keeps an address by design (rule 10 / accepted risk 4) — but the URL must not drag the record
+    // down with it. Before the fix the whole audit value was `[REDACTED]`.
+    expect(redactSecrets({ note: raw })).toEqual({ note: raw });
+  });
+
+  it("keeps a userinfo split by whitespace withheld in both modes", () => {
+    const raw = "connect postgres://user:with space_tail_leak@db.example/app now";
+    expect(sanitize({ note: raw })).toEqual({ note: REDACTED });
+    expect(redactSecrets({ note: raw })).toEqual({ note: REDACTED });
+  });
 });

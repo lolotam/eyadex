@@ -47,6 +47,22 @@ describe("CLASS 10 — email addresses", () => {
     },
   );
 
+  // Leading punctuation is legal in a local part; it must not hide the address behind it.
+  it.each([
+    "-ali@example.com",
+    "_ali@example.com",
+    "+ali@example.com",
+    "*ali@example.com",
+    ".ali@example.com",
+    "-مستخدم@example.com",
+  ])("redacts an address that opens with punctuation: %s", (address) => {
+    expect(text(`notify ${address} now`)).not.toContain(address.slice(1));
+  });
+
+  it("does not mistake a scrubbed userinfo for an address", () => {
+    expect(sanitize({ note: "***@host.example.com" })).toEqual({ note: "***@host.example.com" });
+  });
+
   it("redacts a percent-encoded address and a percent-encoded assignment", () => {
     expect(sanitize({ note: "mailto:user%40example.com" })).toEqual({ note: "mailto:[REDACTED]" });
     expect(sanitize({ note: "password%3Dhunter2" })).toEqual({ note: "password=[REDACTED]" });
@@ -116,5 +132,86 @@ describe("CLASS 2/9 — tok_ and inv_ are opaque in free text, whatever key hold
     expect(sanitize({ link: "/invite/tok_live_abcdef1234" })).toEqual({
       link: "/invite/[REDACTED]",
     });
+  });
+});
+
+describe("a long credential name before the separator is still classified", () => {
+  // The old `{1,40}` window only saw the 40 characters before the separator, so a 69-character name hid
+  // the credential word. The name is anchored at a token boundary and lazy with a `{1,200}` bound.
+  const long = "password_" + "y".repeat(60);
+  it.each([
+    [`${long}=hunter2`, `${long}=[REDACTED]`],
+    [`${long} 'hunter2'`, `${long} [REDACTED]`],
+    [`${long} is hunter2`, `${long} is [REDACTED]`],
+  ])("withholds the value in %j in both modes", (raw, expected) => {
+    expect(sanitize({ detail: raw })).toEqual({ detail: expected });
+    expect(redactSecrets({ detail: raw })).toEqual({ detail: expected });
+  });
+});
+
+describe("a bare credential word and its value with no separator", () => {
+  it.each([
+    ["password hunter2 rejected", "password [REDACTED] rejected"],
+    ["otp 482193 sent", "otp [REDACTED] sent"],
+    ["cvv 123 rejected", "cvv [REDACTED] rejected"],
+    ["secret hunter2", "secret [REDACTED]"],
+  ])("withholds a credential-looking value in %j, in both modes", (raw, expected) => {
+    expect(sanitize({ detail: raw })).toEqual({ detail: expected });
+    expect(redactSecrets({ detail: raw })).toEqual({ detail: expected });
+  });
+
+  it.each([
+    ["password is swordfish", "password is [REDACTED]"],
+    ["his password was Hunter", "his password was [REDACTED]"],
+    ["the token is a sentence of words", "the token is [REDACTED]"],
+    // A status word that only OPENS the value must not free the rest of the line.
+    ["password is invalid, hunter2", "password is [REDACTED]"],
+    ["password is expired, s3cr3t", "password is [REDACTED]"],
+    ["otp is valid, 482193", "otp is [REDACTED]"],
+    ["password is invalid hunter2", "password is [REDACTED]"],
+    ["password is set hunter2", "password is [REDACTED]"],
+  ])("withholds any non-status word after is/was in %j, in both modes", (raw, expected) => {
+    expect(sanitize({ detail: raw })).toEqual({ detail: expected });
+    expect(redactSecrets({ detail: raw })).toEqual({ detail: expected });
+  });
+
+  it.each([
+    "the token expired",
+    "password reset requested",
+    "token is invalid",
+    "the token was revoked",
+    "password is too short",
+    "session ended",
+  ])("leaves ordinary prose with a credential word alone: %j", (raw) => {
+    expect(sanitize({ detail: raw })).toEqual({ detail: raw });
+    expect(redactSecrets({ detail: raw })).toEqual({ detail: raw });
+  });
+});
+
+describe("the shared token prefix, whatever its case or encoding", () => {
+  it.each([
+    ["TOK_LIVE_ABCDEF1234567890", "DEF1234567890"],
+    ["Inv_Live_abcdef1234", "abcdef1234"],
+    ["%252Finvite%252Ftok_live_abcdef1234", "abcdef1234"],
+  ])("withholds %j in both modes", (raw, leak) => {
+    expect((sanitize({ note: raw }) as { note: string }).note).not.toContain(leak);
+    expect((redactSecrets({ note: raw }) as { note: string }).note).not.toContain(leak);
+  });
+
+  it.each(["stock_level is low", "invoice_total is 5", "tokenizer ready"])(
+    "leaves an ordinary word that merely contains the prefix letters alone: %j",
+    (raw) => {
+      expect(sanitize({ detail: raw })).toEqual({ detail: raw });
+    },
+  );
+});
+
+describe("accepted risk — `code` is not a credential word in prose", () => {
+  it("keeps an OTP simply written after `code`, as documented in the ADR", () => {
+    // `error code 404` must stay readable; the price is that "your code is 482193" stays too. An OTP is
+    // never interpolated into a message — it arrives in a named `code`/`otp` field, where the key redacts it.
+    for (const raw of ["error code 404", "your code is 482193"]) {
+      expect(sanitize({ detail: raw })).toEqual({ detail: raw });
+    }
   });
 });

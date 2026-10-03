@@ -48,6 +48,12 @@ const STRUCTURAL_NAME_KEYS: ReadonlySet<string> = new Set([
   "taskname",
   "typename",
   "fieldname",
+  // A clinic/branch/organisation has a name, but it is not a patient: these are business entities the
+  // operational log is allowed to identify, so they are exempt from the bare `name` rule too.
+  "clinicname",
+  "branchname",
+  "organisationname",
+  "organizationname",
 ]);
 
 // Patient identity in operational logs (platform staff never see it). Matched as a part of the key, with

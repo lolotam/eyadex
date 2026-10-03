@@ -1,5 +1,9 @@
+import { Writable } from "node:stream";
+
+import type { Logger } from "pino";
 import { describe, expect, it } from "vitest";
 
+import { createLogger } from "../logger.ts";
 import { REDACTED, redactSecrets, sanitize } from "../redaction.ts";
 
 // CLASS 15 / 16 from the red-team report: a sanitiser that throws is a sanitiser that gets bypassed, and
@@ -61,6 +65,23 @@ describe("NIT 13/14 — own __proto__ and repeated siblings", () => {
       JSON.parse('{"__proto__":{"password":"[REDACTED]"},"note":"ok"}'),
     );
     expect(JSON.stringify(result)).not.toContain("hunter2");
+  });
+
+  it("never prints an own __proto__ key through the real pino line", () => {
+    // sanitize keeps the key (see above), but pino drops a __proto__ property while serialising, so the
+    // written line must never contain the nested password. This pins the behaviour where it is observed.
+    let written = "";
+    const sink = new Writable({
+      write(chunk, _encoding, done) {
+        written += String(chunk);
+        done();
+      },
+    });
+    const logger: Logger = createLogger("info", { destination: sink, events: ["probe"] });
+    const input = JSON.parse('{"__proto__":{"password":"hunter2"},"note":"ok"}') as object;
+    logger.info(input, "probe");
+    expect(written).not.toContain("hunter2");
+    expect(JSON.parse(written)).toMatchObject({ note: "ok", msg: "probe" });
   });
 
   it("walks a repeated sibling again, and labels only a true cycle [Circular]", () => {

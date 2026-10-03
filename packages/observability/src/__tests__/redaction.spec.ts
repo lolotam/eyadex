@@ -81,9 +81,17 @@ describe("secrets are removed at any depth (CLAUDE.md §8)", () => {
     });
   });
 
-  it("still prints ordinary fields", () => {
-    expect(JSON.parse(logLine({ clinicLabel: "Clinic One" }))).toMatchObject({
+  it("still prints ordinary fields, including a clinic and a branch name (a clinic is not a patient)", () => {
+    // The bare `name` rule redacts patient identity; the structural exemption keeps the business-entity
+    // spellings printable, so a log line can still say which clinic and branch it came from.
+    expect(
+      JSON.parse(
+        logLine({ clinicLabel: "Clinic One", clinicName: "Clinic One", branchName: "Salmiya" }),
+      ),
+    ).toMatchObject({
       clinicLabel: "Clinic One",
+      clinicName: "Clinic One",
+      branchName: "Salmiya",
       msg: "probe",
     });
   });
@@ -198,12 +206,14 @@ describe("plural secret containers", () => {
   });
 
   it("ordinary plurals are kept (statuses, tags)", () => {
-    // "addresses" is deliberately not used: it contains a patient-identity part (address) and is redacted by
-    // design in log mode.
     const line = JSON.parse(
       capture((log) => log.info({ statuses: ["open"], tags: ["x"] }, "probe")),
     );
     expect(line).toMatchObject({ statuses: ["open"], tags: ["x"] });
+  });
+
+  it("redacts `addresses` — it contains the patient-identity part `address`", () => {
+    expect(sanitize({ addresses: ["x"] })).toEqual({ addresses: REDACTED });
   });
 });
 
