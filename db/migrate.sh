@@ -16,135 +16,7 @@ if [ ! -d "$sql_dir" ]; then
   exit 1
 fi
 
-# The ledger records exactly which file bytes ran, so hand-applied databases can
-# be adopted with --baseline and edited files are refused instead of half-applied.
-ensure_ledger() {
-  PGOPTIONS='-c client_min_messages=WARNING' psql -X -q -v ON_ERROR_STOP=1 <<'SQL'
-CREATE TABLE IF NOT EXISTS public.schema_migrations (
-  filename   text PRIMARY KEY,
-  sha256     text NOT NULL,
-  applied_at timestamptz NOT NULL DEFAULT now(),
-  applied_by text NOT NULL DEFAULT current_user
-);
-REVOKE ALL ON public.schema_migrations FROM PUBLIC;
-DO $ledger$ BEGIN
-  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'eyadex_app') THEN
-    REVOKE ALL ON public.schema_migrations FROM eyadex_app;
-  END IF;
-  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'eyadex_auth') THEN
-    REVOKE ALL ON public.schema_migrations FROM eyadex_auth;
-  END IF;
-  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'eyadex_platform') THEN
-    REVOKE ALL ON public.schema_migrations FROM eyadex_platform;
-  END IF;
-  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'eyadex_dispatcher') THEN
-    REVOKE ALL ON public.schema_migrations FROM eyadex_dispatcher;
-  END IF;
-END $ledger$;
-SQL
-}
-
-file_hash() {
-  sha256sum "$1" | awk '{print $1}'
-}
-
-recorded_hash() {
-  psql -X -q -tA -v ON_ERROR_STOP=1 -c \
-    "SELECT sha256 FROM public.schema_migrations WHERE filename = '$1';"
-}
-
-record_applied() {
-  psql -X -q -v ON_ERROR_STOP=1 -c \
-    "INSERT INTO public.schema_migrations (filename, sha256) VALUES ('$1', '$2');"
-}
-
-# Applies one file AND its ledger row in a single transaction, so a failure
-# leaves neither partial DDL nor a ledger row.
-apply_file() {
-  base=$1
-  hash=$2
-  psql -X -q -v ON_ERROR_STOP=1 --single-transaction \
-    -f "$sql_dir/$base" \
-    -c "INSERT INTO public.schema_migrations (filename, sha256) VALUES ('$base', '$hash');"
-  echo "applied $base"
-}
-
-# Fails when a recorded file no longer matches its bytes on disk. Callers run
-# this check before applying anything, so a CHANGED file blocks the whole run.
-check_recorded() {
-  base=$1
-  hash=$2
-  recorded=$(recorded_hash "$base")
-  if [ -n "$recorded" ] && [ "$recorded" != "$hash" ]; then
-    echo "CHANGED $base" >&2
-    echo "  recorded: $recorded" >&2
-    echo "  on disk:  $hash" >&2
-    return 1
-  fi
-  return 0
-}
-
-# A migration file name is interpolated into SQL string literals, so only the
-# strict NNNN_name.sql shape is accepted (NNNN = 4 digits, rest = lowercase
-# alnum plus underscore). Anything else is refused before it can touch SQL.
-valid_name() {
-  case "$1" in
-    [0-9][0-9][0-9][0-9]_*.sql) ;;
-    *) return 1 ;;
-  esac
-  rest=${1#?????}
-  case "$rest" in
-    *.sql) ;;
-    *) return 1 ;;
-  esac
-  stem=${rest%.sql}
-  [ -n "$stem" ] || return 1
-  case "$stem" in
-    *[!a-z0-9_]*) return 1 ;;
-  esac
-  return 0
-}
-
-# Refuses every unexpected file name before anything is applied or recorded,
-# in every mode.
-check_names() {
-  for f in "$sql_dir"/*.sql; do
-    [ -e "$f" ] || continue
-    base=$(basename "$f")
-    if ! valid_name "$base"; then
-      echo "migrate: refusing unexpected file name: $base" >&2
-      echo "migrate: names must match NNNN_name.sql (4 digits, lowercase alnum/underscore)" >&2
-      exit 1
-    fi
-  done
-}
-
-# Refuses every ledger row with no matching file on disk, in every mode that
-# reads the ledger. Prints MISSING lines to stderr (and to stdout for
-# --status) and fails before applying or recording anything.
-check_missing() {
-  tmp=$(mktemp)
-  # Called under `||`, where set -e is off: a failed ledger read must not look clean.
-  if ! psql -X -q -tA -v ON_ERROR_STOP=1 \
-    -c "SELECT filename FROM public.schema_migrations ORDER BY filename;" >"$tmp"; then
-    rm -f "$tmp"
-    echo "migrate: cannot read the ledger" >&2
-    return 2
-  fi
-  missing=0
-  while IFS= read -r name; do
-    [ -n "$name" ] || continue
-    if [ ! -f "$sql_dir/$name" ]; then
-      echo "MISSING $name" >&2
-      if [ "$mode" = "status" ]; then
-        echo "MISSING $name"
-      fi
-      missing=1
-    fi
-  done <"$tmp"
-  rm -f "$tmp"
-  return "$missing"
-}
+. "$script_dir/migrate-lib.sh"
 
 mode="apply"
 upto=""
@@ -168,31 +40,68 @@ if [ "$#" -gt 0 ]; then
 fi
 
 check_names
-ensure_ledger
-check_missing || exit 1
+check_unique_prefixes
+
+has_ledger=0
+case "$mode" in
+  apply|baseline)
+    ensure_ledger
+    has_ledger=1
+    check_missing || exit 1
+    ;;
+  status|dry-run)
+    if ledger_exists; then
+      has_ledger=1
+      check_missing || exit 1
+    fi
+    ;;
+esac
 
 case "$mode" in
   status)
-    changed=0
+    if [ "$has_ledger" -eq 0 ]; then
+      for f in "$sql_dir"/*.sql; do
+        [ -e "$f" ] || continue
+        base=$(basename "$f")
+        echo "pending $base"
+      done
+      exit 0
+    fi
+    highest=$(highest_recorded_number)
+    err=0
     for f in "$sql_dir"/*.sql; do
       [ -e "$f" ] || continue
       base=$(basename "$f")
       hash=$(file_hash "$f")
       recorded=$(recorded_hash "$base")
       if [ -z "$recorded" ]; then
-        echo "pending $base"
+        prefix=${base%%_*}
+        if is_out_of_order "$prefix" "$highest"; then
+          echo "OUT OF ORDER $base"
+          err=1
+        else
+          echo "pending $base"
+        fi
       elif [ "$recorded" = "$hash" ]; then
         echo "applied $base"
       else
         echo "CHANGED $base"
         echo "  recorded: $recorded"
         echo "  on disk:  $hash"
-        changed=1
+        err=1
       fi
     done
-    exit "$changed"
+    exit "$err"
     ;;
   dry-run)
+    if [ "$has_ledger" -eq 0 ]; then
+      for f in "$sql_dir"/*.sql; do
+        [ -e "$f" ] || continue
+        base=$(basename "$f")
+        echo "would apply $base"
+      done
+      exit 0
+    fi
     for f in "$sql_dir"/*.sql; do
       [ -e "$f" ] || continue
       base=$(basename "$f")
@@ -201,6 +110,7 @@ case "$mode" in
         exit 1
       fi
     done
+    check_forward_only
     for f in "$sql_dir"/*.sql; do
       [ -e "$f" ] || continue
       base=$(basename "$f")
@@ -240,6 +150,7 @@ case "$mode" in
     if [ "$changed" -eq 1 ]; then
       exit 1
     fi
+    check_forward_only
     for f in "$sql_dir"/*.sql; do
       [ -e "$f" ] || continue
       base=$(basename "$f")
@@ -269,6 +180,7 @@ case "$mode" in
         exit 1
       fi
     done
+    check_forward_only
     for f in "$sql_dir"/*.sql; do
       [ -e "$f" ] || continue
       base=$(basename "$f")
