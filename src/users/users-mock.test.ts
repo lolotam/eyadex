@@ -107,9 +107,9 @@ describe("users and invitations mock", () => {
       code: "invitation_expired",
     });
     const sent = await invite(clinic.id, "joiner@example.com");
-    const accepted = await api.invitations.accept(sent.token, password);
+    const accepted = await api.invitations.accept(sent.token ?? "", password);
     expect(getState().members.some((m) => m.id === accepted.memberId)).toBe(true);
-    await expect(api.invitations.accept(sent.token, password)).rejects.toMatchObject({
+    await expect(api.invitations.accept(sent.token ?? "", password)).rejects.toMatchObject({
       code: "invitation_used",
     });
   });
@@ -142,7 +142,7 @@ describe("users and invitations mock", () => {
     const role = getState().roles.find((r) => r.id === sent.roleId);
     if (!role) throw new Error("no role");
     role.isActive = false;
-    await expect(api.invitations.accept(sent.token, password)).rejects.toMatchObject({
+    await expect(api.invitations.accept(sent.token ?? "", password)).rejects.toMatchObject({
       code: "role_inactive",
     });
     const stored = getState().invitations.find((i) => i.id === sent.id);
@@ -162,7 +162,7 @@ describe("users and invitations mock", () => {
       branchIds: [branch.id],
     });
     branch.isActive = false;
-    await expect(api.invitations.accept(sent.token, password)).rejects.toMatchObject({
+    await expect(api.invitations.accept(sent.token ?? "", password)).rejects.toMatchObject({
       code: "branch_inactive",
     });
     expect(getState().invitations.find((i) => i.id === sent.id)?.status).toBe("pending");
@@ -171,16 +171,16 @@ describe("users and invitations mock", () => {
   it("keeps link tokens and their hashes out of every audit entry", async () => {
     const clinic = clinicBySlug("serenity");
     const sent = await invite(clinic.id, "audit-token@example.com");
-    const first = sent.token;
+    const first = sent.token ?? "";
     const resent = await api.invitations.resend(admin(clinic.id), sent.id);
     expect(resent.token).not.toBe(first);
     await expect(api.invitations.preview(first)).rejects.toMatchObject({ code: "not_found" });
-    await api.invitations.accept(resent.token, password);
+    await api.invitations.accept(resent.token ?? "", password);
     const audit = JSON.stringify(getState().clinicAudit);
     const hashes = getState().invitations.map((i) => i.tokenHash);
     for (const secret of [
       first,
-      resent.token,
+      resent.token ?? "",
       ...Object.values(getState().inviteOutbox),
       ...hashes,
     ])
@@ -239,5 +239,66 @@ describe("users and invitations mock", () => {
       memberId: member.id,
     });
     expect(ctx.user.email).toBe(member.email);
+  });
+
+  it("lets a new clinic's first admin accept with the link returned by createClinic", async () => {
+    const created = await api.platform.createClinic({
+      nameAr: "عيادة الاختبار",
+      nameEn: "Test Clinic",
+      slug: "test-clinic",
+      specialty: "dermatology",
+      defaultLanguage: "en",
+      timezone: "Asia/Kuwait",
+      adminName: "First Admin",
+      adminEmail: "first.admin@example.com",
+    });
+    expect(JSON.stringify(getState().platformAudit)).not.toContain(created.firstAdminInvite.token);
+    expect(await api.platform.getFirstAdminInvitation(created.clinic.id)).toMatchObject({
+      status: "pending",
+    });
+    const accepted = await api.invitations.accept(created.firstAdminInvite.token, password);
+    expect(accepted.roleKey).toBe("clinic_admin");
+    const member = getState().members.find((m) => m.id === accepted.memberId);
+    expect(member?.preferredLanguage).toBe("en");
+    expect(await api.platform.getFirstAdminInvitation(created.clinic.id)).toBeNull();
+    await expect(api.platform.resendFirstAdminInvitation(created.clinic.id)).rejects.toMatchObject({
+      code: "invitation_used",
+    });
+  });
+
+  it("never sends invitation tokens to a view-only role", async () => {
+    const clinic = clinicBySlug("serenity");
+    const base = getState().roles.find((r) => r.id === roleId(clinic.id, "doctor"));
+    if (!base) throw new Error("no role");
+    const viewer = {
+      ...base,
+      id: crypto.randomUUID(),
+      systemKey: null,
+      nameAr: "مطّلع",
+      nameEn: "Viewer",
+      permissions: ["view:users:clinic"],
+    };
+    getState().roles.push(viewer as typeof base);
+    const member = getState().members.find(
+      (m) => m.clinicId === clinic.id && m.status === "active" && m.roleId === base.id,
+    );
+    if (!member) throw new Error("no member");
+    member.roleId = viewer.id;
+    const persona: Persona = { kind: "custom", clinicId: clinic.id, memberId: member.id };
+    const page = await api.invitations.list(persona, {
+      cursor: null,
+      limit: 50,
+      search: "",
+      status: null,
+    });
+    expect(page.items.length).toBeGreaterThan(0);
+    expect(page.items.every((i) => i.token === null)).toBe(true);
+    const adminPage = await api.invitations.list(admin(clinic.id), {
+      cursor: null,
+      limit: 50,
+      search: "",
+      status: "pending",
+    });
+    expect(adminPage.items.some((i) => typeof i.token === "string")).toBe(true);
   });
 });

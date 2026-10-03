@@ -8,6 +8,9 @@ import type {
   ClinicModule,
   CreateClinicInput,
   SubscriptionInput,
+  CreatedClinic,
+  FirstAdminInviteLink,
+  FirstAdminInviteStatus,
 } from "@contracts/clinics";
 import type { Branch, BranchInput, BranchListQuery, BranchUsage } from "@contracts/organization";
 import type {
@@ -44,7 +47,10 @@ export interface ApiClient {
   platform: {
     listClinics(query: ClinicListQuery): Promise<Page<ClinicListItem>>;
     getClinic(clinicId: string): Promise<ClinicDetail>;
-    createClinic(input: CreateClinicInput): Promise<Clinic>;
+    createClinic(input: CreateClinicInput): Promise<CreatedClinic>;
+    /** Null once a clinic admin is active. */
+    getFirstAdminInvitation(clinicId: string): Promise<FirstAdminInviteStatus | null>;
+    resendFirstAdminInvitation(clinicId: string): Promise<FirstAdminInviteLink>;
     updateClinicDetails(clinicId: string, input: ClinicDetailsInput): Promise<Clinic>;
     updateSubscription(clinicId: string, input: SubscriptionInput): Promise<Clinic>;
     setClinicFeature(clinicId: string, module: ClinicModule, enabled: boolean): Promise<void>;

@@ -86,13 +86,18 @@ export function toUserView(db: MockState, member: MembershipUser): MembershipUse
   return { ...member, ...roleNames(db, member.roleId) };
 }
 
-export function toInvitationView(db: MockState, record: InvitationRecord): Invitation {
+/** The link token is a bearer secret: only callers allowed to create users receive it. */
+export function toInvitationView(
+  db: MockState,
+  record: InvitationRecord,
+  includeToken = true,
+): Invitation {
   const { tokenHash: _hash, ...rest } = record;
   return {
     ...rest,
     ...roleNames(db, record.roleId),
     status: computeInvitationStatus(record),
-    token: db.inviteOutbox[record.id] ?? "",
+    token: includeToken ? (db.inviteOutbox[record.id] ?? null) : null,
   };
 }
 

@@ -53,7 +53,8 @@ export function AcceptInvitationPage() {
     if (!done) return;
     const kind = personaKindSchema.safeParse(done.roleKey);
     setPersona({
-      kind: kind.success ? kind.data : "doctor",
+      // A clinic-created role has no system key: it signs in as "custom", pinned to this account.
+      kind: kind.success ? kind.data : "custom",
       clinicId: done.clinicId,
       memberId: done.memberId,
     });

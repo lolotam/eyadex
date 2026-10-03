@@ -140,3 +140,29 @@ export const timezoneOptions = [
   "Asia/Bahrain",
   "Africa/Cairo",
 ] as const;
+
+/**
+ * Platform-only: the simulated first-admin invitation link. In production it is emailed;
+ * it is never written to any audit entry.
+ */
+export const firstAdminInviteLinkSchema = z.object({
+  email: z.string(),
+  token: z.string(),
+  expiresAt: z.string().datetime(),
+});
+export type FirstAdminInviteLink = z.infer<typeof firstAdminInviteLinkSchema>;
+
+export const createdClinicSchema = z.object({
+  clinic: clinicSchema,
+  firstAdminInvite: firstAdminInviteLinkSchema,
+});
+export type CreatedClinic = z.infer<typeof createdClinicSchema>;
+
+/** The first-admin invitation while no clinic admin has accepted yet (story 19). */
+export const firstAdminInviteStatusSchema = z.object({
+  email: z.string(),
+  fullName: z.string(),
+  status: z.enum(["pending", "expired", "cancelled"]),
+  expiresAt: z.string().datetime(),
+});
+export type FirstAdminInviteStatus = z.infer<typeof firstAdminInviteStatusSchema>;

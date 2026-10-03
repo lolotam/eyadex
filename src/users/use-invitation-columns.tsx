@@ -69,7 +69,8 @@ export function useInvitationColumns(h: Handlers): ColumnDef<Invitation, unknown
           const inv = row.original;
           const open = inv.status === "pending" || inv.status === "expired";
           const actions: RowAction[] = [];
-          if (inv.status === "pending")
+          // The link is a bearer token: only users who may invite can copy it.
+          if (inv.status === "pending" && mayCreate && inv.token)
             actions.push({
               label: t("users.actions.copyLink"),
               icon: Link2,

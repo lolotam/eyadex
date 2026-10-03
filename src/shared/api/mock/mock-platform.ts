@@ -1,4 +1,4 @@
-import type { Clinic, ClinicDetail } from "@contracts/clinics";
+import type { Clinic, ClinicDetail, FirstAdminInviteLink } from "@contracts/clinics";
 import {
   clinicDetailsInputSchema,
   createClinicInputSchema,
@@ -46,7 +46,10 @@ function addMonths(date: Date, months: number): Date {
   return next;
 }
 
-export function createMockPlatform(): ApiClient["platform"] {
+export function createMockPlatform(): Omit<
+  ApiClient["platform"],
+  "getFirstAdminInvitation" | "resendFirstAdminInvitation"
+> {
   return {
     async listClinics(query) {
       await delay();
@@ -112,6 +115,7 @@ export function createMockPlatform(): ApiClient["platform"] {
       db.clinics.push(clinic);
       db.features[clinic.id] = { patients: true };
       const roles = buildSystemRoles(clinic.id, newId);
+      let firstAdminInvite: FirstAdminInviteLink | null = null;
       db.roles.push(...roles);
       const adminRole = roles.find((r) => r.systemKey === "clinic_admin");
       if (adminRole) {
@@ -131,7 +135,11 @@ export function createMockPlatform(): ApiClient["platform"] {
           tokenHash: "",
         };
         db.invitations.push(invitation);
-        issueInviteToken(db, invitation);
+        firstAdminInvite = {
+          email: invitation.email,
+          token: issueInviteToken(db, invitation),
+          expiresAt: invitation.expiresAt,
+        };
       }
       audit(
         db,
@@ -140,7 +148,8 @@ export function createMockPlatform(): ApiClient["platform"] {
         `Created clinic ${clinic.nameEn} with admin ${input.adminEmail}`,
       );
       persist();
-      return clinic;
+      if (!firstAdminInvite) throw new ApiError("not_found");
+      return { clinic, firstAdminInvite };
     },
 
     async updateClinicDetails(clinicId, raw) {
