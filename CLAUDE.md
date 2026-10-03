@@ -124,6 +124,10 @@ Banned folder names anywhere: `utils/` · `helpers/` · `common/` · `misc/` · 
 
 ### 5.1 Migrations (forward-only)
 
+- PostgreSQL **18** everywhere: production, CI (`postgres:18-alpine`) and local compose. The
+  "compatible with 16" note in the headers of applied files 0001–0019 is historical; those files
+  are never edited (their checksums are in the ledger).
+
 - Never edit an applied file in `db/sql/` — add a new numbered file instead.
 - `sh db/migrate.sh` applies pending files (each file + its ledger row in one
   transaction); `--status` lists applied/pending/CHANGED; `--dry-run` previews.

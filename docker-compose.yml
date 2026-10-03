@@ -22,7 +22,7 @@ services:
     mem_limit: 512m
 
   postgres:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-eyadex}
@@ -34,7 +34,9 @@ services:
       PLATFORM_DB_PASSWORD: ${PLATFORM_DB_PASSWORD:?set PLATFORM_DB_PASSWORD in .env}
       DISPATCHER_DB_PASSWORD: ${DISPATCHER_DB_PASSWORD:?set DISPATCHER_DB_PASSWORD in .env}
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      # PostgreSQL 18 images keep the cluster under /var/lib/postgresql/18/docker; a PG16 data
+      # directory cannot be opened by 18, so 18 uses its own volume (the old pgdata is left as is).
+      - pgdata18:/var/lib/postgresql
       - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
       - ./db:/db:ro
     ports:
@@ -78,5 +80,5 @@ services:
   #   depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_healthy } }
 
 volumes:
-  pgdata:
+  pgdata18:
   redisdata:
