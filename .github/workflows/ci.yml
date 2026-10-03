@@ -56,7 +56,11 @@ jobs:
           for r in app auth platform dispatcher; do
             psql -v ON_ERROR_STOP=1 -qc "CREATE ROLE eyadex_$r LOGIN NOBYPASSRLS PASSWORD 'ci-only-$r'"
           done
-      - name: Apply the SQL baseline (db/sql)
-        run: for f in db/sql/*.sql; do echo "$f"; psql -v ON_ERROR_STOP=1 -q -f "$f"; done
+      - name: Apply the SQL baseline (db/migrate.sh)
+        run: sh db/migrate.sh
+      - name: Migration status is clean
+        run: sh db/migrate.sh --status
       - name: RLS + grant negative isolation tests
         run: for f in db/tests/*.sql; do echo "$f"; psql -v ON_ERROR_STOP=1 -q -f "$f"; done
+      - name: Migration runner self-test
+        run: sh db/tests/migrate-runner.sh
