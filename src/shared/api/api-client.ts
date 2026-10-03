@@ -32,6 +32,15 @@ import type {
   UserUsage,
 } from "@contracts/users";
 import type { PermissionDefinition } from "@contracts/permissions";
+import type {
+  PatientBranchAction,
+  PatientBranchOption,
+  PatientDetail,
+  PatientInput,
+  PatientListItem,
+  PatientListQuery,
+  PatientWriteResult,
+} from "@contracts/patients";
 import type { RoleInput, RoleListItem } from "@contracts/roles";
 import type { LoginClinic, Persona, SessionContext } from "@contracts/session";
 
@@ -108,5 +117,22 @@ export interface ApiClient {
     update(persona: Persona, roleId: string, input: RoleInput): Promise<RoleListItem>;
     deactivate(persona: Persona, roleId: string): Promise<RoleListItem>;
     reactivate(persona: Persona, roleId: string): Promise<RoleListItem>;
+  };
+  /** Every call is rejected with module_disabled while the clinic's patients module is off. */
+  patients: {
+    list(persona: Persona, query: PatientListQuery): Promise<Page<PatientListItem>>;
+    /** Branches inside the caller's scope for that action (view filters, create/update form). */
+    branchOptions(persona: Persona, action: PatientBranchAction): Promise<PatientBranchOption[]>;
+    /** Opening a file is audited as patient access. */
+    open(persona: Persona, patientId: string): Promise<PatientDetail>;
+    /** A retry with the same key replays the first result; a changed request is a conflict. */
+    create(
+      persona: Persona,
+      input: PatientInput,
+      idempotencyKey: string,
+    ): Promise<PatientWriteResult>;
+    update(persona: Persona, patientId: string, input: PatientInput): Promise<PatientWriteResult>;
+    archive(persona: Persona, patientId: string): Promise<PatientWriteResult>;
+    restore(persona: Persona, patientId: string): Promise<PatientWriteResult>;
   };
 }

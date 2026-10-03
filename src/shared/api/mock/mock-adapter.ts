@@ -6,6 +6,7 @@ import { createMockBranches } from "./mock-branches";
 import { createMockUsers } from "./mock-users";
 import { createMockInvitations } from "./mock-invitations";
 import { createMockRoles } from "./mock-roles";
+import { createMockPatients } from "./mock-patients";
 
 export function createMockApiClient(): ApiClient {
   return {
@@ -15,5 +16,6 @@ export function createMockApiClient(): ApiClient {
     users: createMockUsers(),
     invitations: createMockInvitations(),
     roles: createMockRoles(),
+    patients: createMockPatients(),
   };
 }

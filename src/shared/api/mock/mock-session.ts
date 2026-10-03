@@ -58,6 +58,7 @@ export function createMockSession(): ApiClient["session"] {
           nameEn: clinic.nameEn,
           status: clinic.status,
           expiresAt: clinic.expiresAt,
+          timezone: clinic.timezone,
         },
         permissions: blocked ? [] : effectivePermissions(db, actor),
         features: db.features[clinic.id] ?? { patients: false },

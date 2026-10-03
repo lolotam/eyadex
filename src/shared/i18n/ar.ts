@@ -1,4 +1,5 @@
 import { arRoles } from "./ar-roles";
+import { arPatients } from "./ar-patients";
 import { arUsers } from "./ar-users";
 
 import type { Dictionary } from "./dictionary";
@@ -223,7 +224,10 @@ export const ar: Dictionary = {
   },
   ...arUsers,
   ...arRoles,
+  ...arPatients,
   validation: {
+    needsView: "أي صلاحية إضافة أو تعديل أو تعطيل تحتاج صلاحية العرض في نفس القسم",
+    timezone: "اختر منطقة زمنية مدعومة",
     required: "مطلوب",
     tooShort: "قصير جدًا",
     tooLong: "طويل جدًا",
@@ -235,8 +239,12 @@ export const ar: Dictionary = {
     dateRequired: "اختر تاريخًا",
     unknownPermission: "هذه الصلاحية غير موجودة في القائمة",
     oneScope: "اختر نطاقًا واحدًا لكل إجراء",
+    phoneKw: "أدخل 8 أرقام، أو ‎+965 ثم 8 أرقام",
+    birthDate: "أدخل تاريخًا صحيحًا ليس في المستقبل",
+    civilId: "الرقم المدني 12 رقمًا بالضبط",
   },
   errors: {
+    patient_phone_taken: "هذا الهاتف مسجّل لمراجع آخر في هذه العيادة",
     email_taken: "هذا البريد مستخدم لدى مستخدم آخر أو في دعوة معلّقة",
     last_active_admin: "لا يمكن تعطيل آخر مدير نشط للعيادة أو نقله إلى دور آخر",
     account_disabled: "تم تعطيل هذا الحساب",
