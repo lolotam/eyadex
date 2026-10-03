@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { Branch } from "@contracts/organization";
-import { BranchStatusBadge } from "@/branches/branch-status-badge";
+import { BranchStatusBadge } from "@/shared/status/branch-status-badge";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { DataTable } from "@/shared/table/data-table";
 import { useClinicBranches } from "./clinic-queries";

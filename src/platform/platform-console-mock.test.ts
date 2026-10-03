@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { api, as, getState, PLATFORM, resetMockData } from "@/audit/audit-test-kit";
+import { api, as, getState, PLATFORM, resetMockData } from "@/shared/api/mock/mock-test-kit";
 
 const DAY = 24 * 60 * 60 * 1000;
 const PATIENT_FIELDS = /patient|fileNumber|civilId|birthDate|phone|gender/i;
@@ -192,5 +192,27 @@ describe("platform access follows the signed-in account", () => {
     ]) {
       await expect(call).rejects.toMatchObject({ code: "account_disabled" });
     }
+  });
+
+  it("lets the surviving team account sign in after the founder is deactivated", async () => {
+    const db = getState();
+    const second = {
+      id: crypto.randomUUID(),
+      fullName: "Second Admin",
+      email: "second@example.com",
+      status: "active" as const,
+      joinedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+    };
+    db.platformAccounts.push(second);
+    const founder = (await api.session.listLoginPlatformAccounts())[0];
+    if (!founder) throw new Error("seed");
+    await api.platformTeam.deactivate(PLATFORM, founder.memberId);
+    const accounts = await api.session.listLoginPlatformAccounts();
+    expect(accounts.find((a) => a.memberId === second.id)?.status).toBe("active");
+    const pinned = { kind: "platform_admin" as const, clinicId: null, memberId: second.id };
+    const ctx = await api.session.getContext(pinned);
+    expect(ctx.user.email).toBe(second.email);
+    await expect(api.platform.getClinic(pinned, db.clinics[0]?.id ?? "")).resolves.toBeDefined();
   });
 });

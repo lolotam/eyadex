@@ -22,7 +22,7 @@ import { errorCodeOf } from "@/shared/api/api-error";
 import { TextField } from "@/shared/forms/form-fields";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { usePersona } from "@/shared/persona/persona-provider";
-import { useRefreshAfterSettings } from "@/settings/settings-queries";
+import { useRefreshPlatform } from "./platform-queries";
 
 const EMPTY: InvitePlatformAccountInput = { fullName: "", email: "" };
 
@@ -36,7 +36,7 @@ export function InviteTeamDialog({
   const { t } = useI18n();
   const api = useApi();
   const { persona } = usePersona();
-  const refresh = useRefreshAfterSettings();
+  const refresh = useRefreshPlatform();
   const form = useForm<InvitePlatformAccountInput>({
     resolver: zodResolver(invitePlatformAccountInputSchema),
     defaultValues: EMPTY,

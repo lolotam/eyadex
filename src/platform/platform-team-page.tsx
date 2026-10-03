@@ -12,8 +12,8 @@ import { LoadingBlock } from "@/shared/shell/loading-block";
 import { PageHeader } from "@/shared/shell/page-header";
 import { StatusPanel } from "@/shared/shell/status-panel";
 import { DataTable } from "@/shared/table/data-table";
-import { ConfirmActionDialog } from "@/users/confirm-action-dialog";
-import { usePlatformTeam, useRefreshAfterSettings } from "@/settings/settings-queries";
+import { ConfirmActionDialog } from "@/shared/shell/confirm-action-dialog";
+import { usePlatformTeam, useRefreshPlatform } from "./platform-queries";
 import { InviteTeamDialog } from "./invite-team-dialog";
 import { useTeamColumns } from "./use-team-columns";
 
@@ -22,7 +22,7 @@ export function PlatformTeamPage() {
   const api = useApi();
   const { persona } = usePersona();
   const query = usePlatformTeam();
-  const refresh = useRefreshAfterSettings();
+  const refresh = useRefreshPlatform();
   const [inviteOpen, setInviteOpen] = useState(false);
   const [target, setTarget] = useState<PlatformAccount | null>(null);
   const deactivating = target?.status !== "deactivated";

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { expiryAlertDays } from "@contracts/platform";
-import { api, as, getState, PLATFORM, resetMockData } from "@/audit/audit-test-kit";
+import { api, as, getState, PLATFORM, resetMockData } from "@/shared/api/mock/mock-test-kit";
 
 const DAY = 24 * 60 * 60 * 1000;
 const SETTINGS = {

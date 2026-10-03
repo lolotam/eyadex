@@ -4,7 +4,7 @@ import { CircleCheck, CircleSlash, Mail, Power, RotateCcw } from "lucide-react";
 import type { PlatformAccount } from "@contracts/platform";
 import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/shared/i18n/i18n-provider";
-import { RowActionsMenu } from "@/users/row-actions-menu";
+import { RowActionsMenu } from "@/shared/table/row-actions-menu";
 
 const STATUS_ICON = { active: CircleCheck, invited: Mail, deactivated: CircleSlash } as const;
 

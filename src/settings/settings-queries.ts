@@ -30,19 +30,6 @@ export function useAccountProfile() {
   });
 }
 
-// Team rows carry emails: gcTime 0 so they never outlive the screen or the persona.
-export function usePlatformTeam() {
-  const api = useApi();
-  const { persona, ready } = usePersona();
-  return useQuery({
-    queryKey: ["platform", "team", persona.kind, persona.memberId],
-    queryFn: () => api.platformTeam.list(persona),
-    enabled: ready && persona.kind === "platform_admin",
-    gcTime: 0,
-    retry: false,
-  });
-}
-
 export function usePlatformSettings() {
   const api = useApi();
   const { persona, ready } = usePersona();
@@ -50,18 +37,6 @@ export function usePlatformSettings() {
     queryKey: ["platform", "settings", persona.kind, persona.memberId],
     queryFn: () => api.platformSettings.get(persona),
     enabled: ready && persona.kind === "platform_admin",
-    retry: false,
-  });
-}
-
-export function usePlatformOverview() {
-  const api = useApi();
-  const { persona, ready } = usePersona();
-  return useQuery({
-    queryKey: ["platform", "overview", persona.kind, persona.memberId],
-    queryFn: () => api.platformOverview.get(persona),
-    enabled: ready && persona.kind === "platform_admin",
-    gcTime: 0,
     retry: false,
   });
 }

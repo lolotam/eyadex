@@ -36,6 +36,15 @@ export function PersonaPicker({ onDone }: { onDone?: () => void }) {
     queryFn: () => api.session.listLoginAccounts(effectiveClinic ?? ""),
     enabled: needsClinic && Boolean(effectiveClinic),
   });
+  const platformAccounts = useQuery({
+    queryKey: ["login-platform-accounts"],
+    queryFn: () => api.session.listLoginPlatformAccounts(),
+    enabled: !needsClinic,
+  });
+  // The platform persona is pinned to one team account, never "whichever is active".
+  const platformChosen =
+    (platformAccounts.data ?? []).find((a) => a.memberId === memberId) ??
+    (platformAccounts.data ?? []).find((a) => a.status === "active");
   // A pinned account keeps its identity: if its role changed since the persona was saved,
   // follow the account's current role instead of silently choosing another person.
   const pinned = (accounts.data ?? []).find((a) => a.memberId === memberId);
@@ -61,7 +70,7 @@ export function PersonaPicker({ onDone }: { onDone?: () => void }) {
     const next = {
       kind,
       clinicId: needsClinic ? effectiveClinic : null,
-      memberId: needsClinic ? (chosen?.memberId ?? null) : null,
+      memberId: needsClinic ? (chosen?.memberId ?? null) : (platformChosen?.memberId ?? null),
     };
     setPersona(next);
     void queryClient.invalidateQueries({ queryKey: ["session"] });
@@ -132,12 +141,34 @@ export function PersonaPicker({ onDone }: { onDone?: () => void }) {
           </Select>
         </div>
       )}
+      {!needsClinic && (platformAccounts.data ?? []).length > 0 && (
+        <div className="flex flex-col gap-2">
+          <Label>{t("persona.account")}</Label>
+          <Select value={platformChosen?.memberId ?? ""} onValueChange={setMemberId}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(platformAccounts.data ?? []).map((a) => (
+                <SelectItem key={a.memberId} value={a.memberId}>
+                  {a.fullName}
+                  {a.status !== "active" ? ` (${t("persona.deactivatedTag")})` : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
       {needsClinic && accounts.isSuccess && kindAccounts.length === 0 && (
         <p className="text-sm text-muted-foreground">
           {t(kind === "custom" ? "persona.noCustomAccounts" : "persona.noAccountsForRole")}
         </p>
       )}
-      <Button type="button" onClick={apply} disabled={needsClinic && (!effectiveClinic || !chosen)}>
+      <Button
+        type="button"
+        onClick={apply}
+        disabled={needsClinic ? !effectiveClinic || !chosen : !platformChosen}
+      >
         {t("landing.enter")}
       </Button>
       <p className="text-xs text-muted-foreground">{t("persona.demoNote")}</p>

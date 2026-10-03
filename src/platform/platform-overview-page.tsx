@@ -5,7 +5,7 @@ import { useI18n } from "@/shared/i18n/i18n-provider";
 import { LoadingBlock } from "@/shared/shell/loading-block";
 import { PageHeader } from "@/shared/shell/page-header";
 import { StatusPanel } from "@/shared/shell/status-panel";
-import { usePlatformOverview } from "@/settings/settings-queries";
+import { usePlatformOverview } from "./platform-queries";
 import { ExpiringClinicsTable } from "./expiring-clinics-table";
 
 const ICONS = {

@@ -35,6 +35,7 @@ import type {
   ChangeRoleInput,
   InviteUserInput,
   LoginAccount,
+  PlatformLoginAccount,
   MembershipUserView,
   RoleOption,
   UserListQuery,
@@ -70,6 +71,8 @@ export interface ApiClient {
     listLoginClinics(): Promise<LoginClinic[]>;
     /** Demo sign-in: every account of a clinic, including deactivated ones (they are refused). */
     listLoginAccounts(clinicId: string): Promise<LoginAccount[]>;
+    /** Demo sign-in: platform team accounts, so the platform persona is pinned to one of them. */
+    listLoginPlatformAccounts(): Promise<PlatformLoginAccount[]>;
     getContext(persona: Persona): Promise<SessionContext>;
   };
   /** Platform admin only: every call resolves the active platform account first. */

@@ -4,7 +4,7 @@ import type { Invitation } from "@contracts/invitations";
 import { useApi } from "@/shared/api/api-provider";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { usePersona } from "@/shared/persona/persona-provider";
-import { ConfirmActionDialog } from "./confirm-action-dialog";
+import { ConfirmActionDialog } from "@/shared/shell/confirm-action-dialog";
 import { userErrorMessage } from "./user-error-message";
 import { useRefreshUsers } from "./user-queries";
 

@@ -29,6 +29,13 @@ export function createMockSession(): ApiClient["session"] {
         }));
     },
 
+    async listLoginPlatformAccounts() {
+      await delay(80);
+      return [...getState().platformAccounts]
+        .sort((x, y) => x.createdAt.localeCompare(y.createdAt))
+        .map((a) => ({ memberId: a.id, fullName: a.fullName, status: a.status }));
+    },
+
     async getContext(persona) {
       await delay(80);
       const db = getState();
