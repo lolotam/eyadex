@@ -1,3 +1,5 @@
+import { enUsers } from "./en-users";
+
 export const en = {
   app: { name: "Eyadex", tagline: "One place for every clinic" },
   common: {
@@ -35,7 +37,14 @@ export const en = {
     doctor: "Doctor",
     receptionist: "Receptionist",
     technician: "Technician",
+    custom: "Custom role",
+    noAccountsForRole: "No account with this role in this clinic yet.",
+    noCustomAccounts: "No accounts with a custom role in this clinic yet.",
     demoNote: "Demo sign-in. No passwords.",
+    account: "Account",
+    deactivatedTag: "deactivated",
+    disabledNotice:
+      "Your account was deactivated. You have been signed out. Contact your clinic admin.",
     signOut: "Sign out",
   },
   nav: {
@@ -79,9 +88,24 @@ export const en = {
     psychology: "Psychology",
     dental: "Dental",
     dermatology: "Dermatology",
+    obgyn: "OB/GYN",
     general: "General practice",
   },
   clinics: {
+    firstAdmin: {
+      createdBody: "Send the first admin their invitation link so they can set up the clinic.",
+      linkTitle: "Invitation link for {email}",
+      linkLabel: "Invitation link",
+      expires: "Valid until {date}",
+      copy: "Copy invitation link",
+      open: "Open link",
+      copied: "Invitation link copied",
+      demoNote: "Demo: in production this link is emailed to the first admin.",
+      goToClinic: "Go to the clinic",
+      pendingTitle: "The first admin has not accepted yet",
+      resend: "Resend invitation",
+      resent: "Invitation resent with a new link",
+    },
     title: "Clinics",
     subtitle: "All clinics on the platform",
     new: "New clinic",
@@ -200,6 +224,7 @@ export const en = {
       "Active branch limit reached ({active} of {limit}). Contact the platform to increase it.",
     lastActive: "The clinic's last active branch cannot be deactivated.",
   },
+  ...enUsers,
   validation: {
     required: "Required",
     tooShort: "Too short",
@@ -212,6 +237,18 @@ export const en = {
     dateRequired: "Pick a date",
   },
   errors: {
+    email_taken: "This email already belongs to a user or a pending invitation",
+    last_active_admin:
+      "The clinic's last active admin cannot be deactivated or moved to another role",
+    account_disabled: "This account has been deactivated",
+    subscription_blocked: "The clinic's subscription does not allow access right now",
+    role_inactive: "A deactivated role cannot be assigned",
+    branch_inactive: "A deactivated branch cannot be assigned",
+    invitation_expired: "This invitation has expired",
+    invitation_cancelled: "This invitation was cancelled",
+    invitation_used: "This invitation was already used",
+    idempotency_conflict:
+      "This request was already sent with different details; close the form and start again",
     not_found: "Not found",
     slug_taken: "This slug is already used by another clinic",
     reserved_slug: "This address is reserved by Eyadex",

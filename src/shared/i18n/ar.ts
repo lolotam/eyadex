@@ -1,3 +1,5 @@
+import { arUsers } from "./ar-users";
+
 import type { Dictionary } from "./dictionary";
 
 export const ar: Dictionary = {
@@ -37,7 +39,13 @@ export const ar: Dictionary = {
     doctor: "طبيب",
     receptionist: "موظف استقبال",
     technician: "فني",
+    custom: "دور مخصص",
+    noAccountsForRole: "لا يوجد حساب بهذا الدور في هذه العيادة بعد.",
+    noCustomAccounts: "لا توجد حسابات بدور مخصص في هذه العيادة بعد.",
     demoNote: "دخول تجريبي بدون كلمات مرور.",
+    account: "الحساب",
+    deactivatedTag: "معطّل",
+    disabledNotice: "تم تعطيل حسابك وتسجيل خروجك. تواصل مع مدير العيادة.",
     signOut: "تسجيل الخروج",
   },
   nav: {
@@ -79,9 +87,24 @@ export const ar: Dictionary = {
     psychology: "علاج نفسي",
     dental: "أسنان",
     dermatology: "جلدية",
+    obgyn: "نساء وولادة",
     general: "طب عام",
   },
   clinics: {
+    firstAdmin: {
+      createdBody: "أرسل رابط الدعوة إلى المدير الأول ليبدأ إعداد العيادة.",
+      linkTitle: "رابط الدعوة لـ {email}",
+      linkLabel: "رابط الدعوة",
+      expires: "صالح حتى {date}",
+      copy: "نسخ رابط الدعوة",
+      open: "فتح الرابط",
+      copied: "تم نسخ رابط الدعوة",
+      demoNote: "نسخة تجريبية: في التشغيل الفعلي يُرسل هذا الرابط بالبريد إلى المدير الأول.",
+      goToClinic: "الانتقال إلى العيادة",
+      pendingTitle: "لم يقبل المدير الأول الدعوة بعد",
+      resend: "إعادة إرسال الدعوة",
+      resent: "أُعيد إرسال الدعوة برابط جديد",
+    },
     title: "العيادات",
     subtitle: "كل العيادات على المنصة",
     new: "عيادة جديدة",
@@ -197,6 +220,7 @@ export const ar: Dictionary = {
     limitReached: "تم بلوغ حد الفروع النشطة ({active} من {limit}). تواصل مع المنصة لزيادته.",
     lastActive: "لا يمكن إيقاف آخر فرع نشط للعيادة.",
   },
+  ...arUsers,
   validation: {
     required: "مطلوب",
     tooShort: "قصير جدًا",
@@ -209,6 +233,16 @@ export const ar: Dictionary = {
     dateRequired: "اختر تاريخًا",
   },
   errors: {
+    email_taken: "هذا البريد مستخدم لدى مستخدم آخر أو في دعوة معلّقة",
+    last_active_admin: "لا يمكن تعطيل آخر مدير نشط للعيادة أو نقله إلى دور آخر",
+    account_disabled: "تم تعطيل هذا الحساب",
+    subscription_blocked: "اشتراك العيادة لا يسمح بالدخول حاليًا",
+    role_inactive: "لا يمكن إسناد دور معطّل",
+    branch_inactive: "لا يمكن إسناد فرع معطّل",
+    invitation_expired: "انتهت صلاحية هذه الدعوة",
+    invitation_cancelled: "تم إلغاء هذه الدعوة",
+    invitation_used: "تم استخدام هذه الدعوة من قبل",
+    idempotency_conflict: "تم إرسال هذا الطلب من قبل ببيانات مختلفة، أغلق النموذج وابدأ من جديد",
     not_found: "غير موجود",
     slug_taken: "هذا المعرّف مستخدم لعيادة أخرى",
     reserved_slug: "هذا العنوان محجوز لمنصة Eyadex",

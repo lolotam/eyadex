@@ -7,6 +7,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { LoadingBlock } from "@/shared/shell/loading-block";
 
@@ -15,19 +16,39 @@ type Props<T> = {
   data: T[];
   isLoading?: boolean;
   onRowClick?: (row: T) => void;
+  /** Table min width; the table then scrolls horizontally inside its own frame. */
+  minWidthClass?: string;
+  /** Column kept pinned at the inline end while scrolling (e.g. row actions). */
+  stickyEndColumnId?: string;
 };
 
-export function DataTable<T>({ columns, data, isLoading, onRowClick }: Props<T>) {
+// border-s sits on the inline-start edge, so the divider faces the scrolled cells in RTL and LTR.
+const STICKY_END = "sticky end-0 z-10 bg-card border-s border-border";
+
+export function DataTable<T>({
+  columns,
+  data,
+  isLoading,
+  onRowClick,
+  minWidthClass,
+  stickyEndColumnId,
+}: Props<T>) {
   const { t } = useI18n();
   const table = useReactTable({ data, columns, getCoreRowModel: getCoreRowModel() });
   return (
-    <div className="overflow-hidden rounded-lg border bg-card">
-      <Table>
+    <div className="max-w-full overflow-hidden rounded-lg border bg-card">
+      <Table className={minWidthClass}>
         <TableHeader className="bg-muted/70">
           {table.getHeaderGroups().map((group) => (
             <TableRow key={group.id}>
               {group.headers.map((header) => (
-                <TableHead key={header.id} className="text-start">
+                <TableHead
+                  key={header.id}
+                  className={cn(
+                    "text-start",
+                    header.column.id === stickyEndColumnId && cn(STICKY_END, "bg-muted"),
+                  )}
+                >
                   {header.isPlaceholder
                     ? null
                     : flexRender(header.column.columnDef.header, header.getContext())}
@@ -60,7 +81,10 @@ export function DataTable<T>({ columns, data, isLoading, onRowClick }: Props<T>)
                 onClick={onRowClick ? () => onRowClick(row.original) : undefined}
               >
                 {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id}>
+                  <TableCell
+                    key={cell.id}
+                    className={cell.column.id === stickyEndColumnId ? STICKY_END : undefined}
+                  >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </TableCell>
                 ))}

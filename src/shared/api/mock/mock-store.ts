@@ -1,7 +1,9 @@
 import type { Clinic, ClinicFeatures } from "@contracts/clinics";
-import type { Branch, ClinicAuditEntry, Invitation, Member, Role } from "@contracts/organization";
+import type { InvitationRecord } from "@contracts/invitations";
+import type { Branch, ClinicAuditEntry, Role } from "@contracts/organization";
 import type { Patient } from "@contracts/patients";
 import type { PlatformAuditEntry } from "@contracts/session";
+import type { MembershipUser } from "@contracts/users";
 import { buildSeed } from "./seed";
 
 export type MockState = {
@@ -9,14 +11,18 @@ export type MockState = {
   features: Record<string, ClinicFeatures>;
   branches: Branch[];
   roles: Role[];
-  members: Member[];
-  invitations: Invitation[];
+  members: MembershipUser[];
+  invitations: InvitationRecord[];
+  /** Mock stand-in for the invitation email: invitation id -> latest plain link token. */
+  inviteOutbox: Record<string, string>;
+  /** Idempotency-Key replay: "clinicId:key" -> invitation id (optional for older saved state). */
+  idempotentInvites?: Record<string, { invitationId: string; fingerprint: string }>;
   patients: Patient[];
   platformAudit: PlatformAuditEntry[];
   clinicAudit: ClinicAuditEntry[];
 };
 
-const STORAGE_KEY = "eyadex:mock-db:v2";
+const STORAGE_KEY = "eyadex:mock-db:v4";
 
 let state: MockState | null = null;
 
@@ -27,12 +33,6 @@ export function getState(): MockState {
     if (raw) {
       try {
         state = JSON.parse(raw) as MockState;
-        state.clinicAudit ??= [];
-        state.branches = state.branches.map((branch) => ({
-          ...branch,
-          address: branch.address ?? null,
-          phone: branch.phone ?? null,
-        }));
         return state;
       } catch {
         // fall through to fresh seed

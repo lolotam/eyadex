@@ -19,6 +19,7 @@ export type Page<T> = {
 
 export const apiErrorCodeSchema = z.enum([
   "not_found",
+  "idempotency_conflict",
   "slug_taken",
   "reserved_slug",
   "limit_below_usage",
@@ -27,6 +28,15 @@ export const apiErrorCodeSchema = z.enum([
   "forbidden",
   "module_disabled",
   "validation",
+  "email_taken",
+  "last_active_admin",
+  "account_disabled",
+  "subscription_blocked",
+  "role_inactive",
+  "branch_inactive",
+  "invitation_expired",
+  "invitation_cancelled",
+  "invitation_used",
   "unknown",
 ]);
 export type ApiErrorCode = z.infer<typeof apiErrorCodeSchema>;

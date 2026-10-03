@@ -1,13 +1,30 @@
 import type { ApiClient } from "../api-client";
 import { ApiError } from "../api-error";
-import { PERMISSION_CATALOG } from "@contracts/permissions";
-import { delay, getState } from "./mock-store";
+import { clinicBlockReason, effectivePermissions, resolveActor } from "./mock-actor";
+import { delay, getState, persist } from "./mock-store";
+
+const LOGIN_REFRESH_MS = 5 * 60 * 1000;
 
 export function createMockSession(): ApiClient["session"] {
   return {
     async listLoginClinics() {
       await delay(80);
       return getState().clinics.map((c) => ({ id: c.id, nameAr: c.nameAr, nameEn: c.nameEn }));
+    },
+
+    async listLoginAccounts(clinicId) {
+      await delay(80);
+      const db = getState();
+      return db.members
+        .filter((m) => m.clinicId === clinicId)
+        .map((m) => ({
+          memberId: m.id,
+          fullName: m.fullName,
+          roleKey: db.roles.find((r) => r.id === m.roleId)?.systemKey ?? null,
+          roleNameAr: db.roles.find((r) => r.id === m.roleId)?.nameAr ?? "",
+          roleNameEn: db.roles.find((r) => r.id === m.roleId)?.nameEn ?? "",
+          status: m.status,
+        }));
     },
 
     async getContext(persona) {
@@ -23,24 +40,15 @@ export function createMockSession(): ApiClient["session"] {
           blocked: null,
         };
       }
-      const clinic = db.clinics.find((c) => c.id === persona.clinicId);
+      const actor = resolveActor(db, persona);
+      const { clinic, member } = actor;
       if (!clinic) throw new ApiError("not_found");
-      const role = db.roles.find((r) => r.clinicId === clinic.id && r.systemKey === persona.kind);
-      const member = db.members.find(
-        (m) => m.clinicId === clinic.id && m.roleId === role?.id && m.status === "active",
-      );
-      if (!role || !member) throw new ApiError("not_found");
-      const features = db.features[clinic.id] ?? { patients: false };
-      const permissions = role.permissions.filter((key) => {
-        const def = PERMISSION_CATALOG.find((p) => p.key === key);
-        return def && (def.module === null || features[def.module]);
-      });
-      const blocked =
-        clinic.status === "suspended"
-          ? "suspended"
-          : new Date(clinic.expiresAt).getTime() < Date.now()
-            ? "expired"
-            : null;
+      const last = member.lastLoginAt ? new Date(member.lastLoginAt).getTime() : 0;
+      if (Date.now() - last > LOGIN_REFRESH_MS) {
+        member.lastLoginAt = new Date().toISOString();
+        persist();
+      }
+      const blocked = clinicBlockReason(clinic);
       return {
         persona,
         user: { fullName: member.fullName, email: member.email },
@@ -51,8 +59,8 @@ export function createMockSession(): ApiClient["session"] {
           status: clinic.status,
           expiresAt: clinic.expiresAt,
         },
-        permissions: blocked ? [] : permissions,
-        features,
+        permissions: blocked ? [] : effectivePermissions(db, actor),
+        features: db.features[clinic.id] ?? { patients: false },
         blocked,
       };
     },

@@ -23,6 +23,7 @@ import { Route as ClinicPatientsRouteImport } from './routes/clinic.patients'
 import { Route as ClinicRolesRouteImport } from './routes/clinic.roles'
 import { Route as ClinicSettingsRouteImport } from './routes/clinic.settings'
 import { Route as ClinicUsersRouteImport } from './routes/clinic.users'
+import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as PlatformIndexRouteImport } from './routes/platform.index'
 import { Route as PlatformAuditRouteImport } from './routes/platform.audit'
 import { Route as PlatformSettingsRouteImport } from './routes/platform.settings'
@@ -101,6 +102,11 @@ const ClinicUsersRoute = ClinicUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => ClinicRoute,
 } as any)
+const InviteTokenRoute = InviteTokenRouteImport.update({
+  id: '/invite/$token',
+  path: '/invite/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PlatformIndexRoute = PlatformIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -151,6 +157,7 @@ export interface FileRoutesByFullPath {
   '/clinic/roles': typeof ClinicRolesRoute
   '/clinic/settings': typeof ClinicSettingsRoute
   '/clinic/users': typeof ClinicUsersRoute
+  '/invite/$token': typeof InviteTokenRoute
   '/platform/audit': typeof PlatformAuditRoute
   '/platform/settings': typeof PlatformSettingsRoute
   '/platform/team': typeof PlatformTeamRoute
@@ -172,6 +179,7 @@ export interface FileRoutesByTo {
   '/clinic/roles': typeof ClinicRolesRoute
   '/clinic/settings': typeof ClinicSettingsRoute
   '/clinic/users': typeof ClinicUsersRoute
+  '/invite/$token': typeof InviteTokenRoute
   '/platform/audit': typeof PlatformAuditRoute
   '/platform/settings': typeof PlatformSettingsRoute
   '/platform/team': typeof PlatformTeamRoute
@@ -196,6 +204,7 @@ export interface FileRoutesById {
   '/clinic/roles': typeof ClinicRolesRoute
   '/clinic/settings': typeof ClinicSettingsRoute
   '/clinic/users': typeof ClinicUsersRoute
+  '/invite/$token': typeof InviteTokenRoute
   '/platform/audit': typeof PlatformAuditRoute
   '/platform/settings': typeof PlatformSettingsRoute
   '/platform/team': typeof PlatformTeamRoute
@@ -221,6 +230,7 @@ export interface FileRouteTypes {
     | '/clinic/roles'
     | '/clinic/settings'
     | '/clinic/users'
+    | '/invite/$token'
     | '/platform/audit'
     | '/platform/settings'
     | '/platform/team'
@@ -242,6 +252,7 @@ export interface FileRouteTypes {
     | '/clinic/roles'
     | '/clinic/settings'
     | '/clinic/users'
+    | '/invite/$token'
     | '/platform/audit'
     | '/platform/settings'
     | '/platform/team'
@@ -265,6 +276,7 @@ export interface FileRouteTypes {
     | '/clinic/roles'
     | '/clinic/settings'
     | '/clinic/users'
+    | '/invite/$token'
     | '/platform/audit'
     | '/platform/settings'
     | '/platform/team'
@@ -282,6 +294,7 @@ export interface RootRouteChildren {
   ForbiddenRoute: typeof ForbiddenRoute
   LoginRoute: typeof LoginRoute
   PlatformRoute: typeof PlatformRouteWithChildren
+  InviteTokenRoute: typeof InviteTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -383,6 +396,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/clinic/users'
       preLoaderRoute: typeof ClinicUsersRouteImport
       parentRoute: typeof ClinicRoute
+    }
+    '/invite/$token': {
+      id: '/invite/$token'
+      path: '/invite/$token'
+      fullPath: '/invite/$token'
+      preLoaderRoute: typeof InviteTokenRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/platform/': {
       id: '/platform/'
@@ -492,6 +512,7 @@ const rootRouteChildren: RootRouteChildren = {
   ForbiddenRoute: ForbiddenRoute,
   LoginRoute: LoginRoute,
   PlatformRoute: PlatformRouteWithChildren,
+  InviteTokenRoute: InviteTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
