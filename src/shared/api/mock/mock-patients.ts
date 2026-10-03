@@ -13,6 +13,7 @@ import {
   authorizePatients,
   enforceBirthDate,
   guardPatients,
+  tryAuthorizePatients,
   enforcePhoneFree,
   enforceRegistrationBranch,
   findPatientInScope,
@@ -139,8 +140,12 @@ export function createMockPatients(): ApiClient["patients"] {
       const previous = db.idempotentPatients?.[replayKey];
       if (previous) {
         if (previous.fingerprint !== fingerprint) throw new ApiError("idempotency_conflict");
+        // A replay returns the file only while the caller may still open it (scope can change).
+        const viewer = tryAuthorizePatients(db, persona, "view");
         const replayed = db.patients.find((p) => p.id === previous.patientId);
-        if (replayed) return toDetail(db, persona, replayed);
+        if (!replayed || !viewer || !inScope(viewer, replayed.registrationBranchId))
+          throw new ApiError("not_found");
+        return toDetail(db, persona, replayed);
       }
       enforceRegistrationBranch(db, access, input.registrationBranchId);
       enforcePhoneFree(db, persona, access.clinic.id, input.phone, null);

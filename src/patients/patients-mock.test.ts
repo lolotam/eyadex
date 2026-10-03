@@ -281,4 +281,18 @@ describe("patients mock", () => {
     expect(foreign.actions).toEqual({ update: false, deactivate: false });
     expect((await api.patients.open(as("receptionist"), foreign.id)).actions.update).toBe(false);
   });
+  it("does not replay a create whose file left the caller's scope", async () => {
+    const member = memberOf("receptionist");
+    const own = member.branchIds[0];
+    if (!own || member.branchIds.length < 1) throw new Error("seed");
+    const key = crypto.randomUUID();
+    const persona = as("receptionist");
+    await api.patients.create(persona, input(own, "55506666"), key);
+    member.branchIds = branches()
+      .map((b) => b.id)
+      .filter((id) => id !== own);
+    await expect(api.patients.create(persona, input(own, "55506666"), key)).rejects.toMatchObject({
+      code: expect.stringMatching(/not_found|forbidden/),
+    });
+  });
 });
