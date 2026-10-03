@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form } from "@/components/ui/form";
 import { useApi } from "@/shared/api/api-provider";
-import { errorCodeOf } from "@/shared/api/api-error";
+import { acceptErrorMessage } from "./accept-error-message";
 import { TextField } from "@/shared/forms/form-fields";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { LanguageSwitch } from "@/shared/i18n/language-switch";
@@ -132,7 +132,7 @@ export function AcceptInvitationPage() {
               />
               {accept.isError && (
                 <p role="alert" className="text-sm text-destructive">
-                  {t(`errors.${errorCodeOf(accept.error)}`)}
+                  {acceptErrorMessage(t, accept.error)}
                 </p>
               )}
               <Button type="submit" disabled={accept.isPending}>

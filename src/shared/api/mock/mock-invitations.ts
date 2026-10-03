@@ -8,7 +8,7 @@ import {
 import { inviteUserInputSchema, type MembershipUser } from "@contracts/users";
 import type { ApiClient } from "../api-client";
 import { ApiError } from "../api-error";
-import { authorize } from "./mock-actor";
+import { authorize, clinicBlockReason } from "./mock-actor";
 import { writeClinicAudit } from "./mock-audit";
 import { delay, getState, newId, persist, type MockState } from "./mock-store";
 import {
@@ -178,8 +178,13 @@ export function createMockInvitations(): ApiClient["invitations"] {
         throw new ApiError("validation");
       const db = getState();
       const inv = usableInvitation(db, token);
-      if (db.members.some((m) => m.email.toLowerCase() === inv.email.toLowerCase()))
-        throw new ApiError("email_taken");
+      // Re-run the invite-time guards: the clinic, role, branches or email may have changed since.
+      const clinic = db.clinics.find((c) => c.id === inv.clinicId);
+      if (!clinic) throw new ApiError("not_found");
+      if (clinicBlockReason(clinic)) throw new ApiError("subscription_blocked");
+      enforceEmailFree(db, inv.email, inv.id);
+      enforceAssignableRole(db, inv.clinicId, inv.roleId);
+      enforceAssignableBranches(db, inv.clinicId, inv);
       const now = new Date().toISOString();
       const before = { ...inv };
       inv.status = "accepted";

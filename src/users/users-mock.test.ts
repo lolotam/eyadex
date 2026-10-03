@@ -133,4 +133,36 @@ describe("users and invitations mock", () => {
       code: "forbidden",
     });
   });
+
+  it("rejects accepting when the invited role was deactivated after the invite", async () => {
+    const clinic = clinicBySlug("serenity");
+    const sent = await invite(clinic.id, "late-role@example.com");
+    const role = getState().roles.find((r) => r.id === sent.roleId);
+    if (!role) throw new Error("no role");
+    role.isActive = false;
+    await expect(api.invitations.accept(sent.token, password)).rejects.toMatchObject({
+      code: "role_inactive",
+    });
+    const stored = getState().invitations.find((i) => i.id === sent.id);
+    expect(stored?.status).toBe("pending");
+    expect(getState().members.some((m) => m.email === "late-role@example.com")).toBe(false);
+  });
+
+  it("rejects accepting when an invited branch was deactivated after the invite", async () => {
+    const clinic = clinicBySlug("serenity");
+    const branch = getState().branches.find((b) => b.clinicId === clinic.id && b.isActive);
+    if (!branch) throw new Error("no branch");
+    const sent = await api.invitations.invite(admin(clinic.id), {
+      fullName: "Branch Person",
+      email: "late-branch@example.com",
+      roleId: roleId(clinic.id, "doctor"),
+      allBranches: false,
+      branchIds: [branch.id],
+    });
+    branch.isActive = false;
+    await expect(api.invitations.accept(sent.token, password)).rejects.toMatchObject({
+      code: "branch_inactive",
+    });
+    expect(getState().invitations.find((i) => i.id === sent.id)?.status).toBe("pending");
+  });
 });

@@ -85,5 +85,7 @@ export function useRefreshUsers() {
     void queryClient.invalidateQueries({ queryKey: userKeys.all });
     void queryClient.invalidateQueries({ queryKey: ["platform", "clinics"] });
     void queryClient.invalidateQueries({ queryKey: ["login-accounts"] });
+    // The signed-in admin may have changed their own role or branches: refresh permissions now.
+    void queryClient.invalidateQueries({ queryKey: ["session"] });
   };
 }

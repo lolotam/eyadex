@@ -45,11 +45,13 @@ export function ListBody<T>({
   }
   return (
     <>
-      <div className="overflow-x-auto">
-        <div className="min-w-[860px]">
-          <DataTable columns={columns} data={data?.items ?? []} isLoading={isLoading} />
-        </div>
-      </div>
+      <DataTable
+        columns={columns}
+        data={data?.items ?? []}
+        isLoading={isLoading}
+        minWidthClass="min-w-[860px]"
+        stickyEndColumnId="actions"
+      />
       <CursorPager
         count={data?.items.length ?? 0}
         total={data?.total ?? 0}
