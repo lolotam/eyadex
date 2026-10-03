@@ -272,7 +272,8 @@ export const en = {
     resent: "Invitation resent with a new 7-day expiry",
     cancelled: "Invitation cancelled",
     linkCopied: "Invitation link copied",
-    resendInvalid: "The role or a branch on this invitation is no longer active. Cancel it and send a new invitation with a valid role and branches.",
+    resendInvalid:
+      "The role or a branch on this invitation is no longer active. Cancel it and send a new invitation with a valid role and branches.",
     roleChanged: "Role changed",
     branchesChanged: "Branches updated",
     deactivated: "User deactivated",
