@@ -88,3 +88,17 @@ export const loginAccountSchema = z.object({
   status: membershipUserStatusSchema,
 });
 export type LoginAccount = z.infer<typeof loginAccountSchema>;
+
+/** Story 64: the signed-in account's own profile. */
+export const accountProfileInputSchema = z.object({
+  fullName: z.string().trim().min(2, "validation.tooShort").max(100, "validation.tooLong"),
+  preferredLanguage: languageSchema,
+});
+export type AccountProfileInput = z.infer<typeof accountProfileInputSchema>;
+
+export const accountProfileSchema = accountProfileInputSchema.extend({
+  email: z.string(),
+  roleNameAr: z.string(),
+  roleNameEn: z.string(),
+});
+export type AccountProfile = z.infer<typeof accountProfileSchema>;
