@@ -12,10 +12,14 @@ CREATE TABLE email_reservations (
   email       text PRIMARY KEY CHECK (email = lower(btrim(email)) AND email <> ''),
   kind        text NOT NULL CHECK (kind IN ('invitation', 'membership', 'platform')),
   clinic_id   uuid NULL REFERENCES clinics (id),
+  -- The invitation that currently holds the email; only that invitation can renew, convert or
+  -- release it, so cancelling an old invitation never frees a newer one's hold.
+  invitation_id uuid NULL,
   expires_at  timestamptz NULL,
   reserved_at timestamptz NOT NULL,
   CHECK ((kind = 'platform') = (clinic_id IS NULL)),
-  CHECK ((kind = 'invitation') = (expires_at IS NOT NULL))
+  CHECK ((kind = 'invitation') = (expires_at IS NOT NULL)),
+  CHECK ((kind = 'invitation') = (invitation_id IS NOT NULL))
 );
 CREATE INDEX email_reservations_clinic_idx ON email_reservations (clinic_id);
 
@@ -33,7 +37,7 @@ CREATE POLICY email_reservations_registry_owner ON email_reservations TO eyadex_
 
 -- Holds an email for a new invitation of the caller's clinic. False when any clinic or the
 -- platform holds it (an expired invitation hold of any clinic counts as free).
-CREATE FUNCTION reserve_invitation_email(p_email text, p_expires_at timestamptz) RETURNS boolean
+CREATE FUNCTION reserve_invitation_email(p_email text, p_invitation_id uuid, p_expires_at timestamptz) RETURNS boolean
   LANGUAGE plpgsql VOLATILE SECURITY DEFINER
   SET search_path = public, pg_temp
 AS $$
@@ -43,10 +47,12 @@ DECLARE
 BEGIN
   IF v_clinic IS NULL THEN RAISE EXCEPTION 'reserve_invitation_email requires a clinic context'; END IF;
   IF p_expires_at IS NULL OR p_expires_at <= now() THEN RAISE EXCEPTION 'invitation expiry must be in the future'; END IF;
-  INSERT INTO email_reservations (email, kind, clinic_id, expires_at, reserved_at)
-    VALUES (lower(btrim(p_email)), 'invitation', v_clinic, p_expires_at, now())
+  IF p_invitation_id IS NULL THEN RAISE EXCEPTION 'invitation id is required'; END IF;
+  INSERT INTO email_reservations (email, kind, clinic_id, invitation_id, expires_at, reserved_at)
+    VALUES (lower(btrim(p_email)), 'invitation', v_clinic, p_invitation_id, p_expires_at, now())
     ON CONFLICT (email) DO UPDATE
-      SET clinic_id = EXCLUDED.clinic_id, expires_at = EXCLUDED.expires_at, reserved_at = now()
+      SET clinic_id = EXCLUDED.clinic_id, invitation_id = EXCLUDED.invitation_id,
+          expires_at = EXCLUDED.expires_at, reserved_at = now()
       WHERE email_reservations.kind = 'invitation' AND email_reservations.expires_at <= now();
   GET DIAGNOSTICS v_rows = ROW_COUNT;
   RETURN v_rows = 1;
@@ -54,7 +60,7 @@ END
 $$;
 
 -- Moves the caller's own invitation hold to a new expiry (resend).
-CREATE FUNCTION renew_invitation_email(p_email text, p_expires_at timestamptz) RETURNS boolean
+CREATE FUNCTION renew_invitation_email(p_email text, p_invitation_id uuid, p_expires_at timestamptz) RETURNS boolean
   LANGUAGE plpgsql VOLATILE SECURITY DEFINER
   SET search_path = public, pg_temp
 AS $$
@@ -65,7 +71,8 @@ BEGIN
   IF v_clinic IS NULL THEN RAISE EXCEPTION 'renew_invitation_email requires a clinic context'; END IF;
   IF p_expires_at IS NULL OR p_expires_at <= now() THEN RAISE EXCEPTION 'invitation expiry must be in the future'; END IF;
   UPDATE email_reservations SET expires_at = p_expires_at, reserved_at = now()
-    WHERE email = lower(btrim(p_email)) AND kind = 'invitation' AND clinic_id = v_clinic;
+    WHERE email = lower(btrim(p_email)) AND kind = 'invitation' AND clinic_id = v_clinic
+      AND invitation_id = p_invitation_id;
   GET DIAGNOSTICS v_rows = ROW_COUNT;
   RETURN v_rows = 1;
 END
@@ -73,7 +80,7 @@ $$;
 
 -- Turns the caller's own, unexpired invitation hold into a permanent membership (accept).
 -- Never creates a membership hold out of nothing.
-CREATE FUNCTION convert_invitation_email_to_membership(p_email text) RETURNS boolean
+CREATE FUNCTION convert_invitation_email_to_membership(p_email text, p_invitation_id uuid) RETURNS boolean
   LANGUAGE plpgsql VOLATILE SECURITY DEFINER
   SET search_path = public, pg_temp
 AS $$
@@ -82,16 +89,17 @@ DECLARE
   v_rows integer;
 BEGIN
   IF v_clinic IS NULL THEN RAISE EXCEPTION 'convert_invitation_email_to_membership requires a clinic context'; END IF;
-  UPDATE email_reservations SET kind = 'membership', expires_at = NULL, reserved_at = now()
+  UPDATE email_reservations
+    SET kind = 'membership', invitation_id = NULL, expires_at = NULL, reserved_at = now()
     WHERE email = lower(btrim(p_email)) AND kind = 'invitation' AND clinic_id = v_clinic
-      AND expires_at > now();
+      AND invitation_id = p_invitation_id AND expires_at > now();
   GET DIAGNOSTICS v_rows = ROW_COUNT;
   RETURN v_rows = 1;
 END
 $$;
 
 -- Frees the caller's own invitation hold (cancelled invitation).
-CREATE FUNCTION release_invitation_email(p_email text) RETURNS boolean
+CREATE FUNCTION release_invitation_email(p_email text, p_invitation_id uuid) RETURNS boolean
   LANGUAGE plpgsql VOLATILE SECURITY DEFINER
   SET search_path = public, pg_temp
 AS $$
@@ -101,7 +109,8 @@ DECLARE
 BEGIN
   IF v_clinic IS NULL THEN RAISE EXCEPTION 'release_invitation_email requires a clinic context'; END IF;
   DELETE FROM email_reservations
-    WHERE email = lower(btrim(p_email)) AND kind = 'invitation' AND clinic_id = v_clinic;
+    WHERE email = lower(btrim(p_email)) AND kind = 'invitation' AND clinic_id = v_clinic
+      AND invitation_id = p_invitation_id;
   GET DIAGNOSTICS v_rows = ROW_COUNT;
   RETURN v_rows = 1;
 END
@@ -115,27 +124,28 @@ CREATE FUNCTION reserve_platform_email(p_email text) RETURNS boolean
 AS $$
 DECLARE v_rows integer;
 BEGIN
-  INSERT INTO email_reservations (email, kind, clinic_id, expires_at, reserved_at)
-    VALUES (lower(btrim(p_email)), 'platform', NULL, NULL, now())
+  INSERT INTO email_reservations (email, kind, clinic_id, invitation_id, expires_at, reserved_at)
+    VALUES (lower(btrim(p_email)), 'platform', NULL, NULL, NULL, now())
     ON CONFLICT (email) DO UPDATE
-      SET kind = 'platform', clinic_id = NULL, expires_at = NULL, reserved_at = now()
+      SET kind = 'platform', clinic_id = NULL, invitation_id = NULL, expires_at = NULL,
+          reserved_at = now()
       WHERE email_reservations.kind = 'invitation' AND email_reservations.expires_at <= now();
   GET DIAGNOSTICS v_rows = ROW_COUNT;
   RETURN v_rows = 1;
 END
 $$;
 
-ALTER FUNCTION reserve_invitation_email(text, timestamptz) OWNER TO eyadex_email_registry_owner;
-ALTER FUNCTION renew_invitation_email(text, timestamptz) OWNER TO eyadex_email_registry_owner;
-ALTER FUNCTION convert_invitation_email_to_membership(text) OWNER TO eyadex_email_registry_owner;
-ALTER FUNCTION release_invitation_email(text) OWNER TO eyadex_email_registry_owner;
+ALTER FUNCTION reserve_invitation_email(text, uuid, timestamptz) OWNER TO eyadex_email_registry_owner;
+ALTER FUNCTION renew_invitation_email(text, uuid, timestamptz) OWNER TO eyadex_email_registry_owner;
+ALTER FUNCTION convert_invitation_email_to_membership(text, uuid) OWNER TO eyadex_email_registry_owner;
+ALTER FUNCTION release_invitation_email(text, uuid) OWNER TO eyadex_email_registry_owner;
 ALTER FUNCTION reserve_platform_email(text) OWNER TO eyadex_email_registry_owner;
-REVOKE ALL ON FUNCTION reserve_invitation_email(text, timestamptz),
-  renew_invitation_email(text, timestamptz), convert_invitation_email_to_membership(text),
-  release_invitation_email(text), reserve_platform_email(text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION reserve_invitation_email(text, uuid, timestamptz),
+  renew_invitation_email(text, uuid, timestamptz), convert_invitation_email_to_membership(text, uuid),
+  release_invitation_email(text, uuid), reserve_platform_email(text) FROM PUBLIC;
 -- Clinic API: invite, resend, accept, cancel. Platform: the first admin while onboarding.
-GRANT EXECUTE ON FUNCTION reserve_invitation_email(text, timestamptz),
-  renew_invitation_email(text, timestamptz), convert_invitation_email_to_membership(text),
-  release_invitation_email(text) TO eyadex_app, eyadex_platform;
+GRANT EXECUTE ON FUNCTION reserve_invitation_email(text, uuid, timestamptz),
+  renew_invitation_email(text, uuid, timestamptz), convert_invitation_email_to_membership(text, uuid),
+  release_invitation_email(text, uuid) TO eyadex_app, eyadex_platform;
 -- Platform-team accounts are created by identity (auth) or the platform module.
 GRANT EXECUTE ON FUNCTION reserve_platform_email(text) TO eyadex_auth, eyadex_platform;
