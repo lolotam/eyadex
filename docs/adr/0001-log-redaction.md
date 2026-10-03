@@ -43,7 +43,10 @@ otp, cvv, cvc, dsn, connectionstring, session, bearer, salt, nonce, codemac` —
 2. **Free-text credentials** (both modes). PEM/PGP/OpenSSH blocks (a lone `BEGIN` runs to end of string);
    provider key shapes (`AKIA`/`ASIA`, `AIza`, `sk_live_`/`rk_live_`, `ghp_`/`github_pat_`, `xox[baprs]-`,
    `glpat-`, and `tok_`/`inv_` — case-insensitive and with no leading `\b`, so a decoded
-   `%252F…tok_…` still matches while `stock_level`/`invoice_total`/`tokenizer` do not); `name=value` /
+   `%252F…tok_…` still matches while `stock_level`/`invoice_total`/`tokenizer` do not); the `Token x` scheme
+   in any case (a lower-case `token` only before a credential-looking value, so `the token expired` stays);
+   an unquoted credential value withheld up to the next `&`, `,`, `;` or line end (`password: correct horse
+battery staple`); `name=value` /
    `name: value` pairs (including escaped JSON and metadata names) classified with the same credential
    vocabulary; a bare credential word followed by a quoted value (`password 'hunter two'`); CLI flags
    `--password/--token/--api-key/--secret`; a bare credential word followed by its value when the value
@@ -73,7 +76,8 @@ organisationName, organizationName` (a clinic or a branch is not a patient); `di
    starts a token): query and fragment are always withheld; opaque path segments (a `tok_`/`inv_` prefix, a
    numeric code of ≥6 digits, ≥16 chars, or a digit-and-letter mix ≥10) are replaced; ordinary segments
    (`/v1/health`, `/clinic/patients`, `/invite/:token`) are kept, and ordinary prose with slashes
-   (`and/or`, `3/4`, `km/h`, `03/10/2026`) is left alone. Under a URL-named key (`url, uri, link, href,
+   (`and/or`, `3/4`, `km/h`, `03/10/2026`) is left alone. A scheme-relative reference's authority
+   (`//user:pw@localhost`) keeps no userinfo (`//***@localhost`) and is withheld when its host is opaque. Under a URL-named key (`url, uri, link, href,
 redirect, callback, returnto, next, location`) the whole path after the first segment is withheld. A value
    may both start with a relative reference and contain an absolute URL, so both passes run on it. An absolute
    URL whose authority carries a `:` but no `@` (a userinfo split by whitespace, `user:pa ss@host`) withholds
@@ -87,7 +91,8 @@ redirect, callback, returnto, next, location`) the whole path after the first se
 8. **Emails.** Unicode local parts and IDN domains. The scan is anchored on each `@`: the local part is
    read backwards (at most 255 characters, never past the previous `@`, leading punctuation such as `-ali`
    or `+ali` dropped) and the domain forwards, so the pass is linear; a cheap `@` check skips it when no
-   address is possible, and a percent-encoded value is scanned after one guarded `decodeURIComponent`, with the
+   address is possible, and a percent-encoded value is scanned after its escape runs are decoded one by one (a
+   malformed `%ZZ` elsewhere does not switch decoding off), with the
    decoded-and-redacted text emitted when a rule matches.
 9. **Codes.** A key `code` or ending with `code` is redacted when the value holds a digit (any script) or is
    ≥10 chars, except the structural code keys (`statusCode, errorCode, countryCode, currencyCode,
@@ -95,7 +100,9 @@ languageCode, postalCode, zipCode, exitCode, httpCode, responseCode`) and snake_
    (`not_found`). A `tok_`/`inv_` value is always secret; the prefix list is shared with URLs and free text.
 10. **Robustness.** A throwing property getter becomes `REDACTED`; `sanitize`/`redactSecrets` never throw —
     an unexpected failure returns `REDACTED`. Buffers/typed arrays become `REDACTED`; a `Map` is walked as an
-    object (key rules on string keys); a `Set` is walked as an array. Output objects have a null prototype, so
+    object, each key classified as the string it prints as (an object key whose `toString()` is `password`
+    is a credential; one whose `toString()` throws becomes `[Unprintable]`); the logger copies a log object
+    under the same guard, so a throwing top-level getter is `REDACTED` and the log call never throws; a `Set` is walked as an array. Output objects have a null prototype, so
     **`sanitize` keeps an own `__proto__` key as an ordinary key and walks it**: it returns
     `{ __proto__: { password: "[REDACTED]" }, note: "ok" }`. Through pino that key is **never printed** — the
     real line is `{"level":30,…,"note":"ok","msg":"log message withheld"}` (pino drops the `__proto__`

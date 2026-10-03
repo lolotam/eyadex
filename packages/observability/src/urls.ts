@@ -51,6 +51,17 @@ const isOpaqueHost = (hostname: string): boolean => {
   return labels.some(isOpaqueSegment) || mixed.length >= 2;
 };
 
+// The authority of a scheme-relative reference ("//user:pw@localhost") gets the same treatment as a parsed
+// URL's: userinfo becomes "***@" (everything up to the LAST "@", as a parser reads it) and an opaque host is
+// withheld. Copying it verbatim kept the password whenever the host had no dot for the email rule to see.
+function scrubAuthority(authority: string): string {
+  const at = authority.lastIndexOf("@");
+  const userinfo = at === -1 ? "" : "***@";
+  const hostPort = authority.slice(at === -1 ? 2 : at + 1);
+  const host = hostPort.replace(/:\d*$/, "");
+  return `//${userinfo}${isOpaqueHost(host) ? REDACTED : hostPort}`;
+}
+
 // An absolute URL keeps scheme, host and port. Userinfo, path, query and fragment are withheld: a reset
 // link carries its token in the path, an OAuth callback in the fragment, an invitation a token in the
 // query (even a bare `?token`), and no name or pattern tells those from harmless ones. A host that is
@@ -92,7 +103,7 @@ function scrubRelative(candidate: string, urlKey: boolean): string {
   let path = rest;
   if (rest.startsWith("//")) {
     const slash = rest.indexOf("/", 2);
-    authority = slash === -1 ? rest : rest.slice(0, slash);
+    authority = scrubAuthority(slash === -1 ? rest : rest.slice(0, slash));
     path = slash === -1 ? "" : rest.slice(slash);
   }
   const segments = path.replace(/^\//, "").split("/");

@@ -44,7 +44,10 @@ const PROVIDER_KEY = new RegExp(
 const AUTH_TOKEN_SCHEME = /\b(bearer|basic|negotiate|ntlm)\s+[^\s,;"']+/gi;
 const AUTH_PARAM_SCHEME =
   /\b(digest|oauth|aws4-hmac-sha256|scram-sha-1|scram-sha-256|hoba|mutual|vapid)\s+[^\r\n]+/gi;
-const TOKEN_SCHEME = /\b(Token)\s+[^\s,;"']+/g;
+// `Token x` (DRF and similar). Case-insensitive like the other schemes ("TOKEN abc" is a credential), but a
+// lower-case "token" is also an ordinary English word, so there the value must itself look like one — "the
+// token expired" stays readable.
+const TOKEN_SCHEME = /\b(token)\s+([^\s,;"']+)/gi;
 const JWT_IN_TEXT = /\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]*/g;
 
 // CLI flags. Only the flags a runbook actually uses; a bare "-p" is too broad and is deliberately absent.
@@ -77,8 +80,39 @@ const PROSE_VALUE_THEN_VERB = /(?<![\w.-])([\w.-]{1,200}?)\s+(\S+)\s+(is|was)\b/
 // non-credential name `the` and never re-read `password` as the name, leaking the value after it.
 const BARE_CREDENTIAL = /(?<![\w.-])([\w.-]{1,200})\s+([^\s,;]+)/g;
 
-const redactPair = (_match: string, name: string, separator: string): string =>
-  isFreeTextCredentialName(name) ? `${name}${separator}${REDACTED}` : _match;
+const redactTokenScheme = (match: string, scheme: string, value: string): string =>
+  scheme !== "token" || looksLikeCredentialValue(value) ? `${scheme} ${REDACTED}` : match;
+
+// An unquoted value after a credential name is withheld up to the next pair delimiter, not the next space:
+// "password: correct horse battery staple" must not keep "horse battery staple". Failing closed on the rest
+// of the clause is the accepted price ("token=x user=bob" loses "user=bob").
+const PAIR_END = /[&,;\r\n]/g;
+const QUOTED_VALUE = /^\\?["']/;
+function redactAssignments(text: string): string {
+  let out = "";
+  let last = 0;
+  ASSIGNMENT.lastIndex = 0;
+  for (let match = ASSIGNMENT.exec(text); match !== null; match = ASSIGNMENT.exec(text)) {
+    // The three groups are guaranteed by the pattern; the defaults satisfy the checker.
+    const name = match[1] ?? "";
+    const separator = match[2] ?? "";
+    const value = match[3] ?? "";
+    if (!isFreeTextCredentialName(name)) {
+      // Re-read the value: in "note: password=hunter2" it is itself a credential assignment.
+      ASSIGNMENT.lastIndex = match.index + name.length + separator.length;
+      continue;
+    }
+    let end = match.index + match[0].length;
+    if (!QUOTED_VALUE.test(value)) {
+      PAIR_END.lastIndex = end;
+      end = PAIR_END.exec(text)?.index ?? text.length;
+      ASSIGNMENT.lastIndex = end;
+    }
+    out += text.slice(last, match.index) + `${name}${separator}${REDACTED}`;
+    last = end;
+  }
+  return out + text.slice(last);
+}
 const redactQuoted = (_match: string, name: string): string =>
   isFreeTextCredentialName(name) ? `${name} ${REDACTED}` : _match;
 // After "is"/"was" the safe direction is the opposite one: the value is withheld unless EVERY word of the
@@ -128,15 +162,15 @@ function scrubCredentialsInText(text: string): string {
     .replace(PROVIDER_KEY, REDACTED)
     .replace(AUTH_PARAM_SCHEME, `$1 ${REDACTED}`)
     .replace(AUTH_TOKEN_SCHEME, `$1 ${REDACTED}`)
-    .replace(TOKEN_SCHEME, `$1 ${REDACTED}`)
+    .replace(TOKEN_SCHEME, redactTokenScheme)
     .replace(JWT_IN_TEXT, REDACTED)
-    .replace(CLI_CREDENTIAL, `$1${REDACTED}`)
-    .replace(ASSIGNMENT, redactPair)
+    .replace(CLI_CREDENTIAL, `$1${REDACTED}`);
+  const paired = redactAssignments(scrubbed)
     .replace(QUOTED_CREDENTIAL, redactQuoted)
     .replace(PROSE_CREDENTIAL, redactProse)
     .replace(PROSE_VALUE_THEN_VERB, redactProseMirror);
   // The separator-less rule runs last: a pair already redacted by an assignment must not be re-read.
-  return redactBareCredentials(scrubbed);
+  return redactBareCredentials(paired);
 }
 
 // A civil ID written inside free text: 12 digits, any script, starting with the century digit 2 or 3,

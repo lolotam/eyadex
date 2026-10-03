@@ -1,6 +1,6 @@
 import pino, { type Bindings, type DestinationStream, type Logger, type LoggerOptions } from "pino";
 
-import { sanitize } from "./redaction.ts";
+import { REDACTED, sanitize } from "./redaction.ts";
 import { requestContextFields } from "./request-context.ts";
 import { errorDiagnostic, requestDiagnostic, responseDiagnostic } from "./serializers.ts";
 
@@ -17,8 +17,22 @@ export const WITHHELD_MESSAGE = "log message withheld";
 
 // Fastify logs its own lines with req/res/err. They are reduced to safe diagnostics BEFORE the
 // sanitiser walks anything: a Fastify request is large and keeps routeOptions on its prototype.
+// The copy reads each property under a guard: a spread would evaluate a throwing getter here, before the
+// sanitiser's fail-closed walk, and turn a log call into an exception.
+function guardedCopy(object: object): Record<string, unknown> {
+  const copy: Record<string, unknown> = {};
+  for (const key of Object.keys(object)) {
+    try {
+      copy[key] = (object as Record<string, unknown>)[key];
+    } catch {
+      copy[key] = REDACTED;
+    }
+  }
+  return copy;
+}
+
 function reduce(object: object): object {
-  const reduced: Record<string, unknown> = { ...(object as Record<string, unknown>) };
+  const reduced = guardedCopy(object);
   if (reduced["req"] !== undefined) reduced["req"] = requestDiagnostic(reduced["req"] as object);
   if (reduced["res"] !== undefined) reduced["res"] = responseDiagnostic(reduced["res"] as object);
   if ("err" in reduced) reduced["err"] = errorDiagnostic(reduced["err"]);

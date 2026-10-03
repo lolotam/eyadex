@@ -31,14 +31,20 @@ const MAX_STRING_LENGTH = 64 * 1024;
 
 // A percent-encoded value hides its content from every regex, so one guarded decode is attempted; when the
 // decoded text matches a rule, the decoded-and-redacted text is what gets emitted.
+// Runs of escapes are decoded one by one: decoding the whole value let ONE malformed escape ("%ZZ") abandon
+// the decode, so "password%3Dhunter2%ZZ" kept its credential.
+const ESCAPE_RUN = /(?:%[0-9A-Fa-f]{2})+/g;
+const decodeRun = (run: string): string => {
+  try {
+    return decodeURIComponent(run);
+  } catch {
+    return run;
+  }
+};
 const tryDecode = (text: string): string | undefined => {
   if (!text.includes("%")) return undefined;
-  try {
-    const decoded = decodeURIComponent(text);
-    return decoded === text ? undefined : decoded;
-  } catch {
-    return undefined;
-  }
+  const decoded = text.replace(ESCAPE_RUN, decodeRun);
+  return decoded === text ? undefined : decoded;
 };
 
 // The one pass over a string: URL credentials, then credentials/civil IDs, then (log mode) phones and
@@ -93,6 +99,14 @@ function decide(key: string, child: unknown, maskPhones: boolean): Decision {
     };
   return { handled: false };
 }
+
+const mapKeyString = (key: unknown): string => {
+  try {
+    return String(key);
+  } catch {
+    return "[Unprintable]";
+  }
+};
 
 // One walk for both entry points. Only data survives: functions are dropped, dates become ISO strings,
 // errors become diagnostics. A true cycle (an object that is its own ancestor) and anything deeper than
@@ -154,12 +168,14 @@ function scrub(value: unknown, maskPhones: boolean): unknown {
   ): Record<string, unknown> => {
     const out: Record<string, unknown> = Object.create(null);
     for (const [rawKey, child] of node) {
-      const isStringKey = typeof rawKey === "string";
-      const key = isStringKey ? rawKey : String(rawKey);
-      const decision = isStringKey ? decide(key, child, maskPhones) : { handled: false as const };
+      // The emitted key is a string whatever the Map key was, and it is classified as that string: an
+      // object key whose toString() is "password" prints as "password", so it must redact as one. A key
+      // whose toString() throws becomes an inert placeholder.
+      const key = mapKeyString(rawKey);
+      const decision = decide(key, child, maskPhones);
       out[key] = decision.handled
         ? decision.value
-        : walk(child, depth + 1, isStringKey && isUrlKey(key), ancestors);
+        : walk(child, depth + 1, isUrlKey(key), ancestors);
     }
     return out;
   };
