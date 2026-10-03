@@ -122,6 +122,16 @@ Banned folder names anywhere: `utils/` · `helpers/` · `common/` · `misc/` · 
   never exported. Never edit the production DB by hand outside a reviewed SQL file / migration.
 - Civil ID: stored under RLS, never in logs or audit before/after values.
 
+### 5.1 Migrations (forward-only)
+
+- Never edit an applied file in `db/sql/` — add a new numbered file instead.
+- `sh db/migrate.sh` applies pending files (each file + its ledger row in one
+  transaction); `--status` lists applied/pending/CHANGED; `--dry-run` previews.
+- `--baseline 0019` records hand-applied files without running them (once, for
+  databases that predate the runner). A changed file blocks apply until fixed.
+- Production is applied by the orchestrator over SSH, never by the app at startup.
+- Every new clinic table still needs its policy + negative isolation test.
+
 ## 6. API rules (Phase B; the mock adapter mirrors them today)
 
 - Contracts in Zod; controllers validate with them; frontends import the types.
