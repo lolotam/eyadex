@@ -11,9 +11,9 @@ export function clinicId() {
   if (!clinic) throw new Error("no clinic");
   return clinic.id;
 }
-export const as = (kind: Persona["kind"]): Persona => ({
+export const as = (kind: Persona["kind"], clinicIndex = 0): Persona => ({
   kind,
-  clinicId: clinicId(),
+  clinicId: getState().clinics[clinicIndex]?.id ?? clinicId(),
   memberId: null,
 });
 export function memberOf(kind: string) {
@@ -38,7 +38,8 @@ export function input(branchId: string, phone = "55501234"): PatientInput {
     birthDate: "1990-04-01",
     gender: "male",
     registrationBranchId: branchId,
-    civilId: "290040112345",
+    // Well-formed and encodes 1990-04-01; fictional, never a real person's number.
+    civilId: "290040112347",
   };
 }
 export const ALL = { cursor: null, limit: 100, q: "", branchId: null, status: null };

@@ -26,7 +26,7 @@ export const enPatients = {
       gender: "Gender",
       branch: "Registration branch",
       civilId: "Civil ID",
-      civilIdHint: "Optional, 12 digits",
+      civilIdHint: "Optional, 12 digits matching the birth date",
       createdAt: "Registered on",
     },
     open: "Open file",

@@ -26,7 +26,7 @@ export const arPatients = {
       gender: "الجنس",
       branch: "فرع التسجيل",
       civilId: "الرقم المدني",
-      civilIdHint: "اختياري، 12 رقمًا",
+      civilIdHint: "اختياري، 12 رقمًا مطابقةً لتاريخ الميلاد",
       createdAt: "تاريخ التسجيل",
     },
     open: "فتح الملف",

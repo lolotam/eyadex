@@ -45,6 +45,63 @@ function isPastOrToday(value: string): boolean {
   return isBirthDateValid(value, todayInTimeZone("Etc/GMT-14"));
 }
 
+/** Century digit of a Kuwaiti civil ID: 2 = 19YY, 3 = 20YY. Any other digit is not a real ID. */
+const CIVIL_ID_CENTURIES: Record<string, number> = { "2": 1900, "3": 2000 };
+const CIVIL_ID_WEIGHTS = [2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2] as const;
+const ASCII_ZERO = 0x30;
+
+/**
+ * Arabic-Indic (٠-٩) and Eastern Arabic-Indic / Persian (۰-۹) digits become ASCII, and spaces and
+ * dashes are dropped, because Kuwaiti keyboards and pasted forms mix all three with ASCII.
+ * Only the shape is normalized here; `isValidKuwaitCivilId` decides whether the number is real.
+ */
+export function normalizeCivilId(raw: string): string {
+  return raw
+    .replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+    .replace(/[\u06f0-\u06f9]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
+    .replace(/[\s-]/g, "");
+}
+
+/** A real calendar day, so 30 February and 29 February in a common year are both refused. */
+function isRealCalendarDate(year: number, month: number, day: number): boolean {
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return (
+    date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+  );
+}
+
+/** The checksum digit over the first 11 digits of an already shape-checked id. 10 means "no digit". */
+function civilIdChecksumDigit(id: string): number {
+  const sum = CIVIL_ID_WEIGHTS.reduce(
+    (total, weight, i) => total + (id.charCodeAt(i) - ASCII_ZERO) * weight,
+    0,
+  );
+  return 11 - (sum % 11);
+}
+
+/**
+ * A Kuwaiti civil ID is 12 ASCII digits: a century digit, YYMMDD as a real birth date, four
+ * serial digits and a checksum digit. `id` must already be normalized by `normalizeCivilId`.
+ */
+export function isValidKuwaitCivilId(id: string): boolean {
+  if (!/^\d{12}$/.test(id)) return false;
+  const century = CIVIL_ID_CENTURIES[id.charAt(0)];
+  if (century === undefined) return false;
+  const year = century + Number(id.slice(1, 3));
+  const month = Number(id.slice(3, 5));
+  const day = Number(id.slice(5, 7));
+  if (!isRealCalendarDate(year, month, day)) return false;
+  const check = civilIdChecksumDigit(id);
+  return check <= 9 && check === Number(id.slice(11));
+}
+
+/** The birth date the id encodes, as YYYY-MM-DD, or null when the id is not a valid one. */
+export function civilIdBirthDate(id: string): string | null {
+  if (!isValidKuwaitCivilId(id)) return null;
+  const year = (CIVIL_ID_CENTURIES[id.charAt(0)] ?? 0) + Number(id.slice(1, 3));
+  return `${year}-${id.slice(3, 5)}-${id.slice(5, 7)}`;
+}
+
 /** Stored record (mock / database row). fileNumber is a per-clinic counter, never sent by clients. */
 export const patientSchema = z.object({
   id: idSchema,
@@ -62,26 +119,38 @@ export const patientSchema = z.object({
 });
 export type Patient = z.infer<typeof patientSchema>;
 
+/** Empty means "not recorded"; anything else is normalized and must be a real Kuwaiti civil ID. */
+const civilIdInput = z
+  .string()
+  .trim()
+  .transform(normalizeCivilId)
+  .refine((v) => v === "" || isValidKuwaitCivilId(v), "validation.civilId");
+
 /** Create and update share one input; the system assigns fileNumber. */
-export const patientInputSchema = z.object({
-  fullName: z.string().trim().min(1, "validation.required").max(120, "validation.tooLong"),
-  phone: z
-    .string()
-    .trim()
-    .min(1, "validation.required")
-    .refine((v) => normalizeKuwaitPhone(v) !== null, "validation.phoneKw"),
-  birthDate: z
-    .string()
-    .min(1, "validation.dateRequired")
-    .refine(isPastOrToday, "validation.birthDate"),
-  gender: genderSchema,
-  registrationBranchId: idSchema,
-  /** Empty string = none. */
-  civilId: z
-    .string()
-    .trim()
-    .refine((v) => v === "" || /^\d{12}$/.test(v), "validation.civilId"),
-});
+export const patientInputSchema = z
+  .object({
+    fullName: z.string().trim().min(1, "validation.required").max(120, "validation.tooLong"),
+    phone: z
+      .string()
+      .trim()
+      .min(1, "validation.required")
+      .refine((v) => normalizeKuwaitPhone(v) !== null, "validation.phoneKw"),
+    birthDate: z
+      .string()
+      .min(1, "validation.dateRequired")
+      .refine(isPastOrToday, "validation.birthDate"),
+    gender: genderSchema,
+    registrationBranchId: idSchema,
+    /** Empty string = none. */
+    civilId: civilIdInput,
+  })
+  .superRefine((value, ctx) => {
+    // Digits 1-7 of a civil ID are its birth date, so a number and a date cannot disagree.
+    if (!value.birthDate) return;
+    const encoded = value.civilId ? civilIdBirthDate(value.civilId) : null;
+    if (encoded === null || encoded === value.birthDate) return;
+    ctx.addIssue({ code: "custom", path: ["civilId"], message: "validation.civilIdBirthDate" });
+  });
 export type PatientInput = z.infer<typeof patientInputSchema>;
 
 export const patientListQuerySchema = pageQuerySchema.extend({

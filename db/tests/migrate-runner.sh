@@ -99,18 +99,23 @@ PGDATABASE="$db1" MIGRATE_SQL_DIR="$work" sh "$migrate" --status >/dev/null \
   || fail "status not clean after restoring the file"
 
 # 4. A failing new file leaves no ledger row and no partial objects.
+# The probe takes the next free number, so a real migration can never collide with it
+# (a collision would fail on the duplicate prefix and never reach the SQL).
+last=$(ls "$work" | sed -n 's/^\([0-9]\{4\}\)_.*/\1/p' | sort | tail -1 | sed 's/^0*//')
+probe=$(printf '%04d_fail_probe.sql' $((${last:-0} + 1)))
 printf '%s\n' \
   'CREATE TABLE migrate_probe_partial (id integer PRIMARY KEY);' \
-  'THIS IS NOT VALID SQL;' >"$work/0021_fail_probe.sql"
-if PGDATABASE="$db1" MIGRATE_SQL_DIR="$work" sh "$migrate" >/dev/null 2>&1; then
+  'THIS IS NOT VALID SQL;' >"$work/$probe"
+if out=$(PGDATABASE="$db1" MIGRATE_SQL_DIR="$work" sh "$migrate" 2>&1); then
   fail "apply accepted a failing file"
 fi
-[ -z "$(ledger_hash "$db1" 0021_fail_probe.sql)" ] \
+printf '%s' "$out" | grep -q 'syntax error' || fail "failing file was refused before its SQL ran"
+[ -z "$(ledger_hash "$db1" "$probe")" ] \
   || fail "failing file left a ledger row"
 [ "$(table_exists "$db1" migrate_probe_partial)" = "f" ] \
   || fail "failing file left partial objects"
 [ "$(ledger_count "$db1")" = "$expected" ] || fail "ledger changed by failing file"
-rm "$work/0021_fail_probe.sql"
+rm "$work/$probe"
 pass "failing file is fully rolled back"
 
 # 5. Baseline mode records without executing.

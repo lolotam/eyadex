@@ -250,11 +250,13 @@ export const en = {
     oneScope: "Pick one scope per action",
     phoneKw: "Enter 8 digits, or +965 followed by 8 digits",
     birthDate: "Enter a valid date that is not in the future",
-    civilId: "Civil ID must be exactly 12 digits",
+    civilId: "Enter a valid 12-digit Kuwaiti civil ID",
+    civilIdBirthDate: "The civil ID does not match the birth date",
     outOfRange: "Outside the allowed range",
   },
   errors: {
     patient_phone_taken: "This phone already belongs to another patient in this clinic",
+    patient_civil_id_taken: "This civil ID already belongs to another patient in this clinic",
     email_taken: "This email already belongs to a user or a pending invitation",
     last_active_admin:
       "The clinic's last active admin cannot be deactivated or moved to another role",
