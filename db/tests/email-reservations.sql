@@ -132,13 +132,34 @@ BEGIN
   IF NOT convert_invitation_email_to_membership('proper@example.com', inv) THEN RAISE EXCEPTION 'EMAIL: proper accept failed'; END IF;
   INSERT INTO memberships VALUES ('00000000-0000-7000-8000-0000000000e1', gen_random_uuid(), gen_random_uuid(),
     'n', 'proper@example.com', r, true, 'active', 'ar', null, now(), now());
+  -- A converted hold admits exactly one membership: a second row with the same email is refused.
+  BEGIN
+    INSERT INTO memberships VALUES ('00000000-0000-7000-8000-0000000000e1', gen_random_uuid(), gen_random_uuid(),
+      'n', 'Proper@Example.com', r, true, 'active', 'ar', null, now(), now());
+    RAISE EXCEPTION 'EMAIL: a second membership reused a converted hold';
+  EXCEPTION WHEN unique_violation THEN NULL; END;
+  -- An invitation may not outlive its hold, on insert or when its expiry is pushed later.
+  IF NOT reserve_invitation_email('short@example.com', '00000000-0000-7000-8000-0000000001e5', now() + interval '1 day') THEN
+    RAISE EXCEPTION 'EMAIL: short hold failed';
+  END IF;
+  BEGIN
+    INSERT INTO invitations VALUES ('00000000-0000-7000-8000-0000000000e1', '00000000-0000-7000-8000-0000000001e5',
+      'short@example.com', 'n', r, true, 'pending', now() + interval '7 days', gen_random_uuid(), 'hash-short', now(), null);
+    RAISE EXCEPTION 'EMAIL: invitation outlives its hold';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  INSERT INTO invitations VALUES ('00000000-0000-7000-8000-0000000000e1', '00000000-0000-7000-8000-0000000001e5',
+    'short@example.com', 'n', r, true, 'pending', now() + interval '1 day', gen_random_uuid(), 'hash-short', now(), null);
+  BEGIN
+    UPDATE invitations SET expires_at = now() + interval '7 days' WHERE id = '00000000-0000-7000-8000-0000000001e5';
+    RAISE EXCEPTION 'EMAIL: invitation expiry pushed past its hold';
+  EXCEPTION WHEN check_violation THEN NULL; END;
   -- The hold check answers for the caller's clinic only: clinic B's membership is invisible.
-  IF email_hold_matches('person@example.com', 'membership', NULL) THEN
+  IF email_hold_matches('person@example.com', 'membership', NULL, NULL) THEN
     NULL; -- person@example.com is clinic A's own membership; visible to A, as expected
   ELSE
     RAISE EXCEPTION 'EMAIL: own membership hold not visible';
   END IF;
-  IF email_hold_matches('temp@example.com', 'invitation', '00000000-0000-7000-8000-0000000001f3') THEN
+  IF email_hold_matches('temp@example.com', 'invitation', '00000000-0000-7000-8000-0000000001f3', now()) THEN
     RAISE EXCEPTION 'EMAIL: hold check leaked another clinic''s invitation';
   END IF;
 END $$;
