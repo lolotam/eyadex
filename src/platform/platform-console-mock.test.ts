@@ -116,7 +116,11 @@ describe("platform settings (story 26)", () => {
       await expect(api.platformSettings.update(PLATFORM, input)).rejects.toMatchObject({
         code: "validation",
       });
-    const ok = { defaultTrialDays: 90, alertDaysBeforeExpiry: 60, emailSenderName: "  Eyadex Team " };
+    const ok = {
+      defaultTrialDays: 90,
+      alertDaysBeforeExpiry: 60,
+      emailSenderName: "  Eyadex Team ",
+    };
     expect((await api.platformSettings.update(PLATFORM, ok)).emailSenderName).toBe("Eyadex Team");
   });
 
