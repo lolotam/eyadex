@@ -19,11 +19,30 @@ export function normalizeKuwaitPhone(raw: string): string | null {
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-function isPastOrToday(value: string): boolean {
+/** Today's calendar date (YYYY-MM-DD) in an IANA time zone. */
+export function todayInTimeZone(timeZone: string, now = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+}
+
+/** A real calendar date on or before `today`. */
+export function isBirthDateValid(value: string, today: string): boolean {
   if (!ISO_DATE.test(value)) return false;
   const date = new Date(`${value}T00:00:00Z`);
   if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value) return false;
-  return value <= new Date().toISOString().slice(0, 10);
+  return value <= today;
+}
+
+/**
+ * The schema can't know the clinic, so it accepts any date that is already today somewhere
+ * (UTC+14); the API then checks against today in the clinic's own time zone.
+ */
+function isPastOrToday(value: string): boolean {
+  return isBirthDateValid(value, todayInTimeZone("Etc/GMT-14"));
 }
 
 /** Stored record (mock / database row). fileNumber is a per-clinic counter, never sent by clients. */

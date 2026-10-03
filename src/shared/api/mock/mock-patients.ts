@@ -11,6 +11,8 @@ import { ApiError } from "../api-error";
 import { writeClinicAudit } from "./mock-audit";
 import {
   authorizePatients,
+  enforceBirthDate,
+  guardPatients,
   enforcePhoneFree,
   enforceRegistrationBranch,
   findPatientInScope,
@@ -99,6 +101,7 @@ export function createMockPatients(): ApiClient["patients"] {
     async branchOptions(persona, rawAction) {
       await delay();
       const db = getState();
+      guardPatients(db, persona);
       const action = patientBranchActionSchema.safeParse(rawAction);
       if (!action.success) throw new ApiError("validation");
       const access = authorizePatients(db, persona, action.data);
@@ -130,6 +133,7 @@ export function createMockPatients(): ApiClient["patients"] {
       const db = getState();
       const access = authorizePatients(db, persona, "create");
       const input = parseInput(rawInput);
+      enforceBirthDate(access, input.birthDate);
       enforceRegistrationBranch(db, access, input.registrationBranchId);
       enforcePhoneFree(db, persona, access.clinic.id, input.phone, null);
       const fileNumber = (db.patientCounters[access.clinic.id] ?? 0) + 1;
@@ -158,6 +162,7 @@ export function createMockPatients(): ApiClient["patients"] {
       const db = getState();
       const access = authorizePatients(db, persona, "update");
       const input = parseInput(rawInput);
+      enforceBirthDate(access, input.birthDate);
       const patient = findPatientInScope(db, access, patientId);
       if (input.registrationBranchId !== patient.registrationBranchId)
         enforceRegistrationBranch(db, access, input.registrationBranchId);

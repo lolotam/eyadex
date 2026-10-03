@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { PatientInput } from "@contracts/patients";
+import { isBirthDateValid, todayInTimeZone, type PatientInput } from "@contracts/patients";
 import type { Persona } from "@contracts/session";
 
 vi.mock("@/shared/api/mock/mock-store", async (importOriginal) => {
@@ -219,5 +219,20 @@ describe("patients mock", () => {
     expect(view.length).toBe(branches().length);
     expect(create.map((b) => b.id).sort()).toEqual([...member.branchIds].sort());
     expect(create.length).toBeLessThan(view.length);
+  });
+  it("judges birth dates by the clinic's calendar, not UTC", async () => {
+    // 01:30 in Kuwait on 15 March is still 14 March in UTC.
+    const now = new Date("2026-03-14T22:30:00Z");
+    expect(todayInTimeZone("Asia/Kuwait", now)).toBe("2026-03-15");
+    expect(isBirthDateValid("2026-03-15", todayInTimeZone("Asia/Kuwait", now))).toBe(true);
+    expect(isBirthDateValid("2026-03-16", todayInTimeZone("Asia/Kuwait", now))).toBe(false);
+    expect(isBirthDateValid("2026-02-30", "2026-03-15")).toBe(false);
+  });
+
+  it("checks the account and module before the branch-options action", async () => {
+    getState().features[clinicId()] = { patients: false };
+    await expect(
+      api.patients.branchOptions(as("doctor"), "nope" as unknown as "view"),
+    ).rejects.toMatchObject({ code: "module_disabled" });
   });
 });

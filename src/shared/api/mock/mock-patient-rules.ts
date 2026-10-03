@@ -1,6 +1,12 @@
 import type { Branch } from "@contracts/organization";
 import type { PermissionAction } from "@contracts/permissions";
-import type { Patient, PatientDetail, PatientListItem } from "@contracts/patients";
+import {
+  isBirthDateValid,
+  todayInTimeZone,
+  type Patient,
+  type PatientDetail,
+  type PatientListItem,
+} from "@contracts/patients";
 import type { Persona } from "@contracts/session";
 import { ApiError } from "../api-error";
 import { clinicBlockReason, effectivePermissions, resolveActor, type Actor } from "./mock-actor";
@@ -17,15 +23,21 @@ export type PatientAccess = Actor & {
  * Check order: active user -> clinic access -> patients module -> permission at its scope.
  * Clinic scope (or a branch-scoped account with "all branches") covers every branch.
  */
+/** The action-independent guards: active user, clinic access, patients module. */
+export function guardPatients(db: MockState, persona: Persona): Actor {
+  const actor = resolveActor(db, persona);
+  if (clinicBlockReason(actor.clinic)) throw new ApiError("subscription_blocked");
+  if (!(db.features[actor.clinic.id] ?? { patients: false }).patients)
+    throw new ApiError("module_disabled");
+  return actor;
+}
+
 export function authorizePatients(
   db: MockState,
   persona: Persona,
   action: PermissionAction,
 ): PatientAccess {
-  const actor = resolveActor(db, persona);
-  if (clinicBlockReason(actor.clinic)) throw new ApiError("subscription_blocked");
-  if (!(db.features[actor.clinic.id] ?? { patients: false }).patients)
-    throw new ApiError("module_disabled");
+  const actor = guardPatients(db, persona);
   const keys = effectivePermissions(db, actor);
   const base = { ...actor, actorName: actor.member.fullName };
   if (keys.includes(`${action}:patients:clinic`))
@@ -102,6 +114,12 @@ export function enforcePhoneFree(
     undefined,
     visible ? { patientId: existing.id, fileNumber: existing.fileNumber } : {},
   );
+}
+
+/** Birth dates may not be after today in the clinic's own time zone. */
+export function enforceBirthDate(access: PatientAccess, birthDate: string): void {
+  if (!isBirthDateValid(birthDate, todayInTimeZone(access.clinic.timezone)))
+    throw new ApiError("validation");
 }
 
 /** Audit snapshot: an explicit allowlist, so civilId can never reach before/after values. */
