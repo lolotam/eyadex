@@ -77,6 +77,41 @@ BEGIN
     INSERT INTO patients VALUES (b, gen_random_uuid(), '9', 'z', '+96500000099', '1990-01-01', 'male', '00000000-0000-7000-8000-0000000001b2', null, 'active', now(), now());
     RAISE EXCEPTION 'ISO-01 write leak: patients';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    INSERT INTO roles VALUES (b, gen_random_uuid(), null, 'x', 'x', false, true, now(), now());
+    RAISE EXCEPTION 'ISO-01 write leak: roles';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    INSERT INTO role_permissions VALUES (b, gen_random_uuid(), '00000000-0000-7000-8000-0000000001b3', '00000000-0000-7000-8000-0000000000f1', now());
+    RAISE EXCEPTION 'ISO-01 write leak: role_permissions';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    INSERT INTO memberships VALUES (b, gen_random_uuid(), gen_random_uuid(), 'x', 'x@example.com', '00000000-0000-7000-8000-0000000001b3', true, 'active', 'ar', null, now(), now());
+    RAISE EXCEPTION 'ISO-01 write leak: memberships';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    INSERT INTO membership_branches VALUES (b, gen_random_uuid(), '00000000-0000-7000-8000-0000000001b5', '00000000-0000-7000-8000-0000000001b2', now());
+    RAISE EXCEPTION 'ISO-01 write leak: membership_branches';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    INSERT INTO invitations VALUES (b, gen_random_uuid(), 'x@example.com', 'x', '00000000-0000-7000-8000-0000000001b3', true, 'pending', now() + interval '7 days', gen_random_uuid(), 'hash', now(), null);
+    RAISE EXCEPTION 'ISO-01 write leak: invitations';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    INSERT INTO audit_log VALUES (b, gen_random_uuid(), gen_random_uuid(), 'user.invited', 'administrative', 'user', null, null, '{}', now());
+    RAISE EXCEPTION 'ISO-01 write leak: audit_log';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  -- Moving an own row into another clinic must fail on WITH CHECK, for every writable table.
+  DECLARE t text;
+  BEGIN
+    FOREACH t IN ARRAY ARRAY['branches','roles','role_permissions','memberships','membership_branches',
+        'invitations','invitation_branches','patients'] LOOP
+      BEGIN
+        EXECUTE format('UPDATE %I SET clinic_id = $1', t) USING b;
+        RAISE EXCEPTION 'ISO-01 write leak: % rows can be moved to another clinic', t;
+      EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+    END LOOP;
+  END;
   -- Updating another clinic's rows silently affects nothing (rows are invisible).
   UPDATE patients SET full_name = 'hacked' WHERE clinic_id = b;
   GET DIAGNOSTICS n = ROW_COUNT;

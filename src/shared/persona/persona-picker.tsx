@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { personaKindSchema, type PersonaKind } from "@contracts/session";
@@ -36,6 +36,18 @@ export function PersonaPicker({ onDone }: { onDone?: () => void }) {
     queryFn: () => api.session.listLoginAccounts(effectiveClinic ?? ""),
     enabled: needsClinic && Boolean(effectiveClinic),
   });
+  // A pinned account keeps its identity: if its role changed since the persona was saved,
+  // follow the account's current role instead of silently choosing another person.
+  const pinned = (accounts.data ?? []).find((a) => a.memberId === memberId);
+  const pinnedKind: PersonaKind | null = pinned
+    ? (personaKindSchema.safeParse(pinned.roleKey).data ?? "custom")
+    : null;
+  useEffect(() => {
+    if (pinnedKind && pinnedKind !== kind) setKind(pinnedKind);
+    // Only reconcile when the pinned account's role changes, not on every kind click.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pinnedKind]);
+
   // Accounts with a clinic-created role have no system key; they sign in under "custom".
   const kindAccounts = (accounts.data ?? []).filter((a) =>
     kind === "custom" ? a.roleKey === null : a.roleKey === kind,
@@ -120,14 +132,12 @@ export function PersonaPicker({ onDone }: { onDone?: () => void }) {
           </Select>
         </div>
       )}
-      {kind === "custom" && kindAccounts.length === 0 && (
-        <p className="text-sm text-muted-foreground">{t("persona.noCustomAccounts")}</p>
+      {needsClinic && accounts.isSuccess && kindAccounts.length === 0 && (
+        <p className="text-sm text-muted-foreground">
+          {t(kind === "custom" ? "persona.noCustomAccounts" : "persona.noAccountsForRole")}
+        </p>
       )}
-      <Button
-        type="button"
-        onClick={apply}
-        disabled={(needsClinic && !effectiveClinic) || (kind === "custom" && !chosen)}
-      >
+      <Button type="button" onClick={apply} disabled={needsClinic && (!effectiveClinic || !chosen)}>
         {t("landing.enter")}
       </Button>
       <p className="text-xs text-muted-foreground">{t("persona.demoNote")}</p>

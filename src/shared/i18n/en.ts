@@ -36,6 +36,7 @@ export const en = {
     receptionist: "Receptionist",
     technician: "Technician",
     custom: "Custom role",
+    noAccountsForRole: "No account with this role in this clinic yet.",
     noCustomAccounts: "No accounts with a custom role in this clinic yet.",
     demoNote: "Demo sign-in. No passwords.",
     account: "Account",

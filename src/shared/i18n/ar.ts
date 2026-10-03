@@ -38,6 +38,7 @@ export const ar: Dictionary = {
     receptionist: "موظف استقبال",
     technician: "فني",
     custom: "دور مخصص",
+    noAccountsForRole: "لا يوجد حساب بهذا الدور في هذه العيادة بعد.",
     noCustomAccounts: "لا توجد حسابات بدور مخصص في هذه العيادة بعد.",
     demoNote: "دخول تجريبي بدون كلمات مرور.",
     account: "الحساب",
