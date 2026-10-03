@@ -9,6 +9,7 @@ import {
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { AuditCategoryBadge } from "./audit-category-badge";
 import { auditDiff } from "./audit-diff";
+import { translateAuditValue } from "./audit-format";
 import { formatAuditTime } from "./audit-time";
 
 export type AuditDetailEntry = {
@@ -35,9 +36,7 @@ export function AuditDetailDialog({ entry, timeZone, onClose }: Props) {
     }
     if (typeof value === "object") return "—";
     const text = String(value);
-    const key = `audit.values.${text}`;
-    const translated = tDynamic(key);
-    return translated === key ? text : translated;
+    return translateAuditValue(text, tDynamic) ?? text;
   };
   const show = (value: unknown): string => {
     if (value === undefined || value === null || value === "") return "—";
