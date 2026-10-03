@@ -123,6 +123,7 @@ export const AUDIT_ACTIONS = [
   "platform_account.invited",
   "platform_account.deactivated",
   "platform_account.reactivated",
+  "platform_account.joined",
   "platform.settings_updated",
 ] as const;
 
