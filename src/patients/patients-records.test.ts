@@ -37,15 +37,16 @@ describe("patients mock: records, audit and idempotency", () => {
     const branch = branches()[0];
     if (!branch) throw new Error("no branch");
     const start = getState().patientCounters[clinicId()] ?? 0;
+    // No civil ID: this test is about numbers, and two files can never share one.
     const a = await api.patients.create(
       as("clinic_admin"),
-      input(branch.id, "55500001"),
+      { ...input(branch.id, "55500001"), civilId: "" },
       crypto.randomUUID(),
     );
     await api.patients.archive(as("clinic_admin"), a.id);
     const b = await api.patients.create(
       as("clinic_admin"),
-      input(branch.id, "55500002"),
+      { ...input(branch.id, "55500002"), civilId: "" },
       crypto.randomUUID(),
     );
     expect(a.fileNumber).toBe(start + 1);
@@ -71,15 +72,20 @@ describe("patients mock: records, audit and idempotency", () => {
     if (!branch) throw new Error("no branch");
     const admin = as("clinic_admin");
     const p = await api.patients.create(admin, input(branch.id), crypto.randomUUID());
-    await api.patients.update(admin, p.id, { ...input(branch.id), civilId: "299999999999" });
+    const moved = "291060243218";
+    await api.patients.update(admin, p.id, {
+      ...input(branch.id),
+      birthDate: "1991-06-02",
+      civilId: moved,
+    });
     await api.patients.open(admin, p.id);
     await api.patients.archive(admin, p.id);
     await api.patients.restore(admin, p.id);
     const text = JSON.stringify(getState().clinicAudit);
     expect(getState().clinicAudit.length).toBe(5);
     expect(text).not.toContain("civilId");
-    expect(text).not.toContain("290040112345");
-    expect(text).not.toContain("299999999999");
+    expect(text).not.toContain("290040112347");
+    expect(text).not.toContain(moved);
   });
 
   it("judges birth dates by the clinic's calendar, not UTC", async () => {
