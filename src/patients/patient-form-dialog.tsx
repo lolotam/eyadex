@@ -85,7 +85,9 @@ export function PatientFormDialog({ open, patient, onOpenChange }: Props) {
 
   const mutation = useMutation({
     mutationFn: (input: PatientInput) =>
-      patient ? api.patients.update(persona, patient.id, input) : api.patients.create(persona, input),
+      patient
+        ? api.patients.update(persona, patient.id, input)
+        : api.patients.create(persona, input),
     onSuccess: (detail) => {
       refresh(detail);
       toast.success(t(patient ? "patients.updated" : "patients.created"));
@@ -122,7 +124,11 @@ export function PatientFormDialog({ open, patient, onOpenChange }: Props) {
             className="flex flex-col gap-4 py-2"
             onSubmit={form.handleSubmit((values) => mutation.mutate(values))}
           >
-            <TextField control={form.control} name="fullName" label={t("patients.fields.fullName")} />
+            <TextField
+              control={form.control}
+              name="fullName"
+              label={t("patients.fields.fullName")}
+            />
             <TextField
               control={form.control}
               name="phone"

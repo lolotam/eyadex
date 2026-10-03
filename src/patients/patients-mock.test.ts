@@ -67,9 +67,9 @@ describe("patients mock", () => {
 
   it("rejects a branch-scoped create outside the user's branches", async () => {
     const outside = otherBranchThan(memberOf("receptionist").branchIds);
-    await expect(api.patients.create(as("receptionist"), input(outside.id))).rejects.toMatchObject(
-      { code: "forbidden" },
-    );
+    await expect(api.patients.create(as("receptionist"), input(outside.id))).rejects.toMatchObject({
+      code: "forbidden",
+    });
   });
 
   it("gives clinic scope every branch", async () => {

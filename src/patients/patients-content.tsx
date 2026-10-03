@@ -1,11 +1,7 @@
 import { useCallback, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { AlertCircle, Plus, Users } from "lucide-react";
-import {
-  patientStatusSchema,
-  type PatientListItem,
-  type PatientStatus,
-} from "@contracts/patients";
+import { patientStatusSchema, type PatientListItem, type PatientStatus } from "@contracts/patients";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { can } from "@/shared/permissions/can";
@@ -64,9 +60,7 @@ export function PatientsContent() {
       />
     );
   } else if (!list.isLoading && items.length === 0 && !filtered) {
-    body = (
-      <StatusPanel icon={Users} title={t("patients.empty")} body={t("patients.emptyBody")} />
-    );
+    body = <StatusPanel icon={Users} title={t("patients.empty")} body={t("patients.emptyBody")} />;
   } else {
     body = (
       <>

@@ -60,7 +60,13 @@ export function createMockPatients(): ApiClient["patients"] {
     if (patient.status === status) return toDetail(db, patient);
     const before = { ...patient };
     patient.status = status;
-    audit(db, access, status === "archived" ? "patient.archived" : "patient.restored", before, patient);
+    audit(
+      db,
+      access,
+      status === "archived" ? "patient.archived" : "patient.restored",
+      before,
+      patient,
+    );
     persist();
     return toDetail(db, patient);
   }
