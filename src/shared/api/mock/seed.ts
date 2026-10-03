@@ -1,3 +1,4 @@
+import { DEFAULT_PLATFORM_SETTINGS } from "@contracts/platform";
 import type { Clinic, ClinicFeatures } from "@contracts/clinics";
 import type { Branch } from "@contracts/organization";
 import type { MembershipUser } from "@contracts/users";
@@ -112,6 +113,33 @@ export function buildSeed(): MockState {
     inviteOutbox: {},
     patients: [],
     patientCounters: {},
+    platformAccounts: [
+      {
+        id: makeId(),
+        fullName: "Waleed Mohamed",
+        email: "waleed@eyadex.com",
+        status: "active",
+        joinedAt: new Date(now - 200 * DAY).toISOString(),
+        createdAt: new Date(now - 200 * DAY).toISOString(),
+      },
+      {
+        id: makeId(),
+        fullName: "Noura Al-Saleh",
+        email: "noura@eyadex.com",
+        status: "active",
+        joinedAt: new Date(now - 90 * DAY).toISOString(),
+        createdAt: new Date(now - 95 * DAY).toISOString(),
+      },
+      {
+        id: makeId(),
+        fullName: "Fahad Al-Mutairi",
+        email: "fahad@eyadex.com",
+        status: "deactivated",
+        joinedAt: new Date(now - 150 * DAY).toISOString(),
+        createdAt: new Date(now - 160 * DAY).toISOString(),
+      },
+    ],
+    platformSettings: { ...DEFAULT_PLATFORM_SETTINGS },
     platformAudit: [],
     clinicAudit: [],
   };
