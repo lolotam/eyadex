@@ -102,6 +102,11 @@ export const arAudit = {
       maxBranches: "حد الفروع",
       module: "الموديول",
       enabled: "مفعّل",
+      preferredLanguage: "اللغة المفضّلة",
+      invitedBy: "دعاه",
+      isOwner: "مالك العيادة",
+      isLocked: "مقفول",
+      systemKey: "دور النظام",
     },
     values: {
       trial: "تجريبي",

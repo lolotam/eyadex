@@ -48,6 +48,15 @@ export function useAuditColumns<T extends Row>(timeZone: string, showClinic: boo
     ];
     if (showClinic)
       cols.push({
+        id: "source",
+        header: t("audit.columns.source"),
+        cell: ({ row }) =>
+          "source" in row.original && row.original.source
+            ? tDynamic(`audit.sources.${row.original.source}`)
+            : "—",
+      });
+    if (showClinic)
+      cols.push({
         id: "clinic",
         header: t("audit.columns.clinic"),
         cell: ({ row }) =>

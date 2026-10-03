@@ -6,7 +6,19 @@ export type AuditDiffRow = {
   changed: boolean;
 };
 
-const HIDDEN = new Set(["id"]);
+/** Internal identifiers and bookkeeping timestamps never shown as audit fields. */
+export const HIDDEN_AUDIT_FIELDS = new Set([
+  "id",
+  "clinicId",
+  "userId",
+  "memberId",
+  "invitationId",
+  "createdAt",
+  "updatedAt",
+  "lastLoginAt",
+  "respondedAt",
+  "tokenHash",
+]);
 
 function same(a: unknown, b: unknown): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
@@ -20,7 +32,7 @@ export function auditDiff(
   const keys = new Set([...Object.keys(before ?? {}), ...Object.keys(after ?? {})]);
   const rows: AuditDiffRow[] = [];
   for (const field of keys) {
-    if (HIDDEN.has(field)) continue;
+    if (HIDDEN_AUDIT_FIELDS.has(field)) continue;
     const b = before ? before[field] : undefined;
     const a = after ? after[field] : undefined;
     rows.push({ field, before: b, after: a, changed: !same(b, a) });

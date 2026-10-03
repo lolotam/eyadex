@@ -102,6 +102,11 @@ export const enAudit = {
       maxBranches: "Branch limit",
       module: "Module",
       enabled: "Enabled",
+      preferredLanguage: "Preferred language",
+      invitedBy: "Invited by",
+      isOwner: "Clinic owner",
+      isLocked: "Locked",
+      systemKey: "System role",
     },
     values: {
       trial: "Trial",

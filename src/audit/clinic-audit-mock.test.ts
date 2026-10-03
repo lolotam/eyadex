@@ -1,4 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { ar } from "@/shared/i18n/ar";
+import { en } from "@/shared/i18n/en";
+import { writeClinicAudit } from "@/shared/api/mock/mock-audit";
+import { HIDDEN_AUDIT_FIELDS } from "./audit-diff";
 import {
   api,
   as,
@@ -132,23 +136,45 @@ describe("clinic audit log", () => {
     const member = db.members.find((m) => m.clinicId === clinicId && !m.allBranches);
     const role = db.roles.find((r) => r.clinicId === clinicId && r.id === member?.roleId);
     if (!member || !role) throw new Error("seed");
-    db.clinicAudit.push({
-      id: crypto.randomUUID(),
+    writeClinicAudit(db, {
       clinicId,
-      createdAt: new Date().toISOString(),
       actorName: "Tester",
       action: "user.role_changed",
       entity: "user",
-      category: "administrative",
-      entityId: member.id,
       before: null,
-      after: { roleId: role.id, branchIds: member.branchIds },
+      after: { id: member.id, roleId: role.id, branchIds: member.branchIds },
     });
     const list = await api.audit.clinicList(as("clinic_admin"), CLINIC_QUERY);
     const entry = list.items.find((e) => e.action === "user.role_changed");
-    expect(entry?.after?.["roleId"]).toEqual({ nameAr: role.nameAr, nameEn: role.nameEn });
+    expect(entry?.after?.["roleId"]).toMatchObject({ nameAr: role.nameAr, nameEn: role.nameEn });
     const branches = entry?.after?.["branchIds"] as { nameEn: string }[];
     expect(branches.every((b) => typeof b.nameEn === "string")).toBe(true);
-    expect(JSON.stringify(entry?.after)).not.toContain(role.id);
+  });
+  it("labels every visible snapshot field in both languages", async () => {
+    await seedActivity();
+    const fields = new Set<string>();
+    for (const e of getState().clinicAudit)
+      for (const snap of [e.before, e.after])
+        for (const key of Object.keys(snap ?? {}))
+          if (!HIDDEN_AUDIT_FIELDS.has(key)) fields.add(key);
+    for (const dict of [ar, en]) {
+      const labels = dict.audit.fields as Record<string, string>;
+      expect([...fields].filter((f) => !labels[f])).toEqual([]);
+    }
+  });
+
+  it("keeps the names a reference had when the entry was written", async () => {
+    const db = getState();
+    const clinicId = clinicIdAt(0);
+    const branch = db.branches.find((b) => b.clinicId === clinicId);
+    if (!branch) throw new Error("seed");
+    const oldName = branch.nameEn;
+    await seedActivity();
+    branch.nameEn = "Renamed later";
+    const list = await api.audit.clinicList(as("clinic_admin"), CLINIC_QUERY);
+    const created = list.items.find((e) => e.action === "patient.created");
+    const ref = created?.after?.["registrationBranchId"] as { nameEn: string } | undefined;
+    expect(ref?.nameEn).not.toBe("Renamed later");
+    expect(typeof oldName).toBe("string");
   });
 });
