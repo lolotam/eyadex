@@ -9,6 +9,8 @@ import type { ApiClient } from "../api-client";
 import { ApiError } from "../api-error";
 import { delay, getState, newId, persist, type MockState } from "./mock-store";
 import { buildSystemRoles } from "./seed-roles";
+import { INVITATION_TTL_DAYS } from "@contracts/invitations";
+import { enforceEmailFree, toUserView, userUsage } from "./mock-user-rules";
 
 const DAY = 24 * 60 * 60 * 1000;
 const ACTOR = "Waleed Mohamed";
@@ -21,8 +23,7 @@ function findClinic(db: MockState, id: string): Clinic {
 
 function usage(db: MockState, clinicId: string) {
   return {
-    usersCount: db.members.filter((m) => m.clinicId === clinicId && m.status !== "deactivated")
-      .length,
+    usersCount: userUsage(db, clinicId).used,
     branchesCount: db.branches.filter((b) => b.clinicId === clinicId && b.isActive).length,
   };
 }
@@ -91,6 +92,7 @@ export function createMockPlatform(): ApiClient["platform"] {
       const input = createClinicInputSchema.parse(raw);
       const db = getState();
       if (db.clinics.some((c) => c.slug === input.slug)) throw new ApiError("slug_taken");
+      enforceEmailFree(db, input.adminEmail);
       const now = new Date();
       const clinic: Clinic = {
         id: newId(),
@@ -112,27 +114,19 @@ export function createMockPlatform(): ApiClient["platform"] {
       db.roles.push(...roles);
       const adminRole = roles.find((r) => r.systemKey === "clinic_admin");
       if (adminRole) {
-        const memberId = newId();
-        db.members.push({
-          id: memberId,
-          clinicId: clinic.id,
-          userId: newId(),
-          fullName: input.adminName,
-          email: input.adminEmail,
-          roleId: adminRole.id,
-          allBranches: true,
-          branchIds: [],
-          status: "invited",
-          preferredLanguage: input.defaultLanguage,
-          createdAt: now.toISOString(),
-        });
         db.invitations.push({
           id: newId(),
           clinicId: clinic.id,
-          memberId,
-          email: input.adminEmail,
+          email: input.adminEmail.trim().toLowerCase(),
+          fullName: input.adminName,
+          roleId: adminRole.id,
+          allBranches: true,
+          branchIds: [],
           status: "pending",
-          sentAt: now.toISOString(),
+          expiresAt: new Date(now.getTime() + INVITATION_TTL_DAYS * DAY).toISOString(),
+          createdAt: now.toISOString(),
+          invitedBy: ACTOR,
+          respondedAt: null,
         });
       }
       audit(
@@ -209,10 +203,7 @@ export function createMockPlatform(): ApiClient["platform"] {
       findClinic(db, clinicId);
       return db.members
         .filter((m) => m.clinicId === clinicId)
-        .map((m) => {
-          const role = db.roles.find((r) => r.id === m.roleId);
-          return { ...m, roleNameAr: role?.nameAr ?? "", roleNameEn: role?.nameEn ?? "" };
-        });
+        .map((m) => toUserView(db, m));
     },
 
     async listClinicBranches(clinicId) {
