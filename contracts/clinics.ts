@@ -97,7 +97,7 @@ export type ClinicDetailsInput = z.infer<typeof clinicDetailsInputSchema>;
 export const createClinicInputSchema = clinicDetailsInputSchema.extend({
   slug: slugSchema,
   adminName: z.string().trim().min(2, "validation.tooShort").max(120, "validation.tooLong"),
-  adminEmail: z.string().trim().email("validation.email"),
+  adminEmail: z.string().trim().toLowerCase().email("validation.email"),
 });
 export type CreateClinicInput = z.infer<typeof createClinicInputSchema>;
 

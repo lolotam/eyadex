@@ -273,10 +273,11 @@ describe("invitations mock", () => {
       defaultLanguage: "en",
       timezone: "Asia/Kuwait",
       adminName: "First Admin",
-      adminEmail: "first-admin@example.com",
+      adminEmail: "  First-Admin@Example.com ",
     });
     const entries = getState().clinicAudit.filter((e) => e.clinicId === created.clinic.id);
     expect(entries.some((e) => e.action === "invitation.sent")).toBe(true);
+    expect(created.firstAdminInvite.email).toBe("first-admin@example.com");
     expect(JSON.stringify(entries)).not.toContain(created.firstAdminInvite.token);
   });
 });
