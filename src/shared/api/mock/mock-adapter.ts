@@ -8,6 +8,12 @@ import { createMockInvitations } from "./mock-invitations";
 import { createMockRoles } from "./mock-roles";
 import { createMockPatients } from "./mock-patients";
 import { createMockAuditLog } from "./mock-audit-log";
+import { createMockAccount, createMockClinicSettings } from "./mock-clinic-settings";
+import {
+  createMockPlatformOverview,
+  createMockPlatformSettings,
+  createMockPlatformTeam,
+} from "./mock-platform-console";
 
 export function createMockApiClient(): ApiClient {
   return {
@@ -19,5 +25,10 @@ export function createMockApiClient(): ApiClient {
     roles: createMockRoles(),
     patients: createMockPatients(),
     audit: createMockAuditLog(),
+    clinicSettings: createMockClinicSettings(),
+    account: createMockAccount(),
+    platformOverview: createMockPlatformOverview(),
+    platformTeam: createMockPlatformTeam(),
+    platformSettings: createMockPlatformSettings(),
   };
 }
