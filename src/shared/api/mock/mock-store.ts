@@ -18,11 +18,13 @@ export type MockState = {
   /** Idempotency-Key replay: "clinicId:key" -> invitation id (optional for older saved state). */
   idempotentInvites?: Record<string, { invitationId: string; fingerprint: string }>;
   patients: Patient[];
+  /** Per-clinic file-number counter: last number issued, never reused. */
+  patientCounters: Record<string, number>;
   platformAudit: PlatformAuditEntry[];
   clinicAudit: ClinicAuditEntry[];
 };
 
-const STORAGE_KEY = "eyadex:mock-db:v7";
+const STORAGE_KEY = "eyadex:mock-db:v8";
 
 let state: MockState | null = null;
 
