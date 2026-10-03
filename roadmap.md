@@ -8,5 +8,6 @@
 - [x] Arabic app reviewer terminology, clinic audit categories, and three component splits
 - [x] Clinic area: roles and permissions (catalog matrix, locked admin role, hidden module keys kept on save)
 - [x] Clinic area: patients (branch scope, file numbers, duplicate phone, archive/restore, audited file opens)
-- [ ] Clinic area: audit, settings — waiting for the next requested slice
+- [x] Audit log: clinic (filters, clinic time zone, field diff) and platform (administrative entries only)
+- [ ] Clinic area: settings — waiting for the next requested slice
 - [ ] Agent integrations (MCP) — deferred until the NestJS backend exists (user decision)
