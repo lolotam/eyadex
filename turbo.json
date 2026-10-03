@@ -1,0 +1,19 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "tasks": {
+    "typecheck": {
+      "dependsOn": ["^build"]
+    },
+    "lint": {
+      "dependsOn": ["^build"]
+    },
+    "test": {
+      "dependsOn": ["^build"]
+    },
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".output/**", "dist/**", "!.output/cache/**"],
+      "env": ["NITRO_PRESET"]
+    }
+  }
+}

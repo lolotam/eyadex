@@ -38,10 +38,10 @@ developer + AI agents.
 
 ## 1. Phases — know which one you are in
 
-| Phase        | Where                                          | What exists                                                                                                                                     |
-| ------------ | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| **A (now)**  | this repo, edited by Lovable + reviewed agents | TanStack Start frontend, typed `ApiClient` with an in-memory mock adapter, Zod contracts in `/contracts`, SQL baseline in `/db/sql`             |
-| **B (next)** | pnpm monorepo from the PosPay foundation       | `apps/web` (this code), `apps/api` + `apps/worker` (NestJS on Fastify), `packages/db` (Drizzle), `packages/contracts` (moved from `/contracts`) |
+| Phase        | Where                                           | What exists                                                                                                                                                                      |
+| ------------ | ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **A (now)**  | `apps/web`, edited by Lovable + reviewed agents | TanStack Start frontend, typed `ApiClient` with an in-memory mock adapter, Zod contracts in `packages/contracts`, SQL baseline in `/db/sql`                                      |
+| **B (next)** | pnpm monorepo from the PosPay foundation        | the workspace foundation (`apps/web`, `packages/contracts`, `packages/config`) exists; still to come: `apps/api` + `apps/worker` (NestJS on Fastify) and `packages/db` (Drizzle) |
 
 Phase A hard limits: **no Lovable Cloud, no Supabase, no database access from the frontend, no
 server functions with business logic.** All data goes through the single `ApiClient` interface;
@@ -68,15 +68,24 @@ swapping the mock adapter for an HTTP adapter must require no screen change.
    sync), then fast-forward `lovable` to `main`.
 5. `main` auto-deploys to Dokploy (eyadex.com, app., platform.).
 
-## 3. Repo layout (Phase A — do not invent new top-level folders)
+## 3. Repo layout (pnpm + Turborepo workspace — do not invent new top-level folders)
 
 ```
-contracts/        Zod schemas = the single source of types (→ packages/contracts in Phase B)
-db/sql/           SQL baseline applied to production (→ Drizzle schema + migrations in Phase B)
-docs/             PRD, ADRs, specs
-docker/           compose init scripts (postgres roles)
-public/           static assets, SEO files (robots, sitemap, llms.txt, manifest, OG images)
-src/
+apps/web/            the TanStack Start app (@eyadex/web): src/, public/, configs
+packages/contracts/  Zod schemas = the single source of types (alias @eyadex/contracts/*)
+packages/config/     shared TypeScript + ESLint presets (@eyadex/config)
+db/sql/              SQL baseline applied to production (→ Drizzle schema + migrations in Phase B)
+docs/                PRD, ADRs, specs
+docker/              compose init scripts (postgres roles)
+.lovable/            Lovable project metadata + plan specs for the whole repo
+package.json         workspace root: turbo scripts, engines
+pnpm-workspace.yaml  workspace globs, pnpm overrides, the 24h supply-chain guard
+turbo.json           typecheck / lint / test / build pipeline
+```
+
+Inside `apps/web/src/`:
+
+```
   marketing/      public landing (/ and /en), scoped .mk styles
   platform/       super-admin area
   branches/ users/ roles/ patients/ audit/ settings/   clinic area, one folder per business area
@@ -204,5 +213,9 @@ Banned folder names anywhere: `utils/` · `helpers/` · `common/` · `misc/` · 
 
 ## 12. Useful commands
 
-`bun install` · `bun run dev` · `bunx --bun tsc --noEmit -p .` · `bun run lint` ·
-`bunx vitest run` · `NITRO_PRESET=node-server bun run build` · `docker compose up -d --build`
+All commands run from the repository root (pnpm + Turborepo).
+
+`pnpm install` · `pnpm dev` · `pnpm typecheck` · `pnpm lint` · `pnpm test` ·
+`NITRO_PRESET=node-server pnpm build` · `pnpm format` · `docker compose up -d --build`
+
+Single package: `pnpm --filter @eyadex/web <script>`.

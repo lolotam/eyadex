@@ -1,9 +1,11 @@
-node_modules
-.output
-.vinxi
-.wrangler
-.tanstack
-dist
+**/node_modules
+**/.output
+**/.nitro
+**/.vinxi
+**/.tanstack
+**/.wrangler
+**/.turbo
+**/dist
 .git
 .github
 .env
