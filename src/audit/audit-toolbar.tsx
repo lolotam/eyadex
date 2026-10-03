@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { AUDIT_ACTIONS } from "@contracts/audit";
 import { Input } from "@/components/ui/input";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { FilterSelect } from "@/shared/table/filter-select";
@@ -19,8 +18,6 @@ type Props = {
   onChange: (next: AuditFilterValues) => void;
   children?: ReactNode;
 };
-
-export const ALL_AUDIT_ACTIONS: readonly string[] = AUDIT_ACTIONS;
 
 export function AuditToolbar({ value, actions, onChange, children }: Props) {
   const { t, tDynamic } = useI18n();

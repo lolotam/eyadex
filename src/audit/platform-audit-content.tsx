@@ -13,12 +13,13 @@ import { useCursorPages } from "@/shared/table/use-cursor-pages";
 import { AuditDetailDialog } from "./audit-detail-dialog";
 import { AuditListBody } from "./audit-list-body";
 import { usePlatformAudit, usePlatformAuditClinics } from "./audit-queries";
-import { ALL_AUDIT_ACTIONS, AuditToolbar, type AuditFilterValues } from "./audit-toolbar";
+import { PLATFORM_AUDIT_ACTIONS } from "@contracts/audit";
+import { AuditToolbar, type AuditFilterValues } from "./audit-toolbar";
 import { useAuditColumns } from "./use-audit-columns";
 
 const PAGE_SIZE = 15;
 // Patient actions are never offered here; the API also never returns them.
-const PLATFORM_ACTIONS = ALL_AUDIT_ACTIONS.filter((a) => !a.startsWith("patient."));
+const PLATFORM_ACTIONS = PLATFORM_AUDIT_ACTIONS;
 type Source = PlatformAuditItem["source"];
 
 export function PlatformAuditContent() {

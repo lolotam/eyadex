@@ -90,8 +90,8 @@ export function dayInTimeZone(iso: string, timeZone: string): string {
   }).format(new Date(iso));
 }
 
-/** Every action the audit writers record, for the action filter and labels. */
-export const AUDIT_ACTIONS = [
+/** Actions written to a clinic's own log (the clinic audit screen). */
+export const CLINIC_AUDIT_ACTIONS = [
   "branch.created",
   "branch.updated",
   "branch.deactivated",
@@ -115,17 +115,30 @@ export const AUDIT_ACTIONS = [
   "patient.updated",
   "patient.archived",
   "patient.restored",
+  "clinic.settings_updated",
+] as const;
+
+/** Actions only the platform writes (its own log). */
+export const PLATFORM_ONLY_AUDIT_ACTIONS = [
   "clinic.created",
   "clinic.details_updated",
   "clinic.subscription_updated",
   "clinic.feature_toggled",
-  "clinic.settings_updated",
   "platform_account.invited",
   "platform_account.deactivated",
   "platform_account.reactivated",
   "platform_account.joined",
   "platform.settings_updated",
 ] as const;
+
+/** What the platform audit screen can show: its own events plus clinic administrative ones. */
+export const PLATFORM_AUDIT_ACTIONS = [
+  ...PLATFORM_ONLY_AUDIT_ACTIONS,
+  ...CLINIC_AUDIT_ACTIONS.filter((a) => !a.startsWith("patient.")),
+].filter((a, i, all) => all.indexOf(a) === i);
+
+/** Every action the audit writers record, for labels. */
+export const AUDIT_ACTIONS = [...CLINIC_AUDIT_ACTIONS, ...PLATFORM_ONLY_AUDIT_ACTIONS] as const;
 
 /** Every clinic, by name, for the platform audit filter (no paging cap). */
 export const platformAuditClinicOptionSchema = z.object({
