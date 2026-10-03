@@ -278,4 +278,13 @@ esac
   || fail "out-of-order file executed DDL"
 pass "out-of-order file refused by apply, dry-run, and status without recording"
 
+# 11. A database that cannot be queried fails status and dry-run (never "all pending").
+if PGDATABASE="eyadex_migrate_no_such_db_${suffix}" sh "$migrate" --status >/dev/null 2>&1; then
+  fail "status succeeded against an unreachable database"
+fi
+if PGDATABASE="eyadex_migrate_no_such_db_${suffix}" sh "$migrate" --dry-run >/dev/null 2>&1; then
+  fail "dry-run succeeded against an unreachable database"
+fi
+pass "status and dry-run fail when the database cannot be queried"
+
 echo "migrate-runner: all passed"

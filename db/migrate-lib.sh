@@ -32,9 +32,18 @@ SQL
 
 # Checks whether the ledger table exists without modifying schema or grants.
 ledger_exists() {
-  res=$(psql -X -q -tA -v ON_ERROR_STOP=1 \
-    -c 'SELECT to_regclass($$public.schema_migrations$$) IS NOT NULL;')
-  [ "$res" = "t" ]
+  # Called as an `if` condition, where set -e is off: a failed probe must stop the run,
+  # never read as "no ledger" (that would report everything pending and exit 0).
+  if ! res=$(psql -X -q -tA -v ON_ERROR_STOP=1 \
+    -c 'SELECT to_regclass($$public.schema_migrations$$) IS NOT NULL;'); then
+    echo "migrate: cannot query the database" >&2
+    exit 2
+  fi
+  case "$res" in
+    t) return 0 ;;
+    f) return 1 ;;
+    *) echo "migrate: unexpected ledger probe result: $res" >&2; exit 2 ;;
+  esac
 }
 
 file_hash() {
