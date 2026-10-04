@@ -14,7 +14,8 @@ export type TenantContextBreach =
   | "role"
   | "statement-timeout"
   | "idle-timeout"
-  | "unfinished-savepoint";
+  | "unfinished-savepoint"
+  | "unfinished-statement";
 
 const MESSAGES: Record<TenantContextBreach, string> = {
   clinic:
@@ -36,6 +37,9 @@ const MESSAGES: Record<TenantContextBreach, string> = {
     "fn returned while a tx.transaction(...) savepoint it started was still running — it would " +
     "have kept running after the commit, so nothing is committed; await every tx.transaction " +
     "(ADR-0002)",
+  "unfinished-statement":
+    "fn returned while a tx.execute(...) it started was still running — fn never saw its result, " +
+    "so nothing is committed; await every tx.execute (ADR-0002)",
 };
 
 /**

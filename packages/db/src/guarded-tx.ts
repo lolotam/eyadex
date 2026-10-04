@@ -1,8 +1,17 @@
 import type { SQL } from "drizzle-orm";
 
-import { TenantContextViolationError } from "./context-violation.ts";
+import { TenantContextViolationError, type TenantContextBreach } from "./context-violation.ts";
+import { asDatabaseError } from "./database-error.ts";
 import { renderOnce, sendRendered, type RawTx } from "./single-render.ts";
 import { assertStatementAllowed } from "./statement-guard.ts";
+import {
+  abandonLifetime,
+  assertLive,
+  closeLifetime,
+  newLifetime,
+  track,
+  type Lifetime,
+} from "./tx-lifetime.ts";
 
 export type { RawTx } from "./single-render.ts";
 
@@ -66,64 +75,28 @@ export type Tx = {
   transaction<T>(fn: (tx: Tx) => Promise<T>): Promise<T>;
 };
 
-const REVOKED =
-  "tx is no longer valid: its transaction (or savepoint) has ended, and a method kept from it ends " +
-  "with it — run the work inside the callback that received tx (ADR-0002)";
-
-/**
- * عمر الـ `Tx` الواحد. الـ `revoke()` بتاع الـ Proxy بيقفل **القراءة** من الـ proxy بس — دالة اتاخدت
- * منه قبل كده (`const execute = tx.execute`) كانت بتفضل شغّالة على الـ transaction الحقيقية بعد ما
- * خلصت، أو على savepoint اتقفل والـ transaction اللي برّه لسه شغالة. فكل دالة بنرجّعها بتسأل العمر
- * ده **في كل نداء**. (Codex على PR #22، P1.)
- */
-type Lifetime = {
-  live: boolean;
-  /** الـ transaction (أو الـ savepoint) اللي الـ savepoint ده جواها: لما تخلص، هو كمان خلص. */
-  readonly parent?: Lifetime;
-  /** savepoints اتبدأت من الـ `Tx` ده ولسه ماخلصتش. */
-  pending: number;
-};
-
-/**
- * @param lifetime عمر الـ `Tx` اللي الدالة اتاخدت منه
- * @throws TypeError لو الـ transaction أو الـ savepoint خلصت
- */
-const assertLive = (lifetime: Lifetime): void => {
-  for (
-    let current: Lifetime | undefined = lifetime;
-    current !== undefined;
-    current = current.parent
-  ) {
-    if (!current.live) throw new TypeError(REVOKED);
-  }
-};
-
 /**
  * الـ `transaction` بتاع Drizzle، بس بيغلّف الـ callback الداخلي بـ proxy تاني عمره مربوط بعمر
- * الأب. وكل savepoint بيتعدّ لحد ما يخلص: لو `fn` (أو savepoint أب) رجع وفيه savepoint ماخلصش —
- * يعني اتبدأ من غير `await` — الـ wrapper بيرفض قبل الـ COMMIT بدل ما الـ savepoint يكمّل بعده.
- * (Codex على PR #22، P1.)
+ * الأب، والـ savepoint نفسه متسجّل في عمر الأب لحد ما يخلص (شوف `tx-lifetime.ts`). جوه الـ
+ * savepoint نفس القاعدة: لو الـ callback رجع وفيه شغل اتبدأ من غير `await`، الـ savepoint بيرفض.
  */
 const guardedSavepoints =
   (raw: RawTx, lifetime: Lifetime) =>
-  async <T>(fn: (tx: Tx) => Promise<T>): Promise<T> => {
-    assertLive(lifetime);
-    lifetime.pending += 1;
-    try {
-      return await raw.transaction(async (inner: RawTx) => {
-        const guarded = guardTransaction(inner, lifetime);
-        try {
-          const result = await fn(guarded.tx);
-          if (guarded.pending() > 0) throw new TenantContextViolationError("unfinished-savepoint");
-          return result;
-        } finally {
-          guarded.revoke();
-        }
-      });
-    } finally {
-      lifetime.pending -= 1;
-    }
-  };
+  <T>(fn: (tx: Tx) => Promise<T>): Promise<T> =>
+    track(
+      lifetime.savepoints,
+      (async () => {
+        assertLive(lifetime);
+        return await raw.transaction(async (inner: RawTx) => {
+          const guarded = guardTransaction(inner, lifetime);
+          try {
+            return await guarded.finish(fn);
+          } finally {
+            guarded.revoke();
+          }
+        });
+      })(),
+    );
 
 /**
  * `execute` المحروس: **رسم واحد، فحص واحد، إرسال واحد**.
@@ -135,15 +108,26 @@ const guardedSavepoints =
  * 3. `sendRendered` بيبعته للـ connection بـ `unsafe(text, params)` — يعني النص اللي اتفحص هو
  *    النص اللي اتبعت بالحرف. مفيش نداء تاني بيرسم، عشان مفيش `getSQL()` تاني ينادي.
  *
- * النتيجة صفوف PostgreSQL، زي ما Drizzle كان بيرجّعها.
+ * النتيجة صفوف PostgreSQL، زي ما Drizzle كان بيرجّعها. والجملة متسجّلة في عمر الـ `Tx` لحد ما
+ * ترجع، وفشلها بيتنضّف هنا على طول (`asDatabaseError`).
  */
 const guardedExecute = (raw: RawTx, lifetime: Lifetime) => {
-  const execute = async <TRow = unknown>(query: SQL): Promise<TRow[]> => {
-    assertLive(lifetime);
-    const rendered = renderOnce(raw, query);
-    assertStatementAllowed(rendered.text);
-    return await sendRendered<TRow>(raw, rendered);
-  };
+  const execute = <TRow = unknown>(query: SQL): Promise<TRow[]> =>
+    track(
+      lifetime.statements,
+      (async () => {
+        assertLive(lifetime);
+        const rendered = renderOnce(raw, query);
+        assertStatementAllowed(rendered.text);
+        try {
+          return await sendRendered<TRow>(raw, rendered);
+        } catch (error) {
+          // Scrubbed here, not only at the wrapper: a statement fn never awaited still rejects,
+          // and that rejection must carry no driver detail wherever it surfaces.
+          throw asDatabaseError(error);
+        }
+      })(),
+    );
   return execute;
 };
 
@@ -197,8 +181,11 @@ export interface GuardedTx {
   readonly tx: Tx;
   /** بعد COMMIT أو ROLLBACK، أي استخدام بيرمي `TypeError` — هنا وفي كل savepoint جواه. */
   revoke(): void;
-  /** عدد الـ savepoints اللي اتبدأت من الـ `Tx` ده ولسه شغّالة. */
-  pending(): number;
+  /**
+   * بيستنى `fn`، وبعدها على طول بيقفل العمر — قبل أي closing check — وبيرفض لو فيه شغل اتساب.
+   * لو `fn` رمى، بيقفل من غير استنى ويرمي نفس الخطأ.
+   */
+  finish<T>(fn: (tx: Tx) => Promise<T>): Promise<T>;
 }
 
 /**
@@ -209,8 +196,7 @@ export interface GuardedTx {
  * @returns الـ `Tx` المحمي وطريقة إبطال صلاحيته وعدد الـ savepoints الشغّالة
  */
 export function guardTransaction(raw: RawTx, parent?: Lifetime): GuardedTx {
-  const lifetime: Lifetime =
-    parent === undefined ? { live: true, pending: 0 } : { live: true, parent, pending: 0 };
+  const lifetime = newLifetime(parent);
   const revocable = Proxy.revocable(raw, makeHandler(lifetime));
   return {
     tx: revocable.proxy as unknown as Tx,
@@ -218,6 +204,18 @@ export function guardTransaction(raw: RawTx, parent?: Lifetime): GuardedTx {
       lifetime.live = false;
       revocable.revoke();
     },
-    pending: () => lifetime.pending,
+    finish: async <T>(fn: (tx: Tx) => Promise<T>): Promise<T> => {
+      let result: T;
+      try {
+        // fn runs inside the try: a synchronous throw is abandoned the same way as a rejection.
+        result = await fn(revocable.proxy as unknown as Tx);
+      } catch (error) {
+        abandonLifetime(lifetime);
+        throw error;
+      }
+      const breach: TenantContextBreach | undefined = await closeLifetime(lifetime);
+      if (breach !== undefined) throw new TenantContextViolationError(breach);
+      return result;
+    },
   };
 }

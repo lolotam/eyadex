@@ -118,3 +118,46 @@ describe("a savepoint fn did not await cannot outlive the wrapper", () => {
     expect(await owner`SELECT id FROM branches WHERE id = ${probe}`).toEqual([{ id: probe }]);
   });
 });
+
+/**
+ * `tx.execute` من غير `await`، ودالة محفوظة في timer: الاتنين كانوا بيعدّوا بعد ما `fn` يرجع —
+ * الأولى من غير ما حد يشوف نتيجتها (ورفضها كان unhandled)، والتانية ممكن تكتب بين الـ closing
+ * check والـ COMMIT. (Codex على PR #22، P1 ×2.)
+ */
+describe("work fn did not await is refused, and nothing slips in after fn returns", () => {
+  it("refuses an un-awaited execute — even a failing one leaves no unhandled rejection", async () => {
+    const probe = newTestId();
+    const failure = await app
+      .withTenant(A.clinicId, async (tx) => {
+        void insertBranch(tx, A.clinicId, probe);
+        // a second, failing statement nobody awaits: duplicate primary key
+        void insertBranch(tx, A.clinicId, A.branchId);
+      })
+      .then(() => undefined)
+      .catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(TenantContextViolationError);
+    expect((failure as TenantContextViolationError).breach).toBe("unfinished-statement");
+    expect(await owner`SELECT id FROM branches WHERE id = ${probe}`).toEqual([]);
+  });
+
+  it("closes tx the moment fn returns: a kept execute fired from a timer cannot write", async () => {
+    const probe = newTestId();
+    let fired: Promise<string> | undefined;
+    await app.withTenant(A.clinicId, async (tx) => {
+      const keptExecute = tx.execute;
+      fired = new Promise((resolve) => {
+        setTimeout(() => {
+          keptExecute(
+            sql`INSERT INTO branches (clinic_id, id, name_ar, name_en, is_active, created_at, updated_at)
+                VALUES (${A.clinicId}, ${probe}, 'ت', 'T', true, now(), now())`,
+          ).then(
+            () => resolve("wrote"),
+            (error: unknown) => resolve(String((error as Error).message)),
+          );
+        }, 0);
+      });
+    });
+    expect(await fired).toMatch(/no longer valid/);
+    expect(await owner`SELECT id FROM branches WHERE id = ${probe}`).toEqual([]);
+  });
+});

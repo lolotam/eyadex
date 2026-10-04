@@ -209,7 +209,13 @@ savepoint too: every method the proxy hands out checks the `Tx`'s lifetime on ea
 `tx.transaction(…)` that `fn` started without awaiting is refused: if `fn` (or a savepoint) returns while
 a child savepoint is still running, the wrapper throws `TenantContextViolationError`
 (`unfinished-savepoint`) and rolls back instead of committing — postgres.js only waits for a savepoint
-through the promise handed back to the caller, so the child would otherwise run after the COMMIT. `Tx` is that allow-listed type
+through the promise handed back to the caller, so the child would otherwise run after the COMMIT.
+The same holds for a `tx.execute(…)` that `fn` did not await (`unfinished-statement`): the wrapper waits
+for it to settle (each statement is bounded by `statement_timeout`), handles its rejection so it can
+never surface as an unhandled rejection, and rolls back. Driver errors are scrubbed inside
+`tx.execute` itself, so even a rejection nobody awaited carries no `detail`. And the `Tx` closes the
+moment `fn` returns — before the closing check, not after it — so a method kept in a timer cannot
+queue a write between the check and the COMMIT (Codex on PR #22, P1 ×2). `Tx` is that allow-listed type
 itself, so `tx.session` and `tx.select()` do not compile either.
 
 The query builders are gone on purpose, and that was a real hole rather than a style choice:
