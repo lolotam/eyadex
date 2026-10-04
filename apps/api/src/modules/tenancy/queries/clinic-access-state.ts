@@ -1,4 +1,8 @@
-import { decideClinicAccess, type ClinicAccess, type ClinicStatus } from "../domain/clinic-access.ts";
+import {
+  decideClinicAccess,
+  type ClinicAccess,
+  type ClinicStatus,
+} from "../domain/clinic-access.ts";
 import { isModuleEnabled } from "../domain/feature-flags.ts";
 import { branchesUsage, usersUsage, type LimitUsage } from "../domain/limits.ts";
 import type { ClinicReader } from "../ports/clinic-reader.ts";
@@ -36,7 +40,12 @@ export async function getClinicAccessState(
     status: snapshot.status,
     expiresAt: snapshot.expiresAt,
     access: decideClinicAccess(snapshot, now),
-    users: usersUsage(snapshot.activeMemberships, snapshot.pendingInvitations, snapshot.maxUsers, now),
+    users: usersUsage(
+      snapshot.activeMemberships,
+      snapshot.pendingInvitations,
+      snapshot.maxUsers,
+      now,
+    ),
     branches: branchesUsage(snapshot.activeBranches, snapshot.maxBranches),
     modules: { patients: isModuleEnabled(snapshot.features, "patients") },
   };
