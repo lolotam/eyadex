@@ -51,7 +51,7 @@ const LABEL =
 // own run once. The lookahead only requires a value to start; its words are read by plain scans below.
 const ARABIC_CREDENTIAL = new RegExp(
   `(?<![\\p{L}\\p{M}\\p{N}_])(${LABEL})(?![\\p{L}\\p{M}_])` +
-    `(\\\\?["']?\\s*(?:[:=]{1,3}|(?:هي|هو|هى)(?![\\p{L}\\p{M}]))\\s*|\\\\?["']?\\s+|(?=\\p{N}))` +
+    `(\\\\?["']?\\s*(?:[:=]{1,3}|->|=>|[\\-\\u2010-\\u2015|\\u2192\\u21D2]{1,3}|(?:هي|هو|هى)(?![\\p{L}\\p{M}]))\\s*|\\\\?["']?\\s+|(?=\\p{N}))` +
     `(?=[^\\s&,;،؛])`,
   "giu",
 );
@@ -60,8 +60,9 @@ const ARABIC_LETTER = /[؀-ۿ]/;
 const PAIR_END = /[&,;\r\n،؛]/g;
 
 const isQuote = (char: string | undefined): boolean => char === "'" || char === '"';
-// The separator makes it an assignment only through `:`/`=`/`هي`/`هو` — a quote around the label alone does not.
-const EXPLICIT = /[:=]|ه[يوى]/u;
+// The separator makes it an assignment only through `:`/`=`, a dash, arrow or bar (`كلمة المرور - x`), or
+// `هي`/`هو` — a quote around the label alone does not.
+const EXPLICIT = /[:=\-‐-―|>→⇒]|ه[يوى]/u;
 // After a bare space the first word must itself look like a secret: a digit (any script) or a token prefix.
 // Length alone is not enough here — a long Arabic word (`الإلكترونيات`) is prose, not a credential.
 // The whole first word is read (a 200-character bound let a later digit through), by one sticky scan that

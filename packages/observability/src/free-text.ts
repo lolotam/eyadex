@@ -179,6 +179,9 @@ const redactProseMirror = (_match: string, name: string, value: string, verb: st
     ? `${name} ${REDACTED} ${verb}`
     : _match;
 
+const SEPARATOR_WORD = /^(?:->|=>|[-‐-―|→⇒]{1,3})$/u;
+// The first non-space character after the separator, on the same line (sticky: no scan past spaces).
+const VALUE_START = /[ \t]*(?=[^\s])/y;
 function redactBareCredentials(text: string): string {
   let out = "";
   let last = 0;
@@ -187,6 +190,21 @@ function redactBareCredentials(text: string): string {
     // The two groups are guaranteed by the pattern; the defaults satisfy the checker.
     const name = match[1] ?? "";
     const value = match[2] ?? "";
+    // A dash, arrow or bar between a credential name and its value is a separator, like `:`
+    // (`password - hunter2`, `token -> x`): the value after it is withheld to the pair delimiter.
+    if (SEPARATOR_WORD.test(value) && isFreeTextCredentialName(name)) {
+      VALUE_START.lastIndex = match.index + match[0].length;
+      const gap = VALUE_START.exec(text);
+      if (gap !== null) {
+        const start = gap.index + gap[0].length;
+        PAIR_END.lastIndex = start;
+        const end = PAIR_END.exec(text)?.index ?? text.length;
+        out += text.slice(last, start) + REDACTED;
+        last = end;
+        BARE_CREDENTIAL.lastIndex = end;
+        continue;
+      }
+    }
     if (!isFreeTextCredentialName(name) || !looksLikeCredentialValue(value)) {
       // Re-anchor just past the name so the value word can still be read as a name.
       BARE_CREDENTIAL.lastIndex = match.index + name.length;

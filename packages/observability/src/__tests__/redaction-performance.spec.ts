@@ -74,6 +74,10 @@ describe("sanitize stays linear on adversarial strings", () => {
     ["Arabic particle run then a label", "وبفل".repeat(NEAR_CAP / 4 - 2) + "كلمة"],
     ["Arabic kaf runs", "ك".repeat(NEAR_CAP)],
     ["Arabic label then combining marks", "كلمة" + "ࣣ".repeat(NEAR_CAP - 5)],
+    ["credential name and dash runs", "password - ".repeat(NEAR_CAP / 11)],
+    ["word and dash runs", "a - ".repeat(NEAR_CAP / 4)],
+    ["credential name then dash then spaces", "password -" + " ".repeat(NEAR_CAP - 11)],
+    ["Arabic label and dash runs", "كلمة المرور - ".repeat(NEAR_CAP / 14)],
     ["Arabic label then one long digit-less word", "كلمة المرور " + "a".repeat(NEAR_CAP - 13)],
     [
       "Arabic labels each with a long word",
