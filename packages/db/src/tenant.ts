@@ -3,6 +3,7 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { asDatabaseError } from "./database-error.ts";
 import { guardTransaction, type Tx } from "./guarded-tx.ts";
 import { assertNotNested, insideTransaction } from "./nested-guard.ts";
+import { withStartDeadline } from "./start-deadline.ts";
 import type { IdGenerator, DatabaseRole } from "./options.ts";
 import {
   closeSession,
@@ -56,6 +57,7 @@ export interface TenantWrappers {
  * @param timeoutMs سقف الـ statement وسكون الـ transaction بالـ ms
  * @param ids مولّد الـ ids بتاع `withNewTenant`
  * @param instance token الـ `Database` ده، عشان التداخل يترفض على نفس الـ instance بس
+ * @param startDeadlineMs سقف بداية الـ transaction من ناحية JS (شوف `start-deadline.ts`)
  * @returns النقط التلاتة
  */
 export function createTenantWrappers(
@@ -64,6 +66,7 @@ export function createTenantWrappers(
   timeoutMs: number,
   ids: IdGenerator,
   instance: object,
+  startDeadlineMs: number,
 ): TenantWrappers {
   const inOne = <T>(
     expected: SessionExpectation,
@@ -72,20 +75,23 @@ export function createTenantWrappers(
   ): Promise<T> =>
     insideTransaction(instance, async () => {
       try {
-        return await db.transaction(async (raw) => {
-          // الـ executor بتاع الـ wrapper: على الـ transaction الحقيقية، وبيفضل في الـ closure.
-          const executor = sessionExecutor(raw);
-          await openSession(executor, expected, freshClinic);
-          const guarded = guardTransaction(raw);
-          try {
-            const result = await guarded.finish(fn);
-            await closeSession(executor, expected);
-            return result;
-          } finally {
-            // COMMIT or ROLLBACK, the guarded tx dies with it: a kept handle runs on the pool.
-            guarded.revoke();
-          }
-        });
+        return await withStartDeadline(startDeadlineMs, (began) =>
+          db.transaction(async (raw) => {
+            began();
+            // الـ executor بتاع الـ wrapper: على الـ transaction الحقيقية، وبيفضل في الـ closure.
+            const executor = sessionExecutor(raw);
+            await openSession(executor, expected, freshClinic);
+            const guarded = guardTransaction(raw);
+            try {
+              const result = await guarded.finish(fn);
+              await closeSession(executor, expected);
+              return result;
+            } finally {
+              // COMMIT or ROLLBACK, the guarded tx dies with it: a kept handle runs on the pool.
+              guarded.revoke();
+            }
+          }),
+        );
       } catch (error) {
         throw asDatabaseError(error);
       }

@@ -167,6 +167,15 @@ that `DatabaseError` (or the plain "chain cut" error). (Codex on PR #22, P1.)
 
 ### Accepted limitations
 
+- **Two open bugs in the pinned driver (postgres.js 3.4.9).** #1192: the `pg_type` lookup on each new
+  connection discards its promise, so a failure was an unhandled rejection outside `asDatabaseError` —
+  closed here with `fetch_types: false` (only built-in types are used). #1193: a socket the server closes
+  cleanly while the first query waits makes the driver reconnect with zero delay forever, and
+  `connect_timeout` does not stop it. The caller side is bounded here: every wrapper and `ping` must
+  _start_ their transaction within `connectTimeoutSeconds` + `transactionTimeoutMs`
+  (`start-deadline.ts`), otherwise the call fails; a transaction that starts after that rolls back
+  before `fn`. The loop inside the driver is a follow-up (an upstream fix or a reviewed driver patch).
+
 - **Whether `fn` really consumed a promise cannot be proven at run time.** The wrapper guarantees that
   nothing runs after the `Tx` closes, that work still running or never awaited is refused and rolled
   back, and that no rejection surfaces unhandled or carries driver details. But a combinator `fn` throws

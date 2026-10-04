@@ -5,6 +5,7 @@ import { asDatabaseError } from "./database-error.ts";
 import { assertNotNested, insideTransaction } from "./nested-guard.ts";
 import { applicationName, resolveOptions, type DatabaseOptions } from "./options.ts";
 import { openSession, sessionExecutor } from "./session-check.ts";
+import { withStartDeadline } from "./start-deadline.ts";
 import { createTenantWrappers, type Tx } from "./tenant.ts";
 
 /**
@@ -61,6 +62,10 @@ export function createDatabase(options: DatabaseOptions): Database {
     // حدّ لفتح الـ connection: من غيره `ping` على host بياكل الـ packets بيضل مستني TCP
     // (~2 دقيقة افتراضياً في postgres.js) بدل ما يفشل بسرعة.
     connect_timeout: resolved.connectTimeoutSeconds,
+    // postgres.js 3.4.9 discards the promise of its pg_type lookup on every new connection: if that
+    // query fails, the raw PostgresError is an unhandled rejection outside asDatabaseError and can
+    // end the process (porsager/postgres#1192, Codex on PR #22). Only built-in types are used here.
+    fetch_types: false,
     // الإشعارات كانت بتطبع على stderr من جوه الكود، والباكاج ده ممنوع يطبع حاجة (CLAUDE.md §8).
     onnotice: () => undefined,
     connection: { application_name: applicationName(resolved.role) },
@@ -74,6 +79,8 @@ export function createDatabase(options: DatabaseOptions): Database {
   // token الـ Database ده: الـ nesting guard بيرفض على نفس الـ instance بس، فـ transaction على
   // دور تاني (pool تاني) جوه transaction على ده يفضل شغال عادي.
   const instance: object = {};
+  // connect_timeout alone does not bound a cleanly closed socket (porsager/postgres#1193).
+  const startDeadlineMs = resolved.connectTimeoutSeconds * 1000 + resolved.transactionTimeoutMs;
   return {
     ...createTenantWrappers(
       db,
@@ -81,6 +88,7 @@ export function createDatabase(options: DatabaseOptions): Database {
       resolved.transactionTimeoutMs,
       resolved.ids,
       instance,
+      startDeadlineMs,
     ),
     // /ready مش معناه SELECT 1: DATABASE_URL على eyadex_auth أو على الـ owner هيعدّي ثم يفشل أول
     // query عيادة من غير error مفهوم. فـ ping بيعمل نفس أول statement بتاع الـ wrappers، جوه
@@ -90,9 +98,12 @@ export function createDatabase(options: DatabaseOptions): Database {
       assertNotNested("ping", instance);
       return insideTransaction(instance, async () => {
         try {
-          await db.transaction(async (raw) => {
-            await openSession(sessionExecutor(raw), expected);
-          });
+          await withStartDeadline(startDeadlineMs, (began) =>
+            db.transaction(async (raw) => {
+              began();
+              await openSession(sessionExecutor(raw), expected);
+            }),
+          );
         } catch (error) {
           throw asDatabaseError(error);
         }
