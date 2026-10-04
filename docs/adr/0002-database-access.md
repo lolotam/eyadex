@@ -122,6 +122,8 @@ order they are applied:
   `\005f` spells the `_` of `set_config` without showing a single letter of the name. Reading the
   escapes is not attempted; there is no legitimate caller writing them.
 - `set_config` anywhere, in any case: the only way a `SELECT` can move `app.clinic_id` or a timeout.
+- `pg_settings` anywhere: the view carries an update rule, so `UPDATE pg_settings SET setting = …` is
+  `set_config(…, false)` at **session** level without the word appearing (Codex on PR #22, P2).
 - the **PostgreSQL 18 core functions that execute a query given as text** — `query_to_xml`,
   `query_to_xmlschema`, `query_to_xml_and_xmlschema`, `cursor_to_xml`, `cursor_to_xmlschema`,
   `ts_stat`, `ts_rewrite`. That list (`TEXT_EXECUTING_FUNCTIONS`) is **the complete set of core
@@ -305,6 +307,14 @@ are left alone. If a holder cannot be written (a frozen error), it fails closed:
 that `DatabaseError` (or the plain "chain cut" error). (Codex on PR #22, P1.)
 
 ### Accepted limitations
+
+- **Whether `fn` really consumed a promise cannot be proven at run time.** The wrapper guarantees that
+  nothing runs after the `Tx` closes, that work still running or never awaited is refused and rolled
+  back, and that no rejection surfaces unhandled or carries driver details. But a combinator `fn` throws
+  away (`void Promise.all([tx.transaction(…)])`) attaches its own rejection handler, so the savepoint
+  looks consumed. That is `fn` ignoring its own errors — not a way across clinics or around a
+  timeout — and the tool for it is static: typed linting with `@typescript-eslint/no-floating-promises`
+  (`ignoreVoid: false`) on every package that calls the wrappers, a follow-up to this ADR.
 
 - **The guard reads text, not a parse tree, and `fn` is trusted code.** PostgreSQL can build and run
   SQL out of strings (plpgsql, an extension, a `SECURITY DEFINER` function), so no text check can be

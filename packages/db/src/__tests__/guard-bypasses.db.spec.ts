@@ -223,6 +223,14 @@ describe("the allow-list is wide enough for the work fn has to do", () => {
     await owner`SELECT pg_advisory_unlock(4242)`;
   });
 
+  it("refuses UPDATE pg_settings, which is set_config at session level", async () => {
+    await refuses(
+      fixture(),
+      sql`UPDATE pg_settings SET setting = '0' WHERE name = 'statement_timeout'`,
+      "pg_settings",
+    );
+  });
+
   it("still sees only its own clinic after all of that", async () => {
     expect(await app.withTenant(A.clinicId, (tx) => seenPatients(tx, A, B))).toEqual([A.patientId]);
   });

@@ -61,6 +61,17 @@ export const ALLOWED_STATEMENT_WORDS = [
 const SET_CONFIG = /set_config/i;
 
 /**
+ * `pg_settings` view عليها rule: `UPDATE pg_settings SET setting = … WHERE name = …` هي
+ * `set_config(name, setting, false)` — على مستوى الـ **session**، من غير ما الكلمة تظهر. فبتحرّك
+ * `app.clinic_id` والسقوف وتعدّي الـ COMMIT. القراءة منها كمان بترفض (fail closed): مفيش use case
+ * محتاجها. (Codex على PR #22، P2.)
+ */
+const PG_SETTINGS = /pg_settings/i;
+
+/** كلمة تقرير `pg_settings`. */
+export const PG_SETTINGS_KEYWORD = "pg_settings";
+
+/**
  * `U&` جوه معرّف `"…"` أو نص `'…'`: الـ escapes بتكتب أي اسم من غير ما حروفه تبان في النص،
  * فـ `U&"set\005fconfig"` هو `set_config` كتابتها مختلفة. القاعدة مش إننا نحلّ الـ escapes —
  * القاعدة إن **كل** `U&` يترفض، ومفيش caller شرعي بيكتبهم.
@@ -169,6 +180,12 @@ function messageFor(keyword: string): string {
       "can re-point the clinic or a timeout, and the wrapper owns both (ADR-0002)"
     );
   }
+  if (keyword === PG_SETTINGS_KEYWORD) {
+    return (
+      "tx.execute() refuses any statement that mentions pg_settings: an UPDATE of that view is " +
+      "set_config at session level, so it could re-point the clinic or a timeout (ADR-0002)"
+    );
+  }
   if (keyword === UNICODE_ESCAPE_KEYWORD) {
     return (
       "tx.execute() refuses any statement that uses U& (a Unicode-escaped identifier or string): " +
@@ -244,6 +261,7 @@ const sessionScopedHit = (text: string): string | undefined =>
 export function forbiddenKeyword(text: string): string | undefined {
   if (UNICODE_ESCAPE.test(text)) return UNICODE_ESCAPE_KEYWORD;
   if (SET_CONFIG.test(text)) return "set_config";
+  if (PG_SETTINGS.test(text)) return PG_SETTINGS_KEYWORD;
   const functionName = textExecutingHit(text);
   if (functionName !== undefined) return functionName;
   const sessionScoped = sessionScopedHit(text);

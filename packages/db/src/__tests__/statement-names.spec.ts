@@ -158,3 +158,15 @@ describe("functions whose effect outlives the transaction are refused (Codex, PR
     expect(forbiddenKeyword(statement)).toBeUndefined();
   });
 });
+
+describe("pg_settings is refused: an UPDATE of it is set_config at session level (Codex, PR #22)", () => {
+  it.each([
+    "UPDATE pg_settings SET setting = '0' WHERE name = 'statement_timeout'",
+    "UPDATE pg_catalog.PG_SETTINGS SET setting = $1 WHERE name = 'app.clinic_id'",
+    "WITH s AS (UPDATE pg_settings SET setting = '0' WHERE name = $1 RETURNING 1) SELECT 1",
+    "SELECT setting FROM pg_settings WHERE name = 'statement_timeout'",
+  ])("refuses %j", (statement) => {
+    expect(forbiddenKeyword(statement)).toBe("pg_settings");
+    expect(new ForbiddenStatementError("pg_settings").message).toContain("session level");
+  });
+});
