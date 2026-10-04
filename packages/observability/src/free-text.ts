@@ -68,10 +68,16 @@ const CLI_CREDENTIAL = /(--?(?:password|passwd|pwd|token|secret|api-?key)\s+)(\S
 // one way: `[:=]+[:=]*` (two adjacent overlapping classes) made 63 KB of ":" take 13 s, and a bound like
 // {1,3} leaked "====".
 const ASSIGNMENT =
-  /(?<![\w.-])([\w.-]{1,200}?)(\\?["']?\s*[:=]+(?:\s+[:=]+)*\s*)(\\?"(?:\\.|[^"\\])*\\?"|\\?'(?:\\.|[^'\\])*\\?'|[^\s&",;':=]+|\\?["'])/g;
+  /(?<![\w.-])([\w.-]{1,200}?)(\\?["']?\s*[:=]+(?:\s+[:=]+)*\s*)(\\?["']|[^\s&",;':=]+)/g;
+// ASSIGNMENT's value is only the OPENING quote, never a whole quoted string: the shared quote scanner
+// (quotes.ts) finds the end, closed or not (`password: "x` fails closed to the end of the text). A regex
+// body `\\?"(?:\\.|[^"\\])*\\?"` let `\"` pairs run to the end of the text from every name — quadratic,
+// ~500 ms on 64 KB of `a: \"` — and could pair `\"` with a bare `"`.
 // A bare credential word followed by a quoted value and no separator: `password 'hunter two' rejected`.
-// The value is consumed whole, so a multi-word secret does not leave its tail behind.
-const QUOTED_CREDENTIAL = /(?<![\w.-])([\w.-]{1,200}?)\s+('(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")/g;
+// The value is consumed whole, so a multi-word secret does not leave its tail behind. The name may be
+// quoted itself (`"password" 'x'`), as in ASSIGNMENT.
+const QUOTED_CREDENTIAL =
+  /(?<![\w.-])([\w.-]{1,200}?)\\?["']?\s+('(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")/g;
 // Prose: "password is x", "token was x". The verb list is finite on purpose — "the token expired" has no
 // assignment and must stay. The value runs to the end of the LINE, not the clause: a status word before a
 // comma ("password is invalid, hunter2") would otherwise free the clause while the secret sat after it.
@@ -85,7 +91,7 @@ const PROSE_VALUE_THEN_VERB = /(?<![\w.-])([\w.-]{1,200}?)\s+(\S+)\s+(is|was)\b/
 // rejected`. The value must itself look like a credential, so "password reset requested" stays readable.
 // Scanned by hand rather than with one `replace`: a regex would consume `the password` under the
 // non-credential name `the` and never re-read `password` as the name, leaking the value after it.
-const BARE_CREDENTIAL = /(?<![\w.-])([\w.-]{1,200}?)\s+([^\s,;]+)/g;
+const BARE_CREDENTIAL = /(?<![\w.-])([\w.-]{1,200}?)\\?["']?\s+([^\s,;]+)/g;
 
 const redactTokenScheme = (match: string, scheme: string, value: string): string =>
   scheme !== "token" || looksLikeCredentialValue(value) ? `${scheme} ${REDACTED}` : match;
@@ -94,10 +100,6 @@ const redactTokenScheme = (match: string, scheme: string, value: string): string
 // "password: correct horse battery staple" must not keep "horse battery staple". Failing closed on the rest
 // of the clause is the accepted price ("token=x user=bob" loses "user=bob").
 const PAIR_END = /[&,;\r\n]/g;
-const QUOTED_VALUE = /^\\?["']/;
-// A lone opening quote: the closed-quote alternatives failed, so the value never closes (`password: "x`).
-// ASSIGNMENT's last alternative matches it so the value still reaches valueEnd (to the end: fail closed).
-const UNCLOSED_QUOTE = /^\\?["']$/;
 function redactAssignments(text: string): string {
   let out = "";
   let last = 0;
@@ -113,22 +115,24 @@ function redactAssignments(text: string): string {
       continue;
     }
     let end = match.index + match[0].length;
-    if (UNCLOSED_QUOTE.test(value) || (opensQuote(value, 0) && !QUOTED_VALUE.test(value))) {
-      // A typographic quote (`password: «a, b»`): withheld to its closing mark, not the first comma.
+    if (opensQuote(value, 0)) {
+      // Any quoted value — ASCII, escaped (`\"…\"`), backtick or typographic, closed or not — ends at ITS
+      // closing quote, found by the shared scanner: the regex alone can pair `\"` with a bare `"`
+      // (`password: \"abc"hunter2\"`) or not close at all (`password: "x`).
       end = valueEnd(text, end - value.length);
-      ASSIGNMENT.lastIndex = end;
-    } else if (!QUOTED_VALUE.test(value)) {
+    } else {
       PAIR_END.lastIndex = end;
       end = PAIR_END.exec(text)?.index ?? text.length;
-      ASSIGNMENT.lastIndex = end;
     }
+    ASSIGNMENT.lastIndex = end;
     out += text.slice(last, match.index) + `${name}${separator}${REDACTED}`;
     last = end;
   }
   return out + text.slice(last);
 }
-const redactQuoted = (_match: string, name: string): string =>
-  isFreeTextCredentialName(name) ? `${name} ${REDACTED}` : _match;
+// Everything before the value is kept as written (a quoted name keeps its closing quote).
+const redactQuoted = (match: string, name: string, value: string): string =>
+  isFreeTextCredentialName(name) ? match.slice(0, match.length - value.length) + REDACTED : match;
 // After "is"/"was" the safe direction is the opposite one: the value is withheld unless EVERY word of the
 // clause is a status word. Requiring it to LOOK like a credential kept `password is swordfish` readable — a
 // lone dictionary word is exactly what a weak password is — and checking only the first word kept
@@ -211,7 +215,7 @@ function redactBareCredentials(text: string): string {
       BARE_CREDENTIAL.lastIndex = match.index + name.length;
       continue;
     }
-    out += text.slice(last, match.index) + `${name} ${REDACTED}`;
+    out += text.slice(last, match.index + match[0].length - value.length) + REDACTED;
     last = match.index + match[0].length;
   }
   return out + text.slice(last);

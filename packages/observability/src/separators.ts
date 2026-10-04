@@ -17,7 +17,8 @@ export const SEPARATOR_PATTERN =
 // `:`/`=` are the assignment scanner's. The name is lazy, bounded and anchored like ASSIGNMENT's, and each
 // whitespace run is followed by a required token, so the scan stays linear.
 const SEPARATED_PAIR = new RegExp(
-  "(?<![\\w.-])([\\w.-]{1,200}?)" +
+  // The name may be quoted (`"password" -> x`, `\"password\"->x`), as in ASSIGNMENT.
+  "(?<![\\w.-])([\\w.-]{1,200}?)\\\\?[\"']?" +
     "(?:\\s*(?:->|=>|<-|<=|[|\\u2010-\\u2015\\u2190\\u2192\\u21D0\\u21D2]{1,3})\\s*|\\s+-{1,3}\\s*|-{1,3}\\s+)" +
     "(?=\\S)",
   "gu",

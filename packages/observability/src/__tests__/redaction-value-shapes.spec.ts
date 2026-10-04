@@ -108,6 +108,13 @@ describe("prose after a non-credential head on the same line", () => {
     ["password->hunter2", `password->${REDACTED}`],
     ["password-> hunter2", `password-> ${REDACTED}`],
     ["password|hunter2", `password|${REDACTED}`],
+    // An escaped opening quote closes only on an escaped quote; quoted names (PR #18 Codex round 7).
+    ['password: \\"abc"hunter2\\" next', `password: ${REDACTED} next`],
+    ['"password" -> hunter2', `"password" -> ${REDACTED}`],
+    ['\\"password\\"->hunter2', `\\"password\\"->${REDACTED}`],
+    ['"token" | abc123', `"token" | ${REDACTED}`],
+    ['"password" hunter2', `"password" ${REDACTED}`],
+    ["\"password\" 'hunter two'", `"password" ${REDACTED}`],
     ["token—abc, next", `token—${REDACTED}, next`],
     ["password- hunter2", `password- ${REDACTED}`],
     ['password: "hunter2', `password: ${REDACTED}`],
