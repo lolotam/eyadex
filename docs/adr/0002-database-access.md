@@ -137,7 +137,7 @@ word, after the leading whitespace, comments and the opening paren of a wrapped 
 one of `SELECT`, `INSERT`, `UPDATE`, `DELETE`, `WITH`, `VALUES`, `TABLE`, `MERGE`. Those are the
 statements that read or write rows. Everything else is refused **by name**, including everything a
 deny-list would have had to keep guessing at: `ALTER ROLE … SET` (a timeout that persists on the role
-for every future session), `CREATE FUNCTION pg_temp.…` (PUBLIC still has `TEMPORARY` on the database),
+for every future session), `CREATE FUNCTION pg_temp.…` (refused here by kind, and impossible since `db/sql/0022`),
 `EXECUTE` / `DEALLOCATE` (which can run the protocol-level prepared statements postgres.js itself
 created — `pg_prepared_statements` lists `commit`), `GRANT`, `TRUNCATE`, `VACUUM`, `CHECKPOINT`,
 `DECLARE` / `FETCH` / `CLOSE`, `NOTIFY`, `SET ROLE`, `DROP`, `EXPLAIN`. The refusal names the first
@@ -304,11 +304,15 @@ level, is looked at, and only when it is a real `PostgresError`.
   unchanged, because it carries no SQLSTATE and no query. `DatabaseError` never does this.
 - **`close()` waits for in-flight work** up to the driver timeout (`end({ timeout: 5 })`).
 
+**Temporary objects are the grants' job, not the guard's.** `SELECT … INTO TEMP patients` starts
+with an allowed word, and a text check cannot tell that `INTO` from `INSERT INTO` or `MERGE INTO`;
+with `TEMPORARY` it created a temp table that shadowed the real one for the rest of the pooled
+session. `db/sql/0022` revokes `TEMPORARY` on the database from `PUBLIC` and from every runtime role,
+so PostgreSQL refuses it with `42501` (`guard-bypasses.db.spec.ts`), the same way it refuses a
+`DELETE` the role has no grant for.
+
 ### Follow-ups this ADR does not implement
 
-- **Revoke `TEMPORARY` on the database from `PUBLIC`** in a migration. `CREATE FUNCTION pg_temp.…`
-  inside `fn` is refused by the statement guard today, but the capability is still granted by the
-  database; revoking it makes the option impossible instead of merely refused.
 - **A token-gated tenant context, if `fn` ever has to be untrusted.** Today RLS reads
   `app.clinic_id` directly, so anything that can set a GUC can move the clinic. The shape that closes
   it is for the policies to read a clinic that only a `SECURITY DEFINER` setter can write, with the

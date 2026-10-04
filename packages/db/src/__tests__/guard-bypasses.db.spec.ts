@@ -122,8 +122,9 @@ describe("every statement kind outside the allow-list is refused by name", () =>
     expect(role[0]?.rolconfig ?? []).not.toContain("statement_timeout=0");
   });
 
-  it("refuses CREATE FUNCTION in pg_temp — PUBLIC still has TEMP on the database", async () => {
-    // It was refused by accident (the `;` inside the plpgsql body). It is refused by its kind now.
+  it("refuses CREATE FUNCTION in pg_temp by its kind, before the grants are even asked", async () => {
+    // It was refused by accident (the `;` inside the plpgsql body). It is refused by its kind now,
+    // and since db/sql/0022 the role holds no TEMPORARY on the database either.
     await refuses(
       fixture(),
       sql.raw(
@@ -191,6 +192,19 @@ describe("the allow-list is wide enough for the work fn has to do", () => {
     const failure = await app
       .withTenant(A.clinicId, (tx) =>
         tx.execute(sql`DELETE FROM branches WHERE id = ${A.branchId}`),
+      )
+      .then(() => undefined)
+      .catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(DatabaseError);
+    expect((failure as DatabaseError).code).toBe("42501");
+  });
+
+  it("lets SELECT … INTO TEMP through the guard — the missing TEMPORARY grant refuses it", async () => {
+    // A text check cannot tell this INTO from INSERT INTO / MERGE INTO, so the grant is the layer
+    // (db/sql/0022). Before it, the temp `patients` shadowed the real table for the pooled session.
+    const failure = await app
+      .withTenant(A.clinicId, (tx) =>
+        tx.execute(sql`SELECT * INTO TEMP patients FROM patients WHERE false`),
       )
       .then(() => undefined)
       .catch((error: unknown) => error);
