@@ -89,6 +89,59 @@ describe("an unquoted credential value is withheld up to the next pair delimiter
   });
 });
 
+// Post-merge Codex review of PR #16: a non-credential "x is …" head swallowed the rest of the line, so a
+// credential later on the same line was never read.
+describe("prose after a non-credential head on the same line", () => {
+  it.each([
+    ["status is ok password is hunter2", `status is ok password is ${REDACTED}`],
+    ["the job was done password is hunter2", `the job was done password is ${REDACTED}`],
+    ["a is b token was abc", `a is b token was ${REDACTED}`],
+    ["state: ok and password is s3cret", `state: ok and password is ${REDACTED}`],
+    ["status is ok\npassword is hunter2", `status is ok\npassword is ${REDACTED}`],
+    // The same dash/arrow/bar separators in English (they leaked before this PR too).
+    ["password - hunter2", `password - ${REDACTED}`],
+    ["password — correct horse, next", `password — ${REDACTED}, next`],
+    ["token -> abc123def", `token -> ${REDACTED}`],
+    ["apiKey | sk-xyz", `apiKey | ${REDACTED}`],
+    ["password ← hunter2", `password ← ${REDACTED}`],
+    // Glued separators and unclosed quotes (PR #18 Codex round 6).
+    ["password->hunter2", `password->${REDACTED}`],
+    ["password-> hunter2", `password-> ${REDACTED}`],
+    ["password|hunter2", `password|${REDACTED}`],
+    // An escaped opening quote closes only on an escaped quote; quoted names (PR #18 Codex round 7).
+    ['password: \\"abc"hunter2\\" next', `password: ${REDACTED} next`],
+    ['"password" -> hunter2', `"password" -> ${REDACTED}`],
+    ['\\"password\\"->hunter2', `\\"password\\"->${REDACTED}`],
+    ['"token" | abc123', `"token" | ${REDACTED}`],
+    ['"password" hunter2', `"password" ${REDACTED}`],
+    ["\"password\" 'hunter two'", `"password" ${REDACTED}`],
+    ["token—abc, next", `token—${REDACTED}, next`],
+    ["password- hunter2", `password- ${REDACTED}`],
+    ['password: "hunter2', `password: ${REDACTED}`],
+    ["password: 'hunter two, three", `password: ${REDACTED}`],
+    ['{\\"password\\":\\"hunter2', `{\\"password\\":${REDACTED}`],
+    // Typographic quotes are quotes in English too.
+    ["password: «a, b» next", `password: ${REDACTED} next`],
+    ["password «hunter two» next", `password ${REDACTED} next`],
+    ["password: `a, b` next", `password: ${REDACTED} next`],
+    ["token - “a; b” next", `token - ${REDACTED} next`],
+    ["password => hunter2", `password =${REDACTED}`],
+  ])("%j", (raw, expected) => {
+    for (const out of both({ note: raw })) expect(out).toEqual({ note: expected });
+  });
+
+  it.each([
+    "status is ok",
+    "token is invalid",
+    "password is too short",
+    "it was a long day",
+    "password-reset requested",
+    "token-based auth is on",
+  ])("keeps %j", (raw) => {
+    for (const out of both({ note: raw })) expect(out).toEqual({ note: raw });
+  });
+});
+
 describe("a malformed percent escape does not switch decoding off", () => {
   it.each([
     ["password%3Dhunter2%ZZ", `password=${REDACTED}`],
