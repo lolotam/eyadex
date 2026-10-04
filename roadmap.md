@@ -22,3 +22,8 @@
 - [x] Domain rules (clinic access, user/branch limits, OD-7 last branch, feature flag) + unit tests
 - [x] ClinicReader / BranchReader ports, `@eyadex/db` persistence, read queries, TenancyModule (not mounted)
 - [ ] Run `test:db` in CI on PostgreSQL 18; regenerate `pnpm-lock.yaml` for the new apps/api deps
+
+## Phase B — identity foundation
+
+- [x] `packages/auth` (Better Auth 1.7.7: email + password, sign-up disabled, two-factor, sessions in PostgreSQL, one cookie per area) + `db/sql/0023` auth tables granted to `eyadex_auth` only
+- [ ] Slice 2b: HTTP auth routes, TOTP enforcement on the platform host, invitation acceptance
