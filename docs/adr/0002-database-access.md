@@ -203,7 +203,9 @@ SQL given as text — this ADR is revisited with it.
 
 `Tx` is a `Proxy` with an allow-list of **three** members: `execute`, `transaction` (savepoints) and
 `rollback`. Everything else throws a `TypeError`: `session`, `_`, `dialect`, `$client`, `query`,
-`select`, `constructor`, symbols, the prototype, and any assignment. A method taken from `tx` (`const execute = tx.execute`) ends with its transaction or
+`select`, `constructor`, symbols, the prototype, and any assignment, prototype replacement
+(`Object.setPrototypeOf`) or freezing — without those traps the operation would land on the raw
+transaction itself. `rollback` is captured when the guard is created, never looked up on the target again. A method taken from `tx` (`const execute = tx.execute`) ends with its transaction or
 savepoint too: every method the proxy hands out checks the `Tx`'s lifetime on each call, because
 `Proxy.revocable` only stops new reads (Codex on PR #22, P1). A savepoint's lifetime is tied to its parent's, and a
 `tx.transaction(…)` that `fn` started without awaiting is refused: if `fn` (or a savepoint) returns while
@@ -220,7 +222,9 @@ What counts is whether `fn` **observed** the work, not whether it is still runni
 `tx.execute` / `tx.transaction` hands back records being awaited (or used through `then`, `catch`,
 `Promise.all`). A savepoint `fn` fired and forgot that failed early has already settled, yet `fn` never
 learned it failed — so any work `fn` never observed, finished or not, succeeded or not, is refused and
-rolled back (Codex on PR #22, P1). `Tx` is that allow-listed type
+rolled back (Codex on PR #22, P1). "Observed" means the failure path is handled — `await`, `catch`,
+`then(…, onRejected)`; `then(onFulfilled)` alone and `finally` pass the failure on, so they hand back a
+promise that carries the same record forward to whoever handles it. `Tx` is that allow-listed type
 itself, so `tx.session` and `tx.select()` do not compile either.
 
 The query builders are gone on purpose, and that was a real hole rather than a style choice:

@@ -47,13 +47,71 @@ class ObservedPromise<T> extends Promise<T> {
   /** بيتحط بعد البناء — الـ executor بيشتغل قبل ما الحقل يتعرف. */
   entry: Tracked | undefined;
 
+  /**
+   * "اتشافت" معناها إن **مسار الفشل** اتمسك: `await` و`catch` و`then(…, onRejected)` بيدّوا handler
+   * للرفض. `then(onFulfilled)` لوحده و`finally` لأ — الرفض بيعدّي للـ promise الجاية — فبيرجّعوا
+   * promise متتبَّعة على نفس السجل، والعلامة بتتنقل لأول حتة في السلسلة تمسك الفشل فعلاً.
+   * (Codex على PR #22، P1: `void tx.transaction(fails).then(ok)` كان بيتحسب اتشاف.)
+   */
   override then<R1 = T, R2 = never>(
     onFulfilled?: ((value: T) => R1 | PromiseLike<R1>) | null,
     onRejected?: ((reason: unknown) => R2 | PromiseLike<R2>) | null,
   ): Promise<R1 | R2> {
-    if (this.entry !== undefined) this.entry.observed = true;
-    return super.then(onFulfilled, onRejected);
+    const entry = this.entry;
+    if (entry === undefined || typeof onRejected === "function") {
+      if (entry !== undefined) entry.observed = true;
+      return super.then(onFulfilled, onRejected);
+    }
+    return chain<R1 | R2>(entry, (resolve, reject) => {
+      nativeThen.call(
+        this,
+        (value: T) => {
+          try {
+            resolve(
+              typeof onFulfilled === "function" ? onFulfilled(value) : (value as unknown as R1),
+            );
+          } catch (error) {
+            reject(error);
+          }
+        },
+        reject,
+      );
+    });
   }
+
+  override finally(onFinally?: (() => void) | null): Promise<T> {
+    const entry = this.entry;
+    if (entry === undefined) return super.finally(onFinally);
+    const run = (): Promise<unknown> =>
+      Promise.resolve(typeof onFinally === "function" ? onFinally() : undefined);
+    return chain<T>(entry, (resolve, reject) => {
+      nativeThen.call(
+        this,
+        (value: T) => nativeThen.call(run(), () => resolve(value), reject),
+        (reason: unknown) => nativeThen.call(run(), () => reject(reason), reject),
+      );
+    });
+  }
+}
+
+/**
+ * promise متتبَّعة جديدة على نفس السجل، ورفضها متمسك داخلياً (مايبقاش unhandled rejection).
+ *
+ * @param entry السجل اللي العلامة بتتنقل عليه
+ * @param executor زي executor بتاع `Promise`
+ * @returns الـ promise الجديدة
+ */
+function chain<R>(
+  entry: Tracked,
+  executor: (
+    resolve: (value: R | PromiseLike<R>) => void,
+    reject: (reason: unknown) => void,
+  ) => void,
+): Promise<R> {
+  const derived = new ObservedPromise<R>(executor);
+  derived.entry = entry;
+  nativeThen.call(derived, undefined, ignore);
+  return derived;
 }
 
 /**

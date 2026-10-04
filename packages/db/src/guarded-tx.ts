@@ -135,7 +135,10 @@ const guardedExecute = (raw: RawTx, lifetime: Lifetime) => {
  * الـ proxy نفسه: allow-list على القراءة، ورفض صريح على الكتابة والـ prototype والـ
  * introspection. الـ methods متربوطة بالـ transaction الحقيقية عشان `this` يبقى صحيح.
  */
-const makeHandler = (lifetime: Lifetime): ProxyHandler<RawTx> => ({
+const makeHandler = (
+  lifetime: Lifetime,
+  rollback: (...args: unknown[]) => unknown,
+): ProxyHandler<RawTx> => ({
   get(target, property) {
     if (typeof property !== "string" || !ALLOWED.has(property)) {
       throw new TypeError(`${REACHED_DRIVER} (asked for ${askedFor(property)})`);
@@ -144,12 +147,7 @@ const makeHandler = (lifetime: Lifetime): ProxyHandler<RawTx> => ({
       return guardedExecute(target, lifetime) as unknown as Tx["execute"];
     }
     if (property === "transaction") return guardedSavepoints(target, lifetime);
-    const member: unknown = Reflect.get(target, property, target);
-    if (typeof member !== "function") return member;
-    return (...args: unknown[]): unknown => {
-      assertLive(lifetime);
-      return (member as (...rest: unknown[]) => unknown).apply(target, args);
-    };
+    return rollback;
   },
   has(_target, property) {
     return typeof property === "string" && ALLOWED.has(property);
@@ -171,6 +169,15 @@ const makeHandler = (lifetime: Lifetime): ProxyHandler<RawTx> => ({
     throw new TypeError(REACHED_MUTATION);
   },
   deleteProperty() {
+    throw new TypeError(REACHED_MUTATION);
+  },
+  // Without these two traps the operation falls through to the TARGET: Object.setPrototypeOf(tx, …)
+  // re-parented the raw transaction, and a planted rollback() then ran with the raw transaction as
+  // `this` — session.client in hand (Codex on PR #22, P1). Freezing it would break Drizzle.
+  setPrototypeOf() {
+    throw new TypeError(REACHED_MUTATION);
+  },
+  preventExtensions() {
     throw new TypeError(REACHED_MUTATION);
   },
 });
@@ -197,7 +204,14 @@ export interface GuardedTx {
  */
 export function guardTransaction(raw: RawTx, parent?: Lifetime): GuardedTx {
   const lifetime = newLifetime(parent);
-  const revocable = Proxy.revocable(raw, makeHandler(lifetime));
+  // Captured now, before fn runs: rollback is never looked up on the target again, so nothing fn
+  // does to the object graph later can swap in another method with the raw transaction as `this`.
+  const original = raw.rollback as (...args: unknown[]) => unknown;
+  const rollback = (...args: unknown[]): unknown => {
+    assertLive(lifetime);
+    return original.apply(raw, args);
+  };
+  const revocable = Proxy.revocable(raw, makeHandler(lifetime, rollback));
   return {
     tx: revocable.proxy as unknown as Tx,
     revoke: () => {
