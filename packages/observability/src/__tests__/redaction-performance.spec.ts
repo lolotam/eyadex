@@ -22,14 +22,24 @@ const elapsed = (value: string): number => {
 };
 
 describe("sanitize stays linear on adversarial strings", () => {
+  // Just UNDER the 64 KB cap: an over-cap value is replaced without being scanned, so a 100 KB input passed
+  // these budgets without ever reaching the scanners (and hid a ~1 s quadratic "a=a=a=…" re-read).
   it.each([
-    ["a", "a".repeat(LARGE)],
-    ["a.", "a.".repeat(LARGE / 2)],
-    ["a@", "a@".repeat(LARGE / 2)],
-    ["a=", "a=".repeat(LARGE / 2)],
-    ["/", "/".repeat(LARGE)],
-  ])("100 KB of %s completes in < 150 ms", (_label, value) => {
-    expect(value.length).toBeGreaterThanOrEqual(LARGE);
+    ["a", "a".repeat(NEAR_CAP)],
+    ["a.", "a.".repeat(NEAR_CAP / 2)],
+    ["a@", "a@".repeat(NEAR_CAP / 2)],
+    ["a=", "a=".repeat(NEAR_CAP / 2)],
+    ["a:", "a:".repeat(NEAR_CAP / 2)],
+    ["=a", "=a".repeat(NEAR_CAP / 2)],
+    [":a", ":a".repeat(NEAR_CAP / 2)],
+    ["a=b ", "a=b ".repeat(NEAR_CAP / 4)],
+    ["password=", "password=".repeat(NEAR_CAP / 9)],
+    ["%41", "%41".repeat(NEAR_CAP / 3)],
+    ["/", "/".repeat(NEAR_CAP)],
+    ["//", "x,//".repeat(NEAR_CAP / 4)],
+  ])("64 KB of %s is scanned and completes in < 150 ms", (_label, value) => {
+    expect(value.length).toBeGreaterThan(60_000);
+    expect(value.length).toBeLessThan(64 * 1024);
     expect(elapsed(value)).toBeLessThan(150);
   });
 

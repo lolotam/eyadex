@@ -41,9 +41,11 @@ const decodeRun = (run: string): string => {
     return run;
   }
 };
+// Two rounds at most: a doubly-encoded value ("password%253Dhunter2") still hides its separator after one.
 const tryDecode = (text: string): string | undefined => {
   if (!text.includes("%")) return undefined;
-  const decoded = text.replace(ESCAPE_RUN, decodeRun);
+  const once = text.replace(ESCAPE_RUN, decodeRun);
+  const decoded = once.includes("%") ? once.replace(ESCAPE_RUN, decodeRun) : once;
   return decoded === text ? undefined : decoded;
 };
 

@@ -14,6 +14,12 @@ describe("a scheme-relative URL's authority is scrubbed like a parsed URL's", ()
   it.each([
     ["//user:hunter2@localhost/path", "//***@localhost/path"],
     ["see //u:pw@db:5432/x now", "see //***@db:5432/x now"],
+    // The "@host" cut off by a "/" or a space: the password half is still withheld.
+    ["//user:pw/rest@host/x", `//${REDACTED}/rest@host/x`],
+    // A reference after a pair delimiter is scanned too.
+    ["x,//user:pw@host", "x,//***@host"],
+    // …and one glued to a word, which starts no token.
+    ["prefix//user:pw@host", "prefix//***@host"],
   ])("%j", (raw, expected) => {
     for (const out of both({ note: raw })) expect(out).toEqual({ note: expected });
   });
@@ -39,6 +45,8 @@ describe("an unquoted credential value is withheld up to the next pair delimiter
   it.each([
     ["password: correct horse battery staple", `password: ${REDACTED}`],
     ["apiKey=alpha beta gamma", `apiKey=${REDACTED}`],
+    ["password==hunter2", `password==${REDACTED}`],
+    ["token=YWJjZGVm==", `token=${REDACTED}`],
     ["note: password=hunter2", `note: password=${REDACTED}`],
     ["user=bob password=x y", `user=bob password=${REDACTED}`],
     ["accessToken=abc&x=1", `accessToken=${REDACTED}&x=1`],
@@ -52,6 +60,7 @@ describe("a malformed percent escape does not switch decoding off", () => {
   it.each([
     ["password%3Dhunter2%ZZ", `password=${REDACTED}`],
     ["100% done password%3Dsecret9", `100% done password=${REDACTED}`],
+    ["password%253Dhunter2", `password=${REDACTED}`],
   ])("%j", (raw, expected) => {
     for (const out of both({ note: raw })) expect(out).toEqual({ note: expected });
   });
@@ -75,16 +84,50 @@ describe("Map keys are classified as the string they print as", () => {
   });
 });
 
-describe("a throwing top-level getter cannot make a log call throw", () => {
-  it("writes the line with the getter's value withheld", () => {
-    let written = "";
-    const sink = new Writable({
-      write(chunk, _encoding, done) {
-        written += String(chunk);
-        done();
-      },
-    });
-    const logger: Logger = createLogger("info", { destination: sink, events: ["probe"] });
+const capture = (): { logger: Logger; lines: () => string } => {
+  let written = "";
+  const sink = new Writable({
+    write(chunk, _encoding, done) {
+      written += String(chunk);
+      done();
+    },
+  });
+  return {
+    logger: createLogger("info", { destination: sink, events: ["probe"] }),
+    lines: () => written,
+  };
+};
+const throwing = (property: string): object =>
+  Object.defineProperty({}, property, {
+    enumerable: true,
+    get() {
+      throw new Error("getter");
+    },
+  });
+
+describe("a hostile log object cannot make a log call throw", () => {
+  it.each([
+    ["a nested req getter", { req: throwing("routeOptions") }],
+    ["a nested res getter", { res: throwing("statusCode") }],
+    [
+      "a Proxy whose ownKeys trap throws",
+      new Proxy(
+        {},
+        {
+          ownKeys() {
+            throw new Error("keys");
+          },
+        },
+      ),
+    ],
+  ])("%s", (_label, hostile) => {
+    const { logger, lines } = capture();
+    expect(() => logger.info(hostile, "probe")).not.toThrow();
+    expect(JSON.parse(lines())).toMatchObject({ msg: "probe" });
+  });
+
+  it("writes the line with a throwing top-level getter's value withheld", () => {
+    const { logger, lines } = capture();
     const hostile = { ok: 1 };
     Object.defineProperty(hostile, "boom", {
       enumerable: true,
@@ -93,6 +136,6 @@ describe("a throwing top-level getter cannot make a log call throw", () => {
       },
     });
     expect(() => logger.info(hostile, "probe")).not.toThrow();
-    expect(JSON.parse(written)).toMatchObject({ ok: 1, boom: REDACTED, msg: "probe" });
+    expect(JSON.parse(lines())).toMatchObject({ ok: 1, boom: REDACTED, msg: "probe" });
   });
 });

@@ -56,9 +56,12 @@ const CLI_CREDENTIAL = /(--?(?:password|passwd|pwd|token|secret|api-?key)\s+)(\S
 // (`"passwordValue":"x"`). The name is classified with the SAME credential vocabulary as a property key.
 // The name is anchored at a token boundary and its quantifier is lazy and bounded `{1,200}`, so a long name
 // (`password_…=x`) is seen whole while the scan stays linear; a name over 200 characters is an accepted
-// risk (see docs/adr/0001-log-redaction.md).
+// risk (see docs/adr/0001-log-redaction.md). An unquoted value also stops at the next ":" or "=": a
+// non-credential name re-reads its value as a possible name ("note: password=x"), and a value that ran to the
+// end of "a=a=a=…" made every re-read rescan the tail (quadratic, ~1 s on 64 KB). A credential value is
+// extended to its delimiter afterwards, so "token=YWJj==" is still withheld whole.
 const ASSIGNMENT =
-  /(?<![\w.-])([\w.-]{1,200}?)(\\?["']?\s*[:=]\s*)(\\?"(?:\\.|[^"\\])*\\?"|\\?'(?:\\.|[^'\\])*\\?'|[^\s&",;']+)/g;
+  /(?<![\w.-])([\w.-]{1,200}?)(\\?["']?\s*[:=]{1,3}\s*)(\\?"(?:\\.|[^"\\])*\\?"|\\?'(?:\\.|[^'\\])*\\?'|[^\s&",;':=]+)/g;
 // A bare credential word followed by a quoted value and no separator: `password 'hunter two' rejected`.
 // The value is consumed whole, so a multi-word secret does not leave its tail behind.
 const QUOTED_CREDENTIAL = /(?<![\w.-])([\w.-]{1,200}?)\s+('(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")/g;

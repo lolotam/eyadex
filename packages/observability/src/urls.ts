@@ -13,8 +13,13 @@ const URL_IN_TEXT = /\b[a-z][a-z0-9+.-]{0,15}:\/\/[^\s"'<>]+/gi;
 // A relative reference: a path, a protocol-relative path, or a bare query string (a reset link in a log).
 const RELATIVE_START = /^\s*(?:\/\/|\/|\?)/;
 // The same reference EMBEDDED in free text: the slash/`?` must start a token (after whitespace, a quote, a
-// bracket or the string start), so "and/or", "3/4", "km/h" and "03/10/2026" stay readable.
-const RELATIVE_IN_TEXT = /(?<=^|[\s"'([])(?:\/\/|\/|\?)[^\s"'<>)\]]*/g;
+// bracket, a pair delimiter `, ; = { } < >` or the string start), so "and/or", "3/4", "km/h" and
+// "03/10/2026" stay readable while "x,//user:pw@host" or "next=/reset/tok_…" are scanned. ":" is left out:
+// "http://" belongs to the absolute pass.
+const RELATIVE_IN_TEXT = /(?<=^|[\s"'([,;={}<>])(?:\/\/|\/|\?)[^\s"'<>)\]]*/g;
+// `//name:secret@` anywhere except right after a scheme's ":". The name class excludes ":" and the secret
+// class excludes "/", so each "//" is read at most up to the next slash — linear on any run of slashes.
+const GLUED_USERINFO = /(?<!:)\/\/[^\s/?#@:]*:[^\s/?#@]*@/g;
 // A cheap pre-check so the relative pass is skipped on text with no slash or query at all.
 const RELATIVE_HINT = /[/?]/;
 // A URL whose authority carries a ":" but no "@" is a userinfo whose "@host" was split off by whitespace
@@ -59,6 +64,9 @@ function scrubAuthority(authority: string): string {
   const userinfo = at === -1 ? "" : "***@";
   const hostPort = authority.slice(at === -1 ? 2 : at + 1);
   const host = hostPort.replace(/:\d*$/, "");
+  // A ":" left after the port is removed, with no "@", is a userinfo whose "@host" was cut off by a "/" or a
+  // space ("//user:pw/rest@host") — the absolute form withholds it the same way. An IPv6 literal is bracketed.
+  if (at === -1 && host.includes(":") && !host.startsWith("[")) return `//${REDACTED}`;
   return `//${userinfo}${isOpaqueHost(host) ? REDACTED : hostPort}`;
 }
 
@@ -127,9 +135,14 @@ export function scrubUrlCredentials(text: string, urlKey: boolean): string {
   if (!text.includes("://") && !RELATIVE_HINT.test(text)) return text;
   // A value may BOTH start with a relative reference and contain an absolute URL. Returning after the
   // relative pass skipped the absolute pass, so `/x https://u:pw@host` leaked its userinfo in both modes.
-  const withRelatives = RELATIVE_START.test(text)
+  const relatives = RELATIVE_START.test(text)
     ? scrubRelative(text, urlKey)
     : text.replace(RELATIVE_IN_TEXT, (part) => scrubRelative(part, urlKey));
+  // A "//user:pw@" glued to a word ("prefix//user:pw@host") starts no token, so the relative pass never
+  // saw it; its userinfo is still credentials.
+  const withRelatives = relatives.includes("//")
+    ? relatives.replace(GLUED_USERINFO, "//***@")
+    : relatives;
   if (!withRelatives.includes("://")) return withRelatives;
   // A split userinfo cannot be scrubbed token by token — its "@host" is in a later token — so the whole
   // value is withheld. A complete URL is scrubbed match by match, which leaves a separate email address
