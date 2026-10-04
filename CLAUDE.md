@@ -78,6 +78,7 @@ packages/contracts/  Zod schemas = the single source of types (alias @eyadex/con
 packages/config/     shared TypeScript + ESLint presets (@eyadex/config)
 packages/ids/        UUID v7 with injected time + entropy (@eyadex/ids)
 packages/observability/ pino options + the redaction list + the request context (@eyadex/observability)
+packages/db/        the only path to PostgreSQL: withTenant/withNewTenant/withNoTenant (@eyadex/db)
 db/sql/              SQL baseline applied to production (→ Drizzle schema + migrations in Phase B)
 docs/                PRD, ADRs, specs
 docker/              compose init scripts (postgres roles)

@@ -36,7 +36,7 @@ jobs:
 
   db:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     services:
       postgres:
         image: postgres:18-alpine
@@ -68,3 +68,21 @@ jobs:
         run: for f in db/tests/*.sql; do echo "$f"; psql -v ON_ERROR_STOP=1 -q -f "$f"; done
       - name: Migration runner self-test
         run: sh db/tests/migrate-runner.sh
+      # @eyadex/db runs against the same database this job just migrated. The passwords are the
+      # ci-only-* ones the runtime roles were created with above; the owner URL is for the fixtures
+      # and the assertions only — the owner role never reaches the application (CLAUDE.md §5).
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.5.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @eyadex/db... build
+      - name: Tenant wrapper database tests (@eyadex/db)
+        run: pnpm --filter @eyadex/db test:db
+        env:
+          EYADEX_TEST_OWNER_URL: postgres://eyadex_owner:ci-only-owner@localhost:5432/eyadex
+          EYADEX_TEST_APP_URL: postgres://eyadex_app:ci-only-app@localhost:5432/eyadex
+          EYADEX_TEST_PLATFORM_URL: postgres://eyadex_platform:ci-only-platform@localhost:5432/eyadex
