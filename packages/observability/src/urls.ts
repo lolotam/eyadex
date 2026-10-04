@@ -24,9 +24,15 @@ const RELATIVE_IN_TEXT = /(?<=^|[\s"'([,;={}<>])(?:\/\/|\/|\?)[^\s"'<>)\]]*/g;
 // passes through unchanged. At least one authority character is required: an EMPTY match on the first two
 // slashes of "///user:pw@host" made the scan resume past the overlapping "//user:pw@" and leak it.
 const GLUED_AUTHORITY = /\/\/[^\s/?#]+/g;
-// A complete "name:secret@" right after ONE slash ("x/user:pw@host"). The name class excludes ":" and "/"
-// and the secret class excludes "/" and "@", so each slash is read at most up to the next one — linear.
-const SLASH_USERINFO = /\/[^\s/?#@:]+:[^\s/?#@]*@/g;
+// A userinfo right after ONE slash ("x/user:pw@host"). The segment runs to the next / ? # or space (linear)
+// and is cut at its LAST "@", like scrubAuthority and the URL parser: a class that cannot cross "@" stopped at
+// the first one, so a password containing "@" ("x/user:p@w@host") kept its tail.
+const SLASH_SEGMENT = /\/[^\s/?#]+/g;
+const scrubSlashUserinfo = (segment: string): string => {
+  const at = segment.lastIndexOf("@");
+  const colon = segment.indexOf(":");
+  return at === -1 || colon === -1 || colon > at ? segment : `/***@${segment.slice(at + 1)}`;
+};
 // A cheap pre-check so the relative pass is skipped on text with no slash or query at all.
 const RELATIVE_HINT = /[/?]/;
 // A URL whose authority carries a ":" but no "@" is a userinfo whose "@host" was split off by whitespace
@@ -156,7 +162,7 @@ export function scrubUrlCredentials(text: string, urlKey: boolean): string {
   const glued = absolute.includes("//")
     ? absolute.replace(GLUED_AUTHORITY, scrubAuthority)
     : absolute;
-  return glued.includes("@") ? glued.replace(SLASH_USERINFO, "/***@") : glued;
+  return glued.includes("@") ? glued.replace(SLASH_SEGMENT, scrubSlashUserinfo) : glued;
 }
 
 // A split userinfo cannot be scrubbed token by token — its "@host" is in a later token — so the whole value

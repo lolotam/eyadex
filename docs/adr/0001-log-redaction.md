@@ -83,8 +83,9 @@ organisationName, organizationName` (a clinic or a branch is not a patient); `di
    authority (`//user:pw@localhost`) keeps no userinfo (`//***@localhost`) and is withheld when its host is
    opaque, or when a `:` with a non-numeric tail is left and no `@` (a split userinfo, `//user:pw/rest@host`).
    A `//` glued to a word (`prefix//user:pw@host`) starts no token, so its authority gets the same treatment
-   in a separate linear pass, and a complete `name:secret@` behind a single slash (`x/user:pw@host`) becomes
-   `/***@`. These two catch-all passes run **after** the absolute-URL pass: run first, a glued `//a:` could
+   in a separate linear pass, and a userinfo behind a single slash (`x/user:pw@host`, cut at its **last** `@`
+   like a URL parser, so `x/user:p@w@host` keeps nothing) becomes `/***@`. Path-shaped text with that form
+   (`a/b:c@d`) is over-redacted to `a/***@d` — the accepted direction. These two catch-all passes run **after** the absolute-URL pass: run first, a glued `//a:` could
    delete the `://` that pass looks for (`x//a:https://u:pw@h`); run last, they also catch a scheme the
    absolute pass cannot see (`_redis://`, `shard1_redis://` have no word boundary). The glued pass needs at
    least one authority character, so an odd slash run cannot produce an empty match that skips the
@@ -130,8 +131,9 @@ languageCode, postalCode, zipCode, exitCode, httpCode, responseCode`) and snake_
     `@`, a 64 KB dotted run followed by `@`, and a 64 KB `password` run, Arabic run or Arabic dotted run followed by `@` (the email scanner);
     a 64 KB dotted run followed by `/`, a 100 KB word run followed by `://`, and a 64 KB dotted run
     followed by a separate URL (the URL scanner, which pins the bounded scheme); 64 KB runs of `a=`, `a:`,
-    `=a`, `:a`, `%xx`, `//`, glued and odd slash runs (`a//`, `a///`), and separator runs (`a:::`, `a: `,
-    `a:= `, `a:\n`) for the assignment and catch-all passes — each < 150 ms, measured just under the cap so
+    `=a`, `:a`, `%xx`, `//`, glued and odd slash runs (`a//`, `a///`), single-slash userinfo runs (`x/u:p@`,
+    `/a:…@`, `/a@`), boundary-less schemes (`_redis://u:pw@h`), and separator runs (`a:::`, `a: `, `a:= `,
+    `a:\n`) for the assignment and catch-all passes — each < 150 ms, measured just under the cap so
     the scanners really run; over-cap inputs are timed too; and one real 64 KB `logger.info` line < 300 ms
     in total.
 
@@ -202,6 +204,9 @@ languageCode, postalCode, zipCode, exitCode, httpCode, responseCode`) and snake_
     (`//db:5432/x`), and withholding every `host:port` would hide ordinary references.
 16. **Triple (or deeper) percent-encoding** (`password%25253Dhunter2`) is kept: decoding stops after two
     rounds so a value cannot make the scanner loop; no client double-encodes twice by accident.
+17. **A split userinfo behind a single slash** (`x/user:pw/rest@host`) is kept. Behind `//` the authority
+    is known, so a `:` with no `@` is withheld; behind one slash, the same rule would hide every route with a
+    parameter (`/v1/patients/:id`). Only a segment that itself carries the `@` is scrubbed.
 
 ### Deliberately not covered
 

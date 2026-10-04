@@ -36,6 +36,11 @@ describe("a scheme-relative URL's authority is scrubbed like a parsed URL's", ()
     // …and a complete userinfo behind a single slash too.
     ["x/user:pw@host", "x/***@host"],
     ["/user:pw@host", "/***@host"],
+    // Cut at the LAST "@", like a URL parser: a password may contain "@".
+    ["x/user:p@w@host", "x/***@host"],
+    ["x/user:a@b@c@host", "x/***@host"],
+    ["x/user@domain:pw@host", "x/***@host"],
+    ["x/:pw@host", "x/***@host"],
   ])("%j", (raw, expected) => {
     for (const out of both({ note: raw })) expect(out).toEqual({ note: expected });
   });
