@@ -38,6 +38,9 @@ describe("sanitize stays linear on adversarial strings", () => {
     ["/", "/".repeat(NEAR_CAP)],
     ["//", "x,//".repeat(NEAR_CAP / 4)],
     ["glued //", "a//".repeat(NEAR_CAP / 3)],
+    ["single-slash userinfo", "x/u:p@".repeat(NEAR_CAP / 6)],
+    ["single-slash name runs", "/a:".repeat(NEAR_CAP / 3)],
+    ["boundary-less schemes", "_redis://u:pw@h ".repeat(NEAR_CAP / 16)],
     ["odd slash runs", "a///".repeat(NEAR_CAP / 4)],
     ["a then ':\\n'", "a" + ":\n".repeat(NEAR_CAP / 2 - 1)],
     // Separator runs: two adjacent overlapping [:=] classes took 13 s on the first of these.

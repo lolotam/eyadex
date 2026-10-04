@@ -28,6 +28,14 @@ describe("a scheme-relative URL's authority is scrubbed like a parsed URL's", ()
     ["x ///user:pw@host", "x ///***@host"],
     ["a/b/////user:pw@host", "a/b/////***@host"],
     ["x ///user:pw/rest@host", `x ///${REDACTED}/rest@host`],
+    // The catch-all passes run after the absolute one: a glued "//a:" must not delete the "://" it needs…
+    ["x//a:https://user:pw@host/db", `x//${REDACTED}//***@host/${REDACTED}`],
+    // …a scheme with no word boundary ("_", digits) is still caught by its "//"…
+    ["_redis://user:pw@host:6379/0", "_redis://***@host:6379/0"],
+    ["shard1_redis://user:pw@host/0", "shard1_redis://***@host/0"],
+    // …and a complete userinfo behind a single slash too.
+    ["x/user:pw@host", "x/***@host"],
+    ["/user:pw@host", "/***@host"],
   ])("%j", (raw, expected) => {
     for (const out of both({ note: raw })) expect(out).toEqual({ note: expected });
   });
@@ -61,6 +69,11 @@ describe("an unquoted credential value is withheld up to the next pair delimiter
     ["token: ==x9", `token: ==${REDACTED}`],
     ["password=:=:=x9", `password=:=:=${REDACTED}`],
     ["password:\n=x9", `password:\n=${REDACTED}`],
+    // The 200-character name bound, pinned from both sides (ADR accepted risk 11): moving the bound for
+    // performance must fail a test, not silently move the blind spot.
+    [`${"x".repeat(192)}password=hunter2`, `${"x".repeat(192)}password=${REDACTED}`],
+    [`${"x".repeat(193)}password=hunter2`, `${"x".repeat(193)}password=hunter2`],
+    [`${"x".repeat(196)}token=abc123`, `${"x".repeat(196)}token=abc123`],
     ["token=YWJjZGVm==", `token=${REDACTED}`],
     ["note: password=hunter2", `note: password=${REDACTED}`],
     ["user=bob password=x y", `user=bob password=${REDACTED}`],

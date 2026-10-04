@@ -20,10 +20,13 @@ const RELATIVE_IN_TEXT = /(?<=^|[\s"'([,;={}<>])(?:\/\/|\/|\?)[^\s"'<>)\]]*/g;
 // A "//" glued to a word ("prefix//user:pw@host") starts no token, so the relative pass never sees it. Its
 // authority — up to the next / ? # or space, so linear on any run of slashes — goes through the same
 // scrubAuthority as a token's: a complete userinfo becomes "***@" and a split one ("prefix//user:pw/rest@host")
-// withholds the authority. A "//" right after a scheme's ":" belongs to the absolute pass. At least one
-// authority character is required: an EMPTY match on the first two slashes of "///user:pw@host" made the
-// scan resume past the overlapping "//user:pw@" and leak it.
-const GLUED_AUTHORITY = /(?<!:)\/\/[^\s/?#]+/g;
+// withholds the authority. It runs after the absolute pass, so a scheme's already-scrubbed "//***@host"
+// passes through unchanged. At least one authority character is required: an EMPTY match on the first two
+// slashes of "///user:pw@host" made the scan resume past the overlapping "//user:pw@" and leak it.
+const GLUED_AUTHORITY = /\/\/[^\s/?#]+/g;
+// A complete "name:secret@" right after ONE slash ("x/user:pw@host"). The name class excludes ":" and "/"
+// and the secret class excludes "/" and "@", so each slash is read at most up to the next one — linear.
+const SLASH_USERINFO = /\/[^\s/?#@:]+:[^\s/?#@]*@/g;
 // A cheap pre-check so the relative pass is skipped on text with no slash or query at all.
 const RELATIVE_HINT = /[/?]/;
 // A URL whose authority carries a ":" but no "@" is a userinfo whose "@host" was split off by whitespace
@@ -144,16 +147,25 @@ export function scrubUrlCredentials(text: string, urlKey: boolean): string {
   const relatives = RELATIVE_START.test(text)
     ? scrubRelative(text, urlKey)
     : text.replace(RELATIVE_IN_TEXT, (part) => scrubRelative(part, urlKey));
-  const withRelatives = relatives.includes("//")
-    ? relatives.replace(GLUED_AUTHORITY, scrubAuthority)
-    : relatives;
-  if (!withRelatives.includes("://")) return withRelatives;
-  // A split userinfo cannot be scrubbed token by token — its "@host" is in a later token — so the whole
-  // value is withheld. A complete URL is scrubbed match by match, which leaves a separate email address
-  // (a different token) readable instead of dragging the entire value down with it.
+  const absolute = relatives.includes("://") ? scrubAbsoluteUrls(relatives) : relatives;
+  if (absolute === REDACTED) return REDACTED;
+  // The catch-all passes run LAST, on what the token passes left. Run first, the glued pass could rewrite
+  // "x//a:https://u:pw@h" into "x//[REDACTED]//u:pw@h", deleting the "://" the absolute pass looks for. Run
+  // last, they also catch a userinfo behind a scheme the absolute pass cannot see ("_redis://u:pw@h",
+  // "shard1_redis://…" have no word boundary) and one behind a single slash ("x/user:pw@host").
+  const glued = absolute.includes("//")
+    ? absolute.replace(GLUED_AUTHORITY, scrubAuthority)
+    : absolute;
+  return glued.includes("@") ? glued.replace(SLASH_USERINFO, "/***@") : glued;
+}
+
+// A split userinfo cannot be scrubbed token by token — its "@host" is in a later token — so the whole value
+// is withheld. A complete URL is scrubbed match by match, which leaves a separate email address (a different
+// token) readable instead of dragging the entire value down with it.
+function scrubAbsoluteUrls(text: string): string {
   const scan = new RegExp(URL_IN_TEXT.source, URL_IN_TEXT.flags);
-  for (let match = scan.exec(withRelatives); match !== null; match = scan.exec(withRelatives)) {
+  for (let match = scan.exec(text); match !== null; match = scan.exec(text)) {
     if (isSplitUserinfo(match[0])) return REDACTED;
   }
-  return withRelatives.replace(URL_IN_TEXT, scrubUrl);
+  return text.replace(URL_IN_TEXT, scrubUrl);
 }

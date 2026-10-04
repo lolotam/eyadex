@@ -83,7 +83,12 @@ organisationName, organizationName` (a clinic or a branch is not a patient); `di
    authority (`//user:pw@localhost`) keeps no userinfo (`//***@localhost`) and is withheld when its host is
    opaque, or when a `:` with a non-numeric tail is left and no `@` (a split userinfo, `//user:pw/rest@host`).
    A `//` glued to a word (`prefix//user:pw@host`) starts no token, so its authority gets the same treatment
-   in a separate linear pass. Under a URL-named key (`url, uri, link, href,
+   in a separate linear pass, and a complete `name:secret@` behind a single slash (`x/user:pw@host`) becomes
+   `/***@`. These two catch-all passes run **after** the absolute-URL pass: run first, a glued `//a:` could
+   delete the `://` that pass looks for (`x//a:https://u:pw@h`); run last, they also catch a scheme the
+   absolute pass cannot see (`_redis://`, `shard1_redis://` have no word boundary). The glued pass needs at
+   least one authority character, so an odd slash run cannot produce an empty match that skips the
+   overlapping `//user:pw@`. Under a URL-named key (`url, uri, link, href,
 redirect, callback, returnto, next, location`) the whole path after the first segment is withheld. A value
    may both start with a relative reference and contain an absolute URL, so both passes run on it. An absolute
    URL whose authority carries a `:` but no `@` (a userinfo split by whitespace, `user:pa ss@host`) withholds
@@ -124,8 +129,11 @@ languageCode, postalCode, zipCode, exitCode, httpCode, responseCode`) and snake_
     100 KB adversarial inputs < 150 ms; a 16 KB realistic mixed string < 50 ms; a 64 KB word run followed by
     `@`, a 64 KB dotted run followed by `@`, and a 64 KB `password` run, Arabic run or Arabic dotted run followed by `@` (the email scanner);
     a 64 KB dotted run followed by `/`, a 100 KB word run followed by `://`, and a 64 KB dotted run
-    followed by a separate URL (the URL scanner, which pins the bounded scheme), each
-    < 150 ms; and one real 64 KB `logger.info` line < 300 ms in total.
+    followed by a separate URL (the URL scanner, which pins the bounded scheme); 64 KB runs of `a=`, `a:`,
+    `=a`, `:a`, `%xx`, `//`, glued and odd slash runs (`a//`, `a///`), and separator runs (`a:::`, `a: `,
+    `a:= `, `a:\n`) for the assignment and catch-all passes — each < 150 ms, measured just under the cap so
+    the scanners really run; over-cap inputs are timed too; and one real 64 KB `logger.info` line < 300 ms
+    in total.
 
 ### Two modes
 
