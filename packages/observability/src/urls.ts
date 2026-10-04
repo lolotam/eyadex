@@ -20,8 +20,10 @@ const RELATIVE_IN_TEXT = /(?<=^|[\s"'([,;={}<>])(?:\/\/|\/|\?)[^\s"'<>)\]]*/g;
 // A "//" glued to a word ("prefix//user:pw@host") starts no token, so the relative pass never sees it. Its
 // authority — up to the next / ? # or space, so linear on any run of slashes — goes through the same
 // scrubAuthority as a token's: a complete userinfo becomes "***@" and a split one ("prefix//user:pw/rest@host")
-// withholds the authority. A "//" right after a scheme's ":" belongs to the absolute pass.
-const GLUED_AUTHORITY = /(?<!:)\/\/[^\s/?#]*/g;
+// withholds the authority. A "//" right after a scheme's ":" belongs to the absolute pass. At least one
+// authority character is required: an EMPTY match on the first two slashes of "///user:pw@host" made the
+// scan resume past the overlapping "//user:pw@" and leak it.
+const GLUED_AUTHORITY = /(?<!:)\/\/[^\s/?#]+/g;
 // A cheap pre-check so the relative pass is skipped on text with no slash or query at all.
 const RELATIVE_HINT = /[/?]/;
 // A URL whose authority carries a ":" but no "@" is a userinfo whose "@host" was split off by whitespace

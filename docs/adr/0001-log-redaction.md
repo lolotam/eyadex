@@ -48,7 +48,7 @@ otp, cvv, cvc, dsn, connectionstring, session, bearer, salt, nonce, codemac` —
    an unquoted credential value withheld up to the next `&`, `,`, `;` or line end
    (`password: correct horse battery staple`); `name=value` /
    `name: value` pairs (including escaped JSON and metadata names) classified with the same credential
-   vocabulary — the separator is any run of `:`/`=`, optionally broken by spaces (`password====x`,
+   vocabulary — the separator is any run of `:`/`=`, optionally broken by whitespace incl. newlines (`password====x`,
    `token: ==x`), and an unquoted value first stops at the next `:`/`=` so a non-credential name can
    re-read it (`note: password=x`) in linear time before a credential value is extended to its delimiter; a bare credential word followed by a quoted value (`password 'hunter two'`); CLI flags
    `--password/--token/--api-key/--secret`; a bare credential word followed by its value when the value

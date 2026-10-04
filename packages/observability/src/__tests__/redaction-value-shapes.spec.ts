@@ -24,6 +24,10 @@ describe("a scheme-relative URL's authority is scrubbed like a parsed URL's", ()
     ["prefix//user:pw/rest@host", `prefix//${REDACTED}/rest@host`],
     ["prefix//user:pw?x@host", `prefix//${REDACTED}?x@host`],
     ["prefix//user:pw#x@host", `prefix//${REDACTED}#x@host`],
+    // An odd run of slashes: an empty match on the first "//" must not skip the overlapping one.
+    ["x ///user:pw@host", "x ///***@host"],
+    ["a/b/////user:pw@host", "a/b/////***@host"],
+    ["x ///user:pw/rest@host", `x ///${REDACTED}/rest@host`],
   ])("%j", (raw, expected) => {
     for (const out of both({ note: raw })) expect(out).toEqual({ note: expected });
   });
@@ -56,6 +60,7 @@ describe("an unquoted credential value is withheld up to the next pair delimiter
     ["password: :x9", `password: :${REDACTED}`],
     ["token: ==x9", `token: ==${REDACTED}`],
     ["password=:=:=x9", `password=:=:=${REDACTED}`],
+    ["password:\n=x9", `password:\n=${REDACTED}`],
     ["token=YWJjZGVm==", `token=${REDACTED}`],
     ["note: password=hunter2", `note: password=${REDACTED}`],
     ["user=bob password=x y", `user=bob password=${REDACTED}`],
