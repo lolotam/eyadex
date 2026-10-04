@@ -13,9 +13,7 @@ type Shape = {
   indexes: string[];
 };
 
-const tables = Object.values(schema).filter(
-  (value): value is PgTable => isTable(value),
-);
+const tables: PgTable[] = (Object.values(schema) as unknown[]).filter(isTable);
 
 function isTable(value: unknown): value is PgTable {
   try {
@@ -42,7 +40,7 @@ function mirrorShape(table: PgTable): [string, Shape] {
     .sort();
   const indexes = [
     ...config.indexes.map((i) => i.config.name ?? ""),
-    ...config.uniqueConstraints.map((u) => u.getName()),
+    ...config.uniqueConstraints.map((u) => u.getName() ?? ""),
     ...config.columns.filter((c) => c.isUnique).map((c) => c.uniqueName ?? ""),
   ].sort();
   return [config.name, { columns, primaryKey: [...primaryKey].sort(), foreignKeys, indexes }];
