@@ -16,3 +16,9 @@
 - [x] Phase B: Drizzle schema mirror (`@eyadex/db/schema`) + drift test against `db/sql`
 - [ ] Phase B: drizzle-kit bridge (needs a pinned `drizzle-kit` added with the repo's pnpm; the preview sandbox can't update the lockfile)
 - [ ] Agent integrations (MCP) — deferred until the NestJS backend exists (user decision)
+
+## Phase B — tenancy module (apps/api)
+
+- [x] Domain rules (clinic access, user/branch limits, OD-7 last branch, feature flag) + unit tests
+- [x] ClinicReader / BranchReader ports, `@eyadex/db` persistence, read queries, TenancyModule (not mounted)
+- [ ] Run `test:db` in CI on PostgreSQL 18; regenerate `pnpm-lock.yaml` for the new apps/api deps
