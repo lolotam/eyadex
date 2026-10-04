@@ -13,6 +13,8 @@ const schema = z.object({
   PORT: z.coerce.number().int().min(1).max(65_535).default(3001),
   // Validated here so an invalid value never reaches pino, whose error message would print it.
   LOG_LEVEL: z.enum(LOG_LEVELS).default("info"),
+  // Optional until the first module is mounted; the eyadex_app role (PRD §4.5), never the owner.
+  DATABASE_URL: z.string().url().optional(),
 });
 
 export type ApiConfig = z.output<typeof schema>;
