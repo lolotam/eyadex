@@ -46,3 +46,16 @@ export const apiErrorCodeSchema = z.enum([
   "unknown",
 ]);
 export type ApiErrorCode = z.infer<typeof apiErrorCodeSchema>;
+
+/**
+ * The envelope every error leaves the API as: a catalogued code plus both languages (CLAUDE.md §6).
+ * `details` is optional and must never carry a secret, a civil ID or another clinic's data — it is
+ * returned as-is.
+ */
+export const apiErrorEnvelopeSchema = z.object({
+  code: apiErrorCodeSchema,
+  message_ar: z.string().min(1),
+  message_en: z.string().min(1),
+  details: z.unknown().optional(),
+});
+export type ApiErrorEnvelope = z.infer<typeof apiErrorEnvelopeSchema>;

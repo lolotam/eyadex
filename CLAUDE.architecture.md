@@ -56,12 +56,12 @@ A screen that imports the mock directly breaks the Phase B swap and is rejected.
 apps/web        this app (TanStack Start), HTTP adapter replaces the mock   ✅ exists
 packages/contracts  Zod (imported as @eyadex/contracts/*) + generated OpenAPI  ✅ exists
 packages/config eslint (shared base config) + tsconfig presets                      ✅ exists
-apps/api        NestJS on Fastify: HTTP, auth handler, guards
-apps/worker     same NestJS code, BullMQ processors (emails, outbox, expiry reminders)
+apps/api        NestJS on Fastify: HTTP, auth handler, guards                                                        ✅ skeleton
+apps/worker     same NestJS code, BullMQ processors (emails, outbox, expiry reminders)                            ✅ skeleton
 packages/db     Drizzle schema + drizzle-kit migrations + RLS policies; withTenant/withUser/withNewTenant
 packages/auth   Better Auth config (+ two-factor). The ONLY place sessions/passwords are handled
-packages/ids    UUID v7 with injected time + entropy
-packages/observability  pino + redaction, request context
+packages/ids    UUID v7 with injected time + entropy                                                              ✅ exists
+packages/observability  pino + redaction, request context                                                         ✅ exists
 ```
 
 The workspace is pnpm + Turborepo (`pnpm-workspace.yaml`, `turbo.json`); `pnpm typecheck`,
