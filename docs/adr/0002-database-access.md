@@ -271,9 +271,16 @@ The conversion happens only for a **genuine** driver failure, checked with `inst
 classes (`DrizzleQueryError` from `drizzle-orm`, and `postgres.PostgresError`, which the pinned 3.4.9
 exports on the factory at runtime). An error thrown by `fn` that merely carries a SQLSTATE-shaped `code`
 — `{ code: "23505" }`, or an `Error` whose `cause` has one — is rethrown as the same object, because
-converting it would report a use case's own validation failure as a database error. For the same reason
-the `cause` chain of an arbitrary error is never walked: only `DrizzleQueryError`'s own `cause`, one
-level, is looked at, and only when it is a real `PostgresError`.
+converting it would report a use case's own validation failure as a database error.
+
+**A real driver failure that `fn` catches and wraps is scrubbed, not converted.** `fn` may rethrow a
+`PostgresError` as `new Error("…", { cause })`; the wrapper is `fn`'s and stays the same object with
+the same message, but its `cause` would carry PostgreSQL's `detail` (the whole failing row — patient
+data) and a `DrizzleQueryError` the query and its parameters. So the wrapper walks the `cause` chain and
+an `AggregateError`'s `errors` — at most eight levels, cycle-safe — and replaces every **genuine**
+driver failure it finds with a `DatabaseError` (identifiers only). SQLSTATE-shaped values of `fn`'s own
+are left alone. If a holder cannot be written (a frozen error), it fails closed: the whole error becomes
+that `DatabaseError`. (Codex on PR #22, P1.)
 
 ### Accepted limitations
 

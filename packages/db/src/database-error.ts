@@ -140,16 +140,66 @@ export class DatabaseError extends Error {
   }
 }
 
+/** أقصى عمق بندوّر فيه في سلسلة الـ `cause` — سلسلة أطول من كده مش خطأ حقيقي، وبنقفل عليها. */
+const MAX_CAUSE_DEPTH = 8;
+
+/** الأماكن اللي خطأ بيشيل فيها أخطاء تانية: `cause` و`errors` بتاع `AggregateError`. */
+type ErrorContainer = { cause?: unknown; errors?: unknown };
+
+/**
+ * بيمسح أي فشل driver حقيقي **جوه** خطأ `fn` نفسه، ويحطّ مكانه `DatabaseError` معرّفات بس.
+ *
+ * ليه: `fn` ممكن يمسك `PostgresError` ويرميه ملفوف (`new Error("…", { cause })`). الخطأ اللي برّه
+ * بتاع `fn` ومش بيتحوّل — بس الـ `cause` جواه فيه `detail` بتاع PostgreSQL، وده ممكن يبقى الصف
+ * كله اللي فشل (بيانات مراجع)، و`DrizzleQueryError` فيه الـ query والـ params كمان. (Codex على
+ * PR #22، P1.) الخطأ الخارجي بيفضل هو نفسه (نفس الـ object ونفس الرسالة)؛ اللي بيتشال هو بيانات
+ * الـ driver بس. السلسلة محدودة بعمق ومحمية من الدوائر.
+ *
+ * @param error خطأ `fn` كما هو
+ * @returns الـ facts بتاعة أول فشل driver اتساب لو ماقدرناش نستبدله (object متجمّد)، وإلا `undefined`
+ */
+const scrubDriverCauses = (error: unknown): DatabaseFailureFacts | undefined => {
+  const seen = new Set<unknown>();
+  const visit = (node: unknown, depth: number): DatabaseFailureFacts | undefined => {
+    if (typeof node !== "object" || node === null || seen.has(node)) return undefined;
+    if (depth > MAX_CAUSE_DEPTH) return undefined;
+    seen.add(node);
+    const container = node as ErrorContainer;
+    const children: Array<[holder: object, key: PropertyKey, value: unknown]> = [];
+    if ("cause" in container) children.push([container, "cause", container.cause]);
+    if (Array.isArray(container.errors)) {
+      container.errors.forEach((value, index) =>
+        children.push([container.errors as object, index, value]),
+      );
+    }
+    for (const [holder, key, value] of children) {
+      const facts = value instanceof DatabaseError ? undefined : findDriverFailure(value);
+      if (facts !== undefined) {
+        if (!Reflect.set(holder, key, new DatabaseError(facts))) return facts;
+        continue;
+      }
+      const left = visit(value, depth + 1);
+      if (left !== undefined) return left;
+    }
+    return undefined;
+  };
+  return visit(error, 0);
+};
+
 /**
  * بيحوّل فشل الـ driver الحقيقي لـ `DatabaseError` معرّفات بس. أي حاجة تانية — خطأ من `fn`
  * نفسه، أو خطأ اتصال من غير SQLSTATE، أو خطأ من wrapper — بترجع **نفسها** زي ما هي، حتى لو
- * كان 형태ها SQLSTATE.
+ * كان شكلها SQLSTATE؛ بس أي فشل driver حقيقي **جواها** (`cause`، `AggregateError.errors`)
+ * بيتشال بيانات قبل ما يعدّي (شوف `scrubDriverCauses`). لو ماقدرناش نشيله (object متجمّد)،
+ * بنقفل: الخطأ كله بيبقى `DatabaseError`.
  *
  * @param error الخطأ اللي اترمي من الـ transaction
- * @returns `DatabaseError` لو ده فشل PostgreSQL حقيقي، غير كده نفس الـ error
+ * @returns `DatabaseError` لو ده فشل PostgreSQL حقيقي، غير كده نفس الـ error منضّف
  */
 export function asDatabaseError(error: unknown): unknown {
   if (error instanceof DatabaseError) return error;
   const facts = findDriverFailure(error);
-  return facts === undefined ? error : new DatabaseError(facts);
+  if (facts !== undefined) return new DatabaseError(facts);
+  const stuck = scrubDriverCauses(error);
+  return stuck === undefined ? error : new DatabaseError(stuck);
 }

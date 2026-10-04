@@ -184,3 +184,36 @@ describe("only a real driver failure is converted", () => {
     expect(failure).not.toBeInstanceOf(DatabaseError);
   });
 });
+
+describe("a real driver failure that fn catches and wraps reaches the caller scrubbed", () => {
+  it("keeps fn's wrapper and message, and its cause carries identifiers only", async () => {
+    const probe = newTestId();
+    const fullName = `مراجع-ملفوف-${probe}`;
+    const wrapped = await app
+      .withTenant(A.clinicId, async (tx) => {
+        try {
+          await tx.execute(sql`
+            INSERT INTO patients (clinic_id, id, file_number, full_name, phone, birth_date, gender,
+                registration_branch_id, civil_id, status, created_at, updated_at)
+            VALUES (${A.clinicId}, ${probe}, '1', ${fullName}, '+96550000000', '1991-02-03', 'male',
+                ${A.branchId}, NULL, 'active', now(), now())
+          `);
+        } catch (error) {
+          throw new Error("could not register the patient", { cause: error });
+        }
+      })
+      .then(() => undefined)
+      .catch((error: unknown) => error);
+    expect(wrapped).toBeInstanceOf(Error);
+    expect(wrapped).not.toBeInstanceOf(DatabaseError);
+    expect((wrapped as Error).message).toBe("could not register the patient");
+    const cause = (wrapped as Error).cause;
+    expect(cause).toBeInstanceOf(DatabaseError);
+    expect((cause as DatabaseError).code).toBe("23505");
+    for (const text of [JSON.stringify(cause), String((cause as Error).stack), String(cause)]) {
+      expect(text).not.toContain(fullName);
+      expect(text).not.toContain("Failing row");
+    }
+    expect((cause as { detail?: unknown }).detail).toBeUndefined();
+  });
+});
