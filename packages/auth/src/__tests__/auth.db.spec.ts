@@ -10,7 +10,9 @@ import { totpFromUri } from "./totp.ts";
 const required = (name: string): string => {
   const value = process.env[name];
   if (value === undefined || value === "") {
-    throw new Error(`${name} is not set — @eyadex/auth test:db needs the owner and eyadex_auth URLs`);
+    throw new Error(
+      `${name} is not set — @eyadex/auth test:db needs the owner and eyadex_auth URLs`,
+    );
   }
   return value;
 };

@@ -1,4 +1,10 @@
-import { authAccounts, authSessions, authTwoFactors, authUsers, authVerifications } from "@eyadex/db/schema";
+import {
+  authAccounts,
+  authSessions,
+  authTwoFactors,
+  authUsers,
+  authVerifications,
+} from "@eyadex/db/schema";
 import type { IdGenerator } from "@eyadex/ids";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
