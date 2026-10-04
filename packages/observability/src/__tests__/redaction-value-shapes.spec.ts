@@ -145,6 +145,10 @@ describe("Arabic credential labels in free text", () => {
     ['"كلمة المرور": "hunter2" ثم', `"كلمة المرور": ${REDACTED} ثم`],
     ['{"الرقم السري":1234}', `{"الرقم السري":${REDACTED}`],
     ['"كلمة المرور" hunter2', `"كلمة المرور" ${REDACTED}`],
+    // PR #18 Codex: an escaped quote inside a quoted value is not its end.
+    ['كلمة المرور: "ab\\"cd" بعده', `كلمة المرور: ${REDACTED} بعده`],
+    ["كلمة المرور 'it\\'s9 secret' بعده", `كلمة المرور ${REDACTED} بعده`],
+    ['{\\"كلمة المرور\\":\\"a,b\\\\\\"c\\"} بعده', `{\\"كلمة المرور\\":${REDACTED}} بعده`],
     ["لكلمة المرور: hunter2", `لكلمة المرور: ${REDACTED}`],
     ["لرمز الدخول: 123456", `لرمز الدخول: ${REDACTED}`],
     ["وبفكلمة المرور: hunter2", `وبفكلمة المرور: ${REDACTED}`],

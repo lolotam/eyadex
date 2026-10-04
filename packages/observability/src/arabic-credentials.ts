@@ -67,12 +67,31 @@ const EXPLICIT = /[:=]|ه[يوى]/u;
 const looksLikeArabicLabelValue = (first: string): boolean =>
   /\p{Nd}/u.test(first) || TOKEN_PREFIX.test(first);
 
-const valueEnd = (text: string, start: number): number => {
-  const quote = text[start];
-  if (quote !== undefined && isQuote(quote)) {
-    const close = text.indexOf(quote, start + 1);
-    return close === -1 ? text.length : close + 1;
+// The end of a quoted value: the first quote that is not itself escaped. A value opened by `"` closes on a
+// quote behind an even number of backslashes (`"ab\"cd"` runs to the last quote). A value opened by `\"`
+// (JSON inside a JSON string) closes on `\"` and skips `\\\"`, its own escaped quote. Unclosed: to the end.
+// One pass, so linear.
+const quotedEnd = (text: string, open: number, escaped: boolean): number => {
+  const quote = text[open];
+  let backslashes = 0;
+  for (let i = open + 1; i < text.length; i++) {
+    const char = text[i];
+    if (char === "\\") {
+      backslashes++;
+      continue;
+    }
+    if (char === quote && (escaped ? backslashes <= 1 : backslashes % 2 === 0)) return i + 1;
+    backslashes = 0;
   }
+  return text.length;
+};
+
+const opensQuote = (text: string, start: number): boolean =>
+  isQuote(text[start]) || (text[start] === "\\" && isQuote(text[start + 1]));
+
+const valueEnd = (text: string, start: number): number => {
+  if (isQuote(text[start])) return quotedEnd(text, start, false);
+  if (text[start] === "\\" && isQuote(text[start + 1])) return quotedEnd(text, start + 1, true);
   PAIR_END.lastIndex = start;
   return PAIR_END.exec(text)?.index ?? text.length;
 };
@@ -99,7 +118,11 @@ export function redactArabicCredentials(text: string): string {
     const first = match[3] ?? "";
     const start = match.index + match[0].length;
     // A quoted value is a credential whatever its words are, as in English (`password 'a b c'`).
-    if (!EXPLICIT.test(separator) && !isQuote(text[start]) && !looksLikeArabicLabelValue(first)) {
+    if (
+      !EXPLICIT.test(separator) &&
+      !opensQuote(text, start) &&
+      !looksLikeArabicLabelValue(first)
+    ) {
       // Not a credential here; the next label may start right after this one.
       ARABIC_CREDENTIAL.lastIndex = match.index + label.length;
       continue;

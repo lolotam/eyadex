@@ -74,6 +74,7 @@ describe("sanitize stays linear on adversarial strings", () => {
     ["Arabic particle run then a label", "وبفل".repeat(NEAR_CAP / 4 - 2) + "كلمة"],
     ["Arabic kaf runs", "ك".repeat(NEAR_CAP)],
     ["Arabic label then combining marks", "كلمة" + "ࣣ".repeat(NEAR_CAP - 5)],
+    ["Arabic label, quote, then backslashes", 'كلمة المرور: "' + "\\".repeat(NEAR_CAP - 15)],
     ["quoted Arabic keys", '"كلمة المرور" '.repeat(NEAR_CAP / 14)],
     ["Arabic particle + article runs", "وبال".repeat(NEAR_CAP / 4) + "رمز"],
   ])("64 KB of %s is scanned and completes in < 150 ms", (_label, value) => {
