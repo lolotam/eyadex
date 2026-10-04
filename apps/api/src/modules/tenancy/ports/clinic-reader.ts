@@ -1,5 +1,5 @@
 import type { ClinicStatus } from "../domain/clinic-access.ts";
-import type { FeatureFlag, } from "../domain/feature-flags.ts";
+import type { FeatureFlag } from "../domain/feature-flags.ts";
 import type { PendingInvitation } from "../domain/limits.ts";
 
 /** كل اللي الـ tenancy محتاجه عن عيادة عشان قرار الدخول والحدود والـ flags. */
