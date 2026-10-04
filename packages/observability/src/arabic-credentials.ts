@@ -48,11 +48,11 @@ const LABEL =
 // or a value glued to the label with digits (`الرمز123456`) — requires the value to look like a credential,
 // so `كلمة المرور غير صحيحة` stays readable. The whitespace runs are unbounded (a bound let four spaces
 // through) and stay linear: each is followed by a required token, so a failed label backtracks over its
-// own run once. The value's first word is read by a lookahead and the rest by plain scans below.
+// own run once. The lookahead only requires a value to start; its words are read by plain scans below.
 const ARABIC_CREDENTIAL = new RegExp(
   `(?<![\\p{L}\\p{M}\\p{N}_])(${LABEL})(?![\\p{L}\\p{M}_])` +
     `(\\\\?["']?\\s*(?:[:=]{1,3}|(?:هي|هو|هى)(?![\\p{L}\\p{M}]))\\s*|\\\\?["']?\\s+|(?=\\p{N}))` +
-    `(?=([^\\s&,;،؛]{1,200}))`,
+    `(?=[^\\s&,;،؛])`,
   "giu",
 );
 const ARABIC_LETTER = /[؀-ۿ]/;
@@ -64,8 +64,14 @@ const isQuote = (char: string | undefined): boolean => char === "'" || char === 
 const EXPLICIT = /[:=]|ه[يوى]/u;
 // After a bare space the first word must itself look like a secret: a digit (any script) or a token prefix.
 // Length alone is not enough here — a long Arabic word (`الإلكترونيات`) is prose, not a credential.
-const looksLikeArabicLabelValue = (first: string): boolean =>
-  /\p{Nd}/u.test(first) || TOKEN_PREFIX.test(first);
+// The whole first word is read (a 200-character bound let a later digit through), by one sticky scan that
+// stops at the first digit — linear in the word, once per label.
+const DIGIT_IN_FIRST_WORD = /[^\s&,;،؛\p{Nd}]*\p{Nd}/uy;
+const looksLikeArabicLabelValue = (text: string, start: number): boolean => {
+  if (TOKEN_PREFIX.test(text.slice(start, start + 4))) return true;
+  DIGIT_IN_FIRST_WORD.lastIndex = start;
+  return DIGIT_IN_FIRST_WORD.test(text);
+};
 
 // The end of a quoted value: the first quote that is not itself escaped. A value opened by `"` closes on a
 // quote behind an even number of backslashes (`"ab\"cd"` runs to the last quote). A value opened by `\"`
@@ -116,13 +122,12 @@ export function redactArabicCredentials(text: string): string {
     // The groups are guaranteed by the pattern; the defaults satisfy the checker.
     const label = match[1] ?? "";
     const separator = match[2] ?? "";
-    const first = match[3] ?? "";
     const start = match.index + match[0].length;
     // A quoted value is a credential whatever its words are, as in English (`password 'a b c'`).
     if (
       !EXPLICIT.test(separator) &&
       !opensQuote(text, start) &&
-      !looksLikeArabicLabelValue(first)
+      !looksLikeArabicLabelValue(text, start)
     ) {
       // Not a credential here; the next label may start right after this one.
       ARABIC_CREDENTIAL.lastIndex = match.index + label.length;

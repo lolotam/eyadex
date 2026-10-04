@@ -151,6 +151,9 @@ describe("Arabic credential labels in free text", () => {
     ['{\\"كلمة المرور\\":\\"a,b\\\\\\"c\\"} بعده', `{\\"كلمة المرور\\":${REDACTED}} بعده`],
     // …and an escaped-mode value does not close on a bare quote (PR #18 Codex round 2).
     ['كلمة المرور: \\"abc"hunter2\\" بعده', `كلمة المرور: ${REDACTED} بعده`],
+    // …and a bare value's digit is found however long its first word is (PR #18 Codex round 3).
+    [`كلمة المرور ${"a".repeat(200)}9`, `كلمة المرور ${REDACTED}`],
+    [`الرمز ${"b".repeat(1000)}7 بعده`, `الرمز ${REDACTED}`],
     ["لكلمة المرور: hunter2", `لكلمة المرور: ${REDACTED}`],
     ["لرمز الدخول: 123456", `لرمز الدخول: ${REDACTED}`],
     ["وبفكلمة المرور: hunter2", `وبفكلمة المرور: ${REDACTED}`],
