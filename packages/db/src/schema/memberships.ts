@@ -37,7 +37,11 @@ export const memberships = pgTable(
   (t) => [
     primaryKey({ name: "memberships_pkey", columns: [t.clinicId, t.id] }),
     unique("memberships_clinic_id_user_id_key").on(t.clinicId, t.userId),
-    foreignKey({ name: "memberships_clinic_id_fkey", columns: [t.clinicId], foreignColumns: [clinics.id] }),
+    foreignKey({
+      name: "memberships_clinic_id_fkey",
+      columns: [t.clinicId],
+      foreignColumns: [clinics.id],
+    }),
     foreignKey({
       name: "memberships_clinic_id_role_id_fkey",
       columns: [t.clinicId, t.roleId],

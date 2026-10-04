@@ -27,7 +27,9 @@ function isTable(value: unknown): value is PgTable {
 function mirrorShape(table: PgTable): [string, Shape] {
   const config = getTableConfig(table);
   const inlinePk = config.columns.filter((c) => c.primary).map((c) => c.name);
-  const primaryKey = inlinePk.length ? inlinePk : (config.primaryKeys[0]?.columns.map((c) => c.name) ?? []);
+  const primaryKey = inlinePk.length
+    ? inlinePk
+    : (config.primaryKeys[0]?.columns.map((c) => c.name) ?? []);
   const columns = config.columns
     .map((c) => `${c.name}:${c.getSQLType()}:${c.notNull ? "not null" : "null"}`)
     .sort();
@@ -47,12 +49,16 @@ function mirrorShape(table: PgTable): [string, Shape] {
 }
 
 async function databaseShapes(owner: Sql): Promise<Map<string, Shape>> {
-  const columns = await owner<{ table_name: string; column_name: string; data_type: string; is_nullable: string }[]>`
+  const columns = await owner<
+    { table_name: string; column_name: string; data_type: string; is_nullable: string }[]
+  >`
     SELECT c.table_name, c.column_name, c.data_type, c.is_nullable
     FROM information_schema.columns c
     JOIN information_schema.tables t ON t.table_schema = c.table_schema AND t.table_name = c.table_name
     WHERE c.table_schema = 'public' AND t.table_type = 'BASE TABLE'`;
-  const keys = await owner<{ table_name: string; name: string; kind: string; cols: string; ref: string | null }[]>`
+  const keys = await owner<
+    { table_name: string; name: string; kind: string; cols: string; ref: string | null }[]
+  >`
     SELECT rel.relname AS table_name, con.conname AS name, con.contype AS kind,
       (SELECT string_agg(a.attname, ',' ORDER BY k.ord) FROM unnest(con.conkey) WITH ORDINALITY k(n, ord)
         JOIN pg_attribute a ON a.attrelid = con.conrelid AND a.attnum = k.n) AS cols,
@@ -76,13 +82,19 @@ async function databaseShapes(owner: Sql): Promise<Map<string, Shape>> {
     return shape;
   };
   for (const c of columns) {
-    get(c.table_name).columns.push(`${c.column_name}:${c.data_type}:${c.is_nullable === "YES" ? "null" : "not null"}`);
+    // The migration runner's ledger (db/migrate-lib.sh) is not application data.
+    if (c.table_name === "schema_migrations") continue;
+    get(c.table_name).columns.push(
+      `${c.column_name}:${c.data_type}:${c.is_nullable === "YES" ? "null" : "not null"}`,
+    );
   }
   for (const k of keys) {
+    if (k.table_name === "schema_migrations") continue;
     if (k.kind === "p") get(k.table_name).primaryKey.push(...k.cols.split(","));
     else get(k.table_name).foreignKeys.push(`${k.name}(${k.cols})->${k.ref}`);
   }
-  for (const i of indexes) get(i.tablename).indexes.push(i.indexname);
+  for (const i of indexes)
+    if (i.tablename !== "schema_migrations") get(i.tablename).indexes.push(i.indexname);
   for (const shape of shapes.values()) {
     shape.columns.sort();
     shape.primaryKey.sort();

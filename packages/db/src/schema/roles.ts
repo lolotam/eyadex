@@ -35,7 +35,11 @@ export const roles = pgTable(
   (t) => [
     primaryKey({ name: "roles_pkey", columns: [t.clinicId, t.id] }),
     unique("roles_clinic_id_system_key_key").on(t.clinicId, t.systemKey),
-    foreignKey({ name: "roles_clinic_id_fkey", columns: [t.clinicId], foreignColumns: [clinics.id] }),
+    foreignKey({
+      name: "roles_clinic_id_fkey",
+      columns: [t.clinicId],
+      foreignColumns: [clinics.id],
+    }),
     uniqueIndex("roles_name_ar_unique").on(t.clinicId, sql`lower(btrim(${t.nameAr}))`),
     uniqueIndex("roles_name_en_unique").on(t.clinicId, sql`lower(btrim(${t.nameEn}))`),
   ],

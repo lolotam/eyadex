@@ -37,7 +37,11 @@ export const invitations = pgTable(
   },
   (t) => [
     primaryKey({ name: "invitations_pkey", columns: [t.clinicId, t.id] }),
-    foreignKey({ name: "invitations_clinic_id_fkey", columns: [t.clinicId], foreignColumns: [clinics.id] }),
+    foreignKey({
+      name: "invitations_clinic_id_fkey",
+      columns: [t.clinicId],
+      foreignColumns: [clinics.id],
+    }),
     foreignKey({
       name: "invitations_clinic_id_role_id_fkey",
       columns: [t.clinicId, t.roleId],

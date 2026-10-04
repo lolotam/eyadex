@@ -33,7 +33,11 @@ export const auditLog = pgTable(
   },
   (t) => [
     primaryKey({ name: "audit_log_pkey", columns: [t.clinicId, t.id] }),
-    foreignKey({ name: "audit_log_clinic_id_fkey", columns: [t.clinicId], foreignColumns: [clinics.id] }),
+    foreignKey({
+      name: "audit_log_clinic_id_fkey",
+      columns: [t.clinicId],
+      foreignColumns: [clinics.id],
+    }),
     check(
       "audit_log_patient_events_are_patient_access",
       sql`${t.entityType} <> 'patient' OR ${t.category} = 'patient_access'`,

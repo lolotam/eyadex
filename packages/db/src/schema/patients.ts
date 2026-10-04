@@ -38,7 +38,11 @@ export const patients = pgTable(
     primaryKey({ name: "patients_pkey", columns: [t.clinicId, t.id] }),
     unique("patients_clinic_id_file_number_key").on(t.clinicId, t.fileNumber),
     unique("patients_clinic_id_phone_key").on(t.clinicId, t.phone),
-    foreignKey({ name: "patients_clinic_id_fkey", columns: [t.clinicId], foreignColumns: [clinics.id] }),
+    foreignKey({
+      name: "patients_clinic_id_fkey",
+      columns: [t.clinicId],
+      foreignColumns: [clinics.id],
+    }),
     foreignKey({
       name: "patients_clinic_id_registration_branch_id_fkey",
       columns: [t.clinicId, t.registrationBranchId],

@@ -1,4 +1,13 @@
-import { boolean, foreignKey, index, pgTable, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  foreignKey,
+  index,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 import { clinics } from "./clinics.ts";
 
@@ -18,7 +27,11 @@ export const branches = pgTable(
   },
   (t) => [
     primaryKey({ name: "branches_pkey", columns: [t.clinicId, t.id] }),
-    foreignKey({ name: "branches_clinic_id_fkey", columns: [t.clinicId], foreignColumns: [clinics.id] }),
+    foreignKey({
+      name: "branches_clinic_id_fkey",
+      columns: [t.clinicId],
+      foreignColumns: [clinics.id],
+    }),
     index("branches_clinic_active_idx").on(t.clinicId, t.isActive),
   ],
 );
