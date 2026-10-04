@@ -262,5 +262,9 @@ builders are deliberately absent until B3b. The Drizzle mirror of `db/sql/0001�
 
 ### Next
 
-B3b — the Drizzle schema mirror, the drizzle-kit bridge and a drift test against `db/sql`. The query
-builders return there only if every value they hand out is guarded.
+B3b (done, schema part) — the Drizzle mirror of `db/sql/0001…0022` lives in `src/schema/` and is
+exported only as `@eyadex/db/schema` (table definitions, nothing callable). `schema-drift.db.spec.ts`
+compares its tables, columns, types, nullability, primary keys, foreign keys and index names with the
+applied baseline; CHECK constraints, RLS policies and grants stay covered by `db/tests`. Still open: the
+drizzle-kit bridge (needs a pinned dependency that passes the 24h supply-chain guard), and query
+builders on `Tx` only if every value they hand out is guarded.
