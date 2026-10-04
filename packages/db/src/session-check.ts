@@ -1,8 +1,8 @@
 import { sql, type SQL } from "drizzle-orm";
 
 import { TenantContextViolationError } from "./context-violation.ts";
-import type { RawTx } from "./guarded-tx.ts";
 import type { DatabaseRole } from "./options.ts";
+import { renderOnce, sendRendered, type RawTx } from "./single-render.ts";
 
 /**
  * الفحوصات بتاعة الجلسة: أول statement في كل transaction (مين أنا، powers بتاعتي، وسقوف
@@ -18,8 +18,8 @@ import type { DatabaseRole } from "./options.ts";
  * اللي بتحطّ العيادة والسقوف) وجملة الإغلاق كمان بتقرا `app.clinic_id`. لو مرّوا على حارس الـ
  * statement كانوا هيرفضوا شغل الـ wrapper نفسه.
  *
- * `-Executor` مابيوصلش لـ `fn`: `fn` بياخد `Tx` المحمي، والـ `raw` ده بيفضل في الـ closure بتاع
- * `createTenantWrappers`/`createDatabase`.
+ * الـ `SessionExecutor` مابيوصلش لـ `fn`: `fn` بياخد `Tx` المحمي، والـ `raw` ده بيفضل في الـ
+ * closure بتاع `createTenantWrappers`/`createDatabase`.
  */
 export interface SessionExecutor {
   /** بيرجّع صفوف PostgreSQL كـ array عادي — صفر handles، زي ما `fn` بياخد من `tx.execute`. */
@@ -34,10 +34,13 @@ export interface SessionExecutor {
  * @returns منفّذ الـ wrapper — جوه الباكاج بس
  */
 export const sessionExecutor = (raw: RawTx): SessionExecutor => ({
-  // `PgRaw` (اللي Drizzle بترجّعه من execute) thenable بيترجّع صفوفه لما يتعمله await، فالـ cast
-  // هنا بيقول "الصفوف" بس — مفيش حاجة تانية بيرجعها الـ driver غير الـ rows.
-  execute: async <TRow>(query: SQL): Promise<TRow[]> =>
-    (await raw.execute(query)) as unknown as TRow[],
+  // `unsafe(text, params)` بيرجّع نفس الصفوف اللي Drizzle كان بيرجّعها من `execute` على query من
+  // غير fields (نفس الكال في `postgres-js/session.js`)، فالنتيجة صفوف خام: مفيش handle ولا
+  // `PgRaw` متشبّط. والجملة بترسم **مرة واحدة** زي ما بتاخد طريق `fn` بالحرف.
+  execute: async <TRow>(query: SQL): Promise<TRow[]> => {
+    const rendered = renderOnce(raw, query);
+    return await sendRendered<TRow>(raw, rendered);
+  },
 });
 
 /** إيه اللي الـ transaction بتعرفه عن نفسها، زي ما PostgreSQL رجّعها في أول statement. */

@@ -1,3 +1,5 @@
+import { sql } from "drizzle-orm";
+import { PgDialect } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 
 import { guardTransaction, TX_MEMBERS, type RawTx } from "../guarded-tx.ts";
@@ -28,36 +30,42 @@ const REFUSED_MEMBERS = [
   "toString",
 ] as const;
 
+/** جملة اتبعت للـ driver: النص المجمّد والـ parameters زي ما وصلوا `unsafe`. */
+interface Sent {
+  readonly text: string;
+  readonly params: readonly unknown[];
+  /** اسم الـ connection اللي بتاعتها الجملة دي (`this` جوّه `unsafe`). */
+  readonly connection: string;
+}
+
 /**
- * Drizzle transaction وهمية فيها كل اللي الـ guard بيرفضه. لو الـ proxy سمح بأي واحد فيهم،
- * either الـ driver الخام بيرجع تاني (نعمل `set_config('app.clinic_id', <عيادة تانية>, false)`
- * ونقرا صفوفها من غير أي check)، أو builder حقيقي بيرجع وبنقرا `builder.session.client` من بعد
- * أول `execute` — وده بالظبط السبب اللي الباكاج ده مالوش بانيهات لحد B3b.
+ * Drizzle transaction وهمية فيها **dialect حقيقي** (عشان الرسم يبقى زي الإنتاج بالظبط)،
+ * و`session.client` مسجّل. لو الـ proxy سمح بأي اسم من الأسماء المرفوضة، الـ client الخام بيرجع
+ * تاني (نعمل `set_config('app.clinic_id', <عيادة تانية>, false)` ونقرا صفوفها من غير أي check).
  */
-const fakeRaw = (statement = "SELECT 1") => {
-  const boundTo: unknown[] = [];
-  const sent: unknown[] = [];
-  const driver = { unsafe: "the raw postgres.js client" };
-  const inner = {
-    execute: () => "inner ran",
-    dialect: { sqlToQuery: () => ({ sql: statement }) },
+const fakeRaw = () => {
+  const sent: Sent[] = [];
+  const record = function (this: { label: string }, text: string, params: readonly unknown[]) {
+    sent.push({ text, params, connection: this.label });
+    return Promise.resolve([{ one: 1 }]);
   };
-  const raw = {
-    execute(this: unknown, query: unknown) {
-      boundTo.push(this);
-      sent.push(query);
-      return "outer ran";
-    },
+  const client = (label: string) => ({ unsafe: record, label });
+  const inner = {
+    dialect: new PgDialect(),
+    session: { client: client("inner") },
     rollback: () => "rolled back",
     transaction: async (fn: (tx: unknown) => Promise<unknown>) => await fn(inner),
-    // the dialect is internal: the guard reads it, `fn` never does
-    dialect: { sqlToQuery: () => ({ sql: statement }) },
-    session: { client: driver },
+  };
+  const raw = {
+    dialect: new PgDialect(),
+    session: { client: client("outer") },
+    rollback: () => "rolled back",
+    transaction: async (fn: (tx: unknown) => Promise<unknown>) => await fn(inner),
+    $client: "the raw postgres.js client",
     _: { session: "dialect internals" },
-    $client: driver,
     query: "relational queries",
   };
-  return { raw: raw as unknown as RawTx, boundTo, sent, inner };
+  return { raw: raw as unknown as RawTx, sent, inner };
 };
 
 describe("the guarded Tx surface", () => {
@@ -107,11 +115,12 @@ describe("the guarded Tx surface", () => {
     expect(build).toThrow(TypeError);
   });
 
-  it("binds execute and rollback to the real transaction", async () => {
-    const { raw, boundTo } = fakeRaw();
+  it("binds execute to the transaction's own handle, and rollback to the transaction", async () => {
+    const { raw, sent } = fakeRaw();
     const { tx } = guardTransaction(raw);
-    await expect(tx.execute(ANY_SQL as never)).resolves.toBe("outer ran");
-    expect(boundTo[0]).toBe(raw);
+    await tx.execute(sql`SELECT 1`);
+    // `this` inside unsafe is the transaction's own connection, not the pool.
+    expect(sent[0]?.connection).toBe("outer");
     expect(tx.rollback()).toBe("rolled back");
   });
 
@@ -131,45 +140,129 @@ describe("the guarded Tx surface", () => {
   });
 
   it("keeps a savepoint callback inside the same guard and revokes it afterwards", async () => {
-    const { raw, inner } = fakeRaw();
+    const { raw, inner, sent } = fakeRaw();
     const { tx } = guardTransaction(raw);
     let innerTx: unknown;
     const result = await tx.transaction(async (savepoint) => {
       innerTx = savepoint;
       expect(Object.getOwnPropertyNames(savepoint).sort()).toEqual([...TX_MEMBERS].sort());
-      // The real inner transaction answers, through the guard: only `inner` says "inner ran".
-      await expect(savepoint.execute(ANY_SQL as never)).resolves.toBe("inner ran");
+      await expect(savepoint.execute(sql`SELECT 1`)).resolves.toEqual([{ one: 1 }]);
       expect(() => (savepoint as unknown as Record<string, unknown>)["session"]).toThrow(TypeError);
       return "savepoint ran";
     });
     expect(result).toBe("savepoint ran");
-    // The savepoint handle is revoked the moment its callback returns.
+    // The savepoint's own handle answered, and the savepoint handle dies with the callback.
+    expect(sent.map((entry) => entry.connection)).toEqual(["inner"]);
     expect(() => (innerTx as unknown as Record<string, unknown>)["execute"]).toThrow(TypeError);
   });
 });
 
 describe("execute is the only door, and it is checked", () => {
-  it("refuses a forbidden statement before the transaction ever sees it", async () => {
-    const { raw, boundTo, sent } = fakeRaw("COMMIT");
+  it("refuses a forbidden statement before the driver ever sees it", async () => {
+    const { raw, sent } = fakeRaw();
     const { tx } = guardTransaction(raw);
-    await expect(tx.execute(ANY_SQL as never)).rejects.toBeInstanceOf(ForbiddenStatementError);
-    expect(boundTo).toHaveLength(0);
+    await expect(tx.execute(sql.raw("COMMIT"))).rejects.toBeInstanceOf(ForbiddenStatementError);
     expect(sent).toHaveLength(0);
   });
 
   it("refuses it in a savepoint too — the inner tx runs the same guard", async () => {
-    const { raw } = fakeRaw("SET statement_timeout = 0");
+    const { raw, sent } = fakeRaw();
     const { tx } = guardTransaction(raw);
-    await expect(tx.transaction(() => tx.execute(ANY_SQL as never))).rejects.toBeInstanceOf(
-      ForbiddenStatementError,
-    );
+    await expect(
+      tx.transaction(() => tx.execute(sql.raw("SET statement_timeout = 0"))),
+    ).rejects.toBeInstanceOf(ForbiddenStatementError);
+    expect(sent).toHaveLength(0);
   });
 
-  it("sends an allowed statement through, unchanged", async () => {
-    const { raw, sent } = fakeRaw("INSERT INTO branches (id) VALUES ($1) RETURNING id");
+  it("sends the rendered text and its parameters, once", async () => {
+    const { raw, sent } = fakeRaw();
     const { tx } = guardTransaction(raw);
-    await expect(tx.execute(ANY_SQL as never)).resolves.toBe("outer ran");
-    expect(sent).toEqual([ANY_SQL]);
+    const rows = await tx.execute<{ id: string }>(
+      sql`INSERT INTO branches (clinic_id, id) VALUES (${"clinic"}, ${"branch"}) RETURNING id`,
+    );
+    expect(rows).toEqual([{ one: 1 }]);
+    expect(sent).toHaveLength(1);
+    expect(sent[0]?.text).toBe("INSERT INTO branches (clinic_id, id) VALUES ($1, $2) RETURNING id");
+    expect(sent[0]?.params).toEqual(["clinic", "branch"]);
+    // مقفول: مش أي حد يقدر يغيّر اللي اتفحص بعد رسمة
+    expect(Object.isFrozen(sent[0]?.params)).toBe(true);
+  });
+});
+
+describe("the query is rendered once, and the text that is checked is the text that is sent", () => {
+  /**
+   * الـ red-team shape: `SQLWrapper` متطبوع جوه query حقيقي، بيرجّع نص مختلف كل مرة
+   * `getSQL()` ينادي. قبل كده كان في رسمتين: واحدة للفحص وواحدة للإرسال، فاتزنّقت التانية.
+   */
+  const swappingSql = (first: string, second: string) => {
+    let renders = 0;
+    const swapper = {
+      getSQL: () => {
+        renders += 1;
+        return sql.raw(renders === 1 ? first : second);
+      },
+    };
+    return { query: sql`${swapper} AS hidden`, renders: () => renders };
+  };
+
+  it("runs the first rendering, never the second", async () => {
+    const { raw, sent } = fakeRaw();
+    const { tx } = guardTransaction(raw);
+    const swap = swappingSql(
+      "SELECT 1 AS rendered",
+      "SELECT set_config('app.clinic_id', 'x', true)",
+    );
+    await expect(tx.execute(swap.query)).resolves.toEqual([{ one: 1 }]);
+    expect(swap.renders()).toBe(1);
+    expect(sent).toHaveLength(1);
+    expect(sent[0]?.text).toContain("SELECT 1 AS rendered");
+    expect(sent[0]?.text).not.toContain("set_config");
+  });
+
+  it("refuses the second rendering's shape when it is the one the caller sent", async () => {
+    const { raw, sent } = fakeRaw();
+    const { tx } = guardTransaction(raw);
+    const swap = swappingSql("COMMIT", "SELECT 1");
+    await expect(tx.execute(swap.query)).rejects.toBeInstanceOf(ForbiddenStatementError);
+    expect(sent).toHaveLength(0);
+  });
+
+  it("does not re-render through Drizzle's own execute either", async () => {
+    // `session.query` هي الطريقة التانية اللي Drizzle بيستخدمها. هي ما بتترسمش تاني، بس
+    // الفحص بيقرا من نفس الـ handle عشان مفيش نداء تاني يقدر يرسم.
+    const { raw, sent } = fakeRaw();
+    const { tx } = guardTransaction(raw);
+    await tx.execute(sql`SELECT 1`);
+    const session = (raw as unknown as { session: { query?: unknown } }).session;
+    expect(session.query).toBeUndefined();
+    expect(sent).toHaveLength(1);
+  });
+});
+
+describe("execute takes a real Drizzle SQL and nothing else", () => {
+  it.each([
+    ["a string", "SELECT set_config('app.clinic_id', 'x', true)"],
+    ["an object with toQuery", { toQuery: () => ({ sql: "SELECT 1", params: [] }) }],
+    ["an object with getSQL", { getSQL: () => sql`SELECT set_config('app.clinic_id', 'x', true)` }],
+    ["a bare SQLWrapper subclass shape", { getSQL: () => sql`COMMIT` }],
+  ])("refuses %s with a TypeError before any rendering", async (_label, fake) => {
+    const { raw, sent } = fakeRaw();
+    const { tx } = guardTransaction(raw);
+    await expect(tx.execute(fake as never)).rejects.toBeInstanceOf(TypeError);
+    expect(sent).toHaveLength(0);
+  });
+
+  it("names the reason without quoting what it was handed", async () => {
+    const { raw } = fakeRaw();
+    const { tx } = guardTransaction(raw);
+    const failure = await tx
+      .execute("SELECT set_config('app.clinic_id', 'x', true)" as never)
+      .then(() => undefined)
+      .catch((error: Error) => error);
+    expect(failure).toBeInstanceOf(TypeError);
+    expect((failure as TypeError).message).toMatch(/real Drizzle SQL object/);
+    expect((failure as TypeError).message).toContain("ADR-0002");
+    expect((failure as TypeError).message).not.toContain("set_config");
   });
 });
 

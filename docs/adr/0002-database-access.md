@@ -96,53 +96,93 @@ starting state. Omitting the assignment would make "no tenant" depend on connect
 
 ### What RLS through a GUC does and does not buy
 
-`app.clinic_id` is a GUC the wrapper sets, so the code inside `fn` is trusted to keep its hands off
-it. Three things enforce that, in order.
+`app.clinic_id` is a GUC the wrapper sets, and the code inside `fn` is **trusted application code**:
+it runs in the same process and could open a connection of its own if it wanted to. What is below is
+a **guard-rail against mistakes and injected fragments, not a sandbox**. A text check over SQL can
+never be complete — PostgreSQL builds and runs SQL out of strings — which is why the guard is
+fail-closed, an **allow-list** rather than a deny-list, and backed by the grants instead of being the
+only thing standing there. Never build SQL from input with `sql.raw`.
 
-**1. The statement guard — `fn` cannot send the statement in the first place.** `tx.execute()` reads
-the statement text with the transaction's own dialect, skips leading whitespace, `--` line comments,
-nested `/* … */` block comments and the opening paren of a wrapped sub-select, then refuses with
-`ForbiddenStatementError` (a `TypeError`, because a forbidden statement is a programming error, not a
-database failure):
+`tx.execute()` is the only door to SQL, and three things stand in front of it.
 
-- any statement whose **first word** is `BEGIN`, `START`, `COMMIT`, `END`, `ROLLBACK`, `ABORT`,
-  `SAVEPOINT`, `RELEASE`, `PREPARE`, `SET`, `RESET`, `DISCARD`, `DO`, `CALL`, `LOCK`, `LISTEN`,
-  `UNLISTEN`, `LOAD` or `COPY` — case-insensitive, whole word, so `SETTLE` is not `SET`;
-- any statement containing `set_config` **anywhere**, in any case;
-- any statement carrying a **second statement** — a `;` followed by something other than whitespace.
+**1. One statement, rendered once.** `execute` accepts a genuine Drizzle `SQL` and nothing else:
+`is(query, SQL)` from `drizzle-orm`, and anything else is a `TypeError` **before** anything is
+rendered. The statement is then rendered **exactly once** with the transaction's own dialect, the
+guard reads that text, and that frozen text and those parameters are what go to the driver
+(`unsafe(text, params)` on the transaction's own handle — the same call Drizzle makes, in
+`postgres-js/session.js`), so the result `fn` sees is still the postgres.js rows array. Checking one
+rendering and sending another was a hole, not a style choice: a `SQLWrapper` inside a real `SQL` can
+return different text on its second `getSQL()`, and a benign `SELECT` then landed as `set_config`.
 
-Why a first-word check is sound — and why the third rule is not optional. The extended protocol runs
-exactly one statement per `Parse`/`Bind`/`Execute`, so a `COMMIT` cannot hide behind a `SELECT`
-**when the query is parameterised**. But postgres.js does not choose the extended protocol for a query
-with no bound parameters: `unsafe()` sets `simple: args.length === 0`
+**2. The statement guard.** It reads the raw text and refuses with `ForbiddenStatementError` (a
+`TypeError`: a forbidden statement is a programming error, not a database failure). The rules, in the
+order they are applied:
+
+- `U&` — a Unicode-escaped identifier (`U&"…"`) or string (`U&'…'`) is refused **whole**, because
+  `\005f` spells the `_` of `set_config` without showing a single letter of the name. Reading the
+  escapes is not attempted; there is no legitimate caller writing them.
+- `set_config` anywhere, in any case: the only way a `SELECT` can move `app.clinic_id` or a timeout.
+- the **PostgreSQL 18 core functions that execute a query given as text** — `query_to_xml`,
+  `query_to_xmlschema`, `query_to_xml_and_xmlschema`, `cursor_to_xml`, `cursor_to_xmlschema`,
+  `ts_stat`, `ts_rewrite`. That list (`TEXT_EXECUTING_FUNCTIONS`) is **the complete set of core
+  functions that run text as SQL**; an extension that does the same (`dblink`, for one) must be added
+  to it or never installed. `query_to_xml('select set_' || 'config(…)')` moves the clinic with no
+  forbidden word in the text at all, which is why the function names are refused, not the strings.
+- a **second statement** — a `;` with anything but whitespace after it.
+- an **unterminated `/*` comment**, or nothing left to read once the comments are stripped: nothing to
+  check is not something `fn` may send. The guard fails closed instead of waving it through.
+
+The statement kind comes next, and it is an **allow-list**: the first word — case-insensitive, whole
+word, after the leading whitespace, comments and the opening paren of a wrapped sub-select — must be
+one of `SELECT`, `INSERT`, `UPDATE`, `DELETE`, `WITH`, `VALUES`, `TABLE`, `MERGE`. Those are the
+statements that read or write rows. Everything else is refused **by name**, including everything a
+deny-list would have had to keep guessing at: `ALTER ROLE … SET` (a timeout that persists on the role
+for every future session), `CREATE FUNCTION pg_temp.…` (PUBLIC still has `TEMPORARY` on the database),
+`EXECUTE` / `DEALLOCATE` (which can run the protocol-level prepared statements postgres.js itself
+created — `pg_prepared_statements` lists `commit`), `GRANT`, `TRUNCATE`, `VACUUM`, `CHECKPOINT`,
+`DECLARE` / `FETCH` / `CLOSE`, `NOTIFY`, `SET ROLE`, `DROP`, `EXPLAIN`. The refusal names the first
+word, lists the allowed kinds, cites this ADR, and carries no SQL text and no parameters.
+
+Reading the text is PostgreSQL's, not JavaScript's, because the difference is the whole game:
+
+- whitespace is exactly `[ \t\n\r\f\v]`, the set the PostgreSQL lexer skips — not JS `\s`, which also
+  eats NBSP and `U+2028`;
+- a `--` comment ends at `\n` **or** `\r`, which is the rule in the lexer (`newline [\n\r]`). Reading
+  only `\n` turned `sql.raw("--\rselect set_config(…)")` into an "empty" statement and re-pointed the
+  clinic;
+- `/* … */` comments nest, so the skip is a counter, not an `indexOf`;
+- every content check runs on the **raw text**, never on the stripped body. The body only says which
+  kind of statement this is. This is also why a `;` inside a string literal, `set_config` inside a
+  comment and a `/*` inside a quoted value are all refused: one harmless query refused is a much
+  smaller problem than one contract a keyword can walk around.
+
+Why a first-word check is sound — and why the multiple-statement rule is not optional. The extended
+protocol runs exactly one statement per `Parse`/`Bind`/`Execute`, so a `COMMIT` cannot hide behind a
+`SELECT` **when the query is parameterised**. But postgres.js does not choose the extended protocol for
+a query with no bound parameters: `unsafe()` sets `simple: args.length === 0`
 (`postgres/src/index.js`), and the **simple protocol accepts several statements in one call**. A
-parameterless `SELECT 1; COMMIT` written inside `fn` would therefore pass a first-word check and
-commit the wrapper's transaction half-done — `closing-check.db.spec.ts` sees the session afterwards,
-but the write is already durable. Refusing any `;` that has content after it closes that path. The
-check reads the **raw** text rather than the comment-stripped body on purpose: a `;` inside a string
-literal is refused too, because stripping comments without a real lexer is exactly how
-`SELECT '--'; COMMIT` would slip through. The guard **fails closed** here and at `set_config`: one
-harmless query refused is a smaller problem than one contract a keyword can walk around.
+parameterless `SELECT 1; COMMIT` inside `fn` would pass a first-word check and commit the wrapper's
+transaction half-done — the closing check sees the session afterwards, but the write is already
+durable. Parameterless queries therefore still go through the multiple-statement rule.
 
 Savepoints stay legal: `tx.transaction(…)` asks Drizzle for a savepoint, and Drizzle issues it on its
 own session rather than through `fn`'s door.
 
-**2. The closing check — the second layer, still there.** Before the COMMIT, one statement reads the
-session again (`current_setting('app.clinic_id', true)`, `current_user`, `session_user`, both timeouts)
-and, in the same statement, clears `app.clinic_id` at session level. Any difference from what the
-wrapper opened throws `TenantContextViolationError` and rolls the rest back. The guard stops the
-statement; this catches the session changing by some other route — a refactor, a different driver path,
-a bug in this package. `closing-check.db.spec.ts` runs exactly that scenario: it breaks the session on a
-raw transaction, bypassing the guard on purpose, and pins all six breaches, a hand-rolled `COMMIT` and
-`ROLLBACK` included.
+**3. The closing check — the second layer, with an honest limit.** Before the COMMIT, one statement
+reads the session again (`current_setting('app.clinic_id', true)`, `current_user`, `session_user`, both
+timeouts) and, in the same statement, clears `app.clinic_id` at session level. Any difference from
+what the wrapper opened throws `TenantContextViolationError` and rolls the rest back. The guard stops
+the statement; this catches a session that changed by some other route — a refactor, a different
+driver path, a bug in this package. `closing-check.db.spec.ts` runs exactly that scenario: it breaks
+the session on a raw transaction, bypassing the guard on purpose, and pins all six breaches, a
+hand-rolled `COMMIT` and `ROLLBACK` included. **What it cannot see is a change that was restored**:
+a clinic re-pointed to another clinic and put back before `fn` returns leaves the session exactly as
+the wrapper opened it, so it passes — and so does data read and sent somewhere else inside `fn`. The
+boundary is which code is allowed inside `fn`.
 
-**3. The grants.** `eyadex_platform` has no grant on `patients` at all, so "the platform console reads a
+**4. The grants.** `eyadex_platform` has no grant on `patients` at all, so "the platform console reads a
 patient" is `42501` from PostgreSQL and no code path exists. `eyadex_app` has no `CREATE` on schema
 `public`, so it cannot create a function that would run as somebody else.
-
-**What none of them catches: data read and sent elsewhere inside `fn`.** The boundary is which code is
-allowed inside `fn`; the wrappers are a backstop, not a sandbox. Never build SQL from input with
-`sql.raw`.
 
 **The residual risk the guard cannot see is a pre-existing `SECURITY DEFINER` function that calls
 `set_config`** — it would move the clinic from inside the wrapper's own transaction, where no
@@ -150,8 +190,8 @@ statement-level check can see it. There is none: the `SECURITY DEFINER` function
 (`invitation_clinic_for_token` in `0014`, `email_hold_matches` and the trigger helpers in `0015`/`0017`)
 only _read_ `current_setting('app.clinic_id', true)`, they are owned by `NOLOGIN` roles with narrow
 grants, and no runtime role can create a new one (`REVOKE CREATE ON SCHEMA public FROM PUBLIC` in
-`0013`). If a future migration adds a definer function that writes a GUC, this ADR is revisited with
-it.
+`0013`). If a future migration adds a definer function that writes a GUC — or an extension that runs
+SQL given as text — this ADR is revisited with it.
 
 ### Why `fn` receives a guarded transaction, and why it has no query builders
 
@@ -171,9 +211,10 @@ hands out**, or not at all.
 The handle is `Proxy.revocable`: after the wrapper's COMMIT or ROLLBACK it is revoked, so a `tx` kept
 past the end of the transaction throws instead of running queries on the pooled connection. A savepoint
 callback receives a guarded inner transaction with the same statement guard, and that one is revoked
-when the savepoint returns. What `execute` returns is postgres.js `Row` objects in a plain array: the
-driver hangs `count` / `command` / `columns` / `statement` off it, and none of those is a way back to
-the client — `guarded-tx.db.spec.ts` pins that by name.
+when the savepoint returns. `execute` takes a real Drizzle `SQL` — a string or an object with
+`toQuery` is a `TypeError` — renders it once and sends exactly that text, and returns postgres.js
+`Row` objects in a plain array: the driver hangs `count` / `command` / `columns` / `statement` off it,
+and none of those is a way back to the client — `guarded-tx.db.spec.ts` pins that by name.
 
 ### Wrappers never nest — per `Database`, not globally
 
@@ -230,11 +271,25 @@ level, is looked at, and only when it is a real `PostgresError`.
 
 ### Accepted limitations
 
+- **The guard reads text, not a parse tree, and `fn` is trusted code.** PostgreSQL can build and run
+  SQL out of strings (plpgsql, an extension, a `SECURITY DEFINER` function), so no text check can be
+  complete. What the package guarantees is narrower and real: the statement `fn` hands over is the
+  statement that is sent, only the eight allowed kinds go through, the known session-movers are
+  refused by name, and the closing check fires if the session is not what the wrapper opened. The
+  grants are the layer that does not depend on reading text at all.
+- **A change that was restored is invisible to the closing check.** Re-pointing `app.clinic_id` inside
+  `fn` and putting it back before `fn` returns leaves the session exactly as the wrapper opened it, so
+  the transaction commits — and so does any data read while the clinic was moved, sent elsewhere
+  inside `fn`. The boundary is which code is allowed inside `fn`, not what the wrapper can see.
+- **The list of text-executing functions is the PostgreSQL 18 core set**, and it is the whole of it.
+  `dblink` (or any extension that runs SQL given as text) has to be added to
+  `TEXT_EXECUTING_FUNCTIONS` or must never be installed; the guard cannot see a name that is not there.
 - **Odd-but-valid UUIDs pass the shape check.** Uppercase and the nil UUID match the regex; the value
   travels as a bound parameter, so it matches no rows rather than being a hole.
-- **A statement whose text contains `set_config` is refused even when it is harmless.** The same
-  fail-closed rule refuses a `;` with content after it, so `SELECT 'a;b'` and a trailing `;` followed
-  by a comment are refused too. See the guard above.
+- **Harmless statements are refused on purpose (fail closed).** A value between quotes containing
+  `set_config`, a `;` inside a literal or a trailing `;` followed by a comment, a `/*` inside a quoted
+  value or an unbalanced one, a `U&` in any position, and any text naming one of the text-executing
+  functions — all refused. See the guard above.
 - **This closes the parameterless simple-protocol path.** postgres.js runs a query with no bound
   parameters on the simple protocol, which accepts several statements per call; the guard refuses a
   second statement rather than trusting the protocol. Parameterised queries already run on the
@@ -248,7 +303,17 @@ level, is looked at, and only when it is a real `PostgresError`.
 - **`host:port` can appear in transport errors from the driver.** A connection failure is rethrown
   unchanged, because it carries no SQLSTATE and no query. `DatabaseError` never does this.
 - **`close()` waits for in-flight work** up to the driver timeout (`end({ timeout: 5 })`).
-- **`tx.execute()` still runs any other SQL.** See the trust boundary above.
+
+### Follow-ups this ADR does not implement
+
+- **Revoke `TEMPORARY` on the database from `PUBLIC`** in a migration. `CREATE FUNCTION pg_temp.…`
+  inside `fn` is refused by the statement guard today, but the capability is still granted by the
+  database; revoking it makes the option impossible instead of merely refused.
+- **A token-gated tenant context, if `fn` ever has to be untrusted.** Today RLS reads
+  `app.clinic_id` directly, so anything that can set a GUC can move the clinic. The shape that closes
+  it is for the policies to read a clinic that only a `SECURITY DEFINER` setter can write, with the
+  setter taking the value from a token the caller cannot read. Until that exists, `fn` stays trusted
+  application code and the guard stays a guard-rail.
 
 ### `withUser` is deliberately deferred
 
@@ -271,7 +336,8 @@ builders are deliberately absent until B3b. The Drizzle mirror of `db/sql/0001�
   as itself.
 - A statement that would move the clinic, end the transaction or change the session is refused before it
   is sent, so it never takes effect even transiently; the closing check still catches the same breach
-  arriving by another route.
+  arriving by another route. The statement is rendered **once**, so what the guard reads is what the
+  driver sends, and only the eight allowed statement kinds are sent at all.
 - `withNewTenant` refuses an id that already exists, so a duplicated or injected `IdGenerator` cannot
   write onboarding rows into a live clinic.
 - Every clinic table added later still needs its policy **and** its negative isolation test in the same

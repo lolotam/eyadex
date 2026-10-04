@@ -1,22 +1,16 @@
-import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import type { SQL } from "drizzle-orm";
 
+import { renderOnce, sendRendered, type RawTx } from "./single-render.ts";
 import { assertStatementAllowed } from "./statement-guard.ts";
 
-/**
- * الـ transaction الحقيقية من Drizzle — دي اللي الـ wrapper بيمسكها في الـ closure بس، ومش
- * بتوصل لـ `fn` أبدًا. `fn` بياخد `Tx`: proxy مسموح عليه بأسماء معدودة.
- */
-export type RawTx = Parameters<Parameters<PostgresJsDatabase["transaction"]>[0]>[0];
-
-/** dialect بتاع PostgreSQL — بيحوّل `SQL` لنص. `protected` في تعريف Drizzle، فبيتقرا من هنا. */
-type PgDialectLike = { sqlToQuery(query: SQL): { readonly sql: string } };
+export type { RawTx } from "./single-render.ts";
 
 /**
  * الأسماء المسموح بيها على الـ `Tx`. التلاتة دول هم الـ surface كله:
  *
- * - `execute` — raw SQL مربوطة، وهي **باب الـ SQL الوحيد**. كل جملة بتعدّي على حارس الـ statement
- *   (`statement-guard.ts`) قبل ما تتبعت.
+ * - `execute` — raw SQL مربوطة، وهي **باب الـ SQL الوحيد**. كل جملة بتترسم مرة واحدة، بتعدّي على
+ *   حارس الـ statement (`statement-guard.ts`)، وبعدها **نفس النص** ده اللي بيتبعت (شوف
+ *   `single-render.ts` — الفرق بين نص اللي اتفحص ونص اللي بيتبعت كان فجوة مفتوحة).
  * - `transaction` — savepoints، وبياخد من جوه `fn` تاني محمي بنفس القايمة. Drizzle نفسها بتبلّش
  *   الـ savepoints، فمش بيعدّوا على الحارس.
  * - `rollback` — لو الشغل وقف، ارمي وشيل.
@@ -37,8 +31,9 @@ export type TxMember = (typeof TX_MEMBERS)[number];
 const ALLOWED = new Set<string>(TX_MEMBERS);
 
 const REACHED_DRIVER =
-  "tx is a guarded transaction: only execute() (statement-guarded), transaction() and rollback() " +
-  "are reachable, the driver behind them is not — tx.execute() is the way to run SQL (ADR-0002)";
+  "tx is a guarded transaction: only execute() (statement-guarded, rendered once), transaction() " +
+  "and rollback() are reachable, the driver behind them is not — tx.execute() is the way to run " +
+  "SQL (ADR-0002)";
 
 const REACHED_MUTATION =
   "tx is a guarded transaction: it is read-only from the outside, the wrapper owns its lifetime " +
@@ -52,14 +47,20 @@ const askedFor = (property: string | symbol): string =>
  * الـ transaction زي ما الـ use case بيشوفها: باب SQL واحد محروس، وsavepoints، وrollback.
  * `tx.session` و`tx.$client` و`tx.select` مش بيتجمّعوا أصلاً.
  *
- * `execute` و`rollback` هما نفس توقيع Drizzle بالحرف (`Pick` من الـ transaction الحقيقية)،
- * عشان `await tx.execute<Row>()` يفضل زي ما Drizzle عامله: بيدّي صفوف PostgreSQL.
+ * `execute` بياخد **`SQL` من Drizzle بس** (`is(query, SQL)` جوه الباكاج): أي حاجة تانية —
+ * string، builder، object فيه `toQuery` — بترمي `TypeError` قبل أي رسم. السبب إن أي حاجة
+ * مش معروفة لنا ممكن ترسم مرتين، والنداء اللي بيتبعت بعد الفحص هو اللي بتنزلق فيه.
+ *
+ * والنتيجة هي زي ما كانت: صفوف PostgreSQL في array عادي، `TRow` هي الـ shape اللي الـ caller
+ * يحدده.
  *
  * الـ `transaction` هنا savepoint جوه نفس الـ transaction، والـ callback بياخد `Tx` تاني مش
  * الـ Drizzle الأصلي. Drizzle نفسها بتبلّش savepoints من غير options — والـ savepoints دي مش
  * بتعدّي على حارس الـ statement، والسبب إن Drizzle بتبلّشها على الـ session مش على `tx`.
  */
-export type Tx = Pick<RawTx, "execute" | "rollback"> & {
+export type Tx = {
+  execute<TRow = unknown>(query: SQL): Promise<TRow[]>;
+  rollback: RawTx["rollback"];
   /** Savepoint جوه نفس الـ transaction، والـ callback بياخد `Tx` محمي تاني. */
   transaction<T>(fn: (tx: Tx) => Promise<T>): Promise<T>;
 };
@@ -78,15 +79,22 @@ const guardedSavepoints =
     });
 
 /**
- * `execute` المحروس: بيقرا نص الجملة **من dialect الـ transaction نفسها** (نفس الدالة اللي
- * Drizzle هتبعت بيها النص)، بيتحقق، وبعدين يبعت. الـ dialect ما بيوصلش لـ `fn` — القراءة دي
- * جوه الباكاج بس.
+ * `execute` المحروس: **رسم واحد، فحص واحد، إرسال واحد**.
+ *
+ * 1. `renderOnce` بيتأكد إن اللي جاي `SQL` حقيقية من Drizzle (`TypeError` قبل أي رسم)،
+ *    ويبني `{ sql, params }` بالـ dialect بتاع الـ transaction نفسها — نفس الدالة اللي Drizzle
+ *    كان بيرسم بيها.
+ * 2. الحارس بيفحص **النص ده بالذات** (النص الخام، زي ما الـ driver هيشوفه).
+ * 3. `sendRendered` بيبعته للـ connection بـ `unsafe(text, params)` — يعني النص اللي اتفحص هو
+ *    النص اللي اتبعت بالحرف. مفيش نداء تاني بيرسم، عشان مفيش `getSQL()` تاني ينادي.
+ *
+ * النتيجة صفوف PostgreSQL، زي ما Drizzle كان بيرجّعها.
  */
 const guardedExecute = (raw: RawTx) => {
-  const execute = async (query: SQL): Promise<unknown> => {
-    const dialect = (raw as unknown as { readonly dialect: PgDialectLike }).dialect;
-    assertStatementAllowed(dialect.sqlToQuery(query).sql);
-    return await raw.execute(query);
+  const execute = async <TRow = unknown>(query: SQL): Promise<TRow[]> => {
+    const rendered = renderOnce(raw, query);
+    assertStatementAllowed(rendered.text);
+    return await sendRendered<TRow>(raw, rendered);
   };
   return execute;
 };
