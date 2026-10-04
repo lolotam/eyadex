@@ -14,7 +14,7 @@
     }
   },
   "scripts": {
-    "dev": "pnpm --filter @eyadex/web dev",
+    "dev": "cd apps/web && ./node_modules/.bin/vite dev",
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
     "test": "turbo run test",
@@ -25,5 +25,12 @@
   "devDependencies": {
     "prettier": "3.9.6",
     "turbo": "2.11.2"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "overrides": {
+    "rolldown": "1.2.1"
   }
 }
