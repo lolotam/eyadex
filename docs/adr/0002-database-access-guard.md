@@ -124,6 +124,12 @@ savepoint too: every method the proxy hands out checks the `Tx`'s lifetime on ea
 a child savepoint is still running, the wrapper throws `TenantContextViolationError`
 (`unfinished-savepoint`) and rolls back instead of committing — postgres.js only waits for a savepoint
 through the promise handed back to the caller, so the child would otherwise run after the COMMIT.
+An abandoned savepoint is also **ended at driver level before the outer transaction lets its connection
+go**: closing aborts it (its own children first), so postgres.js issues `ROLLBACK TO SAVEPOINT` inside the
+still-open outer transaction, and the close waits for that — rather than waiting on `fn`'s paused
+callback, which could hang forever, or letting it wake up later and send `ROLLBACK TO` over a
+connection that is already serving another request (Drizzle's savepoint names are predictable)
+(Codex on PR #22, P1; `tx-abort.db.spec.ts`).
 The same holds for a `tx.execute(…)` that `fn` did not await (`unfinished-statement`): the wrapper waits
 for it to settle (each statement is bounded by `statement_timeout`), handles its rejection so it can
 never surface as an unhandled rejection, and rolls back. Driver errors are scrubbed inside

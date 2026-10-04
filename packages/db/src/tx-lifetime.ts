@@ -28,6 +28,11 @@ interface Tracked {
   readonly work: Promise<unknown>;
   settled: boolean;
   observed: boolean;
+  /**
+   * savepoints بس: بيخلّص الـ savepoint على مستوى الـ driver دلوقتي (`ROLLBACK TO` جوه الـ
+   * transaction اللي لسه شغّالة) بدل ما يستنى الـ callback بتاع `fn` اللي ممكن يصحى بعدين.
+   */
+  readonly abort?: () => Promise<void>;
 }
 
 const REVOKED =
@@ -147,8 +152,15 @@ const nativeThen = Promise.prototype.then;
  * @param work الشغل نفسه
  * @returns promise بنفس النتيجة، بتعلّم إنها اتشافت
  */
-export const track = <T>(set: Set<Tracked>, work: Promise<T>): Promise<T> => {
-  const entry: Tracked = { work, settled: false, observed: false };
+export const track = <T>(
+  set: Set<Tracked>,
+  work: Promise<T>,
+  abort?: () => Promise<void>,
+): Promise<T> => {
+  const entry: Tracked =
+    abort === undefined
+      ? { work, settled: false, observed: false }
+      : { work, settled: false, observed: false, abort };
   set.add(entry);
   const settle = (): void => {
     entry.settled = true;
@@ -163,30 +175,40 @@ export const track = <T>(set: Set<Tracked>, work: Promise<T>): Promise<T> => {
 };
 
 /**
- * بيقفل العمر أول ما `fn` يرجع. الجمل اللي لسه شغّالة بنستناها تخلص (كل واحدة محدودة بـ
- * `statement_timeout` على السيرفر)، والـ savepoints لأ (ممكن تستنى أي حاجة في JS).
+ * بيقفل العمر ويسيب الـ connection نضيفة: الجمل الشغّالة بنستناها (كل واحدة محدودة بـ
+ * `statement_timeout`)، والـ savepoints اللي ماخلصتش بنخلّصها على مستوى الـ driver دلوقتي —
+ * وبالترتيب ده، **قبل** ما الـ transaction اللي برّه ترجع والـ connection ترجع للـ pool.
+ *
+ * ليه: postgres.js بيبعت `ROLLBACK TO SAVEPOINT` لما الـ callback بتاع الـ savepoint يرمي. لو
+ * الـ callback ده صحي بعد ما الـ connection رجعت للـ pool، الأمر كان بيروح لـ request تاني شغّال
+ * على نفس الـ connection — وأسماء الـ savepoints بتاعة Drizzle متوقّعة، فممكن يرجّع شغل حد تاني.
+ * (Codex على PR #22، P1.)
+ *
+ * @param lifetime عمر الـ `Tx`
+ */
+export async function settleLifetime(lifetime: Lifetime): Promise<void> {
+  lifetime.live = false;
+  const savepoints = [...lifetime.savepoints];
+  await Promise.allSettled(
+    savepoints.filter((entry) => !entry.settled && entry.abort).map((entry) => entry.abort!()),
+  );
+  await Promise.allSettled([...lifetime.statements].map((entry) => entry.work));
+  await Promise.allSettled(savepoints.map((entry) => entry.work));
+}
+
+/**
+ * بيقفل العمر أول ما `fn` يرجع ويقول لو فيه شغل `fn` ماشافوش. الحكم بيتاخد **قبل** الـ settle
+ * (اللي بيخلّص الـ savepoints المتسابة بنفسه)، فالـ savepoint اللي اتقطع بيتحسب متساب.
  *
  * @param lifetime عمر الـ `Tx`
  * @returns سبب الرفض لو فيه شغل `fn` ماشافوش، وإلا `undefined`
  */
 export async function closeLifetime(lifetime: Lifetime): Promise<TenantContextBreach | undefined> {
   lifetime.live = false;
-  const savepoints = [...lifetime.savepoints];
-  const statements = [...lifetime.statements];
   const unseen = (entry: Tracked): boolean => !entry.observed || !entry.settled;
-  const savepointBreach = savepoints.some(unseen);
-  const statementBreach = statements.some(unseen);
-  await Promise.allSettled(statements.map((entry) => entry.work));
+  const savepointBreach = [...lifetime.savepoints].some(unseen);
+  const statementBreach = [...lifetime.statements].some(unseen);
+  await settleLifetime(lifetime);
   if (savepointBreach) return "unfinished-savepoint";
   return statementBreach ? "unfinished-statement" : undefined;
 }
-
-/**
- * لما `fn` يرمي: نفس القفل من غير استنى — الـ rollback جاي على أي حال، والرفض الداخلي متعلّق
- * عليه handler من وقت `track`.
- *
- * @param lifetime عمر الـ `Tx`
- */
-export const abandonLifetime = (lifetime: Lifetime): void => {
-  lifetime.live = false;
-};

@@ -5,10 +5,10 @@ import { asDatabaseError } from "./database-error.ts";
 import { renderOnce, sendRendered, type RawTx } from "./single-render.ts";
 import { assertStatementAllowed } from "./statement-guard.ts";
 import {
-  abandonLifetime,
   assertLive,
   closeLifetime,
   newLifetime,
+  settleLifetime,
   track,
   type Lifetime,
 } from "./tx-lifetime.ts";
@@ -82,21 +82,40 @@ export type Tx = {
  */
 const guardedSavepoints =
   (raw: RawTx, lifetime: Lifetime) =>
-  <T>(fn: (tx: Tx) => Promise<T>): Promise<T> =>
-    track(
-      lifetime.savepoints,
-      (async () => {
-        assertLive(lifetime);
-        return await raw.transaction(async (inner: RawTx) => {
-          const guarded = guardTransaction(inner, lifetime);
-          try {
-            return await guarded.finish(fn);
-          } finally {
-            guarded.revoke();
-          }
-        });
-      })(),
-    );
+  <T>(fn: (tx: Tx) => Promise<T>): Promise<T> => {
+    // Controls this savepoint from the outside: when the parent closes while it is still running,
+    // abort() ends it at driver level (ROLLBACK TO, inside the still-open outer transaction) and
+    // waits for that, instead of leaving the driver waiting on fn's callback (see settleLifetime).
+    const control: { aborted: boolean; stop?: (reason: unknown) => void; child?: GuardedTx } = {
+      aborted: false,
+    };
+    const work = (async () => {
+      assertLive(lifetime);
+      return await raw.transaction(async (inner: RawTx) => {
+        const guarded = guardTransaction(inner, lifetime);
+        control.child = guarded;
+        try {
+          if (control.aborted) throw new TenantContextViolationError("unfinished-savepoint");
+          const stopped = new Promise<never>((_resolve, reject) => {
+            control.stop = reject;
+          });
+          const finished = guarded.finish(fn);
+          stopped.catch(() => undefined);
+          finished.catch(() => undefined);
+          return await Promise.race([finished, stopped]);
+        } finally {
+          guarded.revoke();
+        }
+      });
+    })();
+    const abort = async (): Promise<void> => {
+      control.aborted = true;
+      if (control.child !== undefined) await control.child.settle();
+      control.stop?.(new TenantContextViolationError("unfinished-savepoint"));
+      await Promise.allSettled([work]);
+    };
+    return track(lifetime.savepoints, work, abort);
+  };
 
 /**
  * `execute` المحروس: **رسم واحد، فحص واحد، إرسال واحد**.
@@ -193,6 +212,8 @@ export interface GuardedTx {
    * لو `fn` رمى، بيقفل من غير استنى ويرمي نفس الخطأ.
    */
   finish<T>(fn: (tx: Tx) => Promise<T>): Promise<T>;
+  /** بيقفل العمر ويخلّص كل شغل جواه على مستوى الـ driver (شوف `settleLifetime`). */
+  settle(): Promise<void>;
 }
 
 /**
@@ -224,12 +245,14 @@ export function guardTransaction(raw: RawTx, parent?: Lifetime): GuardedTx {
         // fn runs inside the try: a synchronous throw is abandoned the same way as a rejection.
         result = await fn(revocable.proxy as unknown as Tx);
       } catch (error) {
-        abandonLifetime(lifetime);
+        // fn failed: still settle every child at driver level before the rollback frees the connection.
+        await settleLifetime(lifetime);
         throw error;
       }
       const breach: TenantContextBreach | undefined = await closeLifetime(lifetime);
       if (breach !== undefined) throw new TenantContextViolationError(breach);
       return result;
     },
+    settle: () => settleLifetime(lifetime),
   };
 }
