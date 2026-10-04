@@ -146,14 +146,32 @@ export const isSecretKey = (key: string): boolean => {
 // The free-text `name=value` rule shares the vocabulary but not the matching mode: a long word may appear
 // anywhere in the name ("passwordValue=…", "authorizationCode=…"), while a short one must be a whole word,
 // or "spin=3" and "pinned: true" would be redacted.
-export const isFreeTextCredentialName = (name: string): boolean => {
+const classifyFreeTextName = (name: string): boolean => {
   const folded = foldKey(name);
   if (folded === "") return false;
   if (LONG_CREDENTIAL_WORDS.some((word) => folded.includes(word))) return true;
   return SHORT_CREDENTIAL_WORDS.some((word) => wordForms(folded).some((form) => form === word));
+};
+// The free-text scanners classify every word that could be a name ("a is a is …" asks once per word), and
+// the same few words repeat. A bounded cache, emptied when full, keeps that cheap without growing forever.
+const NAME_CACHE_LIMIT = 1024;
+const nameCache = new Map<string, boolean>();
+export const isFreeTextCredentialName = (name: string): boolean => {
+  const cached = nameCache.get(name);
+  if (cached !== undefined) return cached;
+  if (nameCache.size >= NAME_CACHE_LIMIT) nameCache.clear();
+  const result = classifyFreeTextName(name);
+  nameCache.set(name, result);
+  return result;
 };
 
 // The opaque-token prefixes our own links carry (invite, reset) and providers use. One list so a URL
 // segment, a `…code` value and free text agree on what is opaque instead of drifting apart.
 export const TOKEN_PREFIX_PATTERN = "(?:tok|inv)_";
 export const TOKEN_PREFIX = new RegExp(`^${TOKEN_PREFIX_PATTERN}`, "i");
+
+// A single word "looks like a credential" when it carries a digit (an OTP, a code, `hunter2`), is a long
+// opaque string, or starts with a known token prefix. This keeps the separator-less rules from swallowing
+// ordinary words: "token expired" and "password reset requested" stay readable.
+export const looksLikeCredentialValue = (value: string): boolean =>
+  /\p{Nd}/u.test(value) || value.length >= 16 || TOKEN_PREFIX.test(value);
