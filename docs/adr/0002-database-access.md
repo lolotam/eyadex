@@ -263,7 +263,8 @@ to name.
 
 B3b (done, schema part) — the Drizzle mirror of `db/sql/0001…0022` lives in `src/schema/` and is
 exported only as `@eyadex/db/schema` (table definitions, nothing callable). `schema-drift.db.spec.ts`
-compares its tables, columns, types, nullability, primary keys (in column order), foreign keys (with their
+compares its tables, columns, types, nullability, column defaults / identity / generated status (the
+baseline has none — ids are app-generated), primary keys (in column order), foreign keys (with their
 ON DELETE / ON UPDATE actions), **full index definitions** (as `pg_indexes.indexdef` prints them: uniqueness, method, column order and direction, expressions, partial predicate) and **CHECK
 constraints** (by name and full definition — each is written in the mirror exactly as
 `pg_get_constraintdef` prints it) with the applied baseline, and the platform audit view by column name,

@@ -59,8 +59,27 @@ function mirrorShape(table: PgTable): [string, Shape] {
   const primaryKey = inlinePk.length
     ? inlinePk
     : (config.primaryKeys[0]?.columns.map((c) => c.name) ?? []);
+  // Defaults, identity and generated columns are part of each column: a default on an `id` would break
+  // the app-generated UUID v7 rule silently (Codex on PR #24). A DB default is written in the mirror as
+  // PostgreSQL prints column_default; $defaultFn is app-side and is not a database default.
   const columns = config.columns
-    .map((c) => `${c.name}:${c.getSQLType()}:${c.notNull ? "not null" : "null"}`)
+    .map((c) => {
+      const column = c as typeof c & { generatedIdentity?: unknown; generated?: unknown };
+      const dbDefault =
+        c.default === undefined
+          ? "-"
+          : is(c.default, SQL)
+            ? dialect.sqlToQuery(c.default).sql
+            : String(c.default);
+      return [
+        c.name,
+        c.getSQLType(),
+        c.notNull ? "not null" : "null",
+        `default=${dbDefault}`,
+        `identity=${column.generatedIdentity === undefined ? "NO" : "YES"}`,
+        `generated=${column.generated === undefined ? "NEVER" : "ALWAYS"}`,
+      ].join(":");
+    })
     .sort();
   const foreignKeys = config.foreignKeys
     .map((fk) => {
@@ -123,9 +142,18 @@ function mirrorShape(table: PgTable): [string, Shape] {
 
 async function databaseShapes(owner: Sql): Promise<Map<string, Shape>> {
   const columns = await owner<
-    { table_name: string; column_name: string; data_type: string; is_nullable: string }[]
+    {
+      table_name: string;
+      column_name: string;
+      data_type: string;
+      is_nullable: string;
+      column_default: string | null;
+      is_identity: string;
+      is_generated: string;
+    }[]
   >`
-    SELECT c.table_name, c.column_name, c.data_type, c.is_nullable
+    SELECT c.table_name, c.column_name, c.data_type, c.is_nullable, c.column_default,
+      c.is_identity, c.is_generated
     FROM information_schema.columns c
     JOIN information_schema.tables t ON t.table_schema = c.table_schema AND t.table_name = c.table_name
     WHERE c.table_schema = 'public' AND t.table_type = 'BASE TABLE'`;
@@ -173,7 +201,14 @@ async function databaseShapes(owner: Sql): Promise<Map<string, Shape>> {
     // The migration runner's ledger (db/migrate-lib.sh) is not application data.
     if (c.table_name === "schema_migrations") continue;
     get(c.table_name).columns.push(
-      `${c.column_name}:${c.data_type}:${c.is_nullable === "YES" ? "null" : "not null"}`,
+      [
+        c.column_name,
+        c.data_type,
+        c.is_nullable === "YES" ? "null" : "not null",
+        `default=${c.column_default ?? "-"}`,
+        `identity=${c.is_identity}`,
+        `generated=${c.is_generated}`,
+      ].join(":"),
     );
   }
   for (const k of keys) {

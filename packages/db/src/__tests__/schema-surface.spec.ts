@@ -1,4 +1,5 @@
-import { getTableConfig } from "drizzle-orm/pg-core";
+import { is } from "drizzle-orm";
+import { getTableConfig, PgTable } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 
 import * as schema from "../schema/index.ts";
@@ -30,13 +31,16 @@ describe("@eyadex/db/schema", () => {
   });
 
   it("gives no id column a database default (ids are app-generated UUID v7)", () => {
-    for (const value of Object.values(schema)) {
-      try {
-        const id = getTableConfig(value as never).columns.find((c) => c.name === "id");
-        expect(id?.hasDefault ?? false).toBe(false);
-      } catch {
-        // the view is not a table
-      }
+    // Tables are picked out first: the assertion must never sit inside a catch that could swallow
+    // its failure (Codex on PR #24).
+    const tables = (Object.values(schema) as unknown[]).filter((value): value is PgTable =>
+      is(value, PgTable),
+    );
+    expect(tables.length).toBeGreaterThan(0);
+    for (const table of tables) {
+      const id = getTableConfig(table).columns.find((c) => c.name === "id");
+      if (id === undefined) continue;
+      expect([id.hasDefault, id.default]).toEqual([false, undefined]);
     }
   });
 });
