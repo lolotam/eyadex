@@ -14,7 +14,7 @@
     }
   },
   "scripts": {
-    "dev": "pnpm --filter @eyadex/web dev",
+    "dev": "cd apps/web && ./node_modules/.bin/vite dev",
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
     "test": "turbo run test",
