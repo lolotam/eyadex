@@ -10,6 +10,11 @@ export { decideBranchDeactivation, type BranchDeactivation } from "./domain/bran
 export { isModuleEnabled, type ClinicModule } from "./domain/feature-flags.ts";
 export { CLOCK, type Clock } from "./ports/clock.ts";
 export { CLINIC_READER, type ClinicReader } from "./ports/clinic-reader.ts";
+export {
+  SEAT_USAGE_READER,
+  type SeatUsage,
+  type SeatUsageReader,
+} from "./ports/seat-usage-reader.ts";
 export { BRANCH_READER, type BranchReader, type BranchRecord } from "./ports/branch-reader.ts";
 export { getClinicAccessState, type ClinicAccessState } from "./queries/clinic-access-state.ts";
 export { listClinicBranches } from "./queries/clinic-branches.ts";

@@ -38,14 +38,6 @@ export class PgClinicReader implements ClinicReader {
       const features = await tx.execute<{ module: ClinicModule; enabled: boolean }>(
         sql`SELECT module, enabled FROM clinic_features WHERE clinic_id = ${clinicId} ORDER BY module`,
       );
-      const activeMemberships = await count(
-        tx,
-        sql`SELECT count(*)::int AS total FROM memberships
-            WHERE clinic_id = ${clinicId} AND status = 'active'`,
-      );
-      const pending = await tx.execute<{ expires_at: Date | string }>(
-        sql`SELECT expires_at FROM invitations WHERE clinic_id = ${clinicId} AND status = 'pending'`,
-      );
       const activeBranches = await count(
         tx,
         sql`SELECT count(*)::int AS total FROM branches
@@ -61,8 +53,6 @@ export class PgClinicReader implements ClinicReader {
         maxUsers: Number(clinic.max_users),
         maxBranches: Number(clinic.max_branches),
         features: features.map((row) => ({ module: row.module, enabled: row.enabled })),
-        activeMemberships,
-        pendingInvitations: pending.map((row) => ({ expiresAt: toDate(row.expires_at) })),
         activeBranches,
       };
     });

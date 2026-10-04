@@ -1,6 +1,5 @@
 import type { ClinicStatus } from "../domain/clinic-access.ts";
 import type { FeatureFlag } from "../domain/feature-flags.ts";
-import type { PendingInvitation } from "../domain/limits.ts";
 
 /** كل اللي الـ tenancy محتاجه عن عيادة عشان قرار الدخول والحدود والـ flags. */
 export interface ClinicSnapshot {
@@ -13,9 +12,6 @@ export interface ClinicSnapshot {
   readonly maxUsers: number;
   readonly maxBranches: number;
   readonly features: readonly FeatureFlag[];
-  readonly activeMemberships: number;
-  /** الدعوات اللي حالتها المخزّنة pending — السريان بيتحسب في الـ domain. */
-  readonly pendingInvitations: readonly PendingInvitation[];
   readonly activeBranches: number;
 }
 

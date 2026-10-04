@@ -1,28 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import { branchesUsage, checkLimit, isInvitationLive, usersUsage } from "../limits.ts";
+import { branchesUsage, checkLimit, usersUsage } from "../limits.ts";
 
-const now = new Date("2026-10-04T12:00:00.000Z");
-const at = (offsetMs: number) => ({ expiresAt: new Date(now.getTime() + offsetMs) });
-
-describe("isInvitationLive", () => {
-  it("is live before expiry and not at or after the instant", () => {
-    expect(isInvitationLive(at(1), now)).toBe(true);
-    expect(isInvitationLive(at(0), now)).toBe(false);
-    expect(isInvitationLive(at(-1), now)).toBe(false);
-  });
-});
-
+// Which invitations are still live (expires_at > now) is counted in the database by the identity
+// adapter (PgSeatUsageReader); the domain only adds the two counts.
 describe("usersUsage", () => {
-  it("counts active memberships plus live pending invitations only", () => {
-    expect(usersUsage(3, [at(1000), at(0), at(-1000), at(60_000)], 10, now)).toEqual({
-      used: 5,
-      max: 10,
-    });
+  it("counts active memberships plus live pending invitations", () => {
+    expect(usersUsage(3, 2, 10)).toEqual({ used: 5, max: 10 });
   });
 
-  it("is just the active memberships with no invitations", () => {
-    expect(usersUsage(0, [], 5, now)).toEqual({ used: 0, max: 5 });
+  it("is just the active memberships with no live invitations", () => {
+    expect(usersUsage(0, 0, 5)).toEqual({ used: 0, max: 5 });
   });
 });
 

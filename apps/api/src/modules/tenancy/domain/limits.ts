@@ -9,41 +9,23 @@ export type LimitCheck =
   | { readonly kind: "within"; readonly used: number; readonly max: number }
   | { readonly kind: "exceeded"; readonly used: number; readonly max: number };
 
-/** دعوة pending من زاوية الحد: تاريخ انتهائها بس. */
-export interface PendingInvitation {
-  readonly expiresAt: Date;
-}
-
-/**
- * هل الدعوة pending لسه سارية؟ السريان حصري عند لحظة `expiresAt` نفسها، زي قاعدة الـ SQL
- * `expires_at <= now()` = منتهية (db/sql/0009).
- *
- * @param invitation الدعوة الـ pending
- * @param now الوقت الحالي من الـ Clock
- * @returns `true` لو لسه سارية وبتتحسب في الحد
- */
-export function isInvitationLive(invitation: PendingInvitation, now: Date): boolean {
-  return now.getTime() < invitation.expiresAt.getTime();
-}
-
 /**
  * استهلاك حد المستخدمين (PRD §4.9): العضويات النشطة + الدعوات الـ pending اللي لسه سارية.
- * العضويات المعطّلة والدعوات الملغاة أو المقبولة أو المنتهية مش بتتحسب.
+ * العضويات المعطّلة والدعوات الملغاة أو المقبولة أو المنتهية مش بتتحسب. العدّ نفسه بيتعمل في
+ * الداتابيز عند الموديول اللي بيملك الجداول (`identity`)، عبر الـ port `SeatUsageReader` —
+ * الدعوة سارية طول ما `expires_at > now` (حصري عند لحظة الانتهاء، زي db/sql/0009).
  *
  * @param activeMemberships عدد العضويات النشطة
- * @param pendingInvitations الدعوات اللي حالتها pending (سارية أو لأ)
+ * @param livePendingInvitations عدد الدعوات الـ pending اللي لسه سارية
  * @param maxUsers حد العيادة `max_users`
- * @param now الوقت الحالي من الـ Clock
  * @returns الاستهلاك والحد
  */
 export function usersUsage(
   activeMemberships: number,
-  pendingInvitations: readonly PendingInvitation[],
+  livePendingInvitations: number,
   maxUsers: number,
-  now: Date,
 ): LimitUsage {
-  const live = pendingInvitations.filter((invitation) => isInvitationLive(invitation, now)).length;
-  return { used: activeMemberships + live, max: maxUsers };
+  return { used: activeMemberships + livePendingInvitations, max: maxUsers };
 }
 
 /**

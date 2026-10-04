@@ -9,7 +9,7 @@ export const DATABASE = Symbol("shared.Database");
 
 /**
  * الـ `Database` من `DATABASE_URL` على `eyadex_app`. postgres.js كسلان، فمفيش اتصال لحد أول query.
- * TODO(spec): مين بيقفل الـ pool عند الإيقاف لما الموديول يتربط في الـ app (shutdown hook).
+ * بيتقفل مع الـ app عن طريق `DatabaseModule` (`DatabaseCloser`).
  */
 export const databaseProvider: Provider<Database> = {
   provide: DATABASE,

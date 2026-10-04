@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { PgBranchReader } from "../persistence/pg-branch-reader.ts";
 import { PgClinicReader } from "../persistence/pg-clinic-reader.ts";
+import type { SeatUsageReader } from "../ports/seat-usage-reader.ts";
 import { getClinicAccessState } from "../queries/clinic-access-state.ts";
 import { listClinicBranches } from "../queries/clinic-branches.ts";
 
@@ -28,11 +29,14 @@ interface Fixture {
 
 const expiresAt = new Date("2030-01-01T00:00:00.000Z");
 const clock = { now: () => new Date("2029-12-31T00:00:00.000Z") };
+// Seat counting belongs to identity (PgSeatUsageReader, tested there); tenancy only consumes the port.
+const seats: SeatUsageReader = {
+  readSeatUsage: () => Promise.resolve({ activeMemberships: 1, livePendingInvitations: 1 }),
+};
 
 async function seedClinic(owner: Sql, status: "active" | "suspended"): Promise<Fixture> {
   const clinicId = newId();
   const branchIds = { activeB: newId(), activeA: newId(), inactive: newId() };
-  const roleId = newId();
   await owner.begin(async (tx) => {
     await tx`INSERT INTO clinics (id, slug, name_ar, name_en, specialty, default_language,
         timezone, status, expires_at, max_users, max_branches, created_at, updated_at)
@@ -47,21 +51,6 @@ async function seedClinic(owner: Sql, status: "active" | "suspended"): Promise<F
     ] as const) {
       await tx`INSERT INTO branches (clinic_id, id, name_ar, name_en, is_active, created_at, updated_at)
         VALUES (${clinicId}, ${id}, ${`فرع ${nameEn}`}, ${nameEn}, ${active}, now(), now())`;
-    }
-    await tx`INSERT INTO roles (clinic_id, id, system_key, name_ar, name_en, is_locked, is_active, created_at, updated_at)
-      VALUES (${clinicId}, ${roleId}, 'doctor', 'طبيب', 'Doctor', false, true, now(), now())`;
-    for (const memberStatus of ["active", "deactivated"] as const) {
-      await tx`INSERT INTO memberships (clinic_id, id, user_id, full_name, email, role_id, all_branches,
-          status, preferred_language, last_login_at, created_at, updated_at)
-        VALUES (${clinicId}, ${newId()}, ${newId()}, 'عضو', ${`m-${newId()}@example.com`}, ${roleId},
-          true, ${memberStatus}, 'ar', NULL, now(), now())`;
-    }
-    // One live pending invitation, one expired pending one (relative to the injected clock).
-    for (const expiry of [new Date("2030-01-05T00:00:00Z"), new Date("2029-12-30T00:00:00Z")]) {
-      await tx`INSERT INTO invitations (clinic_id, id, email, full_name, role_id, all_branches, status,
-          expires_at, invited_by_user_id, token_hash, created_at, responded_at)
-        VALUES (${clinicId}, ${newId()}, ${`i-${newId()}@example.com`}, 'مدعو', ${roleId}, true,
-          'pending', ${expiry}, ${newId()}, ${`tenancy-${newId()}`}, now(), NULL)`;
     }
   });
   return { clinicId, branchIds };
@@ -86,7 +75,7 @@ afterAll(async () => {
 
 describe("clinic access state (eyadex_app)", () => {
   it("computes access, usage and flags from the clinic's own rows", async () => {
-    const state = await getClinicAccessState(new PgClinicReader(db), clock, A.clinicId);
+    const state = await getClinicAccessState(new PgClinicReader(db), seats, clock, A.clinicId);
     expect(state).toEqual({
       clinicId: A.clinicId,
       status: "active",
@@ -99,12 +88,12 @@ describe("clinic access state (eyadex_app)", () => {
   });
 
   it("reports a suspended clinic", async () => {
-    const state = await getClinicAccessState(new PgClinicReader(db), clock, B.clinicId);
+    const state = await getClinicAccessState(new PgClinicReader(db), seats, clock, B.clinicId);
     expect(state?.access).toBe("suspended");
   });
 
   it("returns null for an unknown clinic", async () => {
-    expect(await getClinicAccessState(new PgClinicReader(db), clock, newId())).toBeNull();
+    expect(await getClinicAccessState(new PgClinicReader(db), seats, clock, newId())).toBeNull();
   });
 });
 
