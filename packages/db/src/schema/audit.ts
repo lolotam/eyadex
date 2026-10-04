@@ -38,8 +38,12 @@ export const auditLog = pgTable(
       columns: [t.clinicId],
       foreignColumns: [clinics.id],
     }),
-    index("audit_log_clinic_created_idx").on(t.clinicId, t.createdAt.desc()),
-    index("audit_log_clinic_category_created_idx").on(t.clinicId, t.category, t.createdAt.desc()),
+    index("audit_log_clinic_created_idx").on(t.clinicId, t.createdAt.desc().nullsFirst()),
+    index("audit_log_clinic_category_created_idx").on(
+      t.clinicId,
+      t.category,
+      t.createdAt.desc().nullsFirst(),
+    ),
     index("audit_log_clinic_entity_idx").on(t.clinicId, t.entityType, t.entityId),
     check(
       "audit_log_category_check",
@@ -68,8 +72,8 @@ export const platformAuditLog = pgTable(
       columns: [t.clinicId],
       foreignColumns: [clinics.id],
     }),
-    index("platform_audit_log_created_idx").on(t.createdAt.desc()),
-    index("platform_audit_log_clinic_idx").on(t.clinicId, t.createdAt.desc()),
+    index("platform_audit_log_created_idx").on(t.createdAt.desc().nullsFirst()),
+    index("platform_audit_log_clinic_idx").on(t.clinicId, t.createdAt.desc().nullsFirst()),
   ],
 );
 

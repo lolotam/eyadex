@@ -1,3 +1,4 @@
+import { is, SQL } from "drizzle-orm";
 import {
   getTableConfig,
   getViewConfig,
@@ -59,10 +60,42 @@ function mirrorShape(table: PgTable): [string, Shape] {
       return `${fk.getName()}(${ref.columns.map((c) => c.name).join(",")})->${target}(${ref.foreignColumns.map((c) => c.name).join(",")})`;
     })
     .sort();
+  // Each index is compared by its full definition as pg_indexes.indexdef prints it — uniqueness, method,
+  // every column or expression in order with its direction, and the partial predicate — not its name
+  // alone (Codex on PR #24). Expressions render as drizzle-kit would put them in an index; PostgreSQL
+  // prints these lower-case identifiers unquoted.
+  const define = (name: string, unique: boolean, method: string, cols: string[], where?: string) =>
+    `CREATE ${unique ? "UNIQUE " : ""}INDEX ${name} ON public.${config.name} USING ${method} (${cols.join(", ")})` +
+    (where === undefined ? "" : ` WHERE (${where})`);
+  const expression = (value: SQL): string =>
+    dialect.sqlToQuery(value, "indexes").sql.replaceAll('"', "");
   const indexes = [
-    ...config.indexes.map((i) => i.config.name ?? ""),
-    ...config.uniqueConstraints.map((u) => u.getName() ?? ""),
-    ...config.columns.filter((c) => c.isUnique).map((c) => c.uniqueName ?? ""),
+    ...config.indexes.map((i) => {
+      const cols = i.config.columns.map((c) => {
+        if (is(c, SQL)) return expression(c);
+        const column = c as { name?: string; indexConfig?: { order?: string; nulls?: string } };
+        const desc = column.indexConfig?.order === "desc";
+        const nulls = column.indexConfig?.nulls;
+        const nullsNote =
+          nulls === undefined || (nulls === "first") === desc
+            ? ""
+            : ` NULLS ${nulls.toUpperCase()}`;
+        return `${column.name ?? ""}${desc ? " DESC" : ""}${nullsNote}`;
+      });
+      const where = i.config.where === undefined ? undefined : expression(i.config.where);
+      return define(i.config.name ?? "", i.config.unique, i.config.method ?? "btree", cols, where);
+    }),
+    ...config.uniqueConstraints.map((u) =>
+      define(
+        u.getName() ?? "",
+        true,
+        "btree",
+        u.columns.map((c) => c.name),
+      ),
+    ),
+    ...config.columns
+      .filter((c) => c.isUnique)
+      .map((c) => define(c.uniqueName ?? "", true, "btree", [c.name])),
   ].sort();
   // Each check is written in the mirror exactly as PostgreSQL prints it (pg_get_constraintdef), so the
   // comparison is the full definition, not just the name (Codex on PR #24).
@@ -101,8 +134,8 @@ async function databaseShapes(owner: Sql): Promise<Map<string, Shape>> {
     FROM pg_constraint con JOIN pg_class rel ON rel.oid = con.conrelid
     JOIN pg_namespace ns ON ns.oid = rel.relnamespace
     WHERE ns.nspname = 'public' AND con.contype = 'c'`;
-  const indexes = await owner<{ tablename: string; indexname: string }[]>`
-    SELECT tablename, indexname FROM pg_indexes
+  const indexes = await owner<{ tablename: string; indexname: string; indexdef: string }[]>`
+    SELECT tablename, indexname, indexdef FROM pg_indexes
     WHERE schemaname = 'public' AND indexname NOT LIKE '%\\_pkey'`;
 
   const shapes = new Map<string, Shape>();
@@ -127,7 +160,7 @@ async function databaseShapes(owner: Sql): Promise<Map<string, Shape>> {
     else get(k.table_name).foreignKeys.push(`${k.name}(${k.cols})->${k.ref}`);
   }
   for (const i of indexes)
-    if (i.tablename !== "schema_migrations") get(i.tablename).indexes.push(i.indexname);
+    if (i.tablename !== "schema_migrations") get(i.tablename).indexes.push(i.indexdef);
   for (const c of checks)
     if (c.table_name !== "schema_migrations") get(c.table_name).checks.push(`${c.name}:${c.def}`);
   for (const shape of shapes.values()) {
