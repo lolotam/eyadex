@@ -143,6 +143,16 @@ export class DatabaseError extends Error {
 /** أقصى عمق بندوّر فيه في سلسلة الـ `cause` — سلسلة أطول من كده مش خطأ حقيقي، وبنقفل عليها. */
 const MAX_CAUSE_DEPTH = 8;
 
+/**
+ * سلسلة أعمق من السقف ما بتتفحصش، فما بتتصدّقش: الباقي بيتقطع ويتحط مكانه الخطأ ده — من غير ما
+ * نقول إن مفيش حاجة حساسة فيه. (Codex على PR #22، P1: السقف كان بيرجّع "نضيف".)
+ */
+const CHAIN_CUT =
+  "error cause chain cut: deeper than the database wrapper inspects for driver details (ADR-0002)";
+
+/** النتيجة لما القطع نفسه مش ممكن (object متجمّد): الخطأ كله بيتشال. */
+const UNSCRUBBABLE = Symbol("unscrubbable");
+
 /** الأماكن اللي خطأ بيشيل فيها أخطاء تانية: `cause` و`errors` بتاع `AggregateError`. */
 type ErrorContainer = { cause?: unknown; errors?: unknown };
 
@@ -156,13 +166,18 @@ type ErrorContainer = { cause?: unknown; errors?: unknown };
  * الـ driver بس. السلسلة محدودة بعمق ومحمية من الدوائر.
  *
  * @param error خطأ `fn` كما هو
- * @returns الـ facts بتاعة أول فشل driver اتساب لو ماقدرناش نستبدله (object متجمّد)، وإلا `undefined`
+ * @returns `undefined` لو اتنضّف، الـ facts لو فشل driver ماقدرناش نستبدله، و`UNSCRUBBABLE` لو
+ *   سلسلة أعمق من السقف ماقدرناش نقطعها (object متجمّد)
  */
-const scrubDriverCauses = (error: unknown): DatabaseFailureFacts | undefined => {
+const scrubDriverCauses = (
+  error: unknown,
+): DatabaseFailureFacts | typeof UNSCRUBBABLE | undefined => {
   const seen = new Set<unknown>();
-  const visit = (node: unknown, depth: number): DatabaseFailureFacts | undefined => {
+  const visit = (
+    node: unknown,
+    depth: number,
+  ): DatabaseFailureFacts | typeof UNSCRUBBABLE | undefined => {
     if (typeof node !== "object" || node === null || seen.has(node)) return undefined;
-    if (depth > MAX_CAUSE_DEPTH) return undefined;
     seen.add(node);
     const container = node as ErrorContainer;
     const children: Array<[holder: object, key: PropertyKey, value: unknown]> = [];
@@ -176,6 +191,12 @@ const scrubDriverCauses = (error: unknown): DatabaseFailureFacts | undefined => 
       const facts = value instanceof DatabaseError ? undefined : findDriverFailure(value);
       if (facts !== undefined) {
         if (!Reflect.set(holder, key, new DatabaseError(facts))) return facts;
+        continue;
+      }
+      if (typeof value !== "object" || value === null) continue;
+      if (depth + 1 > MAX_CAUSE_DEPTH) {
+        // Past the cap nothing is inspected, so nothing is trusted: the rest of the chain is cut off.
+        if (!Reflect.set(holder, key, new Error(CHAIN_CUT))) return UNSCRUBBABLE;
         continue;
       }
       const left = visit(value, depth + 1);
@@ -201,5 +222,6 @@ export function asDatabaseError(error: unknown): unknown {
   const facts = findDriverFailure(error);
   if (facts !== undefined) return new DatabaseError(facts);
   const stuck = scrubDriverCauses(error);
-  return stuck === undefined ? error : new DatabaseError(stuck);
+  if (stuck === undefined) return error;
+  return stuck === UNSCRUBBABLE ? new Error(CHAIN_CUT) : new DatabaseError(stuck);
 }

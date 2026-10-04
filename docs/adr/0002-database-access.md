@@ -203,7 +203,9 @@ SQL given as text — this ADR is revisited with it.
 
 `Tx` is a `Proxy` with an allow-list of **three** members: `execute`, `transaction` (savepoints) and
 `rollback`. Everything else throws a `TypeError`: `session`, `_`, `dialect`, `$client`, `query`,
-`select`, `constructor`, symbols, the prototype, and any assignment. `Tx` is that allow-listed type
+`select`, `constructor`, symbols, the prototype, and any assignment. A method taken from `tx` (`const execute = tx.execute`) ends with its transaction or
+savepoint too: every method the proxy hands out checks the `Tx`'s lifetime on each call, because
+`Proxy.revocable` only stops new reads (Codex on PR #22, P1). `Tx` is that allow-listed type
 itself, so `tx.session` and `tx.select()` do not compile either.
 
 The query builders are gone on purpose, and that was a real hole rather than a style choice:
@@ -278,9 +280,10 @@ converting it would report a use case's own validation failure as a database err
 the same message, but its `cause` would carry PostgreSQL's `detail` (the whole failing row — patient
 data) and a `DrizzleQueryError` the query and its parameters. So the wrapper walks the `cause` chain and
 an `AggregateError`'s `errors` — at most eight levels, cycle-safe — and replaces every **genuine**
-driver failure it finds with a `DatabaseError` (identifiers only). SQLSTATE-shaped values of `fn`'s own
+driver failure it finds with a `DatabaseError` (identifiers only). Past the cap nothing is read, so
+nothing is trusted: the rest of the chain is cut off and replaced by a plain "chain cut" error. SQLSTATE-shaped values of `fn`'s own
 are left alone. If a holder cannot be written (a frozen error), it fails closed: the whole error becomes
-that `DatabaseError`. (Codex on PR #22, P1.)
+that `DatabaseError` (or the plain "chain cut" error). (Codex on PR #22, P1.)
 
 ### Accepted limitations
 

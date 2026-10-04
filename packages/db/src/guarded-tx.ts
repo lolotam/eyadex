@@ -65,11 +65,32 @@ export type Tx = {
   transaction<T>(fn: (tx: Tx) => Promise<T>): Promise<T>;
 };
 
+const REVOKED =
+  "tx is no longer valid: its transaction (or savepoint) has ended, and a method kept from it ends " +
+  "with it — run the work inside the callback that received tx (ADR-0002)";
+
+/**
+ * عمر الـ `Tx` الواحد. الـ `revoke()` بتاع الـ Proxy بيقفل **القراءة** من الـ proxy بس — دالة اتاخدت
+ * منه قبل كده (`const execute = tx.execute`) كانت بتفضل شغّالة على الـ transaction الحقيقية بعد ما
+ * خلصت، أو على savepoint اتقفل والـ transaction اللي برّه لسه شغالة. فكل دالة بنرجّعها بتسأل العمر
+ * ده **في كل نداء**. (Codex على PR #22، P1.)
+ */
+type Lifetime = { live: boolean };
+
+/**
+ * @param lifetime عمر الـ `Tx` اللي الدالة اتاخدت منه
+ * @throws TypeError لو الـ transaction أو الـ savepoint خلصت
+ */
+const assertLive = (lifetime: Lifetime): void => {
+  if (!lifetime.live) throw new TypeError(REVOKED);
+};
+
 /** الـ `transaction` بتاع Drizzle، بس بيغلّف الـ callback الداخلي بـ proxy تاني. */
 const guardedSavepoints =
-  (raw: RawTx) =>
-  async <T>(fn: (tx: Tx) => Promise<T>): Promise<T> =>
-    await raw.transaction(async (inner: RawTx) => {
+  (raw: RawTx, lifetime: Lifetime) =>
+  async <T>(fn: (tx: Tx) => Promise<T>): Promise<T> => {
+    assertLive(lifetime);
+    return await raw.transaction(async (inner: RawTx) => {
       const guarded = guardTransaction(inner);
       try {
         return await fn(guarded.tx);
@@ -77,6 +98,7 @@ const guardedSavepoints =
         guarded.revoke();
       }
     });
+  };
 
 /**
  * `execute` المحروس: **رسم واحد، فحص واحد، إرسال واحد**.
@@ -90,8 +112,9 @@ const guardedSavepoints =
  *
  * النتيجة صفوف PostgreSQL، زي ما Drizzle كان بيرجّعها.
  */
-const guardedExecute = (raw: RawTx) => {
+const guardedExecute = (raw: RawTx, lifetime: Lifetime) => {
   const execute = async <TRow = unknown>(query: SQL): Promise<TRow[]> => {
+    assertLive(lifetime);
     const rendered = renderOnce(raw, query);
     assertStatementAllowed(rendered.text);
     return await sendRendered<TRow>(raw, rendered);
@@ -103,17 +126,21 @@ const guardedExecute = (raw: RawTx) => {
  * الـ proxy نفسه: allow-list على القراءة، ورفض صريح على الكتابة والـ prototype والـ
  * introspection. الـ methods متربوطة بالـ transaction الحقيقية عشان `this` يبقى صحيح.
  */
-const handler: ProxyHandler<RawTx> = {
+const makeHandler = (lifetime: Lifetime): ProxyHandler<RawTx> => ({
   get(target, property) {
     if (typeof property !== "string" || !ALLOWED.has(property)) {
       throw new TypeError(`${REACHED_DRIVER} (asked for ${askedFor(property)})`);
     }
     if (property === "execute") {
-      return guardedExecute(target) as unknown as Tx["execute"];
+      return guardedExecute(target, lifetime) as unknown as Tx["execute"];
     }
-    if (property === "transaction") return guardedSavepoints(target);
+    if (property === "transaction") return guardedSavepoints(target, lifetime);
     const member: unknown = Reflect.get(target, property, target);
-    return typeof member === "function" ? member.bind(target) : member;
+    if (typeof member !== "function") return member;
+    return (...args: unknown[]): unknown => {
+      assertLive(lifetime);
+      return (member as (...rest: unknown[]) => unknown).apply(target, args);
+    };
   },
   has(_target, property) {
     return typeof property === "string" && ALLOWED.has(property);
@@ -137,7 +164,7 @@ const handler: ProxyHandler<RawTx> = {
   deleteProperty() {
     throw new TypeError(REACHED_MUTATION);
   },
-};
+});
 
 /** الـ proxy ده مع `revoke()` — استخدمها لما الـ transaction يخلص. */
 export interface GuardedTx {
@@ -154,10 +181,12 @@ export interface GuardedTx {
  * @returns الـ `Tx` المحمي وطريقة إبطال صلاحيته
  */
 export function guardTransaction(raw: RawTx): GuardedTx {
-  const revocable = Proxy.revocable(raw, handler);
+  const lifetime: Lifetime = { live: true };
+  const revocable = Proxy.revocable(raw, makeHandler(lifetime));
   return {
     tx: revocable.proxy as unknown as Tx,
     revoke: () => {
+      lifetime.live = false;
       revocable.revoke();
     },
   };

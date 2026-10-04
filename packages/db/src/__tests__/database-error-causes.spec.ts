@@ -90,3 +90,34 @@ describe("a driver failure wrapped by fn loses its row data, fn's error stays fn
     expect(own.cause).toBe(shaped);
   });
 });
+
+describe("the depth cap fails closed (Codex, PR #22)", () => {
+  const chain = (levels: number, bottom: unknown): Error[] => {
+    const nodes: Error[] = [];
+    let below: unknown = bottom;
+    for (let level = 0; level < levels; level += 1) {
+      const node = new Error(`wrapper ${levels - level}`, { cause: below });
+      nodes.unshift(node);
+      below = node;
+    }
+    return nodes;
+  };
+
+  it("cuts a chain deeper than the cap instead of trusting what it did not read", () => {
+    const nodes = chain(12, realFailure());
+    const outer = nodes[0]!;
+    expect(asDatabaseError(outer)).toBe(outer);
+    const printable = everythingPrintable(outer);
+    expect(printable).not.toContain(PATIENT_ROW);
+    expect(printable).toContain("error cause chain cut");
+  });
+
+  it("drops the whole error when the cut itself is impossible (frozen past the cap)", () => {
+    const nodes = chain(12, realFailure());
+    nodes.forEach((node) => Object.freeze(node));
+    const result = asDatabaseError(nodes[0]);
+    expect(result).not.toBe(nodes[0]);
+    expect((result as Error).message).toContain("error cause chain cut");
+    expect(everythingPrintable(result)).not.toContain(PATIENT_ROW);
+  });
+});
