@@ -54,8 +54,16 @@ const RESERVED_KEYS: ReadonlySet<string> = new Set(["msg", "level", "time", "pid
 // The one preparation every object pino prints goes through — log objects AND bindings: reduce req/res/err,
 // sanitise at any depth, drop pino's reserved keys.
 function prepare(object: object): Record<string, unknown> {
-  const prepared = sanitize(reduce(object)) as Record<string, unknown>;
+  const prepared = asLogObject(sanitize(reduce(object)));
   return Object.fromEntries(Object.entries(prepared).filter(([key]) => !RESERVED_KEYS.has(key)));
+}
+
+// sanitize fails closed with a STRING; pino given a string as the log object prints it character by
+// character ({"0":"[","1":"R",…}). Anything that is not a plain object becomes one inert field.
+function asLogObject(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : { fields: REDACTED };
 }
 
 function normalizer(events: ReadonlySet<string>): (args: unknown[]) => [object, string] {
@@ -76,7 +84,7 @@ function normalizer(events: ReadonlySet<string>): (args: unknown[]) => [object, 
 // A second, idempotent pass on the final object — belt and braces for anything that reached pino
 // without going through the normaliser.
 const formatLog = (object: Record<string, unknown>): Record<string, unknown> =>
-  sanitize(object) as Record<string, unknown>;
+  asLogObject(sanitize(object));
 
 // Bindings are serialised by pino outside formatters.log, so they are sanitised here. The wrappers call
 // pino's ORIGINAL prototype methods with the real receiver: a pino child is created with the parent as its

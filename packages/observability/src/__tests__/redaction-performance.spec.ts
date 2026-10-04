@@ -37,14 +37,26 @@ describe("sanitize stays linear on adversarial strings", () => {
     ["%41", "%41".repeat(NEAR_CAP / 3)],
     ["/", "/".repeat(NEAR_CAP)],
     ["//", "x,//".repeat(NEAR_CAP / 4)],
+    ["glued //", "a//".repeat(NEAR_CAP / 3)],
+    // Separator runs: two adjacent overlapping [:=] classes took 13 s on the first of these.
+    ["a then :", "a" + ":".repeat(NEAR_CAP - 1)],
+    ["a: then spaces", "a:" + " ".repeat(NEAR_CAP - 2)],
+    ["a then ':= '", "a" + ":= ".repeat(NEAR_CAP / 3 - 1)],
   ])("64 KB of %s is scanned and completes in < 150 ms", (_label, value) => {
     expect(value.length).toBeGreaterThan(60_000);
     expect(value.length).toBeLessThan(64 * 1024);
     expect(elapsed(value)).toBeLessThan(150);
   });
 
-  it("replaces an over-cap string whole instead of scanning it", () => {
-    expect(sanitize({ note: "a".repeat(LARGE) })).toEqual({ note: REDACTED });
+  // Timed as well: the cap must be checked BEFORE the scanners. If it moved after them, the equality alone
+  // would still pass while 100 KB of adversarial input reached the regexes.
+  it.each([
+    ["a", "a".repeat(LARGE)],
+    ["a=", "a=".repeat(LARGE / 2)],
+    [":", "a" + ":".repeat(LARGE)],
+  ])("replaces an over-cap %s string whole, unscanned, in < 150 ms", (_label, value) => {
+    expect(elapsed(value)).toBeLessThan(150);
+    expect(sanitize({ note: value })).toEqual({ note: REDACTED });
   });
 
   it("a 16 KB realistic mixed string completes in < 50 ms", () => {

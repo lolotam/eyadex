@@ -17,9 +17,11 @@ const RELATIVE_START = /^\s*(?:\/\/|\/|\?)/;
 // "03/10/2026" stay readable while "x,//user:pw@host" or "next=/reset/tok_…" are scanned. ":" is left out:
 // "http://" belongs to the absolute pass.
 const RELATIVE_IN_TEXT = /(?<=^|[\s"'([,;={}<>])(?:\/\/|\/|\?)[^\s"'<>)\]]*/g;
-// `//name:secret@` anywhere except right after a scheme's ":". The name class excludes ":" and the secret
-// class excludes "/", so each "//" is read at most up to the next slash — linear on any run of slashes.
-const GLUED_USERINFO = /(?<!:)\/\/[^\s/?#@:]*:[^\s/?#@]*@/g;
+// A "//" glued to a word ("prefix//user:pw@host") starts no token, so the relative pass never sees it. Its
+// authority — up to the next / ? # or space, so linear on any run of slashes — goes through the same
+// scrubAuthority as a token's: a complete userinfo becomes "***@" and a split one ("prefix//user:pw/rest@host")
+// withholds the authority. A "//" right after a scheme's ":" belongs to the absolute pass.
+const GLUED_AUTHORITY = /(?<!:)\/\/[^\s/?#]*/g;
 // A cheap pre-check so the relative pass is skipped on text with no slash or query at all.
 const RELATIVE_HINT = /[/?]/;
 // A URL whose authority carries a ":" but no "@" is a userinfo whose "@host" was split off by whitespace
@@ -66,6 +68,8 @@ function scrubAuthority(authority: string): string {
   const host = hostPort.replace(/:\d*$/, "");
   // A ":" left after the port is removed, with no "@", is a userinfo whose "@host" was cut off by a "/" or a
   // space ("//user:pw/rest@host") — the absolute form withholds it the same way. An IPv6 literal is bracketed.
+  // An all-digit password is indistinguishable from a port ("//db:5432/x") and is kept, exactly as in the
+  // absolute form's isSplitUserinfo — ADR 0001 accepted risk 15.
   if (at === -1 && host.includes(":") && !host.startsWith("[")) return `//${REDACTED}`;
   return `//${userinfo}${isOpaqueHost(host) ? REDACTED : hostPort}`;
 }
@@ -138,10 +142,8 @@ export function scrubUrlCredentials(text: string, urlKey: boolean): string {
   const relatives = RELATIVE_START.test(text)
     ? scrubRelative(text, urlKey)
     : text.replace(RELATIVE_IN_TEXT, (part) => scrubRelative(part, urlKey));
-  // A "//user:pw@" glued to a word ("prefix//user:pw@host") starts no token, so the relative pass never
-  // saw it; its userinfo is still credentials.
   const withRelatives = relatives.includes("//")
-    ? relatives.replace(GLUED_USERINFO, "//***@")
+    ? relatives.replace(GLUED_AUTHORITY, scrubAuthority)
     : relatives;
   if (!withRelatives.includes("://")) return withRelatives;
   // A split userinfo cannot be scrubbed token by token — its "@host" is in a later token — so the whole

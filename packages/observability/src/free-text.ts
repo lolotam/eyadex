@@ -60,8 +60,11 @@ const CLI_CREDENTIAL = /(--?(?:password|passwd|pwd|token|secret|api-?key)\s+)(\S
 // non-credential name re-reads its value as a possible name ("note: password=x"), and a value that ran to the
 // end of "a=a=a=…" made every re-read rescan the tail (quadratic, ~1 s on 64 KB). A credential value is
 // extended to its delimiter afterwards, so "token=YWJj==" is still withheld whole.
+// The separator is any run of ":"/"=", optionally broken by spaces ("password====x", "token: ==x"). Each
+// repetition REQUIRES whitespace before its ":"/"=" run, so a run can be split only one way: `[:=]+[:=]*`
+// (two adjacent overlapping classes) made 63 KB of ":" take 13 s, and a bound like {1,3} leaked "====".
 const ASSIGNMENT =
-  /(?<![\w.-])([\w.-]{1,200}?)(\\?["']?\s*[:=]{1,3}\s*)(\\?"(?:\\.|[^"\\])*\\?"|\\?'(?:\\.|[^'\\])*\\?'|[^\s&",;':=]+)/g;
+  /(?<![\w.-])([\w.-]{1,200}?)(\\?["']?\s*[:=]+(?:[ \t]+[:=]+)*\s*)(\\?"(?:\\.|[^"\\])*\\?"|\\?'(?:\\.|[^'\\])*\\?'|[^\s&",;':=]+)/g;
 // A bare credential word followed by a quoted value and no separator: `password 'hunter two' rejected`.
 // The value is consumed whole, so a multi-word secret does not leave its tail behind.
 const QUOTED_CREDENTIAL = /(?<![\w.-])([\w.-]{1,200}?)\s+('(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")/g;

@@ -20,6 +20,10 @@ describe("a scheme-relative URL's authority is scrubbed like a parsed URL's", ()
     ["x,//user:pw@host", "x,//***@host"],
     // …and one glued to a word, which starts no token.
     ["prefix//user:pw@host", "prefix//***@host"],
+    // …including a glued one whose "@host" was cut off by / ? or #.
+    ["prefix//user:pw/rest@host", `prefix//${REDACTED}/rest@host`],
+    ["prefix//user:pw?x@host", `prefix//${REDACTED}?x@host`],
+    ["prefix//user:pw#x@host", `prefix//${REDACTED}#x@host`],
   ])("%j", (raw, expected) => {
     for (const out of both({ note: raw })) expect(out).toEqual({ note: expected });
   });
@@ -46,6 +50,12 @@ describe("an unquoted credential value is withheld up to the next pair delimiter
     ["password: correct horse battery staple", `password: ${REDACTED}`],
     ["apiKey=alpha beta gamma", `apiKey=${REDACTED}`],
     ["password==hunter2", `password==${REDACTED}`],
+    // Just past any fixed bound, and runs broken by spaces.
+    ["password====S3cretVal4", `password====${REDACTED}`],
+    ["apiKey::::x9", `apiKey::::${REDACTED}`],
+    ["password: :x9", `password: :${REDACTED}`],
+    ["token: ==x9", `token: ==${REDACTED}`],
+    ["password=:=:=x9", `password=:=:=${REDACTED}`],
     ["token=YWJjZGVm==", `token=${REDACTED}`],
     ["note: password=hunter2", `note: password=${REDACTED}`],
     ["user=bob password=x y", `user=bob password=${REDACTED}`],
@@ -124,6 +134,28 @@ describe("a hostile log object cannot make a log call throw", () => {
     const { logger, lines } = capture();
     expect(() => logger.info(hostile, "probe")).not.toThrow();
     expect(JSON.parse(lines())).toMatchObject({ msg: "probe" });
+  });
+
+  // Deeper down, the hostile node alone is withheld; its siblings survive and the line stays an object
+  // (failing closed with a string made pino print {"0":"[","1":"R",…}).
+  it.each([
+    ["at depth 2", (bad: object) => ({ a: { b: bad }, keep: 1 })],
+    ["inside an array", (bad: object) => ({ list: [bad], keep: 1 })],
+  ])("a throwing ownKeys Proxy %s", (_label, wrap) => {
+    const bad = new Proxy(
+      {},
+      {
+        ownKeys() {
+          throw new Error("keys");
+        },
+      },
+    );
+    const { logger, lines } = capture();
+    logger.info(wrap(bad), "probe");
+    const line = JSON.parse(lines()) as Record<string, unknown>;
+    expect(line).toMatchObject({ keep: 1, msg: "probe" });
+    expect(line).not.toHaveProperty("0");
+    expect(JSON.stringify(line)).toContain(REDACTED);
   });
 
   it("writes the line with a throwing top-level getter's value withheld", () => {

@@ -126,6 +126,17 @@ function scrub(value: unknown, maskPhones: boolean): unknown {
       return scrubbed === text ? node : scrubbed;
     }
     if (node === null || typeof node !== "object") return node;
+    // Every trap a hostile object can carry (ownKeys, getPrototypeOf behind instanceof, an iterator) is
+    // contained to THIS node: escaping to sanitize's outer catch replaced the whole log object with one
+    // string, which pino then printed character by character with every sibling field lost.
+    try {
+      return walkNode(node, depth, urlKey, ancestors);
+    } catch {
+      return REDACTED;
+    }
+  };
+
+  const walkNode = (node: object, depth: number, urlKey: boolean, ancestors: object[]): unknown => {
     if (node instanceof Date) return Number.isNaN(node.getTime()) ? null : node.toISOString();
     if (node instanceof Error) return errorDiagnostic(node);
     // A buffer or typed array is raw bytes; nothing about them is safe to print.
