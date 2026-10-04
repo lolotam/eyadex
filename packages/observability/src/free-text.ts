@@ -6,7 +6,7 @@ import {
 } from "./credential-words.ts";
 import { maskPhone, REDACTED } from "./masks.ts";
 import { opensQuote, valueEnd } from "./quotes.ts";
-import { SEPARATOR_WORD } from "./separators.ts";
+import { redactSeparatedPairs } from "./separators.ts";
 
 // Free text: identifiers and credentials written inside a string under a key that says nothing about them
 // (a note, a search term, an error detail). Key-based rules cannot see these. Everything here receives an
@@ -68,7 +68,7 @@ const CLI_CREDENTIAL = /(--?(?:password|passwd|pwd|token|secret|api-?key)\s+)(\S
 // one way: `[:=]+[:=]*` (two adjacent overlapping classes) made 63 KB of ":" take 13 s, and a bound like
 // {1,3} leaked "====".
 const ASSIGNMENT =
-  /(?<![\w.-])([\w.-]{1,200}?)(\\?["']?\s*[:=]+(?:\s+[:=]+)*\s*)(\\?"(?:\\.|[^"\\])*\\?"|\\?'(?:\\.|[^'\\])*\\?'|[^\s&",;':=]+)/g;
+  /(?<![\w.-])([\w.-]{1,200}?)(\\?["']?\s*[:=]+(?:\s+[:=]+)*\s*)(\\?"(?:\\.|[^"\\])*\\?"|\\?'(?:\\.|[^'\\])*\\?'|[^\s&",;':=]+|\\?["'])/g;
 // A bare credential word followed by a quoted value and no separator: `password 'hunter two' rejected`.
 // The value is consumed whole, so a multi-word secret does not leave its tail behind.
 const QUOTED_CREDENTIAL = /(?<![\w.-])([\w.-]{1,200}?)\s+('(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")/g;
@@ -95,6 +95,9 @@ const redactTokenScheme = (match: string, scheme: string, value: string): string
 // of the clause is the accepted price ("token=x user=bob" loses "user=bob").
 const PAIR_END = /[&,;\r\n]/g;
 const QUOTED_VALUE = /^\\?["']/;
+// A lone opening quote: the closed-quote alternatives failed, so the value never closes (`password: "x`).
+// ASSIGNMENT's last alternative matches it so the value still reaches valueEnd (to the end: fail closed).
+const UNCLOSED_QUOTE = /^\\?["']$/;
 function redactAssignments(text: string): string {
   let out = "";
   let last = 0;
@@ -110,7 +113,7 @@ function redactAssignments(text: string): string {
       continue;
     }
     let end = match.index + match[0].length;
-    if (opensQuote(value, 0) && !QUOTED_VALUE.test(value)) {
+    if (UNCLOSED_QUOTE.test(value) || (opensQuote(value, 0) && !QUOTED_VALUE.test(value))) {
       // A typographic quote (`password: «a, b»`): withheld to its closing mark, not the first comma.
       end = valueEnd(text, end - value.length);
       ASSIGNMENT.lastIndex = end;
@@ -186,7 +189,6 @@ const redactProseMirror = (_match: string, name: string, value: string, verb: st
     : _match;
 
 // The first non-space character after the separator, on the same line (sticky: no scan past spaces).
-const VALUE_START = /[ \t]*(?=[^\s])/y;
 function redactBareCredentials(text: string): string {
   let out = "";
   let last = 0;
@@ -195,20 +197,6 @@ function redactBareCredentials(text: string): string {
     // The two groups are guaranteed by the pattern; the defaults satisfy the checker.
     const name = match[1] ?? "";
     const value = match[2] ?? "";
-    // A dash, arrow or bar between a credential name and its value is a separator, like `:`
-    // (`password - hunter2`, `token -> x`): the value after it is withheld to the pair delimiter.
-    if (SEPARATOR_WORD.test(value) && isFreeTextCredentialName(name)) {
-      VALUE_START.lastIndex = match.index + match[0].length;
-      const gap = VALUE_START.exec(text);
-      if (gap !== null) {
-        const start = gap.index + gap[0].length;
-        const end = valueEnd(text, start);
-        out += text.slice(last, start) + REDACTED;
-        last = end;
-        BARE_CREDENTIAL.lastIndex = end;
-        continue;
-      }
-    }
     // A typographic quote (`password «hunter two»`) is withheld whole like an ASCII one (QUOTED_CREDENTIAL).
     const valueStart = match.index + match[0].length - value.length;
     if (opensQuote(text, valueStart) && isFreeTextCredentialName(name)) {
@@ -243,7 +231,7 @@ function scrubCredentialsInText(text: string): string {
   ).replace(PROSE_VALUE_THEN_VERB, redactProseMirror);
   // The separator-less rule runs after the pairs: a pair already redacted must not be re-read. Arabic
   // labels have their own scanner, since `\w` cannot see them.
-  return redactArabicCredentials(redactBareCredentials(paired));
+  return redactArabicCredentials(redactBareCredentials(redactSeparatedPairs(paired)));
 }
 
 // A civil ID written inside free text: 12 digits, any script, starting with the century digit 2 or 3,

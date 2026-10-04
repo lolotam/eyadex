@@ -58,6 +58,8 @@ describe("Arabic credential labels in free text", () => {
     ["كلمة المرور: «abc, def", `كلمة المرور: ${REDACTED}`],
     ["كلمة المرور ← hunter2", `كلمة المرور ← ${REDACTED}`],
     ["الرمز <- 123456", `الرمز <- ${REDACTED}`],
+    ["كلمة المرور->hunter2", `كلمة المرور->${REDACTED}`],
+    ["كلمة المرور|hunter2", `كلمة المرور|${REDACTED}`],
     ["كلمة المرور – hunter2، بعده", `كلمة المرور – ${REDACTED}، بعده`],
     ["الرمز -> 123456", `الرمز -> ${REDACTED}`],
     ["لكلمة المرور: hunter2", `لكلمة المرور: ${REDACTED}`],
