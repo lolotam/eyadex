@@ -72,8 +72,12 @@ swapping the mock adapter for an HTTP adapter must require no screen change.
 
 ```
 apps/web/            the TanStack Start app (@eyadex/web): src/, public/, configs
+apps/api/            the HTTP API, NestJS on Fastify (@eyadex/api): /v1/health, the error envelope, the request id
+apps/worker/         the worker container, same NestJS code (@eyadex/worker): /health, graceful shutdown
 packages/contracts/  Zod schemas = the single source of types (alias @eyadex/contracts/*)
 packages/config/     shared TypeScript + ESLint presets (@eyadex/config)
+packages/ids/        UUID v7 with injected time + entropy (@eyadex/ids)
+packages/observability/ pino options + the redaction list + the request context (@eyadex/observability)
 db/sql/              SQL baseline applied to production (→ Drizzle schema + migrations in Phase B)
 docs/                PRD, ADRs, specs
 docker/              compose init scripts (postgres roles)

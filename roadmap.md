@@ -11,4 +11,5 @@
 - [x] Audit log: clinic (filters, clinic time zone, field diff) and platform (administrative entries only)
 - [x] Settings and platform console: clinic settings, my account, expiry banner, platform overview, team and settings (last Phase A screens)
 - [x] Phase B: monorepo foundation (pnpm + Turborepo workspace; app in `apps/web`, Zod contracts in `packages/contracts`, shared presets in `packages/config`)
+- [x] Phase B: api + worker skeletons, ids, observability (NestJS on Fastify with `/v1/health`, the bilingual error envelope and one request id per request; `packages/ids`, `packages/observability`)
 - [ ] Agent integrations (MCP) — deferred until the NestJS backend exists (user decision)

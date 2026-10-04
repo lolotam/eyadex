@@ -6,7 +6,8 @@
   "description": "Shared TypeScript and ESLint configuration for every Eyadex app and package",
   "exports": {
     "./eslint": "./eslint/index.js",
-    "./tsconfig/base.json": "./tsconfig/base.json"
+    "./tsconfig/base.json": "./tsconfig/base.json",
+    "./tsconfig/node.json": "./tsconfig/node.json"
   },
   "dependencies": {
     "@eslint/js": "^9.32.0",
