@@ -47,6 +47,23 @@ const insertBranch = (tx: Tx, probe: string): Promise<unknown> =>
     VALUES (${A.clinicId}, ${probe}, 'فرع', 'Branch', true, now(), now())
   `);
 
+/** أسماء لو الـ driver لسه متشبّث في أي قيمة `fn` ممكن تشوفها. */
+const DRIVER_HANDLES = [
+  "session",
+  "client",
+  "sql",
+  "query",
+  "unsafe",
+  "dialect",
+  "execute",
+  "transaction",
+  "handler",
+  "socket",
+  "conn",
+  "connection",
+  "$client",
+];
+
 describe("fn receives a guarded transaction, not the Drizzle object", () => {
   it("shows the allow-list and hides the driver members", async () => {
     const seen = await app.withTenant(A.clinicId, async (tx) => {
@@ -59,6 +76,7 @@ describe("fn receives a guarded transaction, not the Drizzle object", () => {
         sessionRead: read(() => loose["session"]),
         underscoreRead: read(() => loose["_"]),
         clientRead: read(() => loose["$client"]),
+        dialectRead: read(() => loose["dialect"]),
       };
     });
     expect(seen.ownNames).toEqual([...TX_MEMBERS].sort());
@@ -68,6 +86,52 @@ describe("fn receives a guarded transaction, not the Drizzle object", () => {
     expect(seen.sessionRead).toBeInstanceOf(TypeError);
     expect(seen.underscoreRead).toBeInstanceOf(TypeError);
     expect(seen.clientRead).toBeInstanceOf(TypeError);
+    expect(seen.dialectRead).toBeInstanceOf(TypeError);
+  });
+
+  it("the query builders are not reachable either — execute is the only door to SQL", async () => {
+    const seen = await app.withTenant(A.clinicId, async (tx) => {
+      const loose = tx as unknown as Record<string, unknown>;
+      return {
+        select: read(() => loose["select"]),
+        insert: read(() => loose["insert"]),
+        update: read(() => loose["update"]),
+        delete: read(() => loose["delete"]),
+        with: read(() => loose["with"]),
+        count: read(() => loose["$count"]),
+        distinct: read(() => loose["selectDistinct"]),
+      };
+    });
+    for (const failure of Object.values(seen)) {
+      expect(failure).toBeInstanceOf(TypeError);
+    }
+  });
+
+  it("the result of execute is a row array with no driver handle hanging off it", async () => {
+    // الباكاج مالوش schema (دي B3b)، فـ execute هو الباب الوحيد. لو الـ result نفسه كان فيه
+    // حاجة ترجّعنا للـ client — `statement` أو `columns` أو `state` — يبقى الـ guard ناقص.
+    const result = await app.withTenant(A.clinicId, (tx) =>
+      tx.execute<{ id: string; name_ar: string }>(
+        sql`SELECT id, name_ar FROM branches WHERE clinic_id = ${A.clinicId} LIMIT 3`,
+      ),
+    );
+    expect(Array.isArray(result)).toBe(true);
+    expect(result.length).toBeGreaterThan(0);
+    const ownNames = Object.getOwnPropertyNames(result);
+    for (const handle of DRIVER_HANDLES) {
+      expect(ownNames).not.toContain(handle);
+    }
+    // والصفوف نفسها كمان: كائنات بيانات خام، مفيش prototype متشبّط بيحمل connection
+    for (const row of result) {
+      expect(Object.getOwnPropertyNames(row).sort()).toEqual(["id", "name_ar"]);
+      expect(Object.getPrototypeOf(row)).toBe(Object.prototype);
+    }
+    // والـ prototype بتاع الـ result كله: تعريفات class، مفيش handle
+    const prototype = Object.getPrototypeOf(result) as object;
+    expect(Object.getOwnPropertyNames(prototype)).toEqual(["constructor"]);
+    for (const handle of DRIVER_HANDLES) {
+      expect(Object.getOwnPropertyNames(prototype)).not.toContain(handle);
+    }
   });
 
   it("a tx kept after the transaction ended throws on every use", async () => {
@@ -114,6 +178,7 @@ describe("fn receives a guarded transaction, not the Drizzle object", () => {
         return {
           ownNames: Object.getOwnPropertyNames(savepoint).sort(),
           sessionRead: read(() => loose["session"]),
+          selectRead: read(() => loose["select"]),
           total: await savepoint.execute<{ total: string }>(
             sql`SELECT count(*)::text AS total FROM branches WHERE clinic_id = ${A.clinicId}`,
           ),
@@ -122,6 +187,7 @@ describe("fn receives a guarded transaction, not the Drizzle object", () => {
     });
     expect(inside.ownNames).toEqual([...TX_MEMBERS].sort());
     expect(inside.sessionRead).toBeInstanceOf(TypeError);
+    expect(inside.selectRead).toBeInstanceOf(TypeError);
     expect(Number(inside.total[0]?.total ?? -1)).toBeGreaterThan(1);
     const rows = await owner`SELECT id FROM branches WHERE id = ${probe}`;
     expect(rows).toHaveLength(1);

@@ -34,6 +34,12 @@ export interface DatabaseOptions {
   readonly maxConnections?: number;
   /** سقف الـ transaction بالـ ms: عدد صحيح 1..600000، الافتراضي 10000. */
   readonly transactionTimeoutMs?: number;
+  /**
+   * سقف فتح الـ connection بالـ ثانية: عدد صحيح 1..60، الافتراضي 10. بيتبعت لـ postgres.js
+   * كـ `connect_timeout`، فـ host بياكل الـ packets بيفشل خلال ثواني بدل ما الـ `ping` يفضل
+   * مستني TCP لسه. مش سقف الـ transaction — ده `transactionTimeoutMs`.
+   */
+  readonly connectTimeoutSeconds?: number;
 }
 
 /** الإعدادات بعد التحقق منها، بالقيم الافتراضية مملوءة — الشكل الوحيد اللي بيوصل لـ postgres.js. */
@@ -43,6 +49,7 @@ export interface ResolvedDatabaseOptions {
   readonly ids: IdGenerator;
   readonly maxConnections: number;
   readonly transactionTimeoutMs: number;
+  readonly connectTimeoutSeconds: number;
 }
 
 const ROLES: readonly DatabaseRole[] = ["eyadex_app", "eyadex_platform"];
@@ -51,8 +58,11 @@ const MAX_CONNECTIONS_MIN = 1;
 const MAX_CONNECTIONS_MAX = 100;
 const TIMEOUT_MIN_MS = 1;
 const TIMEOUT_MAX_MS = 600_000;
+const CONNECT_TIMEOUT_MIN_S = 1;
+const CONNECT_TIMEOUT_MAX_S = 60;
 const DEFAULT_MAX_CONNECTIONS = 10;
 const DEFAULT_TRANSACTION_TIMEOUT_MS = 10_000;
+const DEFAULT_CONNECT_TIMEOUT_S = 10;
 
 /**
  * `pg_stat_activity` بيعرض الاسم ده بدل سطر فاضي، فتشوف عيادة ومنصة وإثنين تانيين من غير ما تقرا
@@ -104,5 +114,11 @@ export function resolveOptions(options: DatabaseOptions): ResolvedDatabaseOption
       `options.transactionTimeoutMs must be a whole number between ${TIMEOUT_MIN_MS} and ${TIMEOUT_MAX_MS}`,
     );
   }
-  return { url, role, ids, maxConnections, transactionTimeoutMs };
+  const connectTimeoutSeconds = options.connectTimeoutSeconds ?? DEFAULT_CONNECT_TIMEOUT_S;
+  if (!wholeNumberBetween(connectTimeoutSeconds, CONNECT_TIMEOUT_MIN_S, CONNECT_TIMEOUT_MAX_S)) {
+    throw new TypeError(
+      `options.connectTimeoutSeconds must be a whole number between ${CONNECT_TIMEOUT_MIN_S} and ${CONNECT_TIMEOUT_MAX_S}`,
+    );
+  }
+  return { url, role, ids, maxConnections, transactionTimeoutMs, connectTimeoutSeconds };
 }

@@ -148,7 +148,7 @@ describe("an error from fn that is not a database error passes through untouched
     expect(failure).toBe(boom);
   });
 
-  it("a TenantContextViolationError is not wrapped either", async () => {
+  it("a ForbiddenStatementError is not wrapped either", async () => {
     let failure: { name?: string } | undefined;
     try {
       await app.withTenant(A.clinicId, (tx) =>
@@ -157,7 +157,30 @@ describe("an error from fn that is not a database error passes through untouched
     } catch (error) {
       failure = error as { name?: string };
     }
-    expect(failure?.name).toBe("TenantContextViolationError");
+    expect(failure?.name).toBe("ForbiddenStatementError");
+    expect(failure).not.toBeInstanceOf(DatabaseError);
+  });
+});
+
+describe("only a real driver failure is converted", () => {
+  it.each([
+    ["a bare object with a SQLSTATE", { code: "23505" }],
+    ["an Error carrying a SQLSTATE field", Object.assign(new Error("boom"), { code: "23505" })],
+    [
+      "an Error whose cause carries a SQLSTATE",
+      new Error("wrapped by the caller", { cause: { code: "23505" } }),
+    ],
+  ])("rethrows %s from fn as the very same object", async (_label, thrown) => {
+    let failure: unknown;
+    try {
+      await app.withTenant(A.clinicId, async () => {
+        throw thrown;
+      });
+    } catch (error) {
+      failure = error;
+    }
+    // نفس الـ object بالظبط: الـ wrapper شافه مش failure PostgreSQL، فمابعتّوش لـ DatabaseError
+    expect(failure).toBe(thrown);
     expect(failure).not.toBeInstanceOf(DatabaseError);
   });
 });

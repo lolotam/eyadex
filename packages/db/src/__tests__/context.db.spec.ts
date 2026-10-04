@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import type { Sql } from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { createDatabase, TenantContextViolationError, type Database, type Tx } from "../index.ts";
+import { createDatabase, ForbiddenStatementError, type Database, type Tx } from "../index.ts";
 import {
   createOwner,
   idList,
@@ -47,38 +47,42 @@ const ownPatients = async (tx: Tx): Promise<string[]> => {
   return rows.map((row) => row.id);
 };
 
-describe("fn cannot re-point the clinic", () => {
-  it("rejects the transaction and keeps nothing written under the other clinic", async () => {
-    const probe = newTestId();
-    let failure: unknown;
-    try {
-      await app.withTenant(A.clinicId, async (tx) => {
-        await tx.execute(sql`SELECT set_config('app.clinic_id', ${B.clinicId}, true)`);
-        // من هنا الشغل بقى على عيادة تانية من غير ما الـ wrapper يعرف
-        await insertBranch(tx, B.clinicId, probe);
-        return "leaked";
-      });
-    } catch (error) {
-      failure = error;
-    }
-    expect(failure).toBeInstanceOf(TenantContextViolationError);
-    expect((failure as TenantContextViolationError).breach).toBe("clinic");
-    const leaked = await owner`SELECT id FROM branches WHERE id = ${probe}`;
-    expect(leaked).toHaveLength(0);
-  });
+/**
+ * الجملة اللي كانت هتكسر السياق بتترفض قبل ما تتبعت، والكتابة اللي قبلها ما بتتعملش. الاختبار
+ * بيحط الكتابة **قبل** الجملة المرفوضة عشان يثبت إن الـ COMMIT ما حصلش: لو `COMMIT` مرّت
+ * عادي، الكتابة دي كانت هتفضل محفوظة في الداتابيز.
+ */
+const refusesAndKeepsNothing = async (statement: Parameters<Tx["execute"]>[0], keyword: string) => {
+  const probe = newTestId();
+  let failure: unknown;
+  try {
+    await app.withTenant(A.clinicId, async (tx) => {
+      await insertBranch(tx, A.clinicId, probe);
+      await tx.execute(statement);
+      return "never reached";
+    });
+  } catch (error) {
+    failure = error;
+  }
+  expect(failure).toBeInstanceOf(ForbiddenStatementError);
+  expect((failure as ForbiddenStatementError).keyword).toBe(keyword);
+  expect(await owner`SELECT id FROM branches WHERE id = ${probe}`).toHaveLength(0);
+  // والعيادة ما اتحوّلتش: A لسه شايفة صفها بس
+  expect(await app.withTenant(A.clinicId, ownPatients)).toEqual([A.patientId]);
+  return failure as ForbiddenStatementError;
+};
 
-  it("names the breach and never the clinic ids it read", async () => {
-    let failure: Error | undefined;
-    try {
-      await app.withTenant(A.clinicId, (tx) =>
-        tx.execute(sql`SELECT set_config('app.clinic_id', ${B.clinicId}, true)`),
-      );
-    } catch (error) {
-      failure = error as Error;
-    }
-    expect(failure).toBeInstanceOf(TenantContextViolationError);
-    expect(failure?.message).not.toContain(A.clinicId);
-    expect(failure?.message).not.toContain(B.clinicId);
+describe("fn cannot re-point the clinic", () => {
+  it("is refused before the statement runs, and nothing is written under the other clinic", async () => {
+    // set_config هي الدالة الوحيدة اللي تقدر تحوّل العيادة من جوه SELECT عادي، فالحارس بيرفضها
+    // بالاسم في أي جملة. الفحص التاني (اللي بيقرا `app.clinic_id` قبل الـ COMMIT) متغطّى في
+    // `closing-check.db.spec.ts` بالسيناريو اللي الحارس مش موجود فيه.
+    const failure = await refusesAndKeepsNothing(
+      sql`SELECT set_config('app.clinic_id', ${B.clinicId}, true)`,
+      "set_config",
+    );
+    expect(failure.message).not.toContain(A.clinicId);
+    expect(failure.message).not.toContain(B.clinicId);
   });
 
   it("withNoTenant loses an injected clinic too — '' is not any clinic's id", async () => {
@@ -90,160 +94,57 @@ describe("fn cannot re-point the clinic", () => {
     } catch (error) {
       failure = error;
     }
-    expect(failure).toBeInstanceOf(TenantContextViolationError);
+    expect(failure).toBeInstanceOf(ForbiddenStatementError);
+  });
+
+  it("the pool is still usable after a refused re-point", async () => {
+    expect(await app.withTenant(A.clinicId, ownPatients)).toEqual([A.patientId]);
   });
 });
 
 describe("fn cannot end the transaction by hand", () => {
-  it("a COMMIT inside fn rejects even though fn itself resolved", async () => {
-    let failure: unknown;
-    try {
-      await app.withTenant(A.clinicId, async (tx) => {
-        await tx.execute(sql`COMMIT`);
-        return "committed by hand";
-      });
-    } catch (error) {
-      failure = error;
-    }
-    // الـ COMMIT بيرمي قيمة الـ transaction-local بعيد، فالـ closing check بيلاقي
-    // current_setting('app.clinic_id') بـ NULL ويرفض. مفيش شغل اتكتب هنا يبقى متأثر — لو كان في
-    // شغل قبل الـ COMMIT بيكمل، وده بالظبط السبب اللي الـ RLS لوحده مش كافي.
-    expect(failure).toBeInstanceOf(TenantContextViolationError);
-    expect((failure as TenantContextViolationError).breach).toBe("clinic");
+  it("a COMMIT inside fn is refused before it runs", async () => {
+    await refusesAndKeepsNothing(sql`COMMIT`, "COMMIT");
   });
 
-  it("a ROLLBACK inside fn rejects as well", async () => {
-    let failure: unknown;
-    try {
-      await app.withTenant(A.clinicId, async (tx) => {
-        await tx.execute(sql`ROLLBACK`);
-        return "rolled back by hand";
-      });
-    } catch (error) {
-      failure = error;
-    }
-    expect(failure).toBeInstanceOf(TenantContextViolationError);
-  });
-
-  it("the pool is still usable after a refused hand-rolled COMMIT", async () => {
-    const seen = await app.withTenant(A.clinicId, (tx) => ownPatients(tx));
-    expect(seen).toEqual([A.patientId]);
+  it("a ROLLBACK inside fn is refused too", async () => {
+    await refusesAndKeepsNothing(sql`ROLLBACK`, "ROLLBACK");
   });
 });
 
 describe("fn cannot loosen the time bound", () => {
-  it("SET statement_timeout = 0 inside fn rejects", async () => {
-    let failure: unknown;
-    try {
-      await app.withTenant(A.clinicId, (tx) => tx.execute(sql`SET statement_timeout = 0`));
-    } catch (error) {
-      failure = error;
-    }
-    expect(failure).toBeInstanceOf(TenantContextViolationError);
-    expect((failure as TenantContextViolationError).breach).toBe("statement-timeout");
+  it("SET statement_timeout = 0 inside fn is refused before it runs", async () => {
+    await refusesAndKeepsNothing(sql`SET statement_timeout = 0`, "SET");
   });
 
-  it("SET idle_in_transaction_session_timeout = 0 inside fn rejects", async () => {
-    let failure: unknown;
-    try {
-      await app.withTenant(A.clinicId, (tx) =>
-        tx.execute(sql`SET idle_in_transaction_session_timeout = 0`),
-      );
-    } catch (error) {
-      failure = error;
-    }
-    expect(failure).toBeInstanceOf(TenantContextViolationError);
-    expect((failure as TenantContextViolationError).breach).toBe("idle-timeout");
+  it("SET idle_in_transaction_session_timeout = 0 inside fn is refused too", async () => {
+    await refusesAndKeepsNothing(sql`SET idle_in_transaction_session_timeout = 0`, "SET");
   });
 });
 
 describe("fn cannot reach a more powerful role", () => {
-  it("SET ROLE to the owner is refused by the server — no membership, no switch", async () => {
-    let failure: { code?: string } | undefined;
-    try {
-      // `SET ROLE` needs membership. The opening check refuses any membership at all, so eyadex_app
-      // cannot become eyadex_owner (or any BYPASSRLS role) — the server turns this down itself.
-      await app.withTenant(A.clinicId, (tx) =>
-        tx.execute(sql`SET ROLE ${sql.identifier(roleOf(TEST_URLS.ownerUrl))}`),
-      );
-    } catch (error) {
-      failure = error as { code?: string };
-    }
-    expect(failure?.code).toBe("42501");
+  it("SET ROLE to the owner never leaves the wrapper — the guard refuses the whole statement", async () => {
+    // قبل الحارس كان الرفض من السيرفر (`42501` — محتاج عضوية)، وده صح بس كان بيعتمد على
+    // إن الدور التشغيلي مالوش عضوية. دلوقتي الرفض بيحصل عندنا قبل الإرسال، والحماية التانية
+    // (فحص الـ memberships في أول statement) لسه موجودة.
+    await refusesAndKeepsNothing(
+      sql`SET ROLE ${sql.identifier(roleOf(TEST_URLS.ownerUrl))}`,
+      "SET",
+    );
   });
 
-  it("SET SESSION AUTHORIZATION to the owner is refused too — it needs superuser", async () => {
-    let failure: { code?: string } | undefined;
-    try {
-      await app.withTenant(A.clinicId, (tx) =>
-        tx.execute(sql`SET SESSION AUTHORIZATION ${sql.identifier(roleOf(TEST_URLS.ownerUrl))}`),
-      );
-    } catch (error) {
-      failure = error as { code?: string };
-    }
-    expect(failure?.code).toBe("42501");
+  it("SET SESSION AUTHORIZATION is refused as well — it needs superuser", async () => {
+    await refusesAndKeepsNothing(
+      sql`SET SESSION AUTHORIZATION ${sql.identifier(roleOf(TEST_URLS.ownerUrl))}`,
+      "SET",
+    );
   });
 
-  it("setting the role back to itself is a no-op the closing check sees through", async () => {
-    // Legal, and harmless: current_user and session_user are unchanged, so the wrapper commits.
-    const result = await app.withTenant(A.clinicId, async (tx) => {
-      await tx.execute(sql`SET ROLE ${sql.identifier(roleOf(TEST_URLS.appUrl))}`);
-      return await ownPatients(tx);
-    });
-    expect(result).toEqual([A.patientId]);
+  it("even setting the role back to itself is refused — the guard is not a keyword allow-list", async () => {
+    await refusesAndKeepsNothing(sql`SET ROLE ${sql.identifier(roleOf(TEST_URLS.appUrl))}`, "SET");
   });
 
   it("the pool still runs for the right role afterwards", async () => {
-    const seen = await app.withTenant(A.clinicId, (tx) => ownPatients(tx));
-    expect(seen).toEqual([A.patientId]);
-  });
-});
-
-describe("wrappers never nest", () => {
-  it("a wrapper called from inside another one rejects before taking a connection", async () => {
-    let inner: unknown;
-    const outer = await app
-      .withTenant(A.clinicId, async (tx) => {
-        inner = await app
-          .withNoTenant(() => Promise.resolve("never"))
-          .then(() => undefined)
-          .catch((error: unknown) => error);
-        return await ownPatients(tx);
-      })
-      .catch((error: unknown) => error);
-    expect(inner).toBeInstanceOf(TypeError);
-    expect((inner as TypeError).message).toMatch(/nested database work/);
-    // الـ transaction الخارجية ما تأثّرتش بالـ call المرفوض جواها
-    expect(outer).toEqual([A.patientId]);
-  });
-
-  it("work scheduled inside fn that runs after the transaction is not refused as nested", async () => {
-    let later: Promise<unknown> | undefined;
-    await app.withTenant(A.clinicId, () => {
-      // A timer created inside fn inherits its async context; it fires after the COMMIT.
-      later = new Promise((resolve) => {
-        setTimeout(() => {
-          app.withNoTenant(() => Promise.resolve("ran")).then(resolve, resolve);
-        }, 50);
-      });
-      return Promise.resolve();
-    });
-    expect(await later).toBe("ran");
-  });
-
-  it("ping inside a wrapper rejects too, and the outer transaction still commits", async () => {
-    let inner: unknown;
-    const outer = await app
-      .withTenant(A.clinicId, async () => {
-        inner = await app
-          .ping()
-          .then(() => undefined)
-          .catch((error: unknown) => error);
-        return "outer survived";
-      })
-      .catch((error: unknown) => error);
-    expect(inner).toBeInstanceOf(TypeError);
-    expect((inner as TypeError).message).toMatch(/nested database work/);
-    expect(outer).toBe("outer survived");
+    expect(await app.withTenant(A.clinicId, ownPatients)).toEqual([A.patientId]);
   });
 });

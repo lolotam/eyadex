@@ -2,10 +2,9 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
 import { asDatabaseError } from "./database-error.ts";
-import { guardTransaction } from "./guarded-tx.ts";
 import { assertNotNested, insideTransaction } from "./nested-guard.ts";
 import { applicationName, resolveOptions, type DatabaseOptions } from "./options.ts";
-import { openSession } from "./session-check.ts";
+import { openSession, sessionExecutor } from "./session-check.ts";
 import { createTenantWrappers, type Tx } from "./tenant.ts";
 
 /**
@@ -59,6 +58,9 @@ export function createDatabase(options: DatabaseOptions): Database {
   const resolved = resolveOptions(options);
   const client = postgres(resolved.url, {
     max: resolved.maxConnections,
+    // حدّ لفتح الـ connection: من غيره `ping` على host بياكل الـ packets بيضل مستني TCP
+    // (~2 دقيقة افتراضياً في postgres.js) بدل ما يفشل بسرعة.
+    connect_timeout: resolved.connectTimeoutSeconds,
     // الإشعارات كانت بتطبع على stderr من جوه الكود، والباكاج ده ممنوع يطبع حاجة (CLAUDE.md §8).
     onnotice: () => undefined,
     connection: { application_name: applicationName(resolved.role) },
@@ -69,22 +71,27 @@ export function createDatabase(options: DatabaseOptions): Database {
     clinicId: "",
     timeoutMs: resolved.transactionTimeoutMs,
   };
+  // token الـ Database ده: الـ nesting guard بيرفض على نفس الـ instance بس، فـ transaction على
+  // دور تاني (pool تاني) جوه transaction على ده يفضل شغال عادي.
+  const instance: object = {};
   return {
-    ...createTenantWrappers(db, resolved.role, resolved.transactionTimeoutMs, resolved.ids),
+    ...createTenantWrappers(
+      db,
+      resolved.role,
+      resolved.transactionTimeoutMs,
+      resolved.ids,
+      instance,
+    ),
     // /ready مش معناه SELECT 1: DATABASE_URL على eyadex_auth أو على الـ owner هيعدّي ثم يفشل أول
     // query عيادة من غير error مفهوم. فـ ping بيعمل نفس أول statement بتاع الـ wrappers، جوه
-    // transaction، بسقف الوقت نفسه.
+    // transaction، بسقف الوقت نفسه. مفيش `fn` هنا، فمفيش `Tx` محمي — executor على الـ transaction
+    // الحقيقية زي الـ wrappers بالظبط.
     ping: async (): Promise<void> => {
-      assertNotNested("ping");
-      return insideTransaction(async () => {
+      assertNotNested("ping", instance);
+      return insideTransaction(instance, async () => {
         try {
           await db.transaction(async (raw) => {
-            const guarded = guardTransaction(raw);
-            try {
-              await openSession(guarded.tx, expected);
-            } finally {
-              guarded.revoke();
-            }
+            await openSession(sessionExecutor(raw), expected);
           });
         } catch (error) {
           throw asDatabaseError(error);

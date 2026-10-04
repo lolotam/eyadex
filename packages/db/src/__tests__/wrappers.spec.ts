@@ -74,19 +74,49 @@ describe("withNewTenant is the platform onboarding path", () => {
 
 describe("nested database work is refused", () => {
   it("the marker every wrapper checks is set for the whole async chain", async () => {
-    await insideTransaction(async () => {
+    const instance = { name: "the one Database" };
+    await insideTransaction(instance, async () => {
       expect(() => {
-        assertNotNested("withTenant");
+        assertNotNested("withTenant", instance);
       }).toThrow(TypeError);
       // it survives awaits — a use case that awaits before touching the database again
       await Promise.resolve();
       expect(() => {
-        assertNotNested("ping");
+        assertNotNested("ping", instance);
       }).toThrow(TypeError);
     });
     expect(() => {
-      assertNotNested("withTenant");
+      assertNotNested("withTenant", instance);
     }).not.toThrow();
+  });
+
+  it("refuses nesting per instance: another Database is a different pool, not a deadlock", async () => {
+    const app = { name: "app" };
+    const platform = { name: "platform" };
+    await insideTransaction(app, async () => {
+      // same instance: one transaction at a time
+      expect(() => {
+        assertNotNested("withTenant", app);
+      }).toThrow(TypeError);
+      // a different instance has its own pool, so platform work inside app work is legal
+      expect(() => {
+        assertNotNested("withNoTenant", platform);
+      }).not.toThrow();
+      // …and the inner transaction's own nesting on its own instance is refused
+      await insideTransaction(platform, async () => {
+        expect(() => {
+          assertNotNested("withTenant", platform);
+        }).toThrow(TypeError);
+        // the outer instance is still marked too: a third call cannot slip in between
+        expect(() => {
+          assertNotNested("withTenant", app);
+        }).toThrow(TypeError);
+      });
+      // the inner transaction ended, so its instance is free again
+      expect(() => {
+        assertNotNested("withNoTenant", platform);
+      }).not.toThrow();
+    });
   });
 
   it("withNoTenant inside withTenant is refused before a connection is taken", async () => {

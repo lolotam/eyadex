@@ -4,7 +4,12 @@ import { asDatabaseError } from "./database-error.ts";
 import { guardTransaction, type Tx } from "./guarded-tx.ts";
 import { assertNotNested, insideTransaction } from "./nested-guard.ts";
 import type { IdGenerator, DatabaseRole } from "./options.ts";
-import { closeSession, openSession, type SessionExpectation } from "./session-check.ts";
+import {
+  closeSession,
+  openSession,
+  sessionExecutor,
+  type SessionExpectation,
+} from "./session-check.ts";
 import { assertUuid } from "./uuid.ts";
 
 export type { Tx } from "./guarded-tx.ts";
@@ -28,10 +33,14 @@ export interface TenantWrappers {
  *
  * 1. `openSession` — أول statement بيحطّ `app.clinic_id` (سطر فاضي في `withNoTenant`) +
  *    `statement_timeout` + `idle_in_transaction_session_timeout`، وبيرفض لو الدور مش
- *    `options.role` أو متفوّت أو عضو في أي دور تاني. لو رفض، `fn` مش بتتنفّذ خالص.
- * 2. `fn(guardedTx)` — بشيء محمي: allow-list على الـ Drizzle، ومفيش `tx.session`.
+ *    `options.role` أو متفوّت أو عضو في أي دور تاني. لو رفض، `fn` مش بتتنفّذ خالص. الجملة دي
+ *    بتمرّ على الـ transaction الحقيقية (`sessionExecutor`) مش على `tx.execute` المحروس: هي
+ *    اللي بتحطّ `set_config`، فحارس الـ statement لو شافها كانت هترفض شغل الـ wrapper نفسه.
+ * 2. `fn(guardedTx)` — بشيء محمي: `execute` (وحده باب الـ SQL، وبيفلتر جمل فتح/إغلاق الـ
+ *    transaction وتغيير الجلسة)، و`transaction` للـ savepoints، و`rollback`. مفيش بانيهات
+ *    استعلام ولا `tx.session`.
  * 3. `closeSession` — آخر statement قبل الـ COMMIT، بيقرا الجلسة تاني وبيمسح
- *    `app.clinic_id` على مستوى الـ session.
+ *    `app.clinic_id` على مستوى الـ session. الطبقة التانية دفاع بعد حارس الـ statement.
  * 4. الـ COMMIT بتاع Drizzle، وبعدها الـ `Tx` بيتبطل (`Proxy.revocable`) — فـ handle محفوظ جوه
  *    `fn` بيرمي `TypeError` على أي استخدام بعد ما الـ transaction يخلص، وبيشتغل على الـ pool
  *    لو اتسايب مفتوح. مش مرجوع كقيمة من `fn` كمان: `await` بيقرا `.then` واللي مش في
@@ -46,6 +55,7 @@ export interface TenantWrappers {
  * @param role الدور اللي اللينك لازم يكون داخل بيه (PRD §4.5)
  * @param timeoutMs سقف الـ statement وسكون الـ transaction بالـ ms
  * @param ids مولّد الـ ids بتاع `withNewTenant`
+ * @param instance token الـ `Database` ده، عشان التداخل يترفض على نفس الـ instance بس
  * @returns النقط التلاتة
  */
 export function createTenantWrappers(
@@ -53,20 +63,23 @@ export function createTenantWrappers(
   role: DatabaseRole,
   timeoutMs: number,
   ids: IdGenerator,
+  instance: object,
 ): TenantWrappers {
   const inOne = <T>(
     expected: SessionExpectation,
     fn: (tx: Tx) => Promise<T>,
     freshClinic = false,
   ): Promise<T> =>
-    insideTransaction(async () => {
+    insideTransaction(instance, async () => {
       try {
         return await db.transaction(async (raw) => {
+          // الـ executor بتاع الـ wrapper: على الـ transaction الحقيقية، وبيفضل في الـ closure.
+          const executor = sessionExecutor(raw);
+          await openSession(executor, expected, freshClinic);
           const guarded = guardTransaction(raw);
           try {
-            await openSession(guarded.tx, expected, freshClinic);
             const result = await fn(guarded.tx);
-            await closeSession(guarded.tx, expected);
+            await closeSession(executor, expected);
             return result;
           } finally {
             // COMMIT or ROLLBACK, the guarded tx dies with it: a kept handle runs on the pool.
@@ -86,15 +99,15 @@ export function createTenantWrappers(
   return {
     // async مقصود: id غلط لازم يبقى rejected promise، ومايتبعتش أي query.
     withTenant: async (clinicId, fn) => {
-      assertNotNested("withTenant");
+      assertNotNested("withTenant", instance);
       return await run(assertUuid(clinicId, "clinicId"), fn);
     },
     withNoTenant: async (fn) => {
-      assertNotNested("withNoTenant");
+      assertNotNested("withNoTenant", instance);
       return await run("", fn);
     },
     withNewTenant: async (fn) => {
-      assertNotNested("withNewTenant");
+      assertNotNested("withNewTenant", instance);
       if (role !== "eyadex_platform") {
         throw new TypeError(
           "withNewTenant is the onboarding path and needs role eyadex_platform — eyadex_app cannot create a clinic (ADR-0002)",

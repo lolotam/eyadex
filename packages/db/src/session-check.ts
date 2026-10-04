@@ -1,7 +1,7 @@
-import { sql } from "drizzle-orm";
+import { sql, type SQL } from "drizzle-orm";
 
 import { TenantContextViolationError } from "./context-violation.ts";
-import type { Tx } from "./guarded-tx.ts";
+import type { RawTx } from "./guarded-tx.ts";
 import type { DatabaseRole } from "./options.ts";
 
 /**
@@ -11,10 +11,36 @@ import type { DatabaseRole } from "./options.ts";
  * قبل الـ COMMIT.
  */
 
-/** الـ part من `Tx` اللي الفحوصات محتاجاه — `execute` بس. */
-type Executor = Pick<Tx, "execute">;
+/**
+ * منفّذ الـ statements بتوع الـ wrapper نفسه، على الـ transaction **الحقيقية**.
+ *
+ * الفحوصات دي ما بتعدّيش على `tx.execute` المحروس عن قصد: جملة الفتح فيها `set_config` (هي
+ * اللي بتحطّ العيادة والسقوف) وجملة الإغلاق كمان بتقرا `app.clinic_id`. لو مرّوا على حارس الـ
+ * statement كانوا هيرفضوا شغل الـ wrapper نفسه.
+ *
+ * `-Executor` مابيوصلش لـ `fn`: `fn` بياخد `Tx` المحمي، والـ `raw` ده بيفضل في الـ closure بتاع
+ * `createTenantWrappers`/`createDatabase`.
+ */
+export interface SessionExecutor {
+  /** بيرجّع صفوف PostgreSQL كـ array عادي — صفر handles، زي ما `fn` بياخد من `tx.execute`. */
+  execute<TRow>(query: SQL): Promise<TRow[]>;
+}
 
-/** إيه اللي الـ transaction بتعرفه عن نفسها. نوع alias مش interface عشان يبقى indexable. */
+/**
+ * بياخد الـ transaction الحقيقية من Drizzle (اللي ماسكها الـ wrapper في الـ closure) ويرجّع
+ * منفّذ جملة واحدة بس عليها.
+ *
+ * @param raw الـ transaction الحقيقية
+ * @returns منفّذ الـ wrapper — جوه الباكاج بس
+ */
+export const sessionExecutor = (raw: RawTx): SessionExecutor => ({
+  // `PgRaw` (اللي Drizzle بترجّعه من execute) thenable بيترجّع صفوفه لما يتعمله await، فالـ cast
+  // هنا بيقول "الصفوف" بس — مفيش حاجة تانية بيرجعها الـ driver غير الـ rows.
+  execute: async <TRow>(query: SQL): Promise<TRow[]> =>
+    (await raw.execute(query)) as unknown as TRow[],
+});
+
+/** إيه اللي الـ transaction بتعرفه عن نفسها، زي ما PostgreSQL رجّعها في أول statement. */
 type SessionFacts = {
   readonly db_role: string;
   readonly login_role: string;
@@ -75,6 +101,16 @@ export const durationMs = (value: string | null | undefined): number | undefined
  * رسالة الرفض بتسمّي الدور المتوقّع وبس. الرابط وكلمة السر موجودين في `options.url` وما
  * بيوصلوش لأي error، وده مثبّت في `roles.db.spec.ts`.
  *
+ * ترتيب الفحوصات مقصود، لأن كل واحد بيتكلم عن **سبب مختلف**:
+ *
+ * 1. **متفوّت** (superuser / BYPASSRLS / عضو في دور تاني) — أخطر حاجة، فلو RolePrivilege ما
+ *    سألتش كاملة ما ينفعش نقول حاجة عن الدور.
+ * 2. **`current_user` غير المطلوب** — الـ connection دخلت من الأساس بدور تاني. الرسالة بتقول
+ *    "another role"، وده اللي حصل فعلاً لما اللينك نفسه عمل login بـ `EYADEX_APP`.
+ * 3. **`session_user` مختلف عن `current_user`** — الـ connection دخلت بالدور الصح وبعدين اتغيّر
+ *    (`SET ROLE`)، وده "role changed" بس. الترتيب العكس كان بيخلي الحالة الأولى بتتسمى تغيير
+ *    دور، وده تشخيص غلط يوجّه engineer يدوّر على `SET ROLE` في بلاصة مفهومة.
+ *
  * @param expected الدور اللي `options.role` طالبه
  * @param facts اللي اتقري، أو undefined لو الـ statement نفسها فشلت
  * @returns الخطأ اللي يترمي قبل `fn`
@@ -87,12 +123,12 @@ const refuseRole = (expected: DatabaseRole, facts: SessionFacts | undefined): Er
         "and it must not be superuser, must not bypass RLS and must not be a member of any role (ADR-0002)",
     );
   }
-  if (facts.login_role !== expected) {
-    return new Error(
-      `Refusing to run tenant work after the role changed — ${expectation}, and session_user must still be ${expected} (ADR-0002)`,
-    );
+  if (facts.db_role !== expected) {
+    return new Error(`Refusing to run tenant work on another role — ${expectation} (ADR-0002)`);
   }
-  return new Error(`Refusing to run tenant work on another role — ${expectation} (ADR-0002)`);
+  return new Error(
+    `Refusing to run tenant work after the role changed — ${expectation}, and session_user must still be ${expected} (ADR-0002)`,
+  );
 };
 
 /**
@@ -107,18 +143,21 @@ const refuseRole = (expected: DatabaseRole, facts: SessionFacts | undefined): Er
  * `OFFSET 0` مقصود: من غيره PostgreSQL بيرفع الـ subquery ويشيل مخرجاته اللي مش مستعملة،
  * وممكن يمسح `set_config` بصمت.
  *
- * @param tx الـ `Tx` المحمي بتاع نفس الـ transaction
+ * الجملة دي بتعدّي على الـ transaction الحقيقية مش على `tx.execute` المحروس — شوف
+ * `SessionExecutor` فوق.
+ *
+ * @param executor منفّذ الـ wrapper على الـ transaction الحقيقية
  * @param expected الدور والعيادة والسقف الزمني اللي الـ wrapper افتح بيه
  * @param freshClinic `withNewTenant` بس: كمان يتأكد إن الـ id ده لسه مش عيادة موجودة
  * @throws Error دور غلط أو متفوّت، و`TenantContextViolationError` لو الـ id مش جديد
  */
 export async function openSession(
-  tx: Executor,
+  executor: SessionExecutor,
   expected: SessionExpectation,
   freshClinic = false,
 ): Promise<void> {
   const limit = `${expected.timeoutMs}ms`;
-  const rows = await tx.execute<SessionFacts>(sql`
+  const rows = await executor.execute<SessionFacts>(sql`
     SELECT opened.db_role, opened.login_role, opened.privileged, opened.member_of_another_role,
            opened.clinic, opened.statement_timeout, opened.idle_timeout
            ${freshClinic ? sql`, (SELECT NOT EXISTS (SELECT 1 FROM clinics WHERE id = NULLIF(opened.clinic, '')::uuid) AS clinic_absent)` : sql``}
@@ -161,12 +200,20 @@ export async function openSession(
  * القراءة. لو `fn` غيّر العيادة أو الدور أو السقوف، أو عمل COMMIT/ROLLBACK بإيده (والتالي
  * بيرمي قيمة الـ transaction-local بعيد)، الـ error ده بيروح على نفس مسار الـ rollback.
  *
- * @param tx الـ `Tx` المحمي بتاع نفس الـ transaction
+ * دي **الطبقة التانية** دفاع مش الفحص الأساسي: `tx.execute` المحروس بيرفض `COMMIT`/`SET`/
+ * `set_config` قبل الإرسال (`statement-guard.ts`)، فاللي بيوصل هنا هو اللي عدّى من طريق
+ * تانية — والـ transaction هو نفسه اللي بيعمل الفحص، فأي فرق بين اللي اتفتح واللي اتقفل
+ * بيفشل قبل الـ COMMIT.
+ *
+ * @param executor منفّذ الـ wrapper على الـ transaction الحقيقية
  * @param expected نفس القيم اللي `openSession` فتحت بيها
  * @throws TenantContextViolationError أول ما تختلف أي حاجة
  */
-export async function closeSession(tx: Executor, expected: SessionExpectation): Promise<void> {
-  const rows = await tx.execute<ClosingFacts>(sql`
+export async function closeSession(
+  executor: SessionExecutor,
+  expected: SessionExpectation,
+): Promise<void> {
+  const rows = await executor.execute<ClosingFacts>(sql`
     SELECT opened.clinic, opened.db_role, opened.login_role,
            opened.statement_timeout, opened.idle_timeout,
            set_config('app.clinic_id', '', false) AS session_clinic_cleared

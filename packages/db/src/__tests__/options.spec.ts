@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createDatabase, type DatabaseOptions } from "../index.ts";
+import { resolveOptions } from "../options.ts";
 
 // The connection string carries a password on purpose: no validation message and no thrown error may
 // ever contain it, the host, the user or the database name (CLAUDE.md §8, ADR-0002 rule 7).
@@ -61,6 +62,30 @@ describe("createDatabase option validation", () => {
     expect(rejects({ ...base, transactionTimeoutMs: "5000" }).message).toMatch(
       /transactionTimeoutMs/,
     );
+  });
+
+  it("refuses a connectTimeoutSeconds outside 1..60", () => {
+    expect(rejects({ ...base, connectTimeoutSeconds: 0 }).message).toMatch(/connectTimeoutSeconds/);
+    expect(rejects({ ...base, connectTimeoutSeconds: 61 }).message).toMatch(
+      /connectTimeoutSeconds/,
+    );
+    expect(rejects({ ...base, connectTimeoutSeconds: 1.5 }).message).toMatch(
+      /connectTimeoutSeconds/,
+    );
+    expect(rejects({ ...base, connectTimeoutSeconds: "10" }).message).toMatch(
+      /connectTimeoutSeconds/,
+    );
+  });
+
+  it("defaults the connect timeout to a finite 10 seconds and accepts the whole 1..60 range", () => {
+    // الافتراضي finite: لو حد نسي الـ option، الاتصال الميت بيفشل خلال 10 ثواني مش للأبد. السقف
+    // الأعلى 60 أقل بكتير من مهلة الـ TCP نفسها (~سنتين)، فـ 60 سقف معقول.
+    expect(resolveOptions(base).connectTimeoutSeconds).toBe(10);
+    for (const seconds of [1, 30, 60]) {
+      expect(
+        resolveOptions({ ...base, connectTimeoutSeconds: seconds }).connectTimeoutSeconds,
+      ).toBe(seconds);
+    }
   });
 });
 

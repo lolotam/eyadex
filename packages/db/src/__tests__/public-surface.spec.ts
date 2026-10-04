@@ -3,9 +3,10 @@ import { describe, expect, it } from "vitest";
 import * as db from "../index.ts";
 
 describe("@eyadex/db public surface", () => {
-  it("offers createDatabase plus the two error types — no raw client, no Drizzle instance", () => {
+  it("offers createDatabase plus the three error types — no raw client, no Drizzle instance", () => {
     expect(Object.keys(db).sort()).toEqual([
       "DatabaseError",
+      "ForbiddenStatementError",
       "TenantContextViolationError",
       "createDatabase",
     ]);
@@ -31,8 +32,12 @@ describe("@eyadex/db public surface", () => {
     }
   });
 
-  it("names both error classes so a caller can branch on them without matching messages", () => {
+  it("names every error class so a caller can branch on them without matching messages", () => {
     expect(new db.DatabaseError({ code: "23505" }).name).toBe("DatabaseError");
     expect(new db.TenantContextViolationError("clinic").name).toBe("TenantContextViolationError");
+    // A TypeError, because a forbidden statement is a programming error, not a database failure.
+    expect(new db.ForbiddenStatementError("COMMIT")).toBeInstanceOf(TypeError);
+    expect(new db.ForbiddenStatementError("COMMIT").name).toBe("ForbiddenStatementError");
+    expect(new db.ForbiddenStatementError("COMMIT").keyword).toBe("COMMIT");
   });
 });

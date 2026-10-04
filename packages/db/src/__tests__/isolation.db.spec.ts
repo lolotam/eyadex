@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import type { Sql } from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { createDatabase, type Database, type Tx } from "../index.ts";
+import { createDatabase, ForbiddenStatementError, type Database, type Tx } from "../index.ts";
 import {
   createOwner,
   idList,
@@ -107,7 +107,7 @@ describe("withNoTenant", () => {
 });
 
 describe("a clinic value set on the session cannot leak through the pool", () => {
-  it("is refused by the closing check, and the next transactions still see only their own rows", async () => {
+  it("is refused before it is sent, and the next transactions still see only their own rows", async () => {
     const single = createDatabase({
       url: TEST_URLS.appUrl,
       role: "eyadex_app",
@@ -115,14 +115,14 @@ describe("a clinic value set on the session cannot leak through the pool", () =>
       maxConnections: 1,
     });
     try {
-      // is_local = false: القيمة دي بتفضل بعد الـ COMMIT على الـ connection نفسها
+      // is_local = false: القيمة دي كانت هتفضل بعد الـ COMMIT على الـ connection نفسها
       const failure = await single
         .withTenant(A.clinicId, (tx) =>
           tx.execute(sql`SELECT set_config('app.clinic_id', ${B.clinicId}, false)`),
         )
         .then(() => undefined)
         .catch((error: Error) => error);
-      expect(failure).toBeInstanceOf(Error);
+      expect(failure).toBeInstanceOf(ForbiddenStatementError);
       // وبعد الرفض: نفس الـ connection بتاعة pool من size 1 لسه نضيفة
       expect(await single.withNoTenant(patientCount)).toBe(0);
       const seen = await single.withTenant(A.clinicId, (tx) => seenPatients(tx, A, B));
