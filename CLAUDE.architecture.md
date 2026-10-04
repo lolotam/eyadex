@@ -58,7 +58,7 @@ packages/contracts  Zod (imported as @eyadex/contracts/*) + generated OpenAPI  �
 packages/config eslint (shared base config) + tsconfig presets                      ✅ exists
 apps/api        NestJS on Fastify: HTTP, auth handler, guards                                                        ✅ skeleton
 apps/worker     same NestJS code, BullMQ processors (emails, outbox, expiry reminders)                            ✅ skeleton
-packages/db     Drizzle schema + drizzle-kit migrations + RLS policies; withTenant/withUser/withNewTenant
+packages/db     the only path to PostgreSQL: withTenant/withNewTenant/withNoTenant over Drizzle     ✅ runtime wrappers (schema: next)
 packages/auth   Better Auth config (+ two-factor). The ONLY place sessions/passwords are handled
 packages/ids    UUID v7 with injected time + entropy                                                              ✅ exists
 packages/observability  pino + redaction, request context                                                         ✅ exists
