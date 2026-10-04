@@ -45,8 +45,8 @@ otp, cvv, cvc, dsn, connectionstring, session, bearer, salt, nonce, codemac` —
    `glpat-`, and `tok_`/`inv_` — case-insensitive and with no leading `\b`, so a decoded
    `%252F…tok_…` still matches while `stock_level`/`invoice_total`/`tokenizer` do not); the `Token x` scheme
    in any case (a lower-case `token` only before a credential-looking value, so `the token expired` stays);
-   an unquoted credential value withheld up to the next `&`, `,`, `;` or line end (`password: correct horse
-battery staple`); `name=value` /
+   an unquoted credential value withheld up to the next `&`, `,`, `;` or line end
+   (`password: correct horse battery staple`); `name=value` /
    `name: value` pairs (including escaped JSON and metadata names) classified with the same credential
    vocabulary; a bare credential word followed by a quoted value (`password 'hunter two'`); CLI flags
    `--password/--token/--api-key/--secret`; a bare credential word followed by its value when the value
