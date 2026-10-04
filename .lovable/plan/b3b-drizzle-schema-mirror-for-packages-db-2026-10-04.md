@@ -12,7 +12,7 @@ Goal: give the backend a typed description of every table that already exists in
    - `invitations.ts` (invitations, invitation_branches)
    - `patients.ts` (patients, file-number counter)
    - `audit.ts` (audit_log, platform_audit_log, platform_clinic_admin_audit view)
-   Columns, types, CHECK enums, primary keys `(clinic_id, id)`, uniques, FKs and indexes copied exactly from the SQL. No defaults for ids (app-generated UUID v7). Each file ≤300 lines.
+     Columns, types, CHECK enums, primary keys `(clinic_id, id)`, uniques, FKs and indexes copied exactly from the SQL. No defaults for ids (app-generated UUID v7). Each file ≤300 lines.
 2. **drizzle-kit bridge** — `packages/db/drizzle.config.ts` pointing at the schema, with `introspect`/`check` only. `generate`/`push`/`migrate` are disabled: `db/sql` + `db/migrate.sh` stay the only way to change production until the owner decides the switchover.
 3. **Drift test** — `packages/db/src/__tests__/schema-drift.db.spec.ts`: on a fresh PostgreSQL 18 with the whole `db/sql` baseline applied (same as CI `db` job), read `information_schema`/`pg_catalog` and compare tables, columns, types, nullability, PKs, uniques, FKs and indexes with the Drizzle mirror. Any difference fails CI.
 4. **Guarded exposure** — the schema objects are exported as table definitions only. Query builders on `Tx` stay absent (ADR-0002); a follow-up decides whether to add them under the same statement guard. A unit test asserts the public surface still has no raw client.
