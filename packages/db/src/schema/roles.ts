@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   foreignKey,
   index,
   pgTable,
@@ -42,6 +43,12 @@ export const roles = pgTable(
     }),
     uniqueIndex("roles_name_ar_unique").on(t.clinicId, sql`lower(btrim(${t.nameAr}))`),
     uniqueIndex("roles_name_en_unique").on(t.clinicId, sql`lower(btrim(${t.nameEn}))`),
+    check(
+      "roles_system_key_check",
+      sql.raw(
+        "(system_key = ANY (ARRAY['clinic_admin'::text, 'doctor'::text, 'receptionist'::text, 'technician'::text]))",
+      ),
+    ),
   ],
 );
 
@@ -56,7 +63,16 @@ export const permissions = pgTable(
     scope: text("scope").notNull(),
     module: text("module", { enum: ["patients"] }),
   },
-  (t) => [unique("permissions_key_key").on(t.key)],
+  (t) => [
+    unique("permissions_key_key").on(t.key),
+    check(
+      "permissions_key_check",
+      sql.raw(
+        "(key ~ '^(view|create|update|deactivate):(branches|users|roles|patients|audit_log|clinic_settings):(clinic|branch)$'::text)",
+      ),
+    ),
+    check("permissions_module_check", sql.raw("(module = 'patients'::text)")),
+  ],
 );
 
 export const rolePermissions = pgTable(

@@ -40,9 +40,23 @@ export const clinics = pgTable(
   (t) => [
     unique("clinics_slug_key").on(t.slug),
     index("clinics_status_expires_idx").on(t.status, t.expiresAt),
-    check("clinics_slug_check", sql`${t.slug} ~ '^[a-z0-9]+(-[a-z0-9]+)*$'`),
-    check("clinics_max_users_check", sql`${t.maxUsers} > 0`),
-    check("clinics_max_branches_check", sql`${t.maxBranches} > 0`),
+    check(
+      "clinics_default_language_check",
+      sql.raw("(default_language = ANY (ARRAY['ar'::text, 'en'::text]))"),
+    ),
+    check("clinics_max_branches_check", sql.raw("(max_branches > 0)")),
+    check("clinics_max_users_check", sql.raw("(max_users > 0)")),
+    check("clinics_slug_check", sql.raw("(slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'::text)")),
+    check(
+      "clinics_specialty_check",
+      sql.raw(
+        "(specialty = ANY (ARRAY['psychiatry'::text, 'psychology'::text, 'dental'::text, 'dermatology'::text, 'obgyn'::text, 'general'::text]))",
+      ),
+    ),
+    check(
+      "clinics_status_check",
+      sql.raw("(status = ANY (ARRAY['trial'::text, 'active'::text, 'suspended'::text]))"),
+    ),
   ],
 );
 
@@ -63,6 +77,7 @@ export const clinicFeatures = pgTable(
       columns: [t.clinicId],
       foreignColumns: [clinics.id],
     }),
+    check("clinic_features_module_check", sql.raw("(module = 'patients'::text)")),
   ],
 );
 
@@ -81,5 +96,7 @@ export const clinicCounters = pgTable(
       columns: [t.clinicId],
       foreignColumns: [clinics.id],
     }),
+    check("clinic_counters_name_check", sql.raw("(name = 'patient_file_number'::text)")),
+    check("clinic_counters_value_check", sql.raw("(value > 0)")),
   ],
 );

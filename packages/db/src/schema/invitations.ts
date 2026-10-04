@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   foreignKey,
   index,
   pgTable,
@@ -51,6 +52,11 @@ export const invitations = pgTable(
     index("invitations_clinic_email_idx").on(t.clinicId, sql`lower(${t.email})`),
     index("invitations_clinic_id_role_id_idx").on(t.clinicId, t.roleId),
     uniqueIndex("invitations_token_hash_idx").on(t.tokenHash),
+    check("invitations_email_canonical", sql.raw("(email = lower(btrim(email)))")),
+    check(
+      "invitations_status_check",
+      sql.raw("(status = ANY (ARRAY['pending'::text, 'accepted'::text, 'cancelled'::text]))"),
+    ),
   ],
 );
 

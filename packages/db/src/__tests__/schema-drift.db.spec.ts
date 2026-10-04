@@ -1,4 +1,10 @@
-import { getTableConfig, type PgTable } from "drizzle-orm/pg-core";
+import {
+  getTableConfig,
+  getViewConfig,
+  PgDialect,
+  type PgColumn,
+  type PgTable,
+} from "drizzle-orm/pg-core";
 import type { Sql } from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -11,9 +17,22 @@ type Shape = {
   primaryKey: string[];
   foreignKeys: string[];
   indexes: string[];
+  checks: string[];
 };
 
+const dialect = new PgDialect();
+
 const tables: PgTable[] = (Object.values(schema) as unknown[]).filter(isTable);
+const views = (Object.values(schema) as unknown[]).filter(isView);
+
+function isView(value: unknown): value is Parameters<typeof getViewConfig>[0] {
+  try {
+    getViewConfig(value as Parameters<typeof getViewConfig>[0]);
+    return !isTable(value);
+  } catch {
+    return false;
+  }
+}
 
 function isTable(value: unknown): value is PgTable {
   try {
@@ -45,7 +64,15 @@ function mirrorShape(table: PgTable): [string, Shape] {
     ...config.uniqueConstraints.map((u) => u.getName() ?? ""),
     ...config.columns.filter((c) => c.isUnique).map((c) => c.uniqueName ?? ""),
   ].sort();
-  return [config.name, { columns, primaryKey: [...primaryKey].sort(), foreignKeys, indexes }];
+  // Each check is written in the mirror exactly as PostgreSQL prints it (pg_get_constraintdef), so the
+  // comparison is the full definition, not just the name (Codex on PR #24).
+  const checks = config.checks
+    .map((c) => `${c.name}:CHECK (${dialect.sqlToQuery(c.value).sql})`)
+    .sort();
+  return [
+    config.name,
+    { columns, primaryKey: [...primaryKey].sort(), foreignKeys, indexes, checks },
+  ];
 }
 
 async function databaseShapes(owner: Sql): Promise<Map<string, Shape>> {
@@ -68,6 +95,12 @@ async function databaseShapes(owner: Sql): Promise<Map<string, Shape>> {
     FROM pg_constraint con JOIN pg_class rel ON rel.oid = con.conrelid
     JOIN pg_namespace ns ON ns.oid = rel.relnamespace
     WHERE ns.nspname = 'public' AND con.contype IN ('p', 'f')`;
+  // contype 'c' only: PostgreSQL 18 also records NOT NULL as constraints (contype 'n').
+  const checks = await owner<{ table_name: string; name: string; def: string }[]>`
+    SELECT rel.relname AS table_name, con.conname AS name, pg_get_constraintdef(con.oid) AS def
+    FROM pg_constraint con JOIN pg_class rel ON rel.oid = con.conrelid
+    JOIN pg_namespace ns ON ns.oid = rel.relnamespace
+    WHERE ns.nspname = 'public' AND con.contype = 'c'`;
   const indexes = await owner<{ tablename: string; indexname: string }[]>`
     SELECT tablename, indexname FROM pg_indexes
     WHERE schemaname = 'public' AND indexname NOT LIKE '%\\_pkey'`;
@@ -76,7 +109,7 @@ async function databaseShapes(owner: Sql): Promise<Map<string, Shape>> {
   const get = (name: string): Shape => {
     let shape = shapes.get(name);
     if (!shape) {
-      shape = { columns: [], primaryKey: [], foreignKeys: [], indexes: [] };
+      shape = { columns: [], primaryKey: [], foreignKeys: [], indexes: [], checks: [] };
       shapes.set(name, shape);
     }
     return shape;
@@ -95,11 +128,14 @@ async function databaseShapes(owner: Sql): Promise<Map<string, Shape>> {
   }
   for (const i of indexes)
     if (i.tablename !== "schema_migrations") get(i.tablename).indexes.push(i.indexname);
+  for (const c of checks)
+    if (c.table_name !== "schema_migrations") get(c.table_name).checks.push(`${c.name}:${c.def}`);
   for (const shape of shapes.values()) {
     shape.columns.sort();
     shape.primaryKey.sort();
     shape.foreignKeys.sort();
     shape.indexes.sort();
+    shape.checks.sort();
   }
   return shapes;
 }
@@ -121,7 +157,32 @@ describe("Drizzle schema mirror vs db/sql", () => {
     expect([...mirror.keys()].sort()).toEqual([...actual.keys()].sort());
   });
 
-  it.each([...mirror.keys()])("%s matches columns, keys and indexes", (name) => {
+  it.each([...mirror.keys()])("%s matches columns, keys, indexes and checks", (name) => {
     expect(mirror.get(name)).toEqual(actual.get(name));
+  });
+
+  // Views carry no NOT NULL in the catalog, so a view is compared by column name, type and order.
+  it("mirrors exactly the views the baseline creates, column by column", async () => {
+    const rows = await owner<{ table_name: string; column_name: string; data_type: string }[]>`
+      SELECT c.table_name, c.column_name, c.data_type
+      FROM information_schema.columns c
+      JOIN information_schema.views v ON v.table_schema = c.table_schema AND v.table_name = c.table_name
+      WHERE c.table_schema = 'public'
+      ORDER BY c.table_name, c.ordinal_position`;
+    const inDatabase = new Map<string, string[]>();
+    for (const r of rows) {
+      inDatabase.set(r.table_name, [
+        ...(inDatabase.get(r.table_name) ?? []),
+        `${r.column_name}:${r.data_type}`,
+      ]);
+    }
+    const inMirror = new Map(
+      views.map((view) => {
+        const config = getViewConfig(view);
+        const fields = Object.values(config.selectedFields as Record<string, PgColumn>);
+        return [config.name, fields.map((c) => `${c.name}:${c.getSQLType()}`)] as const;
+      }),
+    );
+    expect(inMirror).toEqual(inDatabase);
   });
 });

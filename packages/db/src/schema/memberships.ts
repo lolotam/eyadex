@@ -1,5 +1,7 @@
+import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   foreignKey,
   index,
   pgTable,
@@ -50,6 +52,15 @@ export const memberships = pgTable(
     index("memberships_clinic_role_idx").on(t.clinicId, t.roleId),
     index("memberships_clinic_status_idx").on(t.clinicId, t.status),
     uniqueIndex("memberships_email_unique").on(t.email),
+    check("memberships_email_canonical", sql.raw("(email = lower(btrim(email)))")),
+    check(
+      "memberships_preferred_language_check",
+      sql.raw("(preferred_language = ANY (ARRAY['ar'::text, 'en'::text]))"),
+    ),
+    check(
+      "memberships_status_check",
+      sql.raw("(status = ANY (ARRAY['active'::text, 'deactivated'::text]))"),
+    ),
   ],
 );
 
@@ -101,5 +112,22 @@ export const emailReservations = pgTable(
       foreignColumns: [clinics.id],
     }),
     index("email_reservations_clinic_idx").on(t.clinicId),
+    check("email_reservations_check", sql.raw("((kind = 'platform'::text) = (clinic_id IS NULL))")),
+    check(
+      "email_reservations_check1",
+      sql.raw("((kind = 'invitation'::text) = (expires_at IS NOT NULL))"),
+    ),
+    check(
+      "email_reservations_check2",
+      sql.raw("((kind = 'invitation'::text) = (invitation_id IS NOT NULL))"),
+    ),
+    check(
+      "email_reservations_email_check",
+      sql.raw("((email = lower(btrim(email))) AND (email <> ''::text))"),
+    ),
+    check(
+      "email_reservations_kind_check",
+      sql.raw("(kind = ANY (ARRAY['invitation'::text, 'membership'::text, 'platform'::text]))"),
+    ),
   ],
 );

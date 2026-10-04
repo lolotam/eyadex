@@ -38,13 +38,17 @@ export const auditLog = pgTable(
       columns: [t.clinicId],
       foreignColumns: [clinics.id],
     }),
-    check(
-      "audit_log_patient_events_are_patient_access",
-      sql`${t.entityType} <> 'patient' OR ${t.category} = 'patient_access'`,
-    ),
     index("audit_log_clinic_created_idx").on(t.clinicId, t.createdAt.desc()),
     index("audit_log_clinic_category_created_idx").on(t.clinicId, t.category, t.createdAt.desc()),
     index("audit_log_clinic_entity_idx").on(t.clinicId, t.entityType, t.entityId),
+    check(
+      "audit_log_category_check",
+      sql.raw("(category = ANY (ARRAY['administrative'::text, 'patient_access'::text]))"),
+    ),
+    check(
+      "audit_log_patient_events_are_patient_access",
+      sql.raw("((entity_type <> 'patient'::text) OR (category = 'patient_access'::text))"),
+    ),
   ],
 );
 

@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  check,
   date,
   foreignKey,
   index,
@@ -53,5 +54,17 @@ export const patients = pgTable(
     uniqueIndex("patients_clinic_civil_id_unique")
       .on(t.clinicId, t.civilId)
       .where(sql`${t.civilId} IS NOT NULL`),
+    check(
+      "patients_civil_id_digits",
+      sql.raw(
+        "((civil_id IS NULL) OR ((length(civil_id) = 12) AND (translate(civil_id, '0123456789'::text, ''::text) = ''::text)))",
+      ),
+    ),
+    check("patients_file_number_numeric", sql.raw("(file_number ~ '^[1-9][0-9]*$'::text)")),
+    check("patients_gender_check", sql.raw("(gender = ANY (ARRAY['male'::text, 'female'::text]))")),
+    check(
+      "patients_status_check",
+      sql.raw("(status = ANY (ARRAY['active'::text, 'archived'::text]))"),
+    ),
   ],
 );
