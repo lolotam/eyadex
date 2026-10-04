@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
   check,
   foreignKey,
@@ -70,7 +71,7 @@ export const clinicCounters = pgTable(
   {
     clinicId: uuid("clinic_id").notNull(),
     name: text("name", { enum: ["patient_file_number"] }).notNull(),
-    value: integer("value").notNull(),
+    value: bigint("value", { mode: "number" }).notNull(),
     updatedAt: timestamp("updated_at", tz).notNull(),
   },
   (t) => [
