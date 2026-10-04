@@ -15,6 +15,7 @@
   },
   "scripts": {
     "dev": "cd apps/web && ./node_modules/.bin/vite dev",
+    "build:dev": "cd apps/web && ./node_modules/.bin/vite build --mode development",
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
     "test": "turbo run test",
