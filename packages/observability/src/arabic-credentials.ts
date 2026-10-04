@@ -69,7 +69,8 @@ const looksLikeArabicLabelValue = (first: string): boolean =>
 
 // The end of a quoted value: the first quote that is not itself escaped. A value opened by `"` closes on a
 // quote behind an even number of backslashes (`"ab\"cd"` runs to the last quote). A value opened by `\"`
-// (JSON inside a JSON string) closes on `\"` and skips `\\\"`, its own escaped quote. Unclosed: to the end.
+// (JSON inside a JSON string) closes only on `\"` — never on a bare quote — and skips `\\\"`, its own escaped
+// quote. Unclosed: to the end.
 // One pass, so linear.
 const quotedEnd = (text: string, open: number, escaped: boolean): number => {
   const quote = text[open];
@@ -80,7 +81,7 @@ const quotedEnd = (text: string, open: number, escaped: boolean): number => {
       backslashes++;
       continue;
     }
-    if (char === quote && (escaped ? backslashes <= 1 : backslashes % 2 === 0)) return i + 1;
+    if (char === quote && (escaped ? backslashes === 1 : backslashes % 2 === 0)) return i + 1;
     backslashes = 0;
   }
   return text.length;

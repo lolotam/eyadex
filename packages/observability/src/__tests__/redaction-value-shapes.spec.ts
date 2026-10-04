@@ -149,6 +149,8 @@ describe("Arabic credential labels in free text", () => {
     ['كلمة المرور: "ab\\"cd" بعده', `كلمة المرور: ${REDACTED} بعده`],
     ["كلمة المرور 'it\\'s9 secret' بعده", `كلمة المرور ${REDACTED} بعده`],
     ['{\\"كلمة المرور\\":\\"a,b\\\\\\"c\\"} بعده', `{\\"كلمة المرور\\":${REDACTED}} بعده`],
+    // …and an escaped-mode value does not close on a bare quote (PR #18 Codex round 2).
+    ['كلمة المرور: \\"abc"hunter2\\" بعده', `كلمة المرور: ${REDACTED} بعده`],
     ["لكلمة المرور: hunter2", `لكلمة المرور: ${REDACTED}`],
     ["لرمز الدخول: 123456", `لرمز الدخول: ${REDACTED}`],
     ["وبفكلمة المرور: hunter2", `وبفكلمة المرور: ${REDACTED}`],
