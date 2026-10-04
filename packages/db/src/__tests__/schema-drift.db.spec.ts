@@ -23,6 +23,15 @@ type Shape = {
 
 const dialect = new PgDialect();
 
+// pg_constraint.confdeltype / confupdtype codes, spelled the way Drizzle's onDelete / onUpdate are.
+const ACTION: Record<string, string> = {
+  a: "no action",
+  r: "restrict",
+  c: "cascade",
+  n: "set null",
+  d: "set default",
+};
+
 const tables: PgTable[] = (Object.values(schema) as unknown[]).filter(isTable);
 const views = (Object.values(schema) as unknown[]).filter(isView);
 
@@ -57,7 +66,10 @@ function mirrorShape(table: PgTable): [string, Shape] {
     .map((fk) => {
       const ref = fk.reference();
       const target = getTableConfig(ref.foreignTable).name;
-      return `${fk.getName()}(${ref.columns.map((c) => c.name).join(",")})->${target}(${ref.foreignColumns.map((c) => c.name).join(",")})`;
+      // Referential actions are part of the shape: NO ACTION vs CASCADE/RESTRICT/SET NULL changes what a
+      // delete does (Codex on PR #24). Drizzle leaves them undefined for the default, NO ACTION.
+      const actions = `on delete ${fk.onDelete ?? "no action"} on update ${fk.onUpdate ?? "no action"}`;
+      return `${fk.getName()}(${ref.columns.map((c) => c.name).join(",")})->${target}(${ref.foreignColumns.map((c) => c.name).join(",")}) ${actions}`;
     })
     .sort();
   // Each index is compared by its full definition as pg_indexes.indexdef prints it — uniqueness, method,
@@ -104,7 +116,8 @@ function mirrorShape(table: PgTable): [string, Shape] {
     .sort();
   return [
     config.name,
-    { columns, primaryKey: [...primaryKey].sort(), foreignKeys, indexes, checks },
+    // Primary-key columns keep their declared order: it is the backing index's column order (Codex on PR #24).
+    { columns, primaryKey, foreignKeys, indexes, checks },
   ];
 }
 
@@ -117,14 +130,23 @@ async function databaseShapes(owner: Sql): Promise<Map<string, Shape>> {
     JOIN information_schema.tables t ON t.table_schema = c.table_schema AND t.table_name = c.table_name
     WHERE c.table_schema = 'public' AND t.table_type = 'BASE TABLE'`;
   const keys = await owner<
-    { table_name: string; name: string; kind: string; cols: string; ref: string | null }[]
+    {
+      table_name: string;
+      name: string;
+      kind: string;
+      cols: string;
+      ref: string | null;
+      on_delete: string;
+      on_update: string;
+    }[]
   >`
     SELECT rel.relname AS table_name, con.conname AS name, con.contype AS kind,
       (SELECT string_agg(a.attname, ',' ORDER BY k.ord) FROM unnest(con.conkey) WITH ORDINALITY k(n, ord)
         JOIN pg_attribute a ON a.attrelid = con.conrelid AND a.attnum = k.n) AS cols,
       CASE WHEN con.contype = 'f' THEN (SELECT ref.relname FROM pg_class ref WHERE ref.oid = con.confrelid) || '(' ||
         (SELECT string_agg(a.attname, ',' ORDER BY k.ord) FROM unnest(con.confkey) WITH ORDINALITY k(n, ord)
-          JOIN pg_attribute a ON a.attrelid = con.confrelid AND a.attnum = k.n) || ')' END AS ref
+          JOIN pg_attribute a ON a.attrelid = con.confrelid AND a.attnum = k.n) || ')' END AS ref,
+      con.confdeltype AS on_delete, con.confupdtype AS on_update
     FROM pg_constraint con JOIN pg_class rel ON rel.oid = con.conrelid
     JOIN pg_namespace ns ON ns.oid = rel.relnamespace
     WHERE ns.nspname = 'public' AND con.contype IN ('p', 'f')`;
@@ -157,7 +179,10 @@ async function databaseShapes(owner: Sql): Promise<Map<string, Shape>> {
   for (const k of keys) {
     if (k.table_name === "schema_migrations") continue;
     if (k.kind === "p") get(k.table_name).primaryKey.push(...k.cols.split(","));
-    else get(k.table_name).foreignKeys.push(`${k.name}(${k.cols})->${k.ref}`);
+    else
+      get(k.table_name).foreignKeys.push(
+        `${k.name}(${k.cols})->${k.ref} on delete ${ACTION[k.on_delete]} on update ${ACTION[k.on_update]}`,
+      );
   }
   for (const i of indexes)
     if (i.tablename !== "schema_migrations") get(i.tablename).indexes.push(i.indexdef);
@@ -165,7 +190,6 @@ async function databaseShapes(owner: Sql): Promise<Map<string, Shape>> {
     if (c.table_name !== "schema_migrations") get(c.table_name).checks.push(`${c.name}:${c.def}`);
   for (const shape of shapes.values()) {
     shape.columns.sort();
-    shape.primaryKey.sort();
     shape.foreignKeys.sort();
     shape.indexes.sort();
     shape.checks.sort();
