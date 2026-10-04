@@ -241,9 +241,8 @@ to name.
 
 ## Consequences
 
-- The schema is **not** in this package yet. Queries here are `tx.execute(sql\`…\`)`, and the query
-builders are deliberately absent until B3b. The Drizzle mirror of `db/sql/0001…0021`, the drizzle-kit
-  bridge and the drift test are the next task.
+- The schema lives in this package only as definitions (`@eyadex/db/schema`, B3b); queries still go
+  through `tx.execute(sql\`…\`)`, and the query builders stay absent from `Tx` (see Next).
 - `withTenant` never accepts a non-UUID: it rejects with a `TypeError` before sending anything, and the
   value is always a bound parameter.
 - An exception from `fn` rolls everything back and rethrows the original error unchanged, so a use case
@@ -262,5 +261,17 @@ builders are deliberately absent until B3b. The Drizzle mirror of `db/sql/0001�
 
 ### Next
 
-B3b — the Drizzle schema mirror, the drizzle-kit bridge and a drift test against `db/sql`. The query
-builders return there only if every value they hand out is guarded.
+B3b (done, schema part) — the Drizzle mirror of `db/sql/0001…0022` lives in `src/schema/` and is
+exported only as `@eyadex/db/schema` (table definitions, nothing callable). `schema-drift.db.spec.ts`
+compares its tables, columns, types, nullability, column defaults / identity / generated status (the
+baseline has none — ids are app-generated), primary keys (in column order), foreign keys (with their
+ON DELETE / ON UPDATE actions), **full index definitions** (as `pg_indexes.indexdef` prints them: uniqueness, method, column order and direction, expressions, partial predicate) and **CHECK
+constraints** (by name and full definition — each is written in the mirror exactly as
+`pg_get_constraintdef` prints it) with the applied baseline, and the platform audit view by column name,
+type and order. RLS policies and grants stay covered by `db/tests`. Still open: the
+drizzle-kit bridge (needs a pinned dependency that passes the 24h supply-chain guard), and query
+builders on `Tx` only if every value they hand out is guarded. Two drift-test refinements raised in the
+last review round of PR #24, recorded rather than fixed under the 5-round rule (neither is an isolation
+or leak issue): compare the full identity / generated metadata (`identity_generation`, sequence options,
+`generation_expression`) instead of presence only — the baseline has no such column today, and adding
+one already fails the presence check — and keep table-column declaration order instead of sorting it.
