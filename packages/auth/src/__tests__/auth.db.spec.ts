@@ -113,6 +113,7 @@ describe("Better Auth on eyadex_auth", () => {
     const { userId } = await clinic.createUserAccount({ email, name: "TOTP", password });
     const headers = cookieHeaders(await signIn(email, password));
     const enabled = await clinic.auth.api.enableTwoFactor({ body: { password }, headers });
+    if (enabled.method !== "totp") throw new Error("expected the TOTP method");
     expect(enabled.totpURI).toMatch(/^otpauth:\/\/totp\//);
     const verified = await clinic.auth.api.verifyTOTP({
       body: { code: totpFromUri(enabled.totpURI) },

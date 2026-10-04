@@ -135,11 +135,14 @@ export function createAuth(options: CreateAuthOptions): EyadexAuth {
       const hash = await context.password.hash(password);
       // TODO(spec): one transaction for user + credential row, and the global email hold (0015),
       // belong to the identity use case that calls this (invitation acceptance, slice 2b+).
-      const user = await context.internalAdapter.createUser({
-        email: email.trim().toLowerCase(),
-        name,
-        emailVerified: true,
-      });
+      const user = await context.internalAdapter.createUser(
+        {
+          email: email.trim().toLowerCase(),
+          name,
+          emailVerified: true,
+        },
+        { method: "admin" },
+      );
       await context.internalAdapter.linkAccount({
         userId: user.id,
         providerId: "credential",
