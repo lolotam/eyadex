@@ -131,6 +131,9 @@ Banned folder names anywhere: `utils/` · `helpers/` · `common/` · `misc/` · 
   `eyadex_auth` (identity tables only), `eyadex_platform` (platform module; **no grant on
   `patients` or patient-access audit rows**), `eyadex_dispatcher` (outbox only).
   **No runtime role has `BYPASSRLS`.** The owner role runs migrations only.
+- **No runtime role has `TEMPORARY` on the database** (`db/sql/0022`): nothing creates a
+  temporary object at runtime, and a temporary function could hide `set_config`. Only the
+  owner role keeps it.
 - Phase B: all tenant access through `withTenant(clinicId, tx => …)`; the raw Drizzle client is
   never exported. Never edit the production DB by hand outside a reviewed SQL file / migration.
 - Civil ID: stored under RLS, never in logs or audit before/after values.
