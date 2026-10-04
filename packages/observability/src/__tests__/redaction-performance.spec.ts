@@ -75,6 +75,11 @@ describe("sanitize stays linear on adversarial strings", () => {
     ["Arabic kaf runs", "ك".repeat(NEAR_CAP)],
     ["Arabic label then combining marks", "كلمة" + "ࣣ".repeat(NEAR_CAP - 5)],
     ["credential name and dash runs", "password - ".repeat(NEAR_CAP / 11)],
+    // Unclosed typographic quotes: each quoted value is read once, then withheld to the end.
+    ["unclosed typographic quotes", "a «".repeat(NEAR_CAP / 3)],
+    ["credential name then unclosed quotes", "password «" + "a «".repeat(NEAR_CAP / 3 - 4)],
+    ["Arabic label then unclosed quotes", "كلمة المرور: «" + "a «".repeat(NEAR_CAP / 3 - 5)],
+    ["left-arrow runs", "password ← ".repeat(NEAR_CAP / 11)],
     ["word and dash runs", "a - ".repeat(NEAR_CAP / 4)],
     ["credential name then dash then spaces", "password -" + " ".repeat(NEAR_CAP - 11)],
     ["Arabic label and dash runs", "كلمة المرور - ".repeat(NEAR_CAP / 14)],

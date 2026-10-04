@@ -1,5 +1,7 @@
 import { TOKEN_PREFIX } from "./credential-words.ts";
 import { REDACTED } from "./masks.ts";
+import { opensQuote, valueEnd } from "./quotes.ts";
+import { SEPARATOR_PATTERN } from "./separators.ts";
 
 // Arabic credential labels written in free text: `كلمة المرور: hunter2`, `رمز التحقق 482193`. The English
 // `name=value` scanner cannot see them — `\w` is ASCII-only in JavaScript — and an Arabic-first app writes
@@ -44,25 +46,22 @@ const LABEL =
     any("سر", "توكن", "باسورد", "باسوورد"),
   ].join("|") +
   ")";
-// `:`/`=` (or `هي`/`هو`, "is") makes it an assignment and the value is withheld whatever it is; a bare space —
-// or a value glued to the label with digits (`الرمز123456`) — requires the value to look like a credential,
-// so `كلمة المرور غير صحيحة` stays readable. The whitespace runs are unbounded (a bound let four spaces
-// through) and stay linear: each is followed by a required token, so a failed label backtracks over its
-// own run once. The lookahead only requires a value to start; its words are read by plain scans below.
+// `:`/`=`, a dash, an arrow or a bar (the shared SEPARATOR_PATTERN), or `هي`/`هو` ("is"), makes it an
+// assignment and the value is withheld whatever it is; a bare space — or a value glued to the label with
+// digits (`الرمز123456`) — requires the value to look like a credential, so `كلمة المرور غير صحيحة` stays
+// readable. A quoted key (`{"كلمة المرور":"x"}`) is read like the English one. The whitespace runs are
+// unbounded (a bound let four spaces through) and stay linear: each is followed by a required token, so a
+// failed label backtracks over its own run once. The lookahead only requires a value to start.
 const ARABIC_CREDENTIAL = new RegExp(
   `(?<![\\p{L}\\p{M}\\p{N}_])(${LABEL})(?![\\p{L}\\p{M}_])` +
-    `(\\\\?["']?\\s*(?:[:=]{1,3}|->|=>|[\\-\\u2010-\\u2015|\\u2192\\u21D2]{1,3}|(?:هي|هو|هى)(?![\\p{L}\\p{M}]))\\s*|\\\\?["']?\\s+|(?=\\p{N}))` +
+    `(\\\\?["']?\\s*(?:${SEPARATOR_PATTERN}|(?:هي|هو|هى)(?![\\p{L}\\p{M}]))\\s*|\\\\?["']?\\s+|(?=\\p{N}))` +
     `(?=[^\\s&,;،؛])`,
   "giu",
 );
 const ARABIC_LETTER = /[؀-ۿ]/;
-// The pair delimiters of the English rule plus the Arabic comma and semicolon.
-const PAIR_END = /[&,;\r\n،؛]/g;
+// The separator group holds one of the explicit separators, or only quotes and spaces (a bare space).
+const EXPLICIT = new RegExp(`${SEPARATOR_PATTERN}|ه[يوى]`, "u");
 
-const isQuote = (char: string | undefined): boolean => char === "'" || char === '"';
-// The separator makes it an assignment only through `:`/`=`, a dash, arrow or bar (`كلمة المرور - x`), or
-// `هي`/`هو` — a quote around the label alone does not.
-const EXPLICIT = /[:=\-‐-―|>→⇒]|ه[يوى]/u;
 // After a bare space the first word must itself look like a secret: a digit (any script) or a token prefix.
 // Length alone is not enough here — a long Arabic word (`الإلكترونيات`) is prose, not a credential.
 // The whole first word is read (a 200-character bound let a later digit through), by one sticky scan that
@@ -72,36 +71,6 @@ const looksLikeArabicLabelValue = (text: string, start: number): boolean => {
   if (TOKEN_PREFIX.test(text.slice(start, start + 4))) return true;
   DIGIT_IN_FIRST_WORD.lastIndex = start;
   return DIGIT_IN_FIRST_WORD.test(text);
-};
-
-// The end of a quoted value: the first quote that is not itself escaped. A value opened by `"` closes on a
-// quote behind an even number of backslashes (`"ab\"cd"` runs to the last quote). A value opened by `\"`
-// (JSON inside a JSON string) closes only on `\"` — never on a bare quote — and skips `\\\"`, its own escaped
-// quote. Unclosed: to the end.
-// One pass, so linear.
-const quotedEnd = (text: string, open: number, escaped: boolean): number => {
-  const quote = text[open];
-  let backslashes = 0;
-  for (let i = open + 1; i < text.length; i++) {
-    const char = text[i];
-    if (char === "\\") {
-      backslashes++;
-      continue;
-    }
-    if (char === quote && (escaped ? backslashes === 1 : backslashes % 2 === 0)) return i + 1;
-    backslashes = 0;
-  }
-  return text.length;
-};
-
-const opensQuote = (text: string, start: number): boolean =>
-  isQuote(text[start]) || (text[start] === "\\" && isQuote(text[start + 1]));
-
-const valueEnd = (text: string, start: number): number => {
-  if (isQuote(text[start])) return quotedEnd(text, start, false);
-  if (text[start] === "\\" && isQuote(text[start + 1])) return quotedEnd(text, start + 1, true);
-  PAIR_END.lastIndex = start;
-  return PAIR_END.exec(text)?.index ?? text.length;
 };
 
 /**

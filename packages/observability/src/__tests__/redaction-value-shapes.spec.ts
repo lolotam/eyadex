@@ -103,6 +103,12 @@ describe("prose after a non-credential head on the same line", () => {
     ["password — correct horse, next", `password — ${REDACTED}, next`],
     ["token -> abc123def", `token -> ${REDACTED}`],
     ["apiKey | sk-xyz", `apiKey | ${REDACTED}`],
+    ["password ← hunter2", `password ← ${REDACTED}`],
+    // Typographic quotes are quotes in English too.
+    ["password: «a, b» next", `password: ${REDACTED} next`],
+    ["password «hunter two» next", `password ${REDACTED} next`],
+    ["password: `a, b` next", `password: ${REDACTED} next`],
+    ["token - “a; b” next", `token - ${REDACTED} next`],
     ["password => hunter2", `password =${REDACTED}`],
   ])("%j", (raw, expected) => {
     for (const out of both({ note: raw })) expect(out).toEqual({ note: expected });

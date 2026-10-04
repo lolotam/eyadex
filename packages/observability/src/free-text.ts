@@ -5,6 +5,8 @@ import {
   TOKEN_PREFIX_PATTERN,
 } from "./credential-words.ts";
 import { maskPhone, REDACTED } from "./masks.ts";
+import { opensQuote, valueEnd } from "./quotes.ts";
+import { SEPARATOR_WORD } from "./separators.ts";
 
 // Free text: identifiers and credentials written inside a string under a key that says nothing about them
 // (a note, a search term, an error detail). Key-based rules cannot see these. Everything here receives an
@@ -108,7 +110,11 @@ function redactAssignments(text: string): string {
       continue;
     }
     let end = match.index + match[0].length;
-    if (!QUOTED_VALUE.test(value)) {
+    if (opensQuote(value, 0) && !QUOTED_VALUE.test(value)) {
+      // A typographic quote (`password: «a, b»`): withheld to its closing mark, not the first comma.
+      end = valueEnd(text, end - value.length);
+      ASSIGNMENT.lastIndex = end;
+    } else if (!QUOTED_VALUE.test(value)) {
       PAIR_END.lastIndex = end;
       end = PAIR_END.exec(text)?.index ?? text.length;
       ASSIGNMENT.lastIndex = end;
@@ -179,7 +185,6 @@ const redactProseMirror = (_match: string, name: string, value: string, verb: st
     ? `${name} ${REDACTED} ${verb}`
     : _match;
 
-const SEPARATOR_WORD = /^(?:->|=>|[-‐-―|→⇒]{1,3})$/u;
 // The first non-space character after the separator, on the same line (sticky: no scan past spaces).
 const VALUE_START = /[ \t]*(?=[^\s])/y;
 function redactBareCredentials(text: string): string {
@@ -197,13 +202,21 @@ function redactBareCredentials(text: string): string {
       const gap = VALUE_START.exec(text);
       if (gap !== null) {
         const start = gap.index + gap[0].length;
-        PAIR_END.lastIndex = start;
-        const end = PAIR_END.exec(text)?.index ?? text.length;
+        const end = valueEnd(text, start);
         out += text.slice(last, start) + REDACTED;
         last = end;
         BARE_CREDENTIAL.lastIndex = end;
         continue;
       }
+    }
+    // A typographic quote (`password «hunter two»`) is withheld whole like an ASCII one (QUOTED_CREDENTIAL).
+    const valueStart = match.index + match[0].length - value.length;
+    if (opensQuote(text, valueStart) && isFreeTextCredentialName(name)) {
+      const end = valueEnd(text, valueStart);
+      out += text.slice(last, valueStart) + REDACTED;
+      last = end;
+      BARE_CREDENTIAL.lastIndex = end;
+      continue;
     }
     if (!isFreeTextCredentialName(name) || !looksLikeCredentialValue(value)) {
       // Re-anchor just past the name so the value word can still be read as a name.

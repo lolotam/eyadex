@@ -51,6 +51,13 @@ describe("Arabic credential labels in free text", () => {
     [`الرمز ${"b".repeat(1000)}7 بعده`, `الرمز ${REDACTED}`],
     // A dash, arrow or bar is a separator (PR #18 Codex round 4).
     ["كلمة المرور - hunter2", `كلمة المرور - ${REDACTED}`],
+    // Typographic quotes and left arrows (PR #18 Codex round 5).
+    ["كلمة المرور: «abc،def» بعده", `كلمة المرور: ${REDACTED} بعده`],
+    ["كلمة المرور: “a, b” بعده", `كلمة المرور: ${REDACTED} بعده`],
+    ["كلمة المرور «hunter two» بعده", `كلمة المرور ${REDACTED} بعده`],
+    ["كلمة المرور: «abc, def", `كلمة المرور: ${REDACTED}`],
+    ["كلمة المرور ← hunter2", `كلمة المرور ← ${REDACTED}`],
+    ["الرمز <- 123456", `الرمز <- ${REDACTED}`],
     ["كلمة المرور – hunter2، بعده", `كلمة المرور – ${REDACTED}، بعده`],
     ["الرمز -> 123456", `الرمز -> ${REDACTED}`],
     ["لكلمة المرور: hunter2", `لكلمة المرور: ${REDACTED}`],
