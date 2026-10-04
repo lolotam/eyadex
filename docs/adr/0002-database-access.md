@@ -205,7 +205,11 @@ SQL given as text — this ADR is revisited with it.
 `rollback`. Everything else throws a `TypeError`: `session`, `_`, `dialect`, `$client`, `query`,
 `select`, `constructor`, symbols, the prototype, and any assignment. A method taken from `tx` (`const execute = tx.execute`) ends with its transaction or
 savepoint too: every method the proxy hands out checks the `Tx`'s lifetime on each call, because
-`Proxy.revocable` only stops new reads (Codex on PR #22, P1). `Tx` is that allow-listed type
+`Proxy.revocable` only stops new reads (Codex on PR #22, P1). A savepoint's lifetime is tied to its parent's, and a
+`tx.transaction(…)` that `fn` started without awaiting is refused: if `fn` (or a savepoint) returns while
+a child savepoint is still running, the wrapper throws `TenantContextViolationError`
+(`unfinished-savepoint`) and rolls back instead of committing — postgres.js only waits for a savepoint
+through the promise handed back to the caller, so the child would otherwise run after the COMMIT. `Tx` is that allow-listed type
 itself, so `tx.session` and `tx.select()` do not compile either.
 
 The query builders are gone on purpose, and that was a real hole rather than a style choice:

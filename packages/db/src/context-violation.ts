@@ -9,7 +9,12 @@
 
 /** أي شرط من شروط الجلسة وقع ضدّها الـ transaction. */
 export type TenantContextBreach =
-  "clinic" | "fresh-clinic" | "role" | "statement-timeout" | "idle-timeout";
+  | "clinic"
+  | "fresh-clinic"
+  | "role"
+  | "statement-timeout"
+  | "idle-timeout"
+  | "unfinished-savepoint";
 
 const MESSAGES: Record<TenantContextBreach, string> = {
   clinic:
@@ -27,6 +32,10 @@ const MESSAGES: Record<TenantContextBreach, string> = {
   "idle-timeout":
     "The idle_in_transaction_session_timeout the wrapper set is no longer in force — it was " +
     "changed inside fn, so nothing is committed (ADR-0002)",
+  "unfinished-savepoint":
+    "fn returned while a tx.transaction(...) savepoint it started was still running — it would " +
+    "have kept running after the commit, so nothing is committed; await every tx.transaction " +
+    "(ADR-0002)",
 };
 
 /**

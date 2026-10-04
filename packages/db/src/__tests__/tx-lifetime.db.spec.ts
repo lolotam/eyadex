@@ -2,8 +2,15 @@ import { sql } from "drizzle-orm";
 import type { Sql } from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { createDatabase, type Database, type Tx } from "../index.ts";
-import { createOwner, seedTwoClinics, TEST_URLS, type ClinicFixture } from "./test-database.ts";
+import { createDatabase, TenantContextViolationError, type Database, type Tx } from "../index.ts";
+import { insertBranch } from "./refuse.ts";
+import {
+  createOwner,
+  newTestId,
+  seedTwoClinics,
+  TEST_URLS,
+  type ClinicFixture,
+} from "./test-database.ts";
 
 let owner: Sql;
 let A: ClinicFixture;
@@ -57,5 +64,57 @@ describe("a method kept from tx ends with its transaction", () => {
     });
     expect(outcome.refused).toMatch(/no longer valid/);
     expect(outcome.outer).toBe(2);
+  });
+});
+
+/**
+ * `tx.transaction(...)` من غير `await`: postgres.js بيستنى الـ savepoint بس عن طريق الـ promise
+ * اللي رجعت للـ caller، فالـ callback كان ممكن يكمّل بعد الـ closing check أو بعد الـ COMMIT.
+ * (Codex على PR #22، P1.)
+ */
+describe("a savepoint fn did not await cannot outlive the wrapper", () => {
+  const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  it("refuses the commit, and the savepoint's late SQL fails instead of running", async () => {
+    const probe = newTestId();
+    let late: Promise<string> | undefined;
+    const failure = await app
+      .withTenant(A.clinicId, async (tx) => {
+        late = tx
+          .transaction(async (savepoint) => {
+            await pause(150);
+            await insertBranch(savepoint, A.clinicId, probe);
+            return "ran";
+          })
+          .catch((error: unknown) => String((error as Error).name));
+      })
+      .then(() => undefined)
+      .catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(TenantContextViolationError);
+    expect((failure as TenantContextViolationError).breach).toBe("unfinished-savepoint");
+    expect(await late).not.toBe("ran");
+    expect(await owner`SELECT id FROM branches WHERE id = ${probe}`).toEqual([]);
+  });
+
+  it("refuses a savepoint that returned while its own child was still running", async () => {
+    const failure = await app
+      .withTenant(A.clinicId, (tx) =>
+        tx.transaction(async (savepoint) => {
+          void savepoint.transaction(async () => {
+            await pause(100);
+          });
+        }),
+      )
+      .then(() => undefined)
+      .catch((error: unknown) => error);
+    expect((failure as TenantContextViolationError).breach).toBe("unfinished-savepoint");
+  });
+
+  it("still commits a savepoint that fn awaited", async () => {
+    const probe = newTestId();
+    await app.withTenant(A.clinicId, (tx) =>
+      tx.transaction((savepoint) => insertBranch(savepoint, A.clinicId, probe)),
+    );
+    expect(await owner`SELECT id FROM branches WHERE id = ${probe}`).toEqual([{ id: probe }]);
   });
 });

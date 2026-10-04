@@ -1,5 +1,6 @@
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
+import { TenantContextViolationError } from "./context-violation.ts";
 import { asDatabaseError } from "./database-error.ts";
 import { guardTransaction, type Tx } from "./guarded-tx.ts";
 import { assertNotNested, insideTransaction } from "./nested-guard.ts";
@@ -79,6 +80,9 @@ export function createTenantWrappers(
           const guarded = guardTransaction(raw);
           try {
             const result = await fn(guarded.tx);
+            if (guarded.pending() > 0) {
+              throw new TenantContextViolationError("unfinished-savepoint");
+            }
             await closeSession(executor, expected);
             return result;
           } finally {

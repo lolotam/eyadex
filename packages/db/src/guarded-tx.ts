@@ -1,5 +1,6 @@
 import type { SQL } from "drizzle-orm";
 
+import { TenantContextViolationError } from "./context-violation.ts";
 import { renderOnce, sendRendered, type RawTx } from "./single-render.ts";
 import { assertStatementAllowed } from "./statement-guard.ts";
 
@@ -75,29 +76,53 @@ const REVOKED =
  * خلصت، أو على savepoint اتقفل والـ transaction اللي برّه لسه شغالة. فكل دالة بنرجّعها بتسأل العمر
  * ده **في كل نداء**. (Codex على PR #22، P1.)
  */
-type Lifetime = { live: boolean };
+type Lifetime = {
+  live: boolean;
+  /** الـ transaction (أو الـ savepoint) اللي الـ savepoint ده جواها: لما تخلص، هو كمان خلص. */
+  readonly parent?: Lifetime;
+  /** savepoints اتبدأت من الـ `Tx` ده ولسه ماخلصتش. */
+  pending: number;
+};
 
 /**
  * @param lifetime عمر الـ `Tx` اللي الدالة اتاخدت منه
  * @throws TypeError لو الـ transaction أو الـ savepoint خلصت
  */
 const assertLive = (lifetime: Lifetime): void => {
-  if (!lifetime.live) throw new TypeError(REVOKED);
+  for (
+    let current: Lifetime | undefined = lifetime;
+    current !== undefined;
+    current = current.parent
+  ) {
+    if (!current.live) throw new TypeError(REVOKED);
+  }
 };
 
-/** الـ `transaction` بتاع Drizzle، بس بيغلّف الـ callback الداخلي بـ proxy تاني. */
+/**
+ * الـ `transaction` بتاع Drizzle، بس بيغلّف الـ callback الداخلي بـ proxy تاني عمره مربوط بعمر
+ * الأب. وكل savepoint بيتعدّ لحد ما يخلص: لو `fn` (أو savepoint أب) رجع وفيه savepoint ماخلصش —
+ * يعني اتبدأ من غير `await` — الـ wrapper بيرفض قبل الـ COMMIT بدل ما الـ savepoint يكمّل بعده.
+ * (Codex على PR #22، P1.)
+ */
 const guardedSavepoints =
   (raw: RawTx, lifetime: Lifetime) =>
   async <T>(fn: (tx: Tx) => Promise<T>): Promise<T> => {
     assertLive(lifetime);
-    return await raw.transaction(async (inner: RawTx) => {
-      const guarded = guardTransaction(inner);
-      try {
-        return await fn(guarded.tx);
-      } finally {
-        guarded.revoke();
-      }
-    });
+    lifetime.pending += 1;
+    try {
+      return await raw.transaction(async (inner: RawTx) => {
+        const guarded = guardTransaction(inner, lifetime);
+        try {
+          const result = await fn(guarded.tx);
+          if (guarded.pending() > 0) throw new TenantContextViolationError("unfinished-savepoint");
+          return result;
+        } finally {
+          guarded.revoke();
+        }
+      });
+    } finally {
+      lifetime.pending -= 1;
+    }
   };
 
 /**
@@ -170,18 +195,22 @@ const makeHandler = (lifetime: Lifetime): ProxyHandler<RawTx> => ({
 export interface GuardedTx {
   /** اللي بيتسلّم لـ `fn`. */
   readonly tx: Tx;
-  /** بعد COMMIT أو ROLLBACK، أي استخدام بيرمي `TypeError`. */
+  /** بعد COMMIT أو ROLLBACK، أي استخدام بيرمي `TypeError` — هنا وفي كل savepoint جواه. */
   revoke(): void;
+  /** عدد الـ savepoints اللي اتبدأت من الـ `Tx` ده ولسه شغّالة. */
+  pending(): number;
 }
 
 /**
  * بيغلّف transaction حقيقية في `Tx` محمي، وبينهي صلاحيته لما الـ wrapper يخلص.
  *
  * @param raw الـ transaction الحقيقية من Drizzle
- * @returns الـ `Tx` المحمي وطريقة إبطال صلاحيته
+ * @param parent عمر الـ `Tx` الأب لو ده savepoint — لما الأب يخلص، ده كمان خلص
+ * @returns الـ `Tx` المحمي وطريقة إبطال صلاحيته وعدد الـ savepoints الشغّالة
  */
-export function guardTransaction(raw: RawTx): GuardedTx {
-  const lifetime: Lifetime = { live: true };
+export function guardTransaction(raw: RawTx, parent?: Lifetime): GuardedTx {
+  const lifetime: Lifetime =
+    parent === undefined ? { live: true, pending: 0 } : { live: true, parent, pending: 0 };
   const revocable = Proxy.revocable(raw, makeHandler(lifetime));
   return {
     tx: revocable.proxy as unknown as Tx,
@@ -189,5 +218,6 @@ export function guardTransaction(raw: RawTx): GuardedTx {
       lifetime.live = false;
       revocable.revoke();
     },
+    pending: () => lifetime.pending,
   };
 }
