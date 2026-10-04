@@ -14,7 +14,7 @@ type Shape = {
 };
 
 const tables = Object.values(schema).filter(
-  (value): value is PgTable => typeof value === "object" && "getSQL" in value === false && isTable(value),
+  (value): value is PgTable => isTable(value),
 );
 
 function isTable(value: unknown): value is PgTable {
