@@ -128,6 +128,12 @@ order they are applied:
   functions that run text as SQL**; an extension that does the same (`dblink`, for one) must be added
   to it or never installed. `query_to_xml('select set_' || 'config(…)')` moves the clinic with no
   forbidden word in the text at all, which is why the function names are refused, not the strings.
+- **functions whose effect outlives the transaction or reaches another connection**
+  (`SESSION_SCOPED_FUNCTIONS`): the session-level `pg_advisory_lock*` / `pg_try_advisory_lock*`
+  (the lock stays held on the pooled connection after COMMIT, and every other transaction waiting
+  for the key blocks until its timeout) and `pg_terminate_backend` / `pg_cancel_backend` (the role
+  can signal any other connection of the same role). The transaction-scoped
+  `pg_advisory_xact_lock*` forms stay available; they are released at COMMIT.
 - a **second statement** — a `;` with anything but whitespace after it.
 - an **unterminated `/*` comment**, or nothing left to read once the comments are stripped: nothing to
   check is not something `fn` may send. The guard fails closed instead of waving it through.

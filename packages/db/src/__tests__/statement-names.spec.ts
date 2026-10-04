@@ -4,6 +4,7 @@ import { ForbiddenStatementError } from "../index.ts";
 import {
   assertStatementAllowed,
   forbiddenKeyword,
+  SESSION_SCOPED_FUNCTIONS,
   TEXT_EXECUTING_FUNCTIONS,
   UNICODE_ESCAPE_KEYWORD,
 } from "../statement-guard.ts";
@@ -125,5 +126,35 @@ describe("functions that run SQL given as text are refused", () => {
       expect(text).not.toContain(clinic);
       expect(text).not.toContain("SELECT");
     }
+  });
+});
+
+describe("functions whose effect outlives the transaction are refused (Codex, PR #22)", () => {
+  it.each([...SESSION_SCOPED_FUNCTIONS])("refuses %j in any case", (functionName) => {
+    for (const statement of [
+      `SELECT ${functionName}(42)`,
+      `SELECT pg_catalog.${functionName.toUpperCase()}(42)`,
+    ]) {
+      expect(forbiddenKeyword(statement)).toBe(functionName);
+    }
+    const error = new ForbiddenStatementError(functionName);
+    expect(error.message).toContain(functionName);
+    expect(error.message).toContain("pg_advisory_xact_lock");
+  });
+
+  it("names the shared variant itself, not its shorter prefix", () => {
+    expect(forbiddenKeyword("SELECT pg_try_advisory_lock_shared(1)")).toBe(
+      "pg_try_advisory_lock_shared",
+    );
+  });
+
+  it.each([
+    "SELECT pg_advisory_xact_lock(42)",
+    "SELECT pg_advisory_xact_lock_shared(42)",
+    "SELECT pg_try_advisory_xact_lock(42)",
+    "SELECT pg_try_advisory_xact_lock_shared(1, 2)",
+    "SELECT pg_advisory_unlock(42)",
+  ])("leaves the transaction-scoped form alone: %j", (statement) => {
+    expect(forbiddenKeyword(statement)).toBeUndefined();
   });
 });

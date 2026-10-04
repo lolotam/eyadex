@@ -212,6 +212,17 @@ describe("the allow-list is wide enough for the work fn has to do", () => {
     expect((failure as DatabaseError).code).toBe("42501");
   });
 
+  it("refuses a session advisory lock, and releases a transaction one at COMMIT", async () => {
+    await refuses(fixture(), sql`SELECT pg_advisory_lock(${4242})`, "pg_advisory_lock");
+    await app.withTenant(A.clinicId, (tx) =>
+      tx.execute(sql`SELECT pg_advisory_xact_lock(${4242})`),
+    );
+    // Another session takes the same key at once: nothing outlived the wrapper's transaction.
+    const [free] = await owner<{ got: boolean }[]>`SELECT pg_try_advisory_lock(4242) AS got`;
+    expect(free?.got).toBe(true);
+    await owner`SELECT pg_advisory_unlock(4242)`;
+  });
+
   it("still sees only its own clinic after all of that", async () => {
     expect(await app.withTenant(A.clinicId, (tx) => seenPatients(tx, A, B))).toEqual([A.patientId]);
   });

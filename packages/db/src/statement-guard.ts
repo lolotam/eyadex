@@ -87,12 +87,39 @@ export const TEXT_EXECUTING_FUNCTIONS = [
 ] as const;
 
 /**
+ * دوال بيفضل أثرها **بعد** الـ COMMIT أو بيوصل لـ connections تانية — حاجة ولا الـ closing check
+ * ولا الـ rollback بيشيلوها:
+ *
+ * - `pg_advisory_lock*` و`pg_try_advisory_lock*` على مستوى الـ session: القفل بيفضل ماسك في الـ
+ *   connection اللي رجعت للـ pool، وأي transaction تانية بتستنى نفس المفتاح بتقف لحد الـ timeout.
+ *   نسخ الـ transaction (`pg_advisory_xact_lock*`) بتتفك مع الـ COMMIT، فهي مسموحة — وأسماءها مش
+ *   بتحتوي الأسماء دي، فالفحص بالـ substring ما بيلمسهاش.
+ * - `pg_terminate_backend` و`pg_cancel_backend`: الدور يقدر يبعت إشارة لأي connection تانية لنفس
+ *   الدور، يعني transaction عيادة تقدر توقف شغل عيادة تانية.
+ *
+ * (Codex على PR #22، P2.)
+ */
+export const SESSION_SCOPED_FUNCTIONS = [
+  "pg_advisory_lock",
+  "pg_advisory_lock_shared",
+  "pg_try_advisory_lock",
+  "pg_try_advisory_lock_shared",
+  "pg_terminate_backend",
+  "pg_cancel_backend",
+] as const;
+
+/**
  * نسخة case-insensitive لكل دالة، الأطول الأول: `query_to_xml` اسم `query_to_xmlschema` برضه،
  * فالترتيب الطويل الأول يخلي الرسالة تسمّي الدالة اللي اتكتبت فعلاً.
  */
-const TEXT_EXECUTING = [...TEXT_EXECUTING_FUNCTIONS]
-  .sort((left, right) => right.length - left.length)
-  .map((name) => [name, new RegExp(name, "i")] as const);
+const longestFirst = (names: readonly string[]) =>
+  [...names]
+    .sort((left, right) => right.length - left.length)
+    .map((name) => [name, new RegExp(name, "i")] as const);
+
+const TEXT_EXECUTING = longestFirst(TEXT_EXECUTING_FUNCTIONS);
+
+const SESSION_SCOPED = longestFirst(SESSION_SCOPED_FUNCTIONS);
 
 /** كلمة تقرير لرفض أكتر من statement في نداء واحد — postgres.js بيستخدم الـ simple protocol وقتها. */
 export const MULTIPLE_STATEMENTS = "multiple statements";
@@ -155,6 +182,13 @@ function messageFor(keyword: string): string {
       "statement at all (ADR-0002)"
     );
   }
+  if ((SESSION_SCOPED_FUNCTIONS as readonly string[]).includes(keyword)) {
+    return (
+      `tx.execute() refuses any statement that mentions ${keyword}: its effect outlives the ` +
+      "transaction or reaches another connection, which the wrapper can neither check nor roll " +
+      "back — use the pg_advisory_xact_lock* variants for locks (ADR-0002)"
+    );
+  }
   if (keyword === MULTIPLE_STATEMENTS) {
     return (
       "tx.execute() refuses more than one statement in a single call: a parameterless query runs " +
@@ -189,6 +223,15 @@ const textExecutingHit = (text: string): string | undefined =>
   TEXT_EXECUTING.find(([, pattern]) => pattern.test(text))?.[0];
 
 /**
+ * أول دالة من `SESSION_SCOPED_FUNCTIONS` ظهرت في النص.
+ *
+ * @param text جملة الـ caller كما هي
+ * @returns اسم الدالة أو `undefined`
+ */
+const sessionScopedHit = (text: string): string | undefined =>
+  SESSION_SCOPED.find(([, pattern]) => pattern.test(text))?.[0];
+
+/**
  * الكلمة اللي تجعل الجملة ممنوعة، أو `undefined` لو الجملة عادية.
  *
  * الترتيب مقصود: فحص المحتوى على **النص الخام** الأول (مش محتاج body أصلاً)، بعدين نوع الجملة
@@ -203,6 +246,8 @@ export function forbiddenKeyword(text: string): string | undefined {
   if (SET_CONFIG.test(text)) return "set_config";
   const functionName = textExecutingHit(text);
   if (functionName !== undefined) return functionName;
+  const sessionScoped = sessionScopedHit(text);
+  if (sessionScoped !== undefined) return sessionScoped;
   const facts = lexStatement(text);
   if (facts.unterminatedComment) return UNTERMINATED_COMMENT;
   const word = facts.firstWord;
