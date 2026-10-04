@@ -34,12 +34,11 @@ const MESSAGES: Record<TenantContextBreach, string> = {
     "The idle_in_transaction_session_timeout the wrapper set is no longer in force — it was " +
     "changed inside fn, so nothing is committed (ADR-0002)",
   "unfinished-savepoint":
-    "fn returned while a tx.transaction(...) savepoint it started was still running — it would " +
-    "have kept running after the commit, so nothing is committed; await every tx.transaction " +
-    "(ADR-0002)",
+    "fn started a tx.transaction(...) savepoint it never awaited — still running, or finished (even " +
+    "failed) without fn seeing it — so nothing is committed; await every tx.transaction (ADR-0002)",
   "unfinished-statement":
-    "fn returned while a tx.execute(...) it started was still running — fn never saw its result, " +
-    "so nothing is committed; await every tx.execute (ADR-0002)",
+    "fn started a tx.execute(...) it never awaited — still running, or finished (even failed) " +
+    "without fn seeing it — so nothing is committed; await every tx.execute (ADR-0002)",
 };
 
 /**

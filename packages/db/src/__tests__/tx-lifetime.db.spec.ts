@@ -2,7 +2,13 @@ import { sql } from "drizzle-orm";
 import type { Sql } from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { createDatabase, TenantContextViolationError, type Database, type Tx } from "../index.ts";
+import {
+  createDatabase,
+  DatabaseError,
+  TenantContextViolationError,
+  type Database,
+  type Tx,
+} from "../index.ts";
 import { insertBranch } from "./refuse.ts";
 import {
   createOwner,
@@ -159,5 +165,76 @@ describe("work fn did not await is refused, and nothing slips in after fn return
     });
     expect(await fired).toMatch(/no longer valid/);
     expect(await owner`SELECT id FROM branches WHERE id = ${probe}`).toEqual([]);
+  });
+});
+
+/**
+ * شغل اتساب وفشل **قبل** ما `fn` يرجع: كان بيبان "خلص" وقت القفل، فالـ COMMIT كان بيعدّي باقي
+ * الشغل و`fn` عمره ما عرف بالفشل. اللي بيتحسب هو إن `fn` **شاف** النتيجة. (Codex على PR #22، P1.)
+ */
+describe("work fn never observed is refused even when it already settled", () => {
+  const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  it("refuses when an un-awaited savepoint failed early and fn carried on", async () => {
+    const probe = newTestId();
+    const failure = await app
+      .withTenant(A.clinicId, async (tx) => {
+        void tx.transaction(() => Promise.reject(new Error("savepoint work failed")));
+        await pause(50);
+        await insertBranch(tx, A.clinicId, probe);
+      })
+      .then(() => undefined)
+      .catch((error: unknown) => error);
+    expect((failure as TenantContextViolationError).breach).toBe("unfinished-savepoint");
+    expect(await owner`SELECT id FROM branches WHERE id = ${probe}`).toEqual([]);
+  });
+
+  it("refuses when an un-awaited statement failed early and fn carried on", async () => {
+    const probe = newTestId();
+    const failure = await app
+      .withTenant(A.clinicId, async (tx) => {
+        void insertBranch(tx, A.clinicId, A.branchId);
+        await pause(50);
+        await insertBranch(tx, A.clinicId, probe);
+      })
+      .then(() => undefined)
+      .catch((error: unknown) => error);
+    // A failed statement aborts the PostgreSQL transaction, so fn's next statement already fails
+    // (25P02) before the lifetime check — either way the wrapper rejects and nothing commits.
+    const refused =
+      failure instanceof TenantContextViolationError
+        ? failure.breach === "unfinished-statement"
+        : failure instanceof DatabaseError && failure.code === "25P02";
+    expect(refused).toBe(true);
+    expect(await owner`SELECT id FROM branches WHERE id = ${probe}`).toEqual([]);
+  });
+
+  it("refuses a statement that succeeded but fn never awaited", async () => {
+    const [unseen, seen] = [newTestId(), newTestId()];
+    const failure = await app
+      .withTenant(A.clinicId, async (tx) => {
+        void insertBranch(tx, A.clinicId, unseen);
+        await pause(50);
+        await insertBranch(tx, A.clinicId, seen);
+      })
+      .then(() => undefined)
+      .catch((error: unknown) => error);
+    expect((failure as TenantContextViolationError).breach).toBe("unfinished-statement");
+    expect(await owner`SELECT id FROM branches WHERE id IN (${unseen}, ${seen})`).toEqual([]);
+  });
+
+  it("commits work fn did observe: Promise.all, and a promise awaited later", async () => {
+    const [first, second, third] = [newTestId(), newTestId(), newTestId()];
+    await app.withTenant(A.clinicId, async (tx) => {
+      await Promise.all([
+        insertBranch(tx, A.clinicId, first),
+        insertBranch(tx, A.clinicId, second),
+      ]);
+      const later = insertBranch(tx, A.clinicId, third);
+      await pause(20);
+      await later;
+    });
+    const rows = await owner`SELECT id FROM branches WHERE id IN (${first}, ${second}, ${third})`;
+    expect(rows).toHaveLength(3);
   });
 });

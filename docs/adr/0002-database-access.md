@@ -215,7 +215,12 @@ for it to settle (each statement is bounded by `statement_timeout`), handles its
 never surface as an unhandled rejection, and rolls back. Driver errors are scrubbed inside
 `tx.execute` itself, so even a rejection nobody awaited carries no `detail`. And the `Tx` closes the
 moment `fn` returns — before the closing check, not after it — so a method kept in a timer cannot
-queue a write between the check and the COMMIT (Codex on PR #22, P1 ×2). `Tx` is that allow-listed type
+queue a write between the check and the COMMIT (Codex on PR #22, P1 ×2).
+What counts is whether `fn` **observed** the work, not whether it is still running: the promise
+`tx.execute` / `tx.transaction` hands back records being awaited (or used through `then`, `catch`,
+`Promise.all`). A savepoint `fn` fired and forgot that failed early has already settled, yet `fn` never
+learned it failed — so any work `fn` never observed, finished or not, succeeded or not, is refused and
+rolled back (Codex on PR #22, P1). `Tx` is that allow-listed type
 itself, so `tx.session` and `tx.select()` do not compile either.
 
 The query builders are gone on purpose, and that was a real hole rather than a style choice:
