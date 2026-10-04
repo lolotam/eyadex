@@ -55,7 +55,19 @@ otp, cvv, cvc, dsn, connectionstring, session, bearer, salt, nonce, codemac` —
    itself looks like a credential (a digit, ≥16 characters, or a `tok_`/`inv_` prefix),
    e.g. `password hunter2`, `otp 482193`; and prose `password is x`, `token was x`, `token x is used`. The
    prose value runs to the end of the line and is withheld unless every word of it is a status word
-   (`STATUS_WORDS` in `free-text.ts`), so `token is invalid` stays and `password is invalid, hunter2` does not. The `name=value`
+   (`STATUS_WORDS` in `free-text.ts`), so `token is invalid` stays and `password is invalid, hunter2` does not. The
+   prose scan re-anchors after a non-credential head, so `status is ok password is x` is still read. Arabic
+   labels (`كلمة المرور`/`كلمة السر`, a bare `السر`, `الرقم السري`, `رمز`/`كود` with an optional qualifier
+   `التحقق`/`الدخول`/…, `مفتاح` with an optional `API`/`السري`/…, `توكن`, `باسورد`, with any attached
+   particles `و`/`ف`/`ب`/`ل`/`ك` and `ال`/`لل`, any combining mark (`\p{M}`) or tatweel, and the `ى`/`ی` and
+   `ک` spellings) have their own fixed-list scanner, since `\w` is ASCII-only. A quoted key is read like the
+   English one (`{"كلمة المرور":"x"}`). The particle, whitespace and mark runs are unbounded (each bound
+   tried so far let one more through) and the scan stays linear: every run is followed by a required token,
+   and inside a particle run the lookbehind rejects every position but the word's first letter. After
+   `:`/`=`/`هي`/`هو` the value is withheld whatever it is, up to the next `&`, `,`, `;`, `،`, `؛` or line end
+   (the closing quote for a quoted value) — so `كلمة المرور هي غير صحيحة` and `الكود: ناجح` are withheld too
+   (accepted over-redaction, §9); after a bare space, or glued to the label (`الرمز123456`), only a quoted
+   value or a first word with a digit or a `tok_`/`inv_` prefix is. The `name=value`
    rule shares the word list but uses whole-word matching for the short words, so `spin=3` survives. Every
    name quantifier is bounded and lazy (`{1,200}?`) and anchored at a token boundary, so the scan cannot go
    quadratic. A name longer than 200 characters is an accepted risk (§11).
@@ -207,6 +219,13 @@ languageCode, postalCode, zipCode, exitCode, httpCode, responseCode`) and snake_
 17. **A split userinfo behind a single slash** (`x/user:pw/rest@host`) is kept. Behind `//` the authority
     is known, so a `:` with no `@` is withheld; behind one slash, the same rule would hide every route with a
     parameter (`/v1/patients/:id`). Only a segment that itself carries the `@` is scrubbed.
+
+18. **An Arabic credential label outside the fixed list** (`الشفرة: x`, `بيانات الدخول: x`) is kept: the
+    Arabic scanner reads a vocabulary, not any non-ASCII name, so `الحالة: نشط` stays readable. A named
+    `password`/`code` field still redacts the value.
+19. **A value that starts with a pair delimiter** (`password:,hunter2`, `كلمة المرور:،hunter2`) is kept, in
+    English and Arabic alike: the delimiter ends the (empty) value before the secret begins. No formatter
+    writes a credential that way.
 
 ### Deliberately not covered
 

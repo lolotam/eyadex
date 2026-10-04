@@ -49,6 +49,33 @@ describe("sanitize stays linear on adversarial strings", () => {
     ["a then :", "a" + ":".repeat(NEAR_CAP - 1)],
     ["a: then spaces", "a:" + " ".repeat(NEAR_CAP - 2)],
     ["a then ':= '", "a" + ":= ".repeat(NEAR_CAP / 3 - 1)],
+    // Prose heads re-anchor after every non-credential name: the line end and the status clause must be
+    // read once per line, not once per head.
+    ["a is ", "a is ".repeat(NEAR_CAP / 5)],
+    ["is is ", "is is ".repeat(NEAR_CAP / 6)],
+    ["token is then status words", "token is " + "ok ".repeat(NEAR_CAP / 3 - 4)],
+    ["a is then spaces", "a is" + " ".repeat(NEAR_CAP - 5)],
+    // Arabic labels: rejected labels, label runs and a label then a long gap.
+    ["Arabic label runs", "كلمة المرور ".repeat(NEAR_CAP / 12)],
+    ["Arabic code runs", "الرمز ".repeat(NEAR_CAP / 6)],
+    ["Arabic code + digit runs", "رمز 1 ".repeat(NEAR_CAP / 6)],
+    ["Arabic label then spaces", "كلمة" + " ".repeat(NEAR_CAP - 5)],
+    ["Arabic prefixes", "وبال".repeat(NEAR_CAP / 4)],
+    // The unbounded whitespace runs: each label backtracks over its own run once.
+    ["Arabic label, spaces, no value", "كلمة المرور:" + " ".repeat(NEAR_CAP - 13)],
+    ["Arabic gap then no second word", "رمز" + " ".repeat(NEAR_CAP - 5) + "x"],
+    ["Arabic labels with 4-space gaps", "كلمة    ".repeat(NEAR_CAP / 8)],
+    ["Arabic labels then spaces then a comma", "كلمة المرور    ,".repeat(NEAR_CAP / 16)],
+    // Unbounded mark runs and the bounded particle prefix.
+    ["Arabic letter then tatweel", "ك" + "ـ".repeat(NEAR_CAP - 1)],
+    ["Arabic label word then harakat", "كلمة" + "َ".repeat(NEAR_CAP - 5)],
+    ["Arabic particle runs", "وب".repeat(NEAR_CAP / 2)],
+    // Unbounded particles: only a word's first letter passes the lookbehind.
+    ["Arabic particle run then a label", "وبفل".repeat(NEAR_CAP / 4 - 2) + "كلمة"],
+    ["Arabic kaf runs", "ك".repeat(NEAR_CAP)],
+    ["Arabic label then combining marks", "كلمة" + "ࣣ".repeat(NEAR_CAP - 5)],
+    ["quoted Arabic keys", '"كلمة المرور" '.repeat(NEAR_CAP / 14)],
+    ["Arabic particle + article runs", "وبال".repeat(NEAR_CAP / 4) + "رمز"],
   ])("64 KB of %s is scanned and completes in < 150 ms", (_label, value) => {
     expect(value.length).toBeGreaterThan(60_000);
     expect(value.length).toBeLessThan(64 * 1024);

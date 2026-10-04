@@ -1,6 +1,7 @@
+import { redactArabicCredentials } from "./arabic-credentials.ts";
 import {
   isFreeTextCredentialName,
-  TOKEN_PREFIX,
+  looksLikeCredentialValue,
   TOKEN_PREFIX_PATTERN,
 } from "./credential-words.ts";
 import { maskPhone, REDACTED } from "./masks.ts";
@@ -69,15 +70,12 @@ const ASSIGNMENT =
 // A bare credential word followed by a quoted value and no separator: `password 'hunter two' rejected`.
 // The value is consumed whole, so a multi-word secret does not leave its tail behind.
 const QUOTED_CREDENTIAL = /(?<![\w.-])([\w.-]{1,200}?)\s+('(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")/g;
-// A single word "looks like a credential" when it carries a digit (an OTP, a code, `hunter2`), is a long
-// opaque string, or starts with a known token prefix. This keeps the separator-less rules from swallowing
-// ordinary words: "token expired" and "password reset requested" stay readable.
-const looksLikeCredentialValue = (value: string): boolean =>
-  /\p{Nd}/u.test(value) || value.length >= 16 || TOKEN_PREFIX.test(value);
 // Prose: "password is x", "token was x". The verb list is finite on purpose — "the token expired" has no
 // assignment and must stay. The value runs to the end of the LINE, not the clause: a status word before a
 // comma ("password is invalid, hunter2") would otherwise free the clause while the secret sat after it.
-const PROSE_CREDENTIAL = /(?<![\w.-])([\w.-]{1,200}?)\s+(is|was|[=:])\s+([^\r\n]+)/gi;
+// Only the name and the verb are matched; the value is read by hand (see redactProse).
+const PROSE_HEAD = /(?<![\w.-])([\w.-]{1,200}?)\s+(is|was|[=:])\s+(?=[^\r\n])/gi;
+const LINE_END = /[\r\n]/g;
 // The mirror shape: "the token abcdef123 is used". Only a credential name before the value keeps this
 // from eating ordinary prose.
 const PROSE_VALUE_THEN_VERB = /(?<![\w.-])([\w.-]{1,200}?)\s+(\S+)\s+(is|was)\b/gi;
@@ -131,14 +129,51 @@ const STATUS_WORDS = new Set(
     " ",
   ),
 );
-const isStatusClause = (value: string): boolean =>
-  value
-    .trim()
-    .toLowerCase()
-    .split(/\s+/)
-    .every((word) => STATUS_WORDS.has(word.replace(/[^\p{L}]/gu, "")));
-const redactProse = (_match: string, name: string, verb: string, value: string): string =>
-  isFreeTextCredentialName(name) && !isStatusClause(value) ? `${name} ${verb} ${REDACTED}` : _match;
+// Word by word, stopping at the first non-status word, so rejecting a long clause costs almost nothing.
+const WORD = /\S+/g;
+// Reads text[start, end) in place: copying the rest of a long line for every head would be quadratic.
+const isStatusClause = (text: string, start: number, end: number): boolean => {
+  WORD.lastIndex = start;
+  let words = 0;
+  for (let word = WORD.exec(text); word !== null && word.index < end; word = WORD.exec(text)) {
+    if (!STATUS_WORDS.has(word[0].toLowerCase().replace(/[^\p{L}]/gu, ""))) return false;
+    words++;
+  }
+  return words > 0;
+};
+// Scanned by hand like the assignments: a non-credential head must not swallow the rest of the line —
+// "status is ok password is hunter2" re-anchors just past `status` and reads "password is …" next.
+function redactProse(text: string): string {
+  let out = "";
+  let last = 0;
+  // The end of the current line, found once per line: searching it again for every head on a long line
+  // ("a is a is …") would be quadratic.
+  let lineEnd = -1;
+  PROSE_HEAD.lastIndex = 0;
+  for (let match = PROSE_HEAD.exec(text); match !== null; match = PROSE_HEAD.exec(text)) {
+    // The two groups are guaranteed by the pattern; the defaults satisfy the checker.
+    const name = match[1] ?? "";
+    const verb = match[2] ?? "";
+    if (!isFreeTextCredentialName(name)) {
+      PROSE_HEAD.lastIndex = match.index + name.length;
+      continue;
+    }
+    const start = match.index + match[0].length;
+    if (lineEnd < start) {
+      LINE_END.lastIndex = start;
+      lineEnd = LINE_END.exec(text)?.index ?? text.length;
+    }
+    const end = lineEnd;
+    if (isStatusClause(text, start, end)) {
+      PROSE_HEAD.lastIndex = match.index + name.length;
+      continue;
+    }
+    out += text.slice(last, match.index) + `${name} ${verb} ${REDACTED}`;
+    last = end;
+    PROSE_HEAD.lastIndex = end;
+  }
+  return out + text.slice(last);
+}
 const redactProseMirror = (_match: string, name: string, value: string, verb: string): string =>
   isFreeTextCredentialName(name) && looksLikeCredentialValue(value)
     ? `${name} ${REDACTED} ${verb}`
@@ -172,12 +207,12 @@ function scrubCredentialsInText(text: string): string {
     .replace(TOKEN_SCHEME, redactTokenScheme)
     .replace(JWT_IN_TEXT, REDACTED)
     .replace(CLI_CREDENTIAL, `$1${REDACTED}`);
-  const paired = redactAssignments(scrubbed)
-    .replace(QUOTED_CREDENTIAL, redactQuoted)
-    .replace(PROSE_CREDENTIAL, redactProse)
-    .replace(PROSE_VALUE_THEN_VERB, redactProseMirror);
-  // The separator-less rule runs last: a pair already redacted by an assignment must not be re-read.
-  return redactBareCredentials(paired);
+  const paired = redactProse(
+    redactAssignments(scrubbed).replace(QUOTED_CREDENTIAL, redactQuoted),
+  ).replace(PROSE_VALUE_THEN_VERB, redactProseMirror);
+  // The separator-less rule runs after the pairs: a pair already redacted must not be re-read. Arabic
+  // labels have their own scanner, since `\w` cannot see them.
+  return redactArabicCredentials(redactBareCredentials(paired));
 }
 
 // A civil ID written inside free text: 12 digits, any script, starting with the century digit 2 or 3,
