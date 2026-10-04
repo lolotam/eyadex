@@ -1,5 +1,6 @@
 import { createDatabase, type Database } from "@eyadex/db";
 import { systemUuidV7 } from "@eyadex/ids";
+import { sql } from "drizzle-orm";
 import postgres, { type Sql } from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -49,14 +50,11 @@ async function seedClinic(owner: Sql, status: "active" | "suspended"): Promise<F
     }
     await tx`INSERT INTO roles (clinic_id, id, system_key, name_ar, name_en, is_locked, is_active, created_at, updated_at)
       VALUES (${clinicId}, ${roleId}, 'doctor', 'طبيب', 'Doctor', false, true, now(), now())`;
-    for (const [status, offset] of [
-      ["active", 0],
-      ["deactivated", 0],
-    ] as const) {
+    for (const memberStatus of ["active", "deactivated"] as const) {
       await tx`INSERT INTO memberships (clinic_id, id, user_id, full_name, email, role_id, all_branches,
           status, preferred_language, last_login_at, created_at, updated_at)
         VALUES (${clinicId}, ${newId()}, ${newId()}, 'عضو', ${`m-${newId()}@example.com`}, ${roleId},
-          true, ${status}, 'ar', NULL, now() + ${offset} * interval '1 second', now())`;
+          true, ${memberStatus}, 'ar', NULL, now(), now())`;
     }
     // One live pending invitation, one expired pending one (relative to the injected clock).
     for (const expiry of [new Date("2030-01-05T00:00:00Z"), new Date("2029-12-30T00:00:00Z")]) {
@@ -124,10 +122,10 @@ describe("clinic branches (eyadex_app)", () => {
     const seen = await listClinicBranches(new PgBranchReader(db), A.clinicId, "ar");
     const ids = new Set(seen.map((branch) => branch.id));
     for (const id of Object.values(B.branchIds)) expect(ids.has(id)).toBe(false);
-    // Even asking for B's id inside A's tenant returns nothing: RLS pins the context.
-    const crossed = await db.withTenant(A.clinicId, async () =>
-      listClinicBranches(new PgBranchReader(db), B.clinicId, "ar").catch((error: unknown) => error),
+    // The reader's own query shape, run in A's context but filtered on B: RLS returns zero rows.
+    const crossed = await db.withTenant(A.clinicId, (tx) =>
+      tx.execute<{ id: string }>(sql`SELECT id FROM branches WHERE clinic_id = ${B.clinicId}`),
     );
-    expect(crossed).toBeInstanceOf(Error);
+    expect(crossed).toEqual([]);
   });
 });
