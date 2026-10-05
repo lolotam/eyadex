@@ -18,3 +18,15 @@ export {
 export { BRANCH_READER, type BranchReader, type BranchRecord } from "./ports/branch-reader.ts";
 export { getClinicAccessState, type ClinicAccessState } from "./queries/clinic-access-state.ts";
 export { listClinicBranches } from "./queries/clinic-branches.ts";
+export {
+  FIRST_ADMIN_PROVISIONER,
+  type FirstAdminProvisioner,
+  type FirstAdminRequest,
+  type FirstAdminResult,
+} from "./ports/first-admin-provisioner.ts";
+export {
+  ADMIN_INVITED_EVENT,
+  CreateClinicWithAdmin,
+  type CreateClinicCommand,
+  type CreateClinicDeps,
+} from "./use-cases/create-clinic-with-admin/create-clinic-with-admin.ts";

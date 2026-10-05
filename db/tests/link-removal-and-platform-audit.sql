@@ -5,8 +5,7 @@ BEGIN;
 INSERT INTO clinics VALUES
   ('00000000-0000-7000-8000-0000000000a1','lnk-a','أ','A','general','ar','Asia/Kuwait','active',now()+interval '30 days',10,3,now(),now()),
   ('00000000-0000-7000-8000-0000000000a2','lnk-b','ب','B','general','ar','Asia/Kuwait','active',now()+interval '30 days',10,3,now(),now());
-INSERT INTO permissions VALUES
-  ('00000000-0000-7000-8000-0000000003f1','view:patients:clinic','view','patients','clinic','patients');
+-- The permission catalogue is seeded by db/sql/0026; tests look it up by key.
 DO $$
 DECLARE c uuid; s text;
 BEGIN
@@ -14,7 +13,7 @@ BEGIN
     s := right(c::text, 1);
     INSERT INTO branches VALUES (c, ('00000000-0000-7000-8000-0000000003'||s||'1')::uuid, 'ف', 'B', true, now(), now());
     INSERT INTO roles VALUES (c, ('00000000-0000-7000-8000-0000000003'||s||'2')::uuid, null, 'د', 'R', false, true, now(), now());
-    INSERT INTO role_permissions VALUES (c, ('00000000-0000-7000-8000-0000000003'||s||'3')::uuid, ('00000000-0000-7000-8000-0000000003'||s||'2')::uuid, '00000000-0000-7000-8000-0000000003f1', now());
+    INSERT INTO role_permissions VALUES (c, ('00000000-0000-7000-8000-0000000003'||s||'3')::uuid, ('00000000-0000-7000-8000-0000000003'||s||'2')::uuid, (SELECT id FROM permissions WHERE key = 'view:patients:clinic'), now());
     INSERT INTO memberships VALUES (c, ('00000000-0000-7000-8000-0000000003'||s||'4')::uuid, gen_random_uuid(), 'n', 'l'||s||'@example.com', ('00000000-0000-7000-8000-0000000003'||s||'2')::uuid, false, 'active', 'ar', null, now(), now());
     INSERT INTO membership_branches VALUES (c, ('00000000-0000-7000-8000-0000000003'||s||'5')::uuid, ('00000000-0000-7000-8000-0000000003'||s||'4')::uuid, ('00000000-0000-7000-8000-0000000003'||s||'1')::uuid, now());
   END LOOP;
