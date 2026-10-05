@@ -5,3 +5,4 @@ export { AuthModule } from "./auth/auth.module.ts";
 export { AREA_AUTH, type AreaAuth, type ResolvedSession } from "./auth/area-auth.ts";
 export { registerAuthRoutes } from "./auth/auth-handler.ts";
 export { SessionGuard, type AuthenticatedRequest } from "./auth/session.guard.ts";
+export { AUTH_RATE_LIMIT, type AuthRateLimit } from "./auth/rate-limit.module.ts";

@@ -197,7 +197,11 @@ export async function startApi(
 ): Promise<NestFastifyApplication> {
   // Outside the /v1 prefix: the proxy maps the browser's same-origin /api/auth/* here (ADR-0004).
   if (mountAuth) {
-    await registerAuthRoutes(app.getHttpAdapter().getInstance(), app.get<AreaAuth>(AREA_AUTH));
+    await registerAuthRoutes(
+      app.getHttpAdapter().getInstance(),
+      app.get<AreaAuth>(AREA_AUTH),
+      app.get<AuthRateLimit>(AUTH_RATE_LIMIT).limiter,
+    );
   }
   app.setGlobalPrefix("v1");
   app.useGlobalFilters(new EnvelopeExceptionFilter());
