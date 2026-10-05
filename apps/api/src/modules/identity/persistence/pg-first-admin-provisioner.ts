@@ -39,7 +39,9 @@ export class PgFirstAdminProvisioner implements FirstAdminProvisioner {
   async provision(tx: Tx, request: FirstAdminRequest): Promise<FirstAdminResult> {
     const { clinicId, now } = request;
     const at = now.toISOString();
-    const rows = await tx.execute<{ id: string; key: string }>(sql`SELECT id, key FROM permissions`);
+    const rows = await tx.execute<{ id: string; key: string }>(
+      sql`SELECT id, key FROM permissions`,
+    );
     const catalogue = new Map(rows.map((row) => [row.key, row.id]));
     let adminRoleId: string | undefined;
     for (const role of SYSTEM_ROLES) {

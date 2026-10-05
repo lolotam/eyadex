@@ -19,8 +19,7 @@ export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
 
 /** قرار فحص عيادة جديدة قبل أي كتابة. */
 export type NewClinicCheck =
-  | { readonly ok: true }
-  | { readonly ok: false; readonly code: "reserved_slug" | "validation" };
+  { readonly ok: true } | { readonly ok: false; readonly code: "reserved_slug" | "validation" };
 
 /**
  * بيفحص قواعد العيادة الجديدة اللي مش شكل بيانات: الـ slug المحجوز، وتاريخ انتهاء في المستقبل

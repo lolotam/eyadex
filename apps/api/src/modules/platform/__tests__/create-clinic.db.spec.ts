@@ -81,8 +81,9 @@ const create = (b: unknown, key: string | null = randomUUID(), host = PLATFORM, 
   });
 const count = async (table: string, where: string, value: string) =>
   Number(
-    (await h.owner.unsafe(`SELECT count(*)::int AS n FROM ${table} WHERE ${where} = $1`, [value]))[0]
-      ?.["n"],
+    (
+      await h.owner.unsafe(`SELECT count(*)::int AS n FROM ${table} WHERE ${where} = $1`, [value])
+    )[0]?.["n"],
   );
 
 describe("POST /v1/platform/clinics (ONB-01)", () => {
@@ -97,7 +98,8 @@ describe("POST /v1/platform/clinics (ONB-01)", () => {
     const [inv] = await h.owner`SELECT * FROM invitations WHERE id = ${invitation.id}`;
     expect(inv?.["token_hash"]).toMatch(/^[0-9a-f]{64}$/);
     expect(inv?.["status"]).toBe("pending");
-    const days = (new Date(inv!["expires_at"]).getTime() - new Date(inv!["created_at"]).getTime()) / 864e5;
+    const days =
+      (new Date(inv!["expires_at"]).getTime() - new Date(inv!["created_at"]).getTime()) / 864e5;
     expect(days).toBe(7);
     expect(await count("email_reservations", "lower(email)", b.admin.email)).toBe(1);
     expect(await count("platform_audit_log", "clinic_id::text", clinicId)).toBe(1);
@@ -110,7 +112,8 @@ describe("POST /v1/platform/clinics (ONB-01)", () => {
     // Recover the raw token through the worker's own path: unseal the outbox payload.
     const res = await create(body());
     const { clinicId } = res.json();
-    const [event] = await h.owner`SELECT id, payload FROM outbox_events WHERE clinic_id = ${clinicId}`;
+    const [event] =
+      await h.owner`SELECT id, payload FROM outbox_events WHERE clinic_id = ${clinicId}`;
     const sealer = new SecretSealer(process.env["OUTBOX_SEAL_KEY"]!);
     const token = sealer.open(event!["payload"].sealedToken, event!["id"]);
     expect(token.length).toBeGreaterThan(30);
@@ -119,7 +122,7 @@ describe("POST /v1/platform/clinics (ONB-01)", () => {
         || (SELECT json_agg(a) FROM platform_audit_log a WHERE clinic_id = ${clinicId})::text
         || (SELECT json_agg(o) FROM outbox_events o WHERE clinic_id = ${clinicId})::text
         || (SELECT json_agg(k) FROM idempotency_keys k)::text AS all`;
-    expect(dump[0]!.all).not.toContain(token);
+    expect(dump[0]!["all"]).not.toContain(token);
     expect(h.logs.join("\n")).not.toContain(token);
     expect(JSON.stringify(res.json())).not.toContain(token);
   });

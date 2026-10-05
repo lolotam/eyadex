@@ -29,7 +29,9 @@ const canonical = (value: unknown): unknown => {
  * @returns hex
  */
 export function requestHash(body: unknown): string {
-  return createHash("sha256").update(JSON.stringify(canonical(body))).digest("hex");
+  return createHash("sha256")
+    .update(JSON.stringify(canonical(body)))
+    .digest("hex");
 }
 
 /**

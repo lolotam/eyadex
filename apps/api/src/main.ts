@@ -10,7 +10,10 @@ const logger = createLogger(config.LOG_LEVEL, { events: API_LOG_EVENTS });
 
 try {
   // UUID v7 on the system clock and Web Crypto — bound here, at the composition root.
-  const app = await createApp({ ids: systemUuidV7(), mountAuth: true, mountPlatform: true }, { logger });
+  const app = await createApp(
+    { ids: systemUuidV7(), mountAuth: true, mountPlatform: true },
+    { logger },
+  );
   // useProcessExit: Nest's own shutdown re-raises the signal once the hooks are done, and the orchestrator
   // reads that exit (143) as a crash. With it, a finished shutdown — release included — exits 0, and the
   // watchdog below is what a shutdown that never finishes gets instead.
