@@ -19,7 +19,8 @@
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
     "test": "turbo run test",
-    "build": "turbo run build",
+    "build": "cd apps/web && ./node_modules/.bin/vite build && rm -rf ../../dist && cp -R dist ../../dist",
+    "build:all": "turbo run build",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
