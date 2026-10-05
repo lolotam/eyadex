@@ -11,7 +11,7 @@ export interface AuthRoute {
 }
 
 // ALLOWLIST: anything not listed here (sign-up, delete-user, update-user, list-sessions, …) answers 404.
-const ROUTES: readonly AuthRoute[] = [
+export const AUTH_ROUTES: readonly AuthRoute[] = [
   // Sign-in needs no session; it is open so an unenrolled platform user can start the enrollment.
   { method: "POST", path: "/sign-in/email", beforeTwoFactor: true },
   { method: "POST", path: "/sign-out", beforeTwoFactor: true },
@@ -42,5 +42,5 @@ export const TRUST_DEVICE_PATHS: ReadonlySet<string> = new Set([
  * @returns الـ route أو `undefined` (يعني 404)
  */
 export function findAuthRoute(method: string, path: string): AuthRoute | undefined {
-  return ROUTES.find((route) => route.method === method && route.path === path);
+  return AUTH_ROUTES.find((route) => route.method === method && route.path === path);
 }

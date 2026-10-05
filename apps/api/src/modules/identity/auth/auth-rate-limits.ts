@@ -26,7 +26,14 @@ export interface RateContext {
 }
 
 const SECOND_FACTOR_PATHS = new Set(["/two-factor/verify-totp", "/two-factor/verify-backup-code"]);
-const USER_PATHS = new Set(["/change-password", "/two-factor/enable"]);
+// Every signed-in route that checks the current password: a stolen session must not buy unlimited
+// password guesses (Better Auth's own limiter is off — ADR-0005).
+const USER_PATHS = new Set([
+  "/change-password",
+  "/two-factor/enable",
+  "/two-factor/disable",
+  "/two-factor/generate-backup-codes",
+]);
 
 // One shared bucket for requests whose client address cannot be trusted: they are limited together.
 const ipOf = (ip: string | undefined) => ip ?? "untrusted";

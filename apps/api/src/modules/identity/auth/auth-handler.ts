@@ -75,6 +75,8 @@ function asksToTrustDevice(body: unknown): boolean {
 const USER_KEYED = new Set([
   "/change-password",
   "/two-factor/enable",
+  "/two-factor/disable",
+  "/two-factor/generate-backup-codes",
   "/two-factor/verify-totp",
   "/two-factor/verify-backup-code",
 ]);

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { AUTH_LIMITS, rateRulesFor } from "../auth-rate-limits.ts";
+import { AUTH_ROUTES } from "../auth-routes.ts";
 import { RateLimiter, type CounterStore, type RateRule } from "../rate-limiter.ts";
 
 // The same fixed-window semantics as the Redis script, on a clock the test moves by hand.
@@ -112,4 +113,22 @@ describe("rateRulesFor", () => {
     expect(rules).toHaveLength(1);
     expect(rules[0]?.value).toBe("untrusted");
   });
+});
+
+describe("every exposed POST that takes a secret is limited", () => {
+  // Sign-out takes no password, code or email; everything else on the allowlist must count somewhere.
+  const UNLIMITED = new Set(["/sign-out"]);
+  for (const route of AUTH_ROUTES.filter((r) => r.method === "POST" && !UNLIMITED.has(r.path))) {
+    it(`${route.path} has at least one counter`, () => {
+      const rules = rateRulesFor({
+        area: "clinic",
+        path: route.path,
+        ip: "203.0.113.7",
+        body: JSON.stringify({ email: "someone@example.com" }),
+        cookieHeader: undefined,
+        userId: "00000000-0000-7000-8000-000000000001",
+      });
+      expect(rules.length).toBeGreaterThan(0);
+    });
+  }
 });
