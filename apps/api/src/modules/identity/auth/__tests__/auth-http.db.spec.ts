@@ -231,7 +231,7 @@ describe("same-origin auth over HTTP (ADR-0004)", () => {
       }),
     );
     expect(finished.every((f) => f.status === 200 || f.status === 409)).toBe(true);
-    const [{ count }] = await owner<
+    const [counted] = await owner<
       { count: number }[]
     >`SELECT count(*)::int AS count FROM auth_two_factors WHERE user_id = ${user.userId}`;
     expect(counted?.count).toBe(1);
