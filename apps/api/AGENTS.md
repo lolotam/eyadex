@@ -4,3 +4,4 @@
 - A module reads another module's tables only through a port it defines and the owner implements (tenancy's `SeatUsageReader` ← identity's `PgSeatUsageReader`); allowed arrows are in CLAUDE.architecture.md §2.2.
 - Every module imports `DatabaseModule` (one pool, closed on shutdown) — never its own `databaseProvider`.
 - `tx.execute` cannot bind a `Date` (postgres.js `unsafe()` sends parameters as text): bind `date.toISOString()` with `::timestamptz`.
+- Auth is same-origin per area (ADR-0004): `/auth/*` is an allowlist in `identity/auth/auth-routes.ts`, the area comes only from `AreaHosts.resolve`, and `/v1` routes use `SessionGuard` (area-bound `EyadexAuth.getSession`, never `auth.api.getSession`) — so cookies never cross areas and new Better Auth routes stay closed by default.

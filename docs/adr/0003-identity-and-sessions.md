@@ -1,6 +1,6 @@
 # ADR-0003 — Identity and sessions (Better Auth)
 
-- Status: accepted (Phase B slice 2a)
+- Status: accepted (Phase B slice 2a); HTTP mounting in ADR-0004
 - Date: 2026-10-04
 
 ## Context

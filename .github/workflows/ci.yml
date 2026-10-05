@@ -79,18 +79,20 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @eyadex/db... --filter @eyadex/auth... build
+      # apps/api test:db imports its workspace dependencies from dist (observability, contracts, ids…).
+      - run: pnpm --filter @eyadex/db... --filter @eyadex/auth... --filter "@eyadex/api^..." build
       - name: Tenant wrapper database tests (@eyadex/db)
         run: pnpm --filter @eyadex/db test:db
         env:
           EYADEX_TEST_OWNER_URL: postgres://eyadex_owner:ci-only-owner@localhost:5432/eyadex
           EYADEX_TEST_APP_URL: postgres://eyadex_app:ci-only-app@localhost:5432/eyadex
           EYADEX_TEST_PLATFORM_URL: postgres://eyadex_platform:ci-only-platform@localhost:5432/eyadex
-      - name: Tenancy module database tests (@eyadex/api)
+      - name: API database tests — tenancy, identity, auth over HTTP (@eyadex/api)
         run: pnpm --filter @eyadex/api test:db
         env:
           EYADEX_TEST_OWNER_URL: postgres://eyadex_owner:ci-only-owner@localhost:5432/eyadex
           EYADEX_TEST_APP_URL: postgres://eyadex_app:ci-only-app@localhost:5432/eyadex
+          EYADEX_TEST_AUTH_URL: postgres://eyadex_auth:ci-only-auth@localhost:5432/eyadex
       - name: Better Auth database tests (@eyadex/auth)
         run: pnpm --filter @eyadex/auth test:db
         env:

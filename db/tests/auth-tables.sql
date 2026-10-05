@@ -42,12 +42,30 @@ END $$;
 
 -- A user and a session written by eyadex_auth itself.
 SET LOCAL ROLE eyadex_auth;
-INSERT INTO auth_users (id, name, email, email_verified, image, two_factor_enabled, created_at, updated_at)
+INSERT INTO auth_users (id, name, email, email_verified, image, two_factor_enabled, created_at, updated_at, area)
   VALUES ('00000000-0000-7000-8000-0000000023a1', 'Auth probe', 'auth-probe@example.com', false,
-    NULL, false, now(), now());
-INSERT INTO auth_sessions (id, user_id, token, expires_at, ip_address, user_agent, area, created_at, updated_at)
+    NULL, false, now(), now(), 'clinic');
+-- An account belongs to exactly one known area (0024).
+DO $$
+BEGIN
+  BEGIN
+    INSERT INTO auth_users (id, name, email, email_verified, image, two_factor_enabled, created_at, updated_at)
+      VALUES ('00000000-0000-7000-8000-0000000024a1', 'No area', 'no-area@example.com', false, NULL,
+        false, now(), now());
+    RAISE EXCEPTION 'AUTH: a user without an area was accepted';
+  EXCEPTION WHEN not_null_violation THEN NULL;
+  END;
+  BEGIN
+    INSERT INTO auth_users (id, name, email, email_verified, image, two_factor_enabled, created_at, updated_at, area)
+      VALUES ('00000000-0000-7000-8000-0000000024a2', 'Bad area', 'bad-area@example.com', false, NULL,
+        false, now(), now(), 'admin');
+    RAISE EXCEPTION 'AUTH: a user with an unknown area was accepted';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+END $$;
+INSERT INTO auth_sessions (id, user_id, token, expires_at, ip_address, user_agent, area, two_factor_verified, created_at, updated_at)
   VALUES ('00000000-0000-7000-8000-0000000023a2', '00000000-0000-7000-8000-0000000023a1',
-    'auth-probe-not-a-real-token', now() + interval '1 day', NULL, NULL, 'clinic', now(), now());
+    'auth-probe-not-a-real-token', now() + interval '1 day', NULL, NULL, 'clinic', false, now(), now());
 DELETE FROM auth_sessions WHERE id = '00000000-0000-7000-8000-0000000023a2';
 -- One two-factor row per user: a second enrollment row is refused.
 INSERT INTO auth_two_factors (id, user_id, secret, backup_codes, verified, failed_verification_count, locked_until)
@@ -91,8 +109,8 @@ BEGIN
     EXCEPTION WHEN insufficient_privilege THEN NULL;
     END;
     BEGIN
-      INSERT INTO auth_sessions (id, user_id, token, expires_at, ip_address, user_agent, area, created_at, updated_at)
-        VALUES (gen_random_uuid(), '00000000-0000-7000-8000-0000000023a1', 'x', now(), NULL, NULL, 'clinic', now(), now());
+      INSERT INTO auth_sessions (id, user_id, token, expires_at, ip_address, user_agent, area, two_factor_verified, created_at, updated_at)
+        VALUES (gen_random_uuid(), '00000000-0000-7000-8000-0000000023a1', 'x', now(), NULL, NULL, 'clinic', false, now(), now());
       RAISE EXCEPTION 'AUTH: % wrote auth_sessions', other;
     EXCEPTION WHEN insufficient_privilege THEN NULL;
     END;

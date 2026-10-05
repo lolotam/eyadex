@@ -14,6 +14,23 @@ import type { ApiErrorCode } from "@eyadex/contracts/common";
  */
 export const API_ERROR_MESSAGES = {
   not_found: { message_ar: "غير موجود", message_en: "Not found" },
+  unauthorized: { message_ar: "سجّل الدخول للمتابعة", message_en: "Sign in to continue" },
+  two_factor_required: {
+    message_ar: "فعّل التحقق بخطوتين لحسابك قبل المتابعة",
+    message_en: "Turn on two-step verification for your account to continue",
+  },
+  invalid_credentials: {
+    message_ar: "البيانات غير صحيحة، تأكد منها وأعد المحاولة",
+    message_en: "Those details are not correct; check them and try again",
+  },
+  rate_limited: {
+    message_ar: "محاولات كثيرة، انتظر قليلًا ثم أعد المحاولة",
+    message_en: "Too many attempts; wait a moment and try again",
+  },
+  two_factor_busy: {
+    message_ar: "يوجد إعداد آخر للتحقق بخطوتين قيد التنفيذ، انتظر قليلًا ثم أعد المحاولة",
+    message_en: "Another two-step verification setup is in progress; wait a moment and try again",
+  },
   idempotency_conflict: {
     message_ar: "تم إرسال هذا الطلب من قبل ببيانات مختلفة، أغلق النموذج وابدأ من جديد",
     message_en:

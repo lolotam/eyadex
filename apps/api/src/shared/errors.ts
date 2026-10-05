@@ -7,7 +7,13 @@ import { API_ERROR_MESSAGES } from "./api-error-messages.ts";
 // could have produced it.
 const STATUS: Partial<Record<ApiErrorCode, number>> = {
   validation: 400,
+  unauthorized: 401,
+  invalid_credentials: 401,
+  forbidden: 403,
+  two_factor_required: 403,
   not_found: 404,
+  two_factor_busy: 409,
+  rate_limited: 429,
   unknown: 500,
 };
 
@@ -42,7 +48,7 @@ export class ApiError extends Error {
 /**
  * Maps a framework HTTP status to a catalogued code. A catalogued status keeps its code; any other 4xx is a
  * malformed request, which the envelope reports as `validation`; any 5xx — or anything else — is `unknown`.
- * Codes for the statuses that have no business here yet (401, 403, 409, 413, 415) arrive with the slice
+ * Codes for the statuses that have no business here yet (413, 415) arrive with the slice
  * that raises them.
  *
  * @param status the status the framework chose

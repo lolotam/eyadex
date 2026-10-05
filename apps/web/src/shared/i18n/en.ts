@@ -273,6 +273,12 @@ export const en = {
     role_name_taken: "Another role in this clinic already uses this name",
     idempotency_conflict:
       "This request was already sent with different details; close the form and start again",
+    unauthorized: "Sign in to continue",
+    two_factor_required: "Turn on two-step verification for your account to continue",
+    invalid_credentials: "Those details are not correct; check them and try again",
+    rate_limited: "Too many attempts; wait a moment and try again",
+    two_factor_busy:
+      "Another two-step verification setup is in progress; wait a moment and try again",
     not_found: "Not found",
     slug_taken: "This slug is already used by another clinic",
     reserved_slug: "This address is reserved by Eyadex",
