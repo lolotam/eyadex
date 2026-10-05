@@ -1,15 +1,8 @@
 import { z } from "zod";
-import { idSchema, languageSchema, pageQuerySchema } from "./common";
+import { idSchema, languageSchema, pageQuerySchema } from "./common.ts";
+import { RESERVED_CLINIC_SLUGS, timezoneOptions } from "./onboarding.ts";
 
-/** The supported clinic time zones; any other value is rejected at the contract. */
-export const timezoneOptions = [
-  "Asia/Kuwait",
-  "Asia/Riyadh",
-  "Asia/Dubai",
-  "Asia/Qatar",
-  "Asia/Bahrain",
-  "Africa/Cairo",
-] as const;
+export { RESERVED_CLINIC_SLUGS, timezoneOptions };
 
 export const clinicStatusSchema = z.enum(["trial", "active", "suspended"]);
 export type ClinicStatus = z.infer<typeof clinicStatusSchema>;
@@ -29,24 +22,6 @@ export type ClinicModule = z.infer<typeof moduleSchema>;
 
 export const featuresSchema = z.object({ patients: z.boolean() });
 export type ClinicFeatures = z.infer<typeof featuresSchema>;
-
-export const RESERVED_CLINIC_SLUGS = [
-  "app",
-  "platform",
-  "api",
-  "www",
-  "admin",
-  "staging",
-  "cdn",
-  "mail",
-  "status",
-  "docs",
-  "help",
-  "support",
-  "auth",
-  "static",
-  "assets",
-] as const;
 
 export const slugSchema = z
   .string()

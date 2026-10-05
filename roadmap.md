@@ -28,5 +28,8 @@
 - [x] `packages/auth` (Better Auth 1.7.7: email + password, sign-up disabled, two-factor, sessions in PostgreSQL, one cookie per area) + `db/sql/0023` auth tables granted to `eyadex_auth` only
 - [x] Slice 2b: Better Auth over HTTP, same-origin per area (ADR-0004): host-bound areas, `/auth/*` allowlist, `SessionGuard`, mandatory platform TOTP, per-user `/two-factor/enable` lock
 - [x] Slice 2c: Redis rate limiting of sign-in, two-factor, change-password (ADR-0005; fail closed)
+- [x] Slice 3a: `POST /v1/platform/clinics` — clinic + system roles + first-admin invitation + email hold + platform audit + outbox in one transaction, Idempotency-Key (ADR-0006, SQL 0025–0026)
+- [ ] Slice 3b: accept the invitation and set the password
+- [ ] Worker: dispatch `clinic.admin_invited` (open the sealed link, send, scrub payload)
 - [ ] Next: invitation acceptance (+ global email hold), membership deactivation / subscription checks in guards
 - [ ] Reverse-proxy routes `app.`/`platform.` `/api/*` → api with `/api` stripped (orchestrator)

@@ -28,6 +28,7 @@ import {
   type AreaAuth,
   type AuthRateLimit,
 } from "./modules/identity/index.ts";
+import { PlatformModule } from "./modules/platform/index.ts";
 import { EnvelopeExceptionFilter } from "./shared/exception.filter.ts";
 import { HealthController } from "./shared/health.controller.ts";
 import { API_LOG_EVENTS } from "./shared/log-events.ts";
@@ -53,6 +54,11 @@ export interface AppDependencies {
    * AUTH_DATABASE_URL, BETTER_AUTH_SECRET and TRUST_PROXY_HOPS from the environment.
    */
   readonly mountAuth?: boolean;
+  /**
+   * Mounts the platform area (`POST /v1/platform/clinics`, ADR-0006). Needs auth mounted too, plus
+   * DATABASE_URL, PLATFORM_DATABASE_URL and OUTBOX_SEAL_KEY.
+   */
+  readonly mountPlatform?: boolean;
 }
 
 export interface AppOptions {
@@ -100,7 +106,10 @@ export function apiModule(
 ): DynamicModule {
   return {
     module: ApiModule,
-    imports: deps.mountAuth === true ? [AuthModule] : [],
+    imports: [
+      ...(deps.mountAuth === true ? [AuthModule] : []),
+      ...(deps.mountPlatform === true ? [PlatformModule] : []),
+    ],
     controllers: [HealthController, ...controllers],
     providers: [
       { provide: SHUTDOWN, useValue: deps.onShutdown ?? (async () => undefined) },

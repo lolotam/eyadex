@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
-    "start": "node --env-file-if-exists=../../.env dist/main.js",
+    "start": "node --conditions=eyadex-runtime --env-file-if-exists=../../.env dist/main.js",
     "test:db": "vitest run --config vitest.db.config.ts"
   },
   "dependencies": {

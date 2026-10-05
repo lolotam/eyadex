@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { idSchema, pageQuerySchema } from "./common";
-import { clinicAuditEntitySchema } from "./organization";
+import { idSchema, pageQuerySchema } from "./common.ts";
+import { clinicAuditEntitySchema } from "./organization.ts";
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "validation.dateRequired");
 
