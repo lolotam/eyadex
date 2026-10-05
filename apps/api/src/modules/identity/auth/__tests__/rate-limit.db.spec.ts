@@ -137,3 +137,36 @@ describe("Redis unavailable", () => {
     }
   });
 });
+
+describe("refused sign-ins cost no database work", () => {
+  it("NEGATIVE: past the IP limit, a sign-in with a session cookie never reaches the session lookup", async () => {
+    const clinic = h.areaAuth.of("clinic") as {
+      isForeignSession: (headers: Headers) => Promise<boolean>;
+    };
+    const original = clinic.isForeignSession;
+    let lookups = 0;
+    clinic.isForeignSession = (headers) => {
+      lookups += 1;
+      return original(headers);
+    };
+    try {
+      const ip = "198.51.100.77";
+      let last = 0;
+      for (let i = 0; i < 21; i++) {
+        const res = await call(h, {
+          url: "/auth/sign-in/email",
+          host: APP,
+          ip,
+          cookie: "__Secure-eyadex-clinic.session_token=not-a-real-token",
+          body: { email: `lookup-${i}@example.com`, password: "wrong-password-1" },
+        });
+        last = res.statusCode;
+      }
+      expect(last).toBe(429);
+      // 20 allowed attempts looked the session up; the refused 21st did not.
+      expect(lookups).toBe(20);
+    } finally {
+      clinic.isForeignSession = original;
+    }
+  });
+});

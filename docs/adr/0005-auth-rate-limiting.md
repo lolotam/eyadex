@@ -24,6 +24,9 @@ replicas, so an in-process counter would allow N times the limit.
 - **Order and short-circuit.** Rules are counted in order, low-cardinality first (IP before email or
   subject), and counting stops at the first refusal: a blocked IP cannot mint one Redis key per sprayed
   email and fill memory (which, with fail-closed, would stop every sign-in).
+- **Two phases.** Session-free counters (IP, email) run first, before any database work (foreign-session
+  check, session lookup); per-user and per-subject counters run once the session is known. A refused
+  sign-in costs one Redis call and no PostgreSQL query.
 - **One password-check bucket.** change-password, two-factor enable / disable / generate-backup-codes all
   verify the same password, so they share one per-user counter (`password-check`), not one per route.
 - **No personal data in keys.** `eyadex:rl:<area>:<route>:<dimension>:<HMAC-SHA256(BETTER_AUTH_SECRET,

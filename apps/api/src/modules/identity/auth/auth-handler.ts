@@ -83,12 +83,17 @@ const USER_KEYED = new Set([
 
 type Limited = "allowed" | "refused" | "unavailable";
 
+// Counters that need no session: checked before any database work, so a refused request costs one
+// Redis call and nothing else. The per-user / per-subject ones run once the session is known.
+const SESSIONLESS_DIMENSIONS: ReadonlySet<string> = new Set(["ip", "email"]);
+
 /** Counts the request before Better Auth sees it (ADR-0005); a Redis failure never lets it through. */
 async function applyLimits(
   limiter: RateLimiter,
   areaAuth: AreaAuth,
   area: AuthArea,
   path: string,
+  phase: "before-session" | "after-session",
   userId: string | undefined,
   request: FastifyRequest,
   reply: FastifyReply,
@@ -100,7 +105,7 @@ async function applyLimits(
     body: request.body,
     cookieHeader: typeof request.headers.cookie === "string" ? request.headers.cookie : undefined,
     userId,
-  });
+  }).filter((rule) => SESSIONLESS_DIMENSIONS.has(rule.dimension) === (phase === "before-session"));
   if (rules.length === 0) return "allowed";
   try {
     const decision = await limiter.check(area, rules);
@@ -130,6 +135,17 @@ async function handle(
   }
 
   const instance: EyadexAuth = areaAuth.of(area);
+  const early = await applyLimits(
+    limiter,
+    areaAuth,
+    area,
+    path,
+    "before-session",
+    undefined,
+    request,
+    reply,
+  );
+  if (early !== "allowed") return;
   // A session from the other area (a cookie renamed across hosts) is refused on EVERY auth route, not
   // only on /v1: Better Auth alone accepts it (same table, same secret), so change-password, enable or
   // sign-out would otherwise act on it (ADR-0003).
@@ -154,6 +170,7 @@ async function handle(
     areaAuth,
     area,
     path,
+    "after-session",
     session?.user.id,
     request,
     reply,
