@@ -71,18 +71,18 @@ const body = (t = tag()) => ({
   modules: { patients: true },
   admin: { fullName: "Test Admin", email: `admin-${t}@example.test` },
 });
-const create = (b: unknown, key: string | undefined = randomUUID(), host = PLATFORM, c = cookie) =>
+const create = (b: unknown, key: string | null = randomUUID(), host = PLATFORM, c = cookie) =>
   call(h, {
     url: "/v1/platform/clinics",
     host,
     cookie: c,
     body: b,
-    headers: key === undefined ? {} : { "idempotency-key": key },
+    headers: key === null ? {} : { "idempotency-key": key },
   });
 const count = async (table: string, where: string, value: string) =>
   Number(
     (await h.owner.unsafe(`SELECT count(*)::int AS n FROM ${table} WHERE ${where} = $1`, [value]))[0]
-      ?.n,
+      ?.["n"],
   );
 
 describe("POST /v1/platform/clinics (ONB-01)", () => {
@@ -95,15 +95,15 @@ describe("POST /v1/platform/clinics (ONB-01)", () => {
     expect(await count("roles", "clinic_id::text", clinicId)).toBe(4);
     expect(await count("clinic_features", "clinic_id::text", clinicId)).toBe(1);
     const [inv] = await h.owner`SELECT * FROM invitations WHERE id = ${invitation.id}`;
-    expect(inv?.token_hash).toMatch(/^[0-9a-f]{64}$/);
-    expect(inv?.status).toBe("pending");
-    const days = (new Date(inv!.expires_at).getTime() - new Date(inv!.created_at).getTime()) / 864e5;
+    expect(inv?.["token_hash"]).toMatch(/^[0-9a-f]{64}$/);
+    expect(inv?.["status"]).toBe("pending");
+    const days = (new Date(inv!["expires_at"]).getTime() - new Date(inv!["created_at"]).getTime()) / 864e5;
     expect(days).toBe(7);
     expect(await count("email_reservations", "lower(email)", b.admin.email)).toBe(1);
     expect(await count("platform_audit_log", "clinic_id::text", clinicId)).toBe(1);
     const [event] = await h.owner`SELECT * FROM outbox_events WHERE clinic_id = ${clinicId}`;
-    expect(event?.event_type).toBe("clinic.admin_invited");
-    expect(event?.payload.sealedToken).toEqual(expect.any(String));
+    expect(event?.["event_type"]).toBe("clinic.admin_invited");
+    expect(event?.["payload"].sealedToken).toEqual(expect.any(String));
   });
 
   it("NEGATIVE: the raw token is in no table, audit, outbox payload or log line", async () => {
@@ -111,8 +111,8 @@ describe("POST /v1/platform/clinics (ONB-01)", () => {
     const res = await create(body());
     const { clinicId } = res.json();
     const [event] = await h.owner`SELECT id, payload FROM outbox_events WHERE clinic_id = ${clinicId}`;
-    const sealer = new SecretSealer(process.env.OUTBOX_SEAL_KEY!);
-    const token = sealer.open(event!.payload.sealedToken, event!.id);
+    const sealer = new SecretSealer(process.env["OUTBOX_SEAL_KEY"]!);
+    const token = sealer.open(event!["payload"].sealedToken, event!["id"]);
     expect(token.length).toBeGreaterThan(30);
     const dump = await h.owner`
       SELECT (SELECT json_agg(i) FROM invitations i WHERE clinic_id = ${clinicId})::text
@@ -155,7 +155,7 @@ describe("POST /v1/platform/clinics (ONB-01)", () => {
 
   it("NEGATIVE: a missing Idempotency-Key is rejected", async () => {
     const b = body();
-    const res = await create(b, undefined);
+    const res = await create(b, null);
     expect(res.statusCode).toBe(400);
     expect(await count("clinics", "slug", b.slug)).toBe(0);
   });
@@ -185,7 +185,7 @@ describe("POST /v1/platform/clinics (ONB-01)", () => {
           throw new Error("forced failure");
         },
       },
-      sealer: new SecretSealer(process.env.OUTBOX_SEAL_KEY!),
+      sealer: new SecretSealer(process.env["OUTBOX_SEAL_KEY"]!),
     });
     await expect(
       failing.execute({ actorUserId: actorId, idempotencyKey: randomUUID(), input: b as never }),
