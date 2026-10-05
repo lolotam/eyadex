@@ -95,6 +95,9 @@ function buildAuth(options: CreateAuthOptions, client: postgres.Sql) {
       twoFactor({ issuer: "Eyadex", backupCodeOptions: { storeBackupCodes: "encrypted" } }),
     ],
     telemetry: { enabled: false },
+    // Off: Better Auth's limiter is in-memory per process, so N replicas would allow N times the limit.
+    // apps/api counts every limited route in Redis before Better Auth is called (ADR-0005).
+    rateLimit: { enabled: false },
     advanced: {
       // A distinct prefix per area: app. and platform. never share a session cookie (PRD §4.15).
       cookiePrefix: `eyadex-${options.area}`,

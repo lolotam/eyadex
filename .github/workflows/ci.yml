@@ -48,6 +48,12 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U eyadex_owner -d eyadex"
           --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:8-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       PGHOST: localhost
       PGUSER: eyadex_owner
@@ -93,6 +99,7 @@ jobs:
           EYADEX_TEST_OWNER_URL: postgres://eyadex_owner:ci-only-owner@localhost:5432/eyadex
           EYADEX_TEST_APP_URL: postgres://eyadex_app:ci-only-app@localhost:5432/eyadex
           EYADEX_TEST_AUTH_URL: postgres://eyadex_auth:ci-only-auth@localhost:5432/eyadex
+          EYADEX_TEST_REDIS_URL: redis://localhost:6379/0
       - name: Better Auth database tests (@eyadex/auth)
         run: pnpm --filter @eyadex/auth test:db
         env:
