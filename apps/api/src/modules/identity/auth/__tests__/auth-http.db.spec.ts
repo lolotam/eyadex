@@ -88,6 +88,7 @@ beforeAll(async () => {
     AUTH_DATABASE_URL: AUTH_URL,
     BETTER_AUTH_SECRET: randomBytes(32).toString("hex"),
     TRUST_PROXY_HOPS: "0",
+    REDIS_URL: required("EYADEX_TEST_REDIS_URL"),
   });
   owner = postgres(OWNER_URL, { max: 2, onnotice: () => undefined });
   const sink = new Writable({ write: (_c, _e, done) => done() });

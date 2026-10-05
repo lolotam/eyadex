@@ -40,13 +40,15 @@ export interface Harness {
 }
 
 /** Builds the API with auth mounted on a fresh secret; the caller closes it with `closeHarness`. */
-export async function openHarness(): Promise<Harness> {
+export async function openHarness(env: Record<string, string> = {}): Promise<Harness> {
   Object.assign(process.env, {
     APP_URL: APP,
     PLATFORM_URL: PLATFORM,
     AUTH_DATABASE_URL: required("EYADEX_TEST_AUTH_URL"),
     BETTER_AUTH_SECRET: randomBytes(32).toString("hex"),
     TRUST_PROXY_HOPS: "0",
+    REDIS_URL: required("EYADEX_TEST_REDIS_URL"),
+    ...env,
   });
   const owner = postgres(required("EYADEX_TEST_OWNER_URL"), {
     max: 2,
@@ -76,6 +78,9 @@ export interface Call {
   cookie?: string;
   body?: unknown;
   rawBody?: string;
+  /** The socket address the request arrives from; the default is light-my-request's. */
+  ip?: string;
+  headers?: Record<string, string>;
 }
 
 export const call = (h: Harness, o: Call) =>
@@ -87,7 +92,9 @@ export const call = (h: Harness, o: Call) =>
       origin: o.host,
       "content-type": "application/json",
       ...(o.cookie === undefined ? {} : { cookie: o.cookie }),
+      ...o.headers,
     },
+    ...(o.ip === undefined ? {} : { remoteAddress: o.ip }),
     ...(o.method === "GET" ? {} : { payload: o.rawBody ?? JSON.stringify(o.body ?? {}) }),
   });
 
