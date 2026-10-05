@@ -10,4 +10,6 @@ export const API_LOG_EVENTS = [
   "nest",
   "nest error",
   "nest warning",
+  // ADR-0005: Redis is down and the limited /auth routes fail closed with 503 — must stay readable.
+  "rate limiter unavailable",
 ] as const;
