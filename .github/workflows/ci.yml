@@ -30,7 +30,7 @@ jobs:
       - name: Test
         run: pnpm test
       - name: Build (node-server, as deployed by Dokploy)
-        run: pnpm build
+        run: pnpm build:all
         env:
           NITRO_PRESET: node-server
 
