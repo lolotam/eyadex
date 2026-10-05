@@ -4,6 +4,8 @@ import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 // as additional data (the outbox event id), so a sealed value copied into another event never opens.
 const ALGORITHM = "aes-256-gcm";
 const VERSION = "v1";
+// GCM accepts tags as short as 4 bytes unless told otherwise; a truncated tag would weaken the check.
+const TAG_BYTES = 16;
 
 /**
  * بيقفل سر قصير (رمز الدعوة) بمفتاح مع الـ API والـ worker بس، عشان يعدّي على الـ outbox من غير ما
@@ -47,9 +49,13 @@ export class SecretSealer {
     if (version !== VERSION || iv === undefined || body === undefined || tag === undefined) {
       throw new TypeError("not a sealed value");
     }
-    const decipher = createDecipheriv(ALGORITHM, this.#key, Buffer.from(iv, "base64url"));
+    const authTag = Buffer.from(tag, "base64url");
+    if (authTag.length !== TAG_BYTES) throw new TypeError("not a sealed value");
+    const decipher = createDecipheriv(ALGORITHM, this.#key, Buffer.from(iv, "base64url"), {
+      authTagLength: TAG_BYTES,
+    });
     decipher.setAAD(Buffer.from(context, "utf8"));
-    decipher.setAuthTag(Buffer.from(tag, "base64url"));
+    decipher.setAuthTag(authTag);
     return Buffer.concat([
       decipher.update(Buffer.from(body, "base64url")),
       decipher.final(),
