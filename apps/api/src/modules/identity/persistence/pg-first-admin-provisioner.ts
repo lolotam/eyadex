@@ -39,6 +39,8 @@ export class PgFirstAdminProvisioner implements FirstAdminProvisioner {
   async provision(tx: Tx, request: FirstAdminRequest): Promise<FirstAdminResult> {
     const { clinicId, now } = request;
     const at = now.toISOString();
+    const rows = await tx.execute<{ id: string; key: string }>(sql`SELECT id, key FROM permissions`);
+    const catalogue = new Map(rows.map((row) => [row.key, row.id]));
     let adminRoleId: string | undefined;
     for (const role of SYSTEM_ROLES) {
       const roleId = this.ids.newId();
@@ -50,13 +52,13 @@ export class PgFirstAdminProvisioner implements FirstAdminProvisioner {
               ${role.isLocked}, true, ${at}::timestamptz, ${at}::timestamptz)`,
       );
       for (const key of role.permissions) {
-        const linked = await tx.execute<{ id: string }>(
-          sql`INSERT INTO role_permissions (clinic_id, id, role_id, permission_id, created_at)
-              SELECT ${clinicId}, ${this.ids.newId()}, ${roleId}, p.id, ${at}::timestamptz
-              FROM permissions p WHERE p.key = ${key} RETURNING id`,
-        );
+        const permissionId = catalogue.get(key);
         // The catalogue is seeded by db/sql/0026; a missing key is a broken database, not input.
-        if (linked.length !== 1) throw new Error(`permission catalogue is missing ${key}`);
+        if (permissionId === undefined) throw new Error(`permission catalogue is missing ${key}`);
+        await tx.execute(
+          sql`INSERT INTO role_permissions (clinic_id, id, role_id, permission_id, created_at)
+              VALUES (${clinicId}, ${this.ids.newId()}, ${roleId}, ${permissionId}, ${at}::timestamptz)`,
+        );
       }
     }
     const invitationId = this.ids.newId();
