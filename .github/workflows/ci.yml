@@ -105,3 +105,26 @@ jobs:
         env:
           EYADEX_TEST_OWNER_URL: postgres://eyadex_owner:ci-only-owner@localhost:5432/eyadex
           EYADEX_TEST_AUTH_URL: postgres://eyadex_auth:ci-only-auth@localhost:5432/eyadex
+
+  # The API's production image (apps/api/Dockerfile) must keep building, and must answer its health
+  # check as the non-root user — the same image Dokploy deploys (ADR-0007).
+  api-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the API image
+        run: docker build -f apps/api/Dockerfile -t eyadex-api:ci .
+      # The image's own CMD must boot: health answers, the auth handler is mounted, and the running process
+      # is the non-root user. No database or Redis is needed for that — postgres.js and the auth pools are
+      # lazy, and Redis failures only matter on rate-limited routes — so the URLs point nowhere.
+      - name: Boot the image and probe it
+        run: |
+          docker run -d --name api -p 127.0.0.1:3000:3000             -e DATABASE_URL=postgres://eyadex_app:ci@127.0.0.1:1/eyadex             -e AUTH_DATABASE_URL=postgres://eyadex_auth:ci@127.0.0.1:1/eyadex             -e BETTER_AUTH_SECRET="$(openssl rand -hex 32)" -e REDIS_URL=redis://127.0.0.1:1/0             -e APP_URL=https://app.eyadex.test -e PLATFORM_URL=https://platform.eyadex.test             eyadex-api:ci
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:3000/v1/health && break; sleep 1; done
+          test "$(curl -s http://127.0.0.1:3000/v1/health)" = '{"status":"ok"}'
+          # Unknown host on the auth handler → 404 envelope: the Better Auth bundle loaded.
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:3000/auth/sign-in/email)" = "404"
+          test "$(docker exec api whoami)" = "eyadex"
+      - name: API container log
+        if: always()
+        run: docker logs api || true
