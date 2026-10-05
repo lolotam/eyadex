@@ -15,7 +15,7 @@ import postgres from "postgres";
 
 import { CLIENT_IP_HEADER, sessionAreaHook } from "./area-binding.ts";
 import { createEnrollmentLock, type LockedResult } from "./enrollment-lock.ts";
-import { assertOptions, PASSWORD_LIMITS, type AuthArea } from "./options.ts";
+import { assertOptions, assertPassword, type AuthArea } from "./options.ts";
 
 export type { AuthArea } from "./options.ts";
 
@@ -201,14 +201,6 @@ export interface EyadexAuth {
    * @returns بيخلص لما الاتصالات تتقفل
    */
   close(): Promise<void>;
-}
-
-function assertPassword(password: string): void {
-  if (password.length < PASSWORD_LIMITS.min || password.length > PASSWORD_LIMITS.max) {
-    throw new RangeError(
-      `password must be ${PASSWORD_LIMITS.min}–${PASSWORD_LIMITS.max} characters`,
-    );
-  }
 }
 
 /**
