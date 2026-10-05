@@ -51,6 +51,23 @@ describe("createAuth", () => {
     expect(clinic.auth.options.advanced.useSecureCookies).toBe(true);
   });
 
+  it("derives secure cookies and the origin from the parsed URL, not its spelling", async () => {
+    const shouting = createAuth({
+      area: "platform",
+      databaseUrl,
+      secret,
+      baseUrl: " HTTPS://Platform.Example.com/ ",
+      ids: systemUuidV7(),
+    });
+    try {
+      expect(shouting.auth.options.advanced.useSecureCookies).toBe(true);
+      expect(shouting.auth.options.baseURL).toBe("https://platform.example.com");
+      expect(shouting.auth.options.trustedOrigins).toEqual(["https://platform.example.com"]);
+    } finally {
+      await shouting.close();
+    }
+  });
+
   it("refuses a password outside the limits before touching the database", async () => {
     await expect(
       clinic.createUserAccount({ email: "a@example.com", name: "A", password: "short" }),

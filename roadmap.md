@@ -26,4 +26,4 @@
 ## Phase B — identity foundation
 
 - [x] `packages/auth` (Better Auth 1.7.7: email + password, sign-up disabled, two-factor, sessions in PostgreSQL, one cookie per area) + `db/sql/0023` auth tables granted to `eyadex_auth` only
-- [ ] Slice 2b: HTTP auth routes, TOTP enforcement on the platform host, invitation acceptance
+- [ ] Slice 2b: HTTP auth routes, TOTP enforcement on the platform host, invitation acceptance; serialize `/two-factor/enable` per user (ADR-0003)

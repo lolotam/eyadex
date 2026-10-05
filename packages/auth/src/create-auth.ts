@@ -49,11 +49,14 @@ const schema = {
  * @returns instance بتاع Better Auth
  */
 function buildAuth(options: CreateAuthOptions, client: postgres.Sql) {
+  // Parsed once: `HTTPS://Host` or surrounding spaces pass assertOptions, so every setting below
+  // reads the normalized origin and protocol, never the raw spelling.
+  const base = new URL(options.baseUrl);
   return betterAuth({
     appName: "Eyadex",
-    baseURL: options.baseUrl,
+    baseURL: base.origin,
     secret: options.secret,
-    trustedOrigins: [options.baseUrl],
+    trustedOrigins: [base.origin],
     // The adapter's default is `transaction: false`, which runs Better Auth's multi-row writes
     // (and runWithTransaction below) as separate statements.
     database: drizzleAdapter(drizzle(client), { provider: "pg", schema, transaction: true }),
@@ -76,7 +79,7 @@ function buildAuth(options: CreateAuthOptions, client: postgres.Sql) {
     advanced: {
       // A distinct prefix per area: app. and platform. never share a session cookie (PRD §4.15).
       cookiePrefix: `eyadex-${options.area}`,
-      useSecureCookies: options.baseUrl.startsWith("https://"),
+      useSecureCookies: base.protocol === "https:",
       database: { generateId: () => options.ids.newId() },
     },
   });

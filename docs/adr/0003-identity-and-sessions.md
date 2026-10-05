@@ -30,7 +30,11 @@ session code.
   `packages/db/src/schema/auth.ts` and is checked by the drift test.
 - **One two-factor row per user.** `auth_two_factors.user_id` is `UNIQUE`: Better Auth enrolls with
   an unguarded read-then-insert, so overlapping first enrollments could otherwise store two secrets.
-  The loser gets a unique violation; the winner's QR code is the stored row.
+  The loser gets a unique violation; the winner's QR code is the stored row. Known limit: two
+  overlapping re-enrollments of a still-unverified row both succeed and the last update wins, so
+  one returned QR code cannot verify. Two-factor stays off until a code verifies, so the user just
+  enrolls again — no lockout and no leak. **Slice 2b must serialize `/two-factor/enable` per user**
+  (a per-user advisory lock around the handler) when it mounts the routes.
 - **Ids.** Better Auth's `advanced.database.generateId` returns UUID v7 from `@eyadex/ids`.
 - **Sign-up.** `emailAndPassword.disableSignUp: true`; the public endpoint refuses. Users are created
   only through `createUserAccount`, which hashes with Better Auth's own hasher and writes the user and
