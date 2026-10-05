@@ -33,7 +33,9 @@ export const outboxEvents = pgTable(
       foreignColumns: [clinics.id],
     }),
     index("outbox_events_clinic_idx").on(t.clinicId),
-    index("outbox_events_pending_idx").on(t.createdAt).where(sql`dispatched_at IS NULL`),
+    index("outbox_events_pending_idx")
+      .on(t.createdAt)
+      .where(sql`dispatched_at IS NULL`),
     check(
       "outbox_events_event_type_check",
       sql.raw("(event_type ~ '^[a-z]+(_[a-z]+)*\\.[a-z]+(_[a-z]+)*$'::text)"),
@@ -53,10 +55,10 @@ export const idempotencyKeys = pgTable(
   (t) => [
     primaryKey({ name: "idempotency_keys_pkey", columns: [t.scope, t.key] }),
     check("idempotency_keys_scope_check", sql.raw("(scope <> ''::text)")),
+    check("idempotency_keys_key_check", sql.raw("((length(key) >= 1) AND (length(key) <= 200))")),
     check(
-      "idempotency_keys_key_check",
-      sql.raw("((length(key) >= 1) AND (length(key) <= 200))"),
+      "idempotency_keys_request_hash_check",
+      sql.raw("(request_hash ~ '^[0-9a-f]{64}$'::text)"),
     ),
-    check("idempotency_keys_request_hash_check", sql.raw("(request_hash ~ '^[0-9a-f]{64}$'::text)")),
   ],
 );
