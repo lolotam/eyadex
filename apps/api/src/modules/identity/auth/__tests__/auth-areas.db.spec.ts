@@ -65,6 +65,15 @@ describe("one account, one area (0024)", () => {
     expect((await signIn(APP, user.email)).statusCode).toBe(200);
   });
 
+  it("NEGATIVE: an enrolled clinic account gets no 2FA challenge on the platform host", async () => {
+    const user = await createUser(h, h.areaAuth.of("clinic"), "enrolled-on-platform");
+    await enrolled(APP, user.email);
+    const res = await signIn(PLATFORM, user.email);
+    expect(res.statusCode).toBe(401);
+    expect(res.json()).toMatchObject({ code: "invalid_credentials" });
+    expect(setCookies(res).some((line) => line.includes("two_factor="))).toBe(false);
+  });
+
   it("NEGATIVE: a clinic two_factor cookie renamed for the platform cannot finish a sign-in there", async () => {
     const user = await createUser(h, h.areaAuth.of("clinic"), "two-factor-cookie");
     const { uri } = await enrolled(APP, user.email);
