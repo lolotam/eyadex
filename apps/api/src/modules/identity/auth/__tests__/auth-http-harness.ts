@@ -37,10 +37,15 @@ export interface Harness {
   readonly app: NestFastifyApplication;
   readonly areaAuth: AreaAuth;
   readonly owner: Sql;
+  /** Every log line the app wrote, for "never logged" assertions. */
+  readonly logs: string[];
 }
 
 /** Builds the API with auth mounted on a fresh secret; the caller closes it with `closeHarness`. */
-export async function openHarness(env: Record<string, string> = {}): Promise<Harness> {
+export async function openHarness(
+  env: Record<string, string> = {},
+  mountPlatform = false,
+): Promise<Harness> {
   Object.assign(process.env, {
     APP_URL: APP,
     PLATFORM_URL: PLATFORM,
@@ -48,22 +53,35 @@ export async function openHarness(env: Record<string, string> = {}): Promise<Har
     BETTER_AUTH_SECRET: randomBytes(32).toString("hex"),
     TRUST_PROXY_HOPS: "0",
     REDIS_URL: required("EYADEX_TEST_REDIS_URL"),
+    ...(mountPlatform
+      ? {
+          DATABASE_URL: required("EYADEX_TEST_APP_URL"),
+          PLATFORM_DATABASE_URL: required("EYADEX_TEST_PLATFORM_URL"),
+          OUTBOX_SEAL_KEY: randomBytes(32).toString("base64"),
+        }
+      : {}),
     ...env,
   });
   const owner = postgres(required("EYADEX_TEST_OWNER_URL"), {
     max: 2,
     onnotice: () => undefined,
   });
-  const sink = new Writable({ write: (_c, _e, done) => done() });
+  const logs: string[] = [];
+  const sink = new Writable({
+    write: (chunk, _e, done) => {
+      logs.push(String(chunk));
+      done();
+    },
+  });
   const app = await createApp(
-    { mountAuth: true },
+    { mountAuth: true, mountPlatform },
     {
       logger: createLogger("info", { destination: sink, events: API_LOG_EVENTS }),
       controllers: [ProbeController],
     },
   );
   await app.getHttpAdapter().getInstance().ready();
-  return { app, areaAuth: app.get<AreaAuth>(AREA_AUTH), owner };
+  return { app, areaAuth: app.get<AreaAuth>(AREA_AUTH), owner, logs };
 }
 
 export async function closeHarness(h: Harness | undefined): Promise<void> {
