@@ -75,7 +75,8 @@ describe("POST /v1/invitations/accept", () => {
       JOIN roles r ON r.clinic_id = m.clinic_id AND r.id = m.role_id WHERE m.email = ${invite.email}`;
     expect(m).toMatchObject({ system_key: "clinic_admin", all_branches: true, status: "active" });
     expect(m!["preferred_language"]).toBe("en");
-    const [inv] = await h.owner`SELECT status, responded_at FROM invitations WHERE id = ${invite.invitationId}`;
+    const [inv] =
+      await h.owner`SELECT status, responded_at FROM invitations WHERE id = ${invite.invitationId}`;
     expect(inv!["status"]).toBe("accepted");
     expect(inv!["responded_at"]).not.toBeNull();
     const [hold] = await h.owner`SELECT kind FROM email_reservations WHERE email = ${invite.email}`;
@@ -96,7 +97,11 @@ describe("POST /v1/invitations/accept", () => {
       JOIN membership_branches mb ON mb.clinic_id = m.clinic_id AND mb.membership_id = m.id
       WHERE m.email = ${invite.email}`;
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ branch_id: invite.branchId, all_branches: false, role_id: invite.roleId });
+    expect(rows[0]).toMatchObject({
+      branch_id: invite.branchId,
+      all_branches: false,
+      role_id: invite.roleId,
+    });
   });
 
   it("NEGATIVE (INV-01): used, expired, cancelled and unknown links get one answer", async () => {
@@ -145,9 +150,9 @@ describe("POST /v1/invitations/accept", () => {
         },
       },
     });
-    await expect(failing.accept({ token: invite.token, password: strongPassword() })).rejects.toThrow(
-      "forced failure",
-    );
+    await expect(
+      failing.accept({ token: invite.token, password: strongPassword() }),
+    ).rejects.toThrow("forced failure");
     expect(await accountsFor(invite.email)).toBe(1);
     expect(await membershipsFor(invite.email)).toBe(0);
     const password = strongPassword();

@@ -41,7 +41,11 @@ describe("sessionless /v1 POST routes", () => {
           if (Reflect.getMetadata(METHOD_METADATA, handler) !== RequestMethod.POST) continue;
           const guards = [...classGuards, ...(Reflect.getMetadata(GUARDS_METADATA, handler) ?? [])];
           if (guards.includes(SessionGuard)) continue;
-          const path = join("v1", Reflect.getMetadata(PATH_METADATA, type), Reflect.getMetadata(PATH_METADATA, handler));
+          const path = join(
+            "v1",
+            Reflect.getMetadata(PATH_METADATA, type),
+            Reflect.getMetadata(PATH_METADATA, handler),
+          );
           found.push(path);
           expect(PUBLIC_V1_ROUTES[`POST ${path}`], path).toBeDefined();
           expect(guards, path).toContain(PublicRateLimitGuard);
