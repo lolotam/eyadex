@@ -130,6 +130,11 @@ describe("same-origin auth over HTTP (ADR-0004)", () => {
     const cross = await call({ method: "GET", url: "/v1/probe", host: PLATFORM, cookie });
     expect(cross.statusCode).toBe(401);
     expect(cross.json()).toMatchObject({ code: "unauthorized" });
+    // Same secret, same table: the clinic cookie renamed to the platform name still verifies in Better
+    // Auth — only the area-bound lookup (ADR-0003) refuses it.
+    const renamed = cookie.replaceAll("__Secure-eyadex-clinic.", "__Secure-eyadex-platform.");
+    const replay = await call({ method: "GET", url: "/v1/probe", host: PLATFORM, cookie: renamed });
+    expect(replay.statusCode).toBe(401);
   });
 
   it("unknown host → 404 envelope on /auth and /v1", async () => {
