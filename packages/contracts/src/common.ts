@@ -48,6 +48,8 @@ export const apiErrorCodeSchema = z.enum([
   "two_factor_busy",
   "invalid_credentials",
   "rate_limited",
+  "invitation_invalid",
+  "account_other_area",
   "unknown",
 ]);
 export type ApiErrorCode = z.infer<typeof apiErrorCodeSchema>;
