@@ -1,0 +1,115 @@
+import { describe, expect, it } from "vitest";
+
+import { AUTH_LIMITS, rateRulesFor } from "../auth-rate-limits.ts";
+import { RateLimiter, type CounterStore, type RateRule } from "../rate-limiter.ts";
+
+// The same fixed-window semantics as the Redis script, on a clock the test moves by hand.
+class FakeStore implements CounterStore {
+  now = 0;
+  readonly keys = new Map<string, { count: number; expiresAt: number }>();
+  async increment(key: string, windowMs: number) {
+    const entry = this.keys.get(key);
+    if (entry === undefined || entry.expiresAt <= this.now) {
+      this.keys.set(key, { count: 1, expiresAt: this.now + windowMs });
+      return { count: 1, ttlMs: windowMs };
+    }
+    entry.count += 1;
+    return { count: entry.count, ttlMs: entry.expiresAt - this.now };
+  }
+}
+
+const rule = (value: string): RateRule => ({
+  route: "sign-in-email",
+  dimension: "email",
+  value,
+  limit: { max: 3, windowMs: 60_000 },
+});
+
+describe("RateLimiter", () => {
+  it("allows up to the limit, then refuses with the seconds left in the window", async () => {
+    const store = new FakeStore();
+    const limiter = new RateLimiter(store, "s".repeat(32));
+    for (let i = 0; i < 3; i++)
+      expect((await limiter.check("clinic", [rule("a")])).allowed).toBe(true);
+    store.now = 20_500;
+    expect(await limiter.check("clinic", [rule("a")])).toEqual({
+      allowed: false,
+      retryAfterSeconds: 40,
+    });
+  });
+
+  it("starts a fresh window once the old one ends", async () => {
+    const store = new FakeStore();
+    const limiter = new RateLimiter(store, "s".repeat(32));
+    for (let i = 0; i < 4; i++) await limiter.check("clinic", [rule("a")]);
+    store.now = 60_000;
+    expect((await limiter.check("clinic", [rule("a")])).allowed).toBe(true);
+  });
+
+  it("refuses when any one dimension is over, and keeps areas apart", async () => {
+    const store = new FakeStore();
+    const limiter = new RateLimiter(store, "s".repeat(32));
+    for (let i = 0; i < 3; i++) await limiter.check("clinic", [rule("a")]);
+    expect((await limiter.check("clinic", [rule("b"), rule("a")])).allowed).toBe(false);
+    expect((await limiter.check("platform", [rule("a")])).allowed).toBe(true);
+  });
+
+  it("keys carry an HMAC of the value, never the value", () => {
+    const limiter = new RateLimiter(new FakeStore(), "s".repeat(32));
+    const key = limiter.key("clinic", rule("someone@example.com"));
+    expect(key).toMatch(/^eyadex:rl:clinic:sign-in-email:email:[0-9a-f]{64}$/);
+    expect(key).not.toContain("someone");
+  });
+});
+
+describe("rateRulesFor", () => {
+  const base = {
+    area: "clinic" as const,
+    ip: "192.0.2.1",
+    cookieHeader: undefined,
+    userId: undefined,
+  };
+
+  it("sign-in counts the IP and the normalised email", () => {
+    const rules = rateRulesFor({
+      ...base,
+      path: "/sign-in/email",
+      body: JSON.stringify({ email: "  A@Example.COM " }),
+    });
+    expect(rules.map((r) => [r.dimension, r.value, r.limit])).toEqual([
+      ["ip", "192.0.2.1", AUTH_LIMITS.signInPerIp],
+      ["email", "a@example.com", AUTH_LIMITS.signInPerEmail],
+    ]);
+  });
+
+  it("second factor counts the user, else the pending two_factor cookie", () => {
+    const withUser = rateRulesFor({
+      ...base,
+      path: "/two-factor/verify-totp",
+      body: "",
+      userId: "u1",
+    });
+    expect(withUser[1]?.value).toBe("user:u1");
+    const pending = rateRulesFor({
+      ...base,
+      path: "/two-factor/verify-backup-code",
+      body: "",
+      cookieHeader: "x=1; __Secure-eyadex-clinic.two_factor=abc",
+    });
+    expect(pending[1]?.value).toBe("pending:abc");
+    expect(pending[1]?.limit).toBe(AUTH_LIMITS.secondFactorPerSubject);
+  });
+
+  it("change-password and enable count the user; unlimited routes count nothing", () => {
+    expect(
+      rateRulesFor({ ...base, path: "/change-password", body: "", userId: "u1" })[0]?.limit,
+    ).toBe(AUTH_LIMITS.sensitivePerUser);
+    expect(rateRulesFor({ ...base, path: "/get-session", body: "" })).toEqual([]);
+  });
+
+  it("an untrusted client address shares one bucket", () => {
+    const rules = rateRulesFor({ ...base, ip: undefined, path: "/sign-in/email", body: "" });
+    expect(rules).toHaveLength(1);
+    expect(rules[0]?.value).toBe("untrusted");
+  });
+});

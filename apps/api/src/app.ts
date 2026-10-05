@@ -22,9 +22,11 @@ import { LogController, type FastifyReply, type FastifyRequest } from "fastify";
 
 import {
   AREA_AUTH,
+  AUTH_RATE_LIMIT,
   AuthModule,
   registerAuthRoutes,
   type AreaAuth,
+  type AuthRateLimit,
 } from "./modules/identity/index.ts";
 import { EnvelopeExceptionFilter } from "./shared/exception.filter.ts";
 import { HealthController } from "./shared/health.controller.ts";
@@ -197,7 +199,11 @@ export async function startApi(
 ): Promise<NestFastifyApplication> {
   // Outside the /v1 prefix: the proxy maps the browser's same-origin /api/auth/* here (ADR-0004).
   if (mountAuth) {
-    await registerAuthRoutes(app.getHttpAdapter().getInstance(), app.get<AreaAuth>(AREA_AUTH));
+    await registerAuthRoutes(
+      app.getHttpAdapter().getInstance(),
+      app.get<AreaAuth>(AREA_AUTH),
+      app.get<AuthRateLimit>(AUTH_RATE_LIMIT).limiter,
+    );
   }
   app.setGlobalPrefix("v1");
   app.useGlobalFilters(new EnvelopeExceptionFilter());

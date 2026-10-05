@@ -27,5 +27,6 @@
 
 - [x] `packages/auth` (Better Auth 1.7.7: email + password, sign-up disabled, two-factor, sessions in PostgreSQL, one cookie per area) + `db/sql/0023` auth tables granted to `eyadex_auth` only
 - [x] Slice 2b: Better Auth over HTTP, same-origin per area (ADR-0004): host-bound areas, `/auth/*` allowlist, `SessionGuard`, mandatory platform TOTP, per-user `/two-factor/enable` lock
-- [ ] Slice 2c: invitation acceptance (+ global email hold), membership deactivation / subscription checks in guards, Redis rate limiting (PRD §4.10)
+- [x] Slice 2c: Redis rate limiting of sign-in, two-factor, change-password (ADR-0005; fail closed)
+- [ ] Next: invitation acceptance (+ global email hold), membership deactivation / subscription checks in guards
 - [ ] Reverse-proxy routes `app.`/`platform.` `/api/*` → api with `/api` stripped (orchestrator)

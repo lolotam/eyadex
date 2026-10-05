@@ -88,6 +88,7 @@ beforeAll(async () => {
     AUTH_DATABASE_URL: AUTH_URL,
     BETTER_AUTH_SECRET: randomBytes(32).toString("hex"),
     TRUST_PROXY_HOPS: "0",
+    REDIS_URL: required("EYADEX_TEST_REDIS_URL"),
   });
   owner = postgres(OWNER_URL, { max: 2, onnotice: () => undefined });
   const sink = new Writable({ write: (_c, _e, done) => done() });
@@ -244,13 +245,14 @@ describe("same-origin auth over HTTP (ADR-0004)", () => {
       call({ url: "/auth/two-factor/enable", host: APP, cookie, body: { password } });
     const key = ENROLLMENT_LOCK_PREFIX + user.userId;
 
-    // Deterministic overlap: hold the lock as another session, then fire three — all must be refused.
+    // Deterministic overlap: hold the lock as another session, then fire two — both must be refused.
+    // Two + three below = 5: the per-user enable limit (ADR-0005) would refuse a 6th with 429.
     const held = await owner.reserve();
     await held`SELECT pg_advisory_lock(hashtextextended(${key}, 0))`;
-    const busy = await Promise.all([enable(), enable(), enable()]);
+    const busy = await Promise.all([enable(), enable()]);
     await held`SELECT pg_advisory_unlock(hashtextextended(${key}, 0))`;
     held.release();
-    expect(busy.map((r) => r.statusCode)).toEqual([409, 409, 409]);
+    expect(busy.map((r) => r.statusCode)).toEqual([409, 409]);
     expect(busy[0]!.json()).toMatchObject({ code: "two_factor_busy" });
 
     // Free race: no 500, one row, and the last 200 to finish holds the stored secret.
