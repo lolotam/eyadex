@@ -29,7 +29,7 @@ let actorId: string;
 beforeAll(async () => {
   h = await openHarness({}, true);
   const user = await createUser(h, h.areaAuth.of("platform"), "onboarder");
-  actorId = user.id;
+  actorId = user.userId;
   const signIn = await call(h, {
     url: "/auth/sign-in/email",
     host: PLATFORM,
