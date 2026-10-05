@@ -13,6 +13,7 @@
     "test:db": "vitest run --config vitest.db.config.ts"
   },
   "dependencies": {
+    "@eyadex/auth": "workspace:*",
     "@eyadex/contracts": "workspace:*",
     "@eyadex/db": "workspace:*",
     "@eyadex/ids": "workspace:*",
