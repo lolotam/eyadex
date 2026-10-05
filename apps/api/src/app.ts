@@ -20,6 +20,12 @@ import {
 } from "@eyadex/observability";
 import { LogController, type FastifyReply, type FastifyRequest } from "fastify";
 
+import {
+  AREA_AUTH,
+  AuthModule,
+  registerAuthRoutes,
+  type AreaAuth,
+} from "./modules/identity/index.ts";
 import { EnvelopeExceptionFilter } from "./shared/exception.filter.ts";
 import { HealthController } from "./shared/health.controller.ts";
 import { API_LOG_EVENTS } from "./shared/log-events.ts";
@@ -40,6 +46,11 @@ export interface AppDependencies {
    * its way to a non-zero exit: production exits 1 here, a test records the call.
    */
   readonly onUncleanShutdown?: (signal: string) => void;
+  /**
+   * Mounts Better Auth at `/auth/*` and provides `SessionGuard` (ADR-0004). Reads APP_URL, PLATFORM_URL,
+   * AUTH_DATABASE_URL, BETTER_AUTH_SECRET and TRUST_PROXY_HOPS from the environment.
+   */
+  readonly mountAuth?: boolean;
 }
 
 export interface AppOptions {
@@ -87,6 +98,7 @@ export function apiModule(
 ): DynamicModule {
   return {
     module: ApiModule,
+    imports: deps.mountAuth === true ? [AuthModule] : [],
     controllers: [HealthController, ...controllers],
     providers: [
       { provide: SHUTDOWN, useValue: deps.onShutdown ?? (async () => undefined) },
@@ -179,7 +191,14 @@ export function apiAdapter(logger: Logger, ids: IdGenerator): FastifyAdapter {
  * @param app the application Nest created, on any adapter
  * @returns the initialised application, not yet listening
  */
-export async function startApi(app: NestFastifyApplication): Promise<NestFastifyApplication> {
+export async function startApi(
+  app: NestFastifyApplication,
+  mountAuth = false,
+): Promise<NestFastifyApplication> {
+  // Outside the /v1 prefix: the proxy maps the browser's same-origin /api/auth/* here (ADR-0004).
+  if (mountAuth) {
+    await registerAuthRoutes(app.getHttpAdapter().getInstance(), app.get<AreaAuth>(AREA_AUTH));
+  }
   app.setGlobalPrefix("v1");
   app.useGlobalFilters(new EnvelopeExceptionFilter());
   await app.init();
@@ -207,5 +226,5 @@ export async function createApp(
     // exits) instead of Nest exiting the process itself.
     { logger: new PinoNestLogger(logger), abortOnError: false },
   );
-  return startApi(app);
+  return startApi(app, deps.mountAuth === true);
 }
