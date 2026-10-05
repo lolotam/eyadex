@@ -15,7 +15,7 @@ import postgres from "postgres";
 
 import { CLIENT_IP_HEADER, sessionAreaHook } from "./area-binding.ts";
 import { createEnrollmentLock, type LockedResult } from "./enrollment-lock.ts";
-import { assertOptions, assertPassword, type AuthArea } from "./options.ts";
+import { assertOptions, assertPassword, PASSWORD_LIMITS, type AuthArea } from "./options.ts";
 
 export type { AuthArea } from "./options.ts";
 
