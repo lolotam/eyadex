@@ -21,7 +21,7 @@ replicas, so an in-process counter would allow N times the limit.
     subject 5 / 5 min — the session's user id, else the area's pending `two_factor` cookie.
   - `POST /auth/change-password` and `/auth/two-factor/enable`: per user 5 / 15 min.
 - **No personal data in keys.** `eyadex:rl:<area>:<route>:<dimension>:<HMAC-SHA256(BETTER_AUTH_SECRET,
-  value) hex>`. The client IP comes only from `AreaHosts.clientIp` (ADR-0004); when the proxy chain is not
+value) hex>`. The client IP comes only from `AreaHosts.clientIp` (ADR-0004); when the proxy chain is not
   the deployed one, those requests share a single `untrusted` bucket.
 - **Fail closed.** If Redis errors or is unreachable (no offline queue, no command retry, 1 s timeout),
   the limited routes answer 503 with the `unknown` envelope and the error is logged sanitised. Routes
