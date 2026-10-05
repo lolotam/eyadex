@@ -7,12 +7,16 @@ import { API_ERROR_MESSAGES } from "./api-error-messages.ts";
 // could have produced it.
 const STATUS: Partial<Record<ApiErrorCode, number>> = {
   validation: 400,
+  reserved_slug: 400,
   unauthorized: 401,
   invalid_credentials: 401,
   forbidden: 403,
   two_factor_required: 403,
   not_found: 404,
   two_factor_busy: 409,
+  idempotency_conflict: 409,
+  slug_taken: 409,
+  email_taken: 409,
   rate_limited: 429,
   unknown: 500,
 };
