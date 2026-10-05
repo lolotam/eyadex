@@ -26,4 +26,6 @@
 ## Phase B — identity foundation
 
 - [x] `packages/auth` (Better Auth 1.7.7: email + password, sign-up disabled, two-factor, sessions in PostgreSQL, one cookie per area) + `db/sql/0023` auth tables granted to `eyadex_auth` only
-- [ ] Slice 2b: HTTP auth routes, TOTP enforcement on the platform host, invitation acceptance; serialize `/two-factor/enable` per user (ADR-0003)
+- [x] Slice 2b: Better Auth over HTTP, same-origin per area (ADR-0004): host-bound areas, `/auth/*` allowlist, `SessionGuard`, mandatory platform TOTP, per-user `/two-factor/enable` lock
+- [ ] Slice 2c: invitation acceptance (+ global email hold), membership deactivation / subscription checks in guards, Redis rate limiting (PRD §4.10)
+- [ ] Reverse-proxy routes `app.`/`platform.` `/api/*` → api with `/api` stripped (orchestrator)
