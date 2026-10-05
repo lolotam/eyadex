@@ -74,7 +74,7 @@ export async function openHarness(
     },
   });
   const app = await createApp(
-    { mountAuth: true, mountPlatform },
+    { mountAuth: true, mountPlatform, mountInvitations: mountPlatform },
     {
       logger: createLogger("info", { destination: sink, events: API_LOG_EVENTS }),
       controllers: [ProbeController],

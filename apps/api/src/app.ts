@@ -24,6 +24,7 @@ import {
   AREA_AUTH,
   AUTH_RATE_LIMIT,
   AuthModule,
+  InvitationsModule,
   registerAuthRoutes,
   type AreaAuth,
   type AuthRateLimit,
@@ -59,6 +60,8 @@ export interface AppDependencies {
    * DATABASE_URL, PLATFORM_DATABASE_URL and OUTBOX_SEAL_KEY.
    */
   readonly mountPlatform?: boolean;
+  /** Mounts `POST /v1/invitations/{inspect,accept}` (ADR-0008). Needs auth mounted and DATABASE_URL. */
+  readonly mountInvitations?: boolean;
 }
 
 export interface AppOptions {
@@ -109,6 +112,7 @@ export function apiModule(
     imports: [
       ...(deps.mountAuth === true ? [AuthModule] : []),
       ...(deps.mountPlatform === true ? [PlatformModule] : []),
+      ...(deps.mountInvitations === true ? [InvitationsModule] : []),
     ],
     controllers: [HealthController, ...controllers],
     providers: [

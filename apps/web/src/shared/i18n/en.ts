@@ -277,6 +277,10 @@ export const en = {
     two_factor_required: "Turn on two-step verification for your account to continue",
     invalid_credentials: "Those details are not correct; check them and try again",
     rate_limited: "Too many attempts; wait a moment and try again",
+    invitation_invalid:
+      "This invitation link is not valid or has expired; ask the clinic admin for a new invitation",
+    account_other_area:
+      "This email belongs to an account in another area; ask for an invitation with a different email",
     two_factor_busy:
       "Another two-step verification setup is in progress; wait a moment and try again",
     not_found: "Not found",

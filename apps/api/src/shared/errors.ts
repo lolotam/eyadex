@@ -13,10 +13,14 @@ const STATUS: Partial<Record<ApiErrorCode, number>> = {
   forbidden: 403,
   two_factor_required: 403,
   not_found: 404,
+  // One answer for used, expired, cancelled and unknown tokens (ADR-0008): 404, not 410, because 410
+  // would confirm the link once existed.
+  invitation_invalid: 404,
   two_factor_busy: 409,
   idempotency_conflict: 409,
   slug_taken: 409,
   email_taken: 409,
+  account_other_area: 409,
   rate_limited: 429,
   unknown: 500,
 };
@@ -62,4 +66,15 @@ export function codeForStatus(status: number): ApiErrorCode {
   const found = (Object.keys(STATUS) as ApiErrorCode[]).find((code) => STATUS[code] === status);
   if (found !== undefined) return found;
   return status >= 400 && status < 500 ? "validation" : "unknown";
+}
+
+/** A dependency the request must not pass without (the rate limiter's Redis) is down: 503, `unknown`. */
+export class ServiceUnavailableError extends ApiError {
+  constructor() {
+    super("unknown");
+  }
+
+  override get status(): number {
+    return 503;
+  }
 }

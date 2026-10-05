@@ -15,7 +15,7 @@ import postgres from "postgres";
 
 import { CLIENT_IP_HEADER, sessionAreaHook } from "./area-binding.ts";
 import { createEnrollmentLock, type LockedResult } from "./enrollment-lock.ts";
-import { assertOptions, PASSWORD_LIMITS, type AuthArea } from "./options.ts";
+import { assertOptions, assertPassword, PASSWORD_LIMITS, type AuthArea } from "./options.ts";
 
 export type { AuthArea } from "./options.ts";
 
@@ -139,6 +139,22 @@ export interface EyadexAuth {
    */
   createUserAccount(account: NewUserAccount): Promise<{ userId: string }>;
   /**
+   * الحساب اللي شايل الإيميل ده في أي منطقة (الجدول واحد للمنطقتين). اللي بينادي بيقرر: حساب من
+   * المنطقة التانية مابيتعادش استخدامه أبدًا (0024).
+   *
+   * @param email الإيميل
+   * @returns الـ id والمنطقة، أو `null`
+   */
+  findAccountByEmail(email: string): Promise<{ userId: string; area: AuthArea } | null>;
+  /**
+   * كلمة مرور جديدة بـ hasher بتاع Better Auth، وبيلغي الجلسات (ADR-0008؛ مفيش حذف مستخدمين).
+   *
+   * @param userId المستخدم
+   * @param password كلمة المرور الجديدة (`PASSWORD_LIMITS`)
+   * @returns بيخلص لما تتحفظ
+   */
+  setAccountPassword(userId: string, password: string): Promise<void>;
+  /**
    * بيلغي كل جلسات المستخدم فوراً (تعطيل المستخدم — PRD §4.10).
    *
    * @param userId الـ id بتاع المستخدم
@@ -209,11 +225,7 @@ export function createAuth(options: CreateAuthOptions): EyadexAuth {
   return {
     auth,
     createUserAccount: async ({ email, name, password }) => {
-      if (password.length < PASSWORD_LIMITS.min || password.length > PASSWORD_LIMITS.max) {
-        throw new RangeError(
-          `password must be ${PASSWORD_LIMITS.min}–${PASSWORD_LIMITS.max} characters`,
-        );
-      }
+      assertPassword(password);
       const context = await auth.$context;
       const hash = await context.password.hash(password);
       // User and credential row commit together: a failed linkAccount must not leave a user that can
@@ -238,6 +250,22 @@ export function createAuth(options: CreateAuthOptions): EyadexAuth {
         });
         return { userId: user.id };
       });
+    },
+    findAccountByEmail: async (email) => {
+      const rows = await client<{ id: string; area: AuthArea }[]>`
+        SELECT id, area FROM auth_users WHERE email = ${email.trim().toLowerCase()}`;
+      const row = rows[0];
+      return row === undefined ? null : { userId: row.id, area: row.area };
+    },
+    setAccountPassword: async (userId, password) => {
+      assertPassword(password);
+      const context = await auth.$context;
+      const rows = await client<
+        { area: AuthArea }[]
+      >`SELECT area FROM auth_users WHERE id = ${userId}`;
+      if (rows[0]?.area !== options.area) throw new Error("account is not in this area");
+      await context.internalAdapter.updatePassword(userId, await context.password.hash(password));
+      await context.internalAdapter.deleteUserSessions(userId);
     },
     getSession: async (headers) => {
       const found = await auth.api.getSession({ headers });
