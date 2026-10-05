@@ -95,6 +95,10 @@ function buildAuth(options: CreateAuthOptions, client: postgres.Sql) {
       twoFactor({ issuer: "Eyadex", backupCodeOptions: { storeBackupCodes: "encrypted" } }),
     ],
     telemetry: { enabled: false },
+    // Better Auth's own console logger writes outside the API's sanitising logger (CLAUDE.md §8): a line
+    // can carry an email or a provider message. Its failures still reach apps/api as thrown errors or
+    // non-2xx responses, which are logged there through the catalogue.
+    logger: { disabled: true },
     // Off: Better Auth's limiter is in-memory per process, so N replicas would allow N times the limit.
     // apps/api counts every limited route in Redis before Better Auth is called (ADR-0005).
     rateLimit: { enabled: false },

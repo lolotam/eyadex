@@ -105,3 +105,14 @@ jobs:
         env:
           EYADEX_TEST_OWNER_URL: postgres://eyadex_owner:ci-only-owner@localhost:5432/eyadex
           EYADEX_TEST_AUTH_URL: postgres://eyadex_auth:ci-only-auth@localhost:5432/eyadex
+
+  # The API's production image (apps/api/Dockerfile) must keep building, and must answer its health
+  # check as the non-root user — the same image Dokploy deploys (ADR-0006).
+  api-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the API image
+        run: docker build -f apps/api/Dockerfile -t eyadex-api:ci .
+      - name: The image runs as a non-root user
+        run: test "$(docker run --rm --entrypoint whoami eyadex-api:ci)" = "eyadex"
