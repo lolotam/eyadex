@@ -68,7 +68,13 @@ function buildAuth(options: CreateAuthOptions, client: postgres.Sql) {
       maxPasswordLength: PASSWORD_LIMITS.max,
     },
     // Sessions live only in PostgreSQL: no cookie cache, so a revoked session ends on the next request.
-    session: { cookieCache: { enabled: false } },
+    // `area` records which area issued the session; getSession refuses one from the other area.
+    session: {
+      cookieCache: { enabled: false },
+      additionalFields: {
+        area: { type: "string", required: true, input: false, defaultValue: options.area },
+      },
+    },
     user: { deleteUser: { enabled: false } },
     // Recovery codes are a second factor: encrypted at rest with the secret, like the TOTP secret.
     // 1.7.7 already defaults to "encrypted"; stated here so an upgrade cannot silently go plain.
@@ -95,6 +101,9 @@ export interface NewUserAccount {
   readonly password: string;
 }
 
+/** جلسة صالحة في المنطقة اللي طلبتها. */
+export type AreaSession = NonNullable<Awaited<ReturnType<AuthInstance["api"]["getSession"]>>>;
+
 /** اللي `createAuth` بيرجّعه. */
 export interface EyadexAuth {
   /** الـ instance نفسه (الـ handler والـ API بتاعه) — بيتربط على HTTP في slice 2b. */
@@ -113,6 +122,15 @@ export interface EyadexAuth {
    * @returns بيخلص لما الجلسات تتمسح
    */
   revokeUserSessions(userId: string): Promise<void>;
+  /**
+   * الجلسة الحالية لو صادرة من نفس المنطقة بس. المنطقتين بيشاركوا الجدول وسر التوقيع، فـ cookie
+   * عيادة اتنسخت باسم cookie المنصة بتتوقّع صح — العمود `area` هو اللي بيفصل (PRD §4.15).
+   * الـ guards في slice 2b لازم تستخدم دي، مش `auth.api.getSession` مباشرة.
+   *
+   * @param headers headers الطلب (فيها الـ cookie)
+   * @returns الجلسة والمستخدم، أو `null` لو مفيش جلسة أو صادرة من المنطقة التانية
+   */
+  getSession(headers: Headers): Promise<AreaSession | null>;
   /**
    * بيقفل الـ pool.
    *
@@ -169,6 +187,10 @@ export function createAuth(options: CreateAuthOptions): EyadexAuth {
         });
         return { userId: user.id };
       });
+    },
+    getSession: async (headers) => {
+      const found = await auth.api.getSession({ headers });
+      return found !== null && found.session.area === options.area ? found : null;
     },
     revokeUserSessions: async (userId) => {
       const context = await auth.$context;

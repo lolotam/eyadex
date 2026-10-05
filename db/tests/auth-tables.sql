@@ -24,12 +24,19 @@ BEGIN
         RAISE EXCEPTION 'AUTH: eyadex_auth lacks % on %', priv, tbl;
       END IF;
     END LOOP;
+    -- Nothing beyond the four DML privileges, on any table.
+    FOREACH priv IN ARRAY ARRAY['TRUNCATE','REFERENCES','TRIGGER'] LOOP
+      IF has_table_privilege('eyadex_auth', tbl, priv) THEN
+        RAISE EXCEPTION 'AUTH: eyadex_auth has % on %', priv, tbl;
+      END IF;
+    END LOOP;
+    -- DELETE everywhere except users (sign-out, revocation, expiry, disabling 2FA).
+    IF tbl <> 'auth_users' AND NOT has_table_privilege('eyadex_auth', tbl, 'DELETE') THEN
+      RAISE EXCEPTION 'AUTH: eyadex_auth lacks DELETE on %', tbl;
+    END IF;
   END LOOP;
   IF has_table_privilege('eyadex_auth', 'auth_users', 'DELETE') THEN
     RAISE EXCEPTION 'AUTH: eyadex_auth can hard-delete users';
-  END IF;
-  IF NOT has_table_privilege('eyadex_auth', 'auth_sessions', 'DELETE') THEN
-    RAISE EXCEPTION 'AUTH: eyadex_auth cannot revoke sessions';
   END IF;
 END $$;
 
@@ -38,20 +45,20 @@ SET LOCAL ROLE eyadex_auth;
 INSERT INTO auth_users (id, name, email, email_verified, image, two_factor_enabled, created_at, updated_at)
   VALUES ('00000000-0000-7000-8000-0000000023a1', 'Auth probe', 'auth-probe@example.com', false,
     NULL, false, now(), now());
-INSERT INTO auth_sessions (id, user_id, token, expires_at, ip_address, user_agent, created_at, updated_at)
+INSERT INTO auth_sessions (id, user_id, token, expires_at, ip_address, user_agent, area, created_at, updated_at)
   VALUES ('00000000-0000-7000-8000-0000000023a2', '00000000-0000-7000-8000-0000000023a1',
-    'auth-probe-not-a-real-token', now() + interval '1 day', NULL, NULL, now(), now());
+    'auth-probe-not-a-real-token', now() + interval '1 day', NULL, NULL, 'clinic', now(), now());
 DELETE FROM auth_sessions WHERE id = '00000000-0000-7000-8000-0000000023a2';
 -- One two-factor row per user: a second enrollment row is refused.
 INSERT INTO auth_two_factors (id, user_id, secret, backup_codes, verified, failed_verification_count, locked_until)
   VALUES ('00000000-0000-7000-8000-0000000023a3', '00000000-0000-7000-8000-0000000023a1', 'enc', 'enc',
-    false, NULL, NULL);
+    false, 0, NULL);
 DO $$
 BEGIN
   BEGIN
     INSERT INTO auth_two_factors (id, user_id, secret, backup_codes, verified, failed_verification_count, locked_until)
       VALUES ('00000000-0000-7000-8000-0000000023a4', '00000000-0000-7000-8000-0000000023a1', 'enc2',
-        'enc2', false, NULL, NULL);
+        'enc2', false, 0, NULL);
     RAISE EXCEPTION 'AUTH: a user got two two-factor rows';
   EXCEPTION WHEN unique_violation THEN NULL;
   END;
@@ -84,8 +91,8 @@ BEGIN
     EXCEPTION WHEN insufficient_privilege THEN NULL;
     END;
     BEGIN
-      INSERT INTO auth_sessions (id, user_id, token, expires_at, ip_address, user_agent, created_at, updated_at)
-        VALUES (gen_random_uuid(), '00000000-0000-7000-8000-0000000023a1', 'x', now(), NULL, NULL, now(), now());
+      INSERT INTO auth_sessions (id, user_id, token, expires_at, ip_address, user_agent, area, created_at, updated_at)
+        VALUES (gen_random_uuid(), '00000000-0000-7000-8000-0000000023a1', 'x', now(), NULL, NULL, 'clinic', now(), now());
       RAISE EXCEPTION 'AUTH: % wrote auth_sessions', other;
     EXCEPTION WHEN insufficient_privilege THEN NULL;
     END;

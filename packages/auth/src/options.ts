@@ -13,6 +13,13 @@ export const MIN_SECRET_LENGTH = 32;
 const AREAS: readonly string[] = ["platform", "clinic"];
 
 /**
+ * The only query parameters a database URL may carry. postgres.js copies every parameter it does not
+ * recognise into the startup message, after `user`: `?user=eyadex_owner` would log in as the owner
+ * while the username before `@` still reads eyadex_auth.
+ */
+const ALLOWED_URL_PARAMS: readonly string[] = ["sslmode"];
+
+/**
  * بيتأكد من الخيارات قبل ما أي pool يتفتح. الرسالة بتسمّي الخيار ومابتطبعش قيمته أبداً.
  *
  * @param options الخيارات الخام
@@ -32,6 +39,11 @@ export function assertOptions(options: {
   if (options.secret.length < MIN_SECRET_LENGTH) {
     throw new TypeError(`secret must be at least ${MIN_SECRET_LENGTH} characters`);
   }
+  // The .env.example placeholder is long enough to pass the length check; a copied example would
+  // sign cookies and encrypt every TOTP secret with a public value.
+  if (options.secret.trim().toLowerCase().startsWith("change-me")) {
+    throw new TypeError("secret is still the .env.example placeholder");
+  }
   let base: URL;
   try {
     base = new URL(options.baseUrl);
@@ -50,5 +62,10 @@ export function assertOptions(options: {
   // Better Auth runs on eyadex_auth only — never the owner, never eyadex_app (PRD §4.5).
   if (decodeURIComponent(database.username) !== "eyadex_auth") {
     throw new TypeError("databaseUrl must connect as eyadex_auth");
+  }
+  for (const key of database.searchParams.keys()) {
+    if (!ALLOWED_URL_PARAMS.includes(key)) {
+      throw new TypeError(`databaseUrl may not carry the "${key}" parameter`);
+    }
   }
 }

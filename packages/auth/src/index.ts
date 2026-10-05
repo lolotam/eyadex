@@ -1,6 +1,7 @@
 export {
   createAuth,
   type AuthArea,
+  type AreaSession,
   type AuthInstance,
   type CreateAuthOptions,
   type EyadexAuth,

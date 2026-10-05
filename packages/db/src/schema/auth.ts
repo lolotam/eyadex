@@ -1,5 +1,7 @@
+import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   foreignKey,
   index,
   integer,
@@ -38,11 +40,16 @@ export const authSessions = pgTable(
     expiresAt: timestamp("expires_at", tz).notNull(),
     ipAddress: text("ip_address"),
     userAgent: text("user_agent"),
+    area: text("area").notNull(),
     createdAt: timestamp("created_at", tz).notNull(),
     updatedAt: timestamp("updated_at", tz).notNull(),
   },
   (t) => [
     unique("auth_sessions_token_key").on(t.token),
+    check(
+      "auth_sessions_area_check",
+      sql.raw("(area = ANY (ARRAY['platform'::text, 'clinic'::text]))"),
+    ),
     index("auth_sessions_user_id_idx").on(t.userId),
     foreignKey({
       name: "auth_sessions_user_id_fkey",
@@ -100,8 +107,8 @@ export const authTwoFactors = pgTable(
     userId: uuid("user_id").notNull(),
     secret: text("secret").notNull(),
     backupCodes: text("backup_codes").notNull(),
-    verified: boolean("verified"),
-    failedVerificationCount: integer("failed_verification_count"),
+    verified: boolean("verified").notNull(),
+    failedVerificationCount: integer("failed_verification_count").notNull(),
     lockedUntil: timestamp("locked_until", tz),
   },
   (t) => [

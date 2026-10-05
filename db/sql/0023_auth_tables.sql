@@ -23,6 +23,10 @@ CREATE TABLE auth_sessions (
   expires_at timestamptz NOT NULL,
   ip_address text NULL,
   user_agent text NULL,
+  -- The area that issued the session (PRD §4.15). Both areas share this table and the signing
+  -- secret, so the cookie name alone cannot keep a clinic session off the platform host: the
+  -- session check compares this column with the area of the instance reading it.
+  area       text NOT NULL CHECK (area IN ('platform', 'clinic')),
   created_at timestamptz NOT NULL,
   updated_at timestamptz NOT NULL
 );
@@ -63,8 +67,11 @@ CREATE TABLE auth_two_factors (
   user_id                   uuid NOT NULL REFERENCES auth_users (id),
   secret                    text NOT NULL,
   backup_codes              text NOT NULL,
-  verified                  boolean NULL,
-  failed_verification_count integer NULL,
+  -- NOT NULL: Better Auth reads `verified !== false` as verified and adds 1 to the failure count
+  -- for its lockout; NULL would read as verified and never reach the limit. Better Auth always
+  -- writes both (false / 0) on create.
+  verified                  boolean NOT NULL,
+  failed_verification_count integer NOT NULL,
   locked_until              timestamptz NULL,
   -- One row per user: Better Auth 1.7.7 enrolls with an unguarded findOne + create, so two
   -- overlapping first enrollments would otherwise leave two secrets and later lookups pick one

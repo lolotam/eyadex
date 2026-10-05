@@ -41,6 +41,14 @@ session code.
   its credential account through Better Auth's internal adapter.
 - **Two cookies.** `advanced.cookiePrefix` is `eyadex-platform` or `eyadex-clinic`, cookies are
   host-only (no cross-subdomain option) and secure on https, so the areas never share a session.
+- **Area-bound sessions.** Both areas share `auth_sessions` and one `BETTER_AUTH_SECRET` (it also
+  encrypts the per-user TOTP secret, so it cannot be split per area). A clinic cookie copied under
+  the platform cookie name would therefore verify. Each session row records `area`, and
+  `EyadexAuth.getSession` returns `null` for a session from the other area. **Slice 2b guards must
+  use it**, and must refuse other-area sessions on every Better Auth route that reads a session.
+- **Role guard covers the URL query.** postgres.js sends unknown URL parameters in the startup
+  message after `user`, so `?user=eyadex_owner` would log in as the owner; only `sslmode` is allowed.
+  The `.env.example` placeholder secret is refused.
 - **Sessions.** Database sessions only, cookie cache off: `revokeUserSessions` deletes every row and
   the next request has no session.
 - **Two-factor.** The two-factor plugin is configured for every area; making it mandatory on the

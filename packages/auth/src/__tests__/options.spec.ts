@@ -32,6 +32,20 @@ describe("assertOptions", () => {
     }
   });
 
+  it("NEGATIVE: refuses a query parameter that would override the login role", () => {
+    for (const query of ["user=eyadex_owner", "options=-c%20role%3Deyadex_owner", "database=x"]) {
+      const databaseUrl = `postgres://eyadex_auth:change-me@localhost:5432/eyadex?${query}`;
+      expect(() => assertOptions({ ...valid, databaseUrl })).toThrow(/parameter/);
+    }
+    const tls = "postgres://eyadex_auth:change-me@localhost:5432/eyadex?sslmode=require";
+    expect(() => assertOptions({ ...valid, databaseUrl: tls })).not.toThrow();
+  });
+
+  it("refuses the .env.example placeholder secret", () => {
+    const secret = "change-me-to-32-or-more-random-characters";
+    expect(() => assertOptions({ ...valid, secret })).toThrow(/placeholder/);
+  });
+
   it("refuses a relative or non-http base URL", () => {
     expect(() => assertOptions({ ...valid, baseUrl: "/clinic" })).toThrow(/baseUrl/);
     expect(() => assertOptions({ ...valid, baseUrl: "ftp://example.com" })).toThrow(/baseUrl/);

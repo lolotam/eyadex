@@ -26,6 +26,7 @@ const uniqueEmail = (label: string) => `${label}-${ids.newId()}@example.com`;
 
 let owner: Sql;
 let clinic: EyadexAuth;
+let platform: EyadexAuth;
 
 /** يحوّل الـ Set-Cookie بتاع الرد لـ headers طلب تالي. */
 const cookieHeaders = (response: Response): Headers => {
@@ -38,17 +39,27 @@ const signIn = (email: string, pass: string) =>
 
 beforeAll(() => {
   owner = postgres(OWNER_URL, { max: 1, onnotice: () => undefined });
+  // One secret for both areas, as in production: it also encrypts the per-user TOTP secret.
+  const secret = randomBytes(32).toString("hex");
   clinic = createAuth({
     area: "clinic",
     databaseUrl: AUTH_URL,
-    secret: randomBytes(32).toString("hex"),
+    secret,
     baseUrl: "http://localhost:3000",
+    ids,
+  });
+  platform = createAuth({
+    area: "platform",
+    databaseUrl: AUTH_URL,
+    secret,
+    baseUrl: "http://localhost:3001",
     ids,
   });
 });
 
 afterAll(async () => {
   await clinic.close();
+  await platform.close();
   await owner.end();
 });
 
@@ -96,6 +107,22 @@ describe("Better Auth on eyadex_auth", () => {
     const context = await clinic.auth.$context;
     const found = await context.internalAdapter.findSession(session?.session.token ?? "");
     expect(found?.user.id).toBe(userId);
+  });
+
+  it("NEGATIVE: a clinic session replayed under the platform cookie name is refused", async () => {
+    const email = uniqueEmail("area");
+    const { userId } = await clinic.createUserAccount({ email, name: "Area", password });
+    const clinicHeaders = cookieHeaders(await signIn(email, password));
+    const [row] = await owner<{ area: string }[]>`
+      SELECT area FROM auth_sessions WHERE user_id = ${userId}`;
+    expect(row?.area).toBe("clinic");
+    expect((await clinic.getSession(clinicHeaders))?.user.id).toBe(userId);
+    const replayed = new Headers({
+      cookie: (clinicHeaders.get("cookie") ?? "").replaceAll("eyadex-clinic.", "eyadex-platform."),
+    });
+    // Same secret, same table: Better Auth alone accepts it — the area check is what refuses it.
+    expect(await platform.auth.api.getSession({ headers: replayed })).not.toBeNull();
+    expect(await platform.getSession(replayed)).toBeNull();
   });
 
   it("refuses a wrong password", async () => {
