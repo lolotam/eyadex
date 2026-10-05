@@ -27,8 +27,16 @@ export const authUsers = pgTable(
     twoFactorEnabled: boolean("two_factor_enabled"),
     createdAt: timestamp("created_at", tz).notNull(),
     updatedAt: timestamp("updated_at", tz).notNull(),
+    // 0024: the one area this account may sign in to.
+    area: text("area").notNull(),
   },
-  (t) => [unique("auth_users_email_key").on(t.email)],
+  (t) => [
+    unique("auth_users_email_key").on(t.email),
+    check(
+      "auth_users_area_check",
+      sql.raw("(area = ANY (ARRAY['platform'::text, 'clinic'::text]))"),
+    ),
+  ],
 );
 
 export const authSessions = pgTable(

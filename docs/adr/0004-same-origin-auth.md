@@ -39,6 +39,23 @@ called `api.eyadex.com` directly, both areas' cookies would be stored for one ho
   since Better Auth alone would accept it (ADR-0003).
 - **No disabling TOTP on the platform.** `/two-factor/disable` is reachable on the clinic host only; on
   the platform host it answers 404, so a stolen session plus password cannot swap the second factor.
+- **One account, one area (`0024`).** `auth_users.area` is set by the instance that creates the account,
+  and `databaseHooks.session.create.before` refuses to mint a session for a user of the other area — one
+  hook for sign-in, verify-totp/backup-code with the `two_factor` cookie and trusted devices. The refusal
+  reads as `invalid_credentials`. A person who needs both areas holds two accounts with two emails.
+- **Enrollment lock on its own pool.** The lock is a `pg_try_advisory_xact_lock` inside a transaction on
+  a dedicated 3-connection pool, counted in memory before a connection is taken; when all are busy the
+  answer is 409 at once. On Better Auth's own pool, a few users enrolling together held every connection
+  and the whole area's sign-in hung. (`reserve()` is avoided: postgres.js 3.4.9 never resolves it on a
+  pool with no open connection when `fetch_types` is false.)
+- **Client IP.** Better Auth reads the IP only from `x-eyadex-client-ip`, which the API overwrites on
+  every request from the socket (`TRUST_PROXY_HOPS=0`) or the address our outermost proxy appended; a
+  client-sent `X-Forwarded-For` neither spoofs it nor collapses everyone into one rate-limit bucket.
+- **Platform TOTP stays mandatory.** `trustDevice` is refused (400) on the platform host, and when a
+  platform user completes enrollment every other session — opened with the password alone — is revoked.
+- **Error envelope.** A failed Better Auth answer leaves as the catalogued envelope
+  (`invalid_credentials`, `unauthorized`, `forbidden`, `rate_limited`, `validation`, `unknown`), never
+  Better Auth's own body.
 - **Origin check.** `trustedOrigins` is the area origin only, and `disableOriginCheck: false` is set
   explicitly: Better Auth otherwise skips the check when `NODE_ENV` is `test`.
 

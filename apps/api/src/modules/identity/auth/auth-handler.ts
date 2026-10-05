@@ -1,17 +1,25 @@
-import type { AuthArea, EyadexAuth } from "@eyadex/auth";
+import { CLIENT_IP_HEADER, type AuthArea, type EyadexAuth } from "@eyadex/auth";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 
 import { ApiError } from "../../../shared/errors.ts";
 import { hasTwoFactor, toHeaders, type AreaAuth } from "./area-auth.ts";
-import { ENABLE_TWO_FACTOR_PATH, findAuthRoute } from "./auth-routes.ts";
+import { authFailure } from "./auth-errors.ts";
+import {
+  ENABLE_TWO_FACTOR_PATH,
+  findAuthRoute,
+  TRUST_DEVICE_PATHS,
+  VERIFY_TOTP_PATH,
+} from "./auth-routes.ts";
 
-// Hop-by-hop or recomputed by the Fetch Request; forwarding them could desync the body.
+// Hop-by-hop or recomputed by the Fetch Request; forwarding them could desync the body. The client IP
+// header is always rewritten below, so whatever the client sent under that name is dropped first.
 const DROPPED = new Set([
   "host",
   "connection",
   "content-length",
   "transfer-encoding",
   "keep-alive",
+  CLIENT_IP_HEADER,
 ]);
 
 const fail = (reply: FastifyReply, error: ApiError) =>
@@ -19,28 +27,46 @@ const fail = (reply: FastifyReply, error: ApiError) =>
 
 /**
  * يبعت الطلب لـ Better Auth بالـ URL اللي المتصفح شايفه: الـ proxy شال `/api`، فبنرجّعه عشان يطابق
- * `basePath` (`/api/auth`) — ADR-0004.
+ * `basePath` (`/api/auth`) — ADR-0004. عنوان العميل بيتحسب هنا بس (socket أو الـ proxies الموثوقة).
  */
 async function forward(
-  instance: EyadexAuth,
-  origin: string,
+  areaAuth: AreaAuth,
+  area: AuthArea,
   request: FastifyRequest,
 ): Promise<Response> {
   const headers = toHeaders(request.headers);
   for (const name of DROPPED) headers.delete(name);
+  const ip = areaAuth.hosts.clientIp(request.headers, request.socket.remoteAddress);
+  if (ip !== undefined) headers.set(CLIENT_IP_HEADER, ip);
   const init: RequestInit = { method: request.method, headers };
   if (request.method !== "GET") init.body = (request.body as string | undefined) ?? "";
-  return instance.auth.handler(new Request(new URL(`/api${request.url}`, origin), init));
+  const url = new URL(`/api${request.url}`, areaAuth.hosts.origin(area));
+  return areaAuth.of(area).auth.handler(new Request(url, init));
 }
 
+/** A failed Better Auth answer leaves as the API envelope; a successful one passes through as is. */
 async function write(reply: FastifyReply, response: Response): Promise<void> {
+  const body = await response.text();
+  const cookies = response.headers.getSetCookie();
+  if (cookies.length > 0) void reply.header("set-cookie", cookies);
+  if (response.status >= 400) return fail(reply, authFailure(response.status, body));
   void reply.code(response.status);
   response.headers.forEach((value, name) => {
     if (name !== "set-cookie" && name !== "content-length") void reply.header(name, value);
   });
-  const cookies = response.headers.getSetCookie();
-  if (cookies.length > 0) void reply.header("set-cookie", cookies);
-  await reply.send(await response.text());
+  await reply.send(body);
+}
+
+/** Platform verify routes refuse `trustDevice`: a remembered browser would skip mandatory TOTP. */
+function asksToTrustDevice(body: unknown): boolean {
+  if (typeof body !== "string" || body === "") return false;
+  try {
+    const parsed = JSON.parse(body) as unknown;
+    return typeof parsed !== "object" || parsed === null || "trustDevice" in parsed;
+  } catch {
+    // Not JSON: Better Auth would read it some other way; refuse rather than guess what it carries.
+    return true;
+  }
 }
 
 async function handle(areaAuth: AreaAuth, request: FastifyRequest, reply: FastifyReply) {
@@ -52,16 +78,19 @@ async function handle(areaAuth: AreaAuth, request: FastifyRequest, reply: Fastif
     return fail(reply, new ApiError("not_found"));
   }
 
-  const instance = areaAuth.of(area);
+  const instance: EyadexAuth = areaAuth.of(area);
   // A session from the other area (a cookie renamed across hosts) is refused on EVERY auth route, not
   // only on /v1: Better Auth alone accepts it (same table, same secret), so change-password, enable or
   // sign-out would otherwise act on it (ADR-0003).
   if (await instance.isForeignSession(toHeaders(request.headers))) {
     return fail(reply, new ApiError("unauthorized"));
   }
-  const origin = areaAuth.hosts.origin(area);
+  if (area === "platform" && TRUST_DEVICE_PATHS.has(path) && asksToTrustDevice(request.body)) {
+    return fail(reply, new ApiError("validation"));
+  }
   const needsSession =
-    (area === "platform" && !route.beforeTwoFactor) || path === ENABLE_TWO_FACTOR_PATH;
+    (area === "platform" && (!route.beforeTwoFactor || path === VERIFY_TOTP_PATH)) ||
+    path === ENABLE_TWO_FACTOR_PATH;
   // Always the area-bound lookup (ADR-0003), never auth.api.getSession.
   const session = needsSession ? await instance.getSession(toHeaders(request.headers)) : null;
 
@@ -71,13 +100,34 @@ async function handle(areaAuth: AreaAuth, request: FastifyRequest, reply: Fastif
   }
   if (path === ENABLE_TWO_FACTOR_PATH && session !== null) {
     const locked = await instance.withEnrollmentLock(session.user.id, () =>
-      forward(instance, origin, request),
+      forward(areaAuth, area, request),
     );
     if (!locked.acquired) return fail(reply, new ApiError("two_factor_busy"));
     return write(reply, locked.value);
   }
   // TODO(spec): Redis-backed rate limiting of sign-in and two-factor (PRD §4.10) belongs here.
-  return write(reply, await forward(instance, origin, request));
+  const response = await forward(areaAuth, area, request);
+  // Platform enrollment just completed: sessions opened with the password alone before it must not
+  // inherit full access now that the user's two-factor flag is on — only the new session stays.
+  if (
+    area === "platform" &&
+    path === VERIFY_TOTP_PATH &&
+    response.ok &&
+    session !== null &&
+    !hasTwoFactor(session)
+  ) {
+    const keep = new Headers({ cookie: cookiesOf(response) });
+    await instance.revokeOtherSessions(session.user.id, keep);
+  }
+  return write(reply, response);
+}
+
+/** The `name=value` pairs a response sets, as a request `Cookie` header. */
+function cookiesOf(response: Response): string {
+  return response.headers
+    .getSetCookie()
+    .map((line) => line.split(";")[0])
+    .join("; ");
 }
 
 /**

@@ -80,6 +80,25 @@ export class AreaHosts {
     return null;
   }
 
+  /**
+   * عنوان العميل الحقيقي: من الـ socket لو `TRUST_PROXY_HOPS = 0`، وإلا العنوان اللي أبعد proxy بتاعنا
+   * ضافه في `X-Forwarded-For` (العدّ من اليمين). اللي العميل كتبه بنفسه في الـ header مابيتقراش.
+   *
+   * @param headers headers الطلب الخام
+   * @param socketAddress عنوان الطرف التاني للـ socket
+   * @returns العنوان، أو `undefined` لو السلسلة مش زي ما ركّبناها
+   */
+  clientIp(headers: RawHeaders, socketAddress: string | undefined): string | undefined {
+    if (this.trustProxyHops === 0) return socketAddress;
+    const forwarded = headers["x-forwarded-for"];
+    const list = (Array.isArray(forwarded) ? forwarded.join(",") : (forwarded ?? ""))
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+    if (list.length < this.trustProxyHops) return undefined;
+    return list[list.length - this.trustProxyHops];
+  }
+
   private hostOf(headers: RawHeaders): string | undefined {
     if (this.trustProxyHops === 0) return first(headers["host"]);
     const forwarded = headers["x-forwarded-host"];

@@ -27,6 +27,12 @@ const ROUTES: readonly AuthRoute[] = [
 ];
 
 export const ENABLE_TWO_FACTOR_PATH = "/two-factor/enable";
+export const VERIFY_TOTP_PATH = "/two-factor/verify-totp";
+/** Routes whose body may carry `trustDevice` (Better Auth's 30-day "skip TOTP on this browser"). */
+export const TRUST_DEVICE_PATHS: ReadonlySet<string> = new Set([
+  VERIFY_TOTP_PATH,
+  "/two-factor/verify-backup-code",
+]);
 
 /**
  * بيدوّر على المسار في الـ allowlist بمطابقة حرفية (مفيش decode ولا trailing slash).

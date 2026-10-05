@@ -13,7 +13,8 @@ import { twoFactor } from "better-auth/plugins/two-factor";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
-import { withEnrollmentLock, type LockedResult } from "./enrollment-lock.ts";
+import { CLIENT_IP_HEADER, sessionAreaHook } from "./area-binding.ts";
+import { createEnrollmentLock, type LockedResult } from "./enrollment-lock.ts";
 import { assertOptions, PASSWORD_LIMITS, type AuthArea } from "./options.ts";
 
 export type { AuthArea } from "./options.ts";
@@ -55,6 +56,7 @@ function buildAuth(options: CreateAuthOptions, client: postgres.Sql) {
   // Parsed once: `HTTPS://Host` or surrounding spaces pass assertOptions, so every setting below
   // reads the normalized origin and protocol, never the raw spelling.
   const base = new URL(options.baseUrl);
+  const db = drizzle(client);
   return betterAuth({
     appName: "Eyadex",
     baseURL: base.origin,
@@ -63,7 +65,9 @@ function buildAuth(options: CreateAuthOptions, client: postgres.Sql) {
     trustedOrigins: [base.origin],
     // The adapter's default is `transaction: false`, which runs Better Auth's multi-row writes
     // (and runWithTransaction below) as separate statements.
-    database: drizzleAdapter(drizzle(client), { provider: "pg", schema, transaction: true }),
+    database: drizzleAdapter(db, { provider: "pg", schema, transaction: true }),
+    // One account, one area (0024): no session is minted for a user of the other area, whatever the path.
+    databaseHooks: { session: { create: { before: sessionAreaHook(db, options.area) } } },
     emailAndPassword: {
       enabled: true,
       // No self sign-up (PRD §4.10): accounts come only from createUserAccount.
@@ -79,7 +83,10 @@ function buildAuth(options: CreateAuthOptions, client: postgres.Sql) {
         area: { type: "string", required: true, input: false, defaultValue: options.area },
       },
     },
-    user: { deleteUser: { enabled: false } },
+    user: {
+      deleteUser: { enabled: false },
+      additionalFields: { area: { type: "string", required: true, input: false } },
+    },
     // Recovery codes are a second factor: encrypted at rest with the secret, like the TOTP secret.
     // 1.7.7 already defaults to "encrypted"; stated here so an upgrade cannot silently go plain.
     plugins: [
@@ -92,6 +99,7 @@ function buildAuth(options: CreateAuthOptions, client: postgres.Sql) {
       useSecureCookies: base.protocol === "https:",
       // Better Auth skips the Origin check when NODE_ENV is "test"; stated false so tests see production.
       disableOriginCheck: false,
+      ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] },
       database: { generateId: () => options.ids.newId() },
     },
   });
@@ -154,6 +162,15 @@ export interface EyadexAuth {
    */
   withEnrollmentLock<T>(userId: string, fn: () => Promise<T>): Promise<LockedResult<T>>;
   /**
+   * بيلغي كل جلسات المستخدم ما عدا الجلسة اللي في الـ headers. بيتنده بعد ما مستخدم منصة يكمّل تسجيل
+   * TOTP: الجلسات اللي اتعملت بكلمة المرور بس قبل التسجيل ماتبقاش جلسات كاملة الصلاحية.
+   *
+   * @param userId المستخدم
+   * @param keep headers فيها cookie الجلسة اللي تفضل
+   * @returns بيخلص لما الجلسات التانية تتمسح
+   */
+  revokeOtherSessions(userId: string, keep: Headers): Promise<void>;
+  /**
    * بيقفل الـ pool.
    *
    * @returns بيخلص لما الاتصالات تتقفل
@@ -178,6 +195,7 @@ export function createAuth(options: CreateAuthOptions): EyadexAuth {
     connection: { application_name: `eyadex_auth:${options.area}` },
   });
   const auth = buildAuth(options, client);
+  const lock = createEnrollmentLock(options.databaseUrl, `eyadex_auth:${options.area}:lock`);
 
   return {
     auth,
@@ -198,6 +216,8 @@ export function createAuth(options: CreateAuthOptions): EyadexAuth {
             email: email.trim().toLowerCase(),
             name,
             emailVerified: true,
+            // The instance's own area: a clinic instance creates clinic accounts only (0024).
+            area: options.area,
           },
           { method: "admin" },
         );
@@ -222,9 +242,18 @@ export function createAuth(options: CreateAuthOptions): EyadexAuth {
       const context = await auth.$context;
       await context.internalAdapter.deleteUserSessions(userId);
     },
-    withEnrollmentLock: (userId, fn) => withEnrollmentLock(client, userId, fn),
+    withEnrollmentLock: (userId, fn) => lock.run(userId, fn),
+    revokeOtherSessions: async (userId, keep) => {
+      const kept = await auth.api.getSession({ headers: keep });
+      const context = await auth.$context;
+      for (const session of await context.internalAdapter.listSessions(userId)) {
+        if (session.token !== kept?.session.token) {
+          await context.internalAdapter.deleteSession(session.token);
+        }
+      }
+    },
     close: async () => {
-      await client.end({ timeout: 5 });
+      await Promise.all([client.end({ timeout: 5 }), lock.close()]);
     },
   };
 }

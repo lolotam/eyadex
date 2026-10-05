@@ -1,5 +1,30 @@
 import { describe, expect, it } from "vitest";
 
+import { AreaHosts as Hosts } from "../area-hosts.ts";
+
+describe("AreaHosts.clientIp", () => {
+  const hosts = (trustProxyHops: number) =>
+    new Hosts({
+      appUrl: "https://app.eyadex.test",
+      platformUrl: "https://platform.eyadex.test",
+      trustProxyHops,
+    });
+
+  it("uses the socket and ignores a client-sent X-Forwarded-For when no proxy is trusted", () => {
+    expect(hosts(0).clientIp({ "x-forwarded-for": "6.6.6.6" }, "10.0.0.9")).toBe("10.0.0.9");
+  });
+
+  it("takes the address our outermost proxy appended, not what the client prepended", () => {
+    const headers = { "x-forwarded-for": "6.6.6.6, 203.0.113.7, 10.0.0.2" };
+    expect(hosts(2).clientIp(headers, "10.0.0.3")).toBe("203.0.113.7");
+    expect(hosts(1).clientIp(headers, "10.0.0.3")).toBe("10.0.0.2");
+  });
+
+  it("trusts nothing when the chain is shorter than the configured hops", () => {
+    expect(hosts(2).clientIp({ "x-forwarded-for": "203.0.113.7" }, "10.0.0.3")).toBeUndefined();
+  });
+});
+
 import { AreaHosts } from "../area-hosts.ts";
 import { findAuthRoute } from "../auth-routes.ts";
 
