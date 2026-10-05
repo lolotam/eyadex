@@ -69,3 +69,17 @@ export function assertOptions(options: {
     }
   }
 }
+
+/**
+ * بيرفض كلمة مرور برا `PASSWORD_LIMITS` قبل أي hash.
+ *
+ * @param password كلمة المرور
+ * @returns مفيش
+ */
+export function assertPassword(password: string): void {
+  if (password.length < PASSWORD_LIMITS.min || password.length > PASSWORD_LIMITS.max) {
+    throw new RangeError(
+      `password must be ${PASSWORD_LIMITS.min}–${PASSWORD_LIMITS.max} characters`,
+    );
+  }
+}
