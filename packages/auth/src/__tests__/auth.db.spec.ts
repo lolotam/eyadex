@@ -63,6 +63,26 @@ describe("Better Auth on eyadex_auth", () => {
     expect(row?.password).not.toContain(password);
   });
 
+  it("NEGATIVE: a failed credential write leaves no user behind (one transaction)", async () => {
+    const email = uniqueEmail("atomic");
+    const context = await clinic.auth.$context;
+    const linkAccount = context.internalAdapter.linkAccount;
+    context.internalAdapter.linkAccount = () =>
+      Promise.reject(new Error("credential write failed"));
+    try {
+      await expect(clinic.createUserAccount({ email, name: "Atomic", password })).rejects.toThrow(
+        "credential write failed",
+      );
+    } finally {
+      context.internalAdapter.linkAccount = linkAccount;
+    }
+    expect(await owner`SELECT 1 FROM auth_users WHERE email = ${email}`).toHaveLength(0);
+    // The email is still free: the retry succeeds.
+    await expect(clinic.createUserAccount({ email, name: "Atomic", password })).resolves.toEqual({
+      userId: expect.any(String),
+    });
+  });
+
   it("signs in with the right password and finds the session by its token", async () => {
     const email = uniqueEmail("signin");
     const { userId } = await clinic.createUserAccount({ email, name: "Sign in", password });
@@ -125,10 +145,12 @@ describe("Better Auth on eyadex_auth", () => {
     const [user] = await owner<{ two_factor_enabled: boolean }[]>`
       SELECT two_factor_enabled FROM auth_users WHERE id = ${userId}`;
     expect(user?.two_factor_enabled).toBe(true);
-    const [secretRow] = await owner<{ secret: string }[]>`
-      SELECT secret FROM auth_two_factors WHERE user_id = ${userId}`;
-    // Stored encrypted, never as the plain base32 secret the URI carries.
+    const [secretRow] = await owner<{ secret: string; backup_codes: string }[]>`
+      SELECT secret, backup_codes FROM auth_two_factors WHERE user_id = ${userId}`;
+    // Stored encrypted, never as the plain base32 secret the URI carries nor the recovery codes.
     const plain = new URL(enabled.totpURI).searchParams.get("secret") ?? "";
     expect(secretRow?.secret).not.toContain(plain);
+    expect(enabled.backupCodes.length).toBeGreaterThan(0);
+    for (const code of enabled.backupCodes) expect(secretRow?.backup_codes).not.toContain(code);
   });
 });

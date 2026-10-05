@@ -6,6 +6,7 @@ import {
   authVerifications,
 } from "@eyadex/db/schema";
 import type { IdGenerator } from "@eyadex/ids";
+import { runWithTransaction } from "@better-auth/core/context";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { twoFactor } from "better-auth/plugins/two-factor";
@@ -53,7 +54,9 @@ function buildAuth(options: CreateAuthOptions, client: postgres.Sql) {
     baseURL: options.baseUrl,
     secret: options.secret,
     trustedOrigins: [options.baseUrl],
-    database: drizzleAdapter(drizzle(client), { provider: "pg", schema }),
+    // The adapter's default is `transaction: false`, which runs Better Auth's multi-row writes
+    // (and runWithTransaction below) as separate statements.
+    database: drizzleAdapter(drizzle(client), { provider: "pg", schema, transaction: true }),
     emailAndPassword: {
       enabled: true,
       // No self sign-up (PRD §4.10): accounts come only from createUserAccount.
@@ -64,7 +67,11 @@ function buildAuth(options: CreateAuthOptions, client: postgres.Sql) {
     // Sessions live only in PostgreSQL: no cookie cache, so a revoked session ends on the next request.
     session: { cookieCache: { enabled: false } },
     user: { deleteUser: { enabled: false } },
-    plugins: [twoFactor({ issuer: "Eyadex" })],
+    // Recovery codes are a second factor: encrypted at rest with the secret, like the TOTP secret.
+    // 1.7.7 already defaults to "encrypted"; stated here so an upgrade cannot silently go plain.
+    plugins: [
+      twoFactor({ issuer: "Eyadex", backupCodeOptions: { storeBackupCodes: "encrypted" } }),
+    ],
     telemetry: { enabled: false },
     advanced: {
       // A distinct prefix per area: app. and platform. never share a session cookie (PRD §4.15).
@@ -139,23 +146,26 @@ export function createAuth(options: CreateAuthOptions): EyadexAuth {
       }
       const context = await auth.$context;
       const hash = await context.password.hash(password);
-      // TODO(spec): one transaction for user + credential row, and the global email hold (0015),
-      // belong to the identity use case that calls this (invitation acceptance, slice 2b+).
-      const user = await context.internalAdapter.createUser(
-        {
-          email: email.trim().toLowerCase(),
-          name,
-          emailVerified: true,
-        },
-        { method: "admin" },
-      );
-      await context.internalAdapter.linkAccount({
-        userId: user.id,
-        providerId: "credential",
-        accountId: user.id,
-        password: hash,
+      // User and credential row commit together: a failed linkAccount must not leave a user that can
+      // never sign in while holding the email. TODO(spec): the global email hold (0015) belongs to
+      // the identity use case that calls this (invitation acceptance, slice 2b+).
+      return runWithTransaction(context.adapter, async () => {
+        const user = await context.internalAdapter.createUser(
+          {
+            email: email.trim().toLowerCase(),
+            name,
+            emailVerified: true,
+          },
+          { method: "admin" },
+        );
+        await context.internalAdapter.linkAccount({
+          userId: user.id,
+          providerId: "credential",
+          accountId: user.id,
+          password: hash,
+        });
+        return { userId: user.id };
       });
-      return { userId: user.id };
     },
     revokeUserSessions: async (userId) => {
       const context = await auth.$context;

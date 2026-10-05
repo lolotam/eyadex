@@ -18,6 +18,7 @@
     "test:db": "vitest run --config vitest.db.config.ts"
   },
   "dependencies": {
+    "@better-auth/core": "1.7.7",
     "@eyadex/db": "workspace:*",
     "@eyadex/ids": "workspace:*",
     "better-auth": "1.7.7",
