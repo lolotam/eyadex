@@ -4,6 +4,8 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { ApiError } from "../../../shared/errors.ts";
 import { hasTwoFactor, toHeaders, type AreaAuth } from "./area-auth.ts";
 import { authFailure } from "./auth-errors.ts";
+import { rateRulesFor } from "./auth-rate-limits.ts";
+import type { RateLimiter } from "./rate-limiter.ts";
 import {
   ENABLE_TWO_FACTOR_PATH,
   findAuthRoute,
@@ -69,7 +71,54 @@ function asksToTrustDevice(body: unknown): boolean {
   }
 }
 
-async function handle(areaAuth: AreaAuth, request: FastifyRequest, reply: FastifyReply) {
+// Routes whose limits are keyed on the signed-in user: the handler looks the session up for them.
+const USER_KEYED = new Set([
+  "/change-password",
+  "/two-factor/enable",
+  "/two-factor/verify-totp",
+  "/two-factor/verify-backup-code",
+]);
+
+type Limited = "allowed" | "refused" | "unavailable";
+
+/** Counts the request before Better Auth sees it (ADR-0005); a Redis failure never lets it through. */
+async function applyLimits(
+  limiter: RateLimiter,
+  areaAuth: AreaAuth,
+  area: AuthArea,
+  path: string,
+  userId: string | undefined,
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<Limited> {
+  const rules = rateRulesFor({
+    area,
+    path,
+    ip: areaAuth.hosts.clientIp(request.headers, request.socket.remoteAddress),
+    body: request.body,
+    cookieHeader: typeof request.headers.cookie === "string" ? request.headers.cookie : undefined,
+    userId,
+  });
+  if (rules.length === 0) return "allowed";
+  try {
+    const decision = await limiter.check(area, rules);
+    if (decision.allowed) return "allowed";
+    void reply.header("retry-after", String(decision.retryAfterSeconds));
+    await fail(reply, new ApiError("rate_limited"));
+    return "refused";
+  } catch (exception) {
+    request.log.error({ err: exception }, "rate limiter unavailable");
+    await reply.code(503).send(new ApiError("unknown").toEnvelope());
+    return "unavailable";
+  }
+}
+
+async function handle(
+  areaAuth: AreaAuth,
+  limiter: RateLimiter,
+  request: FastifyRequest,
+  reply: FastifyReply,
+) {
   const area: AuthArea | null = areaAuth.hosts.resolve(request.headers);
   if (area === null) return fail(reply, new ApiError("not_found"));
   const path = request.url.split("?")[0]!.slice("/auth".length);
@@ -90,7 +139,7 @@ async function handle(areaAuth: AreaAuth, request: FastifyRequest, reply: Fastif
   }
   const needsSession =
     (area === "platform" && (!route.beforeTwoFactor || path === VERIFY_TOTP_PATH)) ||
-    path === ENABLE_TWO_FACTOR_PATH;
+    USER_KEYED.has(path);
   // Always the area-bound lookup (ADR-0003), never auth.api.getSession.
   const session = needsSession ? await instance.getSession(toHeaders(request.headers)) : null;
 
@@ -98,6 +147,8 @@ async function handle(areaAuth: AreaAuth, request: FastifyRequest, reply: Fastif
   if (area === "platform" && !route.beforeTwoFactor && session !== null && !hasTwoFactor(session)) {
     return fail(reply, new ApiError("two_factor_required"));
   }
+  const limited = await applyLimits(limiter, areaAuth, area, path, session?.user.id, request, reply);
+  if (limited !== "allowed") return;
   if (path === ENABLE_TWO_FACTOR_PATH && session !== null) {
     const locked = await instance.withEnrollmentLock(session.user.id, () =>
       forward(areaAuth, area, request),
@@ -105,7 +156,6 @@ async function handle(areaAuth: AreaAuth, request: FastifyRequest, reply: Fastif
     if (!locked.acquired) return fail(reply, new ApiError("two_factor_busy"));
     return write(reply, locked.value);
   }
-  // TODO(spec): Redis-backed rate limiting of sign-in and two-factor (PRD §4.10) belongs here.
   const response = await forward(areaAuth, area, request);
   // Platform enrollment just completed: sessions opened with the password alone before it must not
   // inherit full access now that the user's two-factor flag is on — only the new session stays.
@@ -136,11 +186,13 @@ function cookiesOf(response: Response): string {
  *
  * @param fastify الـ instance بتاع الـ adapter
  * @param areaAuth الـ instances والـ hosts
+ * @param limiter الـ rate limiter (ADR-0005)، بيتنده قبل Better Auth
  * @returns بيخلص لما الـ plugin يتسجل
  */
 export async function registerAuthRoutes(
   fastify: FastifyInstance,
   areaAuth: AreaAuth,
+  limiter: RateLimiter,
 ): Promise<void> {
   await fastify.register(async (scope) => {
     scope.removeAllContentTypeParsers();
@@ -154,7 +206,7 @@ export async function registerAuthRoutes(
       // (database, lock, revocation) is logged sanitised and leaves as `unknown`, like the filter does.
       handler: async (request, reply) => {
         try {
-          await handle(areaAuth, request, reply);
+          await handle(areaAuth, limiter, request, reply);
         } catch (exception) {
           request.log.error({ err: exception }, "unhandled error");
           if (!reply.sent) await fail(reply, new ApiError("unknown"));
