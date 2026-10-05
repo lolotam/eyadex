@@ -105,7 +105,7 @@ export const authTwoFactors = pgTable(
     lockedUntil: timestamp("locked_until", tz),
   },
   (t) => [
-    index("auth_two_factors_user_id_idx").on(t.userId),
+    unique("auth_two_factors_user_id_key").on(t.userId),
     foreignKey({
       name: "auth_two_factors_user_id_fkey",
       columns: [t.userId],

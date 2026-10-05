@@ -42,6 +42,20 @@ INSERT INTO auth_sessions (id, user_id, token, expires_at, ip_address, user_agen
   VALUES ('00000000-0000-7000-8000-0000000023a2', '00000000-0000-7000-8000-0000000023a1',
     'auth-probe-not-a-real-token', now() + interval '1 day', NULL, NULL, now(), now());
 DELETE FROM auth_sessions WHERE id = '00000000-0000-7000-8000-0000000023a2';
+-- One two-factor row per user: a second enrollment row is refused.
+INSERT INTO auth_two_factors (id, user_id, secret, backup_codes, verified, failed_verification_count, locked_until)
+  VALUES ('00000000-0000-7000-8000-0000000023a3', '00000000-0000-7000-8000-0000000023a1', 'enc', 'enc',
+    false, NULL, NULL);
+DO $$
+BEGIN
+  BEGIN
+    INSERT INTO auth_two_factors (id, user_id, secret, backup_codes, verified, failed_verification_count, locked_until)
+      VALUES ('00000000-0000-7000-8000-0000000023a4', '00000000-0000-7000-8000-0000000023a1', 'enc2',
+        'enc2', false, NULL, NULL);
+    RAISE EXCEPTION 'AUTH: a user got two two-factor rows';
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+END $$;
 DO $$
 BEGIN
   BEGIN

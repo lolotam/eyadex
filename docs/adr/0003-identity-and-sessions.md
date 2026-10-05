@@ -28,6 +28,9 @@ session code.
   rest (sign-out, revocation, expiry, disabling 2FA); no `DELETE` on users (no hard deletes). The
   other runtime roles get nothing (`db/tests/auth-tables.sql`). The Drizzle mirror is
   `packages/db/src/schema/auth.ts` and is checked by the drift test.
+- **One two-factor row per user.** `auth_two_factors.user_id` is `UNIQUE`: Better Auth enrolls with
+  an unguarded read-then-insert, so overlapping first enrollments could otherwise store two secrets.
+  The loser gets a unique violation; the winner's QR code is the stored row.
 - **Ids.** Better Auth's `advanced.database.generateId` returns UUID v7 from `@eyadex/ids`.
 - **Sign-up.** `emailAndPassword.disableSignUp: true`; the public endpoint refuses. Users are created
   only through `createUserAccount`, which hashes with Better Auth's own hasher and writes the user and

@@ -65,9 +65,12 @@ CREATE TABLE auth_two_factors (
   backup_codes              text NOT NULL,
   verified                  boolean NULL,
   failed_verification_count integer NULL,
-  locked_until              timestamptz NULL
+  locked_until              timestamptz NULL,
+  -- One row per user: Better Auth 1.7.7 enrolls with an unguarded findOne + create, so two
+  -- overlapping first enrollments would otherwise leave two secrets and later lookups pick one
+  -- without ordering. The loser of the race gets a unique violation; the winner's QR is the row.
+  UNIQUE (user_id)
 );
-CREATE INDEX auth_two_factors_user_id_idx ON auth_two_factors (user_id);
 
 -- 0013 revoked PUBLIC on every table that existed then; these are new, so revoke again explicitly.
 REVOKE ALL ON auth_users, auth_sessions, auth_accounts, auth_verifications, auth_two_factors

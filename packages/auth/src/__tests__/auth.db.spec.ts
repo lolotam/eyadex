@@ -130,6 +130,17 @@ describe("Better Auth on eyadex_auth", () => {
     expect(rows).toHaveLength(0);
   });
 
+  it("NEGATIVE: overlapping first enrollments leave a single two-factor row", async () => {
+    const email = uniqueEmail("totp-race");
+    const { userId } = await clinic.createUserAccount({ email, name: "Race", password });
+    const headers = cookieHeaders(await signIn(email, password));
+    await Promise.allSettled(
+      [1, 2, 3].map(() => clinic.auth.api.enableTwoFactor({ body: { password }, headers })),
+    );
+    const rows = await owner`SELECT 1 FROM auth_two_factors WHERE user_id = ${userId}`;
+    expect(rows).toHaveLength(1);
+  });
+
   it("enables two-factor and verifies a TOTP code", async () => {
     const email = uniqueEmail("totp");
     const { userId } = await clinic.createUserAccount({ email, name: "TOTP", password });
