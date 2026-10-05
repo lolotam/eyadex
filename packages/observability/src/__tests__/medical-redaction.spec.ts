@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { createLogger } from "../logger.ts";
 import { REDACTED, redactSecrets, sanitize } from "../redaction.ts";
@@ -8,10 +8,21 @@ import { REDACTED, redactSecrets, sanitize } from "../redaction.ts";
 const CIVIL = "300000000000";
 const BIRTH = "1990-01-01";
 
+// The fragment checks below search the WHOLE raw line, and pino stamps it with the wall clock: any
+// instant ending in .000 ms prints "000" (a CI run failed that way). The clock is frozen at an instant
+// whose ISO form holds no fragment of CIVIL or BIRTH, so the line stays fully searched and deterministic.
+const FROZEN_TIME = "2026-10-05T11:22:33.444Z";
+
 const logLine = (entry: Record<string, unknown>): string => {
   let written = "";
   const sink = { write: (chunk: unknown) => void (written += String(chunk)) };
-  createLogger("info", { destination: sink, events: ["probe"] }).info(entry, "probe");
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date(FROZEN_TIME));
+  try {
+    createLogger("info", { destination: sink, events: ["probe"] }).info(entry, "probe");
+  } finally {
+    vi.useRealTimers();
+  }
   return written;
 };
 
@@ -31,7 +42,8 @@ describe("a civil ID is replaced whole at any depth", () => {
     expect(line).not.toContain(CIVIL);
     // Not even one digit of it, and not the tail that a phone rule would have kept.
     expect(line).not.toContain("000");
-    expect(JSON.parse(line)).toMatchObject({ [key]: REDACTED });
+    // Proves the clock really was frozen — otherwise the check above is flaky again, silently.
+    expect(JSON.parse(line)).toMatchObject({ time: FROZEN_TIME, [key]: REDACTED });
   });
 
   it("three levels deep and inside arrays", () => {
@@ -64,7 +76,7 @@ describe("a birth date is replaced whole at any depth", () => {
     const line = logLine({ [key]: BIRTH });
     expect(line).not.toContain(BIRTH);
     expect(line).not.toContain("1990");
-    expect(JSON.parse(line)).toMatchObject({ [key]: REDACTED });
+    expect(JSON.parse(line)).toMatchObject({ time: FROZEN_TIME, [key]: REDACTED });
   });
 
   it("inside an array of snapshots, and next to a field that stays", () => {
