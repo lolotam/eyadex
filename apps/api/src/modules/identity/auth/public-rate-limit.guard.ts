@@ -34,7 +34,9 @@ export class PublicRateLimitGuard implements CanActivate {
       throw new ServiceUnavailableError();
     }
     if (!decision.allowed) {
-      void http.getResponse<FastifyReply>().header("retry-after", String(decision.retryAfterSeconds));
+      void http
+        .getResponse<FastifyReply>()
+        .header("retry-after", String(decision.retryAfterSeconds));
       throw new ApiError("rate_limited");
     }
     return true;

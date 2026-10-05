@@ -25,11 +25,13 @@ export const API_ERROR_MESSAGES = {
   },
   invitation_invalid: {
     message_ar: "رابط الدعوة غير صالح أو انتهت صلاحيته، اطلب من مدير العيادة دعوة جديدة",
-    message_en: "This invitation link is not valid or has expired; ask the clinic admin for a new invitation",
+    message_en:
+      "This invitation link is not valid or has expired; ask the clinic admin for a new invitation",
   },
   account_other_area: {
     message_ar: "هذا البريد مستخدم لحساب في منطقة أخرى، اطلب دعوة ببريد مختلف",
-    message_en: "This email belongs to an account in another area; ask for an invitation with a different email",
+    message_en:
+      "This email belongs to an account in another area; ask for an invitation with a different email",
   },
   rate_limited: {
     message_ar: "محاولات كثيرة، انتظر قليلًا ثم أعد المحاولة",

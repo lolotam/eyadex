@@ -1,0 +1,57 @@
+import { PASSWORD_LIMITS } from "@eyadex/auth";
+import { ACCEPT_PASSWORD_LIMITS } from "@eyadex/contracts/invitation-acceptance";
+import { RequestMethod } from "@nestjs/common";
+import { GUARDS_METADATA, METHOD_METADATA, PATH_METADATA } from "@nestjs/common/constants";
+import { ModulesContainer } from "@nestjs/core";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+import { closeHarness, openHarness, type Harness } from "../auth/__tests__/auth-http-harness.ts";
+import { PublicRateLimitGuard } from "../auth/public-rate-limit.guard.ts";
+import { PUBLIC_V1_ROUTES } from "../auth/public-rate-limits.ts";
+import { SessionGuard } from "../auth/session.guard.ts";
+
+// Completeness: every /v1 POST without SessionGuard is listed with a limit and guarded by the limiter.
+let h: Harness;
+
+beforeAll(async () => {
+  h = await openHarness({}, true);
+});
+
+afterAll(async () => {
+  await closeHarness(h);
+});
+
+const join = (...parts: string[]) =>
+  `/${parts
+    .flatMap((p) => p.split("/"))
+    .filter((p) => p !== "")
+    .join("/")}`;
+
+describe("sessionless /v1 POST routes", () => {
+  it("every one has a limit and the limiter guard", () => {
+    const found: string[] = [];
+    for (const module of h.app.get(ModulesContainer).values()) {
+      for (const wrapper of module.controllers.values()) {
+        const type = wrapper.metatype as (new (...args: never[]) => unknown) | null;
+        if (type === null) continue;
+        const classGuards: unknown[] = Reflect.getMetadata(GUARDS_METADATA, type) ?? [];
+        for (const name of Object.getOwnPropertyNames(type.prototype)) {
+          const handler = (type.prototype as Record<string, unknown>)[name];
+          if (typeof handler !== "function" || name === "constructor") continue;
+          if (Reflect.getMetadata(METHOD_METADATA, handler) !== RequestMethod.POST) continue;
+          const guards = [...classGuards, ...(Reflect.getMetadata(GUARDS_METADATA, handler) ?? [])];
+          if (guards.includes(SessionGuard)) continue;
+          const path = join("v1", Reflect.getMetadata(PATH_METADATA, type), Reflect.getMetadata(PATH_METADATA, handler));
+          found.push(path);
+          expect(PUBLIC_V1_ROUTES[`POST ${path}`], path).toBeDefined();
+          expect(guards, path).toContain(PublicRateLimitGuard);
+        }
+      }
+    }
+    expect(found.sort()).toEqual(["/v1/invitations/accept", "/v1/invitations/inspect"]);
+  });
+
+  it("the contract's password bounds are Better Auth's", () => {
+    expect(ACCEPT_PASSWORD_LIMITS).toEqual(PASSWORD_LIMITS);
+  });
+});
