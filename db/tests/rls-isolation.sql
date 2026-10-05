@@ -9,8 +9,7 @@ BEGIN;
 INSERT INTO clinics VALUES
   ('00000000-0000-7000-8000-00000000000a','alpha','أ','A','dermatology','ar','Asia/Kuwait','active',now()+interval '30 days',10,3,now(),now()),
   ('00000000-0000-7000-8000-00000000000b','beta','ب','B','obgyn','en','Asia/Kuwait','active',now()+interval '30 days',10,3,now(),now());
-INSERT INTO permissions VALUES
-  ('00000000-0000-7000-8000-0000000000f1','view:patients:branch','view','patients','branch','patients');
+-- The permission catalogue is seeded by db/sql/0026; tests look it up by key.
 
 DO $$
 DECLARE c uuid; s text;
@@ -20,7 +19,7 @@ BEGIN
     INSERT INTO clinic_features VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'1')::uuid, 'patients', true, now());
     INSERT INTO branches VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'2')::uuid, 'ف', 'B', true, now(), now());
     INSERT INTO roles VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'3')::uuid, 'doctor', 'طبيب', 'Doctor', false, true, now(), now());
-    INSERT INTO role_permissions VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'4')::uuid, ('00000000-0000-7000-8000-0000000001'||s||'3')::uuid, '00000000-0000-7000-8000-0000000000f1', now());
+    INSERT INTO role_permissions VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'4')::uuid, ('00000000-0000-7000-8000-0000000001'||s||'3')::uuid, (SELECT id FROM permissions WHERE key = 'view:patients:branch'), now());
     INSERT INTO memberships VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'5')::uuid, ('00000000-0000-7000-8000-0000000002'||s||'5')::uuid, 'n', s||'@example.com', ('00000000-0000-7000-8000-0000000001'||s||'3')::uuid, false, 'active', 'ar', null, now(), now());
     INSERT INTO membership_branches VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'6')::uuid, ('00000000-0000-7000-8000-0000000001'||s||'5')::uuid, ('00000000-0000-7000-8000-0000000001'||s||'2')::uuid, now());
     INSERT INTO invitations VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'7')::uuid, 'i'||s||'@example.com', 'n', ('00000000-0000-7000-8000-0000000001'||s||'3')::uuid, false, 'pending', now()+interval '7 days', ('00000000-0000-7000-8000-0000000002'||s||'5')::uuid, 'hash-'||s, now(), null);
@@ -88,7 +87,7 @@ BEGIN
     RAISE EXCEPTION 'ISO-01 write leak: roles';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   BEGIN
-    INSERT INTO role_permissions VALUES (b, gen_random_uuid(), '00000000-0000-7000-8000-0000000001b3', '00000000-0000-7000-8000-0000000000f1', now());
+    INSERT INTO role_permissions VALUES (b, gen_random_uuid(), '00000000-0000-7000-8000-0000000001b3', (SELECT id FROM permissions WHERE key = 'view:patients:branch'), now());
     RAISE EXCEPTION 'ISO-01 write leak: role_permissions';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   BEGIN
