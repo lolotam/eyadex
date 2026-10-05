@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { idSchema, languageSchema, pageQuerySchema } from "./common";
-import { RESERVED_CLINIC_SLUGS, timezoneOptions } from "./onboarding";
+import { idSchema, languageSchema, pageQuerySchema } from "./common.ts";
+import { RESERVED_CLINIC_SLUGS, timezoneOptions } from "./onboarding.ts";
 
 export { RESERVED_CLINIC_SLUGS, timezoneOptions };
 

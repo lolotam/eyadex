@@ -120,7 +120,14 @@ jobs:
       # lazy, and Redis failures only matter on rate-limited routes — so the URLs point nowhere.
       - name: Boot the image and probe it
         run: |
-          docker run -d --name api -p 127.0.0.1:3000:3000             -e DATABASE_URL=postgres://eyadex_app:ci@127.0.0.1:1/eyadex             -e AUTH_DATABASE_URL=postgres://eyadex_auth:ci@127.0.0.1:1/eyadex             -e BETTER_AUTH_SECRET="$(openssl rand -hex 32)" -e REDIS_URL=redis://127.0.0.1:1/0             -e APP_URL=https://app.eyadex.test -e PLATFORM_URL=https://platform.eyadex.test             eyadex-api:ci
+          docker run -d --name api -p 127.0.0.1:3000:3000 \
+            -e DATABASE_URL=postgres://eyadex_app:ci@127.0.0.1:1/eyadex \
+            -e AUTH_DATABASE_URL=postgres://eyadex_auth:ci@127.0.0.1:1/eyadex \
+            -e BETTER_AUTH_SECRET="$(openssl rand -hex 32)" -e REDIS_URL=redis://127.0.0.1:1/0 \
+            -e PLATFORM_DATABASE_URL=postgres://eyadex_platform:ci@127.0.0.1:1/eyadex \
+            -e OUTBOX_SEAL_KEY="$(openssl rand -base64 32)" \
+            -e APP_URL=https://app.eyadex.test -e PLATFORM_URL=https://platform.eyadex.test \
+            eyadex-api:ci
           for i in $(seq 1 30); do curl -sf http://127.0.0.1:3000/v1/health && break; sleep 1; done
           test "$(curl -s http://127.0.0.1:3000/v1/health)" = '{"status":"ok"}'
           # Unknown host on the auth handler → 404 envelope: the Better Auth bundle loaded.

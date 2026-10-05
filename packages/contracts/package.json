@@ -3,11 +3,16 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Zod schemas — the single source of types for forms, the ApiClient and the HTTP API",
+  "description": "Zod schemas — the single source of types for forms, the ApiClient and the HTTP API. Node runtimes import the built dist/ through the `eyadex-runtime` export condition; the web app and tests read src/.",
   "exports": {
-    "./*": "./src/*.ts"
+    "./*": {
+      "types": "./src/*.ts",
+      "eyadex-runtime": "./dist/*.js",
+      "default": "./src/*.ts"
+    }
   },
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "lint": "eslint ."
   },

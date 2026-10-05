@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { idSchema } from "./common";
-import { systemRoleKeySchema } from "./organization";
-import { PERMISSION_CATALOG, actionSchema } from "./permissions";
+import { idSchema } from "./common.ts";
+import { systemRoleKeySchema } from "./organization.ts";
+import { PERMISSION_CATALOG, actionSchema } from "./permissions.ts";
 
 const roleName = z.string().trim().min(1, "validation.required").max(100, "validation.tooLong");
 

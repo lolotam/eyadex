@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { idSchema, pageQuerySchema } from "./common";
+import { idSchema, pageQuerySchema } from "./common.ts";
 
 /** OD-3: invitations are valid for 7 days. */
 export const INVITATION_TTL_DAYS = 7;

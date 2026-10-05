@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { idSchema, pageQuerySchema } from "./common";
+import { idSchema, pageQuerySchema } from "./common.ts";
 
 export const genderSchema = z.enum(["male", "female"]);
 export type Gender = z.infer<typeof genderSchema>;

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { idSchema, pageQuerySchema } from "./common";
+import { idSchema, pageQuerySchema } from "./common.ts";
 
 const requiredName = z.string().trim().min(1, "validation.required").max(100, "validation.tooLong");
 const optionalText = z.string().trim().max(300, "validation.tooLong");

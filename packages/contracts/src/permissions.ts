@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { ClinicModule } from "./clinics";
+import type { ClinicModule } from "./clinics.ts";
 
 export const actionSchema = z.enum(["view", "create", "update", "deactivate"]);
 export type PermissionAction = z.infer<typeof actionSchema>;

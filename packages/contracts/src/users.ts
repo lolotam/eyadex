@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { idSchema, languageSchema, pageQuerySchema } from "./common";
+import { idSchema, languageSchema, pageQuerySchema } from "./common.ts";
 
 export const membershipUserStatusSchema = z.enum(["active", "deactivated"]);
 export type MembershipUserStatus = z.infer<typeof membershipUserStatusSchema>;

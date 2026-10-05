@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { idSchema } from "./common";
-import { clinicStatusSchema } from "./clinics";
+import { idSchema } from "./common.ts";
+import { clinicStatusSchema } from "./clinics.ts";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 

@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { idSchema, languageSchema } from "./common";
-import { clinicStatusSchema, featuresSchema } from "./clinics";
+import { idSchema, languageSchema } from "./common.ts";
+import { clinicStatusSchema, featuresSchema } from "./clinics.ts";
 
 export const personaKindSchema = z.enum([
   "platform_admin",
