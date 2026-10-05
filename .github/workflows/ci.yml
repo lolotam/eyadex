@@ -107,7 +107,7 @@ jobs:
           EYADEX_TEST_AUTH_URL: postgres://eyadex_auth:ci-only-auth@localhost:5432/eyadex
 
   # The API's production image (apps/api/Dockerfile) must keep building, and must answer its health
-  # check as the non-root user — the same image Dokploy deploys (ADR-0006).
+  # check as the non-root user — the same image Dokploy deploys (ADR-0007).
   api-image:
     runs-on: ubuntu-latest
     steps:

@@ -1,4 +1,4 @@
-# ADR-0006 — Deploying the API
+# ADR-0007 — Deploying the API
 
 - Status: accepted
 - Date: 2026-10-05
