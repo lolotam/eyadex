@@ -8,7 +8,8 @@ import type postgres from "postgres";
 export const ENROLLMENT_LOCK_PREFIX = "eyadex:two-factor-enable:";
 
 /** نتيجة محاولة القفل: يا إما اتنفّذ، يا إما في تسجيل تاني شغّال لنفس المستخدم. */
-export type LockedResult<T> = { readonly acquired: true; readonly value: T } | { readonly acquired: false };
+export type LockedResult<T> =
+  { readonly acquired: true; readonly value: T } | { readonly acquired: false };
 
 /**
  * بيشغّل `fn` وهو ماسك advisory lock على المستخدم (ADR-0003 "One two-factor row per user"). لو القفل

@@ -6,7 +6,13 @@ import { hasTwoFactor, toHeaders, type AreaAuth } from "./area-auth.ts";
 import { ENABLE_TWO_FACTOR_PATH, findAuthRoute } from "./auth-routes.ts";
 
 // Hop-by-hop or recomputed by the Fetch Request; forwarding them could desync the body.
-const DROPPED = new Set(["host", "connection", "content-length", "transfer-encoding", "keep-alive"]);
+const DROPPED = new Set([
+  "host",
+  "connection",
+  "content-length",
+  "transfer-encoding",
+  "keep-alive",
+]);
 
 const fail = (reply: FastifyReply, error: ApiError) =>
   reply.code(error.status).send(error.toEnvelope());
@@ -22,10 +28,9 @@ async function forward(
 ): Promise<Response> {
   const headers = toHeaders(request.headers);
   for (const name of DROPPED) headers.delete(name);
-  const body = request.method === "GET" ? undefined : ((request.body as string | undefined) ?? "");
-  return instance.auth.handler(
-    new Request(new URL(`/api${request.url}`, origin), { method: request.method, headers, body }),
-  );
+  const init: RequestInit = { method: request.method, headers };
+  if (request.method !== "GET") init.body = (request.body as string | undefined) ?? "";
+  return instance.auth.handler(new Request(new URL(`/api${request.url}`, origin), init));
 }
 
 async function write(reply: FastifyReply, response: Response): Promise<void> {
@@ -47,7 +52,8 @@ async function handle(areaAuth: AreaAuth, request: FastifyRequest, reply: Fastif
 
   const instance = areaAuth.of(area);
   const origin = areaAuth.hosts.origin(area);
-  const needsSession = (area === "platform" && !route.beforeTwoFactor) || path === ENABLE_TWO_FACTOR_PATH;
+  const needsSession =
+    (area === "platform" && !route.beforeTwoFactor) || path === ENABLE_TWO_FACTOR_PATH;
   // Always the area-bound lookup (ADR-0003), never auth.api.getSession.
   const session = needsSession ? await instance.getSession(toHeaders(request.headers)) : null;
 

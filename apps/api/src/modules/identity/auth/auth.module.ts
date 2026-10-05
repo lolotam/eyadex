@@ -18,7 +18,10 @@ export class AuthCloser implements OnApplicationShutdown {
 /** instance لكل منطقة من الـ env، والـ `SessionGuard`. الـ routes بتتركّب في `startApi`. */
 @Module({
   providers: [
-    { provide: AREA_AUTH, useFactory: () => buildAreaAuth(readAuthConfig(process.env), systemUuidV7()) },
+    {
+      provide: AREA_AUTH,
+      useFactory: () => buildAreaAuth(readAuthConfig(process.env), systemUuidV7()),
+    },
     AuthCloser,
     SessionGuard,
   ],

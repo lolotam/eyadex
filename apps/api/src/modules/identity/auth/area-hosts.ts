@@ -81,7 +81,7 @@ export class AreaHosts {
   }
 
   private hostOf(headers: RawHeaders): string | undefined {
-    if (this.trustProxyHops === 0) return first(headers.host);
+    if (this.trustProxyHops === 0) return first(headers["host"]);
     const forwarded = headers["x-forwarded-host"];
     const list = (Array.isArray(forwarded) ? forwarded.join(",") : (forwarded ?? ""))
       .split(",")

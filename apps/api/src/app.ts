@@ -20,7 +20,12 @@ import {
 } from "@eyadex/observability";
 import { LogController, type FastifyReply, type FastifyRequest } from "fastify";
 
-import { AREA_AUTH, AuthModule, registerAuthRoutes, type AreaAuth } from "./modules/identity/index.ts";
+import {
+  AREA_AUTH,
+  AuthModule,
+  registerAuthRoutes,
+  type AreaAuth,
+} from "./modules/identity/index.ts";
 import { EnvelopeExceptionFilter } from "./shared/exception.filter.ts";
 import { HealthController } from "./shared/health.controller.ts";
 import { API_LOG_EVENTS } from "./shared/log-events.ts";

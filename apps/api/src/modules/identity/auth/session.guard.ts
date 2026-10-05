@@ -2,7 +2,13 @@ import { Inject, Injectable, type CanActivate, type ExecutionContext } from "@ne
 import type { FastifyRequest } from "fastify";
 
 import { ApiError } from "../../../shared/errors.ts";
-import { AREA_AUTH, hasTwoFactor, toHeaders, type AreaAuth, type ResolvedSession } from "./area-auth.ts";
+import {
+  AREA_AUTH,
+  hasTwoFactor,
+  toHeaders,
+  type AreaAuth,
+  type ResolvedSession,
+} from "./area-auth.ts";
 
 /** الطلب بعد `SessionGuard`: الجلسة جاهزة للـ guards اللي بعده. */
 export type AuthenticatedRequest = FastifyRequest & { areaSession: ResolvedSession };
