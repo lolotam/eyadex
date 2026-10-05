@@ -147,7 +147,15 @@ async function handle(
   if (area === "platform" && !route.beforeTwoFactor && session !== null && !hasTwoFactor(session)) {
     return fail(reply, new ApiError("two_factor_required"));
   }
-  const limited = await applyLimits(limiter, areaAuth, area, path, session?.user.id, request, reply);
+  const limited = await applyLimits(
+    limiter,
+    areaAuth,
+    area,
+    path,
+    session?.user.id,
+    request,
+    reply,
+  );
   if (limited !== "allowed") return;
   if (path === ENABLE_TWO_FACTOR_PATH && session !== null) {
     const locked = await instance.withEnrollmentLock(session.user.id, () =>

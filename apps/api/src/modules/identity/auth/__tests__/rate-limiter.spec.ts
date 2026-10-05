@@ -29,7 +29,8 @@ describe("RateLimiter", () => {
   it("allows up to the limit, then refuses with the seconds left in the window", async () => {
     const store = new FakeStore();
     const limiter = new RateLimiter(store, "s".repeat(32));
-    for (let i = 0; i < 3; i++) expect((await limiter.check("clinic", [rule("a")])).allowed).toBe(true);
+    for (let i = 0; i < 3; i++)
+      expect((await limiter.check("clinic", [rule("a")])).allowed).toBe(true);
     store.now = 20_500;
     expect(await limiter.check("clinic", [rule("a")])).toEqual({
       allowed: false,
@@ -62,7 +63,12 @@ describe("RateLimiter", () => {
 });
 
 describe("rateRulesFor", () => {
-  const base = { area: "clinic" as const, ip: "192.0.2.1", cookieHeader: undefined, userId: undefined };
+  const base = {
+    area: "clinic" as const,
+    ip: "192.0.2.1",
+    cookieHeader: undefined,
+    userId: undefined,
+  };
 
   it("sign-in counts the IP and the normalised email", () => {
     const rules = rateRulesFor({
@@ -77,7 +83,12 @@ describe("rateRulesFor", () => {
   });
 
   it("second factor counts the user, else the pending two_factor cookie", () => {
-    const withUser = rateRulesFor({ ...base, path: "/two-factor/verify-totp", body: "", userId: "u1" });
+    const withUser = rateRulesFor({
+      ...base,
+      path: "/two-factor/verify-totp",
+      body: "",
+      userId: "u1",
+    });
     expect(withUser[1]?.value).toBe("user:u1");
     const pending = rateRulesFor({
       ...base,
