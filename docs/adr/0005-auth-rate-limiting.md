@@ -36,3 +36,8 @@ value) hex>`. The client IP comes only from `AreaHosts.clientIp` (ADR-0004); whe
 - A Redis outage blocks sign-in and two-factor until it is back — chosen over a silent bypass.
 - Attempts are counted whether they succeed or fail; a user who signs in 5 times in 15 minutes waits.
 - Rotating `BETTER_AUTH_SECRET` resets every counter (new HMAC keys).
+- The per-email limit can be used to hold one known account out for 15 minutes (5 wrong passwords) —
+  accepted in exchange for capping password guessing per account; the per-IP limit does not prevent it.
+- A clinic whose whole staff shares one public IP (office NAT) shares the 20 / 10 min sign-in bucket.
+  `TODO(spec)`: confirm the numbers with the owner before the first clinic goes live.
+- CI and local tests run Redis 8, the production major version (`eyadexcom-eyadexredis`, Redis 8.10).

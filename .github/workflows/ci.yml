@@ -49,7 +49,7 @@ jobs:
           --health-cmd "pg_isready -U eyadex_owner -d eyadex"
           --health-interval 5s --health-timeout 5s --health-retries 10
       redis:
-        image: redis:7-alpine
+        image: redis:8-alpine
         ports: ["6379:6379"]
         options: >-
           --health-cmd "redis-cli ping"
