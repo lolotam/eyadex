@@ -147,8 +147,7 @@ export interface EyadexAuth {
    */
   findAccountByEmail(email: string): Promise<{ userId: string; area: AuthArea } | null>;
   /**
-   * بيحط كلمة مرور جديدة لحساب في نفس المنطقة بـ hasher بتاع Better Auth نفسه، وبيلغي جلساته.
-   * لقبول دعوة اتقطع قبل كده بعد ما الحساب اتعمل (ADR-0008) — مفيش حذف مستخدمين أبدًا.
+   * كلمة مرور جديدة بـ hasher بتاع Better Auth، وبيلغي الجلسات (ADR-0008؛ مفيش حذف مستخدمين).
    *
    * @param userId المستخدم
    * @param password كلمة المرور الجديدة (`PASSWORD_LIMITS`)
@@ -206,7 +205,9 @@ export interface EyadexAuth {
 
 function assertPassword(password: string): void {
   if (password.length < PASSWORD_LIMITS.min || password.length > PASSWORD_LIMITS.max) {
-    throw new RangeError(`password must be ${PASSWORD_LIMITS.min}–${PASSWORD_LIMITS.max} characters`);
+    throw new RangeError(
+      `password must be ${PASSWORD_LIMITS.min}–${PASSWORD_LIMITS.max} characters`,
+    );
   }
 }
 
@@ -267,7 +268,9 @@ export function createAuth(options: CreateAuthOptions): EyadexAuth {
     setAccountPassword: async (userId, password) => {
       assertPassword(password);
       const context = await auth.$context;
-      const rows = await client<{ area: AuthArea }[]>`SELECT area FROM auth_users WHERE id = ${userId}`;
+      const rows = await client<
+        { area: AuthArea }[]
+      >`SELECT area FROM auth_users WHERE id = ${userId}`;
       if (rows[0]?.area !== options.area) throw new Error("account is not in this area");
       await context.internalAdapter.updatePassword(userId, await context.password.hash(password));
       await context.internalAdapter.deleteUserSessions(userId);
