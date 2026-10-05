@@ -41,17 +41,18 @@ pools, and CLAUDE.md §5 forbids hard deletes of users, so a compensating delete
 
 ## Failure matrix
 
-| Fails at                                      | State left                         | Retry of the same link                    |
-| --------------------------------------------- | ---------------------------------- | ----------------------------------------- |
-| token lookup / row lock                       | nothing                            | works                                     |
-| account creation (step 3)                     | nothing (user + credential atomic) | works                                     |
-| anything in step 4, or the commit             | auth account only, clinic rolled back | works: account reused, password replaced |
-| after the commit (response lost)              | accepted                           | `invitation_invalid`; user signs in       |
-| parallel accept                               | the first wins                     | the second gets `invitation_invalid`      |
+| Fails at                          | State left                            | Retry of the same link                   |
+| --------------------------------- | ------------------------------------- | ---------------------------------------- |
+| token lookup / row lock           | nothing                               | works                                    |
+| account creation (step 3)         | nothing (user + credential atomic)    | works                                    |
+| anything in step 4, or the commit | auth account only, clinic rolled back | works: account reused, password replaced |
+| after the commit (response lost)  | accepted                              | `invitation_invalid`; user signs in      |
+| parallel accept                   | the first wins                        | the second gets `invitation_invalid`     |
 
 ## Consequences
 
-- An orphan clinic account (no membership) can exist between a failed attempt and its retry; it has
-  no session and cannot sign in to anything useful — every clinic route checks the membership.
+- An orphan clinic account (no membership) can exist between a failed attempt and its retry. Its
+  owner can still sign in on the clinic host, but the session reaches nothing: every clinic route
+  checks the membership, and the retry replaces the password and revokes those sessions.
   TODO(spec): a sweep for orphans whose invitation then expired.
 - No new SQL was needed: `eyadex_app` already has the grants and functions (0013–0017).

@@ -51,6 +51,8 @@ export class AcceptInvitation {
       const clinic = await invitationClinic(tx, clinicId);
       if (invitation === null || clinic === null) throw invalid();
       if (decideClinicAccess(clinic, this.deps.clock.now()) !== "allowed") throw invalid();
+      // The same checks as accept: a link accept would refuse is not shown as valid here.
+      if (!(await invitationGrants(tx, invitation)).usable) throw invalid();
       return {
         clinicNameAr: clinic.nameAr,
         clinicNameEn: clinic.nameEn,

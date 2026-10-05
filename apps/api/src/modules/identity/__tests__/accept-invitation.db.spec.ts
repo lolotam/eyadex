@@ -123,6 +123,16 @@ describe("POST /v1/invitations/accept", () => {
     expect(await accountsFor(cancelled.email)).toBe(0);
   });
 
+  it("NEGATIVE: a branch switched off since the invitation → inspect and accept give one answer", async () => {
+    const { clinicId } = await clinicWithInvite(h);
+    const invite = await branchInvite(h, clinicId);
+    await h.owner`UPDATE branches SET is_active = false WHERE id = ${invite.branchId}`;
+    expectInvalid(await inspect(h, invite.token));
+    expectInvalid(await accept(h, invite.token, strongPassword()));
+    expect(await accountsFor(invite.email)).toBe(0);
+    expect(await membershipsFor(invite.email)).toBe(0);
+  });
+
   it("NEGATIVE: two parallel accepts → one success, one account, one membership", async () => {
     const invite = await clinicWithInvite(h);
     const results = await Promise.all([
