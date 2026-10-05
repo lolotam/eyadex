@@ -13,6 +13,7 @@ import { twoFactor } from "better-auth/plugins/two-factor";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
+import { withEnrollmentLock, type LockedResult } from "./enrollment-lock.ts";
 import { assertOptions, PASSWORD_LIMITS, type AuthArea } from "./options.ts";
 
 export type { AuthArea } from "./options.ts";
@@ -29,6 +30,8 @@ export interface CreateAuthOptions {
   readonly baseUrl: string;
   /** مولّد UUID v7 من `@eyadex/ids`. */
   readonly ids: IdGenerator;
+  /** المسار اللي المتصفح شايفه للـ auth (افتراضياً `/api/auth`، same-origin — ADR-0004). */
+  readonly basePath?: string;
   /** حجم الـ pool، افتراضياً 5. */
   readonly maxConnections?: number;
 }
@@ -55,6 +58,7 @@ function buildAuth(options: CreateAuthOptions, client: postgres.Sql) {
   return betterAuth({
     appName: "Eyadex",
     baseURL: base.origin,
+    basePath: options.basePath ?? "/api/auth",
     secret: options.secret,
     trustedOrigins: [base.origin],
     // The adapter's default is `transaction: false`, which runs Better Auth's multi-row writes
@@ -86,6 +90,8 @@ function buildAuth(options: CreateAuthOptions, client: postgres.Sql) {
       // A distinct prefix per area: app. and platform. never share a session cookie (PRD §4.15).
       cookiePrefix: `eyadex-${options.area}`,
       useSecureCookies: base.protocol === "https:",
+      // Better Auth skips the Origin check when NODE_ENV is "test"; stated false so tests see production.
+      disableOriginCheck: false,
       database: { generateId: () => options.ids.newId() },
     },
   });
@@ -131,6 +137,14 @@ export interface EyadexAuth {
    * @returns الجلسة والمستخدم، أو `null` لو مفيش جلسة أو صادرة من المنطقة التانية
    */
   getSession(headers: Headers): Promise<AreaSession | null>;
+  /**
+   * بيشغّل تسجيل الـ two-factor تحت قفل لكل مستخدم (ADR-0003): طلبين متداخلين مايرجّعوش QR الاتنين.
+   *
+   * @param userId المستخدم
+   * @param fn الـ handler
+   * @returns النتيجة، أو `acquired: false` لو في تسجيل تاني شغّال
+   */
+  withEnrollmentLock<T>(userId: string, fn: () => Promise<T>): Promise<LockedResult<T>>;
   /**
    * بيقفل الـ pool.
    *
@@ -196,6 +210,7 @@ export function createAuth(options: CreateAuthOptions): EyadexAuth {
       const context = await auth.$context;
       await context.internalAdapter.deleteUserSessions(userId);
     },
+    withEnrollmentLock: (userId, fn) => withEnrollmentLock(client, userId, fn),
     close: async () => {
       await client.end({ timeout: 5 });
     },
