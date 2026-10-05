@@ -99,7 +99,9 @@ export function rateRulesFor(ctx: RateContext): RateRule[] {
     }
   } else if (USER_PATHS.has(ctx.path) && ctx.userId !== undefined) {
     rules.push({
-      route,
+      // ONE bucket for every route that checks the current password: they guess the same secret, so
+      // separate buckets would multiply the guesses a stolen session gets (5 per route → 20).
+      route: "password-check",
       dimension: "user",
       value: ctx.userId,
       limit: AUTH_LIMITS.sensitivePerUser,

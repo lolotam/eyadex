@@ -63,7 +63,52 @@ describe("RateLimiter", () => {
   });
 });
 
+describe("RateLimiter short-circuit", () => {
+  it("NEGATIVE: a request refused on its IP never creates a key for its email", async () => {
+    const store = new FakeStore();
+    const limiter = new RateLimiter(store, "s".repeat(32));
+    const ip = {
+      route: "sign-in-email",
+      dimension: "ip",
+      value: "192.0.2.9",
+      limit: { max: 1, windowMs: 60_000 },
+    };
+    await limiter.check("clinic", [ip, rule("first@example.com")]);
+    const before = store.keys.size;
+    for (let i = 0; i < 50; i++) {
+      expect((await limiter.check("clinic", [ip, rule(`spray-${i}@example.com`)])).allowed).toBe(
+        false,
+      );
+    }
+    expect(store.keys.size).toBe(before);
+  });
+});
+
 describe("rateRulesFor", () => {
+  it("NEGATIVE: every password-checking route shares one bucket for the user", async () => {
+    const store = new FakeStore();
+    const limiter = new RateLimiter(store, "s".repeat(32));
+    const paths = [
+      "/change-password",
+      "/two-factor/enable",
+      "/two-factor/disable",
+      "/two-factor/generate-backup-codes",
+    ];
+    const decisions = [];
+    for (let i = 0; i < AUTH_LIMITS.sensitivePerUser.max + 1; i++) {
+      const rules = rateRulesFor({
+        area: "clinic",
+        path: paths[i % paths.length]!,
+        ip: "192.0.2.1",
+        body: "",
+        cookieHeader: undefined,
+        userId: "u1",
+      });
+      decisions.push((await limiter.check("clinic", rules)).allowed);
+    }
+    expect(decisions.at(-1)).toBe(false);
+  });
+
   const base = {
     area: "clinic" as const,
     ip: "192.0.2.1",

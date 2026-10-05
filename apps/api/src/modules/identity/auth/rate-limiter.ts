@@ -64,25 +64,21 @@ export class RateLimiter {
   }
 
   /**
-   * بيعدّ الطلب على كل الأبعاد، ومرفوض لو أي بُعد عدّى حدّه.
+   * بيعدّ الطلب على الأبعاد بالترتيب، وبيقف عند أول بُعد عدّى حدّه: الأبعاد اللي بعده ماتتعدّش.
+   * اللي بينادي بيحط البُعد قليل التنوّع (الـ IP) الأول، فـ IP محظور مايقدرش يفتح مفتاح Redis جديد
+   * لكل إيميل عشوائي ويملا الذاكرة — وبعدها الدخول كله يقف لأن الـ limiter بيقفل لو Redis وقع.
    *
    * @param area المنطقة
-   * @param rules الأبعاد اللي بتتعدّ للطلب ده
+   * @param rules الأبعاد اللي بتتعدّ للطلب ده، الأقل تنوّعاً الأول
    * @returns القرار وعدد ثواني الانتظار (صفر لو مسموح)
    */
   async check(area: AuthArea, rules: readonly RateRule[]): Promise<RateDecision> {
-    const hits = await Promise.all(
-      rules.map(async (rule) => ({
-        rule,
-        hit: await this.store.increment(this.key(area, rule), rule.limit.windowMs),
-      })),
-    );
-    let retryAfterSeconds = 0;
-    for (const { rule, hit } of hits) {
+    for (const rule of rules) {
+      const hit = await this.store.increment(this.key(area, rule), rule.limit.windowMs);
       if (hit.count > rule.limit.max) {
-        retryAfterSeconds = Math.max(retryAfterSeconds, Math.max(1, Math.ceil(hit.ttlMs / 1000)));
+        return { allowed: false, retryAfterSeconds: Math.max(1, Math.ceil(hit.ttlMs / 1000)) };
       }
     }
-    return { allowed: retryAfterSeconds === 0, retryAfterSeconds };
+    return { allowed: true, retryAfterSeconds: 0 };
   }
 }

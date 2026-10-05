@@ -19,7 +19,13 @@ replicas, so an in-process counter would allow N times the limit.
   - `POST /auth/sign-in/email`: per client IP 20 / 10 min, and per email (trim + lowercase) 5 / 15 min.
   - `POST /auth/two-factor/verify-totp` and `/verify-backup-code`: per client IP 20 / 10 min, and per
     subject 5 / 5 min — the session's user id, else the area's pending `two_factor` cookie.
-  - `POST /auth/change-password` and `/auth/two-factor/enable`: per user 5 / 15 min.
+  - `POST /auth/change-password`, `/auth/two-factor/enable`, `/disable`, `/generate-backup-codes`: one
+    shared per-user bucket, 5 / 15 min.
+- **Order and short-circuit.** Rules are counted in order, low-cardinality first (IP before email or
+  subject), and counting stops at the first refusal: a blocked IP cannot mint one Redis key per sprayed
+  email and fill memory (which, with fail-closed, would stop every sign-in).
+- **One password-check bucket.** change-password, two-factor enable / disable / generate-backup-codes all
+  verify the same password, so they share one per-user counter (`password-check`), not one per route.
 - **No personal data in keys.** `eyadex:rl:<area>:<route>:<dimension>:<HMAC-SHA256(BETTER_AUTH_SECRET,
 value) hex>`. The client IP comes only from `AreaHosts.clientIp` (ADR-0004); when the proxy chain is not
   the deployed one, those requests share a single `untrusted` bucket.
