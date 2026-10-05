@@ -23,7 +23,10 @@ export const CLIENT_IP_HEADER = "x-eyadex-client-ip";
  * @returns the hook
  */
 export function sessionAreaHook(db: PostgresJsDatabase, area: AuthArea) {
-  return async (session: { userId: string }): Promise<void> => {
+  return async (
+    session: { userId: string },
+    context: { path?: string } | null | undefined,
+  ): Promise<{ data: { twoFactorVerified: boolean } }> => {
     const [user] = await db
       .select({ area: authUsers.area })
       .from(authUsers)
@@ -34,5 +37,14 @@ export function sessionAreaHook(db: PostgresJsDatabase, area: AuthArea) {
         message: "Invalid email or password",
       });
     }
+    // Second-factor assurance is decided here, once, by the endpoint minting the session (0024): a
+    // password sign-in is never verified, whatever the user's two-factor flag says at that moment.
+    return { data: { twoFactorVerified: SECOND_FACTOR_PATHS.has(context?.path ?? "") } };
   };
 }
+
+/** Better Auth endpoints whose new session proves a second factor was just checked. */
+const SECOND_FACTOR_PATHS: ReadonlySet<string> = new Set([
+  "/two-factor/verify-totp",
+  "/two-factor/verify-backup-code",
+]);

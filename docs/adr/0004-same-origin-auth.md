@@ -51,6 +51,12 @@ called `api.eyadex.com` directly, both areas' cookies would be stored for one ho
 - **Client IP.** Better Auth reads the IP only from `x-eyadex-client-ip`, which the API overwrites on
   every request from the socket (`TRUST_PROXY_HOPS=0`) or the address our outermost proxy appended; a
   client-sent `X-Forwarded-For` neither spoofs it nor collapses everyone into one rate-limit bucket.
+- **Second-factor assurance per session (`0024`).** `auth_sessions.two_factor_verified` is set once, by
+  the endpoint that mints the session: true only for verify-totp / verify-backup-code. The platform gate
+  reads it, not the user's `two_factor_enabled`, so a password-only session opened while the user's first
+  enrollment completes never inherits full access (the post-enrollment sweep alone could be raced).
+- **Handler boundary.** `/auth/*` runs outside Nest's exception filter, so the route catches, logs
+  sanitised, and answers the `unknown` envelope itself.
 - **Platform TOTP stays mandatory.** `trustDevice` is refused (400) on the platform host, and when a
   platform user completes enrollment every other session — opened with the password alone — is revoked.
 - **Error envelope.** A failed Better Auth answer leaves as the catalogued envelope

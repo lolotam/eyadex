@@ -21,13 +21,14 @@ export interface ResolvedSession {
 }
 
 /**
- * هل المستخدم فعّل TOTP؟ الحقل بييجي من plugin الـ two-factor.
+ * هل الجلسة دي نفسها اتعملت بعد ما عامل تاني (TOTP أو backup code) اتحقق؟ (0024) — مش علم المستخدم
+ * `twoFactorEnabled`: جلسة اتفتحت بكلمة المرور بس لازم تفضل ناقصة حتى لو المستخدم كمّل التسجيل بعدها.
  *
  * @param session الجلسة
- * @returns `true` بس لو مفعّل فعلاً
+ * @returns `true` بس لو الجلسة اتعملت بعامل تاني متحقق منه
  */
 export function hasTwoFactor(session: AreaSession): boolean {
-  return (session.user as { twoFactorEnabled?: unknown }).twoFactorEnabled === true;
+  return (session.session as { twoFactorVerified?: unknown }).twoFactorVerified === true;
 }
 
 /**

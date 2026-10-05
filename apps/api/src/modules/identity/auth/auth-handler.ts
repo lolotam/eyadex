@@ -150,7 +150,16 @@ export async function registerAuthRoutes(
     scope.route({
       method: ["GET", "POST"],
       url: "/auth/*",
-      handler: (request, reply) => handle(areaAuth, request, reply),
+      // This route sits outside Nest, so EnvelopeExceptionFilter never sees its throws: a failure here
+      // (database, lock, revocation) is logged sanitised and leaves as `unknown`, like the filter does.
+      handler: async (request, reply) => {
+        try {
+          await handle(areaAuth, request, reply);
+        } catch (exception) {
+          request.log.error({ err: exception }, "unhandled error");
+          if (!reply.sent) await fail(reply, new ApiError("unknown"));
+        }
+      },
     });
   });
 }

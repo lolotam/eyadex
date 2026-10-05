@@ -152,7 +152,48 @@ describe("platform two-factor hardening", () => {
   });
 });
 
+describe("second-factor assurance is per session (0024)", () => {
+  it("NEGATIVE: a password-only session stays limited even after the user's two-factor flag turns on", async () => {
+    const user = await createUser(h, h.areaAuth.of("platform"), "assurance");
+    const passwordOnly = jar(setCookies(await signIn(PLATFORM, user.email)));
+    // The race's outcome: the session was minted while the flag was off, and the flag is on now.
+    await h.owner`UPDATE auth_users SET two_factor_enabled = true WHERE id = ${user.userId}`;
+    const res = await call(h, {
+      method: "GET",
+      url: "/v1/probe",
+      host: PLATFORM,
+      cookie: passwordOnly,
+    });
+    expect(res.statusCode).toBe(403);
+    expect(res.json()).toMatchObject({ code: "two_factor_required" });
+  });
+
+  it("records which sessions a second factor minted", async () => {
+    const user = await createUser(h, h.areaAuth.of("platform"), "assurance-rows");
+    await enrolled(PLATFORM, user.email);
+    const rows = await h.owner<{ two_factor_verified: boolean }[]>`
+      SELECT two_factor_verified FROM auth_sessions WHERE user_id = ${user.userId}`;
+    expect(rows.map((row) => row.two_factor_verified)).toEqual([true]);
+  });
+});
+
 describe("Better Auth failures leave as the API envelope", () => {
+  it("an exception inside the auth handler leaves as the unknown envelope", async () => {
+    const clinic = h.areaAuth.of("clinic") as {
+      isForeignSession: (headers: Headers) => Promise<boolean>;
+    };
+    const original = clinic.isForeignSession;
+    clinic.isForeignSession = () => Promise.reject(new Error("database went away: secret-detail"));
+    try {
+      const res = await call(h, { url: "/auth/sign-out", host: APP });
+      expect(res.statusCode).toBe(500);
+      expect(res.json()).toMatchObject({ code: "unknown" });
+      expect(res.body).not.toContain("secret-detail");
+    } finally {
+      clinic.isForeignSession = original;
+    }
+  });
+
   it("a wrong password → 401 invalid_credentials with both languages", async () => {
     const user = await createUser(h, h.areaAuth.of("clinic"), "envelope");
     const res = await signIn(APP, user.email, `${password}-wrong`);

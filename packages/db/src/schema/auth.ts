@@ -51,6 +51,8 @@ export const authSessions = pgTable(
     area: text("area").notNull(),
     createdAt: timestamp("created_at", tz).notNull(),
     updatedAt: timestamp("updated_at", tz).notNull(),
+    // 0024: true only for a session minted by a verified second factor.
+    twoFactorVerified: boolean("two_factor_verified").notNull(),
   },
   (t) => [
     unique("auth_sessions_token_key").on(t.token),

@@ -81,6 +81,8 @@ function buildAuth(options: CreateAuthOptions, client: postgres.Sql) {
       cookieCache: { enabled: false },
       additionalFields: {
         area: { type: "string", required: true, input: false, defaultValue: options.area },
+        // Set by sessionAreaHook from the minting endpoint; never from the client (0024).
+        twoFactorVerified: { type: "boolean", required: true, input: false, defaultValue: false },
       },
     },
     user: {

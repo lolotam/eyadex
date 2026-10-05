@@ -9,3 +9,10 @@
 
 ALTER TABLE auth_users
   ADD COLUMN area text NOT NULL CHECK (area IN ('platform', 'clinic'));
+
+-- Second-factor assurance is a property of the SESSION, set when Better Auth mints it: true only for a
+-- session created by a verified TOTP / backup code. Mandatory platform TOTP checks this column, not the
+-- user's two_factor_enabled flag — otherwise a password-only session opened while the user's first
+-- enrollment completes would inherit full access the moment the flag turns on.
+ALTER TABLE auth_sessions
+  ADD COLUMN two_factor_verified boolean NOT NULL;
