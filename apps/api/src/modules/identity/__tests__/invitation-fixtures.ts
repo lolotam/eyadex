@@ -73,13 +73,11 @@ export async function branchInvite(h: Harness, clinicId: string) {
 
 export const strongPassword = () => `Pw-${randomBytes(12).toString("base64url")}`;
 
-export const accept = (h: Harness, token: string, password: string, host = APP, ip?: string) =>
-  call(h, {
-    url: "/v1/invitations/accept",
-    host,
-    body: { token, password },
-    ...(ip === undefined ? {} : { ip }),
-  });
+// A fresh address per call unless a test pins one: the per-IP limit must not leak between tests.
+const randomIp = () => `10.${[0, 0, 0].map(() => Math.floor(Math.random() * 250) + 1).join(".")}`;
 
-export const inspect = (h: Harness, token: string, host = APP) =>
-  call(h, { url: "/v1/invitations/inspect", host, body: { token } });
+export const accept = (h: Harness, token: string, password: string, host = APP, ip = randomIp()) =>
+  call(h, { url: "/v1/invitations/accept", host, body: { token, password }, ip });
+
+export const inspect = (h: Harness, token: string, host = APP, ip = randomIp()) =>
+  call(h, { url: "/v1/invitations/inspect", host, body: { token }, ip });
