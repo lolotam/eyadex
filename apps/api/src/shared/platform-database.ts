@@ -9,7 +9,9 @@ export const PLATFORM_DATABASE = Symbol("shared.PlatformDatabase");
 // Read only when the platform module is mounted. The error names the keys, never a value.
 const schema = z.object({
   PLATFORM_DATABASE_URL: z.string().url(),
-  OUTBOX_SEAL_KEY: z.string().min(40),
+  OUTBOX_SEAL_KEY: z
+    .string()
+    .refine((v) => Buffer.from(v, "base64").length === 32, "must be 32 bytes, base64"),
 });
 
 export type PlatformConfig = z.output<typeof schema>;

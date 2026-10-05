@@ -33,7 +33,7 @@ export const outboxEvents = pgTable(
       foreignColumns: [clinics.id],
     }),
     index("outbox_events_clinic_idx").on(t.clinicId),
-    index("outbox_events_pending_idx").on(t.createdAt).where(sql`(dispatched_at IS NULL)`),
+    index("outbox_events_pending_idx").on(t.createdAt).where(sql`dispatched_at IS NULL`),
     check(
       "outbox_events_event_type_check",
       sql.raw("(event_type ~ '^[a-z]+(_[a-z]+)*\\.[a-z]+(_[a-z]+)*$'::text)"),
