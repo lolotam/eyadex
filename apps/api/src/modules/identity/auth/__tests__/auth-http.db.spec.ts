@@ -234,7 +234,7 @@ describe("same-origin auth over HTTP (ADR-0004)", () => {
     const [{ count }] = await owner<
       { count: number }[]
     >`SELECT count(*)::int AS count FROM auth_two_factors WHERE user_id = ${user.userId}`;
-    expect(count).toBe(1);
+    expect(counted?.count).toBe(1);
     const last = finished.filter((f) => f.status === 200).at(-1)!;
     const verify = await call({
       url: "/auth/two-factor/verify-totp",
