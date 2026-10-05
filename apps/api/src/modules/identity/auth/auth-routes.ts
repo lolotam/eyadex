@@ -1,9 +1,13 @@
+import type { AuthArea } from "@eyadex/auth";
+
 /** A Better Auth route the API exposes, relative to `/auth`. */
 export interface AuthRoute {
   readonly method: "GET" | "POST";
   readonly path: string;
   /** Reachable on the platform host by a session that has not enrolled TOTP yet (PRD §4.10). */
   readonly beforeTwoFactor: boolean;
+  /** Reachable on this area's host only; elsewhere it answers 404. */
+  readonly onlyArea?: AuthArea;
 }
 
 // ALLOWLIST: anything not listed here (sign-up, delete-user, update-user, list-sessions, …) answers 404.
@@ -15,7 +19,9 @@ const ROUTES: readonly AuthRoute[] = [
   { method: "POST", path: "/change-password", beforeTwoFactor: false },
   { method: "POST", path: "/two-factor/enable", beforeTwoFactor: true },
   { method: "POST", path: "/two-factor/verify-totp", beforeTwoFactor: true },
-  { method: "POST", path: "/two-factor/disable", beforeTwoFactor: false },
+  // TOTP is mandatory on the platform (PRD §4.10): turning it off there is not an option, and a stolen
+  // session + password must not be able to swap the second factor for the attacker's.
+  { method: "POST", path: "/two-factor/disable", beforeTwoFactor: false, onlyArea: "clinic" },
   { method: "POST", path: "/two-factor/generate-backup-codes", beforeTwoFactor: false },
   { method: "POST", path: "/two-factor/verify-backup-code", beforeTwoFactor: false },
 ];

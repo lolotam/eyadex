@@ -20,6 +20,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@eyadex/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@eyadex/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts

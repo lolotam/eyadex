@@ -48,9 +48,17 @@ async function handle(areaAuth: AreaAuth, request: FastifyRequest, reply: Fastif
   if (area === null) return fail(reply, new ApiError("not_found"));
   const path = request.url.split("?")[0]!.slice("/auth".length);
   const route = findAuthRoute(request.method, path);
-  if (route === undefined) return fail(reply, new ApiError("not_found"));
+  if (route === undefined || (route.onlyArea !== undefined && route.onlyArea !== area)) {
+    return fail(reply, new ApiError("not_found"));
+  }
 
   const instance = areaAuth.of(area);
+  // A session from the other area (a cookie renamed across hosts) is refused on EVERY auth route, not
+  // only on /v1: Better Auth alone accepts it (same table, same secret), so change-password, enable or
+  // sign-out would otherwise act on it (ADR-0003).
+  if (await instance.isForeignSession(toHeaders(request.headers))) {
+    return fail(reply, new ApiError("unauthorized"));
+  }
   const origin = areaAuth.hosts.origin(area);
   const needsSession =
     (area === "platform" && !route.beforeTwoFactor) || path === ENABLE_TWO_FACTOR_PATH;

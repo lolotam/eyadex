@@ -138,6 +138,14 @@ export interface EyadexAuth {
    */
   getSession(headers: Headers): Promise<AreaSession | null>;
   /**
+   * هل الطلب شايل جلسة صالحة بس صادرة من المنطقة التانية؟ Better Auth لوحده بيقبلها (نفس الجدول
+   * ونفس السر)، فكل route بيقرا جلسة لازم يرفضها قبل ما يوصل لـ Better Auth (ADR-0003).
+   *
+   * @param headers headers الطلب (فيها الـ cookie)
+   * @returns `true` لو الجلسة موجودة ومن المنطقة التانية
+   */
+  isForeignSession(headers: Headers): Promise<boolean>;
+  /**
    * بيشغّل تسجيل الـ two-factor تحت قفل لكل مستخدم (ADR-0003): طلبين متداخلين مايرجّعوش QR الاتنين.
    *
    * @param userId المستخدم
@@ -205,6 +213,10 @@ export function createAuth(options: CreateAuthOptions): EyadexAuth {
     getSession: async (headers) => {
       const found = await auth.api.getSession({ headers });
       return found !== null && found.session.area === options.area ? found : null;
+    },
+    isForeignSession: async (headers) => {
+      const found = await auth.api.getSession({ headers });
+      return found !== null && found.session.area !== options.area;
     },
     revokeUserSessions: async (userId) => {
       const context = await auth.$context;

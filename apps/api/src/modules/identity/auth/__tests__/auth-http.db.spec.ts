@@ -137,6 +137,35 @@ describe("same-origin auth over HTTP (ADR-0004)", () => {
     expect(replay.statusCode).toBe(401);
   });
 
+  it("NEGATIVE: a clinic session renamed for the platform host is refused on /auth routes too", async () => {
+    const user = await create(areaAuth.of("clinic"), "cross-auth");
+    const cookie = await signIn(APP, user.email);
+    const renamed = cookie.replaceAll("__Secure-eyadex-clinic.", "__Secure-eyadex-platform.");
+    const change = await call({
+      url: "/auth/change-password",
+      host: PLATFORM,
+      cookie: renamed,
+      body: { currentPassword: password, newPassword: `${password}-changed` },
+    });
+    expect(change.statusCode).toBe(401);
+    expect(change.json()).toMatchObject({ code: "unauthorized" });
+    const enable = await call({
+      url: "/auth/two-factor/enable",
+      host: PLATFORM,
+      cookie: renamed,
+      body: { password },
+    });
+    expect(enable.statusCode).toBe(401);
+    // The password is unchanged: the clinic sign-in with the original one still works.
+    await signIn(APP, user.email);
+  });
+
+  it("NEGATIVE: two-factor cannot be disabled on the platform host", async () => {
+    const res = await call({ url: "/auth/two-factor/disable", host: PLATFORM, body: { password } });
+    expect(res.statusCode).toBe(404);
+    expect(res.json()).toMatchObject({ code: "not_found" });
+  });
+
   it("unknown host → 404 envelope on /auth and /v1", async () => {
     const auth = await call({
       url: "/auth/sign-in/email",

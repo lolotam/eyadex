@@ -34,6 +34,11 @@ called `api.eyadex.com` directly, both areas' cookies would be stored for one ho
 - **Enrollment lock.** `/two-factor/enable` runs under `pg_try_advisory_lock` keyed on the user id, on one
   reserved `eyadex_auth` connection; an overlapping request gets 409 `two_factor_busy` instead of
   overwriting the secret behind the first QR code.
+- **Other-area sessions on `/auth`.** Every `/auth` route first asks `isForeignSession`: a valid session
+  issued by the other area (a cookie renamed across hosts) → 401 `unauthorized` before Better Auth runs,
+  since Better Auth alone would accept it (ADR-0003).
+- **No disabling TOTP on the platform.** `/two-factor/disable` is reachable on the clinic host only; on
+  the platform host it answers 404, so a stolen session plus password cannot swap the second factor.
 - **Origin check.** `trustedOrigins` is the area origin only, and `disableOriginCheck: false` is set
   explicitly: Better Auth otherwise skips the check when `NODE_ENV` is `test`.
 
