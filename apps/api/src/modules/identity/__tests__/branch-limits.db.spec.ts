@@ -1,6 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { closeHarness, openHarness, type Harness } from "../auth/__tests__/auth-http-harness.ts";
+import {
+  APP,
+  closeHarness,
+  openHarness,
+  type Harness,
+} from "../auth/__tests__/auth-http-harness.ts";
 import { clinicWithMembers, get } from "./access-fixtures.ts";
 import {
   activeBranchIds,

@@ -10,7 +10,7 @@ export interface Member {
   readonly cookie: string;
 }
 
-async function signedIn(h: Harness, clinicId: string, email: string, password: string) {
+export async function signedIn(h: Harness, clinicId: string, email: string, password: string) {
   const res = await call(h, {
     url: "/auth/sign-in/email",
     host: APP,
