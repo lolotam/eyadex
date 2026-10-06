@@ -51,3 +51,8 @@ export {
   type BranchChangesDeps,
 } from "./use-cases/branch-changes/branch-changes.ts";
 export { listBranches } from "./queries/list-branches.ts";
+export {
+  type ExclusiveMember,
+  type ExclusiveMemberReader,
+} from "./ports/exclusive-member-reader.ts";
+export { checkLimit as checkSeatLimit, usersUsage } from "./domain/limits.ts";
