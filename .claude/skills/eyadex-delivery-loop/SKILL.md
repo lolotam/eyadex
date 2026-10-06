@@ -24,7 +24,7 @@ The owner set this loop on 2026-10-06. It refines `CLAUDE.md` §2.1: the orchest
    - Tell Lovable about any orchestrator fix since its last slice, so it keeps it.
 2. **Review locally when Lovable finishes.** Lovable may say it "couldn't push", but its commit lands on branch `lovable`. Fetch `origin/lovable` into a worktree and read the diff. Run everything with Node ≥ 24:
    - `pnpm install --frozen-lockfile`, `pnpm typecheck`, `pnpm lint` (0 errors).
-   - Per package: `pnpm --filter @eyadex/<pkg> test` for `observability`, `db`, `api`, `web`. A fully parallel `pnpm test` can trip timing tests.
+   - Per package, one at a time: `pnpm --filter @eyadex/<pkg> test` for **every** package with a `test` script (today `observability`, `db`, `api`, `web`, `auth`, `ids`, `worker`; list them with `grep -l '"test":' apps/*/package.json packages/*/package.json`). A fully parallel `pnpm test` can trip timing tests.
    - `pnpm build:all`.
    - Prettier `--check` on changed non-SQL files.
    - Database: apply `sh db/migrate.sh` to a local PostgreSQL, then run every `db/tests/*.sql` with `psql -v ON_ERROR_STOP=1`. Then `pnpm --filter "@eyadex/api^..." build` and `test:db` for `db`, `api`, `auth`. The `EYADEX_TEST_*_URL` values match `.github/workflows/ci.yml`, with the `ci-only-<role>` passwords: a one-character password breaks the "secret never in the error" assertions.
@@ -37,10 +37,24 @@ The owner set this loop on 2026-10-06. It refines `CLAUDE.md` §2.1: the orchest
    - Before the push, reply on each thread with the fix and the commit. Resolve the thread, then comment `@codex review` again.
    - **At most 5 fix rounds per PR.**
    - A finding that is far-fetched or not worth its code gets a reply explaining why, and the owner decides.
-   - CodeRabbit (free plan) is often rate-limited and doesn't block.
-5. **Merge.** Merge when Codex reports no new valid findings (or 5 rounds are used), CI is green and the PR is mergeable.
+   - CodeRabbit (free plan) often posts only a rate-limit notice. That notice is not a finding, but any CodeRabbit inline comment is a claim to verify like Codex's.
+5. **Merge.** Merge only when all of these hold:
+   - Codex reports no new valid finding;
+   - every CodeRabbit inline comment is answered;
+   - CI (`verify`, `db`, `api-image`) and both Socket checks are green;
+   - the PR is mergeable.
+
+   After 5 rounds:
+   - Merge only if what remains is non-blocking (P2 or below, answered on its thread).
+   - A valid P1 or security finding still open after 5 rounds: **stop and ask the owner**; never merge it.
+
+   How to merge:
    - Use `merge_method: "merge"`, never squash or rebase, because it breaks Lovable's sync.
-   - Then `git push origin origin/main:lovable` (fast-forward) and unsubscribe from the PR.
+   - Then `git fetch origin main lovable`.
+   - Check that `origin/lovable` is an ancestor of `origin/main`.
+   - Push `git push origin origin/main:lovable` (fast-forward). The fetch matters: the merge happened on GitHub, so the local `origin/main` is stale until fetched.
+   - Unsubscribe from the PR.
+
 6. **Loop.** Send the next slice (step 1).
 
 ## Stop and ask the owner
@@ -48,6 +62,7 @@ The owner set this loop on 2026-10-06. It refines `CLAUDE.md` §2.1: the orchest
 - A product decision: `TODO(spec)`, or anything the PRD doesn't settle. Get an independent read-only advisor (a Plan subagent) first and bring its recommendation.
 - An architectural change, or a security finding you can't fix confidently.
 - Lovable paused on `awaiting_input`.
+- A valid P1 or security finding still open after 5 fix rounds.
 - Any production action, for example applying `db/sql` to the production database over SSH. Back up first (`pg_dump -Fc` plus roles), run read-only pre-checks, then `migrate.sh --status` / `--dry-run` / apply / `--status`, then the `db/tests` files.
 
 ## Before opening each PR, check what Codex usually flags
