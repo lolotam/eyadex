@@ -25,6 +25,7 @@ const STATUS: Partial<Record<ApiErrorCode, number>> = {
   email_taken: 409,
   account_other_area: 409,
   limit_reached: 409,
+  last_active_branch: 409,
   rate_limited: 429,
   unknown: 500,
 };

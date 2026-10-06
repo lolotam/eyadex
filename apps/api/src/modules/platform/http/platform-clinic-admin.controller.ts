@@ -9,8 +9,14 @@ import {
   Param,
   Patch,
   Put,
+  Query,
   Req,
 } from "@nestjs/common";
+import {
+  branchListQuerySchema,
+  type BranchListQuery,
+  type BranchListResponse,
+} from "@eyadex/contracts/branches";
 import { idSchema } from "@eyadex/contracts/common";
 import { idempotencyKeySchema } from "@eyadex/contracts/onboarding";
 import {
@@ -23,8 +29,10 @@ import {
   type UpdateLimitsRequest,
   type UpdateSubscriptionRequest,
 } from "@eyadex/contracts/platform-clinics";
+import type { Database } from "@eyadex/db";
 
 import { ApiError } from "../../../shared/errors.ts";
+import { PLATFORM_DATABASE } from "../../../shared/platform-database.ts";
 import { ZodValidationPipe } from "../../../shared/zod-validation.pipe.ts";
 import {
   AUTHORIZATION_INVALIDATOR,
@@ -32,7 +40,7 @@ import {
   type AuthenticatedRequest,
   type AuthorizationInvalidator,
 } from "../../identity/index.ts";
-import type { PlatformClinicChanges } from "../../tenancy/index.ts";
+import { listBranches, type PlatformClinicChanges } from "../../tenancy/index.ts";
 
 export const PLATFORM_CLINIC_CHANGES = Symbol("platform.PlatformClinicChanges");
 export const PLATFORM_CLINIC_DETAIL = Symbol("platform.ClinicDetail");
@@ -57,12 +65,25 @@ export class PlatformClinicAdminController {
     @Inject(PLATFORM_CLINIC_CHANGES) private readonly changes: PlatformClinicChanges,
     @Inject(PLATFORM_CLINIC_DETAIL) private readonly detail: ClinicDetailReader,
     @Inject(AUTHORIZATION_INVALIDATOR) private readonly invalidator: AuthorizationInvalidator,
+    @Inject(PLATFORM_DATABASE) private readonly platformDb: Database,
   ) {}
 
   @Get()
   @PlatformStaff()
   read(@Param("id") id: string): Promise<PlatformClinicDetail> {
     return this.answer(clinicIdOf(id));
+  }
+
+  // Story 17: the platform reads a clinic's branches, read-only, on its own pool (0013 grants SELECT).
+  @Get("branches")
+  @PlatformStaff()
+  async branches(
+    @Param("id") id: string,
+    @Query(new ZodValidationPipe(branchListQuerySchema)) query: BranchListQuery,
+  ): Promise<BranchListResponse> {
+    const clinicId = clinicIdOf(id);
+    if ((await this.detail(clinicId)) === null) throw new ApiError("not_found");
+    return listBranches(this.platformDb, clinicId, query);
   }
 
   @Put("features/:module")
