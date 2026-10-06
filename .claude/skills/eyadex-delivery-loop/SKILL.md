@@ -34,7 +34,7 @@ The owner set this loop on 2026-10-06. It refines `CLAUDE.md` §2.1: the orchest
 4. **Drive it to green.** Treat every Codex (`chatgpt-codex-connector[bot]`) finding and every CI failure as a claim to verify.
    - Fix valid ones on branch `lovable`, with merge commits only and never a force-push.
    - Each fix needs a test that fails on the old code; prove it by reverting the source files and running the test.
-   - Before the push, reply on each thread with the fix and the commit. Resolve the thread, then comment `@codex review` again.
+   - Order, every round: reply on each thread with the fix and the commit, then **push**, then resolve the threads, then comment `@codex review`. Request the review only after the push, so Codex reads the new head; check the summary's "Reviewed commit" against the head before trusting a clean review.
    - **At most 5 fix rounds per PR.**
    - A finding that is far-fetched or not worth its code gets a reply explaining why, and the owner decides.
    - CodeRabbit (free plan) often posts only a rate-limit notice. That notice is not a finding, but any CodeRabbit inline comment is a claim to verify like Codex's.
