@@ -19,6 +19,8 @@
 > - **V1.0 (2026-10-03)** — Initial version, adapted from PosPay CLAUDE.md V3.7 for Eyadex
 >   (clinic instead of company, no money/POS/offline), covering Phase A (Lovable frontend) and
 >   Phase B (NestJS API + worker, PostgreSQL RLS, Drizzle).
+> - **V1.1 (2026-10-06)** — §2.1: the orchestrator fixes review findings itself (max 5 rounds);
+>   the loop lives in `.claude/skills/eyadex-delivery-loop/SKILL.md`.
 
 ## 0. What this project is
 
@@ -62,8 +64,9 @@ swapping the mock adapter for an HTTP adapter must require no screen change.
 2. The **orchestrator agent** reviews locally: typecheck, lint (0 errors), tests, node-server
    build, and real-Chrome checks in Arabic + English at 1440px and 390px for every persona.
 3. A PR `lovable → main` is opened. **CI** (`.github/workflows/ci.yml`), **Codex**
-   (`@codex review` after every new commit), CodeRabbit and Socket must be clean. Every valid
-   finding goes back to Lovable as one fix round.
+   (`@codex review` after every new commit), CodeRabbit and Socket must be clean. The
+   orchestrator verifies every finding and fixes the valid ones itself on `lovable` (at most 5
+   rounds per PR); the full loop is `.claude/skills/eyadex-delivery-loop/SKILL.md`.
 4. Merge with a **merge commit** (never squash or rebase pushed history — it breaks Lovable's
    sync), then fast-forward `lovable` to `main`.
 5. `main` auto-deploys to Dokploy (eyadex.com, app., platform.).
