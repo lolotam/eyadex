@@ -54,3 +54,27 @@ export function checkLimit(usage: LimitUsage, adding = 1): LimitCheck {
   const kind = usage.used + adding <= usage.max ? "within" : "exceeded";
   return { kind, used: usage.used, max: usage.max };
 }
+
+/** المورد اللي عليه الحد. */
+export type LimitResource = "users" | "branches";
+
+/** تفاصيل `limit_reached` اللي بترجع للعميل عشان الرسالة تعرض "3 من 3". */
+export interface LimitReachedDetails {
+  readonly resource: LimitResource;
+  readonly used: number;
+  readonly max: number;
+}
+
+/**
+ * تفاصيل الرفض لما الفحص يطلع `exceeded`.
+ *
+ * @param resource المورد
+ * @param check نتيجة `checkLimit`
+ * @returns التفاصيل، أو `null` لو لسه داخل الحد
+ */
+export function limitReachedDetails(
+  resource: LimitResource,
+  check: LimitCheck,
+): LimitReachedDetails | null {
+  return check.kind === "exceeded" ? { resource, used: check.used, max: check.max } : null;
+}

@@ -11,13 +11,20 @@ import { ApiError } from "../../../shared/errors.ts";
 import { grantFor, type PermissionGrant } from "../domain/permission-check.ts";
 import { AREA_AUTH, hasTwoFactor, toHeaders, type AreaAuth } from "../auth/area-auth.ts";
 import type { AuthenticatedRequest } from "../auth/session.guard.ts";
-import { accessRulesOf, type AccessRule } from "./access-rules.ts";
+import { PERMISSION_CATALOG } from "@eyadex/contracts/permissions";
+import type { ClinicModule } from "@eyadex/contracts/clinics";
+
+import { accessRulesOf, featureOf, type AccessRule } from "./access-rules.ts";
 import {
   CLINIC_CONTEXT_RESOLVER,
   type ClinicContextResolver,
   type ClinicRequestContext,
   type ResolvedMember,
 } from "./clinic-context.ts";
+
+const MODULE_OF: ReadonlyMap<string, ClinicModule | null> = new Map(
+  PERMISSION_CATALOG.map((p) => [p.key, p.module]),
+);
 
 /** الطلب بعد `AccessGuard` على route عيادة. */
 export type ClinicRequest = AuthenticatedRequest & {
@@ -37,7 +44,7 @@ export class AccessDeclarationError extends Error {
 
 /**
  * الـ guard العام (ADR-0009): بيشتغل قبل أي guard تاني، بالترتيب: host → جلسة → (المنصة: TOTP) →
- * عضوية نشطة → العيادة مسموح لها → [module gate، slice 5] → الصلاحية. الرفض هو الافتراضي.
+ * عضوية نشطة → العيادة مسموح لها → الموديول مفعّل (`@RequiresFeature`، ADR-0010) → الصلاحية. الرفض هو الافتراضي.
  */
 @Injectable()
 export class AccessGuard implements CanActivate {
@@ -53,7 +60,7 @@ export class AccessGuard implements CanActivate {
     if (rule.kind === "public") return true;
     const request = context.switchToHttp().getRequest<FastifyRequest>();
     if (rule.kind === "platform_staff") return this.platformStaff(request);
-    await this.clinic(request as ClinicRequest, rule);
+    await this.clinic(request as ClinicRequest, rule, featureOf(context.getHandler()));
     return true;
   }
 
@@ -76,6 +83,7 @@ export class AccessGuard implements CanActivate {
   private async clinic(
     request: ClinicRequest,
     rule: Exclude<AccessRule, { kind: "public" | "platform_staff" }>,
+    feature: ClinicModule | null,
   ) {
     const areaAuth = this.auth();
     if (areaAuth.hosts.resolve(request.headers) !== "clinic") throw new ApiError("not_found");
@@ -83,19 +91,20 @@ export class AccessGuard implements CanActivate {
     if (session === null) throw new ApiError("unauthorized");
     if (this.resolver === undefined) throw new Error("access guard: clinic context not mounted");
     const { context, member } = await this.resolver.resolve(session.user.id);
-    if (!this.moduleEnabled(context)) throw new ApiError("module_disabled");
+    if (feature !== null && !context.enabledModules.includes(feature)) {
+      throw new ApiError("module_disabled", { module: feature });
+    }
     if (rule.kind === "require") {
-      const grant = grantFor(context.permissions, rule.permission);
+      // Defence in depth: a key of a locked module is not granted even on a route that forgot
+      // @RequiresFeature (context.permissions already drops it; this does not rely on that).
+      const keyModule = MODULE_OF.get(rule.permission) ?? null;
+      const usable = keyModule === null || context.enabledModules.includes(keyModule);
+      const grant = usable ? grantFor(context.permissions, rule.permission) : null;
       if (grant === null) throw new ApiError("forbidden");
       request.permissionGrant = grant;
     }
     request.areaSession = { area: "clinic", session };
     request.clinicContext = context;
     request.clinicMember = member;
-  }
-
-  /** Step 3 of PRD §4.7, the module gate: slice 5 (`@RequiresFeature`) fills it in; no route is gated yet. */
-  private moduleEnabled(_context: ClinicRequestContext): boolean {
-    return true;
   }
 }

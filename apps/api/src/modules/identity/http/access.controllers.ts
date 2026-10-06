@@ -36,6 +36,7 @@ export class MeController {
       permissions: [...context.permissions],
       allBranches: context.branchScope.all,
       branchIds: context.branchScope.all ? [] : [...context.branchScope.branchIds],
+      modules: [...context.enabledModules],
     };
   }
 }
@@ -44,8 +45,12 @@ export class MeController {
 export class PermissionsController {
   @Get("catalogue")
   @Require("view:roles:clinic")
-  catalogue(): PermissionCatalogueResponse {
-    const modules = [...new Set(PERMISSION_CATALOG.map((p) => p.module))];
+  catalogue(@Req() request: ClinicRequest): PermissionCatalogueResponse {
+    // A locked module disappears from the role editor (PRD §4.8); its role rows stay (FLAG-02).
+    const enabled = request.clinicContext.enabledModules;
+    const modules = [...new Set(PERMISSION_CATALOG.map((p) => p.module))].filter(
+      (module) => module === null || enabled.includes(module),
+    );
     return {
       modules: modules.map((module) => ({
         module,

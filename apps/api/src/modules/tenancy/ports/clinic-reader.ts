@@ -7,6 +7,7 @@ export interface ClinicSnapshot {
   readonly slug: string;
   readonly nameAr: string;
   readonly nameEn: string;
+  readonly specialty: string;
   readonly status: ClinicStatus;
   readonly expiresAt: Date;
   readonly maxUsers: number;
@@ -17,8 +18,7 @@ export interface ClinicSnapshot {
 
 /**
  * قراية العيادة جوه سياقها (`withTenant`). عيادة تانية أو id مش موجود = `null`، مش error.
- * TODO(spec): عدّ العضويات والدعوات بيقرا جداول الـ identity؛ لما موديول identity يتبني العدّ ده
- * ينتقل ورا port بيوفّره identity (CLAUDE.architecture.md §2.2).
+ * عدّ العضويات والدعوات مش هنا: ورا `SeatUsageReader` اللي بينفّذه identity.
  */
 export interface ClinicReader {
   /**

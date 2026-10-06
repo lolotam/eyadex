@@ -1,3 +1,5 @@
+import type { ClinicModule } from "@eyadex/contracts/clinics";
+
 import { ApiError } from "../../../shared/errors.ts";
 import type { Clock } from "../../tenancy/index.ts";
 import {
@@ -18,8 +20,10 @@ export interface ClinicRequestContext {
   readonly clinicId: string;
   readonly membershipId: string;
   readonly roleId: string;
+  /** الفعلية: من غير مفاتيح الموديولات المقفولة (ADR-0010). */
   readonly permissions: readonly string[];
   readonly branchScope: BranchScope;
+  readonly enabledModules: readonly ClinicModule[];
 }
 
 /** السياق والعضو كامل (لـ `/me`). */
@@ -62,6 +66,7 @@ export class ClinicContextResolver {
         membershipId: member.membershipId,
         roleId: member.role.id,
         permissions: effectivePermissions(member),
+        enabledModules: member.clinic.enabledModules,
         branchScope: member.allBranches
           ? { all: true }
           : { all: false, branchIds: member.branchIds },

@@ -11,8 +11,9 @@ export const USER_CLINIC_TTL_SECONDS = 3_600;
 const PREFIX = "eyadex:authz";
 const versionKey = (clinicId: string) => `${PREFIX}:ver:${clinicId}`;
 const userClinicKey = (userId: string) => `${PREFIX}:uc:${userId}`;
+// `m2`: the snapshot gained `enabledModules` (slice 5); an older entry is never read as one.
 const memberKey = (clinicId: string, version: string, userId: string) =>
-  `${PREFIX}:m:${clinicId}:${version}:${userId}`;
+  `${PREFIX}:m2:${clinicId}:${version}:${userId}`;
 
 /**
  * Versioned cache (ADR-0009). The version is read BEFORE the database, so a change committed while
