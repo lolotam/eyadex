@@ -224,4 +224,13 @@ describe("ISO-02 groundwork: clinics never mix", () => {
     const all = [...first.items, ...second.items].map((r: { id: string }) => r.id);
     expect(new Set(all).size).toBe(4);
   });
+
+  it("keeps the total on a page past the last role", async () => {
+    const all = (await get(h, "/v1/roles?limit=100", A.admin.cookie)).json();
+    const lastId = (all.items as { id: string }[]).at(-1)?.id ?? "";
+    const cursor = Buffer.from(lastId).toString("base64url");
+    const empty = (await get(h, `/v1/roles?limit=3&cursor=${cursor}`, A.admin.cookie)).json();
+    expect(empty.items).toHaveLength(0);
+    expect(empty.total).toBe(4);
+  });
 });

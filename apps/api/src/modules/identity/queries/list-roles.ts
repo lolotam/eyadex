@@ -13,7 +13,6 @@ interface RoleRow {
   is_active: boolean;
   active_users: number;
   permission_keys: string[] | null;
-  total: number;
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -41,23 +40,26 @@ export async function listRoles(
   query: { cursor?: string | undefined; limit: number },
 ): Promise<RoleListResponse> {
   const after = query.cursor === undefined ? null : decodeCursor(query.cursor);
-  const rows = await db.withTenant(clinicId, (tx) =>
-    tx.execute<RoleRow>(
+  // The total is counted on its own: read off the page rows, it fell to 0 on a page past the last role.
+  const { rows, total } = await db.withTenant(clinicId, async (tx) => ({
+    rows: await tx.execute<RoleRow>(
       sql`SELECT r.id, r.system_key, r.name_ar, r.name_en, r.is_locked, r.is_active,
                  (SELECT count(*)::int FROM memberships m
                     WHERE m.clinic_id = r.clinic_id AND m.role_id = r.id AND m.status = 'active')
                    AS active_users,
                  (SELECT array_agg(p.key ORDER BY p.key) FROM role_permissions rp
                     JOIN permissions p ON p.id = rp.permission_id
-                    WHERE rp.clinic_id = r.clinic_id AND rp.role_id = r.id) AS permission_keys,
-                 (SELECT count(*)::int FROM roles t WHERE t.clinic_id = r.clinic_id) AS total
+                    WHERE rp.clinic_id = r.clinic_id AND rp.role_id = r.id) AS permission_keys
           FROM roles r
           WHERE r.clinic_id = ${clinicId}
             AND (${after}::uuid IS NULL OR r.id > ${after}::uuid)
           ORDER BY r.id
           LIMIT ${query.limit + 1}`,
     ),
-  );
+    total: await tx.execute<{ total: number }>(
+      sql`SELECT count(*)::int AS total FROM roles WHERE clinic_id = ${clinicId}`,
+    ),
+  }));
   const page = rows.slice(0, query.limit);
   const last = page.at(-1);
   return {
@@ -72,6 +74,6 @@ export async function listRoles(
       permissionKeys: row.permission_keys ?? [],
     })),
     nextCursor: rows.length > query.limit && last !== undefined ? encodeCursor(last.id) : null,
-    total: Number(rows[0]?.total ?? 0),
+    total: Number(total[0]?.total ?? 0),
   };
 }
