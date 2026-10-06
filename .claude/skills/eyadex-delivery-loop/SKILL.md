@@ -25,9 +25,9 @@ The owner set this loop on 2026-10-06. It refines `CLAUDE.md` §2.1: the orchest
 2. **Review locally when Lovable finishes.** Lovable may say it "couldn't push", but its commit lands on branch `lovable`. Fetch `origin/lovable` into a worktree and read the diff. Run everything with Node ≥ 24:
    - `pnpm install --frozen-lockfile`, `pnpm typecheck`, `pnpm lint` (0 errors).
    - Per package, one at a time: `pnpm --filter @eyadex/<pkg> test` for **every** package with a `test` script (today `observability`, `db`, `api`, `web`, `auth`, `ids`, `worker`; list them with `grep -l '"test":' apps/*/package.json packages/*/package.json`). A fully parallel `pnpm test` can trip timing tests.
-   - `pnpm build:all`.
+   - `NITRO_PRESET=node-server pnpm build:all`: the preset CI and Dokploy build. Without it Nitro builds its default target, not the deployed node server.
    - Prettier `--check` on changed non-SQL files.
-   - Database: apply `sh db/migrate.sh` to a local PostgreSQL, then run every `db/tests/*.sql` with `psql -v ON_ERROR_STOP=1`. Then `pnpm --filter "@eyadex/api^..." build` and `test:db` for `db`, `api`, `auth`. The `EYADEX_TEST_*_URL` values match `.github/workflows/ci.yml`, with the `ci-only-<role>` passwords: a one-character password breaks the "secret never in the error" assertions.
+   - Database: apply `sh db/migrate.sh` to a local PostgreSQL, then run every `db/tests/*.sql` with `psql -v ON_ERROR_STOP=1` and the runner self-test `sh db/tests/migrate-runner.sh`, as the CI `db` job does. Then `pnpm --filter "@eyadex/api^..." build` and `test:db` for `db`, `api`, `auth`. The `EYADEX_TEST_*_URL` values match `.github/workflows/ci.yml`, with the `ci-only-<role>` passwords: a one-character password breaks the "secret never in the error" assertions.
 3. **Open the PR** `lovable → main`.
    - Body: Summary, Local verification (exact counts), Open items, and the PR attribution footer from the session.
    - Comment `@codex review`, then subscribe to the PR's activity.
