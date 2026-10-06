@@ -55,4 +55,4 @@ export {
   type ExclusiveMember,
   type ExclusiveMemberReader,
 } from "./ports/exclusive-member-reader.ts";
-export { checkLimit as checkSeatLimit, usersUsage } from "./domain/limits.ts";
+export { usersUsage } from "./domain/limits.ts";
