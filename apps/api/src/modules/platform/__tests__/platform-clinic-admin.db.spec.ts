@@ -73,6 +73,7 @@ const permissionsOf = async (cookie: string) => (await get(h, "/v1/me", cookie))
 describe("every platform endpoint", () => {
   const routes: [Method, string, unknown][] = [
     ["GET", "", undefined],
+    ["GET", "/branches", undefined],
     ["PUT", "/features/patients", { enabled: true }],
     ["PATCH", "/subscription", { status: "trial" }],
     ["PATCH", "/limits", { maxUsers: 5 }],
@@ -229,6 +230,19 @@ describe("durationDays is relative, so it needs an Idempotency-Key", () => {
       clock.now = real;
       await platform("PATCH", `${clinic()}/subscription`, { expiresAt: "2099-01-01T00:00:00Z" });
     }
+  });
+});
+
+describe("story 17: the platform reads a clinic's branches", () => {
+  it("lists the clinic's branches read-only, with the same filters as the clinic list", async () => {
+    const [n] =
+      await h.owner`SELECT count(*)::int AS n FROM branches WHERE clinic_id = ${clinic()}`;
+    const res = await platform("GET", `${clinic()}/branches?limit=100`);
+    expect(res.statusCode).toBe(200);
+    expect(res.json().total).toBe(n!["n"]);
+    const ids = (res.json().items as { id: string }[]).map((b) => b.id);
+    const rows = await h.owner`SELECT clinic_id FROM branches WHERE id = ANY(${ids})`;
+    expect(rows.every((r) => r["clinic_id"] === clinic())).toBe(true);
   });
 });
 

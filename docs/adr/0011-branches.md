@@ -38,7 +38,10 @@ a phone to the branch; the table had neither.
    current values) answer 200 with the branch, write nothing, audit nothing and do not invalidate.
 7. **Audit (AUD-01).** One administrative `audit_log` row per change: `branch.created` (after),
    `branch.updated` / `branch.deactivated` / `branch.reactivated` (before + after), fields from the
-   allowlist `branchAuditSnapshot` only (names, address, phone, isActive).
+   allowlist `branchAuditSnapshot` only (names, address, phone, isActive). The append-only audit
+   keeps no full phone number: the snapshot stores `maskPhone` (last 3 digits), and
+   `writeClinicAudit` passes every `details` through `redactSecrets`, so a token or civil ID typed
+   into a free-text field (a name, an address) is not kept either.
 8. **Members of a deactivated branch.** `membership_branches` rows are kept (no hard delete), and
    the member's effective branches are only the active ones (the member reader already joins on
    `is_active`). A member whose only branch is deactivated keeps the membership but reaches nothing
@@ -47,9 +50,12 @@ a phone to the branch; the table had neither.
    TODO(spec): whether the UI should warn the admin that such members are left with no branch.
 9. **Cache.** Every committed change calls `AuthorizationInvalidator.clinicChanged` after commit;
    a failure is logged and the 30 s TTL covers it (ADR-0009).
-10. **Placement.** Use cases and SQL live in `tenancy` (it owns branches); the HTTP controller lives
+10. **Platform read (story 17).** `GET /v1/platform/clinics/:id/branches` (`@PlatformStaff`,
+    platform pool, which 0013 grants SELECT on `branches`) lists a clinic's branches read-only
+    with the same filters and cursor as the clinic list; an unknown clinic is 404.
+11. **Placement.** Use cases and SQL live in `tenancy` (it owns branches); the HTTP controller lives
     in `identity` beside the guard and the invalidator (identity → tenancy is an allowed arrow).
-11. **ISO-02.** Another clinic's branch id, or a malformed one, answers 404, never 403.
+12. **ISO-02.** Another clinic's branch id, or a malformed one, answers 404, never 403.
 
 ## Consequences
 

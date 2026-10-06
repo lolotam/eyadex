@@ -105,10 +105,22 @@ describe("create, update, list (AUD-01)", () => {
     ).toBe(200);
     const audit = await branchAudit(h, A.admin.clinicId, created.id);
     expect(audit.map((r) => r["action"])).toEqual(["branch.created", "branch.updated"]);
+    // The append-only audit never keeps a full phone number: last 3 digits only.
     expect(audit[1]!["details"]).toMatchObject({
       before: { phone: null },
-      after: { phone: "+96512345678" },
+      after: { phone: "***678" },
     });
+    expect(JSON.stringify(audit)).not.toContain("12345678");
+  });
+
+  it("free text in the audit snapshot is redacted when it carries a secret", async () => {
+    const created = (await createBranch(h, A.admin.cookie)).json() as { id: string };
+    const res = await patchBranch(h, A.admin.cookie, created.id, {
+      address: "password=hunter2-not-real",
+    });
+    expect(res.statusCode).toBe(200);
+    const audit = await branchAudit(h, A.admin.clinicId, created.id);
+    expect(JSON.stringify(audit.at(-1)!["details"])).not.toContain("hunter2-not-real");
   });
 
   it("rejects an empty PATCH and unknown fields", async () => {
