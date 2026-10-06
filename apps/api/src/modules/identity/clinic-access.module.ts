@@ -1,45 +1,21 @@
-import {
-  Inject,
-  Injectable,
-  Logger as NestLogger,
-  Module,
-  type OnApplicationShutdown,
-} from "@nestjs/common";
+import { Logger as NestLogger, Module } from "@nestjs/common";
 import type { Database } from "@eyadex/db";
-import { Redis } from "ioredis";
 
 import { DatabaseModule } from "../../shared/database.module.ts";
 import { DATABASE } from "../../shared/database.provider.ts";
 import { CLOCK, TenancyModule, type Clock } from "../tenancy/index.ts";
 import { AuthorizationCache } from "./access/authorization-cache.ts";
+import { AuthorizationCacheModule } from "./access/authorization-cache.module.ts";
 import { CLINIC_CONTEXT_RESOLVER, ClinicContextResolver } from "./access/clinic-context.ts";
 import { AREA_AUTH, type AreaAuth } from "./auth/area-auth.ts";
-import { readAuthConfig } from "./auth/auth-config.ts";
 import { AuthModule } from "./auth/auth.module.ts";
 import { MeController, PermissionsController, RolesController } from "./http/access.controllers.ts";
 import { PgMemberAccessReader } from "./persistence/pg-member-access-reader.ts";
-import { AUTHORIZATION_INVALIDATOR } from "./ports/authorization-invalidator.ts";
 import { MEMBER_ACCESS_READER, type MemberAccessReader } from "./ports/member-access-reader.ts";
 import {
   MEMBER_SESSION_REVOKER,
   type MemberSessionRevoker,
 } from "./ports/member-session-revoker.ts";
-
-const AUTHZ_REDIS = Symbol("identity.AuthzRedis");
-
-/** بيقفل اتصال Redis بتاع الكاش مع الـ app. */
-@Injectable()
-export class AuthzRedisCloser implements OnApplicationShutdown {
-  constructor(@Inject(AUTHZ_REDIS) private readonly redis: Redis) {}
-
-  async onApplicationShutdown(): Promise<void> {
-    try {
-      await this.redis.quit();
-    } catch {
-      this.redis.disconnect();
-    }
-  }
-}
 
 const logger = new NestLogger("authorization");
 
@@ -48,30 +24,9 @@ const logger = new NestLogger("authorization");
  * محتاج الـ auth والـ DATABASE_URL والـ REDIS_URL.
  */
 @Module({
-  imports: [AuthModule, DatabaseModule, TenancyModule],
+  imports: [AuthModule, DatabaseModule, TenancyModule, AuthorizationCacheModule],
   controllers: [MeController, PermissionsController, RolesController],
   providers: [
-    {
-      provide: AUTHZ_REDIS,
-      useFactory: () => {
-        // Short timeouts: a slow Redis must cost a request little before it falls back to the DB.
-        const redis = new Redis(readAuthConfig(process.env).REDIS_URL, {
-          enableOfflineQueue: false,
-          maxRetriesPerRequest: 0,
-          commandTimeout: 250,
-          connectTimeout: 1_000,
-        });
-        redis.on("error", () => undefined);
-        return redis;
-      },
-    },
-    AuthzRedisCloser,
-    {
-      provide: AuthorizationCache,
-      inject: [AUTHZ_REDIS],
-      useFactory: (r: Redis) => new AuthorizationCache(r),
-    },
-    { provide: AUTHORIZATION_INVALIDATOR, useExisting: AuthorizationCache },
     {
       provide: MEMBER_ACCESS_READER,
       inject: [DATABASE],
@@ -96,6 +51,6 @@ const logger = new NestLogger("authorization");
       }),
     },
   ],
-  exports: [CLINIC_CONTEXT_RESOLVER, AUTHORIZATION_INVALIDATOR, MEMBER_SESSION_REVOKER],
+  exports: [CLINIC_CONTEXT_RESOLVER, AuthorizationCacheModule, MEMBER_SESSION_REVOKER],
 })
 export class ClinicAccessModule {}

@@ -10,6 +10,7 @@ interface ClinicRow {
   slug: string;
   name_ar: string;
   name_en: string;
+  specialty: string;
   status: ClinicStatus;
   expires_at: Date | string;
   max_users: number;
@@ -23,14 +24,14 @@ const count = async (tx: Tx, query: ReturnType<typeof sql>): Promise<number> => 
   return Number(rows[0]?.total ?? 0);
 };
 
-/** `ClinicReader` فوق `withTenant` — RLS بيضمن إن السياق ده مايشوفش غير عيادته. */
+/** `ClinicReader` فوق `withTenant` (على `eyadex_app` للعيادة، أو `eyadex_platform` للمنصة) — RLS بيضمن إن السياق ده مايشوفش غير عيادته. */
 export class PgClinicReader implements ClinicReader {
   constructor(private readonly db: Database) {}
 
   async readSnapshot(clinicId: string): Promise<ClinicSnapshot | null> {
     return this.db.withTenant(clinicId, async (tx) => {
       const clinics = await tx.execute<ClinicRow>(
-        sql`SELECT id, slug, name_ar, name_en, status, expires_at, max_users, max_branches
+        sql`SELECT id, slug, name_ar, name_en, specialty, status, expires_at, max_users, max_branches
             FROM clinics WHERE id = ${clinicId}`,
       );
       const clinic = clinics[0];
@@ -48,6 +49,7 @@ export class PgClinicReader implements ClinicReader {
         slug: clinic.slug,
         nameAr: clinic.name_ar,
         nameEn: clinic.name_en,
+        specialty: clinic.specialty,
         status: clinic.status,
         expiresAt: toDate(clinic.expires_at),
         maxUsers: Number(clinic.max_users),

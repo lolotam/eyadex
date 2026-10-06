@@ -1,3 +1,4 @@
+import type { ClinicModule } from "@eyadex/contracts/clinics";
 import type { Database } from "@eyadex/db";
 import { sql } from "drizzle-orm";
 
@@ -63,6 +64,10 @@ export class PgMemberAccessReader implements MemberAccessReader {
                 WHERE mb.clinic_id = ${clinicId} AND mb.membership_id = ${row.id} AND b.is_active
                 ORDER BY mb.branch_id`,
           );
+      const features = await tx.execute<{ module: ClinicModule }>(
+        sql`SELECT module FROM clinic_features
+            WHERE clinic_id = ${clinicId} AND enabled ORDER BY module`,
+      );
       return {
         clinicId,
         membershipId: row.id,
@@ -86,6 +91,7 @@ export class PgMemberAccessReader implements MemberAccessReader {
           timezone: row.timezone,
           status: row.clinic_status,
           expiresAt: iso(row.expires_at),
+          enabledModules: features.map((f) => f.module),
         },
       };
     });

@@ -1,4 +1,11 @@
+import type { ClinicModule } from "@eyadex/contracts/clinics";
+import { PERMISSION_CATALOG } from "@eyadex/contracts/permissions";
+
 import { decideClinicAccess, type ClinicStatus } from "../../tenancy/index.ts";
+
+const MODULE_OF: ReadonlyMap<string, ClinicModule | null> = new Map(
+  PERMISSION_CATALOG.map((p) => [p.key, p.module]),
+);
 
 /** كل اللي الـ guard محتاجه عن عضو واحد، مقروء مرة من الداتابيز ومتخزّن في الكاش (ADR-0009). */
 export interface MemberAccess {
@@ -27,6 +34,8 @@ export interface MemberAccess {
     readonly status: ClinicStatus;
     /** ISO؛ نص عشان يعدّي الكاش زي ما هو. */
     readonly expiresAt: string;
+    /** الموديولات اللي ليها صف `clinic_features` مفعّل؛ موديول من غير صف = مقفول (ADR-0010). */
+    readonly enabledModules: readonly ClinicModule[];
   };
 }
 
@@ -59,12 +68,28 @@ export function decideMemberAccess(member: MemberAccess, now: Date): MemberDecis
 }
 
 /**
- * الصلاحيات الفعلية: دور متعطّل ما بيديش حاجة (المفروض مايحصلش لعضو نشط — PRD §4.7 — بس الرفض هو
- * الافتراضي).
+ * هل الموديول مفعّل للعيادة دي (PRD §4.8)؟ `null` = core، دايمًا مفعّل.
+ *
+ * @param member العضو
+ * @param module الموديول، أو `null`
+ * @returns `true` لو مفعّل
+ */
+export function moduleEnabledFor(member: MemberAccess, module: ClinicModule | null): boolean {
+  return module === null || member.clinic.enabledModules.includes(module);
+}
+
+/**
+ * الصلاحيات الفعلية: دور متعطّل ما بيديش حاجة، ومفتاح موديول مقفول بيختفي (FLAG-01). صفوف
+ * `role_permissions` نفسها عمرها ما بتتمسح، فإعادة التفعيل بترجّع نفس الأثر بالظبط (FLAG-02).
+ * مفتاح مش في الكتالوج بيتشال كمان (الرفض هو الافتراضي).
  *
  * @param member العضو
  * @returns المفاتيح
  */
 export function effectivePermissions(member: MemberAccess): readonly string[] {
-  return member.role.isActive ? member.permissions : [];
+  if (!member.role.isActive) return [];
+  return member.permissions.filter((key) => {
+    const module = MODULE_OF.get(key);
+    return module !== undefined && moduleEnabledFor(member, module);
+  });
 }

@@ -11,7 +11,7 @@ import postgres, { type Sql } from "postgres";
 import { createApp } from "../../../../app.ts";
 import { API_LOG_EVENTS } from "../../../../shared/log-events.ts";
 import { AREA_AUTH, type AreaAuth } from "../area-auth.ts";
-import { Public } from "../../access/access-rules.ts";
+import { Public, Require, RequiresFeature } from "../../access/access-rules.ts";
 import { SessionGuard, type AuthenticatedRequest } from "../session.guard.ts";
 
 // The same app wiring as auth-http.db.spec.ts, shared by the specs that need a mounted auth API.
@@ -33,6 +33,17 @@ class ProbeController {
   @Public()
   get(@Req() request: AuthenticatedRequest) {
     return { area: request.areaSession.area, userId: request.areaSession.session.user.id };
+  }
+}
+
+@Controller("probe-patients")
+class FeatureProbeController {
+  // A patients-module route for FLAG-01 until the patients slice brings real ones.
+  @Get()
+  @Require("view:patients:branch")
+  @RequiresFeature("patients")
+  get() {
+    return { ok: true };
   }
 }
 
@@ -80,7 +91,7 @@ export async function openHarness(
     { mountAuth: true, mountPlatform, mountInvitations: mountPlatform, mountClinic: mountPlatform },
     {
       logger: createLogger("info", { destination: sink, events: API_LOG_EVENTS }),
-      controllers: [ProbeController],
+      controllers: mountPlatform ? [ProbeController, FeatureProbeController] : [ProbeController],
     },
   );
   await app.getHttpAdapter().getInstance().ready();
@@ -93,7 +104,7 @@ export async function closeHarness(h: Harness | undefined): Promise<void> {
 }
 
 export interface Call {
-  method?: "GET" | "POST";
+  method?: "GET" | "POST" | "PUT" | "PATCH";
   url: string;
   host: string;
   cookie?: string;

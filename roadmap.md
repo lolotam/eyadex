@@ -32,6 +32,6 @@
 - [x] Slice 3b: `POST /v1/invitations/{inspect,accept}` — single-use acceptance, clinic account + membership, retry-safe across the two DB roles (ADR-0008)
 - [ ] Worker: dispatch `clinic.admin_invited` (open the sealed link, send, scrub payload)
 - [x] Slice 4: global `AccessGuard` (one declaration per route), PRD §4.7 check order, versioned Redis authorization cache, `GET /v1/me`, `/v1/roles`, `/v1/permissions/catalogue` (ADR-0009, SQL 0027)
-- [ ] Slice 5: feature flags / `@RequiresFeature` (fills the guard's module gate)
+- [x] Slice 5: `@RequiresFeature` module gate, platform feature/subscription/limits/detail endpoints, `ClinicLimits` port (ADR-0010)
 - [ ] Slices 6–8: branch, user, role CRUD (call `AuthorizationInvalidator`; slice 7 uses `MemberSessionRevoker`)
 - [ ] Reverse-proxy routes `app.`/`platform.` `/api/*` → api with `/api` stripped (orchestrator)

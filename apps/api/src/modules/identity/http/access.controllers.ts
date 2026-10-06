@@ -31,11 +31,20 @@ export class MeController {
         email: member.email,
         preferredLanguage: member.preferredLanguage,
       },
-      clinic: { id: member.clinicId, ...member.clinic },
+      // Named fields, not a spread: the snapshot also carries enabledModules, which `modules` answers.
+      clinic: {
+        id: member.clinicId,
+        nameAr: member.clinic.nameAr,
+        nameEn: member.clinic.nameEn,
+        timezone: member.clinic.timezone,
+        status: member.clinic.status,
+        expiresAt: member.clinic.expiresAt,
+      },
       role: { id: member.role.id, nameAr: member.role.nameAr, nameEn: member.role.nameEn },
       permissions: [...context.permissions],
       allBranches: context.branchScope.all,
       branchIds: context.branchScope.all ? [] : [...context.branchScope.branchIds],
+      modules: [...context.enabledModules],
     };
   }
 }
@@ -44,8 +53,12 @@ export class MeController {
 export class PermissionsController {
   @Get("catalogue")
   @Require("view:roles:clinic")
-  catalogue(): PermissionCatalogueResponse {
-    const modules = [...new Set(PERMISSION_CATALOG.map((p) => p.module))];
+  catalogue(@Req() request: ClinicRequest): PermissionCatalogueResponse {
+    // A locked module disappears from the role editor (PRD §4.8); its role rows stay (FLAG-02).
+    const enabled = request.clinicContext.enabledModules;
+    const modules = [...new Set(PERMISSION_CATALOG.map((p) => p.module))].filter(
+      (module) => module === null || enabled.includes(module),
+    );
     return {
       modules: modules.map((module) => ({
         module,

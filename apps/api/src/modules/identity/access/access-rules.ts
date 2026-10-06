@@ -1,4 +1,5 @@
 import { PERMISSION_KEYS, type PermissionKey } from "@eyadex/contracts/permissions";
+import type { ClinicModule } from "@eyadex/contracts/clinics";
 
 /**
  * How one route is reached (ADR-0009, RBAC-04). Every handler carries exactly one; the global
@@ -54,4 +55,31 @@ export function Require(permission: PermissionKey): MethodDecorator {
 export function accessRulesOf(handler: unknown): readonly AccessRule[] {
   if (typeof handler !== "function") return [];
   return (Reflect.getMetadata(ACCESS_RULES, handler) as AccessRule[] | undefined) ?? [];
+}
+
+const REQUIRED_FEATURE = Symbol("identity.requiredFeature");
+
+/**
+ * الموديول اللي الـ route تبعه (PRD §4.8، ADR-0010). مش declaration وصول: بيتحط جنب واحدة بالظبط
+ * من التلاتة اللي فوق، والـ guard بيرفض بـ `module_disabled` لو الموديول مقفول للعيادة.
+ *
+ * @param module الموديول من `moduleSchema`
+ * @returns الـ decorator
+ */
+export function RequiresFeature(module: ClinicModule): MethodDecorator {
+  return (_target, _key, descriptor) => {
+    Reflect.defineMetadata(REQUIRED_FEATURE, module, descriptor.value as object);
+    return descriptor;
+  };
+}
+
+/**
+ * الموديول اللي اتعلن على handler.
+ *
+ * @param handler دالة الـ route
+ * @returns الموديول، أو `null` = الـ route من الأساس (core)
+ */
+export function featureOf(handler: unknown): ClinicModule | null {
+  if (typeof handler !== "function") return null;
+  return (Reflect.getMetadata(REQUIRED_FEATURE, handler) as ClinicModule | undefined) ?? null;
 }
