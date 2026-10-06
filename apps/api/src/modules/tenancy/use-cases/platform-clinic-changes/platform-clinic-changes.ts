@@ -54,7 +54,7 @@ export class PlatformClinicChanges {
    * @returns بيخلص بعد الـ commit؛ عيادة مش موجودة → `not_found`
    */
   async setFeature(actorUserId: string, clinicId: string, module: ClinicModule, enabled: boolean) {
-    await this.inClinic(clinicId, async (tx, _clinic, now) => {
+    await this.inClinic(actorUserId, clinicId, async (tx, _clinic, now) => {
       const before = await tx.execute<{ enabled: boolean }>(
         sql`SELECT enabled FROM clinic_features WHERE clinic_id = ${clinicId} AND module = ${module}`,
       );
@@ -85,7 +85,7 @@ export class PlatformClinicChanges {
    * @returns بيخلص بعد الـ commit
    */
   async updateSubscription(actorUserId: string, clinicId: string, input: UpdateSubscriptionRequest) {
-    await this.inClinic(clinicId, async (tx, clinic, now) => {
+    await this.inClinic(actorUserId, clinicId, async (tx, clinic, now) => {
       const before: Subscription = { status: clinic.status, expiresAt: iso(clinic.expires_at) };
       const expiresAt =
         input.durationDays !== undefined
@@ -115,7 +115,7 @@ export class PlatformClinicChanges {
    * @returns بيخلص بعد الـ commit
    */
   async updateLimits(actorUserId: string, clinicId: string, input: UpdateLimitsRequest) {
-    await this.inClinic(clinicId, async (tx, clinic, now) => {
+    await this.inClinic(actorUserId, clinicId, async (tx, clinic, now) => {
       const before = { maxUsers: Number(clinic.max_users), maxBranches: Number(clinic.max_branches) };
       const after = {
         maxUsers: input.maxUsers ?? before.maxUsers,
@@ -128,19 +128,36 @@ export class PlatformClinicChanges {
       );
       return { action: "clinic.limits_changed", details: { before, after } };
     });
-    return actorUserId;
   }
 
   private async inClinic(
+    actorUserId: string,
     clinicId: string,
     change: (
       tx: Tx,
       clinic: ClinicRow,
       now: Date,
     ) => Promise<{ action: string; details: Record<string, unknown> }>,
-    actorUserId?: string,
   ): Promise<void> {
-    void actorUserId;
-    throw new Error("unreachable");
+    const { db, clock, ids } = this.deps;
+    const now = clock.now();
+    await db.withTenant(clinicId, async (tx) => {
+      // The row lock orders concurrent platform changes on one clinic; each sees the other's result.
+      const rows = await tx.execute<ClinicRow>(
+        sql`SELECT status, expires_at, max_users, max_branches FROM clinics
+            WHERE id = ${clinicId} FOR UPDATE`,
+      );
+      const clinic = rows[0];
+      if (clinic === undefined) throw new ApiError("not_found");
+      const { action, details } = await change(tx, clinic, now);
+      await writePlatformAudit(tx, {
+        id: ids.newId(),
+        actorUserId,
+        action,
+        clinicId,
+        details,
+        createdAt: now,
+      });
+    });
   }
 }
