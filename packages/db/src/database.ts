@@ -36,7 +36,7 @@ export interface Database {
   withNewTenant<T>(fn: (tx: Tx, clinicId: string) => Promise<T>): Promise<T>;
   /**
    * من غير عيادة: `app.clinic_id` بيتحط فاضي صريح، فكل جدول عيادة بيرجع صفر صفوف. المسار الوحيد
-   * المسموح بيه قبل ما تكون عيادة معروفة هو `invitation_clinic_for_token` (0014).
+   * المسموح بيه قبل ما تكون عيادة معروفة: `invitation_clinic_for_token` (0014) و`membership_clinic_for_user` (0027).
    *
    * @param fn الشغل جوه الـ transaction
    * @returns نتيجتها
