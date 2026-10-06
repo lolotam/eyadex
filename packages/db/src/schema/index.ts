@@ -14,3 +14,4 @@ export {
   authTwoFactors,
 } from "./auth.ts";
 export { outboxEvents, idempotencyKeys } from "./outbox.ts";
+export { clinicIdempotencyKeys } from "./clinic-idempotency.ts";

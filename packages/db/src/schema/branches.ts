@@ -11,7 +11,7 @@ import {
 
 import { clinics } from "./clinics.ts";
 
-// Mirror of db/sql/0003.
+// Mirror of db/sql/0003 + 0028 (address, phone).
 const tz = { withTimezone: true, mode: "date" } as const;
 
 export const branches = pgTable(
@@ -24,6 +24,8 @@ export const branches = pgTable(
     isActive: boolean("is_active").notNull(),
     createdAt: timestamp("created_at", tz).notNull(),
     updatedAt: timestamp("updated_at", tz).notNull(),
+    address: text("address"),
+    phone: text("phone"),
   },
   (t) => [
     primaryKey({ name: "branches_pkey", columns: [t.clinicId, t.id] }),

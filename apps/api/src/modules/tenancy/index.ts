@@ -44,3 +44,10 @@ export {
   PlatformClinicChanges,
   type PlatformClinicChangesDeps,
 } from "./use-cases/platform-clinic-changes/platform-clinic-changes.ts";
+export {
+  BranchChanges,
+  type BranchActor,
+  type BranchChange,
+  type BranchChangesDeps,
+} from "./use-cases/branch-changes/branch-changes.ts";
+export { listBranches } from "./queries/list-branches.ts";
