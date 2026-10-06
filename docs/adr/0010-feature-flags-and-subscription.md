@@ -34,12 +34,12 @@ Redis-down fallback to the database.
 **Platform endpoints** (`@PlatformStaff`, `eyadex_platform` pool, one transaction each, the clinic
 row locked `FOR UPDATE`, exactly one `platform_audit_log` row with allowlisted before/after):
 
-| Route | Audit action | Allowlisted details |
-| --- | --- | --- |
-| `GET /v1/platform/clinics/:id` | — | — |
-| `PUT …/:id/features/:module` `{ enabled }` | `clinic.feature_changed` | `module`, `enabled` |
-| `PATCH …/:id/subscription` | `clinic.subscription_changed` | `status`, `expiresAt` |
-| `PATCH …/:id/limits` | `clinic.limits_changed` | `maxUsers`, `maxBranches` |
+| Route                                      | Audit action                  | Allowlisted details       |
+| ------------------------------------------ | ----------------------------- | ------------------------- |
+| `GET /v1/platform/clinics/:id`             | —                             | —                         |
+| `PUT …/:id/features/:module` `{ enabled }` | `clinic.feature_changed`      | `module`, `enabled`       |
+| `PATCH …/:id/subscription`                 | `clinic.subscription_changed` | `status`, `expiresAt`     |
+| `PATCH …/:id/limits`                       | `clinic.limits_changed`       | `maxUsers`, `maxBranches` |
 
 Every write answers with the detail. After the commit the controller calls
 `AuthorizationInvalidator.clinicChanged`; if that fails it logs and relies on the 30 s TTL. An
