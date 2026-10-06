@@ -62,6 +62,10 @@ export const API_ERROR_MESSAGES = {
     message_ar: "تم الوصول للحد المسموح للعيادة",
     message_en: "The clinic limit has been reached",
   },
+  branch_has_exclusive_members: {
+    message_ar: "بعض المستخدمين ليس لهم فرع نشط غير هذا الفرع؛ أكّد الإيقاف للمتابعة",
+    message_en: "Some users have no other active branch; confirm to deactivate it",
+  },
   last_active_branch: {
     message_ar: "لا يمكن إيقاف آخر فرع نشط للعيادة",
     message_en: "The clinic's last active branch cannot be deactivated",

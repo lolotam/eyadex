@@ -281,6 +281,7 @@ export const ar: Dictionary = {
     limit_reached: "تم الوصول للحد المسموح للعيادة",
     forbidden: "غير مسموح لك بهذا الإجراء",
     module_disabled: "هذا الموديول متوقف لهذه العيادة",
+    branch_has_exclusive_members: "بعض المستخدمين ليس لهم فرع نشط غير هذا الفرع؛ أكّد الإيقاف للمتابعة",
     last_active_branch: "لا يمكن إيقاف آخر فرع نشط للعيادة",
     validation: "بعض الحقول غير صحيحة",
     last_active_platform_account: "لا يمكن تعطيل آخر حساب نشط في المنصة",

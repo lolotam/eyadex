@@ -61,6 +61,8 @@ export const branchDetailSchema = z.object({
   address: z.string().nullable(),
   phone: z.string().nullable(),
   isActive: z.boolean(),
+  /** Active members limited to branches whose only active branch is this one (ADR-0012). */
+  exclusiveMemberCount: z.number().int().nonnegative(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });
