@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { idSchema, languageSchema } from "./common.ts";
-import { clinicStatusSchema } from "./clinics.ts";
+import { clinicStatusSchema, moduleSchema } from "./clinics.ts";
 import { systemRoleKeySchema } from "./organization.ts";
 import { actionSchema, resourceSchema, scopeSchema } from "./permissions.ts";
 
@@ -28,6 +28,8 @@ export const meResponseSchema = z.object({
   /** true = every branch of the clinic; otherwise `branchIds` lists the allowed, active branches. */
   allBranches: z.boolean(),
   branchIds: z.array(idSchema),
+  /** Modules enabled for the clinic (PRD §4.8); `permissions` already excludes the locked ones. */
+  modules: z.array(moduleSchema),
 });
 export type MeResponse = z.infer<typeof meResponseSchema>;
 
@@ -42,7 +44,7 @@ const catalogueEntrySchema = z.object({
 export const permissionCatalogueResponseSchema = z.object({
   modules: z.array(
     z.object({
-      module: z.enum(["patients"]).nullable(),
+      module: moduleSchema.nullable(),
       permissions: z.array(catalogueEntrySchema),
     }),
   ),
