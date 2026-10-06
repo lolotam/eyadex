@@ -17,7 +17,7 @@ import { branches } from "./branches.ts";
 import { clinics } from "./clinics.ts";
 import { roles } from "./roles.ts";
 
-// Mirror of db/sql/0005, 0006, 0015, 0017. user_id is a plain uuid: identity tables arrive later.
+// Mirror of db/sql/0005, 0006, 0015, 0017, 0027. user_id is a plain uuid: identity tables arrive later.
 const tz = { withTimezone: true, mode: "date" } as const;
 
 export const memberships = pgTable(
@@ -52,6 +52,7 @@ export const memberships = pgTable(
     index("memberships_clinic_role_idx").on(t.clinicId, t.roleId),
     index("memberships_clinic_status_idx").on(t.clinicId, t.status),
     uniqueIndex("memberships_email_unique").on(t.email),
+    uniqueIndex("memberships_user_unique").on(t.userId),
     check("memberships_email_canonical", sql.raw("(email = lower(btrim(email)))")),
     check(
       "memberships_preferred_language_check",

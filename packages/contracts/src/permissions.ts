@@ -73,3 +73,34 @@ function buildCatalog(): PermissionDefinition[] {
 }
 
 export const PERMISSION_CATALOG: readonly PermissionDefinition[] = buildCatalog();
+
+/**
+ * Every catalogue key as a literal type, so `@Require(...)` in the API only compiles with a real key.
+ * Written out (not derived) on purpose: a test pins it to PERMISSION_CATALOG and to the seeded table.
+ */
+export const PERMISSION_KEYS = [
+  "view:branches:clinic",
+  "create:branches:clinic",
+  "update:branches:clinic",
+  "deactivate:branches:clinic",
+  "view:users:clinic",
+  "create:users:clinic",
+  "update:users:clinic",
+  "deactivate:users:clinic",
+  "view:roles:clinic",
+  "create:roles:clinic",
+  "update:roles:clinic",
+  "deactivate:roles:clinic",
+  "view:patients:clinic",
+  "view:patients:branch",
+  "create:patients:clinic",
+  "create:patients:branch",
+  "update:patients:clinic",
+  "update:patients:branch",
+  "deactivate:patients:clinic",
+  "deactivate:patients:branch",
+  "view:audit_log:clinic",
+  "view:clinic_settings:clinic",
+  "update:clinic_settings:clinic",
+] as const;
+export type PermissionKey = (typeof PERMISSION_KEYS)[number];

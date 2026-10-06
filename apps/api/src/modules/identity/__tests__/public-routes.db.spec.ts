@@ -8,9 +8,9 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { closeHarness, openHarness, type Harness } from "../auth/__tests__/auth-http-harness.ts";
 import { PublicRateLimitGuard } from "../auth/public-rate-limit.guard.ts";
 import { PUBLIC_V1_ROUTES } from "../auth/public-rate-limits.ts";
-import { SessionGuard } from "../auth/session.guard.ts";
+import { accessRulesOf } from "../access/access-rules.ts";
 
-// Completeness: every /v1 POST without SessionGuard is listed with a limit and guarded by the limiter.
+// Completeness: every @Public() /v1 POST is listed with a limit and guarded by the limiter.
 let h: Harness;
 
 beforeAll(async () => {
@@ -40,7 +40,7 @@ describe("sessionless /v1 POST routes", () => {
           if (typeof handler !== "function" || name === "constructor") continue;
           if (Reflect.getMetadata(METHOD_METADATA, handler) !== RequestMethod.POST) continue;
           const guards = [...classGuards, ...(Reflect.getMetadata(GUARDS_METADATA, handler) ?? [])];
-          if (guards.includes(SessionGuard)) continue;
+          if (accessRulesOf(handler)[0]?.kind !== "public") continue;
           const path = join(
             "v1",
             Reflect.getMetadata(PATH_METADATA, type),

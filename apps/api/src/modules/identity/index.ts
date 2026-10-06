@@ -10,3 +10,16 @@ export { InvitationsModule } from "./invitations.module.ts";
 export { PUBLIC_V1_ROUTES } from "./auth/public-rate-limits.ts";
 export { PlatformAreaGuard } from "./auth/platform-area.guard.ts";
 export { hashInvitationToken } from "./persistence/pg-first-admin-provisioner.ts";
+export { AccessGuard, type ClinicRequest } from "./access/access.guard.ts";
+export { Authenticated, PlatformStaff, Public, Require } from "./access/access-rules.ts";
+export { assertRouteAccess, registeredRoutes } from "./access/route-access-check.ts";
+export type { ClinicRequestContext, BranchScope } from "./access/clinic-context.ts";
+export { ClinicAccessModule } from "./clinic-access.module.ts";
+export {
+  AUTHORIZATION_INVALIDATOR,
+  type AuthorizationInvalidator,
+} from "./ports/authorization-invalidator.ts";
+export {
+  MEMBER_SESSION_REVOKER,
+  type MemberSessionRevoker,
+} from "./ports/member-session-revoker.ts";

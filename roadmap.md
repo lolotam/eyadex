@@ -31,5 +31,7 @@
 - [x] Slice 3a: `POST /v1/platform/clinics` — clinic + system roles + first-admin invitation + email hold + platform audit + outbox in one transaction, Idempotency-Key (ADR-0006, SQL 0025–0026)
 - [x] Slice 3b: `POST /v1/invitations/{inspect,accept}` — single-use acceptance, clinic account + membership, retry-safe across the two DB roles (ADR-0008)
 - [ ] Worker: dispatch `clinic.admin_invited` (open the sealed link, send, scrub payload)
-- [ ] Next: invitation acceptance (+ global email hold), membership deactivation / subscription checks in guards
+- [x] Slice 4: global `AccessGuard` (one declaration per route), PRD §4.7 check order, versioned Redis authorization cache, `GET /v1/me`, `/v1/roles`, `/v1/permissions/catalogue` (ADR-0009, SQL 0027)
+- [ ] Slice 5: feature flags / `@RequiresFeature` (fills the guard's module gate)
+- [ ] Slices 6–8: branch, user, role CRUD (call `AuthorizationInvalidator`; slice 7 uses `MemberSessionRevoker`)
 - [ ] Reverse-proxy routes `app.`/`platform.` `/api/*` → api with `/api` stripped (orchestrator)

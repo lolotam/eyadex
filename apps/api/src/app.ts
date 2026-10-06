@@ -8,7 +8,7 @@ import {
   type OnApplicationShutdown,
   type Type,
 } from "@nestjs/common";
-import { NestFactory } from "@nestjs/core";
+import { APP_GUARD, ModulesContainer, NestFactory } from "@nestjs/core";
 import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fastify";
 import { systemUuidV7, type IdGenerator } from "@eyadex/ids";
 import {
@@ -21,8 +21,11 @@ import {
 import { LogController, type FastifyReply, type FastifyRequest } from "fastify";
 
 import {
+  AccessGuard,
   AREA_AUTH,
+  assertRouteAccess,
   AUTH_RATE_LIMIT,
+  ClinicAccessModule,
   AuthModule,
   InvitationsModule,
   registerAuthRoutes,
@@ -62,6 +65,11 @@ export interface AppDependencies {
   readonly mountPlatform?: boolean;
   /** Mounts `POST /v1/invitations/{inspect,accept}` (ADR-0008). Needs auth mounted and DATABASE_URL. */
   readonly mountInvitations?: boolean;
+  /**
+   * Mounts the clinic request context behind the global access guard and `GET /v1/me`, `/v1/roles`,
+   * `/v1/permissions/catalogue` (ADR-0009). Needs auth mounted, DATABASE_URL and REDIS_URL.
+   */
+  readonly mountClinic?: boolean;
 }
 
 export interface AppOptions {
@@ -113,6 +121,7 @@ export function apiModule(
       ...(deps.mountAuth === true ? [AuthModule] : []),
       ...(deps.mountPlatform === true ? [PlatformModule] : []),
       ...(deps.mountInvitations === true ? [InvitationsModule] : []),
+      ...(deps.mountClinic === true ? [ClinicAccessModule] : []),
     ],
     controllers: [HealthController, ...controllers],
     providers: [
@@ -120,6 +129,8 @@ export function apiModule(
       { provide: UNCLEAN, useValue: deps.onUncleanShutdown ?? (() => process.exit(1)) },
       { provide: LOGS, useValue: logger },
       ShutdownHook,
+      // Every route, mounted or test-only, passes through it first (RBAC-04, ADR-0009).
+      { provide: APP_GUARD, useClass: AccessGuard },
     ],
   };
 }
@@ -218,6 +229,8 @@ export async function startApi(
       app.get<AuthRateLimit>(AUTH_RATE_LIMIT).limiter,
     );
   }
+  // A route without exactly one access declaration fails the boot, not just its requests (RBAC-04).
+  assertRouteAccess(app.get(ModulesContainer));
   app.setGlobalPrefix("v1");
   app.useGlobalFilters(new EnvelopeExceptionFilter());
   await app.init();

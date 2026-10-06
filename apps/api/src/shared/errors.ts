@@ -10,8 +10,10 @@ const STATUS: Partial<Record<ApiErrorCode, number>> = {
   reserved_slug: 400,
   unauthorized: 401,
   invalid_credentials: 401,
+  account_disabled: 401,
   forbidden: 403,
   two_factor_required: 403,
+  subscription_blocked: 403,
   not_found: 404,
   // One answer for used, expired, cancelled and unknown tokens (ADR-0008): 404, not 410, because 410
   // would confirm the link once existed.

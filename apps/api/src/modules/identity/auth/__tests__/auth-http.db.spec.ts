@@ -13,6 +13,7 @@ import { createApp } from "../../../../app.ts";
 import { API_LOG_EVENTS } from "../../../../shared/log-events.ts";
 import { AREA_AUTH, type AreaAuth } from "../area-auth.ts";
 import { SessionGuard, type AuthenticatedRequest } from "../session.guard.ts";
+import { Public } from "../../access/access-rules.ts";
 import { totpFromUri } from "./totp.ts";
 
 const required = (name: string): string => {
@@ -32,6 +33,7 @@ const email = (label: string) => `${label}-${systemUuidV7().newId()}@example.com
 @UseGuards(SessionGuard)
 class ProbeController {
   @Get()
+  @Public()
   get(@Req() request: AuthenticatedRequest) {
     return { area: request.areaSession.area, userId: request.areaSession.session.user.id };
   }

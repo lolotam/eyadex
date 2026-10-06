@@ -9,6 +9,7 @@ import {
 } from "@eyadex/contracts/invitation-acceptance";
 
 import { ZodValidationPipe } from "../../../shared/zod-validation.pipe.ts";
+import { Public } from "../access/access-rules.ts";
 import { ClinicAreaGuard } from "../auth/clinic-area.guard.ts";
 import { PublicRateLimitGuard } from "../auth/public-rate-limit.guard.ts";
 import type { AcceptInvitation } from "../use-cases/accept-invitation/accept-invitation.ts";
@@ -24,6 +25,7 @@ export class InvitationsController {
 
   @Post("inspect")
   @HttpCode(200)
+  @Public()
   inspect(
     @Body(new ZodValidationPipe(inspectInvitationRequestSchema)) body: InspectInvitationRequest,
   ): Promise<InspectInvitationResponse> {
@@ -32,6 +34,7 @@ export class InvitationsController {
 
   @Post("accept")
   @HttpCode(200)
+  @Public()
   accept(
     @Body(new ZodValidationPipe(acceptInvitationRequestSchema)) body: AcceptInvitationRequest,
   ): Promise<AcceptInvitationResponse> {
