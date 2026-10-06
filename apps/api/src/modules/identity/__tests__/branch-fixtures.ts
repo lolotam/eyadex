@@ -26,10 +26,12 @@ export const branchAction = (
   id: string,
   action: "deactivate" | "reactivate",
   host = APP,
+  body?: Record<string, unknown>,
 ) =>
   call(h, {
     url: `/v1/branches/${id}/${action}`,
     host,
+    ...(body === undefined ? {} : { body }),
     ...(cookie === undefined ? {} : { cookie }),
   });
 
