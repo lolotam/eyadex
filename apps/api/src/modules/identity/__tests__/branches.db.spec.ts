@@ -123,6 +123,21 @@ describe("create, update, list (AUD-01)", () => {
     expect(JSON.stringify(audit.at(-1)!["details"])).not.toContain("hunter2-not-real");
   });
 
+  it("a phone number typed into a name or the address is masked in the audit", async () => {
+    const created = (await createBranch(h, A.admin.cookie)).json() as { id: string };
+    const res = await patchBranch(h, A.admin.cookie, created.id, {
+      nameEn: "Salmiya +96512345678",
+      address: "Block 4, call 5551 2345",
+    });
+    expect(res.statusCode).toBe(200);
+    const audit = await branchAudit(h, A.admin.clinicId, created.id);
+    const details = JSON.stringify(audit.at(-1)!["details"]);
+    expect(details).not.toContain("12345678");
+    expect(details).not.toContain("5551 2345");
+    expect(details).toContain("***678");
+    expect(details).toContain("***345");
+  });
+
   it("rejects an empty PATCH and unknown fields", async () => {
     const id = A.doctor.branchId;
     expect(code(await patchBranch(h, A.admin.cookie, id, {}))).toBe("validation");

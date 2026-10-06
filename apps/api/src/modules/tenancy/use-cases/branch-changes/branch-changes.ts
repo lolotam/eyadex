@@ -5,7 +5,7 @@ import type {
 } from "@eyadex/contracts/branches";
 import type { Database, Tx } from "@eyadex/db";
 import type { IdGenerator } from "@eyadex/ids";
-import { maskPhone } from "@eyadex/observability";
+import { maskPhone, maskPhonesInText } from "@eyadex/observability";
 
 import {
   claimClinicIdempotencyKey,
@@ -50,10 +50,17 @@ export interface BranchChange {
   readonly changed: boolean;
 }
 
-// The append-only audit keeps no full phone number (AGENTS.md review rules): the last 3 digits show a change.
+// The append-only audit keeps no full phone number (AGENTS.md review rules), not even one typed into a name
+// or the address: the last 3 digits show a change.
 const auditSnapshot = (branch: Parameters<typeof branchAuditSnapshot>[0]) => {
   const snapshot = branchAuditSnapshot(branch);
-  return { ...snapshot, phone: snapshot.phone === null ? null : maskPhone(snapshot.phone) };
+  return {
+    ...snapshot,
+    nameAr: maskPhonesInText(snapshot.nameAr),
+    nameEn: maskPhonesInText(snapshot.nameEn),
+    address: snapshot.address === null ? null : maskPhonesInText(snapshot.address),
+    phone: snapshot.phone === null ? null : maskPhone(snapshot.phone),
+  };
 };
 
 /**

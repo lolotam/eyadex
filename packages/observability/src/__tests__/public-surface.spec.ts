@@ -13,6 +13,7 @@ describe("@eyadex/observability public surface", () => {
       "enterRequestContext",
       "errorDiagnostic",
       "maskPhone",
+      "maskPhonesInText",
       "redactSecrets",
       "requestContextFields",
       "requestDiagnostic",
