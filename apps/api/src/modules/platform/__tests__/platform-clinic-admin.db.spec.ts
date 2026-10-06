@@ -2,7 +2,17 @@ import { randomUUID } from "node:crypto";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { CLOCK, type Clock } from "../../tenancy/index.ts";
+import type { Database } from "@eyadex/db";
+
+import { DATABASE } from "../../../shared/database.provider.ts";
+import { PgSeatUsageReader } from "../../identity/index.ts";
+import {
+  CLOCK,
+  limitReachedDetails,
+  PgClinicReader,
+  ReaderClinicLimits,
+  type Clock,
+} from "../../tenancy/index.ts";
 import {
   APP,
   call,
@@ -192,6 +202,18 @@ describe("story 13 / 18: limits and usage", () => {
       before: { maxUsers: 5, maxBranches: 3 },
       after: { maxUsers: 1, maxBranches: 3 },
     });
+    // SUB-03 groundwork: the port slices 6–7 call refuses the next user with the usage.
+    const db = h.app.get<Database>(DATABASE);
+    const limits = new ReaderClinicLimits(
+      new PgClinicReader(db),
+      new PgSeatUsageReader(db),
+      h.app.get<Clock>(CLOCK),
+    );
+    const check = await limits.canAddUser(clinic());
+    expect(limitReachedDetails("users", check)).toEqual({ resource: "users", used: 2, max: 1 });
+    expect((await limits.canAddBranch(clinic())).kind).toBe(
+      Number(branches!["n"]) + 1 <= 3 ? "within" : "exceeded",
+    );
     expect((await platform("PATCH", `${clinic()}/limits`, { maxUsers: 0 })).statusCode).toBe(400);
     expect((await platform("PATCH", `${clinic()}/limits`, {})).statusCode).toBe(400);
   });
