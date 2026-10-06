@@ -31,7 +31,15 @@ export class MeController {
         email: member.email,
         preferredLanguage: member.preferredLanguage,
       },
-      clinic: { id: member.clinicId, ...member.clinic },
+      // Named fields, not a spread: the snapshot also carries enabledModules, which `modules` answers.
+      clinic: {
+        id: member.clinicId,
+        nameAr: member.clinic.nameAr,
+        nameEn: member.clinic.nameEn,
+        timezone: member.clinic.timezone,
+        status: member.clinic.status,
+        expiresAt: member.clinic.expiresAt,
+      },
       role: { id: member.role.id, nameAr: member.role.nameAr, nameEn: member.role.nameEn },
       permissions: [...context.permissions],
       allBranches: context.branchScope.all,

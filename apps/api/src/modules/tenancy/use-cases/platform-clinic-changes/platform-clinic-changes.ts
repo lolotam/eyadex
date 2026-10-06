@@ -8,6 +8,11 @@ import type { IdGenerator } from "@eyadex/ids";
 import { sql } from "drizzle-orm";
 
 import { ApiError } from "../../../../shared/errors.ts";
+import {
+  claimIdempotencyKey,
+  completeIdempotencyKey,
+  requestHash,
+} from "../../../../shared/idempotency.ts";
 import { writePlatformAudit } from "../../../../shared/platform-audit.ts";
 import type { ClinicStatus } from "../../domain/clinic-access.ts";
 import { resolveExpiry } from "../../domain/subscription.ts";
@@ -82,14 +87,29 @@ export class PlatformClinicChanges {
    * @param actorUserId عضو فريق المنصة
    * @param clinicId العيادة
    * @param input الطلب بعد الـ contract
-   * @returns بيخلص بعد الـ commit
+   * @param idempotencyKey إلزامي مع `durationDays`: إعادة نفس الطلب ماتمدّش الاشتراك تاني
+   * @returns بيخلص بعد الـ commit؛ نفس المفتاح بطلب مختلف → `idempotency_conflict`
    */
   async updateSubscription(
     actorUserId: string,
     clinicId: string,
     input: UpdateSubscriptionRequest,
+    idempotencyKey?: string,
   ) {
+    const scope = `platform:clinic-subscription:${actorUserId}`;
     await this.inClinic(actorUserId, clinicId, async (tx, clinic, now) => {
+      if (idempotencyKey !== undefined) {
+        const claim = await claimIdempotencyKey<{ clinicId: string }>(
+          tx,
+          scope,
+          idempotencyKey,
+          requestHash({ clinicId, ...input }),
+          now,
+        );
+        // A replay already moved the expiry once; recomputing from the retry time would move it again.
+        if (claim.kind === "replay") return null;
+        if (claim.kind === "conflict") throw new ApiError("idempotency_conflict");
+      }
       const before: Subscription = { status: clinic.status, expiresAt: iso(clinic.expires_at) };
       const expiresAt =
         input.durationDays !== undefined
@@ -106,6 +126,9 @@ export class PlatformClinicChanges {
               expires_at = ${after.expiresAt}::timestamptz, updated_at = ${now.toISOString()}::timestamptz
             WHERE id = ${clinicId}`,
       );
+      if (idempotencyKey !== undefined) {
+        await completeIdempotencyKey(tx, scope, idempotencyKey, { clinicId });
+      }
       return { action: "clinic.subscription_changed", details: { before, after } };
     });
   }
@@ -144,7 +167,7 @@ export class PlatformClinicChanges {
       tx: Tx,
       clinic: ClinicRow,
       now: Date,
-    ) => Promise<{ action: string; details: Record<string, unknown> }>,
+    ) => Promise<{ action: string; details: Record<string, unknown> } | null>,
   ): Promise<void> {
     const { db, clock, ids } = this.deps;
     const now = clock.now();
@@ -156,7 +179,10 @@ export class PlatformClinicChanges {
       );
       const clinic = rows[0];
       if (clinic === undefined) throw new ApiError("not_found");
-      const { action, details } = await change(tx, clinic, now);
+      const changed = await change(tx, clinic, now);
+      // null = an idempotent replay: nothing changed, so nothing is audited.
+      if (changed === null) return;
+      const { action, details } = changed;
       await writePlatformAudit(tx, {
         id: ids.newId(),
         actorUserId,

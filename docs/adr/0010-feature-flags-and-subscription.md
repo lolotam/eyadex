@@ -43,9 +43,13 @@ row locked `FOR UPDATE`, exactly one `platform_audit_log` row with allowlisted b
 
 Every write answers with the detail. After the commit the controller calls
 `AuthorizationInvalidator.clinicChanged`; if that fails it logs and relies on the 30 s TTL. An
-unknown or malformed clinic id, or an unknown module, is 404. No `Idempotency-Key`: PUT/PATCH set
-absolute values, so a replay writes the same state again (and one more audit row, which is a true
-record of the call).
+unknown or malformed clinic id, or an unknown module, is 404. PUT/PATCH with absolute values need no
+`Idempotency-Key`: a replay writes the same state again (and one more audit row, which is a true
+record of the call). `durationDays` is the exception: it counts from the request time, so a retry
+after a timeout would extend the subscription a second time. A subscription PATCH carrying
+`durationDays` therefore requires `Idempotency-Key` (the 0025 table, scope
+`platform:clinic-subscription:<actor>`); a replay changes nothing and writes no audit row, and the
+same key with a different body is `idempotency_conflict`.
 
 **Expiry input.** Either `durationDays` (from now on the injected Clock) or `expiresAt` (taken as
 given, even in the past: the platform may end access on purpose), never both; at least one field.

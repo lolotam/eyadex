@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   HttpCode,
   Inject,
   Logger,
@@ -11,6 +12,7 @@ import {
   Req,
 } from "@nestjs/common";
 import { idSchema } from "@eyadex/contracts/common";
+import { idempotencyKeySchema } from "@eyadex/contracts/onboarding";
 import {
   featureModuleParamSchema,
   setFeatureRequestSchema,
@@ -47,8 +49,8 @@ const clinicIdOf = (raw: string): string => {
   return parsed.data;
 };
 
-// Stories 9–15 and 18 (ADR-0010). Idempotent PUT/PATCH: a replay sets the same values again, so no
-// Idempotency-Key. Each write invalidates the clinic's authorization cache after its commit.
+// Stories 9–15 and 18 (ADR-0010). PUT/PATCH with absolute values replay to the same state, so no
+// Idempotency-Key; `durationDays` is relative and needs one. Each write invalidates the cache after commit.
 @Controller("platform/clinics/:id")
 export class PlatformClinicAdminController {
   constructor(
@@ -84,10 +86,16 @@ export class PlatformClinicAdminController {
   async subscription(
     @Req() request: AuthenticatedRequest,
     @Param("id") id: string,
+    @Headers("idempotency-key") rawKey: string | undefined,
     @Body(new ZodValidationPipe(updateSubscriptionRequestSchema)) body: UpdateSubscriptionRequest,
   ): Promise<PlatformClinicDetail> {
     const clinicId = clinicIdOf(id);
-    await this.changes.updateSubscription(actor(request), clinicId, body);
+    // `durationDays` counts from the request time, so a retry would extend twice: it needs a key.
+    const key = rawKey === undefined ? undefined : idempotencyKeySchema.safeParse(rawKey);
+    if (key?.success === false || (key === undefined && body.durationDays !== undefined)) {
+      throw new ApiError("validation", [{ path: ["Idempotency-Key"], code: "required" }]);
+    }
+    await this.changes.updateSubscription(actor(request), clinicId, body, key?.data);
     return this.changed(clinicId);
   }
 

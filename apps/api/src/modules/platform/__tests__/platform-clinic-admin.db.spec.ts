@@ -59,6 +59,15 @@ const clinic = () => A.admin.clinicId;
 const audits = (action: string) =>
   h.owner`SELECT actor_user_id, details FROM platform_audit_log
           WHERE clinic_id = ${clinic()} AND action = ${action} ORDER BY created_at`;
+const keyed = (body: unknown, key: string) =>
+  call(h, {
+    method: "PATCH",
+    url: `/v1/platform/clinics/${clinic()}/subscription`,
+    host: PLATFORM,
+    cookie: staff.cookie,
+    headers: { "idempotency-key": key },
+    body,
+  });
 const permissionsOf = async (cookie: string) => (await get(h, "/v1/me", cookie)).json().permissions;
 
 describe("every platform endpoint", () => {
@@ -163,7 +172,7 @@ describe("SUB-01 / SUB-02: subscription changes through the platform API", () =>
     const start = new Date("2030-01-01T00:00:00Z");
     clock.now = () => start;
     try {
-      const res = await platform("PATCH", `${clinic()}/subscription`, { durationDays: 30 });
+      const res = await keyed({ durationDays: 30 }, randomUUID());
       expect(res.json()).toMatchObject({
         expiresAt: "2030-01-31T00:00:00.000Z",
         access: "allowed",
@@ -186,14 +195,40 @@ describe("SUB-01 / SUB-02: subscription changes through the platform API", () =>
     });
     expect(past.json()).toMatchObject({ access: "expired" });
     expect(code(await get(h, "/v1/me", A.admin.cookie))).toBe("subscription_blocked");
-    const both = await platform("PATCH", `${clinic()}/subscription`, {
-      durationDays: 5,
-      expiresAt: "2099-01-01T00:00:00Z",
-    });
+    const both = await keyed({ durationDays: 5, expiresAt: "2099-01-01T00:00:00Z" }, randomUUID());
     expect(both.statusCode).toBe(400);
     expect((await platform("PATCH", `${clinic()}/subscription`, {})).statusCode).toBe(400);
     await platform("PATCH", `${clinic()}/subscription`, { expiresAt: "2099-01-01T00:00:00Z" });
     expect((await get(h, "/v1/me", A.admin.cookie)).statusCode).toBe(200);
+  });
+});
+
+describe("durationDays is relative, so it needs an Idempotency-Key", () => {
+  it("refuses durationDays without a key", async () => {
+    const res = await platform("PATCH", `${clinic()}/subscription`, { durationDays: 30 });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("a retry with the same key later keeps the first expiry and writes no second audit row", async () => {
+    const clock = h.app.get<Clock>(CLOCK);
+    const real = clock.now;
+    const key = randomUUID();
+    try {
+      clock.now = () => new Date("2031-01-01T00:00:00Z");
+      const first = await keyed({ durationDays: 10 }, key);
+      expect(first.json()).toMatchObject({ expiresAt: "2031-01-11T00:00:00.000Z" });
+      const auditsBefore = (await audits("clinic.subscription_changed")).length;
+      clock.now = () => new Date("2031-01-05T00:00:00Z");
+      const retry = await keyed({ durationDays: 10 }, key);
+      expect(retry.json()).toMatchObject({ expiresAt: "2031-01-11T00:00:00.000Z" });
+      expect((await audits("clinic.subscription_changed")).length).toBe(auditsBefore);
+      const other = await keyed({ durationDays: 20 }, key);
+      expect(other.statusCode).toBe(409);
+      expect(code(other)).toBe("idempotency_conflict");
+    } finally {
+      clock.now = real;
+      await platform("PATCH", `${clinic()}/subscription`, { expiresAt: "2099-01-01T00:00:00Z" });
+    }
   });
 });
 

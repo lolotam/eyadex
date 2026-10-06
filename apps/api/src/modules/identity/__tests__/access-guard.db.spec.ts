@@ -3,6 +3,8 @@ import { randomUUID } from "node:crypto";
 import { ModulesContainer } from "@nestjs/core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { meResponseSchema } from "@eyadex/contracts/access";
+
 import { CLOCK, type Clock } from "../../tenancy/index.ts";
 import { registeredRoutes } from "../access/route-access-check.ts";
 import {
@@ -64,6 +66,11 @@ describe("RBAC-01: the three read endpoints", () => {
       allBranches: true,
     });
     expect(me.json().permissions).toContain("view:roles:clinic");
+    // The response is exactly the contract: no snapshot-only field leaks into `clinic`.
+    expect(meResponseSchema.strict().safeParse(me.json()).success).toBe(true);
+    expect(Object.keys(me.json().clinic).sort()).toEqual(
+      Object.keys(meResponseSchema.shape.clinic.shape).sort(),
+    );
     expect((await get(h, "/v1/roles", A.admin.cookie)).statusCode).toBe(200);
     const catalogue = await get(h, "/v1/permissions/catalogue", A.admin.cookie);
     expect(catalogue.json().modules.map((m: { module: unknown }) => m.module)).toEqual([
