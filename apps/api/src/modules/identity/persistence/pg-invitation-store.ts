@@ -130,9 +130,11 @@ export async function readClinicForMail(
   tx: Tx,
   clinicId: string,
 ): Promise<{ nameAr: string; nameEn: string; language: "ar" | "en" }> {
-  const rows = await tx.execute<{ name_ar: string; name_en: string; default_language: "ar" | "en" }>(
-    sql`SELECT name_ar, name_en, default_language FROM clinics WHERE id = ${clinicId}`,
-  );
+  const rows = await tx.execute<{
+    name_ar: string;
+    name_en: string;
+    default_language: "ar" | "en";
+  }>(sql`SELECT name_ar, name_en, default_language FROM clinics WHERE id = ${clinicId}`);
   const row = rows[0];
   if (row === undefined) throw new Error("clinic in context is not visible");
   return { nameAr: row.name_ar, nameEn: row.name_en, language: row.default_language };

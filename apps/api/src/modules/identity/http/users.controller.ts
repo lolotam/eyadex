@@ -82,7 +82,10 @@ export class UsersController {
     @Param("id") id: string,
     @Body(new ZodValidationPipe(changeRoleInputSchema)) body: ChangeRoleInput,
   ): Promise<MembershipUserView> {
-    return this.after(request, await this.changes.changeRole(actorOf(request), idOf(id), body.roleId));
+    return this.after(
+      request,
+      await this.changes.changeRole(actorOf(request), idOf(id), body.roleId),
+    );
   }
 
   @Patch(":id/branches")

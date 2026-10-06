@@ -94,7 +94,10 @@ export class InvitationChanges {
       );
       if (claimed.kind === "conflict") throw new ApiError("idempotency_conflict");
       if (claimed.kind === "replay") {
-        return { invitation: await this.view(tx, clinicId, claimed.response.invitationId), changed: false };
+        return {
+          invitation: await this.view(tx, clinicId, claimed.response.invitationId),
+          changed: false,
+        };
       }
       const role = await activeRole(tx, clinicId, input.roleId);
       await assertActiveBranches(tx, clinicId, branchIds);
@@ -147,7 +150,9 @@ export class InvitationChanges {
       if (locked === null) throw new ApiError("not_found");
       const decision = decideInvitationResend(locked.status, locked.expiresAt, now);
       if (decision === "not_pending") {
-        throw new ApiError(locked.status === "accepted" ? "invitation_used" : "invitation_cancelled");
+        throw new ApiError(
+          locked.status === "accepted" ? "invitation_used" : "invitation_cancelled",
+        );
       }
       if (decision === "reoccupies_seat") await this.assertSeat(tx, clinicId, now);
       const before = await this.view(tx, clinicId, invitationId);

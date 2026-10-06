@@ -35,6 +35,7 @@ import { ApiError } from "../../../shared/errors.ts";
 import { PLATFORM_DATABASE } from "../../../shared/platform-database.ts";
 import { ZodValidationPipe } from "../../../shared/zod-validation.pipe.ts";
 import {
+  PgExclusiveMembers,
   AUTHORIZATION_INVALIDATOR,
   PlatformStaff,
   type AuthenticatedRequest,
@@ -59,6 +60,9 @@ const clinicIdOf = (raw: string): string => {
 
 // Stories 9–15 and 18 (ADR-0010). PUT/PATCH with absolute values replay to the same state, so no
 // Idempotency-Key; `durationDays` is relative and needs one. Each write invalidates the cache after commit.
+// Member counts only (no names): administrative data, never patient data.
+const exclusiveMembers = new PgExclusiveMembers();
+
 @Controller("platform/clinics/:id")
 export class PlatformClinicAdminController {
   constructor(
@@ -83,7 +87,7 @@ export class PlatformClinicAdminController {
   ): Promise<BranchListResponse> {
     const clinicId = clinicIdOf(id);
     if ((await this.detail(clinicId)) === null) throw new ApiError("not_found");
-    return listBranches(this.platformDb, clinicId, query);
+    return listBranches(this.platformDb, clinicId, query, exclusiveMembers);
   }
 
   @Put("features/:module")

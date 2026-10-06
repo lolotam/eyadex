@@ -55,7 +55,8 @@ const logger = new NestLogger("authorization");
     {
       provide: USER_CHANGES,
       inject: [DATABASE, CLOCK],
-      useFactory: (db: Database, clock: Clock) => new UserChanges({ db, clock, ids: systemUuidV7() }),
+      useFactory: (db: Database, clock: Clock) =>
+        new UserChanges({ db, clock, ids: systemUuidV7() }),
     },
     {
       provide: INVITATION_CHANGES,

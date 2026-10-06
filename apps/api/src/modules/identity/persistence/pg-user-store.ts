@@ -39,7 +39,11 @@ export async function readSeats(
   );
   const row = rows[0];
   if (row === undefined || row.max === null) throw new ApiError("not_found");
-  return { members: Number(row.members), invitations: Number(row.invitations), max: Number(row.max) };
+  return {
+    members: Number(row.members),
+    invitations: Number(row.invitations),
+    max: Number(row.max),
+  };
 }
 
 export interface RoleRef {

@@ -108,7 +108,15 @@ export class UserChanges {
       const { clinicId } = actor;
       const { ids, clock } = this.deps;
       const newId = () => ids.newId();
-      await saveMemberBranches(tx, clinicId, memberId, input.allBranches, branchIds, newId, clock.now());
+      await saveMemberBranches(
+        tx,
+        clinicId,
+        memberId,
+        input.allBranches,
+        branchIds,
+        newId,
+        clock.now(),
+      );
       return { next: before, action: "user.branches_changed" };
     });
   }

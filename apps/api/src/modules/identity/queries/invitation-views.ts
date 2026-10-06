@@ -1,8 +1,5 @@
 import type { Invitation } from "@eyadex/contracts/invitations";
-import type {
-  InvitationListHttpQuery,
-  InvitationListResponse,
-} from "@eyadex/contracts/user-admin";
+import type { InvitationListHttpQuery, InvitationListResponse } from "@eyadex/contracts/user-admin";
 import type { Database, Tx } from "@eyadex/db";
 import { sql, type SQL } from "drizzle-orm";
 

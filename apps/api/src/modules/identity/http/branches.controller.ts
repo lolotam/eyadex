@@ -114,7 +114,10 @@ export class BranchesController {
     body: DeactivateBranchRequest | undefined,
   ): Promise<BranchDetail> {
     const confirm = body?.confirmStrandedMembers === true;
-    return this.after(request, await this.changes.deactivate(actor(request), branchIdOf(id), confirm));
+    return this.after(
+      request,
+      await this.changes.deactivate(actor(request), branchIdOf(id), confirm),
+    );
   }
 
   @Post(":id/reactivate")

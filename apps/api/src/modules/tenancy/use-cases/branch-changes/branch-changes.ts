@@ -106,7 +106,10 @@ export class BranchChanges {
       );
       if (claimed.kind === "conflict") throw new ApiError("idempotency_conflict");
       if (claimed.kind === "replay") {
-        return { branch: await this.reload(tx, clinicId, claimed.response.branchId), changed: false };
+        return {
+          branch: await this.reload(tx, clinicId, claimed.response.branchId),
+          changed: false,
+        };
       }
       await lockClinicBranches(tx, clinicId);
       await this.assertRoom(tx, clinicId);
