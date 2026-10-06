@@ -40,7 +40,11 @@ export function registeredRoutes(modules: ModulesContainer): RouteAccess[] {
         const method: RequestMethod | undefined = Reflect.getMetadata(METHOD_METADATA, handler);
         if (method === undefined || !Reflect.hasMetadata(PATH_METADATA, handler)) continue;
         const path = join("v1", prefix, Reflect.getMetadata(PATH_METADATA, handler));
-        routes.push({ route: `${RequestMethod[method]} ${path}`, rules: accessRulesOf(handler), feature: featureOf(handler) });
+        routes.push({
+          route: `${RequestMethod[method]} ${path}`,
+          rules: accessRulesOf(handler),
+          feature: featureOf(handler),
+        });
       }
     }
   }

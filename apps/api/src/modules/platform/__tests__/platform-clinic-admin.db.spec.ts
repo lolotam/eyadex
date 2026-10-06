@@ -40,7 +40,13 @@ afterAll(async () => {
 });
 
 type Method = "GET" | "PUT" | "PATCH";
-const platform = (method: Method, path: string, body?: unknown, cookie = staff.cookie, host = PLATFORM) =>
+const platform = (
+  method: Method,
+  path: string,
+  body?: unknown,
+  cookie = staff.cookie,
+  host = PLATFORM,
+) =>
   call(h, {
     method,
     url: `/v1/platform/clinics/${path}`,
@@ -96,7 +102,8 @@ describe("every platform endpoint", () => {
 describe("FLAG-01 / FLAG-02: locking a module hides it, re-enabling restores it exactly", () => {
   it("locks, then restores the same permissions (role rows never deleted)", async () => {
     const adminBefore = await permissionsOf(A.admin.cookie);
-    const rowsBefore = await h.owner`SELECT count(*)::int AS n FROM role_permissions WHERE clinic_id = ${clinic()}`;
+    const rowsBefore =
+      await h.owner`SELECT count(*)::int AS n FROM role_permissions WHERE clinic_id = ${clinic()}`;
     expect((await get(h, "/v1/probe-patients", A.doctor.cookie)).statusCode).toBe(200);
 
     const locked = await platform("PUT", `${clinic()}/features/patients`, { enabled: false });
@@ -114,7 +121,8 @@ describe("FLAG-01 / FLAG-02: locking a module hides it, re-enabling restores it 
     );
     const catalogue = (await get(h, "/v1/permissions/catalogue", A.admin.cookie)).json();
     expect(catalogue.modules.map((m: { module: unknown }) => m.module)).toEqual([null]);
-    const rowsLocked = await h.owner`SELECT count(*)::int AS n FROM role_permissions WHERE clinic_id = ${clinic()}`;
+    const rowsLocked =
+      await h.owner`SELECT count(*)::int AS n FROM role_permissions WHERE clinic_id = ${clinic()}`;
     expect(rowsLocked[0]!["n"]).toBe(rowsBefore[0]!["n"]);
 
     const restored = await platform("PUT", `${clinic()}/features/patients`, { enabled: true });
@@ -138,7 +146,10 @@ describe("SUB-01 / SUB-02: subscription changes through the platform API", () =>
     expect(suspended.json()).toMatchObject({ status: "suspended", access: "suspended" });
     const blocked = await get(h, "/v1/me", A.admin.cookie);
     expect(blocked.statusCode).toBe(403);
-    expect(blocked.json()).toMatchObject({ code: "subscription_blocked", details: { reason: "suspended" } });
+    expect(blocked.json()).toMatchObject({
+      code: "subscription_blocked",
+      details: { reason: "suspended" },
+    });
     await platform("PATCH", `${clinic()}/subscription`, { status: "active" });
     expect((await get(h, "/v1/me", A.admin.cookie)).statusCode).toBe(200);
     const [first] = await audits("clinic.subscription_changed");
@@ -153,11 +164,17 @@ describe("SUB-01 / SUB-02: subscription changes through the platform API", () =>
     clock.now = () => start;
     try {
       const res = await platform("PATCH", `${clinic()}/subscription`, { durationDays: 30 });
-      expect(res.json()).toMatchObject({ expiresAt: "2030-01-31T00:00:00.000Z", access: "allowed" });
+      expect(res.json()).toMatchObject({
+        expiresAt: "2030-01-31T00:00:00.000Z",
+        access: "allowed",
+      });
       expect((await get(h, "/v1/me", A.admin.cookie)).statusCode).toBe(200);
       clock.now = () => new Date("2030-01-31T00:00:00Z");
       const blocked = await get(h, "/v1/me", A.admin.cookie);
-      expect(blocked.json()).toMatchObject({ code: "subscription_blocked", details: { reason: "expired" } });
+      expect(blocked.json()).toMatchObject({
+        code: "subscription_blocked",
+        details: { reason: "expired" },
+      });
     } finally {
       clock.now = real;
     }
@@ -182,7 +199,8 @@ describe("SUB-01 / SUB-02: subscription changes through the platform API", () =>
 
 describe("story 13 / 18: limits and usage", () => {
   it("reports usage, ignores deactivated members, and accepts a limit below usage", async () => {
-    const [branches] = await h.owner`SELECT count(*)::int AS n FROM branches WHERE clinic_id = ${clinic()} AND is_active`;
+    const [branches] =
+      await h.owner`SELECT count(*)::int AS n FROM branches WHERE clinic_id = ${clinic()} AND is_active`;
     const detail = (await platform("GET", clinic())).json();
     expect(detail.usage).toEqual({
       users: { used: 2, max: 5 },

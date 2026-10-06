@@ -84,7 +84,11 @@ export class PlatformClinicChanges {
    * @param input الطلب بعد الـ contract
    * @returns بيخلص بعد الـ commit
    */
-  async updateSubscription(actorUserId: string, clinicId: string, input: UpdateSubscriptionRequest) {
+  async updateSubscription(
+    actorUserId: string,
+    clinicId: string,
+    input: UpdateSubscriptionRequest,
+  ) {
     await this.inClinic(actorUserId, clinicId, async (tx, clinic, now) => {
       const before: Subscription = { status: clinic.status, expiresAt: iso(clinic.expires_at) };
       const expiresAt =
@@ -116,7 +120,10 @@ export class PlatformClinicChanges {
    */
   async updateLimits(actorUserId: string, clinicId: string, input: UpdateLimitsRequest) {
     await this.inClinic(actorUserId, clinicId, async (tx, clinic, now) => {
-      const before = { maxUsers: Number(clinic.max_users), maxBranches: Number(clinic.max_branches) };
+      const before = {
+        maxUsers: Number(clinic.max_users),
+        maxBranches: Number(clinic.max_branches),
+      };
       const after = {
         maxUsers: input.maxUsers ?? before.maxUsers,
         maxBranches: input.maxBranches ?? before.maxBranches,

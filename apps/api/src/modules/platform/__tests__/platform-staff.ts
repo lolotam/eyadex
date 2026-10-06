@@ -11,7 +11,9 @@ import { totpFromUri } from "../../identity/auth/__tests__/totp.ts";
 
 const signIn = async (h: Harness, email: string) =>
   jar(
-    setCookies(await call(h, { url: "/auth/sign-in/email", host: PLATFORM, body: { email, password } })),
+    setCookies(
+      await call(h, { url: "/auth/sign-in/email", host: PLATFORM, body: { email, password } }),
+    ),
   );
 
 /** A platform account with a verified second factor, and one signed in without it. */
