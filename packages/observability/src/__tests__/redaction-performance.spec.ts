@@ -15,10 +15,16 @@ const LARGE = 100_000;
 // Just under the 64 KB cap: a larger value would be replaced whole and would not exercise a scanner.
 const NEAR_CAP = 64_000;
 
+// The best of three runs: one sample on a busy CI runner (parallel turbo tasks, a GC pause) read 160 ms on a
+// linear scan, while a quadratic regression stays slow on every run, so the minimum keeps the guard honest.
 const elapsed = (value: string): number => {
-  const start = performance.now();
-  sanitize({ note: value });
-  return performance.now() - start;
+  let best = Number.POSITIVE_INFINITY;
+  for (let run = 0; run < 3; run += 1) {
+    const start = performance.now();
+    sanitize({ note: value });
+    best = Math.min(best, performance.now() - start);
+  }
+  return best;
 };
 
 describe("sanitize stays linear on adversarial strings", () => {
