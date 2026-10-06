@@ -1,4 +1,4 @@
-import { Body, Controller, Headers, HttpCode, Inject, Post, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Headers, HttpCode, Inject, Post, Req } from "@nestjs/common";
 import {
   createClinicRequestSchema,
   idempotencyKeySchema,
@@ -8,24 +8,20 @@ import {
 
 import { ApiError } from "../../../shared/errors.ts";
 import { ZodValidationPipe } from "../../../shared/zod-validation.pipe.ts";
-import {
-  PlatformAreaGuard,
-  SessionGuard,
-  type AuthenticatedRequest,
-} from "../../identity/index.ts";
+import { PlatformStaff, type AuthenticatedRequest } from "../../identity/index.ts";
 import type { CreateClinicWithAdmin } from "../../tenancy/index.ts";
 
 export const CREATE_CLINIC = Symbol("platform.CreateClinicWithAdmin");
 
-// Platform host first (anything else → 404), then a platform session with a verified second factor.
-// TODO(spec): @Require("create:clinics:platform") when the platform permission catalogue lands (slice 4).
+// Platform host first (anything else → 404), then a platform session with a verified second factor —
+// all in the global AccessGuard. No roles inside the platform team in the MVP (PRD §7).
 @Controller("platform/clinics")
-@UseGuards(PlatformAreaGuard, SessionGuard)
 export class PlatformClinicsController {
   constructor(@Inject(CREATE_CLINIC) private readonly createClinic: CreateClinicWithAdmin) {}
 
   @Post()
   @HttpCode(201)
+  @PlatformStaff()
   async create(
     @Req() request: AuthenticatedRequest,
     @Headers("idempotency-key") rawKey: string | undefined,

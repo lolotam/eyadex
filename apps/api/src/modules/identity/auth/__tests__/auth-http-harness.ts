@@ -11,6 +11,7 @@ import postgres, { type Sql } from "postgres";
 import { createApp } from "../../../../app.ts";
 import { API_LOG_EVENTS } from "../../../../shared/log-events.ts";
 import { AREA_AUTH, type AreaAuth } from "../area-auth.ts";
+import { Public } from "../../access/access-rules.ts";
 import { SessionGuard, type AuthenticatedRequest } from "../session.guard.ts";
 
 // The same app wiring as auth-http.db.spec.ts, shared by the specs that need a mounted auth API.
@@ -27,7 +28,9 @@ export const password = randomBytes(18).toString("base64url");
 @Controller("probe")
 @UseGuards(SessionGuard)
 class ProbeController {
+  // Session-only probe for the auth specs: the global guard lets it through, SessionGuard checks.
   @Get()
+  @Public()
   get(@Req() request: AuthenticatedRequest) {
     return { area: request.areaSession.area, userId: request.areaSession.session.user.id };
   }
@@ -74,7 +77,7 @@ export async function openHarness(
     },
   });
   const app = await createApp(
-    { mountAuth: true, mountPlatform, mountInvitations: mountPlatform },
+    { mountAuth: true, mountPlatform, mountInvitations: mountPlatform, mountClinic: mountPlatform },
     {
       logger: createLogger("info", { destination: sink, events: API_LOG_EVENTS }),
       controllers: [ProbeController],

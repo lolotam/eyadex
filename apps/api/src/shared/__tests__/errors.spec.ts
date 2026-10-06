@@ -11,6 +11,7 @@ import { z } from "zod";
 
 import { apiAdapter, apiModule, startApi } from "../../app.ts";
 import { API_LOG_EVENTS } from "../log-events.ts";
+import { Public } from "../../modules/identity/access/access-rules.ts";
 import { PinoNestLogger } from "../nest-logger.ts";
 import { ZodValidationPipe } from "../zod-validation.pipe.ts";
 
@@ -25,21 +26,25 @@ const probeInput = z.object({
 @Controller("probe")
 class ProbeController {
   @Post("patient")
+  @Public()
   create(@Body(new ZodValidationPipe(probeInput)) body: unknown): unknown {
     return body;
   }
 
   @Get("crash")
+  @Public()
   crash(): never {
     throw new Error("SELECT * FROM patients WHERE civil_id = 123456789012 — must not leak");
   }
 
   @Get("throw-string")
+  @Public()
   throwString(): never {
     throw "civil_id=123456789012";
   }
 
   @Get("log-medical")
+  @Public()
   logMedical(@Req() request: FastifyRequest): { logged: true } {
     request.log.info({ civilId: "123456789012", phone: "+96550012345" }, "probe");
     return { logged: true };
