@@ -14,6 +14,7 @@ const STATUS: Partial<Record<ApiErrorCode, number>> = {
   forbidden: 403,
   two_factor_required: 403,
   subscription_blocked: 403,
+  module_disabled: 403,
   not_found: 404,
   // One answer for used, expired, cancelled and unknown tokens (ADR-0008): 404, not 410, because 410
   // would confirm the link once existed.
@@ -23,6 +24,7 @@ const STATUS: Partial<Record<ApiErrorCode, number>> = {
   slug_taken: 409,
   email_taken: 409,
   account_other_area: 409,
+  limit_reached: 409,
   rate_limited: 429,
   unknown: 500,
 };

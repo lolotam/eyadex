@@ -30,3 +30,17 @@ export {
   type CreateClinicCommand,
   type CreateClinicDeps,
 } from "./use-cases/create-clinic-with-admin/create-clinic-with-admin.ts";
+export {
+  limitReachedDetails,
+  type LimitReachedDetails,
+  type LimitResource,
+} from "./domain/limits.ts";
+export { resolveExpiry, type ExpiryInput } from "./domain/subscription.ts";
+export { CLINIC_LIMITS, type ClinicLimits } from "./ports/clinic-limits.ts";
+export { ReaderClinicLimits } from "./queries/clinic-limits.ts";
+export { getPlatformClinicDetail } from "./queries/platform-clinic-detail.ts";
+export { PgClinicReader } from "./persistence/pg-clinic-reader.ts";
+export {
+  PlatformClinicChanges,
+  type PlatformClinicChangesDeps,
+} from "./use-cases/platform-clinic-changes/platform-clinic-changes.ts";
