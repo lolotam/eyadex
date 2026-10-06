@@ -120,7 +120,7 @@ apps/api/src/modules/<module>/
 5. `branch` scope: the record's branch is in the user's branches.
 6. **RLS** as the last line of defence (`app.clinic_id` set by `withTenant`).
 
-Two named pre-tenant / onboarding paths (`db/sql/0014`), and no others:
+Three named pre-tenant / onboarding paths (`db/sql/0014`, `0027`), and no others:
 
 - **Onboarding** runs as `eyadex_platform` inside `withNewTenant()` (app.clinic_id = the new clinic):
   it may insert the clinic, its system roles and the first-admin invitation; RLS still pins every
@@ -130,6 +130,8 @@ Two named pre-tenant / onboarding paths (`db/sql/0014`), and no others:
 - **Accepting an invitation** starts with no clinic: `invitation_clinic_for_token(token_hash)`
   (SECURITY DEFINER, owned by a NOLOGIN role, executable by `eyadex_app` only) returns just the
   clinic id of a pending, unexpired invitation; the API then continues inside `withTenant()`.
+- **Resolving a signed-in user's clinic** (ADR-0009): `membership_clinic_for_user(user_id)`, the same
+  shape, returns only the clinic id of the user's one membership; the guard continues in `withTenant()`.
 
 Grants are the platform-privacy guarantee: `eyadex_platform` has **no** privilege on
 `patients`, and reads audit rows only through a view that excludes `patient_access` entries.
