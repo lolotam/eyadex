@@ -148,12 +148,12 @@ describe("invitations mock", () => {
     expect(resent.token).toBeNull();
     expect(emailed(sent.id)).not.toBe(first);
     await expect(api.invitations.preview(first)).rejects.toMatchObject({ code: "not_found" });
-    await api.invitations.accept(reemailed(sent.id), password);
+    await api.invitations.accept(emailed(sent.id), password);
     const audit = JSON.stringify(getState().clinicAudit);
     const hashes = getState().invitations.map((i) => i.tokenHash);
     for (const secret of [
       first,
-      reemailed(sent.id),
+      emailed(sent.id),
       ...Object.values(getState().inviteOutbox),
       ...hashes,
     ])
