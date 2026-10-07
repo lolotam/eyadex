@@ -302,10 +302,20 @@ A 6th P2 was waived by the advisor and recorded in ADR-0013 §12 as a known limi
 
 ## 12. Production server and its MCP connectors (owner, 2026-10-08)
 
-Production is the Dokploy host **musalam-2**. Two MCP connectors are dedicated to it, and these are the ones to use for Eyadex:
+Production is the Dokploy host **musalam-2** (`116.202.66.131`). The owner created two connectors dedicated to it, and these are the ones to use for Eyadex.
 
-1. **`ssh-musalam-2-mcp`**: SSH to the host (profile `musalam-2`). Use it for `docker`, `psql` inside the Postgres container, migrations and logs. On 2026-10-07/08 this connector failed to start in the orchestrator session. The same host was reached through another loaded SSH connector exposing profile `musalam-2`, so check `list-connections` for that profile.
-2. **`dokploy-musalam-2-mcp`**: the Dokploy API of the same host. Use it for applications, env, domains and deploys. In the tool list it appears as `dokploy-Musalam-2-mcp`. On 2026-10-08 it answered "Authentication failed … DOKPLOY_API_KEY", so the session may need a restart after the connector's key changes.
+**Verified after a session restart on 2026-10-08:**
+
+| Owner's name | What it is | How it shows in the tool list | Status |
+|---|---|---|---|
+| `ssh-musalam-2-mcp` | SSH to the host (profile `musalam-2`): `docker`, `psql` inside the Postgres container, migrations, logs | claude.ai connector `mcp__e024a441-2f34-4be6-87df-277abbcd0b92__*` | ✅ works |
+| `dokploy-musalam-2-mcp` | The host's Dokploy API: applications, env, domains, deploys | claude.ai connector `mcp__b473c753-53ec-44b3-8d3a-2687d85edec2__*`; `settings-getIp` returns `116.202.66.131` | ✅ works |
+
+**Do not use:**
+- the local `ssh-musalam-2-mcp`, which fails with "Connection closed";
+- the local `dokploy-Musalam-2-mcp`, which fails with "Authentication failed / DOKPLOY_API_KEY".
+
+**Check before trusting a connector:** another Dokploy connector, `mcp__1b3000f8-…`, belongs to a different host (`82.29.164.194`). Before acting through any Dokploy connector, confirm the host with `settings-getIp`.
 
 **Dokploy layout** (project `Eyadex.com`, environment `production` `94tiYk1Bb6T8GPP4AVcmQ`):
 
