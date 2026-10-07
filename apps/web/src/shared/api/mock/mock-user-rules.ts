@@ -91,7 +91,7 @@ export function toInvitationView(db: MockState, record: InvitationRecord): Invit
     ...rest,
     ...roleNames(db, record.roleId),
     status: computeInvitationStatus(record),
-    token: db.inviteOutbox[record.id] ?? null,
+    token: null,
   };
 }
 
