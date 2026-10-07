@@ -240,16 +240,9 @@ export class BranchChanges {
       });
       // Unconditional: tenancy never reads invitations; the worker decides what to cancel (ADR-0013 §12).
       if (decided.action === "branch.deactivated") {
-        const payload = { clinicId, branchId, actorUserId: actor.userId };
-        await publishBranchDeactivated(
-          tx,
-          this.deps.ids.newId(),
-          {
-            ...payload,
-            deactivatedAt: now.toISOString(),
-          },
-          now,
-        );
+        const at = now.toISOString();
+        const payload = { clinicId, branchId, actorUserId: actor.userId, deactivatedAt: at };
+        await publishBranchDeactivated(tx, this.deps.ids.newId(), payload, now);
       }
       return { branch: await this.reload(tx, clinicId, branchId), changed: true };
     });
