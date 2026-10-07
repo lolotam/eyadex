@@ -57,8 +57,17 @@ const auditText = async (clinicId: string) =>
 
 beforeAll(() => {
   owner = postgres(required("EYADEX_TEST_OWNER_URL"), { max: 1, onnotice: () => undefined });
-  db = createDatabase({ url: required("EYADEX_TEST_APP_URL"), role: "eyadex_app", ids: systemUuidV7() });
-  changes = new MailProviderChanges({ db, clock: { now: () => new Date() }, ids: systemUuidV7(), sealKey: KEY });
+  db = createDatabase({
+    url: required("EYADEX_TEST_APP_URL"),
+    role: "eyadex_app",
+    ids: systemUuidV7(),
+  });
+  changes = new MailProviderChanges({
+    db,
+    clock: { now: () => new Date() },
+    ids: systemUuidV7(),
+    sealKey: KEY,
+  });
 });
 afterAll(async () => {
   await Promise.all([db.close(), owner.end()]);
@@ -76,10 +85,15 @@ describe("clinic mail provider (ADR-0014, 7c-2a)", () => {
     const audit = await auditText(clinicId);
     expect(audit).not.toContain(API_KEY);
     expect(audit).not.toContain(PASSWORD);
-    const [row] = await owner`SELECT id, sealed_credentials FROM clinic_mail_providers WHERE clinic_id = ${clinicId}`;
+    const [row] =
+      await owner`SELECT id, sealed_credentials FROM clinic_mail_providers WHERE clinic_id = ${clinicId}`;
     expect(row!.sealed_credentials).not.toContain(PASSWORD);
-    expect(new SecretSealer(KEY).open(row!.sealed_credentials as string, row!.id as string)).toBe(PASSWORD);
-    const keys = JSON.stringify(await owner`SELECT * FROM clinic_idempotency_keys WHERE clinic_id = ${clinicId}`);
+    expect(new SecretSealer(KEY).open(row!.sealed_credentials as string, row!.id as string)).toBe(
+      PASSWORD,
+    );
+    const keys = JSON.stringify(
+      await owner`SELECT * FROM clinic_idempotency_keys WHERE clinic_id = ${clinicId}`,
+    );
     expect(keys).not.toContain(PASSWORD);
     expect(keys).not.toContain(API_KEY);
   });
@@ -91,7 +105,9 @@ describe("clinic mail provider (ADR-0014, 7c-2a)", () => {
     expect(await changes.put(actor, resend, "same")).toEqual(first);
     const rows = await owner`SELECT 1 FROM audit_log WHERE clinic_id = ${clinicId}`;
     expect(rows).toHaveLength(1);
-    await expect(changes.put(actor, { ...resend, apiKey: "re_other" }, "same")).rejects.toMatchObject({
+    await expect(
+      changes.put(actor, { ...resend, apiKey: "re_other" }, "same"),
+    ).rejects.toMatchObject({
       code: "idempotency_conflict",
     });
   });
@@ -100,7 +116,8 @@ describe("clinic mail provider (ADR-0014, 7c-2a)", () => {
     const clinicId = await seedClinic();
     const actor = { clinicId, userId: newId() };
     await changes.put(actor, resend, "a");
-    const [before] = await owner`SELECT id FROM clinic_mail_providers WHERE clinic_id = ${clinicId}`;
+    const [before] =
+      await owner`SELECT id FROM clinic_mail_providers WHERE clinic_id = ${clinicId}`;
     await owner`UPDATE clinic_mail_providers SET verified_at = now(), last_error = 'x',
       consecutive_failures = 2, degraded_at = now() WHERE clinic_id = ${clinicId}`;
     await changes.put(actor, smtp, "b");
@@ -127,7 +144,11 @@ describe("clinic mail provider (ADR-0014, 7c-2a)", () => {
     const events = await owner`SELECT payload FROM outbox_events
       WHERE clinic_id = ${clinicId} AND event_type = 'clinic.mail_provider_test_requested'`;
     expect(events).toHaveLength(1);
-    expect(events[0]!.payload).toEqual({ clinicId, providerId: row!.id, actorUserId: actor.userId });
+    expect(events[0]!.payload).toEqual({
+      clinicId,
+      providerId: row!.id,
+      actorUserId: actor.userId,
+    });
   });
 
   it("remove deletes the config row and audits it; another clinic's row is invisible", async () => {

@@ -81,7 +81,14 @@ export class MailProviderChanges {
       const id = before?.id ?? ids.newId();
       const split = splitRequest(request);
       const now = clock.now();
-      await upsertMailProvider(tx, actor.clinicId, id, split, this.#sealer.seal(split.secret, id), now);
+      await upsertMailProvider(
+        tx,
+        actor.clinicId,
+        id,
+        split,
+        this.#sealer.seal(split.secret, id),
+        now,
+      );
       const after = await findMailProvider(tx, actor.clinicId);
       if (after === null) throw new Error("mail provider row vanished inside its transaction");
       const view = mailProviderView(after);
