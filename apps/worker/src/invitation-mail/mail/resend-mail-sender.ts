@@ -29,6 +29,15 @@ async function errorCode(response: Response): Promise<string> {
   return `resend_${response.status}${name}`;
 }
 
+// The request never left: safe to hand to another provider (ADR-0014). Anything else is ambiguous.
+const NEVER_SENT = new Set(["ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN"]);
+
+function fetchFailureCode(error: unknown): string {
+  if (error instanceof Error && error.name === "TimeoutError") return "resend_timeout";
+  const cause = (error as { cause?: { code?: unknown } } | null)?.cause?.code;
+  return typeof cause === "string" && NEVER_SENT.has(cause) ? "resend_unreachable" : "resend_network";
+}
+
 /** المزود الوحيد في 7b-1: `POST /emails` بـ fetch، من غير SDK. */
 export class ResendMailSender implements MailSender {
   readonly #options: Required<Omit<ResendOptions, "fetch">> & { fetch: typeof fetch };
@@ -64,8 +73,7 @@ export class ResendMailSender implements MailSender {
         signal: AbortSignal.timeout(timeoutMs),
       });
     } catch (error) {
-      const timedOut = error instanceof Error && error.name === "TimeoutError";
-      return { sent: false, error: timedOut ? "resend_timeout" : "resend_network" };
+      return { sent: false, error: fetchFailureCode(error) };
     }
     if (response.ok) {
       await response.body?.cancel();

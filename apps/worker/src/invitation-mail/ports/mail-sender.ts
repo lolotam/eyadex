@@ -8,14 +8,19 @@ export interface MailMessage {
   readonly idempotencyKey: string;
 }
 
-/**
- * نتيجة الإرسال. `error` كود قصير بس (حالة HTTP أو اسم خطأ المزود) — عمره ما بيحمل الرابط ولا
- * العنوان ولا جسم الرد، لأنه بيتكتب في `outbox_events.last_error`.
- */
-export type MailResult = { readonly sent: true } | { readonly sent: false; readonly error: string };
+/** المزود اللي قبل الرسالة فعلاً. */
+export type MailProvider = "resend" | "smtp";
 
 /**
- * منفذ الإيميل (ADR-0013). مزود واحد النهارده (Resend)؛ مزود SMTP بعدين يطبّق نفس الشكل.
+ * نتيجة الإرسال. `error` كود قصير بس (حالة HTTP أو اسم خطأ المزود) — عمره ما بيحمل الرابط ولا
+ * العنوان ولا جسم الرد، لأنه بيتكتب في `outbox_events.last_error`. في النجاح: مين بعت، وهل كان بديل.
+ */
+export type MailResult =
+  | { readonly sent: true; readonly provider: MailProvider; readonly fallback: boolean }
+  | { readonly sent: false; readonly error: string };
+
+/**
+ * منفذ الإيميل (ADR-0013، ADR-0014). Resend أساسي؛ SMTP المنصة بديل بيطبّق نفس الشكل.
  */
 export interface MailSender {
   /**
@@ -23,7 +28,7 @@ export interface MailSender {
    * dispatcher يحسب المحاولة الجاية.
    *
    * @param message الرسالة ومفتاح الـ idempotency
-   * @returns اتبعتت ولا لأ، وكود الخطأ لو لأ
+   * @returns اتبعتت ولا لأ، بمين، وكود الخطأ لو لأ
    */
   send(message: MailMessage): Promise<MailResult>;
 }
