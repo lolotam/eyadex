@@ -69,28 +69,35 @@ export function invitationDispatcher(deps: InvitationDispatchDeps) {
       );
       return { kind: "failed", error: "seal_unreadable" };
     }
-    const state = await deps.invitations.read(invitation.clinicId, invitation.invitationId);
-    // Decision time is after the read (ADR-0012 §16): an invitation that expired while we waited is skipped.
-    const reason = skipReason(state, token, deps.clock.now());
-    if (reason !== null || state === null) {
-      note(event, "skipped", { reason: reason ?? "missing" });
-      return DONE;
-    }
-    const link = `${deps.appUrl}/invite/${encodeURIComponent(token)}`;
-    const email = renderInvitationEmail(
-      invitation,
-      link,
-      formatExpiry(state.expiresAt, invitation.language, state.timezone),
+    // The invitation row stays locked until the send returns: a resend, copy-link, cancel or accept
+    // that arrives meanwhile waits, so the link checked here is the link that is mailed (ADR-0013).
+    return deps.invitations.whileLocked(
+      invitation.clinicId,
+      invitation.invitationId,
+      async (state) => {
+        // Decision time is after the lock (ADR-0012 §16): an invitation that expired while we waited is skipped.
+        const reason = skipReason(state, token, deps.clock.now());
+        if (reason !== null || state === null) {
+          note(event, "skipped", { reason: reason ?? "missing" });
+          return DONE;
+        }
+        const link = `${deps.appUrl}/invite/${encodeURIComponent(token)}`;
+        const email = renderInvitationEmail(
+          invitation,
+          link,
+          formatExpiry(state.expiresAt, invitation.language, state.timezone),
+        );
+        const result = await deps.mail.send({
+          to: invitation.email,
+          subject: email.subject.replace(/[\r\n]+/g, " "),
+          html: email.html,
+          text: email.text,
+          idempotencyKey: event.id,
+        });
+        if (!result.sent) return fail(event, result.error);
+        note(event, "sent");
+        return DONE;
+      },
     );
-    const result = await deps.mail.send({
-      to: invitation.email,
-      subject: email.subject.replace(/[\r\n]+/g, " "),
-      html: email.html,
-      text: email.text,
-      idempotencyKey: event.id,
-    });
-    if (!result.sent) return fail(event, result.error);
-    note(event, "sent");
-    return DONE;
   };
 }

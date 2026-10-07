@@ -14,9 +14,17 @@ export interface InvitationState {
  */
 export interface InvitationStateReader {
   /**
+   * بيقرا الحالة وبيمسك صف الدعوة (`FOR SHARE`) لحد ما `use` يخلص، فأي resend أو نسخ رابط أو إلغاء
+   * أو قبول بيستنى الإرسال، وما يقدرش يغيّر الدعوة بين الفحص والإرسال (ADR-0013).
+   *
    * @param clinicId عيادة الحدث
    * @param invitationId الدعوة
-   * @returns حالتها، أو `null` لو مش موجودة في العيادة دي
+   * @param use بياخد الحالة (أو `null` لو مش موجودة في العيادة دي) وبيقرر ويبعت والصف ممسوك
+   * @returns اللي `use` رجّعه
    */
-  read(clinicId: string, invitationId: string): Promise<InvitationState | null>;
+  whileLocked<T>(
+    clinicId: string,
+    invitationId: string,
+    use: (state: InvitationState | null) => Promise<T>,
+  ): Promise<T>;
 }

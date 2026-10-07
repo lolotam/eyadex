@@ -138,6 +138,30 @@ describe("send-time check (ADR-0012 §8)", () => {
     }
   });
 
+  it("keeps the invitation row locked while sending: a cancel arriving meanwhile has to wait", async () => {
+    const h = make();
+    const clinic = seedClinic("en");
+    const token = newToken();
+    const invite = seedInvitation(clinic, token);
+    seedEvent(sealer, USER_INVITED, clinic.clinicId, userFields(invite, "en"), token);
+    let cancelDuringSend = "";
+    h.mail.result = async () => {
+      try {
+        owner(`SET lock_timeout = '300ms';
+               UPDATE invitations SET status = 'cancelled' WHERE id = '${invite.invitationId}'`);
+        cancelDuringSend = "committed";
+      } catch (error) {
+        cancelDuringSend = String((error as { stderr?: unknown }).stderr ?? error);
+      }
+      return { sent: true };
+    };
+
+    await drain(h.poller);
+
+    expect(cancelDuringSend).toMatch(/lock timeout/);
+    expect(h.mail.sent).toHaveLength(1);
+  });
+
   it("leaves an event type it does not handle untouched", async () => {
     const h = make();
     const clinic = seedClinic();

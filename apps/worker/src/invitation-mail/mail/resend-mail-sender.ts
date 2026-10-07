@@ -6,7 +6,10 @@ export interface ResendOptions {
   readonly from: string;
   /** للاختبار ضد stub محلي؛ الافتراضي `https://api.resend.com`. */
   readonly baseUrl?: string;
-  /** أقل من سقف transaction الـ dispatcher، اللي ماسك الصف أثناء الإرسال. */
+  /**
+   * الافتراضي 5000: صف الدعوة ممسوك أثناء الإرسال، وأي كتابة في الـ API بتستنى الصف لازم تخلص قبل
+   * سقف الـ transaction بتاعها (10 ثواني).
+   */
   readonly timeoutMs?: number;
   readonly fetch?: typeof fetch;
 }
@@ -33,7 +36,7 @@ export class ResendMailSender implements MailSender {
   constructor(options: ResendOptions) {
     this.#options = {
       baseUrl: "https://api.resend.com",
-      timeoutMs: 15_000,
+      timeoutMs: 5_000,
       ...options,
       fetch: options.fetch ?? globalThis.fetch,
     };

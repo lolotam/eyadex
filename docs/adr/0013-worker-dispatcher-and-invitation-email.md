@@ -26,9 +26,12 @@ database must not keep a usable link once the event is done.
 AND event_type IN (…) ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1`. The row stays locked
    while the email is sent and the outcome is written in the same transaction, so two workers never
    send the same event. `now` is the worker's injected clock. The dispatcher transaction cap (30 s)
-   covers the Resend timeout (15 s).
+   covers the Resend timeout (5 s).
 4. **Send-time check** (ADR-0012 §8). Open `sealedToken` with the event id; read the invitation under
-   its clinic; read the clock after that read; send only when `status = 'pending'`,
+   its clinic `FOR SHARE` and keep the row locked until the send returns, so a resend, copy-link,
+   cancel or accept that arrives meanwhile waits instead of invalidating a link already being mailed
+   (the API takes the same row `FOR UPDATE`). The Resend timeout (5 s) stays under the API's 10 s
+   transaction cap, so a waiting API write still completes. Read the clock after the lock; send only when `status = 'pending'`,
    `expires_at > now` and `sha256(token) = token_hash` (constant-time compare). Otherwise the event is
    done as **skipped** with no email (missing, accepted, cancelled, expired, superseded). Only the two
    invitation types are claimed; any other type stays untouched for later slices.
