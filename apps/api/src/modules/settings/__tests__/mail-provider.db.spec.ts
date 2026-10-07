@@ -98,12 +98,16 @@ describe("clinic mail provider (ADR-0014, 7c-2a)", () => {
     expect(keys).not.toContain(API_KEY);
   });
 
-  it("masks a phone number typed into the sender name in every audit row", async () => {
+  it.each([
+    ["the sender name", { ...resend, fromName: "Clinic 99887766" }],
+    ["the sender address", { ...resend, fromEmail: "99887766@example.test" }],
+    ["the reply-to address", { ...resend, replyTo: "99887766@example.test" }],
+    ["the SMTP login", { ...smtp, user: "99887766" }],
+  ] as const)("masks a phone number typed into %s in every audit row", async (_field, body) => {
     const clinicId = await seedClinic();
     const actor = { clinicId, userId: newId() };
-    const view = await changes.put(actor, { ...resend, fromName: "Clinic 99887766" }, "p1");
-    expect(view.fromName).toBe("Clinic 99887766");
-    await changes.put(actor, smtp, "p2");
+    expect(JSON.stringify(await changes.put(actor, body, "p1"))).toContain("99887766");
+    await changes.put(actor, body.kind === "smtp" ? resend : smtp, "p2");
     await changes.remove(actor);
     const audit = await auditText(clinicId);
     expect(audit).toContain("clinic.mail_provider_removed");

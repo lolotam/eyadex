@@ -38,10 +38,16 @@ export interface MailProviderActor {
 
 const ENTITY = "clinic_mail_provider";
 
-// The append-only audit keeps no full phone number, not even one typed into the sender's display name.
+// The append-only audit keeps no full phone number in any field the clinic typed: a name, an address's
+// local part or an SMTP login can all be one.
+const mask = (value: string | null) => (value === null ? null : maskPhonesInText(value));
 const auditView = (view: MailProviderView): MailProviderView => ({
   ...view,
   fromName: maskPhonesInText(view.fromName),
+  fromEmail: maskPhonesInText(view.fromEmail),
+  replyTo: mask(view.replyTo),
+  smtpHost: mask(view.smtpHost),
+  smtpUser: mask(view.smtpUser),
 });
 
 /**
