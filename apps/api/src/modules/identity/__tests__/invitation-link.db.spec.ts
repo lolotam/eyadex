@@ -104,7 +104,10 @@ describe("POST /v1/invitations/:id/link", () => {
     const gone = await sent(A.admin.cookie);
     await act(h, A.admin.cookie, `/v1/invitations/${gone}/cancel`);
     expect(code(await copy(A.admin.cookie, gone))).toBe("invitation_cancelled");
-    const theirs = await sent(B.admin.cookie, inviteBody(await roleIdOf(h, B.admin.clinicId, "doctor")));
+    const theirs = await sent(
+      B.admin.cookie,
+      inviteBody(await roleIdOf(h, B.admin.clinicId, "doctor")),
+    );
     expect((await copy(A.admin.cookie, theirs)).statusCode).toBe(404);
     expect((await copy(A.admin.cookie, "not-a-uuid")).statusCode).toBe(404);
     expect((await copy(A.admin.cookie, randomUUID())).statusCode).toBe(404);

@@ -153,12 +153,7 @@ describe("invitations mock", () => {
     await api.invitations.accept(second, password);
     const audit = JSON.stringify(getState().clinicAudit);
     const hashes = getState().invitations.map((i) => i.tokenHash);
-    for (const secret of [
-      first,
-      second,
-      ...Object.values(getState().inviteOutbox),
-      ...hashes,
-    ])
+    for (const secret of [first, second, ...Object.values(getState().inviteOutbox), ...hashes])
       expect(audit.includes(secret)).toBe(false);
     expect(audit.includes("tokenHash")).toBe(false);
   });

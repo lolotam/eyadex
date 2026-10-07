@@ -85,10 +85,7 @@ export function toUserView(db: MockState, member: MembershipUser): MembershipUse
 }
 
 /** Like the API: views never carry the link token; only `copyLink` returns one. */
-export function toInvitationView(
-  db: MockState,
-  record: InvitationRecord,
-): Invitation {
+export function toInvitationView(db: MockState, record: InvitationRecord): Invitation {
   const { tokenHash: _hash, ...rest } = record;
   return {
     ...rest,

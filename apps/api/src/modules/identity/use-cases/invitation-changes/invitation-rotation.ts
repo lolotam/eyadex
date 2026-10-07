@@ -20,7 +20,11 @@ import {
   readSeats,
 } from "../../persistence/pg-user-store.ts";
 import { findInvitationView } from "../../queries/invitation-views.ts";
-import { assertMayTouchAdmin, usersLimitError, type UserActor } from "../user-changes/user-changes.ts";
+import {
+  assertMayTouchAdmin,
+  usersLimitError,
+  type UserActor,
+} from "../user-changes/user-changes.ts";
 
 // Resend and copy-link share this one rotation (ADR-0012 §6, §16): the same checks in the same order.
 

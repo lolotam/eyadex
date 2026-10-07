@@ -105,6 +105,21 @@ describe("decision time after the last lock (ADR-0012 §16)", () => {
     );
   });
 
+  it("resend: waiting on the branches lock, the new link gets 7 days from decision time", async () => {
+    const { D, invitationId, expiry } = await fullClinicWithExpiringInvitation();
+    const clock = fakeClock(new Date(expiry.getTime() - 30 * MINUTE));
+    const decidedAt = new Date(expiry.getTime() - 10 * MINUTE);
+    const actor = { clinicId: D.admin.clinicId, userId: D.admin.userId };
+    const resent = await whileLocked(
+      lockKey("branches", D.admin.clinicId),
+      () => invitationChanges(clock).resend(actor, invitationId),
+      () => clock.set(decidedAt),
+    );
+    expect(resent.invitation.expiresAt).toBe(
+      new Date(decidedAt.getTime() + INVITATION_LIFETIME_MS).toISOString(),
+    );
+  });
+
   it("accept: a link that expired while waiting on the branches lock is refused", async () => {
     const { clinicId } = await clinicWithInvite(h);
     const link = await branchInvite(h, clinicId);
