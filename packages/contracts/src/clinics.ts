@@ -60,6 +60,11 @@ export type ClinicListItem = z.infer<typeof clinicListItemSchema>;
 
 export const clinicDetailSchema = clinicListItemSchema.extend({
   features: featuresSchema,
+  // TODO(spec): the platform clinic read (`GET /v1/platform/clinics/:id`) does not return these yet;
+  // null = unknown, not "none". The mock still fills them.
+  defaultLanguage: languageSchema.nullable(),
+  timezone: z.string().nullable(),
+  createdAt: z.string().datetime().nullable(),
 });
 export type ClinicDetail = z.infer<typeof clinicDetailSchema>;
 
@@ -127,7 +132,8 @@ export type SubscriptionInput = z.infer<typeof subscriptionInputSchema>;
  */
 export const firstAdminInviteLinkSchema = z.object({
   email: z.string(),
-  token: z.string(),
+  /** null = the link was emailed and is never returned (the API; PRD story 7). */
+  token: z.string().nullable(),
   expiresAt: z.string().datetime(),
 });
 export type FirstAdminInviteLink = z.infer<typeof firstAdminInviteLinkSchema>;

@@ -30,8 +30,8 @@ export function ClinicDetailsTab({ clinic }: { clinic: ClinicDetail }) {
       nameAr: clinic.nameAr,
       nameEn: clinic.nameEn,
       specialty: clinic.specialty,
-      defaultLanguage: clinic.defaultLanguage,
-      timezone: clinic.timezone,
+      defaultLanguage: clinic.defaultLanguage ?? "ar",
+      timezone: clinic.timezone ?? "",
     },
   });
 

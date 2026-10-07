@@ -122,7 +122,7 @@ describe("platform audit log", () => {
       timezone: "Asia/Kuwait",
       adminName: "Admin Person",
       adminEmail: "resend.admin@example.com",
-    });
+    }, crypto.randomUUID());
     await api.platform.resendFirstAdminInvitation(PLATFORM, created.clinic.id);
     const feed = await api.audit.platformList(PLATFORM, {
       ...PLATFORM_QUERY,

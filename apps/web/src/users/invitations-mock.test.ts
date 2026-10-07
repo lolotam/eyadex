@@ -58,14 +58,14 @@ describe("invitations mock", () => {
     );
     if (!pending) throw new Error("no pending invitation");
     await api.invitations.cancel(admin(clinic.id), pending.id);
-    expect((await api.users.usage(admin(clinic.id))).used).toBe(5);
+    expect((await api.users.usage(admin(clinic.id)))?.used).toBe(5);
     await invite(clinic.id, "new@example.com");
-    expect((await api.users.usage(admin(clinic.id))).used).toBe(6);
+    expect((await api.users.usage(admin(clinic.id)))?.used).toBe(6);
 
     const fresh = getState().invitations.find((i) => i.email === "new@example.com");
     if (!fresh) throw new Error("missing");
     fresh.expiresAt = new Date(Date.now() - DAY).toISOString();
-    expect((await api.users.usage(admin(clinic.id))).used).toBe(5);
+    expect((await api.users.usage(admin(clinic.id)))?.used).toBe(5);
   });
 
   it("rejects an email that already belongs to another clinic or the platform", async () => {
@@ -200,8 +200,7 @@ describe("invitations mock", () => {
         timezone: "Asia/Kuwait",
         adminName: "First Admin",
         adminEmail: "first.admin@example.com",
-      },
-    );
+      }, crypto.randomUUID());
     expect(JSON.stringify(getState().platformAudit)).not.toContain(created.firstAdminInvite.token);
     expect(
       await api.platform.getFirstAdminInvitation(
@@ -211,7 +210,7 @@ describe("invitations mock", () => {
     ).toMatchObject({
       status: "pending",
     });
-    const accepted = await api.invitations.accept(created.firstAdminInvite.token, password);
+    const accepted = await api.invitations.accept(created.firstAdminInvite.token ?? "", password);
     expect(accepted.roleKey).toBe("clinic_admin");
     const member = getState().members.find((m) => m.id === accepted.memberId);
     expect(member?.preferredLanguage).toBe("en");
@@ -296,8 +295,7 @@ describe("invitations mock", () => {
         timezone: "Asia/Kuwait",
         adminName: "First Admin",
         adminEmail: "  First-Admin@Example.com ",
-      },
-    );
+      }, crypto.randomUUID());
     const entries = getState().clinicAudit.filter((e) => e.clinicId === created.clinic.id);
     expect(entries.some((e) => e.action === "invitation.sent")).toBe(true);
     expect(created.firstAdminInvite.email).toBe("first-admin@example.com");

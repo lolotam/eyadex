@@ -1,46 +1,16 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { useContext, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { personaSchema, type Persona, type SessionContext } from "@eyadex/contracts/session";
 import { useApi } from "@/shared/api/api-provider";
-
-const STORAGE_KEY = "eyadex:persona";
-const MOCK_RESET_EVENT = "eyadex:mock-reset";
-const DEFAULT_PERSONA: Persona = { kind: "platform_admin", clinicId: null, memberId: null };
-
-type PersonaValue = {
-  persona: Persona;
-  ready: boolean;
-  setPersona: (persona: Persona) => void;
-};
-
-const PersonaContext = createContext<PersonaValue | null>(null);
+import { API_MODE } from "@/shared/api/api-mode";
+import { HttpPersonaProvider } from "./http-persona-provider";
+import { MockPersonaProvider } from "./mock-persona-provider";
+import { PersonaContext, SESSION_KEY, type PersonaValue, type SessionState } from "./persona-context";
 
 export function PersonaProvider({ children }: { children: ReactNode }) {
-  const [persona, setPersonaState] = useState<Persona>(DEFAULT_PERSONA);
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = personaSchema.safeParse(JSON.parse(raw));
-      if (parsed.success) setPersonaState(parsed.data);
-    }
-    setReady(true);
-    // The demo data was reseeded (new version): the saved persona no longer exists.
-    const reset = () => setPersonaState(DEFAULT_PERSONA);
-    window.addEventListener(MOCK_RESET_EVENT, reset);
-    return () => window.removeEventListener(MOCK_RESET_EVENT, reset);
-  }, []);
-
-  const setPersona = useCallback((next: Persona) => {
-    setPersonaState(next);
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  }, []);
-
-  return (
-    <PersonaContext.Provider value={{ persona, ready, setPersona }}>
-      {children}
-    </PersonaContext.Provider>
+  return API_MODE === "http" ? (
+    <HttpPersonaProvider>{children}</HttpPersonaProvider>
+  ) : (
+    <MockPersonaProvider>{children}</MockPersonaProvider>
   );
 }
 
@@ -50,21 +20,23 @@ export function usePersona(): PersonaValue {
   return value;
 }
 
-export function useSession(): {
-  session: SessionContext | undefined;
-  isLoading: boolean;
-  error: unknown;
-} {
+export function useSession(): SessionState {
   const api = useApi();
-  const { persona, ready } = usePersona();
+  const value = usePersona();
+  const { persona, ready } = value;
   const query = useQuery({
-    queryKey: ["session", persona.kind, persona.clinicId, persona.memberId],
+    queryKey: [...SESSION_KEY, persona.kind, persona.clinicId, persona.memberId],
     queryFn: () => api.session.getContext(persona),
-    enabled: ready,
+    // HTTP mode reads the session once, in its provider.
+    enabled: ready && !value.http,
     retry: false,
     // Time-based state (expiry banner days, expiry block) must move while a tab stays open.
     refetchInterval: 60_000,
     refetchIntervalInBackground: true,
   });
+  if (value.http) {
+    const { session, isLoading, error } = value.http;
+    return { session, isLoading, error };
+  }
   return { session: query.data, isLoading: !ready || query.isLoading, error: query.error };
 }

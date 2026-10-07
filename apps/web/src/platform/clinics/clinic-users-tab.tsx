@@ -4,6 +4,8 @@ import type { MembershipUserView as MemberView } from "@eyadex/contracts/users";
 import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { DataTable } from "@/shared/table/data-table";
+import { errorCodeOf } from "@/shared/api/api-error";
+import { ComingSoonPanel } from "@/shared/shell/coming-soon-panel";
 import { FirstAdminInviteCard } from "./first-admin-invite-card";
 import { useClinicBranches, useClinicMembers } from "./clinic-queries";
 
@@ -57,7 +59,11 @@ export function ClinicUsersTab({ clinicId }: { clinicId: string }) {
     <div className="flex flex-col gap-2">
       <FirstAdminInviteCard clinicId={clinicId} />
       <p className="text-xs text-muted-foreground">{t("common.readOnly")}</p>
-      <DataTable columns={columns} data={members.data ?? []} isLoading={members.isLoading} />
+      {errorCodeOf(members.error) === "not_implemented" ? (
+        <ComingSoonPanel />
+      ) : (
+        <DataTable columns={columns} data={members.data ?? []} isLoading={members.isLoading} />
+      )}
     </div>
   );
 }

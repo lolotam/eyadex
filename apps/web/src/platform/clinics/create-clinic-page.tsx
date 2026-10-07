@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useForm, type Control } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -27,6 +28,8 @@ export function CreateClinicPage() {
   const { persona } = usePersona();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  // Generated once when the page opens: a retried submit replays instead of creating a second clinic.
+  const [idempotencyKey] = useState(() => crypto.randomUUID());
   const form = useForm<CreateClinicInput>({
     resolver: zodResolver(createClinicInputSchema),
     defaultValues: {
@@ -43,7 +46,8 @@ export function CreateClinicPage() {
   const slug = form.watch("slug").trim() || "<slug>";
 
   const mutation = useMutation({
-    mutationFn: (input: CreateClinicInput) => api.platform.createClinic(persona, input),
+    mutationFn: (input: CreateClinicInput) =>
+      api.platform.createClinic(persona, input, idempotencyKey),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: clinicKeys.all });
       void queryClient.invalidateQueries({ queryKey: ["login-clinics"] });

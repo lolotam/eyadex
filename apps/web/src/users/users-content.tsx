@@ -26,9 +26,11 @@ export function UsersContent() {
         subtitle={t("users.subtitle")}
         actions={
           <div className="flex flex-wrap items-center justify-end gap-3">
-            <span className="rounded-md border bg-card px-3 py-2 text-sm font-medium">
-              {t("users.usage", { used: usage.data?.used ?? 0, limit: usage.data?.limit ?? 0 })}
-            </span>
+            {usage.data !== null && (
+              <span className="rounded-md border bg-card px-3 py-2 text-sm font-medium">
+                {t("users.usage", { used: usage.data?.used ?? 0, limit: usage.data?.limit ?? 0 })}
+              </span>
+            )}
             {mayCreate && (
               <Button onClick={() => setInviteOpen(true)}>
                 <UserPlus className="size-4" />
