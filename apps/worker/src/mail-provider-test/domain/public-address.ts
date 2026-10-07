@@ -24,15 +24,16 @@ for (const [network, prefix] of [
 ] as const) {
   blocked.addSubnet(network, prefix, "ipv4");
 }
+// IPv6 is allow-listed: only global unicast (2000::/3) can be public, which already excludes
+// unspecified, loopback, NAT64, discard, site-local (fec0::/10), ULA, link-local and multicast. Inside it,
+// the special-purpose blocks are refused: IETF assignments incl. Teredo (2001::/23), documentation
+// (2001:db8::/32) and 6to4 (2002::/16), which can embed a private IPv4 address.
+const globalUnicast = new BlockList();
+globalUnicast.addSubnet("2000::", 3, "ipv6");
 for (const [network, prefix] of [
-  ["::", 128],
-  ["::1", 128],
-  ["64:ff9b::", 96],
-  ["100::", 64],
+  ["2001::", 23],
   ["2001:db8::", 32],
-  ["fc00::", 7],
-  ["fe80::", 10],
-  ["ff00::", 8],
+  ["2002::", 16],
 ] as const) {
   blocked.addSubnet(network, prefix, "ipv6");
 }
@@ -52,5 +53,6 @@ export function isPublicAddress(address: string): boolean {
   const ip = mapped?.[1] ?? address;
   const family = isIP(ip);
   if (family === 0) return false;
-  return !blocked.check(ip, family === 4 ? "ipv4" : "ipv6");
+  if (family === 4) return !blocked.check(ip, "ipv4");
+  return globalUnicast.check(ip, "ipv6") && !blocked.check(ip, "ipv6");
 }
