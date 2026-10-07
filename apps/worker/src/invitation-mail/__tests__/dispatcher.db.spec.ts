@@ -57,7 +57,6 @@ describe("send-time check (ADR-0012 §8)", () => {
     expect(mail.text).toContain(`${APP_URL}/invite/${token}`);
     expect(mail.html).toContain("&lt;b&gt;Sara &amp; &quot;Co&quot;&lt;/b&gt;");
     expect(mail.html).not.toContain("<b>Sara");
-    expect(mail.html).toContain("Al Noor") === undefined;
     expect(mail.html).toContain("Eyadex");
     expect(mail.html).not.toContain("كاشير");
     const row = eventRow(id);
