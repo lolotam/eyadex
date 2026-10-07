@@ -1,18 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { branchDetailSchema } from "@eyadex/contracts/branches";
-import { ApiError } from "../../api-error";
 import { flattenDetails, errorFromResponse } from "../http-errors";
 import { createTransport, onUnauthorized } from "../http-transport";
-import { branchDetail, stubFetch } from "./fetch-stub";
-
-const code = async (p: Promise<unknown>) => {
-  try {
-    await p;
-  } catch (e) {
-    return e instanceof ApiError ? { code: e.code, details: e.details } : { code: "not-api" };
-  }
-  return { code: "resolved" };
-};
+import { branchDetail, code, stubFetch } from "./fetch-stub";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -70,5 +60,3 @@ describe("transport", () => {
     stop();
   });
 });
-
-export { code };

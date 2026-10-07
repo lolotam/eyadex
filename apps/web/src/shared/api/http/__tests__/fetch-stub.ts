@@ -1,4 +1,5 @@
 import { vi } from "vitest";
+import { ApiError } from "../../api-error";
 import { createHttpApiClient } from "../http-adapter";
 
 export type Call = { url: string; method: string; headers: Record<string, string>; body: unknown; credentials: string | undefined };
@@ -67,4 +68,14 @@ export const page = <T,>(items: T[]) => ({ items, nextCursor: null, total: items
 export function clientWith(answer: Parameters<typeof stubFetch>[0]) {
   const stub = stubFetch(answer);
   return { ...stub, api: createHttpApiClient(stub.fetchImpl, () => NOW) };
+}
+
+/** The error code a call rejects with ("resolved" when it does not reject). */
+export async function code(p: Promise<unknown>): Promise<{ code: string; details?: unknown }> {
+  try {
+    await p;
+  } catch (e) {
+    return e instanceof ApiError ? { code: e.code, details: e.details } : { code: "not-api" };
+  }
+  return { code: "resolved" };
 }
