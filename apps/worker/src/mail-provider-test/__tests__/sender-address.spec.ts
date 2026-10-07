@@ -23,13 +23,19 @@ describe("sender from/replyTo mapping (ADR-0014, 7c-2)", () => {
       bodies.push(JSON.parse(String(init.body)) as Record<string, unknown>);
       return new Response("{}", { status: 200 });
     }) as unknown as typeof globalThis.fetch;
-    return { bodies, sender: new ResendMailSender({ apiKey: "k", from: "Platform <p@example.test>", fetch }) };
+    return {
+      bodies,
+      sender: new ResendMailSender({ apiKey: "k", from: "Platform <p@example.test>", fetch }),
+    };
   };
 
   it("Resend uses the clinic sender and reply_to when given", async () => {
     const { bodies, sender } = resend();
     await sender.send({ ...base, ...clinic });
-    expect(bodies[0]).toMatchObject({ from: '"Clinic" <clinic@example.test>', reply_to: ["desk@example.test"] });
+    expect(bodies[0]).toMatchObject({
+      from: '"Clinic" <clinic@example.test>',
+      reply_to: ["desk@example.test"],
+    });
   });
 
   it("Resend falls back to MAIL_FROM and sends no reply_to when absent", async () => {
@@ -41,7 +47,10 @@ describe("sender from/replyTo mapping (ADR-0014, 7c-2)", () => {
 
   it("SMTP puts the clinic sender and replyTo on the envelope, MAIL_FROM otherwise", async () => {
     const mails: Parameters<SmtpTransport["sendMail"]>[0][] = [];
-    const transport: SmtpTransport = { sendMail: async (m) => void mails.push(m), close: () => undefined };
+    const transport: SmtpTransport = {
+      sendMail: async (m) => void mails.push(m),
+      close: () => undefined,
+    };
     const sender = new SmtpMailSender(transport, "Platform <p@example.test>");
     await sender.send({ ...base, ...clinic });
     await sender.send(base);

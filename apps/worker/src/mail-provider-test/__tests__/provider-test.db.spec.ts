@@ -155,7 +155,11 @@ describe("clinic mail provider test send (ADR-0014, 7c-2a)", () => {
     expect(verified_at).toBeNull();
     expect(last_error).toMatch(/^smtp_/);
     expect(last_error).not.toContain("secret-server-text");
-    expect(h.seen[0]).toMatchObject({ kind: "smtp", host: "smtp.example.test", password: FAKE_SECRET });
+    expect(h.seen[0]).toMatchObject({
+      kind: "smtp",
+      host: "smtp.example.test",
+      password: FAKE_SECRET,
+    });
   });
 
   it("skips without writing when the provider was replaced after the request", async () => {

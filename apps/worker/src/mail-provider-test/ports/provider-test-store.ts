@@ -20,8 +20,7 @@ export interface ProviderTestState {
 
 /** نتيجة التجربة اللي بتتكتب على الصف: نجاح بوقته، أو كود خطأ قصير (≤ 120 حرف). */
 export type ProviderTestRecord =
-  | { readonly ok: true; readonly at: Date }
-  | { readonly ok: false; readonly error: string };
+  { readonly ok: true; readonly at: Date } | { readonly ok: false; readonly error: string };
 
 /**
  * منفذ التجربة: كل حاجة جوه transaction واحدة تحت `withTenant(clinicId)` على `eyadex_app`.
