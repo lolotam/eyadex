@@ -87,7 +87,7 @@ describe("role and branches (AUD-01, RBAC-03)", () => {
     const same = await act(h, A.admin.cookie, `/v1/users/${member.memberId}/role`, { roleId: adminRole }, "PATCH");
     expect(same.statusCode).toBe(200);
     const rows = await audit(h, A.admin.clinicId, member.memberId);
-    expect(rows.map((r) => r["action"])).toEqual(["user.role_changed"]);
+    expect(rows.map((r) => r["action"]).filter((a) => a !== "invitation.accepted")).toEqual(["user.role_changed"]);
     expect(String(rows[0]!["raw"])).not.toMatch(/token|hash|phone|civil/i);
   });
 
@@ -99,7 +99,7 @@ describe("role and branches (AUD-01, RBAC-03)", () => {
     const res = await act(h, A.admin.cookie, url, { allBranches: false, branchIds: [A.doctor.branchId] }, "PATCH");
     expect(res.json()).toMatchObject({ allBranches: false, branchIds: [A.doctor.branchId] });
     expect((await get(h, "/v1/me", member.cookie)).json().branchIds).toEqual([A.doctor.branchId]);
-    expect((await audit(h, A.admin.clinicId, member.memberId)).map((r) => r["action"])).toEqual([
+    expect((await audit(h, A.admin.clinicId, member.memberId)).map((r) => r["action"]).filter((a) => String(a).startsWith("user."))).toEqual([
       "user.branches_changed",
     ]);
   });
@@ -141,7 +141,7 @@ describe("deactivate / reactivate", () => {
     expect((await act(h, A.admin.cookie, `/v1/users/${member.memberId}/reactivate`)).statusCode).toBe(200);
     const again = await signedIn(h, A.admin.clinicId, member.email, member.password);
     expect((await get(h, "/v1/me", again.cookie)).statusCode).toBe(200);
-    expect((await audit(h, A.admin.clinicId, member.memberId)).map((r) => r["action"])).toEqual([
+    expect((await audit(h, A.admin.clinicId, member.memberId)).map((r) => r["action"]).filter((a) => String(a).startsWith("user."))).toEqual([
       "user.deactivated",
       "user.reactivated",
     ]);

@@ -26,7 +26,7 @@ interface InvitationRow {
 const SELECT = sql`SELECT i.id, i.clinic_id, i.email, i.full_name, i.role_id, i.all_branches,
     i.status, i.expires_at, i.created_at, i.invited_by_user_id, i.responded_at,
     r.name_ar AS role_name_ar, r.name_en AS role_name_en,
-    (SELECT array_agg(ib.branch_id::text ORDER BY ib.branch_id) FROM invitation_branches ib
+    (SELECT jsonb_agg(ib.branch_id ORDER BY ib.branch_id) FROM invitation_branches ib
       WHERE ib.clinic_id = i.clinic_id AND ib.invitation_id = i.id) AS branch_ids
   FROM invitations i JOIN roles r ON r.clinic_id = i.clinic_id AND r.id = i.role_id`;
 

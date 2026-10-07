@@ -25,7 +25,7 @@ interface UserRow {
 const SELECT = sql`SELECT m.id, m.user_id, m.clinic_id, m.full_name, m.email, m.role_id,
     m.all_branches, m.status, m.preferred_language, m.last_login_at, m.created_at,
     r.name_ar AS role_name_ar, r.name_en AS role_name_en,
-    (SELECT array_agg(mb.branch_id::text ORDER BY mb.branch_id) FROM membership_branches mb
+    (SELECT jsonb_agg(mb.branch_id ORDER BY mb.branch_id) FROM membership_branches mb
       WHERE mb.clinic_id = m.clinic_id AND mb.membership_id = m.id) AS branch_ids
   FROM memberships m JOIN roles r ON r.clinic_id = m.clinic_id AND r.id = m.role_id`;
 

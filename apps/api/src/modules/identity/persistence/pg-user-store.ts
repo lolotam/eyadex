@@ -128,7 +128,7 @@ export async function findMemberForUpdate(
   const extra = await tx.execute<{ system_key: string | null; branch_ids: string[] | null }>(
     sql`SELECT (SELECT system_key FROM roles WHERE clinic_id = ${clinicId} AND id = ${row.role_id})
                  AS system_key,
-               (SELECT array_agg(branch_id::text ORDER BY branch_id) FROM membership_branches
+               (SELECT jsonb_agg(branch_id ORDER BY branch_id) FROM membership_branches
                  WHERE clinic_id = ${clinicId} AND membership_id = ${id}) AS branch_ids`,
   );
   return {
