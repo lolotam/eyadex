@@ -3,8 +3,11 @@ import { sql, type SQL } from "drizzle-orm";
 
 import type { ExclusiveMember, ExclusiveMemberReader } from "../../tenancy/index.ts";
 
-// Active, branch-limited members assigned to `branch` and to no OTHER active branch (ADR-0012).
+// Active, branch-limited members whose ONLY active branch is `branch` (ADR-0012). An inactive
+// `branch` has none: it is nobody's active branch, so a confirmed deactivation counts 0 afterwards.
 const exclusiveTo = (branch: SQL) => sql`m.status = 'active' AND NOT m.all_branches
+  AND EXISTS (SELECT 1 FROM branches cb
+              WHERE cb.clinic_id = m.clinic_id AND cb.id = ${branch} AND cb.is_active)
   AND EXISTS (SELECT 1 FROM membership_branches mb
               WHERE mb.clinic_id = m.clinic_id AND mb.membership_id = m.id AND mb.branch_id = ${branch})
   AND NOT EXISTS (SELECT 1 FROM membership_branches mb

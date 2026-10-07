@@ -35,16 +35,20 @@ import { ApiError } from "../../../shared/errors.ts";
 import { PLATFORM_DATABASE } from "../../../shared/platform-database.ts";
 import { ZodValidationPipe } from "../../../shared/zod-validation.pipe.ts";
 import {
-  PgExclusiveMembers,
   AUTHORIZATION_INVALIDATOR,
   PlatformStaff,
   type AuthenticatedRequest,
   type AuthorizationInvalidator,
 } from "../../identity/index.ts";
-import { listBranches, type PlatformClinicChanges } from "../../tenancy/index.ts";
+import {
+  listBranches,
+  type ExclusiveMemberReader,
+  type PlatformClinicChanges,
+} from "../../tenancy/index.ts";
 
 export const PLATFORM_CLINIC_CHANGES = Symbol("platform.PlatformClinicChanges");
 export const PLATFORM_CLINIC_DETAIL = Symbol("platform.ClinicDetail");
+export const PLATFORM_EXCLUSIVE_MEMBERS = Symbol("platform.ExclusiveMemberReader");
 
 /** يقرا تفاصيل عيادة على pool المنصة؛ `null` = مش موجودة. */
 export type ClinicDetailReader = (clinicId: string) => Promise<PlatformClinicDetail | null>;
@@ -60,9 +64,6 @@ const clinicIdOf = (raw: string): string => {
 
 // Stories 9–15 and 18 (ADR-0010). PUT/PATCH with absolute values replay to the same state, so no
 // Idempotency-Key; `durationDays` is relative and needs one. Each write invalidates the cache after commit.
-// Member counts only (no names): administrative data, never patient data.
-const exclusiveMembers = new PgExclusiveMembers();
-
 @Controller("platform/clinics/:id")
 export class PlatformClinicAdminController {
   constructor(
@@ -70,6 +71,8 @@ export class PlatformClinicAdminController {
     @Inject(PLATFORM_CLINIC_DETAIL) private readonly detail: ClinicDetailReader,
     @Inject(AUTHORIZATION_INVALIDATOR) private readonly invalidator: AuthorizationInvalidator,
     @Inject(PLATFORM_DATABASE) private readonly platformDb: Database,
+    // Member counts only (no names): administrative data, never patient data.
+    @Inject(PLATFORM_EXCLUSIVE_MEMBERS) private readonly exclusiveMembers: ExclusiveMemberReader,
   ) {}
 
   @Get()
@@ -87,7 +90,7 @@ export class PlatformClinicAdminController {
   ): Promise<BranchListResponse> {
     const clinicId = clinicIdOf(id);
     if ((await this.detail(clinicId)) === null) throw new ApiError("not_found");
-    return listBranches(this.platformDb, clinicId, query, exclusiveMembers);
+    return listBranches(this.platformDb, clinicId, query, this.exclusiveMembers);
   }
 
   @Put("features/:module")

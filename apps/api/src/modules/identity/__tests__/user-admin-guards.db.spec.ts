@@ -1,6 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { closeHarness, openHarness, type Harness } from "../auth/__tests__/auth-http-harness.ts";
+import {
+  APP,
+  closeHarness,
+  openHarness,
+  type Harness,
+} from "../auth/__tests__/auth-http-harness.ts";
 import { clinicWithMembers } from "./access-fixtures.ts";
 import { branchAction, code, createBranch, setMaxBranches } from "./branch-fixtures.ts";
 import {
@@ -15,7 +20,8 @@ import {
 } from "./user-fixtures.ts";
 
 // Review round of slice 7 (ADR-0012 §15–§16): the admin-role guard, reactivation reach, resend
-// re-validation, no-ops before validation, the resend email fallback and masked 409 details.
+// re-validation, no-ops before validation, the resend email fallback and masked 409 details; round 2:
+// the stranded-members count of an inactive branch.
 
 let h: Harness;
 let C: Awaited<ReturnType<typeof clinicWithMembers>>;
@@ -187,5 +193,16 @@ describe("stranded-members details", () => {
     const refused = await branchAction(h, C.admin.cookie, only, "deactivate");
     expect([refused.statusCode, code(refused)]).toEqual([409, "branch_has_exclusive_members"]);
     expect(refused.body).not.toContain("12345678");
+  });
+
+  it("count 0 once the deactivation is confirmed: the branch is nobody's active branch", async () => {
+    await newBranch();
+    const only = await newBranch();
+    await memberOn(h, C.admin, doctorRole, { allBranches: false, branchIds: [only] });
+    const confirmed = await branchAction(h, C.admin.cookie, only, "deactivate", APP, {
+      confirmStrandedMembers: true,
+    });
+    expect(confirmed.statusCode).toBe(200);
+    expect(confirmed.json()).toMatchObject({ isActive: false, exclusiveMemberCount: 0 });
   });
 });

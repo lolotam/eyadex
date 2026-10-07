@@ -16,6 +16,7 @@ import {
   pendingInvitation,
 } from "../../persistence/pg-invitation-acceptance.ts";
 import { writeAcceptedMembership } from "../../persistence/pg-membership-writer.ts";
+import { lockClinicBranches } from "../../persistence/pg-user-store.ts";
 import type { ClinicAccounts } from "../../ports/clinic-accounts.ts";
 
 /** اللي القبول محتاجه — كله متحقن. */
@@ -76,6 +77,9 @@ export class AcceptInvitation {
       if (invitation === null || clinic === null) throw invalid();
       const now = clock.now();
       if (decideClinicAccess(clinic, now) !== "allowed") throw invalid();
+      // Row, then branches (ADR-0012 §16): a parallel branch deactivation either commits first and the
+      // grants below see it, or waits and then counts this member among the stranded ones.
+      await lockClinicBranches(tx, clinicId);
       const grants = await invitationGrants(tx, invitation);
       if (!grants.usable) throw invalid();
 

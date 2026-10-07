@@ -45,6 +45,18 @@ const expectInvalid = (res: { statusCode: number; json: () => { code: string } }
   expect(res.json().code).toBe("invitation_invalid");
 };
 
+// Until the request answers or a session waits on an advisory lock (db files never run in parallel).
+async function settledOrBlocked(request: Promise<unknown>): Promise<void> {
+  let settled = false;
+  void request.finally(() => (settled = true));
+  for (let i = 0; i < 100 && !settled; i += 1) {
+    const [row] = await h.owner`SELECT count(*)::int AS n FROM pg_locks
+                                WHERE locktype = 'advisory' AND NOT granted`;
+    if (row!["n"] !== 0) return;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+}
+
 describe("POST /v1/invitations/inspect", () => {
   it("shows the clinic and the invitee for a live link", async () => {
     const invite = await clinicWithInvite(h);
@@ -142,6 +154,22 @@ describe("POST /v1/invitations/accept", () => {
     expect(results.map((r) => r.statusCode).sort()).toEqual([200, 404]);
     expect(await accountsFor(invite.email)).toBe(1);
     expect(await membershipsFor(invite.email)).toBe(1);
+  });
+
+  it("NEGATIVE: an accept racing a branch deactivation waits for it and refuses the dead branch", async () => {
+    const { clinicId } = await clinicWithInvite(h);
+    const invite = await branchInvite(h, clinicId);
+    let accepting: ReturnType<typeof accept> | undefined;
+    // A deactivation past its stranded-members check: it holds the branches lock, not yet committed.
+    await h.owner.begin(async (tx) => {
+      await tx`SELECT pg_advisory_xact_lock(hashtextextended(${`branches:${clinicId}`}, 0))`;
+      await tx`UPDATE branches SET is_active = false WHERE id = ${invite.branchId}`;
+      accepting = accept(h, invite.token, strongPassword());
+      await settledOrBlocked(accepting);
+    });
+    expectInvalid(await accepting!);
+    expect(await accountsFor(invite.email)).toBe(0);
+    expect(await membershipsFor(invite.email)).toBe(0);
   });
 
   it("a failure after the account was created is recovered by retrying the same link", async () => {
