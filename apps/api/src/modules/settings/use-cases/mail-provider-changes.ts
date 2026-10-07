@@ -72,13 +72,13 @@ export class MailProviderChanges {
       const claimed = await claimClinicIdempotencyKey<MailProviderView>(
         tx,
         claim,
-        ids.next(),
+        ids.newId(),
         clock.now(),
       );
       if (claimed.kind === "replay") return claimed.response;
       if (claimed.kind === "conflict") throw new ApiError("idempotency_conflict");
       const before = await findMailProvider(tx, actor.clinicId, true);
-      const id = before?.id ?? ids.next();
+      const id = before?.id ?? ids.newId();
       const split = splitRequest(request);
       const now = clock.now();
       await upsertMailProvider(tx, actor.clinicId, id, split, this.#sealer.seal(split.secret, id), now);
@@ -87,7 +87,7 @@ export class MailProviderChanges {
       const view = mailProviderView(after);
       await writeClinicAudit(tx, {
         clinicId: actor.clinicId,
-        id: ids.next(),
+        id: ids.newId(),
         actorUserId: actor.userId,
         action: "clinic.mail_provider_updated",
         entityType: ENTITY,
@@ -114,7 +114,7 @@ export class MailProviderChanges {
       await deleteMailProvider(tx, actor.clinicId, before.id);
       await writeClinicAudit(tx, {
         clinicId: actor.clinicId,
-        id: ids.next(),
+        id: ids.newId(),
         actorUserId: actor.userId,
         action: "clinic.mail_provider_removed",
         entityType: ENTITY,
@@ -145,7 +145,7 @@ export class MailProviderChanges {
       const claimed = await claimClinicIdempotencyKey<{ eventId: string }>(
         tx,
         claim,
-        ids.next(),
+        ids.newId(),
         clock.now(),
       );
       if (claimed.kind === "replay") return claimed.response;
@@ -153,7 +153,7 @@ export class MailProviderChanges {
       const provider = await findMailProvider(tx, actor.clinicId, true);
       if (provider === null) throw new ApiError("not_found");
       const now = clock.now();
-      const event = publishTestRequested(ids.next(), now, {
+      const event = publishTestRequested(ids.newId(), now, {
         clinicId: actor.clinicId,
         providerId: provider.id,
         actorUserId: actor.userId,
@@ -161,7 +161,7 @@ export class MailProviderChanges {
       await appendOutboxEvent(tx, event);
       await writeClinicAudit(tx, {
         clinicId: actor.clinicId,
-        id: ids.next(),
+        id: ids.newId(),
         actorUserId: actor.userId,
         action: "clinic.mail_provider_test_requested",
         entityType: ENTITY,
