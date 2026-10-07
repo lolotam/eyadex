@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { SecretSealer } from "../../../shared/secret-sealer.ts";
+import { SecretSealer } from "@eyadex/secrets";
 import { APP, call, type Harness } from "../auth/__tests__/auth-http-harness.ts";
 import { signedIn } from "./access-fixtures.ts";
 import { accept, strongPassword } from "./invitation-fixtures.ts";

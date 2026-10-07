@@ -5,7 +5,7 @@ import { systemUuidV7 } from "@eyadex/ids";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { DATABASE } from "../../../shared/database.provider.ts";
-import { SecretSealer } from "../../../shared/secret-sealer.ts";
+import { SecretSealer } from "@eyadex/secrets";
 import { closeHarness, openHarness, type Harness } from "../auth/__tests__/auth-http-harness.ts";
 import { INVITATION_LIFETIME_MS } from "../domain/system-roles.ts";
 import { AcceptInvitation } from "../use-cases/accept-invitation/accept-invitation.ts";
