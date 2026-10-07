@@ -160,3 +160,59 @@ Besides the normal scope (invite with role and branches, resend/cancel, list wit
 - §5 no longer applies: the review now runs on Windows in Docker with the CI images
   (`postgres:18-alpine`, `redis:8-alpine`, `node:24-bookworm`). Export `db/` with
   `git -c core.autocrlf=false archive`, or the shell scripts arrive with CRLF and fail.
+
+## 9. Update 2026-10-07 (after PR #40)
+
+**Merged since §8** (each through the full loop: local Docker review, Codex until clean, merge
+commit, `lovable` fast-forwarded to `main`):
+
+- #38 slice 7, users and invitations. 6 review rounds; round 6 was an advisor-approved extra.
+  The owner's rules: only an active clinic admin grants or touches the clinic-admin role; every
+  time-based decision (expiry, seats, clinic access, a new link's expiry) reads the clock after the
+  last lock (ADR-0012 §16); acceptance takes the branches lock.
+- #39 slice 7a, copy invitation link: `POST /v1/invitations/:id/link` rotates like resend, returns
+  the token once, audits `invitation.link_copied`, sends no email (ADR-0012 §6).
+- #40 slice 7b-1, the worker dispatches invitation emails through Resend (ADR-0013):
+  - migration 0029 adds the retry columns;
+  - the `eyadex_dispatcher` pool touches the outbox only;
+  - the send-time check reads the invitation through `eyadex_app` under `withTenant` and keeps the
+    row `FOR SHARE` until the send returns;
+  - `@eyadex/secrets` now holds `SecretSealer`.
+
+  **Production has NOT had 0029 applied**, and the worker is not deployed.
+
+**Owner decisions (2026-10-07):**
+
+- **Pending invitations whose branches all get deactivated are auto-cancelled** by a worker job
+  (slice 7b-2). Branch deactivation emits an outbox event and the worker cancels, releases the email
+  hold and audits.
+  - `audit_log.actor_user_id` is NOT NULL and there is no system actor.
+  - Proposed: audit as the admin who deactivated the branch, with the reason.
+- **Mail providers:** the platform and each clinic will have both Resend and SMTP. Slice 7c adds
+  platform SMTP and per-clinic providers behind the `MailSender` port, with encrypted credentials
+  and its own ADR. Before that, ask the owner how Resend and SMTP relate (fallback or choice) and
+  which emails use a clinic's provider.
+- **After a PR's 5 fix rounds, the `advisor` decides** what to do with remaining findings; never
+  merge an open P1 without it.
+
+**Next, in order:**
+
+1. 7b-2 auto-cancel.
+2. 7c SMTP / per-clinic providers.
+3. Web-wiring + deploy slice: HTTP `ApiClient`, Dokploy services for api and worker, apply 0029 on
+   production with a backup first, the worker's secrets.
+4. Resend webhook `POST /v1/webhooks/resend`, after the deploy; secret `RESEND_WEBHOOK_SECRET`.
+5. PRD §5.5 items 8–12.
+
+**Local state:**
+
+- The owner's keys are in the gitignored `.env` (`RESEND_API_KEY`, `MAIL_FROM`, `SMTP_*`; the SMTP
+  password is still missing). Never copy key values into chat or the repo.
+- The owner pastes secrets into Dokploy themselves.
+- `eyadex.com` in Resend is still verifying: DKIM is published; `send.` points at `rmta.net`; DMARC
+  is missing; the root MX points at Resend inbound.
+- **Review helpers:**
+  - Docker containers `eyx-pg` and `eyx-redis` run on network `eyadex-review`.
+  - The worker `test:db` needs `psql`; install `postgresql-client` in `node:24-bookworm` (CI
+    runners have it).
+- Lovable's sandbox re-adds `bun.lock`; it is now gitignored.
