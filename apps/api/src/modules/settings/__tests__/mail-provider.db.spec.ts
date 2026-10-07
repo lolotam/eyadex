@@ -201,12 +201,26 @@ describe("clinic mail provider (ADR-0014, 7c-2a)", () => {
   it("two admins creating the first provider at once both succeed on one row", async () => {
     const clinicId = await seedClinic();
     const [a, b] = [newId(), newId()];
-    const results = await Promise.allSettled([
-      changes.put({ clinicId, userId: a }, resend, "race-a"),
-      changes.put({ clinicId, userId: b }, smtp, "race-b"),
-    ]);
+    let racing: Promise<PromiseSettledResult<unknown>[]> | undefined;
+    // Inserts wait while reads go through: unserialised, both requests see no row and the second
+    // insert hits UNIQUE (clinic_id) once the table is released.
+    await owner.begin(async (tx) => {
+      await tx`LOCK TABLE clinic_mail_providers IN SHARE ROW EXCLUSIVE MODE`;
+      racing = Promise.allSettled([
+        changes.put({ clinicId, userId: a }, resend, "race-a"),
+        changes.put({ clinicId, userId: b }, smtp, "race-b"),
+      ]);
+      for (let i = 0; i < 100; i += 1) {
+        const [waiting] = await tx`SELECT count(*)::int AS n FROM pg_locks
+          WHERE NOT granted AND pid <> pg_backend_pid()`;
+        if (Number(waiting!["n"]) >= 2) break;
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+    });
+    const results = await racing!;
     expect(results.map((r) => r.status)).toEqual(["fulfilled", "fulfilled"]);
-    const rows = await owner`SELECT version FROM clinic_mail_providers WHERE clinic_id = ${clinicId}`;
+    const rows =
+      await owner`SELECT version FROM clinic_mail_providers WHERE clinic_id = ${clinicId}`;
     expect(rows.map((r) => r["version"])).toEqual([2]);
   });
 
