@@ -3,7 +3,11 @@ import {
   SmtpMailSender,
   type SmtpTransport,
 } from "../../invitation-mail/mail/smtp-mail-sender.ts";
-import type { MailMessage, MailResult, MailSender } from "../../invitation-mail/ports/mail-sender.ts";
+import type {
+  MailMessage,
+  MailResult,
+  MailSender,
+} from "../../invitation-mail/ports/mail-sender.ts";
 
 // Failures where the next vetted address may still work: nothing reached a server that answered. An
 // authentication or SMTP-reply error is the server itself, so another address would give the same.
