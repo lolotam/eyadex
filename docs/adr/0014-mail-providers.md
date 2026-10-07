@@ -1,6 +1,6 @@
 # ADR-0014 — Mail providers: platform SMTP fallback (7c-1) and clinic providers (7c-2)
 
-Status: accepted for 7c-1 (2026-10-07) and 7c-2a (2026-10-07); 7c-2b next.
+Status: accepted for 7c-1, 7c-2a and 7c-2b (2026-10-07).
 
 ## Context
 
@@ -123,12 +123,39 @@ fails if a module other than identity imports any other identity file (test fixt
   `clinic_mail_provider` entity. Dictionary entries only, needed by the audit-format sync test; no screen
   or mock changed.
 
-## Next — 7c-2b
+## Decision — 7c-2b: staff invitations through the clinic provider
 
-Route `clinic.user_invited` (and future patient-facing mail) through a verified clinic provider; count
-consecutive failures; after 3 the platform sends instead with the clinic's display name and reply-to, sets
-`degraded_at`, and settings shows a warning. `clinic.admin_invited`, password reset, TOTP/security, billing and
-platform-account mail always go through the platform.
+1. **Scope.** Only `clinic.user_invited` can go through the clinic provider. `clinic.admin_invited`,
+   password reset, TOTP/security, billing and platform-account mail always use the platform.
+2. **Eligibility** (`invitation-mail/domain/clinic-routing.ts`, pure). Read in the dispatcher's tenant
+   transaction after the invitation row and its branches: the provider row is taken `FOR UPDATE`
+   (the test handler takes only that row, so the order is one way). Healthy = row exists,
+   `verified_at IS NOT NULL`, `degraded_at IS NULL` → clinic provider. Degraded → platform on behalf.
+   No row or not verified → the platform message exactly as before; "not verified" is not a failure.
+3. **No switch mid-event.** A clinic-provider failure retries the event on the shared schedule with the
+   clinic provider; there is no platform fallback inside an attempt, because an ambiguous failure may
+   already have delivered. Once degraded, the next attempt goes through the platform. The invitation row
+   stays `FOR SHARE` through the clinic send, inside the same 5 s sender caps.
+4. **Definitive failures** (`invitation-mail/domain/clinic-failure.ts`, pure) count toward degradation:
+   `resend_5xx`, `resend_unreachable`, `resend_401`, `resend_403`, `smtp_econnrefused`,
+   `smtp_econnection`, `smtp_econnreset`, `smtp_ehostunreach`, `smtp_enetunreach`, `smtp_auth`,
+   `smtp_5xx`, `smtp_dns`, `smtp_blocked_address`, `smtp_port_not_allowed`, `seal_unreadable`.
+   Timeouts and every other code (429, other 4xx, `resend_network`, `smtp_error`, `invalid_provider`)
+   retry but do not count.
+5. **Counter.** In the same transaction: a success resets `consecutive_failures` to 0; a definitive
+   failure increments it and writes `last_error`; at 3 it sets `degraded_at` and writes one audit row
+   `clinic.mail_provider_degraded`, actor = the invitation's `invited_by_user_id` (no system actor, as for
+   `invitation.auto_cancelled`), details `{ reason: "consecutive_failures", failures, lastError,
+providerVersion }` — no secret, no address.
+6. **Platform on behalf of a degraded clinic.** `from` = the clinic's `fromName` with the platform
+   `MAIL_FROM` address (the clinic's domain is not verified at the platform), `replyTo` = the clinic's
+   `replyTo ?? fromEmail`. Only for a clinic that has a degraded row.
+7. **Recovery.** A successful test send clears `degraded_at`, `consecutive_failures` and `last_error`; a
+   replacement already clears them. There is **no automatic periodic retry** of a degraded provider:
+   the clinic admin fixes it and sends a test.
+8. **Credentials.** Opened with `MAIL_PROVIDER_SEAL_KEY` (AAD = row id) inside the locked read, for that
+   send only; the sender is built only by `RealClinicSenderFactory.open` (SSRF guard, pinning, failover).
+   Resend's `Idempotency-Key` stays the event id. No migration: 0030 already has the columns.
 
 ## Consequences
 

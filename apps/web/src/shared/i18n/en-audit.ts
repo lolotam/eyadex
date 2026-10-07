@@ -84,6 +84,7 @@ export const enAudit = {
         mail_provider_updated: "Mail provider saved",
         mail_provider_removed: "Mail provider removed",
         mail_provider_test_requested: "Mail provider test requested",
+        mail_provider_degraded: "Mail provider degraded to platform mail",
       },
       platform_account: {
         invited: "Platform member invited",

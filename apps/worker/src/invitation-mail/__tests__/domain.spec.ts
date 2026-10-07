@@ -15,6 +15,8 @@ const state = (over: object = {}) => ({
   tokenHash: hash("tok"),
   timezone: "Asia/Kuwait",
   hasActiveBranch: true,
+  invitedByUserId: "00000000-0000-7000-8000-000000000001",
+  clinicProvider: null,
   ...over,
 });
 

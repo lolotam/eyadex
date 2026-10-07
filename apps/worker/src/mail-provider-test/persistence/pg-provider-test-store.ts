@@ -35,7 +35,7 @@ const provider = (row: Row): ProviderUnderTest => ({
 
 /**
  * SQL التجربة على `eyadex_app` تحت `withTenant`: الـ RLS بيقصر الصف والعضوية على عيادة الحدث. الصف
- * ممسوك `FOR UPDATE` لحد نهاية الإرسال، فـ `PUT` أو `DELETE` متزامن بيستنى ومايتكتبش عليه نتيجة قديمة.
+ * ممسوك `FOR UPDATE` لحد نهاية الإرسال، والتجربة الناجحة بترجّع المزود من التحويل (7c-2b)، فـ `PUT` أو `DELETE` متزامن بيستنى ومايتكتبش عليه نتيجة قديمة.
  */
 export class PgProviderTestStore implements ProviderTestStore {
   constructor(private readonly db: Database) {}
@@ -65,7 +65,7 @@ export class PgProviderTestStore implements ProviderTestStore {
       if (record.ok) {
         await tx.execute(
           sql`UPDATE clinic_mail_providers SET verified_at = ${record.at.toISOString()}::timestamptz,
-                last_error = NULL
+                last_error = NULL, consecutive_failures = 0, degraded_at = NULL
               WHERE clinic_id = ${clinicId} AND id = ${providerId}`,
         );
       } else {

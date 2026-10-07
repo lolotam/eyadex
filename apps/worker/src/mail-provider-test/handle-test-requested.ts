@@ -4,10 +4,8 @@ import type { SecretSealer } from "@eyadex/secrets";
 
 import { afterFailure } from "../invitation-mail/domain/retry-schedule.ts";
 import { isSuperseded, parseMailProviderTest, TEST_MESSAGE } from "./domain/test-event.ts";
-import type {
-  ClinicProviderCredentials,
-  ClinicSenderFactory,
-} from "./ports/clinic-sender-factory.ts";
+import { credentialsOf } from "./domain/credentials.ts";
+import type { ClinicSenderFactory } from "./ports/clinic-sender-factory.ts";
 import type {
   ProviderTestRecord,
   ProviderTestState,
@@ -22,23 +20,6 @@ export interface MailProviderTestDeps {
   readonly clock: { now(): Date };
   readonly logger: Logger;
 }
-
-const credentialsOf = (
-  provider: NonNullable<ProviderTestState["provider"]>,
-  secret: string,
-): ClinicProviderCredentials | null => {
-  if (provider.kind === "resend") return { kind: "resend", apiKey: secret };
-  if (provider.smtpHost === null || provider.smtpPort === null || provider.smtpUser === null) {
-    return null;
-  }
-  return {
-    kind: "smtp",
-    host: provider.smtpHost,
-    port: provider.smtpPort,
-    user: provider.smtpUser,
-    password: secret,
-  };
-};
 
 /**
  * إيميل تجربة لمزود العيادة (ADR-0014، 7c-2a). بيروح لإيميل عضوية الأدمن اللي طلبه بس، من مسار العيادة

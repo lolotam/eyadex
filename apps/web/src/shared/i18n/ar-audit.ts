@@ -84,6 +84,7 @@ export const arAudit = {
         mail_provider_updated: "حفظ مزود البريد",
         mail_provider_removed: "إزالة مزود البريد",
         mail_provider_test_requested: "طلب رسالة تجربة لمزود البريد",
+        mail_provider_degraded: "تحويل البريد لمزود المنصة بعد أعطال متكررة",
       },
       platform_account: {
         invited: "دعوة عضو منصة",
