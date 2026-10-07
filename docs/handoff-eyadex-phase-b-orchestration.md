@@ -299,3 +299,25 @@ A 6th P2 was waived by the advisor and recorded in ADR-0013 §12 as a known limi
   - must remove the spaces from the Gmail app password.
 
 **Next:** the deploy slice (worker image, Dokploy services, production migrations with a backup first), then wiring the web app to the HTTP API, then the Resend webhook, then PRD §5.5 items 8–12.
+
+## 12. Production server and its MCP connectors (owner, 2026-10-08)
+
+Production is the Dokploy host **musalam-2**. Two MCP connectors are dedicated to it, and these are the ones to use for Eyadex:
+
+1. **`ssh-musalam-2-mcp`**: SSH to the host (profile `musalam-2`). Use it for `docker`, `psql` inside the Postgres container, migrations and logs. On 2026-10-07/08 this connector failed to start in the orchestrator session. The same host was reached through another loaded SSH connector exposing profile `musalam-2`, so check `list-connections` for that profile.
+2. **`dokploy-musalam-2-mcp`**: the Dokploy API of the same host. Use it for applications, env, domains and deploys. In the tool list it appears as `dokploy-Musalam-2-mcp`. On 2026-10-08 it answered "Authentication failed … DOKPLOY_API_KEY", so the session may need a restart after the connector's key changes.
+
+**Dokploy layout** (project `Eyadex.com`, environment `production` `94tiYk1Bb6T8GPP4AVcmQ`):
+
+| Service | Dokploy id | Swarm service | Source | Domains |
+|---|---|---|---|---|
+| Eyadex-Main (web) | `Y3UZYu_vnzzY74r0JCBJy` | `eyadexcom-eyadex-v907db` | `Dockerfile` | eyadex.com, www., app., platform. (`/`) |
+| Eyadex-API | `QZ0XhgHIWVCZk2OuywuTP` | `app-parse-virtual-system-ayw2vk` | `apps/api/Dockerfile` | app. and platform. on `/api` (strip path) |
+| Eyadex-Worker | `6NBqsac1kCfq-DtC-GA0V` | `app-parse-multi-byte-system-he5ig5` | `apps/worker/Dockerfile` | none (internal); stop grace 60 s |
+| Postgres 18 | `1KpZwh5dEQpGsBbuz0iC_` | `eyadexcom-eyadex-dn2tcg` | — | internal |
+| Redis 8 | `fNmqMTvbn85VFqzYSBEqf` | `eyadexcom-eyadexredis-1gwghg` | — | internal |
+
+**Working notes:**
+- **Env is encrypted at rest** (`enc:v1:`). To check configuration without reading secrets, inspect the running behaviour instead: `/health/ready`, and the Postgres log for authentication failures.
+- **Production DB:** 0001–0030 are applied. Backup before 0029: `/root/backups/eyadex-pre0029-2026-10-07_1445.dump` and `roles-pre0029-…sql`.
+- **Secrets** (env values, role passwords) are pasted by the owner. The orchestrator does not enter or change them.
