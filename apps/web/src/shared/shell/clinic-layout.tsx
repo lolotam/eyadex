@@ -6,6 +6,7 @@ import { usePersona, useSession } from "@/shared/persona/persona-provider";
 import { can } from "@/shared/permissions/can";
 import { useAccountDisabledGuard } from "@/shared/persona/use-account-guard";
 import { AppShell } from "./app-shell";
+import { blockedReasonOf } from "./blocked-reason";
 import { ForbiddenPage } from "./forbidden-page";
 import { LoadingBlock } from "./loading-block";
 import { CLINIC_NAV } from "./nav-items";
@@ -48,16 +49,17 @@ export function ClinicLayout() {
       </HttpAreaGate>
     </>
   );
-  if (errorCodeOf(error) === "subscription_blocked")
+  if (errorCodeOf(error) === "subscription_blocked") {
+    const suspended = blockedReasonOf(error) === "suspended";
     content = (
       <StatusPanel
         icon={Lock}
-        title={t("blocked.expiredTitle")}
-        body={t("errors.subscription_blocked")}
+        title={t(suspended ? "blocked.suspendedTitle" : "blocked.expiredTitle")}
+        body={t(suspended ? "blocked.suspendedBody" : "blocked.expiredBody")}
         action={signInLink}
       />
     );
-  else if (isLoading || !session) content = <LoadingBlock />;
+  } else if (isLoading || !session) content = <LoadingBlock />;
   else if (session.blocked === "suspended")
     content = (
       <StatusPanel

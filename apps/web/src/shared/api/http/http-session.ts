@@ -9,17 +9,8 @@ import { notifyUnauthorized } from "./http-transport";
 
 const notImplemented = () => Promise.reject(new ApiError("not_implemented"));
 
-/** `blocked` from the stored status and the expiry instant; "expired" is never stored. */
-export function blockedOf(
-  clinic: Pick<MeResponse["clinic"], "status" | "expiresAt">,
-  now: Date,
-): SessionContext["blocked"] {
-  if (clinic.status === "suspended") return "suspended";
-  return new Date(clinic.expiresAt).getTime() <= now.getTime() ? "expired" : null;
-}
-
 /** The persona comes from the session, never from a role name: clinic users are all "custom". */
-export function contextFromMe(me: MeResponse, now: Date): SessionContext {
+export function contextFromMe(me: MeResponse): SessionContext {
   return {
     persona: { kind: "custom", clinicId: me.clinic.id, memberId: me.user.id },
     user: {
@@ -30,7 +21,9 @@ export function contextFromMe(me: MeResponse, now: Date): SessionContext {
     clinic: { ...me.clinic },
     permissions: [...me.permissions],
     features: { patients: me.modules.includes("patients") },
-    blocked: blockedOf(me.clinic, now),
+    // A /v1/me answer has passed the API's subscription guard on the server clock; a blocked clinic
+    // gets subscription_blocked instead, so the device clock never decides access.
+    blocked: null,
     // TODO(spec): slice 11 brings the expiry alert window to the clinic side.
     expiresInDays: null,
   };
@@ -71,7 +64,7 @@ export function createHttpSession(ctx: HttpContext): ApiClient["session"] {
       if (area === null) throw new ApiError("not_found");
       const me = await ctx.transport.send("GET", "/v1/me", { schema: meResponseSchema });
       ctx.clinicId = me.clinic.id;
-      return contextFromMe(me, ctx.now());
+      return contextFromMe(me);
     },
   };
 }

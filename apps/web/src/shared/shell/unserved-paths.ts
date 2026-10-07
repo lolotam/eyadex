@@ -12,3 +12,11 @@ const UNSERVED = [
 export function isUnservedPath(pathname: string): boolean {
   return UNSERVED.some((pattern) => pattern.test(pathname));
 }
+
+/**
+ * The platform home and clinic list are unserved, but they hold the only link to creating a clinic,
+ * which the API does serve; their "coming soon" state keeps that action.
+ */
+export function comingSoonActionFor(pathname: string): "createClinic" | null {
+  return /^\/platform(\/clinics)?\/?$/.test(pathname) ? "createClinic" : null;
+}
