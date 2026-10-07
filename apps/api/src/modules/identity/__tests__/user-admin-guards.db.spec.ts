@@ -21,7 +21,7 @@ import {
 
 // Review round of slice 7 (ADR-0012 §15–§16): the admin-role guard, reactivation reach, resend
 // re-validation, no-ops before validation, the resend email fallback and masked 409 details; round 2:
-// the stranded-members count of an inactive branch.
+// the stranded-members count of an inactive branch and masked role names in audit snapshots.
 
 let h: Harness;
 let C: Awaited<ReturnType<typeof clinicWithMembers>>;
@@ -204,5 +204,31 @@ describe("stranded-members details", () => {
     });
     expect(confirmed.statusCode).toBe(200);
     expect(confirmed.json()).toMatchObject({ isActive: false, exclusiveMemberCount: 0 });
+  });
+});
+
+describe("audit snapshots", () => {
+  it("mask a phone number typed into a custom role's names, for a role change and an invitation", async () => {
+    const role = await customRole(h, C.admin.clinicId, []);
+    await h.owner`UPDATE roles SET name_ar = 'استقبال +96512345678', name_en = 'Desk +96512345678'
+                  WHERE id = ${role}`;
+    const member = await memberOn(h, C.admin, doctorRole);
+    const changed = await act(
+      h,
+      C.admin.cookie,
+      `/v1/users/${member.memberId}/role`,
+      { roleId: role },
+      "PATCH",
+    );
+    expect(changed.statusCode).toBe(200);
+    const invitationId = await invited(inviteBody(role));
+    const rows = [
+      ...(await audit(h, C.admin.clinicId, member.memberId)),
+      ...(await audit(h, C.admin.clinicId, invitationId)),
+    ];
+    expect(rows.map((r) => r["action"])).toEqual(
+      expect.arrayContaining(["user.role_changed", "invitation.sent"]),
+    );
+    expect(rows.map((r) => r["raw"] as string).join()).not.toContain("12345678");
   });
 });

@@ -2,7 +2,6 @@ import type { Invitation } from "@eyadex/contracts/invitations";
 import type { InviteUserInput } from "@eyadex/contracts/users";
 import type { Database, Tx } from "@eyadex/db";
 import type { IdGenerator } from "@eyadex/ids";
-import { maskPhonesInText } from "@eyadex/observability";
 
 import { writeClinicAudit } from "../../../../shared/clinic-audit.ts";
 import {
@@ -15,11 +14,7 @@ import { appendOutboxEvent } from "../../../../shared/outbox.ts";
 import type { SecretSealer } from "../../../../shared/secret-sealer.ts";
 import { checkLimit, usersUsage, type Clock } from "../../../tenancy/index.ts";
 import { invitationExpiry } from "../../domain/system-roles.ts";
-import {
-  decideInvitationCancel,
-  decideInvitationResend,
-  personAuditSnapshot,
-} from "../../domain/user-rules.ts";
+import { decideInvitationCancel, decideInvitationResend } from "../../domain/user-rules.ts";
 import { issueInvitationToken } from "../../persistence/pg-first-admin-provisioner.ts";
 import {
   cancelInvitation,
@@ -41,6 +36,7 @@ import {
 import { findInvitationView } from "../../queries/invitation-views.ts";
 import {
   assertMayTouchAdmin,
+  auditSnapshot,
   usersLimitError,
   type UserActor,
 } from "../user-changes/user-changes.ts";
@@ -135,7 +131,7 @@ export class InvitationChanges {
       );
       const invitation = await this.view(tx, clinicId, id);
       await this.mail(tx, invitation, token, "invited");
-      await this.audit(tx, actor, "invitation.sent", id, { after: snapshot(invitation) });
+      await this.audit(tx, actor, "invitation.sent", id, { after: auditSnapshot(invitation) });
       await completeClinicIdempotencyKey(tx, claim, { invitationId: id });
       return { invitation, changed: true };
     });
@@ -182,8 +178,8 @@ export class InvitationChanges {
       const invitation = await this.view(tx, clinicId, invitationId);
       await this.mail(tx, invitation, token, "resent");
       await this.audit(tx, actor, "invitation.resent", invitationId, {
-        before: snapshot(before),
-        after: snapshot(invitation),
+        before: auditSnapshot(before),
+        after: auditSnapshot(invitation),
       });
       return { invitation, changed: true };
     });
@@ -213,8 +209,8 @@ export class InvitationChanges {
       await cancelInvitation(tx, clinicId, invitationId, now);
       const invitation = await this.view(tx, clinicId, invitationId);
       await this.audit(tx, actor, "invitation.cancelled", invitationId, {
-        before: snapshot(before),
-        after: snapshot(invitation),
+        before: auditSnapshot(before),
+        after: auditSnapshot(invitation),
       });
       return { invitation, changed: true };
     });
@@ -283,8 +279,3 @@ export class InvitationChanges {
     });
   }
 }
-
-const snapshot = (invitation: Invitation) => {
-  const s = personAuditSnapshot(invitation);
-  return { ...s, fullName: maskPhonesInText(s.fullName) };
-};

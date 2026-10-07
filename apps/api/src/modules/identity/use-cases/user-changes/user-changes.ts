@@ -14,6 +14,7 @@ import {
   personAuditSnapshot,
   reachesABranch,
   sameBranchSet,
+  type PersonAuditSnapshot,
 } from "../../domain/user-rules.ts";
 import {
   activeRole,
@@ -209,7 +210,7 @@ export class UserChanges {
         action: decided.action,
         entityType: "user",
         entityId: memberId,
-        details: { before: snapshot(beforeView), after: snapshot(after) },
+        details: { before: auditSnapshot(beforeView), after: auditSnapshot(after) },
         createdAt: clock.now(),
       });
       return { user: after, changed: true, revokeUserId: decided.revoke ? before.userId : null };
@@ -223,7 +224,14 @@ export class UserChanges {
   }
 }
 
-const snapshot = (user: MembershipUserView) => {
-  const s = personAuditSnapshot(user);
-  return { ...s, fullName: maskPhonesInText(s.fullName) };
+// Every free-text name is masked: `redactSecrets` keeps phone-like values, so a number typed into a
+// person's or a custom role's name would otherwise reach the audit log (AGENTS.md review rules).
+export const auditSnapshot = (person: PersonAuditSnapshot) => {
+  const s = personAuditSnapshot(person);
+  return {
+    ...s,
+    fullName: maskPhonesInText(s.fullName),
+    roleNameAr: maskPhonesInText(s.roleNameAr),
+    roleNameEn: maskPhonesInText(s.roleNameEn),
+  };
 };
