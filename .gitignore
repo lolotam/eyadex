@@ -39,3 +39,7 @@ dist-ssr
 
 # Redis snapshots written by a local redis-server
 dump.rdb
+
+# Lovable's sandbox writes a Bun lockfile; this repo is pnpm-only (pnpm-lock.yaml)
+bun.lock
+bun.lockb
