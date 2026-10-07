@@ -8,7 +8,10 @@ import { BRANCH_DEACTIVATED } from "./branch-invitations/domain/branch-event.ts"
 import { PgOrphanInvitationCanceller } from "./branch-invitations/persistence/pg-orphan-invitation-canceller.ts";
 import { invitationDispatcher } from "./invitation-mail/dispatch-invitation.ts";
 import { ADMIN_INVITED, USER_INVITED } from "./invitation-mail/domain/invitation-event.ts";
+import { decideFallback } from "./invitation-mail/domain/fallback-decision.ts";
+import { FallbackMailSender } from "./invitation-mail/mail/fallback-mail-sender.ts";
 import { ResendMailSender } from "./invitation-mail/mail/resend-mail-sender.ts";
+import { createSmtpTransport, SmtpMailSender } from "./invitation-mail/mail/smtp-mail-sender.ts";
 import { PgInvitationStateReader } from "./invitation-mail/persistence/pg-invitation-state-reader.ts";
 import { routeEvents } from "./shared/event-router.ts";
 import { readConfig } from "./shared/config.ts";
@@ -25,10 +28,16 @@ try {
   const app = createDatabase({ url: config.DATABASE_URL, role: "eyadex_app", ids });
   const outbox = createDispatcherOutbox({ url: config.DISPATCHER_DATABASE_URL });
   const clock = { now: () => new Date() };
+  const resend = new ResendMailSender({ apiKey: config.RESEND_API_KEY, from: config.MAIL_FROM });
+  // ADR-0014: the SMTP fallback exists only when all four SMTP_* keys are set.
+  const smtp = config.SMTP
+    ? new SmtpMailSender(createSmtpTransport(config.SMTP), config.MAIL_FROM)
+    : null;
+  const mail = smtp ? new FallbackMailSender(resend, smtp, decideFallback) : resend;
   const mailInvitation = invitationDispatcher({
     sealer: new SecretSealer(config.OUTBOX_SEAL_KEY),
     invitations: new PgInvitationStateReader(app),
-    mail: new ResendMailSender({ apiKey: config.RESEND_API_KEY, from: config.MAIL_FROM }),
+    mail,
     clock,
     appUrl: config.APP_URL,
     logger,
@@ -56,6 +65,7 @@ try {
       stop: () => poller.stop(),
       readiness: { app: () => app.ping(), dispatcher: () => outbox.ping() },
       release: async () => {
+        smtp?.close();
         await Promise.all([app.close(), outbox.close()]);
       },
     },

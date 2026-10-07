@@ -74,7 +74,7 @@ describe("send-time check: an invitation needs an active branch", () => {
       } catch (error) {
         deactivateDuringSend = String((error as { stderr?: unknown }).stderr ?? error);
       }
-      return { sent: true };
+      return { sent: true, provider: "resend", fallback: false };
     };
     await drain(h.poller);
     expect(deactivateDuringSend).toMatch(/lock timeout/);
