@@ -77,3 +77,29 @@ describe("ResendMailSender", () => {
     expect(await down.send(message)).toEqual({ sent: false, error: "resend_network" });
   });
 });
+
+describe("ResendMailSender fetch failures (ADR-0014)", () => {
+  const rejecting = (cause: unknown) =>
+    new ResendMailSender({
+      apiKey: "k",
+      from: "f",
+      fetch: () => Promise.reject(new TypeError("fetch failed", { cause })),
+    });
+
+  it.each(["ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN"])("%s → resend_unreachable", async (code) => {
+    expect(await rejecting({ code }).send(message)).toEqual({
+      sent: false,
+      error: "resend_unreachable",
+    });
+  });
+
+  it.each([{ code: "ECONNRESET" }, { code: "UND_ERR_SOCKET" }, undefined])(
+    "any other cause → resend_network (%#)",
+    async (cause) => {
+      expect(await rejecting(cause).send(message)).toEqual({
+        sent: false,
+        error: "resend_network",
+      });
+    },
+  );
+});
