@@ -2,7 +2,12 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { Writable } from "node:stream";
 
-import { createDatabase, createDispatcherOutbox, type Database, type DispatcherOutbox } from "@eyadex/db";
+import {
+  createDatabase,
+  createDispatcherOutbox,
+  type Database,
+  type DispatcherOutbox,
+} from "@eyadex/db";
 import { createLogger, type Logger } from "@eyadex/observability";
 import { SecretSealer } from "@eyadex/secrets";
 
@@ -75,7 +80,8 @@ export function seedClinic(language: "ar" | "en" = "ar"): { clinicId: string; ro
   return { clinicId, roleId };
 }
 
-export const tokenHash = (token: string) => createHash("sha256").update(token, "utf8").digest("hex");
+export const tokenHash = (token: string) =>
+  createHash("sha256").update(token, "utf8").digest("hex");
 export const newToken = () => randomBytes(32).toString("base64url");
 
 export function seedInvitation(
@@ -202,7 +208,10 @@ export async function drain(poller: OutboxPoller): Promise<void> {
   }
 }
 
-export const userFields = (invite: { invitationId: string; email: string; fullName: string }, language: "ar" | "en") => ({
+export const userFields = (
+  invite: { invitationId: string; email: string; fullName: string },
+  language: "ar" | "en",
+) => ({
   invitationId: invite.invitationId,
   email: invite.email,
   fullName: invite.fullName,

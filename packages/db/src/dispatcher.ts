@@ -121,7 +121,12 @@ export function createDispatcherOutbox(options: DispatcherOptions): DispatcherOu
     }
   };
 
-  const write = async (tx: postgres.TransactionSql, id: string, outcome: DispatchOutcome, now: Date) => {
+  const write = async (
+    tx: postgres.TransactionSql,
+    id: string,
+    outcome: DispatchOutcome,
+    now: Date,
+  ) => {
     const at = now.toISOString();
     if (outcome.kind === "dispatched") {
       await tx`UPDATE outbox_events SET dispatched_at = ${at}::timestamptz,

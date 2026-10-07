@@ -32,7 +32,8 @@ describe("readConfig", () => {
   });
 
   it("fails at boot when a mail or database setting is missing, naming the keys only", () => {
-    const attempt = () => readConfig({ ...required, RESEND_API_KEY: "", OUTBOX_SEAL_KEY: "c2hvcnQ=" });
+    const attempt = () =>
+      readConfig({ ...required, RESEND_API_KEY: "", OUTBOX_SEAL_KEY: "c2hvcnQ=" });
     expect(attempt).toThrow(/RESEND_API_KEY/);
     expect(attempt).toThrow(/OUTBOX_SEAL_KEY/);
     expect(() => readConfig({})).toThrow(/DISPATCHER_DATABASE_URL/);

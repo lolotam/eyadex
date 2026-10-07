@@ -47,7 +47,9 @@ describe("email content", () => {
   });
 
   it("writes the expiry in the clinic's time zone", () => {
-    expect(formatExpiry(new Date("2026-10-13T22:30:00Z"), "en", "Asia/Kuwait")).toContain("14 October 2026");
+    expect(formatExpiry(new Date("2026-10-13T22:30:00Z"), "en", "Asia/Kuwait")).toContain(
+      "14 October 2026",
+    );
   });
 
   it("refuses a payload with a missing field", () => {

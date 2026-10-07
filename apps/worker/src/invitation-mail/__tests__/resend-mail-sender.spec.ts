@@ -38,7 +38,11 @@ const message = {
 describe("ResendMailSender", () => {
   it("posts /emails with the key, the idempotency header and the message", async () => {
     const { seen, baseUrl } = await stub(200, '{"id":"x"}');
-    const sender = new ResendMailSender({ apiKey: "test-only", from: "Eyadex Team <no-reply@example.test>", baseUrl });
+    const sender = new ResendMailSender({
+      apiKey: "test-only",
+      from: "Eyadex Team <no-reply@example.test>",
+      baseUrl,
+    });
     expect(await sender.send(message)).toEqual({ sent: true });
     expect(seen[0]!.url).toBe("/emails");
     expect(seen[0]!.headers["idempotency-key"]).toBe(message.idempotencyKey);
@@ -53,7 +57,10 @@ describe("ResendMailSender", () => {
   });
 
   it("maps a provider error to a retryable code without the response body", async () => {
-    const { baseUrl } = await stub(422, '{"name":"validation_error","message":"invitee@example.test is bad"}');
+    const { baseUrl } = await stub(
+      422,
+      '{"name":"validation_error","message":"invitee@example.test is bad"}',
+    );
     const sender = new ResendMailSender({ apiKey: "k", from: "f", baseUrl });
     const result = await sender.send(message);
     expect(result).toEqual({ sent: false, error: "resend_422:validation_error" });

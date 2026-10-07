@@ -101,15 +101,33 @@ describe("send-time check (ADR-0012 §8)", () => {
     const clinic = seedClinic();
     const first = newToken();
     const invite = seedInvitation(clinic, first);
-    const oldEvent = seedEvent(sealer, USER_INVITED, clinic.clinicId, userFields(invite, "ar"), first);
+    const oldEvent = seedEvent(
+      sealer,
+      USER_INVITED,
+      clinic.clinicId,
+      userFields(invite, "ar"),
+      first,
+    );
     const resent = newToken();
     setTokenHash(clinic.clinicId, invite.invitationId, resent);
-    const newEvent = seedEvent(sealer, USER_INVITED, clinic.clinicId, userFields(invite, "ar"), resent);
+    const newEvent = seedEvent(
+      sealer,
+      USER_INVITED,
+      clinic.clinicId,
+      userFields(invite, "ar"),
+      resent,
+    );
 
     const copied = seedInvitation(clinic, newToken());
     const copiedFirst = newToken();
     setTokenHash(clinic.clinicId, copied.invitationId, copiedFirst);
-    const copiedEvent = seedEvent(sealer, USER_INVITED, clinic.clinicId, userFields(copied, "ar"), newToken());
+    const copiedEvent = seedEvent(
+      sealer,
+      USER_INVITED,
+      clinic.clinicId,
+      userFields(copied, "ar"),
+      newToken(),
+    );
 
     await drain(h.poller);
     expect(h.mail.sent.map((m) => m.idempotencyKey)).toEqual([newEvent]);
@@ -168,7 +186,8 @@ describe("failures", () => {
   it("writes neither the token, the link, the address nor the name to any log line", async () => {
     const mail = new FakeMail();
     let calls = 0;
-    mail.result = async () => (++calls === 1 ? { sent: false, error: "resend_429" } : { sent: true });
+    mail.result = async () =>
+      ++calls === 1 ? { sent: false, error: "resend_429" } : { sent: true };
     const h = make(mail);
     const clinic = seedClinic();
     const token = newToken();
@@ -236,6 +255,10 @@ describe("concurrency and shutdown", () => {
     release();
     await stopping;
     expect(eventRow(id).dispatched_at).not.toBeNull();
-    expect(owner("SELECT count(*) FROM pg_locks l JOIN pg_stat_activity a USING (pid) WHERE a.application_name = 'eyadex-dispatcher' AND l.mode = 'RowShareLock'")).toBe("0");
+    expect(
+      owner(
+        "SELECT count(*) FROM pg_locks l JOIN pg_stat_activity a USING (pid) WHERE a.application_name = 'eyadex-dispatcher' AND l.mode = 'RowShareLock'",
+      ),
+    ).toBe("0");
   });
 });

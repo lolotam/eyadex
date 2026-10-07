@@ -12,8 +12,7 @@ export const MAX_FAILURES = 5;
 
 /** إيه اللي يحصل بعد فشل إرسال. */
 export type FailureStep =
-  | { readonly kind: "retry"; readonly nextAttemptAt: Date }
-  | { readonly kind: "give_up" };
+  { readonly kind: "retry"; readonly nextAttemptAt: Date } | { readonly kind: "give_up" };
 
 /**
  * بيحسب الخطوة بعد فشل: محاولة تانية بعد المهلة، أو الاستسلام عند الفشل الخامس.

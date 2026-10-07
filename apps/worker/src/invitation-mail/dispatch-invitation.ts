@@ -31,12 +31,18 @@ const DONE: DispatchOutcome = { kind: "dispatched" };
  */
 export function invitationDispatcher(deps: InvitationDispatchDeps) {
   const note = (event: ClaimedEvent, outcome: string, extra: Record<string, unknown> = {}) =>
-    deps.logger.info({ outbox: { id: event.id, type: event.type, outcome, ...extra } }, "outbox event handled");
+    deps.logger.info(
+      { outbox: { id: event.id, type: event.type, outcome, ...extra } },
+      "outbox event handled",
+    );
 
   const fail = (event: ClaimedEvent, error: string): DispatchOutcome => {
     const step = afterFailure(event.attempts, deps.clock.now());
     if (step.kind === "give_up") {
-      deps.logger.error({ outbox: { id: event.id, type: event.type, outcome: "failed", error } }, "outbox event failed");
+      deps.logger.error(
+        { outbox: { id: event.id, type: event.type, outcome: "failed", error } },
+        "outbox event failed",
+      );
       return { kind: "failed", error };
     }
     note(event, "retry", { error, attempt: event.attempts + 1 });
@@ -47,14 +53,20 @@ export function invitationDispatcher(deps: InvitationDispatchDeps) {
     const invitation = parseInvitationEvent(event.type, event.payload);
     if (invitation === null || invitation.clinicId !== event.clinicId) {
       // Malformed: no retry can fix it, so it is closed and its token scrubbed at once.
-      deps.logger.error({ outbox: { id: event.id, type: event.type, outcome: "failed", error: "invalid_payload" } }, "outbox event failed");
+      deps.logger.error(
+        { outbox: { id: event.id, type: event.type, outcome: "failed", error: "invalid_payload" } },
+        "outbox event failed",
+      );
       return { kind: "failed", error: "invalid_payload" };
     }
     let token: string;
     try {
       token = deps.sealer.open(invitation.sealedToken, event.id);
     } catch {
-      deps.logger.error({ outbox: { id: event.id, type: event.type, outcome: "failed", error: "seal_unreadable" } }, "outbox event failed");
+      deps.logger.error(
+        { outbox: { id: event.id, type: event.type, outcome: "failed", error: "seal_unreadable" } },
+        "outbox event failed",
+      );
       return { kind: "failed", error: "seal_unreadable" };
     }
     const state = await deps.invitations.read(invitation.clinicId, invitation.invitationId);
