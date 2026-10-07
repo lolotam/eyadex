@@ -1,7 +1,8 @@
 /**
  * الأدوار اللي الـ runtime بيتصل بيها (PRD §4.5): `eyadex_app` للـ API والـ worker تحت الـ RLS،
- * و`eyadex_platform` لموديول المنصة. `eyadex_auth` و`eyadex_dispatcher` ليهم حزمهم الخاصة
- * (المرحلة ب) — مفيش wrapper في الباكاج ده بياخدهم، والـ owner مش من قوائمهم أصلاً.
+ * و`eyadex_platform` لموديول المنصة. `eyadex_auth` في `@eyadex/auth`، و`eyadex_dispatcher` ليه wrapper
+ * ضيق لوحده (`createDispatcherOutbox`، ADR-0013) — الـ outbox وبس، مفيش transaction عام. والـ owner
+ * مش من قوائمهم أصلاً.
  */
 export type DatabaseRole = "eyadex_app" | "eyadex_platform";
 
