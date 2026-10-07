@@ -32,9 +32,12 @@ AND event_type IN (…) ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1`. The
    cancel or accept that arrives meanwhile waits instead of invalidating a link already being mailed
    (the API takes the same row `FOR UPDATE`). The Resend timeout (5 s) stays under the API's 10 s
    transaction cap, so a waiting API write still completes. Read the clock after the lock; send only when `status = 'pending'`,
-   `expires_at > now` and `sha256(token) = token_hash` (constant-time compare). Otherwise the event is
-   done as **skipped** with no email (missing, accepted, cancelled, expired, superseded). Only the two
-   invitation types are claimed; any other type stays untouched for later slices.
+   `expires_at > now`, the invitation is `all_branches` or still has an active branch, and
+   `sha256(token) = token_hash` (constant-time compare). Otherwise the event is done as **skipped**
+   with no email (missing, accepted, cancelled, expired, no_active_branch, superseded). The branch
+   check matters because events are claimed by `created_at`: in a backlog, an invitation's mail comes
+   before the later `clinic.branch_deactivated` that cancels it (§12), and must not mail a link about to
+   die. Only the handled types are claimed; any other type stays untouched for later slices.
 5. **Outcome.** Sent or skipped → `dispatched_at` set and `sealedToken` removed in the same UPDATE.
 6. **Failures.** `attempts + 1`, `next_attempt_at = now + delay`, `last_error` = provider status and
    Resend's error name only (`resend_500`, `resend_422:validation_error`, `resend_timeout`,

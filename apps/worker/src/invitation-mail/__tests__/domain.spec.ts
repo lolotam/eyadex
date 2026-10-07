@@ -14,6 +14,7 @@ const state = (over: object = {}) => ({
   expiresAt: new Date("2026-10-14T00:00:00Z"),
   tokenHash: hash("tok"),
   timezone: "Asia/Kuwait",
+  hasActiveBranch: true,
   ...over,
 });
 
@@ -25,6 +26,7 @@ describe("send decision", () => {
     expect(skipReason(state({ status: "accepted" }), "tok", now)).toBe("accepted");
     expect(skipReason(state({ expiresAt: now }), "tok", now)).toBe("expired");
     expect(skipReason(state(), "other", now)).toBe("superseded");
+    expect(skipReason(state({ hasActiveBranch: false }), "tok", now)).toBe("no_active_branch");
   });
 });
 

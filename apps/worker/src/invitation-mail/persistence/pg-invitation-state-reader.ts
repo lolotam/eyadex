@@ -7,6 +7,7 @@ type Row = {
   expires_at: string;
   token_hash: string;
   timezone: string;
+  has_active_branch: boolean;
 };
 
 /**
@@ -27,7 +28,12 @@ export class PgInvitationStateReader implements InvitationStateReader {
   ): Promise<T> {
     return this.#db.withTenant(clinicId, async (tx) => {
       const rows = (await tx.execute(
-        sql`SELECT i.status, i.expires_at::text AS expires_at, i.token_hash, c.timezone
+        sql`SELECT i.status, i.expires_at::text AS expires_at, i.token_hash, c.timezone,
+                   (i.all_branches OR EXISTS (
+                     SELECT 1 FROM invitation_branches ib
+                     JOIN branches b ON b.clinic_id = ib.clinic_id AND b.id = ib.branch_id
+                     WHERE ib.clinic_id = i.clinic_id AND ib.invitation_id = i.id AND b.is_active))
+                     AS has_active_branch
             FROM invitations i JOIN clinics c ON c.id = i.clinic_id
             WHERE i.clinic_id = ${clinicId} AND i.id = ${invitationId}
             FOR SHARE OF i`,
@@ -38,6 +44,7 @@ export class PgInvitationStateReader implements InvitationStateReader {
         status: row.status,
         expiresAt: new Date(row.expires_at),
         tokenHash: row.token_hash,
+        hasActiveBranch: row.has_active_branch,
         timezone: row.timezone,
       });
     });

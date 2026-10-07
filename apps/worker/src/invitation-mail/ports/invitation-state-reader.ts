@@ -4,6 +4,11 @@ export interface InvitationState {
   readonly expiresAt: Date;
   /** sha256 hex للرمز الحالي؛ resend أو نسخ الرابط بيغيّره. */
   readonly tokenHash: string;
+  /**
+   * الدعوة على كل الفروع، أو لسه ليها فرع نشط واحد على الأقل. `false` معناه إن فروعها كلها اتعطّلت
+   * والإلغاء التلقائي (ADR-0013 §12) لسه ما وصلهاش.
+   */
+  readonly hasActiveBranch: boolean;
   /** المنطقة الزمنية للعيادة، عشان تاريخ الانتهاء يتكتب بوقتها. */
   readonly timezone: string;
 }
