@@ -9,7 +9,7 @@ const TAG_BYTES = 16;
 
 /**
  * بيقفل سر قصير (رمز الدعوة) بمفتاح مع الـ API والـ worker بس، عشان يعدّي على الـ outbox من غير ما
- * الداتابيز تشيله مكشوف (ADR-0006). TODO(spec): يتنقل لـ package مشترك مع slice الـ worker.
+ * الداتابيز تشيله مكشوف (ADR-0006). بيستخدمه الـ API (بيقفل) والـ worker (بيفتح وقت الإرسال، ADR-0013).
  */
 export class SecretSealer {
   readonly #key: Buffer;

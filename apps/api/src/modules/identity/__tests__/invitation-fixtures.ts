@@ -4,7 +4,7 @@ import type { Database } from "@eyadex/db";
 import { systemUuidV7 } from "@eyadex/ids";
 
 import { PLATFORM_DATABASE } from "../../../shared/platform-database.ts";
-import { SecretSealer } from "../../../shared/secret-sealer.ts";
+import { SecretSealer } from "@eyadex/secrets";
 import {
   CLOCK,
   CreateClinicWithAdmin,

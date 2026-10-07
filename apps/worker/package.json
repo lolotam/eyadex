@@ -3,16 +3,20 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Eyadex worker — the NestJS container that will run the outbox dispatcher and BullMQ processors",
+  "description": "Eyadex worker — the NestJS container that runs the outbox dispatcher (invitation email)",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
-    "start": "node --env-file-if-exists=../../.env dist/main.js"
+    "test:db": "vitest run --config vitest.db.config.ts",
+    "start": "node --conditions=eyadex-runtime --env-file-if-exists=../../.env dist/main.js"
   },
   "dependencies": {
+    "@eyadex/db": "workspace:*",
+    "@eyadex/ids": "workspace:*",
     "@eyadex/observability": "workspace:*",
+    "@eyadex/secrets": "workspace:*",
     "@nestjs/common": "12.0.3",
     "@nestjs/core": "12.0.3",
     "@nestjs/platform-fastify": "12.0.3",

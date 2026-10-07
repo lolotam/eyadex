@@ -30,13 +30,17 @@
 - [x] Slice 2c: Redis rate limiting of sign-in, two-factor, change-password (ADR-0005; fail closed)
 - [x] Slice 3a: `POST /v1/platform/clinics` — clinic + system roles + first-admin invitation + email hold + platform audit + outbox in one transaction, Idempotency-Key (ADR-0006, SQL 0025–0026)
 - [x] Slice 3b: `POST /v1/invitations/{inspect,accept}` — single-use acceptance, clinic account + membership, retry-safe across the two DB roles (ADR-0008)
-- [ ] Worker: dispatch `clinic.admin_invited` (open the sealed link, send, scrub payload)
+- [x] Worker: dispatch `clinic.admin_invited` (open the sealed link, send, scrub payload) — slice 7b-1, ADR-0013
 - [x] Slice 4: global `AccessGuard` (one declaration per route), PRD §4.7 check order, versioned Redis authorization cache, `GET /v1/me`, `/v1/roles`, `/v1/permissions/catalogue` (ADR-0009, SQL 0027)
 - [x] Slice 5: `@RequiresFeature` module gate, platform feature/subscription/limits/detail endpoints, `ClinicLimits` port (ADR-0010)
 - [x] Slice 6: branches API (list/create/update/deactivate/reactivate), in-transaction branch limit + OD-7 under a clinic lock, idempotent create in `clinic_idempotency_keys`, SQL 0028 (ADR-0011)
 - [x] Slice 6 open: stranded members resolved in slice 7 (ADR-0012)
 - [ ] Retention of idempotency keys (platform ledger and `clinic_idempotency_keys`)
 - [x] Slice 7: users + invitations API — invite/resend/cancel (outbox `clinic.user_invited`, sealed token, rotation), lists, role/branches, deactivate/reactivate with session revoke, last admin and user limit under the users lock, stranded-member confirmation on branch deactivation (ADR-0012, no SQL)
-- [ ] Worker/notifications slice: dispatch `clinic.admin_invited` and `clinic.user_invited` with the send-time check of ADR-0012
+- [x] Slice 7b-1: worker dispatches `clinic.admin_invited` and `clinic.user_invited` through Resend with the send-time check (ADR-0013)
+- [ ] Slice 7b-2: auto-cancel invitations on deactivated branches
+- [ ] Slice 7c: platform SMTP and per-clinic mail providers
+- [ ] Worker production image + Dokploy service (orchestrator; not in 7b-1)
+- [ ] Retention of dispatched and failed outbox rows (TODO(spec))
 - [ ] Slice 8: role CRUD (call `AuthorizationInvalidator`)
 - [ ] Reverse-proxy routes `app.`/`platform.` `/api/*` → api with `/api` stripped (orchestrator)

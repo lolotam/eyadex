@@ -21,7 +21,7 @@ sendable link.
 2. **Permission catalogue as data (0026).** Role permissions reference `permissions.id`; the 23
    keys are seeded with fixed ids so every environment agrees.
 3. **Outbox (0025).** `outbox_events(id, clinic_id NULL, event_type, payload, created_at,
-   dispatched_at)`. Not a clinic-owned table (platform events have no clinic), so the key is `id`;
+dispatched_at)`. Not a clinic-owned table (platform events have no clinic), so the key is `id`;
    RLS is still enabled and forced. Writers (`eyadex_app`, `eyadex_platform`) have INSERT only and
    a WITH CHECK that pins `clinic_id` to the transaction's clinic context. `eyadex_dispatcher` has
    SELECT and UPDATE(`dispatched_at`, `payload`) on this table only.
@@ -44,4 +44,4 @@ sendable link.
 - `OUTBOX_SEAL_KEY` rotation needs a drain of pending events first. TODO(spec): key rotation.
 - TODO(spec): retention of `idempotency_keys`; default limits/expiry/modules for a new clinic are
   required inputs until the PRD fixes them; the `@Require` platform permission lands in slice 4.
-- The worker slice implements the dispatcher (read pending, open, send, scrub, mark).
+- The worker slice implements the dispatcher (read pending, open, send, scrub, mark) — done in ADR-0013.

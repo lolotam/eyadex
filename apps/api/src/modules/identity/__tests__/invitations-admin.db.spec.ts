@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { invitationSchema } from "@eyadex/contracts/invitations";
 import { invitationListResponseSchema } from "@eyadex/contracts/user-admin";
 
-import { SecretSealer } from "../../../shared/secret-sealer.ts";
+import { SecretSealer } from "@eyadex/secrets";
 import {
   closeHarness,
   openHarness,

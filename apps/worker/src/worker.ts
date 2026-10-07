@@ -13,9 +13,17 @@ import type { Logger } from "@eyadex/observability";
 import { LogController } from "fastify";
 
 import { HealthController } from "./shared/health.controller.ts";
+import { READINESS, ReadyController, type ReadinessChecks } from "./shared/ready.controller.ts";
 
 export interface WorkerDependencies {
-  /** Releases what main.ts opened. Runs on app.close() and on SIGTERM/SIGINT. */
+  /**
+   * Stops polling and waits for the event in flight to record its outcome. Runs first in the shutdown, so
+   * no claim still holds a row when `release` closes the pools.
+   */
+  readonly stop?: () => Promise<void>;
+  /** The pools `/health/ready` pings. */
+  readonly readiness?: ReadinessChecks;
+  /** Releases what main.ts opened. Runs on app.close() and on SIGTERM/SIGINT, after `stop`. */
   readonly release?: () => Promise<void>;
   /**
    * What a signal-triggered shutdown whose release failed or timed out does once it is logged. Nest swallows
@@ -26,6 +34,7 @@ export interface WorkerDependencies {
 }
 
 const SHUTDOWN = Symbol("SHUTDOWN");
+const STOP = Symbol("STOP");
 const UNCLEAN = Symbol("UNCLEAN");
 const LOGS = Symbol("LOGS");
 // Long enough for the first job's own budget and grace, so a SIGTERM lets the work in flight record its
@@ -35,22 +44,24 @@ const SHUTDOWN_TIMEOUT_MS = 30_000;
 // orchestrator's stop grace period must exceed this too, or it kills the process before the exit 0.
 export const SHUTDOWN_WATCHDOG_MS = 45_000;
 
-// Through Nest's shutdown path, the one SIGTERM triggers. Later slices add their stop-polling step before
-// this one releases the pools, and the order is the point: no job may still be running when its database
-// pool closes.
+// Through Nest's shutdown path, the one SIGTERM triggers: stop polling (the event in flight records its
+// outcome), then release the pools. The order is the point: no claim may still hold a row when its pool closes.
 @Injectable()
 class ShutdownHook implements OnApplicationShutdown {
   readonly #logger: Logger;
   readonly #release: () => Promise<void>;
+  readonly #stop: () => Promise<void>;
   readonly #onUnclean: (signal: string) => void;
 
   constructor(
     @Inject(LOGS) logger: Logger,
     @Inject(SHUTDOWN) release: () => Promise<void>,
     @Inject(UNCLEAN) onUnclean: (signal: string) => void,
+    @Inject(STOP) stop: () => Promise<void>,
   ) {
     this.#logger = logger;
     this.#release = release;
+    this.#stop = stop;
     this.#onUnclean = onUnclean;
   }
 
@@ -69,6 +80,7 @@ class ShutdownHook implements OnApplicationShutdown {
       // Started inside a continuation, so a release that throws before returning its promise is a
       // failed release too, not an escape from this handler.
       Promise.resolve()
+        .then(() => this.#stop())
         .then(() => this.#release())
         .then(
           () => "released" as const,
@@ -96,8 +108,10 @@ class WorkerModule {
   static forRoot(deps: WorkerDependencies, logger: Logger): DynamicModule {
     return {
       module: WorkerModule,
-      controllers: [HealthController],
+      controllers: [HealthController, ReadyController],
       providers: [
+        { provide: STOP, useValue: deps.stop ?? (async () => undefined) },
+        { provide: READINESS, useValue: deps.readiness ?? {} },
         { provide: SHUTDOWN, useValue: deps.release ?? (async () => undefined) },
         { provide: UNCLEAN, useValue: deps.onUncleanShutdown ?? (() => process.exit(1)) },
         { provide: LOGS, useValue: logger },
