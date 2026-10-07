@@ -74,8 +74,10 @@ AND event_type IN (…) ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1`. The
     - **Lock order** on the `eyadex_app` pool under `withTenant(clinicId)`: advisory `users:<clinic>` →
       candidate invitation rows `FOR UPDATE` ordered by id → advisory `branches:<clinic>` → clock read →
       a fresh statement re-evaluates each locked row. The keys and function are the API's, so this job
-      serialises with invites, resends, copy-link, cancels, accepts and branch changes. A mail send that
-      holds the row `FOR SHARE` (§4) finishes first.
+      serialises with invites, resends, copy-link, cancels, accepts and branch changes. Acceptance takes
+      no users lock but locks the invitation row before the branches lock, so the row lock must come
+      before the branches lock here too, or the two would deadlock. A mail send that holds the row
+      `FOR SHARE` (§4) finishes first.
     - **Decision at handling time.** Cancel every invitation of the clinic that is `pending`, not
       `all_branches`, and has no `invitation_branches` row on an active branch. `branchId` is audit
       detail only: a branch reactivated before the job runs means no cancel, and a replay or retry

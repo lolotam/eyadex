@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import { sql } from "@eyadex/db";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import {
@@ -235,5 +236,48 @@ describe("auto-cancel on clinic.branch_deactivated (ADR-0013 §12)", () => {
     release();
     await sending;
     expect(await cancelling).toBe(1);
+  });
+
+  it("locks the invitation row before the branches lock, so a parallel acceptance never deadlocks", async () => {
+    const h = make();
+    const { clinic, deactivated } = clinicWithBranches();
+    const invite = invitationOn(clinic, [deactivated]);
+    const { clinicId } = clinic;
+    let rowHeld!: () => void;
+    let proceed!: () => void;
+    const holding = new Promise<void>((resolve) => (rowHeld = resolve));
+    const go = new Promise<void>((resolve) => (proceed = resolve));
+    // Acceptance's own order (ADR-0012 §16): the invitation row, then the branches lock.
+    const accepting = h.app.withTenant(clinicId, async (tx) => {
+      await tx.execute(
+        sql`SELECT id FROM invitations WHERE clinic_id = ${clinicId} AND id = ${invite.invitationId}
+            FOR UPDATE`,
+      );
+      rowHeld();
+      await go;
+      await tx.execute(
+        sql`SELECT pg_advisory_xact_lock(hashtextextended(${`branches:${clinicId}`}, 0))`,
+      );
+      await tx.execute(
+        sql`UPDATE invitations SET status = 'accepted', responded_at = now()
+            WHERE clinic_id = ${clinicId} AND id = ${invite.invitationId}`,
+      );
+    });
+    await holding;
+    const request = {
+      clinicId,
+      branchId: deactivated,
+      eventId: randomUUID(),
+      actorUserId: randomUUID(),
+    };
+    const cancelling = h.canceller.cancelOrphaned(request, h.clock.now);
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    proceed();
+    // Had the job taken the branches lock first, the acceptance would wait on it while the job waits
+    // on the row: PostgreSQL's deadlock check aborts one of the two.
+    await accepting;
+    expect(await cancelling).toBe(0);
+    expect(invitationStatus(clinicId, invite.invitationId)).toBe("accepted");
+    expect(auditRows(clinicId, invite.invitationId)).toHaveLength(0);
   });
 });
