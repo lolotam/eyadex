@@ -47,7 +47,6 @@ describe("module boundaries", () => {
     expect(others.flatMap(identityDeepImports)).toEqual([]);
   });
 
-
   it("no controller imports or builds a Pg adapter; the module binds it and injects the port", () => {
     const modules = readdirSync(modulesDir).filter((name) =>
       existsSync(join(modulesDir, name, "http")),

@@ -128,7 +128,9 @@ export const call = (h: Harness, o: Call) =>
       ...o.headers,
     },
     ...(o.ip === undefined ? {} : { remoteAddress: o.ip }),
-    ...(o.method === "GET" || o.method === "DELETE" ? {} : { payload: o.rawBody ?? JSON.stringify(o.body ?? {}) }),
+    ...(o.method === "GET" || o.method === "DELETE"
+      ? {}
+      : { payload: o.rawBody ?? JSON.stringify(o.body ?? {}) }),
   });
 
 export const setCookies = (res: { headers: Record<string, unknown> }): string[] => {

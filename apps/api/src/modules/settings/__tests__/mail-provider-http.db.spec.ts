@@ -63,18 +63,25 @@ afterAll(async () => {
 });
 
 describe("RBAC-01: every mail-provider route", () => {
-  it.each(routes)("%s %s: no session 401, doctor 403, platform host 404", async (method, url, body) => {
-    expect((await send(method, undefined, { url, body })).statusCode).toBe(401);
-    expect((await send(method, A.doctor.cookie, { url, body })).statusCode).toBe(403);
-    expect((await send(method, A.admin.cookie, { url, body, host: PLATFORM })).statusCode).toBe(404);
-  });
+  it.each(routes)(
+    "%s %s: no session 401, doctor 403, platform host 404",
+    async (method, url, body) => {
+      expect((await send(method, undefined, { url, body })).statusCode).toBe(401);
+      expect((await send(method, A.doctor.cookie, { url, body })).statusCode).toBe(403);
+      expect((await send(method, A.admin.cookie, { url, body, host: PLATFORM })).statusCode).toBe(
+        404,
+      );
+    },
+  );
 });
 
 describe("mail provider over HTTP", () => {
   it("PUT without Idempotency-Key is 400; test-send without a provider is 404", async () => {
     expect((await send("PUT", A.admin.cookie, { body: resend, key: null })).statusCode).toBe(400);
     expect((await send("POST", A.admin.cookie, { url: `${URL}/test` })).statusCode).toBe(404);
-    expect((await send("POST", A.admin.cookie, { url: `${URL}/test`, key: null })).statusCode).toBe(400);
+    expect((await send("POST", A.admin.cookie, { url: `${URL}/test`, key: null })).statusCode).toBe(
+      400,
+    );
   });
 
   it("GET, PUT replies, audit rows and logs never contain the secret", async () => {
@@ -82,7 +89,11 @@ describe("mail provider over HTTP", () => {
     const put = await send("PUT", A.admin.cookie, { body: smtp });
     expect(put.statusCode).toBe(200);
     const view = await send("GET", A.admin.cookie);
-    expect(view.json()).toMatchObject({ kind: "smtp", smtpHost: "smtp.example.test", hasCredentials: true });
+    expect(view.json()).toMatchObject({
+      kind: "smtp",
+      smtpHost: "smtp.example.test",
+      hasCredentials: true,
+    });
     const audit = JSON.stringify(
       await h.owner`SELECT details FROM audit_log WHERE clinic_id = ${A.admin.clinicId}
                     AND action LIKE 'clinic.mail_provider%'`,
@@ -96,7 +107,8 @@ describe("mail provider over HTTP", () => {
   it("test-send answers 202 and writes one id-only event", async () => {
     const res = await send("POST", A.admin.cookie, { url: `${URL}/test` });
     expect(res.statusCode).toBe(202);
-    const events = await h.owner`SELECT payload FROM outbox_events WHERE clinic_id = ${A.admin.clinicId}
+    const events =
+      await h.owner`SELECT payload FROM outbox_events WHERE clinic_id = ${A.admin.clinicId}
                                  AND event_type = 'clinic.mail_provider_test_requested'`;
     expect(events).toHaveLength(1);
     expect(Object.keys(events[0]!["payload"] as object).sort()).toEqual([
