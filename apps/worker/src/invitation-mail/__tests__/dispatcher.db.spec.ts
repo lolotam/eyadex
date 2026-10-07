@@ -153,7 +153,7 @@ describe("send-time check (ADR-0012 §8)", () => {
       } catch (error) {
         cancelDuringSend = String((error as { stderr?: unknown }).stderr ?? error);
       }
-      return { sent: true };
+      return { sent: true, provider: "resend", fallback: false };
     };
 
     await drain(h.poller);
@@ -211,7 +211,7 @@ describe("failures", () => {
     const mail = new FakeMail();
     let calls = 0;
     mail.result = async () =>
-      ++calls === 1 ? { sent: false, error: "resend_429" } : { sent: true };
+      ++calls === 1 ? { sent: false, error: "resend_429" } : { sent: true, provider: "resend", fallback: false };
     const h = make(mail);
     const clinic = seedClinic();
     const token = newToken();
@@ -235,7 +235,7 @@ describe("concurrency and shutdown", () => {
       const mail = new FakeMail();
       mail.result = async () => {
         await new Promise((resolve) => setTimeout(resolve, 15));
-        return { sent: true };
+        return { sent: true, provider: "resend", fallback: false };
       };
       return mail;
     };
@@ -263,7 +263,7 @@ describe("concurrency and shutdown", () => {
     mail.result = () =>
       new Promise((resolve) => {
         started();
-        release = () => resolve({ sent: true });
+        release = () => resolve({ sent: true, provider: "resend", fallback: false });
       });
     const h = make(mail);
     const clinic = seedClinic();

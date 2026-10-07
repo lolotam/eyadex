@@ -129,7 +129,7 @@ export function seedEvent(
 /** The only mock: records what would have been mailed. */
 export class FakeMail implements MailSender {
   readonly sent: MailMessage[] = [];
-  result: () => Promise<MailResult> = async () => ({ sent: true });
+  result: () => Promise<MailResult> = async () => ({ sent: true, provider: "resend", fallback: false });
 
   async send(message: MailMessage): Promise<MailResult> {
     const result = await this.result();
@@ -159,7 +159,11 @@ export interface Harness {
   close(): Promise<void>;
 }
 
-export function harness(sealer: SecretSealer, mail = new FakeMail()): Harness {
+export function harness(
+  sealer: SecretSealer,
+  mail = new FakeMail(),
+  sender: MailSender = mail,
+): Harness {
   const app = createDatabase({
     url: urls().app,
     role: "eyadex_app",
@@ -182,7 +186,7 @@ export function harness(sealer: SecretSealer, mail = new FakeMail()): Harness {
     handle: invitationDispatcher({
       sealer,
       invitations: new PgInvitationStateReader(app),
-      mail,
+      mail: sender,
       clock,
       appUrl: APP_URL,
       logger,

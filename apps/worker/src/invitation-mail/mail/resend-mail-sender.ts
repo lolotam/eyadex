@@ -69,7 +69,7 @@ export class ResendMailSender implements MailSender {
     }
     if (response.ok) {
       await response.body?.cancel();
-      return { sent: true };
+      return { sent: true, provider: "resend", fallback: false };
     }
     return { sent: false, error: await errorCode(response) };
   }

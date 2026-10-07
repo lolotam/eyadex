@@ -43,7 +43,7 @@ describe("ResendMailSender", () => {
       from: "Eyadex Team <no-reply@example.test>",
       baseUrl,
     });
-    expect(await sender.send(message)).toEqual({ sent: true });
+    expect(await sender.send(message)).toEqual({ sent: true, provider: "resend", fallback: false });
     expect(seen[0]!.url).toBe("/emails");
     expect(seen[0]!.headers["idempotency-key"]).toBe(message.idempotencyKey);
     expect(seen[0]!.headers.authorization).toBe("Bearer test-only");
