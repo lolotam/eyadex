@@ -74,23 +74,30 @@ handed to SMTP after Resend may already have accepted it is mailed twice.
 6. **Mail port.** `MailMessage` gained optional `from` and `replyTo`; without them both adapters use
    `MAIL_FROM`, so invitations are unchanged. Display names are stripped of line breaks (no header injection).
 
-### Open: the HTTP routes are not mounted (import arrow)
+### Routes and the identity import (owner decision, 2026-10-07)
 
-The `settings` module holds the domain, use cases (`MailProviderChanges`: `put`, `remove`, `requestTest`),
-query (`getMailProvider`), persistence and published event, and imports only `tenancy` and `shared`. The
-four routes under `/v1/clinic/mail-provider` are **not** added, because every way to declare their access
-needs an arrow §2.2 does not allow:
+The four routes live in `settings/http/mail-provider.controller.ts`: `GET /v1/clinic/mail-provider`
+(`view:clinic_settings:clinic`); `PUT` (`update:clinic_settings:clinic`, `Idempotency-Key` required); `DELETE`
+(same key, 204); `POST /test` (same key, `Idempotency-Key` required, 202, 404 without a provider).
+`settings.module.ts` binds the reader and the use case to port tokens; the controller injects ports only.
+The module is mounted with the clinic area (`mountClinic`) and refuses to start without a 32-byte
+`MAIL_PROVIDER_SEAL_KEY`, naming the key only.
 
-- a controller inside `settings` must import `@Require` and `ClinicRequest` from `identity` (settings →
-  identity);
-- a controller inside `identity`, like `BranchesController`, must import the use case from `settings`
-  (identity → settings).
+The controller imports `Require` and `ClinicRequest` from `identity/index.ts`, which is the pattern `platform` already
+used. Owner decision 2026-10-07: neither moving the decorators to `shared` nor hosting the controller in
+identity; `CLAUDE.architecture.md` §2.2 now lets `settings` and `platform` import `identity` through
+`index.ts` for guards and request types only, and any module may do the same. `module-boundaries.spec.ts`
+fails if a module other than identity imports any other identity file (test fixtures excepted).
 
-`platform` controllers already import `identity`'s decorators, which is the same gap. Options for the
-owner: (a) allow `identity → settings` and host the controller in `identity/http` as branches do;
-(b) move the access decorators and `ClinicRequest` to `shared/access` so any module's controller can declare
-access. Until then `MAIL_PROVIDER_SEAL_KEY` is required by the worker only; the API reads it when the routes
-are mounted.
+### Accepted with the slice (owner, 2026-10-07)
+
+- **The DELETE grant** to `eyadex_app` (item 2 above): beyond the SELECT/INSERT/UPDATE first listed, because
+  removing the provider deletes a configuration row.
+- **The keyed idempotency fingerprint** (item 4 above): HMAC with `MAIL_PROVIDER_SEAL_KEY`, never an unkeyed
+  hash of a body that carries a secret.
+- **Audit labels in `apps/web/src/shared/i18n/{ar,en}-audit.ts`**: the three new actions and the
+  `clinic_mail_provider` entity. Dictionary entries only, needed by the audit-format sync test; no screen
+  or mock changed.
 
 ## Next — 7c-2b
 

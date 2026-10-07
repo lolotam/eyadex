@@ -88,11 +88,13 @@ apps/api/src/modules/<module>/
 | --------------- | ------------------------------------------------------------------------- | ---------- |
 | `tenancy`       | clinics, branches, subscription & limits, feature flags                   | —          |
 | `identity`      | users (Better Auth), memberships, roles, permissions, invitations, guards | `tenancy`  |
-| `platform`      | super-admin use cases, platform team, platform settings                   | `tenancy`  |
+| `platform`      | super-admin use cases, platform team, platform settings                   | `tenancy`, `identity` (index.ts: guards and request types only) |
 | `patients`      | patient (المراجع) files — identity data only                              | `tenancy`  |
-| `settings`      | clinic settings                                                           | `tenancy`  |
+| `settings`      | clinic settings                                                           | `tenancy`, `identity` (index.ts: guards and request types only) |
 | `audit`         | reading the audit log (writes go through the shared primitive)            | —          |
 | `notifications` | system emails (invite, password reset, expiry reminder)                   | —          |
+
+Any module may use identity's access guards and request types through `identity/index.ts`; that is the only import of identity a module other than identity may make.
 
 - Cross-module **reads**: a port defined by the consumer, implemented by an adapter on the owner
   (e.g. `platform` reads clinic users through a port backed by `identity`).
