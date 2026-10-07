@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { decideFallback } from "../domain/fallback-decision.ts";
 import { FallbackMailSender } from "../mail/fallback-mail-sender.ts";
@@ -84,4 +84,46 @@ describe("FallbackMailSender", () => {
       expect(secondary.calls).toBe(0);
     },
   );
+
+  // One deadline for both providers: the send runs inside a 10 s tenant transaction (ADR-0014).
+  it("skips the secondary when the primary used up the shared budget", async () => {
+    let t = 0;
+    const slowPrimary: MailSender = {
+      send: async () => {
+        t += 6_500;
+        return fail("resend_503");
+      },
+    };
+    const secondary = new Fake({ sent: true, provider: "smtp", fallback: false });
+    const sender = new FallbackMailSender(slowPrimary, secondary, decideFallback, {
+      budgetMs: 7_000,
+      now: () => t,
+    });
+    expect(await sender.send(message)).toEqual(fail("resend_503;fallback_no_time"));
+    expect(secondary.calls).toBe(0);
+  });
+
+  it("gives the secondary only what is left of the shared budget", async () => {
+    let t = 0;
+    const primary: MailSender = {
+      send: async () => {
+        t += 5_900;
+        return fail("resend_500");
+      },
+    };
+    const hanging: MailSender = { send: () => new Promise<MailResult>(() => undefined) };
+    const sender = new FallbackMailSender(primary, hanging, decideFallback, {
+      budgetMs: 7_000,
+      now: () => t,
+    });
+    vi.useFakeTimers();
+    try {
+      const sending = sender.send(message);
+      await vi.advanceTimersByTimeAsync(1_100);
+      expect(await sending).toEqual(fail("resend_500;smtp_timeout"));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
+

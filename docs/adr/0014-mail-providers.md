@@ -28,10 +28,14 @@ handed to SMTP after Resend may already have accepted it is mailed twice.
 
 3. **Composition.** `FallbackMailSender(primary, secondary, decide)` implements the one `MailSender`
    port. A success reports `provider` and `fallback`; both failing gives `"<primary>;<secondary>"`
-   (≤ 120 chars) as `last_error`, and the existing retry schedule applies.
+   (≤ 120 chars) as `last_error`, and the existing retry schedule applies. Both providers share one
+   7 s deadline (`SEND_BUDGET_MS`): the send runs inside a tenant transaction capped at 10 s that
+   holds the invitation row, and the read before and the commit after need headroom. SMTP gets only
+   what Resend left. Under 1 s left means no SMTP attempt (`<primary>;fallback_no_time`, retried
+   later), and an SMTP send past the deadline is `smtp_timeout`.
 4. **SMTP adapter.** nodemailer, one transporter for the process, closed in the worker's `release`.
    Port 465 is implicit TLS; any other port sets `requireTLS` (STARTTLS), never plain text. Connection,
-   greeting and socket timeouts plus an overall 5 s cap keep the send inside the same budget as Resend,
+   greeting and socket timeouts plus an overall 5 s cap, and the shared deadline above, bound the send,
    because the invitation row is locked during the send (ADR-0013 §4). Errors map to short codes
    (`smtp_auth`, `smtp_timeout`, `smtp_econnrefused`, `smtp_<responseCode>`, `smtp_<code>`,
    `smtp_error`); nothing from the error object reaches a log or `last_error`.
