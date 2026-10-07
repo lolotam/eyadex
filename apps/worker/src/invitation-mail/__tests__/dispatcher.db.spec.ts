@@ -211,7 +211,9 @@ describe("failures", () => {
     const mail = new FakeMail();
     let calls = 0;
     mail.result = async () =>
-      ++calls === 1 ? { sent: false, error: "resend_429" } : { sent: true, provider: "resend", fallback: false };
+      ++calls === 1
+        ? { sent: false, error: "resend_429" }
+        : { sent: true, provider: "resend", fallback: false };
     const h = make(mail);
     const clinic = seedClinic();
     const token = newToken();

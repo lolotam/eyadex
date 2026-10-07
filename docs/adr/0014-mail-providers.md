@@ -14,13 +14,13 @@ handed to SMTP after Resend may already have accepted it is mailed twice.
    not accept the message.
 2. **Decision table** (`domain/fallback-decision.ts`, pure):
 
-   | Resend result                                                   | Decision        |
-   | --------------------------------------------------------------- | --------------- |
-   | `resend_5xx` (any 500–599, with or without an error name)       | `try_secondary` |
+   | Resend result                                                       | Decision        |
+   | ------------------------------------------------------------------- | --------------- |
+   | `resend_5xx` (any 500–599, with or without an error name)           | `try_secondary` |
    | `resend_unreachable` (cause `ECONNREFUSED`/`ENOTFOUND`/`EAI_AGAIN`) | `try_secondary` |
-   | `resend_timeout`                                                | `retry_primary` |
-   | `resend_network` (reset, socket error, anything ambiguous)      | `retry_primary` |
-   | any 4xx, including 429                                          | `retry_primary` |
+   | `resend_timeout`                                                    | `retry_primary` |
+   | `resend_network` (reset, socket error, anything ambiguous)          | `retry_primary` |
+   | any 4xx, including 429                                              | `retry_primary` |
 
    A timeout or ambiguous network error may mean Resend accepted the message and the reply was lost.
    Retrying Resend with the same `Idempotency-Key` cannot mail twice; falling back to SMTP could. A 4xx

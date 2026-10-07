@@ -129,7 +129,11 @@ export function seedEvent(
 /** The only mock: records what would have been mailed. */
 export class FakeMail implements MailSender {
   readonly sent: MailMessage[] = [];
-  result: () => Promise<MailResult> = async () => ({ sent: true, provider: "resend", fallback: false });
+  result: () => Promise<MailResult> = async () => ({
+    sent: true,
+    provider: "resend",
+    fallback: false,
+  });
 
   async send(message: MailMessage): Promise<MailResult> {
     const result = await this.result();

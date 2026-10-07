@@ -35,7 +35,9 @@ const NEVER_SENT = new Set(["ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN"]);
 function fetchFailureCode(error: unknown): string {
   if (error instanceof Error && error.name === "TimeoutError") return "resend_timeout";
   const cause = (error as { cause?: { code?: unknown } } | null)?.cause?.code;
-  return typeof cause === "string" && NEVER_SENT.has(cause) ? "resend_unreachable" : "resend_network";
+  return typeof cause === "string" && NEVER_SENT.has(cause)
+    ? "resend_unreachable"
+    : "resend_network";
 }
 
 /** المزود الوحيد في 7b-1: `POST /emails` بـ fetch، من غير SDK. */
