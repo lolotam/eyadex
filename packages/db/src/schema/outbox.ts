@@ -40,7 +40,7 @@ export const outboxEvents = pgTable(
     index("outbox_events_clinic_idx").on(t.clinicId),
     index("outbox_events_pending_idx")
       .on(t.createdAt)
-      .where(sql`dispatched_at IS NULL AND failed_at IS NULL`),
+      .where(sql`(dispatched_at IS NULL) AND (failed_at IS NULL)`),
     check("outbox_events_attempts_check", sql.raw("(attempts >= 0)")),
     check("outbox_events_last_error_check", sql.raw("(length(last_error) <= 500)")),
     check(
