@@ -93,6 +93,10 @@ AND event_type IN (…) ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1`. The
       the event cancels nothing: a later deactivation has its own event, and the audit row must name
       that admin, not the one whose deactivation was undone. The API reads `deactivatedAt` after the
       branches lock (ADR-0012 §16), so a reactivation the deactivation waited on is always earlier.
+      Known limitation: when two of an invitation's branches are deactivated one after the other and
+      both events wait in a backlog, the older event cancels it and names that admin, who deactivated
+      one of its branches but not its last one. The row's `branchId` and `eventId` still identify the
+      exact deactivation.
     - **Effect per invitation.** `release_invitation_email`, `status = 'cancelled'`, `responded_at`, and
       one `audit_log` row: actor = the payload's `actorUserId`, action `invitation.auto_cancelled`
       (distinct from the manual `invitation.cancelled`), entity `invitation`, details
