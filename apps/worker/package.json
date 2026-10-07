@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Eyadex worker — the NestJS container that will run the outbox dispatcher and BullMQ processors",
+  "description": "Eyadex worker — the NestJS container that runs the outbox dispatcher (invitation email)",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
@@ -23,7 +23,6 @@
     "fastify": "5.12.4",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2",
-    "drizzle-orm": "0.45.3",
     "zod": "3.25.76"
   },
   "devDependencies": {
