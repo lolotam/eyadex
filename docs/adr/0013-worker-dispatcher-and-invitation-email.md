@@ -37,7 +37,9 @@ AND event_type IN (…) ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1`. The
    with no email (missing, accepted, cancelled, expired, no_active_branch, superseded). The branch
    check matters because events are claimed by `created_at`: in a backlog, an invitation's mail comes
    before the later `clinic.branch_deactivated` that cancels it (§12), and must not mail a link about to
-   die. Only the handled types are claimed; any other type stays untouched for later slices.
+   die. The invitation's branch rows are read `FOR SHARE` too and stay locked through the send, so a
+   deactivation (which takes its branch `FOR UPDATE`) waits instead of landing between the check and
+   the email; only those branches wait, not the clinic's other writes. Only the handled types are claimed; any other type stays untouched for later slices.
 5. **Outcome.** Sent or skipped → `dispatched_at` set and `sealedToken` removed in the same UPDATE.
 6. **Failures.** `attempts + 1`, `next_attempt_at = now + delay`, `last_error` = provider status and
    Resend's error name only (`resend_500`, `resend_422:validation_error`, `resend_timeout`,

@@ -10,6 +10,7 @@ import {
   eventRow,
   harness,
   newToken,
+  owner,
   parkLeftovers,
   seedClinic,
   seedEvent,
@@ -39,7 +40,7 @@ function invitationOn(active: readonly boolean[]) {
   const branches = active.map((isActive) => seedBranch(clinic.clinicId, isActive));
   scopeInvitation(clinic.clinicId, invite.invitationId, branches);
   const id = seedEvent(sealer, USER_INVITED, clinic.clinicId, userFields(invite, "en"), token);
-  return { id };
+  return { id, branches };
 }
 
 // A backlog claims by created_at, so an invitation's mail is handled before the later
@@ -58,6 +59,25 @@ describe("send-time check: an invitation needs an active branch", () => {
     const h = make();
     invitationOn([false, true]);
     await drain(h.poller);
+    expect(h.mail.sent).toHaveLength(1);
+  });
+
+  it("keeps the invitation's branches locked while sending: a deactivation arriving meanwhile waits", async () => {
+    const h = make();
+    const { branches } = invitationOn([true]);
+    let deactivateDuringSend = "";
+    h.mail.result = async () => {
+      try {
+        owner(`SET lock_timeout = '300ms';
+               UPDATE branches SET is_active = false WHERE id = '${branches[0]}'`);
+        deactivateDuringSend = "committed";
+      } catch (error) {
+        deactivateDuringSend = String((error as { stderr?: unknown }).stderr ?? error);
+      }
+      return { sent: true };
+    };
+    await drain(h.poller);
+    expect(deactivateDuringSend).toMatch(/lock timeout/);
     expect(h.mail.sent).toHaveLength(1);
   });
 });

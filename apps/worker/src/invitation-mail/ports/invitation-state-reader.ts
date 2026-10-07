@@ -20,7 +20,8 @@ export interface InvitationState {
 export interface InvitationStateReader {
   /**
    * بيقرا الحالة وبيمسك صف الدعوة (`FOR SHARE`) لحد ما `use` يخلص، فأي resend أو نسخ رابط أو إلغاء
-   * أو قبول بيستنى الإرسال، وما يقدرش يغيّر الدعوة بين الفحص والإرسال (ADR-0013).
+   * أو قبول بيستنى الإرسال، وما يقدرش يغيّر الدعوة بين الفحص والإرسال (ADR-0013). صفوف فروع الدعوة
+   * بتتمسك `FOR SHARE` كمان، فتعطيل فرع منهم بيستنى الإرسال برضه.
    *
    * @param clinicId عيادة الحدث
    * @param invitationId الدعوة
