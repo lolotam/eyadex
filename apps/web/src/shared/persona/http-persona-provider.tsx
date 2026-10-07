@@ -39,9 +39,10 @@ export function HttpPersonaProvider({ children }: { children: ReactNode }) {
         session: query.data,
         isLoading: area === undefined || (enabled && query.isPending),
         error: query.error,
+        retry: () => void query.refetch(),
       },
     };
-  }, [area, enabled, query.data, query.error, query.isPending]);
+  }, [area, enabled, query]);
 
   return <PersonaContext.Provider value={value}>{children}</PersonaContext.Provider>;
 }

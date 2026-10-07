@@ -5,6 +5,7 @@ import { useI18n } from "@/shared/i18n/i18n-provider";
 import { usePersona, useSession } from "@/shared/persona/persona-provider";
 import { can } from "@/shared/permissions/can";
 import { useAccountDisabledGuard } from "@/shared/persona/use-account-guard";
+import { isSessionLoadFailure } from "@/shared/persona/session-readiness";
 import { AppShell } from "./app-shell";
 import { blockedReasonOf } from "./blocked-reason";
 import { ForbiddenPage } from "./forbidden-page";
@@ -13,6 +14,7 @@ import { CLINIC_NAV } from "./nav-items";
 import { StatusPanel } from "./status-panel";
 import { ExpiryBanner } from "./expiry-banner";
 import { HttpAreaGate } from "./http-area-gate";
+import { SessionErrorPanel } from "./session-error-panel";
 import { errorCodeOf } from "@/shared/api/api-error";
 
 export function ClinicLayout() {
@@ -59,7 +61,9 @@ export function ClinicLayout() {
         action={signInLink}
       />
     );
-  } else if (isLoading || !session) content = <LoadingBlock />;
+  } else if (http && isSessionLoadFailure(http.error, http.session !== undefined))
+    content = <SessionErrorPanel error={http.error} onRetry={http.retry} />;
+  else if (isLoading || !session) content = <LoadingBlock />;
   else if (session.blocked === "suspended")
     content = (
       <StatusPanel

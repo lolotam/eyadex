@@ -15,7 +15,7 @@ export type PersonaValue = {
   ready: boolean;
   setPersona: (persona: Persona) => void;
   /** HTTP mode only: the session read from the cookie, and the area of the current host. */
-  http?: SessionState & { area: Area | null | undefined };
+  http?: SessionState & { area: Area | null | undefined; retry: () => void };
 };
 
 export const PersonaContext = createContext<PersonaValue | null>(null);

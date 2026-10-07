@@ -29,6 +29,7 @@ export const enAccess = {
     qrLabel: "Setup code for your authenticator app",
     manualKey: "Can't scan? Enter this key in the app",
     back: "Back",
+    sessionLoadError: "We could not load your session",
     useBackupCode: "Lost your authenticator? Use a recovery code",
     useTotp: "Use the authenticator code instead",
     backupTitle: "Use a recovery code",
