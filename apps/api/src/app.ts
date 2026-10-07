@@ -67,7 +67,8 @@ export interface AppDependencies {
   readonly mountInvitations?: boolean;
   /**
    * Mounts the clinic request context behind the global access guard and `GET /v1/me`, `/v1/roles`,
-   * `/v1/permissions/catalogue` (ADR-0009). Needs auth mounted, DATABASE_URL and REDIS_URL.
+   * `/v1/permissions/catalogue`, `/v1/branches`, `/v1/users`, `/v1/invitations` (ADR-0009, 0011, 0012). Needs
+   * auth mounted, DATABASE_URL, REDIS_URL and OUTBOX_SEAL_KEY.
    */
   readonly mountClinic?: boolean;
 }

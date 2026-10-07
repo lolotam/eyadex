@@ -14,7 +14,6 @@ import { clinicWithMembers, get, signedIn } from "./access-fixtures.ts";
 import { branchAction, code, createBranch, patchBranch } from "./branch-fixtures.ts";
 import { act, audit, customRole, memberOn, roleIdOf, setMaxUsers } from "./user-fixtures.ts";
 
-// Stories 38–42, 44; ADM-01, SUB-03, RBAC-01, ISO-02, AUD-01 for members; the stranded-member rule.
 let h: Harness;
 let A: Awaited<ReturnType<typeof clinicWithMembers>>;
 let B: Awaited<ReturnType<typeof clinicWithMembers>>;
@@ -188,7 +187,6 @@ describe("ADM-01: the last active admin", () => {
 
     const others = [];
     for (let i = 0; i < 4; i += 1) others.push(await memberOn(h, C.admin, cAdminRole));
-    // Five admins deactivated in parallel: the users lock lets exactly four through.
     const results = await Promise.all([
       act(h, C.admin.cookie, `/v1/users/${first}/deactivate`),
       ...others.map((o) => act(h, o.cookie, `/v1/users/${o.memberId}/deactivate`)),

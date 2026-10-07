@@ -34,6 +34,9 @@
 - [x] Slice 4: global `AccessGuard` (one declaration per route), PRD §4.7 check order, versioned Redis authorization cache, `GET /v1/me`, `/v1/roles`, `/v1/permissions/catalogue` (ADR-0009, SQL 0027)
 - [x] Slice 5: `@RequiresFeature` module gate, platform feature/subscription/limits/detail endpoints, `ClinicLimits` port (ADR-0010)
 - [x] Slice 6: branches API (list/create/update/deactivate/reactivate), in-transaction branch limit + OD-7 under a clinic lock, idempotent create in `clinic_idempotency_keys`, SQL 0028 (ADR-0011)
-- [ ] Slice 6 open: TODO(spec) warn admins about members left with no active branch; retention of idempotency keys
-- [ ] Slices 6–8: branch, user, role CRUD (call `AuthorizationInvalidator`; slice 7 uses `MemberSessionRevoker`)
+- [x] Slice 6 open: stranded members resolved in slice 7 (ADR-0012)
+- [ ] Retention of idempotency keys (platform ledger and `clinic_idempotency_keys`)
+- [x] Slice 7: users + invitations API — invite/resend/cancel (outbox `clinic.user_invited`, sealed token, rotation), lists, role/branches, deactivate/reactivate with session revoke, last admin and user limit under the users lock, stranded-member confirmation on branch deactivation (ADR-0012, no SQL)
+- [ ] Worker/notifications slice: dispatch `clinic.admin_invited` and `clinic.user_invited` with the send-time check of ADR-0012
+- [ ] Slice 8: role CRUD (call `AuthorizationInvalidator`)
 - [ ] Reverse-proxy routes `app.`/`platform.` `/api/*` → api with `/api` stripped (orchestrator)
