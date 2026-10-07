@@ -198,7 +198,6 @@ describe("resend", () => {
     await h.owner.begin(async (tx) => {
       await tx`SELECT pg_advisory_xact_lock(hashtextextended(${`users:${D.admin.clinicId}`}, 0))`;
       resending = changes.resend({ clinicId: D.admin.clinicId, userId: D.admin.userId }, id.id);
-      resending.catch(() => undefined);
       await settledOrBlocked(h, resending);
       await branchInvite(h, D.admin.clinicId);
       time = new Date(expiry.getTime() + 60_000);

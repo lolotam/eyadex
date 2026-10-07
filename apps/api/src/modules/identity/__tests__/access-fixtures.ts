@@ -45,7 +45,9 @@ export const get = (h: Harness, url: string, cookie?: string, host = APP) =>
 /** Until the request answers or a session waits on an advisory lock (db files never run in parallel). */
 export async function settledOrBlocked(h: Harness, request: Promise<unknown>): Promise<void> {
   let settled = false;
-  void request.finally(() => (settled = true));
+  const done = () => (settled = true);
+  // then(done, done), not finally(): finally re-rejects into a promise nobody awaits.
+  void request.then(done, done);
   for (let i = 0; i < 100 && !settled; i += 1) {
     const [row] = await h.owner`SELECT count(*)::int AS n FROM pg_locks
                                 WHERE locktype = 'advisory' AND NOT granted`;
