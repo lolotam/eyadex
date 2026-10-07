@@ -216,3 +216,50 @@ commit, `lovable` fast-forwarded to `main`):
   - The worker `test:db` needs `psql`; install `postgresql-client` in `node:24-bookworm` (CI
     runners have it).
 - Lovable's sandbox re-adds `bun.lock`; it is now gitignored.
+
+## 10. Update 2026-10-07 (after PR #41)
+
+**Merged:** #41, slice 7b-2 (`4e4e1da`).
+
+What it does:
+- Branch deactivation emits `clinic.branch_deactivated`.
+- The worker cancels pending invitations on that branch that have no active branch left. It releases the email hold and audits the cancellation as `invitation.auto_cancelled`, with the deactivating admin as actor (ADR-0013 §12).
+
+Five fix rounds:
+1. The audit catalogue and the labels for the new action.
+2. A send-time check that the invitation still has an active branch, so a backlog never mails a dying link.
+3. The invitation's branch rows held `FOR SHARE` through the send.
+4. A superseded deactivation (reactivated afterwards) is skipped, and cancellation is scoped to the event's branch.
+5. `deactivatedAt` read after the branches lock.
+
+A 6th P2 was waived by the advisor and recorded in ADR-0013 §12 as a known limitation: multi-branch attribution in a backlog.
+
+**Owner decisions on mail providers (2026-10-07):**
+- **Platform mail:**
+  - Resend is primary.
+  - Platform SMTP is the automatic fallback, only on a definitive Resend failure (a 5xx, or no connection).
+  - On a timeout, retry Resend rather than fall back: SMTP has no idempotency key, so a fallback could mail twice.
+- **Clinic mail:**
+  - A clinic picks ONE provider: its own Resend, or its own SMTP.
+  - After repeated failures, the platform sends instead, with the clinic's display name and reply-to, and the admin sees a warning in settings.
+  - With no provider configured, the platform sends everything.
+- **Which emails a clinic's provider sends:** `clinic.user_invited`, and future patient-facing mail.
+- **Always sent by the platform:** `clinic.admin_invited`, password reset, TOTP and security mail, billing, and platform accounts.
+- **Credentials:**
+  - Only `update:clinic_settings:clinic` may change them.
+  - Encrypted with their own env key, and write-only.
+  - A test send runs before enabling.
+  - Every change is audited without the secret.
+  - A subscription feature flag is optional.
+- **The auto-cancel audit actor stays the deactivating admin.** No real rows exist yet, so this can still change before the deploy.
+
+**Slice 7c is split in two:**
+- **7c-1:** platform SMTP fallback, worker only, no schema change. `nodemailer@10.0.15` is added by the orchestrator (`fa84028`).
+- **7c-2:** per-clinic providers. The proposed shape, to settle in its own PR:
+  - table `clinic_mail_providers` with PK `(clinic_id, id)`, unique `clinic_id`, `kind IN ('resend','smtp')`;
+  - sealed credentials under a new `MAIL_PROVIDER_SEAL_KEY`;
+  - `verified_at`, failure count, `disabled_at`;
+  - RLS and its negative test;
+  - grants: `eyadex_app` only, none for the platform or dispatcher roles.
+
+**Next:** 7c-1, 7c-2, then the web-wiring + deploy slice, then the Resend webhook.
