@@ -142,3 +142,34 @@ jobs:
       - name: API container log
         if: always()
         run: docker logs api || true
+
+  # The worker's production image (apps/worker/Dockerfile, ADR-0015) must build, boot its own CMD as the
+  # non-root user, report readiness honestly, and stop cleanly. Both pools are lazy, so the URLs point nowhere.
+  worker-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the worker image
+        run: docker build -f apps/worker/Dockerfile -t eyadex-worker:ci .
+      - name: Boot the image and probe it
+        run: |
+          docker run -d --name worker -p 127.0.0.1:3002:3002 \
+            -e DATABASE_URL=postgres://eyadex_app:ci@127.0.0.1:1/eyadex \
+            -e DISPATCHER_DATABASE_URL=postgres://eyadex_dispatcher:ci@127.0.0.1:1/eyadex \
+            -e OUTBOX_SEAL_KEY="$(openssl rand -base64 32)" -e MAIL_PROVIDER_SEAL_KEY="$(openssl rand -base64 32)" \
+            -e APP_URL=https://app.eyadex.test -e RESEND_API_KEY=re_ci_dummy \
+            -e MAIL_FROM="Eyadex CI <ci@eyadex.test>" \
+            eyadex-worker:ci
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:3002/health && break; sleep 1; done
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3002/health)" = "200"
+          # The pools cannot connect: readiness must say so instead of answering 200.
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3002/health/ready)" = "503"
+          test "$(docker exec worker whoami)" = "eyadex"
+          # The clean shutdown path (useProcessExit) exits 0 well inside the 45 s watchdog.
+          docker stop -t 60 worker
+          test "$(docker inspect -f '{{.State.ExitCode}}' worker)" = "0"
+          # No secret value in the log.
+          if docker logs worker 2>&1 | grep -q re_ci_dummy; then echo "secret in worker log"; exit 1; fi
+      - name: Worker container log
+        if: always()
+        run: docker logs worker || true
