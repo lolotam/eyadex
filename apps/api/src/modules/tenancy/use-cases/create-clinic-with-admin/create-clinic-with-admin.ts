@@ -10,7 +10,7 @@ import {
 } from "../../../../shared/idempotency.ts";
 import { appendOutboxEvent } from "../../../../shared/outbox.ts";
 import { writePlatformAudit } from "../../../../shared/platform-audit.ts";
-import type { SecretSealer } from "../../../../shared/secret-sealer.ts";
+import type { SecretSealer } from "@eyadex/secrets";
 import { checkNewClinic } from "../../domain/new-clinic.ts";
 import { insertNewClinic } from "../../persistence/pg-new-clinic-writer.ts";
 import type { Clock } from "../../ports/clock.ts";

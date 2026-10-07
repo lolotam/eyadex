@@ -7,7 +7,7 @@ import {
   PlatformDatabaseModule,
   readPlatformConfig,
 } from "../../shared/platform-database.ts";
-import { SecretSealer } from "../../shared/secret-sealer.ts";
+import { SecretSealer } from "@eyadex/secrets";
 import {
   AuthModule,
   AuthorizationCacheModule,

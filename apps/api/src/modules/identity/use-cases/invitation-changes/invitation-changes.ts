@@ -11,7 +11,7 @@ import {
 import { ApiError } from "../../../../shared/errors.ts";
 import { requestHash } from "../../../../shared/idempotency.ts";
 import { appendOutboxEvent } from "../../../../shared/outbox.ts";
-import type { SecretSealer } from "../../../../shared/secret-sealer.ts";
+import type { SecretSealer } from "@eyadex/secrets";
 import type { Clock } from "../../../tenancy/index.ts";
 import { invitationExpiry } from "../../domain/system-roles.ts";
 import { decideInvitationCancel } from "../../domain/user-rules.ts";

@@ -7,6 +7,20 @@ const schema = z.object({
   WORKER_PORT: z.coerce.number().int().min(1).max(65_535).default(3002),
   // Validated here so an invalid value never reaches pino, whose error message would print it.
   LOG_LEVEL: z.enum(LOG_LEVELS).default("info"),
+  // ADR-0013: eyadex_app reads the invitation under its clinic; eyadex_dispatcher touches the outbox only.
+  DATABASE_URL: z.string().url(),
+  DISPATCHER_DATABASE_URL: z.string().url(),
+  OUTBOX_SEAL_KEY: z
+    .string()
+    .refine((v) => Buffer.from(v, "base64").length === 32, "32 bytes, base64"),
+  // The clinic area's origin: the link is `${APP_URL}/invite/<token>`.
+  APP_URL: z
+    .string()
+    .url()
+    .transform((v) => v.replace(/\/+$/, "")),
+  RESEND_API_KEY: z.string().min(1),
+  MAIL_FROM: z.string().min(3),
+  OUTBOX_POLL_INTERVAL_MS: z.coerce.number().int().min(100).max(60_000).default(2_000),
 });
 
 export type WorkerConfig = z.output<typeof schema>;

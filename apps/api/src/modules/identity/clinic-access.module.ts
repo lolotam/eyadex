@@ -16,7 +16,7 @@ import { AuthorizationCacheModule } from "./access/authorization-cache.module.ts
 import { CLINIC_CONTEXT_RESOLVER, ClinicContextResolver } from "./access/clinic-context.ts";
 import { AREA_AUTH, type AreaAuth } from "./auth/area-auth.ts";
 import { AuthModule } from "./auth/auth.module.ts";
-import { SecretSealer } from "../../shared/secret-sealer.ts";
+import { SecretSealer } from "@eyadex/secrets";
 import {
   BRANCH_CHANGES,
   BranchesController,

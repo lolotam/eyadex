@@ -17,7 +17,7 @@ import {
 } from "../../identity/auth/__tests__/auth-http-harness.ts";
 import { totpFromUri } from "../../identity/auth/__tests__/totp.ts";
 import { PLATFORM_DATABASE } from "../../../shared/platform-database.ts";
-import { SecretSealer } from "../../../shared/secret-sealer.ts";
+import { SecretSealer } from "@eyadex/secrets";
 import type { Database } from "@eyadex/db";
 import { systemUuidV7 } from "@eyadex/ids";
 
