@@ -23,7 +23,8 @@ import { publishTestRequested } from "../events/published.ts";
 import {
   deleteMailProvider,
   findMailProvider,
-  markTestRequested,
+  lastTestRequestedAt,
+  lockClinicMailProvider,
   upsertMailProvider,
 } from "../persistence/pg-mail-provider-store.ts";
 
@@ -97,6 +98,7 @@ export class MailProviderChanges {
       );
       if (claimed.kind === "replay") return claimed.response;
       if (claimed.kind === "conflict") throw new ApiError("idempotency_conflict");
+      await lockClinicMailProvider(tx, actor.clinicId);
       const before = await findMailProvider(tx, actor.clinicId, true);
       const id = before?.id ?? ids.newId();
       const split = splitRequest(request);
@@ -139,6 +141,7 @@ export class MailProviderChanges {
   remove(actor: MailProviderActor): Promise<boolean> {
     const { db, clock, ids } = this.deps;
     return db.withTenant(actor.clinicId, async (tx) => {
+      await lockClinicMailProvider(tx, actor.clinicId);
       const before = await findMailProvider(tx, actor.clinicId, true);
       if (before === null) return false;
       await deleteMailProvider(tx, actor.clinicId, before.id);
@@ -181,13 +184,14 @@ export class MailProviderChanges {
       );
       if (claimed.kind === "replay") return claimed.response;
       if (claimed.kind === "conflict") throw new ApiError("idempotency_conflict");
+      await lockClinicMailProvider(tx, actor.clinicId);
       const provider = await findMailProvider(tx, actor.clinicId, true);
       if (provider === null) throw new ApiError("not_found");
-      // After the row lock (ADR-0012 §16): two parallel requests cannot both pass the cooldown.
+      // After the lock (ADR-0012 §16), from the append-only audit: two parallel requests cannot both
+      // pass, and replacing or deleting the provider does not reset the limit.
       const now = clock.now();
-      const wait = testCooldownSeconds(provider.testRequestedAt, now);
+      const wait = testCooldownSeconds(await lastTestRequestedAt(tx, actor.clinicId), now);
       if (wait > 0) throw new ApiError("rate_limited", { retryAfterSeconds: wait });
-      await markTestRequested(tx, actor.clinicId, provider.id, now);
       const event = publishTestRequested(ids.newId(), now, {
         clinicId: actor.clinicId,
         providerId: provider.id,

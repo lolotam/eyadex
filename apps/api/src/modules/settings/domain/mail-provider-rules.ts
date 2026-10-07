@@ -17,8 +17,6 @@ export interface MailProviderRecord {
   readonly degradedAt: Date | null;
   /** بيزيد مع كل استبدال؛ حدث التجربة بيحمله عشان الـ worker يعرف لو الإعدادات اتغيّرت. */
   readonly version: number;
-  /** آخر طلب تجربة اتقبل، أو `null`. */
-  readonly testRequestedAt: Date | null;
 }
 
 /** الحقول غير السرية من الطلب، والسر لوحده عشان يتختم. */

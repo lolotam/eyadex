@@ -74,14 +74,18 @@ handed to SMTP after Resend may already have accepted it is mailed twice.
    - **Supersession by version, not clock.** Every replacement bumps `version` in its transaction; the
      event carries the version it was requested for and the worker compares it under the row lock. A
      wall-clock comparison fails across API replicas with skewed clocks or within one millisecond.
-   - **One test per clinic per minute.** `requestTest` reads `test_requested_at` after the row lock and
-     refuses a second request within 60 s (`rate_limited`, `retryAfterSeconds`); a replacement clears it.
-     An SMTP test can hold the worker's single poller for 5 s, so the cooldown bounds how much one clinic
-     can delay everyone's invitations.
+   - **One test per clinic per minute.** `requestTest` takes the clinic's `mail_provider:` advisory lock,
+     then reads the clinic's last `clinic.mail_provider_test_requested` audit row and refuses a second
+     request within 60 s (`rate_limited`, `retryAfterSeconds`). The append-only audit is the ledger, so
+     replacing or deleting the provider cannot reset the limit. An SMTP test can hold the worker's single
+     poller for 5 s; the cooldown bounds how much one clinic can delay everyone's invitations.
+   - **One writer per clinic.** `PUT`, `DELETE` and the test request all take the same advisory lock first,
+     so two admins creating the first provider at once serialise instead of hitting `UNIQUE (clinic_id)`.
    - **Public addresses only (SSRF).** A clinic chooses the SMTP host and port, and the worker connects to
      them. The worker allows ports 25/465/587/2525 only, resolves the host (1.5 s cap, inside the 5 s
      budget), refuses it unless every answer is a public address (loopback, private, shared, link-local,
-     documentation, multicast, reserved and ULA ranges blocked; IPv4-mapped IPv6 unwrapped first), and
+     documentation, multicast and reserved IPv4 ranges blocked; IPv6 must be global unicast `2000::/3`
+     outside Teredo/IETF `2001::/23`, documentation and 6to4; IPv4-mapped IPv6 unwrapped first), and
      pins the transport to the checked address with `tls.servername` = the name, so the certificate is
      still verified by name and DNS rebinding cannot swap the target. Codes: `smtp_port_not_allowed`,
      `smtp_dns`, `smtp_blocked_address`. The contract also refuses IP literals, single-label and local-only

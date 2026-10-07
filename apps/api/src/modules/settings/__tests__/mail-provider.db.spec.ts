@@ -168,7 +168,7 @@ describe("clinic mail provider (ADR-0014, 7c-2a)", () => {
     });
   });
 
-  it("accepts one test request per clinic per minute; a replacement resets it", async () => {
+  it("accepts one test request per clinic per minute, across replacement and removal", async () => {
     let time = new Date(Date.now() - 10 * 60_000);
     const timed = new MailProviderChanges({
       db,
@@ -183,13 +183,31 @@ describe("clinic mail provider (ADR-0014, 7c-2a)", () => {
     time = new Date(time.getTime() + 30_000);
     const refused = await timed.requestTest(actor, "c2").catch((error: unknown) => error);
     expect(refused).toMatchObject({ code: "rate_limited", details: { retryAfterSeconds: 30 } });
+    // Neither replacing nor deleting and re-creating the provider resets the limit.
+    await timed.put(actor, smtp, "c-put-2");
+    await expect(timed.requestTest(actor, "c2b")).rejects.toMatchObject({ code: "rate_limited" });
+    await timed.remove(actor);
+    await timed.put(actor, resend, "c-put-3");
+    await expect(timed.requestTest(actor, "c2c")).rejects.toMatchObject({ code: "rate_limited" });
     time = new Date(time.getTime() + 31_000);
     await timed.requestTest(actor, "c3");
-    await timed.put(actor, smtp, "c-put-2");
+    time = new Date(time.getTime() + 61_000);
     await timed.requestTest(actor, "c4");
     const events = await owner`SELECT 1 FROM outbox_events
       WHERE clinic_id = ${clinicId} AND event_type = 'clinic.mail_provider_test_requested'`;
     expect(events).toHaveLength(3);
+  });
+
+  it("two admins creating the first provider at once both succeed on one row", async () => {
+    const clinicId = await seedClinic();
+    const [a, b] = [newId(), newId()];
+    const results = await Promise.allSettled([
+      changes.put({ clinicId, userId: a }, resend, "race-a"),
+      changes.put({ clinicId, userId: b }, smtp, "race-b"),
+    ]);
+    expect(results.map((r) => r.status)).toEqual(["fulfilled", "fulfilled"]);
+    const rows = await owner`SELECT version FROM clinic_mail_providers WHERE clinic_id = ${clinicId}`;
+    expect(rows.map((r) => r["version"])).toEqual([2]);
   });
 
   it("remove deletes the config row and audits it; another clinic's row is invisible", async () => {
