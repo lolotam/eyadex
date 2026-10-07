@@ -3,6 +3,7 @@ import {
   check,
   foreignKey,
   index,
+  integer,
   jsonb,
   pgTable,
   primaryKey,
@@ -13,7 +14,7 @@ import {
 
 import { clinics } from "./clinics.ts";
 
-// Mirror of db/sql/0025. Writers append only; the dispatcher reads and marks (ADR-0006).
+// Mirror of db/sql/0025 + 0029. Writers append only; the dispatcher reads and marks (ADR-0006).
 const tz = { withTimezone: true, mode: "date" } as const;
 
 export const outboxEvents = pgTable(
@@ -25,6 +26,10 @@ export const outboxEvents = pgTable(
     payload: jsonb("payload").notNull(),
     createdAt: timestamp("created_at", tz).notNull(),
     dispatchedAt: timestamp("dispatched_at", tz),
+    attempts: integer("attempts").notNull().default(0),
+    nextAttemptAt: timestamp("next_attempt_at", tz),
+    lastError: text("last_error"),
+    failedAt: timestamp("failed_at", tz),
   },
   (t) => [
     foreignKey({
@@ -35,7 +40,9 @@ export const outboxEvents = pgTable(
     index("outbox_events_clinic_idx").on(t.clinicId),
     index("outbox_events_pending_idx")
       .on(t.createdAt)
-      .where(sql`dispatched_at IS NULL`),
+      .where(sql`dispatched_at IS NULL AND failed_at IS NULL`),
+    check("outbox_events_attempts_check", sql.raw("(attempts >= 0)")),
+    check("outbox_events_last_error_check", sql.raw("(length(last_error) <= 500)")),
     check(
       "outbox_events_event_type_check",
       sql.raw("(event_type ~ '^[a-z]+(_[a-z]+)*\\.[a-z]+(_[a-z]+)*$'::text)"),
