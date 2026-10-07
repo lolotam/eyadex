@@ -77,7 +77,7 @@ export class InvitationChanges {
     idempotencyKey: string,
   ): Promise<InvitationChange> {
     const { db, clock, ids } = this.deps;
-    const now = clock.now();
+    const claimedAt = clock.now();
     const { clinicId } = actor;
     const branchIds = input.allBranches ? [] : input.branchIds;
     const claim = {
@@ -91,7 +91,7 @@ export class InvitationChanges {
         tx,
         claim,
         ids.newId(),
-        now,
+        claimedAt,
       );
       if (claimed.kind === "conflict") throw new ApiError("idempotency_conflict");
       if (claimed.kind === "replay") {
@@ -104,6 +104,9 @@ export class InvitationChanges {
       // here are still active at COMMIT (ADR-0012 §16).
       await lockClinicUsers(tx, clinicId);
       await lockClinicBranches(tx, clinicId);
+      // Decided after both locks: an invitation that expired while waiting no longer holds a seat,
+      // and the new link gets its full seven days.
+      const now = clock.now();
       const role = await activeRole(tx, clinicId, input.roleId);
       await assertActiveBranches(tx, clinicId, branchIds);
       await assertMayTouchAdmin(tx, actor, [role.systemKey]);

@@ -91,7 +91,9 @@ expiresAt, reason: "invited" | "resent", sealedToken }`, sealed with the event i
     branches that are all inactive: the admin changes the member's branches first. Acceptance takes
     the branches lock after the invitation row and before checking the grants, so a parallel
     deactivation either commits first (the link is refused) or counts the new member as stranded.
-    `exclusiveMemberCount` is 0 for an inactive branch. Branch deactivation does not count pending
+    `exclusiveMemberCount` is 0 for an inactive branch. The decision time (expiry, seats, clinic
+    access, a new link's expiry) is read from the clock after the last lock is taken, since waiting
+    on a lock may cross an expiry; only the idempotency claim keeps its earlier time. Branch deactivation does not count pending
     invitations; owner decision (2026-10-07): the worker slice (7ب) cancels pending invitations left
     with no active branch, from an outbox event of the deactivation (tenancy never writes
     invitations), releasing the email hold and writing the audit row.
