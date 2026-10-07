@@ -72,6 +72,7 @@ export async function openHarness(
           DATABASE_URL: required("EYADEX_TEST_APP_URL"),
           PLATFORM_DATABASE_URL: required("EYADEX_TEST_PLATFORM_URL"),
           OUTBOX_SEAL_KEY: randomBytes(32).toString("base64"),
+          MAIL_PROVIDER_SEAL_KEY: randomBytes(32).toString("base64"),
         }
       : {}),
     ...env,
@@ -104,7 +105,7 @@ export async function closeHarness(h: Harness | undefined): Promise<void> {
 }
 
 export interface Call {
-  method?: "GET" | "POST" | "PUT" | "PATCH";
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   url: string;
   host: string;
   cookie?: string;
@@ -127,7 +128,7 @@ export const call = (h: Harness, o: Call) =>
       ...o.headers,
     },
     ...(o.ip === undefined ? {} : { remoteAddress: o.ip }),
-    ...(o.method === "GET" ? {} : { payload: o.rawBody ?? JSON.stringify(o.body ?? {}) }),
+    ...(o.method === "GET" || o.method === "DELETE" ? {} : { payload: o.rawBody ?? JSON.stringify(o.body ?? {}) }),
   });
 
 export const setCookies = (res: { headers: Record<string, unknown> }): string[] => {
