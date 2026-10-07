@@ -21,7 +21,7 @@ sendable link.
 2. **Permission catalogue as data (0026).** Role permissions reference `permissions.id`; the 23
    keys are seeded with fixed ids so every environment agrees.
 3. **Outbox (0025).** `outbox_events(id, clinic_id NULL, event_type, payload, created_at,
-   dispatched_at)`. Not a clinic-owned table (platform events have no clinic), so the key is `id`;
+dispatched_at)`. Not a clinic-owned table (platform events have no clinic), so the key is `id`;
    RLS is still enabled and forced. Writers (`eyadex_app`, `eyadex_platform`) have INSERT only and
    a WITH CHECK that pins `clinic_id` to the transaction's clinic context. `eyadex_dispatcher` has
    SELECT and UPDATE(`dispatched_at`, `payload`) on this table only.

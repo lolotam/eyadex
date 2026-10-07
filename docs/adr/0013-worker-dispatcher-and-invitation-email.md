@@ -23,7 +23,7 @@ database must not keep a usable link once the event is done.
    `invitations`, `clinics`, `memberships`, `audit_log` or `patients`, nor rewrite or delete an event.
 3. **Claim.** One event per transaction:
    `dispatched_at IS NULL AND failed_at IS NULL AND (next_attempt_at IS NULL OR next_attempt_at <= now)
-   AND event_type IN (…) ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1`. The row stays locked
+AND event_type IN (…) ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1`. The row stays locked
    while the email is sent and the outcome is written in the same transaction, so two workers never
    send the same event. `now` is the worker's injected clock. The dispatcher transaction cap (30 s)
    covers the Resend timeout (15 s).
