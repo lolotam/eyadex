@@ -25,6 +25,7 @@ export const apiErrorCodeSchema = z.enum([
   "limit_below_usage",
   "limit_reached",
   "last_active_branch",
+  "branch_has_exclusive_members",
   "forbidden",
   "module_disabled",
   "validation",

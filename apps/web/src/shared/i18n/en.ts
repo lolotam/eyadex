@@ -290,6 +290,8 @@ export const en = {
     limit_reached: "The clinic limit has been reached",
     forbidden: "You are not allowed to do this",
     module_disabled: "This module is turned off for the clinic",
+    branch_has_exclusive_members:
+      "Some users have no other active branch; confirm to deactivate it",
     last_active_branch: "The clinic's last active branch cannot be deactivated",
     validation: "Some fields are invalid",
     last_active_platform_account: "The last active platform account cannot be deactivated",

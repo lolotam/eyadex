@@ -1,6 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { closeHarness, openHarness, type Harness } from "../auth/__tests__/auth-http-harness.ts";
+import {
+  APP,
+  closeHarness,
+  openHarness,
+  type Harness,
+} from "../auth/__tests__/auth-http-harness.ts";
 import { clinicWithMembers, get } from "./access-fixtures.ts";
 import {
   activeBranchIds,
@@ -109,9 +114,9 @@ describe("cached branch scope", () => {
     const { admin, doctor } = await clinicWithTwoBranches();
     const before = await get(h, "/v1/me", doctor.cookie);
     expect(before.json().branchIds).toEqual([doctor.branchId]);
-    expect((await branchAction(h, admin.cookie, doctor.branchId, "deactivate")).statusCode).toBe(
-      200,
-    );
+    const confirm = { confirmStrandedMembers: true };
+    const off = await branchAction(h, admin.cookie, doctor.branchId, "deactivate", APP, confirm);
+    expect(off.statusCode).toBe(200);
     // The doctor keeps the membership but no branch: nothing branch-scoped is reachable.
     const after = await get(h, "/v1/me", doctor.cookie);
     expect(after.statusCode).toBe(200);
