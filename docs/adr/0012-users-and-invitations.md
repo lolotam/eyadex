@@ -40,7 +40,10 @@ only writes outbox events.
 6. **Token rotation and no token in responses.** Only the SHA-256 hash is stored. Resend issues a
    new token and hash, so the old link stops working at once. Responses always carry
    `token: null`; the raw token exists only sealed inside the outbox event.
-   TODO(spec): whether an admin may ever copy an invitation link; the safe choice is no.
+   Owner decision (2026-10-07), not built yet (the follow-up after this slice): a "copy link" action
+   on a pending invitation rotates the token like resend, returns the link once, writes an audit row
+   and sends no email; it needs `create:users:clinic`, and an invitation on the clinic-admin role
+   needs an active admin (§15). Until it ships, this rule and `token: null` stand.
 7. **Outbox event `clinic.user_invited`**, one per invite and per resend, with `{ clinicId,
 invitationId, email, fullName, language, clinicNameAr, clinicNameEn, roleNameAr, roleNameEn,
 expiresAt, reason: "invited" | "resent", sealedToken }`, sealed with the event id as AAD.
@@ -85,9 +88,13 @@ expiresAt, reason: "invited" | "resent", sealedToken }`, sealed with the event i
     branches like an invite (`role_inactive` / `branch_inactive`), and when the old email hold
     expired and was taken over and released meanwhile it reserves the free email again.
     Reactivation also takes the branches lock and refuses (`branch_inactive`) a member limited to
-    branches that are all inactive: the admin changes the member's branches first. Branch
-    deactivation does not count pending invitations among stranded members.
-    TODO(spec): whether it should, or should cancel them.
+    branches that are all inactive: the admin changes the member's branches first. Acceptance takes
+    the branches lock after the invitation row and before checking the grants, so a parallel
+    deactivation either commits first (the link is refused) or counts the new member as stranded.
+    `exclusiveMemberCount` is 0 for an inactive branch. Branch deactivation does not count pending
+    invitations; owner decision (2026-10-07): the worker slice (7ب) cancels pending invitations left
+    with no active branch, from an outbox event of the deactivation (tenancy never writes
+    invitations), releasing the email hold and writing the audit row.
 17. **No-ops before validation.** Re-sending a member's current role or branch set answers 200
     and writes nothing, even if that role or one of those branches was deactivated since.
 
