@@ -91,7 +91,8 @@ AND event_type IN (…) ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1`. The
     - **Superseded events.** When the clinic audit log has a `branch.reactivated` row for the branch
       after the event's `deactivatedAt` (read under the branches lock, which reactivation also takes),
       the event cancels nothing: a later deactivation has its own event, and the audit row must name
-      that admin, not the one whose deactivation was undone.
+      that admin, not the one whose deactivation was undone. The API reads `deactivatedAt` after the
+      branches lock (ADR-0012 §16), so a reactivation the deactivation waited on is always earlier.
     - **Effect per invitation.** `release_invitation_email`, `status = 'cancelled'`, `responded_at`, and
       one `audit_log` row: actor = the payload's `actorUserId`, action `invitation.auto_cancelled`
       (distinct from the manual `invitation.cancelled`), entity `invitation`, details

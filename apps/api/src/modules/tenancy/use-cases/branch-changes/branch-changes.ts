@@ -221,13 +221,14 @@ export class BranchChanges {
     ) => Promise<{ after: BranchFields; action: string; extra?: Record<string, unknown> } | null>,
   ): Promise<BranchChange> {
     const { db, clock } = this.deps;
-    const now = clock.now();
     const { clinicId } = actor;
     return db.withTenant(clinicId, async (tx) => {
       // Clinic lock before the row lock, in every path, so two writers never wait on each other crosswise.
       if (lockClinic) await lockClinicBranches(tx, clinicId);
       const before = await findBranchForUpdate(tx, clinicId, branchId);
       if (before === null) throw new ApiError("not_found");
+      // After both locks (ADR-0012 §16): the worker orders deactivatedAt against a reactivation's audit time.
+      const now = clock.now();
       const decided = await decide(tx, before);
       if (decided === null) {
         return { branch: await this.reload(tx, clinicId, branchId), changed: false };
