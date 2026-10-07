@@ -33,19 +33,23 @@ import type { Database } from "@eyadex/db";
 import { DATABASE } from "../../../shared/database.provider.ts";
 import { ApiError } from "../../../shared/errors.ts";
 import { ZodValidationPipe } from "../../../shared/zod-validation.pipe.ts";
-import { listBranches, type BranchChange, type BranchChanges } from "../../tenancy/index.ts";
+import {
+  listBranches,
+  type BranchChange,
+  type BranchChanges,
+  type ExclusiveMemberReader,
+} from "../../tenancy/index.ts";
 import { Require } from "../access/access-rules.ts";
 import type { ClinicRequest } from "../access/access.guard.ts";
-import { PgExclusiveMembers } from "../persistence/pg-exclusive-members.ts";
 import {
   AUTHORIZATION_INVALIDATOR,
   type AuthorizationInvalidator,
 } from "../ports/authorization-invalidator.ts";
 
 export const BRANCH_CHANGES = Symbol("identity.BranchChanges");
+export const EXCLUSIVE_MEMBER_READER = Symbol("identity.ExclusiveMemberReader");
 
 const logger = new Logger("branches");
-const exclusive = new PgExclusiveMembers();
 
 // A malformed id is an unknown branch: 404, the same answer as another clinic's id (ISO-02).
 const branchIdOf = (raw: string): string => {
@@ -67,6 +71,7 @@ export class BranchesController {
     @Inject(DATABASE) private readonly db: Database,
     @Inject(BRANCH_CHANGES) private readonly changes: BranchChanges,
     @Inject(AUTHORIZATION_INVALIDATOR) private readonly invalidator: AuthorizationInvalidator,
+    @Inject(EXCLUSIVE_MEMBER_READER) private readonly exclusive: ExclusiveMemberReader,
   ) {}
 
   @Get()
@@ -75,7 +80,7 @@ export class BranchesController {
     @Req() request: ClinicRequest,
     @Query(new ZodValidationPipe(branchListQuerySchema)) query: BranchListQuery,
   ): Promise<BranchListResponse> {
-    return listBranches(this.db, request.clinicContext.clinicId, query, exclusive);
+    return listBranches(this.db, request.clinicContext.clinicId, query, this.exclusive);
   }
 
   @Post()

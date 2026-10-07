@@ -4,14 +4,24 @@ import { systemUuidV7 } from "@eyadex/ids";
 
 import { DatabaseModule } from "../../shared/database.module.ts";
 import { DATABASE } from "../../shared/database.provider.ts";
-import { BranchChanges, CLOCK, TenancyModule, type Clock } from "../tenancy/index.ts";
+import {
+  BranchChanges,
+  CLOCK,
+  TenancyModule,
+  type Clock,
+  type ExclusiveMemberReader,
+} from "../tenancy/index.ts";
 import { AuthorizationCache } from "./access/authorization-cache.ts";
 import { AuthorizationCacheModule } from "./access/authorization-cache.module.ts";
 import { CLINIC_CONTEXT_RESOLVER, ClinicContextResolver } from "./access/clinic-context.ts";
 import { AREA_AUTH, type AreaAuth } from "./auth/area-auth.ts";
 import { AuthModule } from "./auth/auth.module.ts";
 import { SecretSealer } from "../../shared/secret-sealer.ts";
-import { BRANCH_CHANGES, BranchesController } from "./http/branches.controller.ts";
+import {
+  BRANCH_CHANGES,
+  BranchesController,
+  EXCLUSIVE_MEMBER_READER,
+} from "./http/branches.controller.ts";
 import {
   ClinicInvitationsController,
   INVITATION_CHANGES,
@@ -46,11 +56,13 @@ const logger = new NestLogger("authorization");
     ClinicInvitationsController,
   ],
   providers: [
+    // tenancy's port, implemented by identity: one binding for the branch writes and the list.
+    { provide: EXCLUSIVE_MEMBER_READER, useValue: new PgExclusiveMembers() },
     {
       provide: BRANCH_CHANGES,
-      inject: [DATABASE, CLOCK],
-      useFactory: (db: Database, clock: Clock) =>
-        new BranchChanges({ db, clock, ids: systemUuidV7(), exclusive: new PgExclusiveMembers() }),
+      inject: [DATABASE, CLOCK, EXCLUSIVE_MEMBER_READER],
+      useFactory: (db: Database, clock: Clock, exclusive: ExclusiveMemberReader) =>
+        new BranchChanges({ db, clock, ids: systemUuidV7(), exclusive }),
     },
     {
       provide: USER_CHANGES,
