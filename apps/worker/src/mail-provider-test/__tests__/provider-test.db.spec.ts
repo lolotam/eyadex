@@ -70,6 +70,8 @@ function harness(sender: MailSender, sealKey = KEY) {
 
 function member(clinicId: string, roleId: string, email: string): string {
   const userId = randomUUID();
+  owner(`INSERT INTO email_reservations (email, kind, clinic_id, invitation_id, expires_at, reserved_at)
+         VALUES (${q(email)}, 'membership', ${q(clinicId)}, null, null, now())`);
   owner(`INSERT INTO memberships VALUES (${q(clinicId)}, ${q(randomUUID())}, ${q(userId)}, 'n',
          ${q(email)}, ${q(roleId)}, true, 'active', 'ar', null, now(), now())`);
   return userId;
@@ -102,21 +104,23 @@ const row = (clinicId: string) =>
 
 function setup(kind: "resend" | "smtp" = "resend") {
   const { clinicId, roleId } = seedClinic();
-  member(clinicId, roleId, "other@example.test");
-  const actor = member(clinicId, roleId, "admin@example.test");
+  const tag = randomUUID().slice(0, 8);
+  member(clinicId, roleId, `other-${tag}@example.test`);
+  const admin = `admin-${tag}@example.test`;
+  const actor = member(clinicId, roleId, admin);
   const providerId = provider(clinicId, kind);
   const eventId = event({ clinicId, providerId, actorUserId: actor }, clinicId);
-  return { clinicId, providerId, eventId };
+  return { clinicId, providerId, eventId, admin };
 }
 
 describe("clinic mail provider test send (ADR-0014, 7c-2a)", () => {
   it("mails only the acting admin from the clinic's sender and sets verified_at", async () => {
     const mail = new FakeMail();
     const h = harness(mail);
-    const { clinicId, eventId } = setup();
+    const { clinicId, eventId, admin } = setup();
     await drain(h.poller);
     expect(mail.sent).toHaveLength(1);
-    expect(mail.sent[0]!.to).toBe("admin@example.test");
+    expect(mail.sent[0]!.to).toBe(admin);
     expect(mail.sent[0]!.from).toEqual({ name: "Clinic", address: "clinic@example.test" });
     expect(mail.sent[0]!.replyTo).toBe("desk@example.test");
     expect(mail.sent[0]!.idempotencyKey).toBe(eventId);
@@ -125,7 +129,7 @@ describe("clinic mail provider test send (ADR-0014, 7c-2a)", () => {
     expect(row(clinicId).verified_at).not.toBeNull();
     expect(eventRow(eventId).dispatched_at).not.toBeNull();
     expect(h.lines.join("\n")).not.toContain(FAKE_SECRET);
-    expect(h.lines.join("\n")).not.toContain("admin@example.test");
+    expect(h.lines.join("\n")).not.toContain(admin);
   });
 
   it("records seal_unreadable when the key is wrong, leaving verified_at null", async () => {

@@ -41,7 +41,7 @@ describe("sender from/replyTo mapping (ADR-0014, 7c-2)", () => {
   it("Resend falls back to MAIL_FROM and sends no reply_to when absent", async () => {
     const { bodies, sender } = resend();
     await sender.send(base);
-    expect(bodies[0]!.from).toBe("Platform <p@example.test>");
+    expect(bodies[0]!["from"]).toBe("Platform <p@example.test>");
     expect(bodies[0]).not.toHaveProperty("reply_to");
   });
 
