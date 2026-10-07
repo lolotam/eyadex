@@ -1,11 +1,13 @@
 import { createTransport } from "nodemailer";
 
+import { displayName } from "../domain/mail-address.ts";
 import type { MailMessage, MailResult, MailSender } from "../ports/mail-sender.ts";
 
 /** The part of a nodemailer transporter this file uses: tests pass a jsonTransport/streamTransport. */
 export interface SmtpTransport {
   sendMail(mail: {
-    from: string;
+    from: string | { name: string; address: string };
+    replyTo?: string;
     to: string;
     subject: string;
     html: string;
@@ -76,7 +78,11 @@ export class SmtpMailSender implements MailSender {
     try {
       const outcome = await Promise.race([
         this.transport.sendMail({
-          from: this.from,
+          from:
+            message.from === undefined
+              ? this.from
+              : { name: displayName(message.from.name), address: message.from.address },
+          ...(message.replyTo === undefined ? {} : { replyTo: message.replyTo }),
           to: message.to,
           subject: message.subject,
           html: message.html,
