@@ -83,15 +83,19 @@ describe("SUB-03: the branch limit", () => {
 
 describe("OD-7: the last active branch", () => {
   it("refuses deactivating the last active branch", async () => {
-    const { admin } = await clinicWithTwoBranches();
-    const [first, last] = await activeBranchIds(h, admin.clinicId);
+    const { admin, doctor } = await clinicWithTwoBranches();
+    // Picked by role, not by sort order: the doctor's branch id is a v4 and the created one a v7, so
+    // ORDER BY id is not stable, and the doctor relies on that branch alone (ADR-0012 would answer
+    // branch_has_exclusive_members if it went first).
+    const first = (await activeBranchIds(h, admin.clinicId)).find((id) => id !== doctor.branchId);
+    const last = doctor.branchId;
     expect((await branchAction(h, admin.cookie, first!, "deactivate")).statusCode).toBe(200);
-    const res = await branchAction(h, admin.cookie, last!, "deactivate");
+    const res = await branchAction(h, admin.cookie, last, "deactivate");
     expect(res.statusCode).toBe(409);
     expect(code(res)).toBe("last_active_branch");
     const statusRows = async (id: string) =>
       (await branchAudit(h, admin.clinicId, id)).filter((r) => r["action"] !== "branch.created");
-    expect(await statusRows(last!)).toHaveLength(0);
+    expect(await statusRows(last)).toHaveLength(0);
     // Deactivating an inactive branch changes nothing and audits nothing.
     expect((await branchAction(h, admin.cookie, first!, "deactivate")).statusCode).toBe(200);
     expect(await statusRows(first!)).toHaveLength(1);
