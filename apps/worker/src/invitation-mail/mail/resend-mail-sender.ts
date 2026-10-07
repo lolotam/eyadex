@@ -1,3 +1,4 @@
+import { formatAddress } from "../domain/mail-address.ts";
 import type { MailMessage, MailResult, MailSender } from "../ports/mail-sender.ts";
 
 export interface ResendOptions {
@@ -66,11 +67,12 @@ export class ResendMailSender implements MailSender {
           "Idempotency-Key": message.idempotencyKey,
         },
         body: JSON.stringify({
-          from,
+          from: message.from === undefined ? from : formatAddress(message.from),
           to: [message.to],
           subject: message.subject,
           html: message.html,
           text: message.text,
+          ...(message.replyTo === undefined ? {} : { reply_to: [message.replyTo] }),
         }),
         signal: AbortSignal.timeout(timeoutMs),
       });

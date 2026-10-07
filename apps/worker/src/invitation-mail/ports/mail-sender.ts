@@ -6,6 +6,16 @@ export interface MailMessage {
   readonly text: string;
   /** id حدث الـ outbox: مزود بيحترمه ما بيبعتش نفس الرسالة مرتين لو الـ commit وقع بعد الإرسال. */
   readonly idempotencyKey: string;
+  /** مرسل غير `MAIL_FROM` (مزود العيادة، 7c-2). من غيره المزود بيستخدم المرسل المضبوط عنده. */
+  readonly from?: MailAddress;
+  /** عنوان الرد، لو موجود. */
+  readonly replyTo?: string;
+}
+
+/** اسم ظاهر + عنوان. الاسم بيتنضف من أسطر جديدة قبل ما يتحط في الهيدر. */
+export interface MailAddress {
+  readonly name: string;
+  readonly address: string;
 }
 
 /** المزود اللي قبل الرسالة فعلاً. */

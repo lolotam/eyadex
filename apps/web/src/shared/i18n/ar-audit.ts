@@ -37,6 +37,7 @@ export const arAudit = {
       patient: "مراجع",
       platform_account: "حساب منصة",
       platform_settings: "إعدادات المنصة",
+      clinic_mail_provider: "مزود البريد",
     },
     actions: {
       branch: {
@@ -80,6 +81,9 @@ export const arAudit = {
         subscription_updated: "تعديل الاشتراك",
         feature_toggled: "تشغيل أو إيقاف قسم",
         settings_updated: "تحديث إعدادات العيادة",
+        mail_provider_updated: "حفظ مزود البريد",
+        mail_provider_removed: "إزالة مزود البريد",
+        mail_provider_test_requested: "طلب رسالة تجربة لمزود البريد",
       },
       platform_account: {
         invited: "دعوة عضو منصة",

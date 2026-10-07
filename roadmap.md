@@ -40,7 +40,9 @@
 - [x] Slice 7b-1: worker dispatches `clinic.admin_invited` and `clinic.user_invited` through Resend with the send-time check (ADR-0013)
 - [x] Slice 7b-2: the worker auto-cancels pending invitations left with no active branch (ADR-0013 §12)
 - [x] Slice 7c-1: platform SMTP fallback for worker mail (ADR-0014)
-- [ ] Slice 7c-2: per-clinic mail providers (`clinic_mail_providers`, ADR-0014 proposal)
+- [x] Slice 7c-2a: clinic mail provider table, sealed credentials, use cases and worker test send (ADR-0014)
+- [ ] Slice 7c-2a routes: `/v1/clinic/mail-provider` HTTP — blocked on the owner choosing the import arrow (ADR-0014 "Open")
+- [ ] Slice 7c-2b: route clinic mail through the clinic provider, failure count, degrade after 3
 - [ ] Worker production image + Dokploy service (orchestrator; not in 7b-1)
 - [ ] Retention of dispatched and failed outbox rows (TODO(spec))
 - [ ] Slice 8: role CRUD (call `AuthorizationInvalidator`)

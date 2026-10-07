@@ -25,6 +25,10 @@ const schema = z
       .string()
       .url()
       .transform((v) => v.replace(/\/+$/, "")),
+    // ADR-0014 (7c-2): opens clinic mail credentials, bound to the provider row id. Not OUTBOX_SEAL_KEY.
+    MAIL_PROVIDER_SEAL_KEY: z
+      .string()
+      .refine((v) => Buffer.from(v, "base64").length === 32, "32 bytes, base64"),
     RESEND_API_KEY: z.string().min(1),
     MAIL_FROM: z.string().min(3),
     OUTBOX_POLL_INTERVAL_MS: z.coerce.number().int().min(100).max(60_000).default(2_000),

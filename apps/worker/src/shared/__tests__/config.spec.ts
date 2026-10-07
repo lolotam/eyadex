@@ -9,6 +9,7 @@ const required = {
   DATABASE_URL: "postgres://eyadex_app:dev@localhost:5432/eyadex",
   DISPATCHER_DATABASE_URL: "postgres://eyadex_dispatcher:dev@localhost:5432/eyadex",
   OUTBOX_SEAL_KEY: randomBytes(32).toString("base64"),
+  MAIL_PROVIDER_SEAL_KEY: randomBytes(32).toString("base64"),
   APP_URL: "http://localhost:3000/",
   RESEND_API_KEY: "test-only",
   MAIL_FROM: "Eyadex Team <no-reply@example.test>",
@@ -37,6 +38,14 @@ describe("readConfig", () => {
     expect(attempt).toThrow(/RESEND_API_KEY/);
     expect(attempt).toThrow(/OUTBOX_SEAL_KEY/);
     expect(() => readConfig({})).toThrow(/DISPATCHER_DATABASE_URL/);
+  });
+
+  it("requires MAIL_PROVIDER_SEAL_KEY as 32 base64 bytes, naming the key only", () => {
+    const { MAIL_PROVIDER_SEAL_KEY: _k, ...without } = required;
+    expect(() => readConfig(without)).toThrow(/MAIL_PROVIDER_SEAL_KEY/);
+    expect(() => readConfig({ ...required, MAIL_PROVIDER_SEAL_KEY: "c2hvcnQ=" })).toThrow(
+      /MAIL_PROVIDER_SEAL_KEY/,
+    );
   });
 
   it("refuses a port out of range and a level pino does not know, naming the keys only", () => {
