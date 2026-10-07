@@ -56,6 +56,19 @@ export const apiErrorCodeSchema = z.enum([
 export type ApiErrorCode = z.infer<typeof apiErrorCodeSchema>;
 
 /**
+ * The codes a web screen can meet: every API code plus two the API never sends. `conflict` is a 409
+ * whose code the web does not know; `not_implemented` is a method the HTTP adapter has no route for
+ * yet. Kept apart from `apiErrorCodeSchema` because the API's message table must cover exactly the
+ * codes the API can return.
+ */
+export const webErrorCodeSchema = z.enum([
+  ...apiErrorCodeSchema.options,
+  "conflict",
+  "not_implemented",
+]);
+export type WebErrorCode = z.infer<typeof webErrorCodeSchema>;
+
+/**
  * The envelope every error leaves the API as: a catalogued code plus both languages (CLAUDE.md §6).
  * `details` is optional and must never carry a secret, a civil ID or another clinic's data — it is
  * returned as-is.

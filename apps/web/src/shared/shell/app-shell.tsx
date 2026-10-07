@@ -5,6 +5,8 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/s
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { LanguageSwitch } from "@/shared/i18n/language-switch";
 import { PersonaSwitcher } from "@/shared/persona/persona-switcher";
+import { API_MODE } from "@/shared/api/api-mode";
+import { HttpAccountMenu } from "@/shared/auth/http-account-menu";
 import type { TranslationKey } from "@/shared/i18n/dictionary";
 import type { NavItem } from "./nav-items";
 import { Brand } from "./brand";
@@ -45,7 +47,7 @@ export function AppShell({ areaLabel, subtitle, items, children }: Props) {
           <div className="text-sm font-semibold text-foreground">{t(areaLabel)}</div>
           <div className="ms-auto flex items-center gap-2">
             <LanguageSwitch />
-            <PersonaSwitcher />
+            {API_MODE === "http" ? <HttpAccountMenu /> : <PersonaSwitcher />}
           </div>
         </header>
         <main className="mx-auto w-full min-w-0 max-w-7xl flex-1 p-4 md:p-8 lg:p-10">

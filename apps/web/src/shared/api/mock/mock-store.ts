@@ -1,4 +1,4 @@
-import type { Clinic, ClinicFeatures } from "@eyadex/contracts/clinics";
+import type { Clinic, ClinicFeatures, CreatedClinic } from "@eyadex/contracts/clinics";
 import type { InvitationRecord } from "@eyadex/contracts/invitations";
 import type { Branch, ClinicAuditEntry, Role } from "@eyadex/contracts/organization";
 import type { Patient } from "@eyadex/contracts/patients";
@@ -18,6 +18,10 @@ export type MockState = {
   inviteOutbox: Record<string, string>;
   /** Idempotency-Key replay: "clinicId:key" -> invitation id (optional for older saved state). */
   idempotentInvites?: Record<string, { invitationId: string; fingerprint: string }>;
+  /** Idempotency-Key replay for branch creates: "clinicId:key" -> branch id + request fingerprint. */
+  idempotentBranches?: Record<string, { branchId: string; fingerprint: string }>;
+  /** Idempotency-Key replay for clinic creates: key -> the first answer + request fingerprint. */
+  idempotentClinics?: Record<string, { created: CreatedClinic; fingerprint: string }>;
   patients: Patient[];
   /** Idempotency-Key replay for patient creates: "clinicId:key" -> patient id + request fingerprint. */
   idempotentPatients?: Record<string, { patientId: string; fingerprint: string }>;

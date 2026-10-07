@@ -13,6 +13,7 @@ import { buildSystemRoles } from "./seed-roles";
 import { INVITATION_TTL_DAYS, type InvitationRecord } from "@eyadex/contracts/invitations";
 import { invitationAuditSnapshot, issueInviteToken } from "./mock-invite-tokens";
 import { writeClinicAudit } from "./mock-audit";
+import { rememberClinicCreate, replayClinicCreate } from "./mock-clinic-replay";
 import { enforceEmailFree, toUserView, userUsage } from "./mock-user-rules";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -111,15 +112,11 @@ export function createMockPlatform(): Omit<
       resolvePlatformActor(getState(), persona);
       const db = getState();
       const clinic = findClinic(db, clinicId);
-      const detail: ClinicDetail = {
-        ...clinic,
-        ...usage(db, clinicId),
-        features: db.features[clinicId] ?? { patients: false },
-      };
-      return detail;
+      const features = db.features[clinicId] ?? { patients: false };
+      return { ...clinic, ...usage(db, clinicId), features } satisfies ClinicDetail;
     },
 
-    async createClinic(persona, raw) {
+    async createClinic(persona, raw, idempotencyKey) {
       await delay();
       const actor = resolvePlatformActor(getState(), persona);
       if (
@@ -130,6 +127,8 @@ export function createMockPlatform(): Omit<
       }
       const input = createClinicInputSchema.parse(raw);
       const db = getState();
+      const replayed = replayClinicCreate(db, idempotencyKey, input);
+      if (replayed) return replayed;
       if (db.clinics.some((c) => c.slug === input.slug)) throw new ApiError("slug_taken");
       enforceEmailFree(db, input.adminEmail);
       const now = new Date();
@@ -195,8 +194,9 @@ export function createMockPlatform(): Omit<
         null,
         { ...clinicDetails(clinic), ...clinicSubscription(clinic), email: input.adminEmail },
       );
-      persist();
       if (!firstAdminInvite) throw new ApiError("not_found");
+      rememberClinicCreate(db, idempotencyKey, input, { clinic, firstAdminInvite });
+      persist();
       return { clinic, firstAdminInvite };
     },
 
@@ -253,7 +253,6 @@ export function createMockPlatform(): Omit<
         clinicSubscription(clinic),
       );
       persist();
-      return clinic;
     },
 
     async setClinicFeature(persona, clinicId, module, enabled) {

@@ -11,14 +11,17 @@ import { LoadingBlock } from "./loading-block";
 import { CLINIC_NAV } from "./nav-items";
 import { StatusPanel } from "./status-panel";
 import { ExpiryBanner } from "./expiry-banner";
+import { HttpAreaGate } from "./http-area-gate";
+import { errorCodeOf } from "@/shared/api/api-error";
 
 export function ClinicLayout() {
   const { t, pick } = useI18n();
-  const { persona } = usePersona();
-  const { session, isLoading } = useSession();
+  const { persona, http } = usePersona();
+  const { session, isLoading, error } = useSession();
   useAccountDisabledGuard();
 
-  if (persona.kind === "platform_admin") {
+  if (http && http.area !== "clinic") return <HttpAreaGate area="clinic">{null}</HttpAreaGate>;
+  if (!http && persona.kind === "platform_admin") {
     return (
       <AppShell areaLabel="nav.clinicArea" items={[]}>
         <ForbiddenPage />
@@ -40,10 +43,21 @@ export function ClinicLayout() {
   let content = (
     <>
       {session?.expiresInDays != null && <ExpiryBanner days={session.expiresInDays} />}
-      <Outlet />
+      <HttpAreaGate area="clinic">
+        <Outlet />
+      </HttpAreaGate>
     </>
   );
-  if (isLoading || !session) content = <LoadingBlock />;
+  if (errorCodeOf(error) === "subscription_blocked")
+    content = (
+      <StatusPanel
+        icon={Lock}
+        title={t("blocked.expiredTitle")}
+        body={t("errors.subscription_blocked")}
+        action={signInLink}
+      />
+    );
+  else if (isLoading || !session) content = <LoadingBlock />;
   else if (session.blocked === "suspended")
     content = (
       <StatusPanel

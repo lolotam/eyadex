@@ -3,6 +3,7 @@ import { enPatients } from "./en-patients";
 import { enAudit } from "./en-audit";
 import { enUsers } from "./en-users";
 import { enSettings } from "./en-settings";
+import { enAccess, enAccessErrors } from "./en-access";
 
 export const en = {
   app: { name: "Eyadex", tagline: "One place for every clinic" },
@@ -67,12 +68,7 @@ export const en = {
     account: "My account",
     menu: "Menu",
   },
-  comingNext: { title: "Coming next", body: "This screen is part of the next phase." },
-  forbidden: {
-    title: "Not allowed",
-    body: "Your current role does not have access to this page.",
-    home: "Go to my home",
-  },
+  ...enAccess,
   blocked: {
     suspendedTitle: "This clinic is suspended",
     suspendedBody:
@@ -256,6 +252,7 @@ export const en = {
     smtpHost: "Enter the mail server's domain name, e.g. smtp.example.com",
   },
   errors: {
+    ...enAccessErrors,
     patient_phone_taken: "This phone already belongs to another patient in this clinic",
     patient_civil_id_taken: "This civil ID already belongs to another patient in this clinic",
     email_taken: "This email already belongs to a user or a pending invitation",

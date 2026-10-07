@@ -1,11 +1,11 @@
-import type { ApiErrorCode } from "@eyadex/contracts/common";
+import type { WebErrorCode } from "@eyadex/contracts/common";
 
 export class ApiError extends Error {
-  readonly code: ApiErrorCode;
+  readonly code: WebErrorCode;
   readonly details: Readonly<Record<string, string | number>>;
 
   constructor(
-    code: ApiErrorCode,
+    code: WebErrorCode,
     message?: string,
     details: Readonly<Record<string, string | number>> = {},
   ) {
@@ -16,6 +16,6 @@ export class ApiError extends Error {
   }
 }
 
-export function errorCodeOf(error: unknown): ApiErrorCode {
+export function errorCodeOf(error: unknown): WebErrorCode {
   return error instanceof ApiError ? error.code : "unknown";
 }
