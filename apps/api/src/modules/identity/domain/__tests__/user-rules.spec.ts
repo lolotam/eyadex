@@ -17,23 +17,33 @@ describe("ADM-01 rules", () => {
     expect(decideMemberDeactivation(admin, 1)).toBe("last_active_admin");
     expect(decideMemberDeactivation(admin, 2)).toBe("allowed");
     expect(decideMemberDeactivation(doctor, 1)).toBe("allowed");
-    expect(decideMemberDeactivation({ ...admin, status: "deactivated" }, 1)).toBe("already_inactive");
+    expect(decideMemberDeactivation({ ...admin, status: "deactivated" }, 1)).toBe(
+      "already_inactive",
+    );
   });
 
   it("the last active admin cannot be moved off the admin role", () => {
-    expect(decideRoleChange(admin, "r1", { id: "r2", systemKey: "doctor" }, 1)).toBe("last_active_admin");
+    expect(decideRoleChange(admin, "r1", { id: "r2", systemKey: "doctor" }, 1)).toBe(
+      "last_active_admin",
+    );
     expect(decideRoleChange(admin, "r1", { id: "r2", systemKey: null }, 2)).toBe("allowed");
     expect(decideRoleChange(admin, "r1", { id: "r1", systemKey: "clinic_admin" }, 1)).toBe("same");
-    expect(decideRoleChange(doctor, "r1", { id: "r2", systemKey: "clinic_admin" }, 1)).toBe("allowed");
+    expect(decideRoleChange(doctor, "r1", { id: "r2", systemKey: "clinic_admin" }, 1)).toBe(
+      "allowed",
+    );
   });
 });
 
 describe("invitation rules", () => {
   const now = new Date("2026-10-07T00:00:00Z");
   it("resend: pending only; an expired one re-occupies a seat", () => {
-    expect(decideInvitationResend("pending", new Date("2026-10-06T00:00:00Z"), now)).toBe("reoccupies_seat");
+    expect(decideInvitationResend("pending", new Date("2026-10-06T00:00:00Z"), now)).toBe(
+      "reoccupies_seat",
+    );
     expect(decideInvitationResend("pending", now, now)).toBe("reoccupies_seat");
-    expect(decideInvitationResend("pending", new Date("2026-10-08T00:00:00Z"), now)).toBe("keeps_seat");
+    expect(decideInvitationResend("pending", new Date("2026-10-08T00:00:00Z"), now)).toBe(
+      "keeps_seat",
+    );
     expect(decideInvitationResend("accepted", now, now)).toBe("not_pending");
     expect(decideInvitationResend("cancelled", now, now)).toBe("not_pending");
   });

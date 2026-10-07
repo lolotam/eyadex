@@ -46,7 +46,14 @@ describe("RBAC-01: every user endpoint", () => {
     role: async (c?: string, host?: string) =>
       act(h, c, `/v1/users/${await id()}/role`, { roleId: doctorRole }, "PATCH", host),
     branches: async (c?: string, host?: string) =>
-      act(h, c, `/v1/users/${await id()}/branches`, { allBranches: true, branchIds: [] }, "PATCH", host),
+      act(
+        h,
+        c,
+        `/v1/users/${await id()}/branches`,
+        { allBranches: true, branchIds: [] },
+        "PATCH",
+        host,
+      ),
     deactivate: async (c?: string, host?: string) =>
       act(h, c, `/v1/users/${await id()}/deactivate`, undefined, "POST", host),
     reactivate: async (c?: string, host?: string) =>
@@ -62,7 +69,11 @@ describe("RBAC-01: every user endpoint", () => {
   }
 
   it("slice-6 gap: a role with only view:branches:clinic is refused every branch write", async () => {
-    const viewer = await memberOn(h, A.admin, await customRole(h, A.admin.clinicId, ["view:branches:clinic"]));
+    const viewer = await memberOn(
+      h,
+      A.admin,
+      await customRole(h, A.admin.clinicId, ["view:branches:clinic"]),
+    );
     const branch = A.doctor.branchId;
     expect((await get(h, "/v1/branches", viewer.cookie)).statusCode).toBe(200);
     for (const res of [
@@ -80,28 +91,56 @@ describe("role and branches (AUD-01, RBAC-03)", () => {
   it("changes the role, takes effect on the next request, one audit row each", async () => {
     const member = await memberOn(h, A.admin, doctorRole);
     expect((await get(h, "/v1/users", member.cookie)).statusCode).toBe(403);
-    const res = await act(h, A.admin.cookie, `/v1/users/${member.memberId}/role`, { roleId: adminRole }, "PATCH");
+    const res = await act(
+      h,
+      A.admin.cookie,
+      `/v1/users/${member.memberId}/role`,
+      { roleId: adminRole },
+      "PATCH",
+    );
     expect(res.statusCode).toBe(200);
     membershipUserViewSchema.strict().parse(res.json());
     expect((await get(h, "/v1/users", member.cookie)).statusCode).toBe(200);
-    const same = await act(h, A.admin.cookie, `/v1/users/${member.memberId}/role`, { roleId: adminRole }, "PATCH");
+    const same = await act(
+      h,
+      A.admin.cookie,
+      `/v1/users/${member.memberId}/role`,
+      { roleId: adminRole },
+      "PATCH",
+    );
     expect(same.statusCode).toBe(200);
     const rows = await audit(h, A.admin.clinicId, member.memberId);
-    expect(rows.map((r) => r["action"]).filter((a) => a !== "invitation.accepted")).toEqual(["user.role_changed"]);
-    expect(String(rows[0]!["raw"])).not.toMatch(/token|hash|phone|civil/i);
+    expect(rows.map((r) => r["action"]).filter((a) => a !== "invitation.accepted")).toEqual([
+      "user.role_changed",
+    ]);
+    for (const r of rows) expect(String(r["raw"])).not.toMatch(/token|hash|phone|civil/i);
   });
 
   it("changes branches; another clinic's branch → 404; /v1/me sees the new scope", async () => {
     const member = await memberOn(h, A.admin, doctorRole);
     const url = `/v1/users/${member.memberId}/branches`;
-    const foreign = await act(h, A.admin.cookie, url, { allBranches: false, branchIds: [B.doctor.branchId] }, "PATCH");
+    const foreign = await act(
+      h,
+      A.admin.cookie,
+      url,
+      { allBranches: false, branchIds: [B.doctor.branchId] },
+      "PATCH",
+    );
     expect(foreign.statusCode).toBe(404);
-    const res = await act(h, A.admin.cookie, url, { allBranches: false, branchIds: [A.doctor.branchId] }, "PATCH");
+    const res = await act(
+      h,
+      A.admin.cookie,
+      url,
+      { allBranches: false, branchIds: [A.doctor.branchId] },
+      "PATCH",
+    );
     expect(res.json()).toMatchObject({ allBranches: false, branchIds: [A.doctor.branchId] });
     expect((await get(h, "/v1/me", member.cookie)).json().branchIds).toEqual([A.doctor.branchId]);
-    expect((await audit(h, A.admin.clinicId, member.memberId)).map((r) => r["action"]).filter((a) => String(a).startsWith("user."))).toEqual([
-      "user.branches_changed",
-    ]);
+    expect(
+      (await audit(h, A.admin.clinicId, member.memberId))
+        .map((r) => r["action"])
+        .filter((a) => String(a).startsWith("user.")),
+    ).toEqual(["user.branches_changed"]);
   });
 });
 
@@ -114,7 +153,13 @@ describe("ADM-01: the last active admin", () => {
     const first = await memberIdOf(C.admin.userId);
     const lone = await act(h, C.admin.cookie, `/v1/users/${first}/deactivate`);
     expect([lone.statusCode, code(lone)]).toEqual([409, "last_active_admin"]);
-    const demote = await act(h, C.admin.cookie, `/v1/users/${first}/role`, { roleId: cDoctorRole }, "PATCH");
+    const demote = await act(
+      h,
+      C.admin.cookie,
+      `/v1/users/${first}/role`,
+      { roleId: cDoctorRole },
+      "PATCH",
+    );
     expect(code(demote)).toBe("last_active_admin");
 
     const second = await memberOn(h, C.admin, cAdminRole);
@@ -136,15 +181,22 @@ describe("deactivate / reactivate", () => {
     const res = await act(h, A.admin.cookie, `/v1/users/${member.memberId}/deactivate`);
     expect(res.json().status).toBe("deactivated");
     expect([401, 403]).toContain((await get(h, "/v1/me", member.cookie)).statusCode);
-    expect(await h.owner`SELECT 1 FROM auth_sessions WHERE user_id = ${member.userId}`).toHaveLength(0);
-    expect((await act(h, A.admin.cookie, `/v1/users/${member.memberId}/deactivate`)).statusCode).toBe(200);
-    expect((await act(h, A.admin.cookie, `/v1/users/${member.memberId}/reactivate`)).statusCode).toBe(200);
+    expect(
+      await h.owner`SELECT 1 FROM auth_sessions WHERE user_id = ${member.userId}`,
+    ).toHaveLength(0);
+    expect(
+      (await act(h, A.admin.cookie, `/v1/users/${member.memberId}/deactivate`)).statusCode,
+    ).toBe(200);
+    expect(
+      (await act(h, A.admin.cookie, `/v1/users/${member.memberId}/reactivate`)).statusCode,
+    ).toBe(200);
     const again = await signedIn(h, A.admin.clinicId, member.email, member.password);
     expect((await get(h, "/v1/me", again.cookie)).statusCode).toBe(200);
-    expect((await audit(h, A.admin.clinicId, member.memberId)).map((r) => r["action"]).filter((a) => String(a).startsWith("user."))).toEqual([
-      "user.deactivated",
-      "user.reactivated",
-    ]);
+    expect(
+      (await audit(h, A.admin.clinicId, member.memberId))
+        .map((r) => r["action"])
+        .filter((a) => String(a).startsWith("user.")),
+    ).toEqual(["user.deactivated", "user.reactivated"]);
   });
 
   it("SUB-03: a deactivated member frees a seat; reactivating at the limit → limit_reached", async () => {
@@ -175,13 +227,19 @@ describe("ISO-02 and the list", () => {
       const res = await act(h, A.admin.cookie, url, body, method);
       expect([res.statusCode, code(res)]).toEqual([404, "not_found"]);
     }
-    const list = userListResponseSchema.parse((await get(h, "/v1/users?limit=100", A.admin.cookie)).json());
+    const list = userListResponseSchema.parse(
+      (await get(h, "/v1/users?limit=100", A.admin.cookie)).json(),
+    );
     list.items.forEach((item) => membershipUserViewSchema.strict().parse(item));
     expect(list.items.every((u) => u.clinicId === A.admin.clinicId)).toBe(true);
   });
 
   it("filters by branch (all-branches members included) and status", async () => {
-    const res = await get(h, `/v1/users?branchId=${A.doctor.branchId}&status=active`, A.admin.cookie);
+    const res = await get(
+      h,
+      `/v1/users?branchId=${A.doctor.branchId}&status=active`,
+      A.admin.cookie,
+    );
     const page = userListResponseSchema.parse(res.json());
     const ids = page.items.map((u) => u.userId);
     expect(ids).toContain(A.doctor.userId);
