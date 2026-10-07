@@ -41,3 +41,15 @@ export async function clinicWithMembers(h: Harness): Promise<{
 /** A GET on the clinic host (or another), with the member's cookie when given. */
 export const get = (h: Harness, url: string, cookie?: string, host = APP) =>
   call(h, { method: "GET", url, host, ...(cookie === undefined ? {} : { cookie }) });
+
+/** Until the request answers or a session waits on an advisory lock (db files never run in parallel). */
+export async function settledOrBlocked(h: Harness, request: Promise<unknown>): Promise<void> {
+  let settled = false;
+  void request.finally(() => (settled = true));
+  for (let i = 0; i < 100 && !settled; i += 1) {
+    const [row] = await h.owner`SELECT count(*)::int AS n FROM pg_locks
+                                WHERE locktype = 'advisory' AND NOT granted`;
+    if (row!["n"] !== 0) return;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+}

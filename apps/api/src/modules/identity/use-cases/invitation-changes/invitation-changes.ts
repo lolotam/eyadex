@@ -147,10 +147,12 @@ export class InvitationChanges {
    */
   async resend(actor: UserActor, invitationId: string): Promise<InvitationChange> {
     const { db, clock } = this.deps;
-    const now = clock.now();
     const { clinicId } = actor;
     return db.withTenant(clinicId, async (tx) => {
       await lockClinicUsers(tx, clinicId);
+      // Read after the lock: time spent waiting may expire this invitation, and an expired one must
+      // pass the seat check against the writes that held the lock meanwhile.
+      const now = clock.now();
       const locked = await findInvitationForUpdate(tx, clinicId, invitationId);
       if (locked === null) throw new ApiError("not_found");
       const decision = decideInvitationResend(locked.status, locked.expiresAt, now);
@@ -194,10 +196,10 @@ export class InvitationChanges {
    */
   async cancel(actor: UserActor, invitationId: string): Promise<InvitationChange> {
     const { db, clock } = this.deps;
-    const now = clock.now();
     const { clinicId } = actor;
     return db.withTenant(clinicId, async (tx) => {
       await lockClinicUsers(tx, clinicId);
+      const now = clock.now();
       const locked = await findInvitationForUpdate(tx, clinicId, invitationId);
       if (locked === null) throw new ApiError("not_found");
       await assertMayTouchAdmin(tx, actor, [locked.roleSystemKey]);

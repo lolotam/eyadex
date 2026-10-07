@@ -15,6 +15,7 @@ import {
   type Harness,
 } from "../auth/__tests__/auth-http-harness.ts";
 import { AcceptInvitation } from "../use-cases/accept-invitation/accept-invitation.ts";
+import { settledOrBlocked } from "./access-fixtures.ts";
 import {
   accept,
   branchInvite,
@@ -44,18 +45,6 @@ const expectInvalid = (res: { statusCode: number; json: () => { code: string } }
   expect(res.statusCode).toBe(404);
   expect(res.json().code).toBe("invitation_invalid");
 };
-
-// Until the request answers or a session waits on an advisory lock (db files never run in parallel).
-async function settledOrBlocked(request: Promise<unknown>): Promise<void> {
-  let settled = false;
-  void request.finally(() => (settled = true));
-  for (let i = 0; i < 100 && !settled; i += 1) {
-    const [row] = await h.owner`SELECT count(*)::int AS n FROM pg_locks
-                                WHERE locktype = 'advisory' AND NOT granted`;
-    if (row!["n"] !== 0) return;
-    await new Promise((resolve) => setTimeout(resolve, 50));
-  }
-}
 
 describe("POST /v1/invitations/inspect", () => {
   it("shows the clinic and the invitee for a live link", async () => {
@@ -165,7 +154,7 @@ describe("POST /v1/invitations/accept", () => {
       await tx`SELECT pg_advisory_xact_lock(hashtextextended(${`branches:${clinicId}`}, 0))`;
       await tx`UPDATE branches SET is_active = false WHERE id = ${invite.branchId}`;
       accepting = accept(h, invite.token, strongPassword());
-      await settledOrBlocked(accepting);
+      await settledOrBlocked(h, accepting);
     });
     expectInvalid(await accepting!);
     expect(await accountsFor(invite.email)).toBe(0);

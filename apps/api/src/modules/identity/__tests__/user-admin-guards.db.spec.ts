@@ -1,4 +1,9 @@
+import type { Database } from "@eyadex/db";
+import { systemUuidV7 } from "@eyadex/ids";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+import { DATABASE } from "../../../shared/database.provider.ts";
+import { SecretSealer } from "../../../shared/secret-sealer.ts";
 
 import {
   APP,
@@ -6,7 +11,7 @@ import {
   openHarness,
   type Harness,
 } from "../auth/__tests__/auth-http-harness.ts";
-import { clinicWithMembers } from "./access-fixtures.ts";
+import { clinicWithMembers, settledOrBlocked } from "./access-fixtures.ts";
 import { branchAction, code, createBranch, setMaxBranches } from "./branch-fixtures.ts";
 import {
   act,
@@ -18,6 +23,8 @@ import {
   roleIdOf,
   setMaxUsers,
 } from "./user-fixtures.ts";
+import { branchInvite } from "./invitation-fixtures.ts";
+import { InvitationChanges } from "../use-cases/invitation-changes/invitation-changes.ts";
 
 // Review round of slice 7 (ADR-0012 §15–§16): the admin-role guard, reactivation reach, resend
 // re-validation, no-ops before validation, the resend email fallback and masked 409 details; round 2:
@@ -166,6 +173,37 @@ describe("resend", () => {
     expect((await branchAction(h, C.admin.cookie, branch, "deactivate")).statusCode).toBe(200);
     const refused = await act(h, C.admin.cookie, `/v1/invitations/${id}/resend`);
     expect([refused.statusCode, code(refused)]).toEqual([400, "branch_inactive"]);
+  });
+
+  it("decides expiry after the users lock: a link that expired while waiting needs a free seat", async () => {
+    const D = await clinicWithMembers(h);
+    const dDoctor = await roleIdOf(h, D.admin.clinicId, "doctor");
+    const id = (await invite(h, D.admin.cookie, inviteBody(dDoctor))).json() as { id: string };
+    const expiry = new Date(Date.now() + 3_600_000);
+    await h.owner`UPDATE invitations SET expires_at = ${expiry} WHERE id = ${id.id}`;
+    const [seats] = await h.owner`SELECT
+      (SELECT count(*) FROM memberships WHERE clinic_id = ${D.admin.clinicId} AND status = 'active')
+      + (SELECT count(*) FROM invitations WHERE clinic_id = ${D.admin.clinicId}
+           AND status = 'pending' AND expires_at > now())::int AS n`;
+    await setMaxUsers(h, D.admin.clinicId, Number(seats!["n"]));
+    let time = new Date(expiry.getTime() - 60_000);
+    const changes = new InvitationChanges({
+      db: h.app.get<Database>(DATABASE),
+      clock: { now: () => new Date(time) },
+      ids: systemUuidV7(),
+      sealer: new SecretSealer(process.env["OUTBOX_SEAL_KEY"]!),
+    });
+    let resending: Promise<unknown> | undefined;
+    // Another seat write holds the users lock while the link expires, then takes the freed seat.
+    await h.owner.begin(async (tx) => {
+      await tx`SELECT pg_advisory_xact_lock(hashtextextended(${`users:${D.admin.clinicId}`}, 0))`;
+      resending = changes.resend({ clinicId: D.admin.clinicId, userId: D.admin.userId }, id.id);
+      resending.catch(() => undefined);
+      await settledOrBlocked(h, resending);
+      await branchInvite(h, D.admin.clinicId);
+      time = new Date(expiry.getTime() + 60_000);
+    });
+    await expect(resending).rejects.toMatchObject({ code: "limit_reached" });
   });
 
   it("reserves a free email again when the expired hold was taken over and released", async () => {
