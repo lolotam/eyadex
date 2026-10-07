@@ -30,3 +30,4 @@ export {
   type MemberSessionRevoker,
 } from "./ports/member-session-revoker.ts";
 export { AuthorizationCacheModule } from "./access/authorization-cache.module.ts";
+export { PgExclusiveMembers } from "./persistence/pg-exclusive-members.ts";

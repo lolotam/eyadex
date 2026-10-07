@@ -26,6 +26,12 @@ const STATUS: Partial<Record<ApiErrorCode, number>> = {
   account_other_area: 409,
   limit_reached: 409,
   last_active_branch: 409,
+  branch_has_exclusive_members: 409,
+  last_active_admin: 409,
+  invitation_used: 409,
+  invitation_cancelled: 409,
+  role_inactive: 400,
+  branch_inactive: 400,
   rate_limited: 429,
   unknown: 500,
 };

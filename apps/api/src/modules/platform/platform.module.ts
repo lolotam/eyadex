@@ -12,6 +12,7 @@ import {
   AuthModule,
   AuthorizationCacheModule,
   IdentityModule,
+  PgExclusiveMembers,
   PgSeatUsageReader,
 } from "../identity/index.ts";
 import {
@@ -28,6 +29,7 @@ import {
 import {
   PLATFORM_CLINIC_CHANGES,
   PLATFORM_CLINIC_DETAIL,
+  PLATFORM_EXCLUSIVE_MEMBERS,
   PlatformClinicAdminController,
   type ClinicDetailReader,
 } from "./http/platform-clinic-admin.controller.ts";
@@ -76,6 +78,8 @@ import { CREATE_CLINIC, PlatformClinicsController } from "./http/platform-clinic
         return (clinicId) => getPlatformClinicDetail(reader, seats, clock, clinicId);
       },
     },
+    // tenancy's port, implemented by identity, bound here like the seat reader above.
+    { provide: PLATFORM_EXCLUSIVE_MEMBERS, useValue: new PgExclusiveMembers() },
   ],
 })
 export class PlatformModule {}

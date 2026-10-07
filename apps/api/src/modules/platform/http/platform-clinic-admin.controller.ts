@@ -40,10 +40,15 @@ import {
   type AuthenticatedRequest,
   type AuthorizationInvalidator,
 } from "../../identity/index.ts";
-import { listBranches, type PlatformClinicChanges } from "../../tenancy/index.ts";
+import {
+  listBranches,
+  type ExclusiveMemberReader,
+  type PlatformClinicChanges,
+} from "../../tenancy/index.ts";
 
 export const PLATFORM_CLINIC_CHANGES = Symbol("platform.PlatformClinicChanges");
 export const PLATFORM_CLINIC_DETAIL = Symbol("platform.ClinicDetail");
+export const PLATFORM_EXCLUSIVE_MEMBERS = Symbol("platform.ExclusiveMemberReader");
 
 /** يقرا تفاصيل عيادة على pool المنصة؛ `null` = مش موجودة. */
 export type ClinicDetailReader = (clinicId: string) => Promise<PlatformClinicDetail | null>;
@@ -66,6 +71,8 @@ export class PlatformClinicAdminController {
     @Inject(PLATFORM_CLINIC_DETAIL) private readonly detail: ClinicDetailReader,
     @Inject(AUTHORIZATION_INVALIDATOR) private readonly invalidator: AuthorizationInvalidator,
     @Inject(PLATFORM_DATABASE) private readonly platformDb: Database,
+    // Member counts only (no names): administrative data, never patient data.
+    @Inject(PLATFORM_EXCLUSIVE_MEMBERS) private readonly exclusiveMembers: ExclusiveMemberReader,
   ) {}
 
   @Get()
@@ -83,7 +90,7 @@ export class PlatformClinicAdminController {
   ): Promise<BranchListResponse> {
     const clinicId = clinicIdOf(id);
     if ((await this.detail(clinicId)) === null) throw new ApiError("not_found");
-    return listBranches(this.platformDb, clinicId, query);
+    return listBranches(this.platformDb, clinicId, query, this.exclusiveMembers);
   }
 
   @Put("features/:module")

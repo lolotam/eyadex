@@ -15,6 +15,7 @@ import {
   type Harness,
 } from "../auth/__tests__/auth-http-harness.ts";
 import { AcceptInvitation } from "../use-cases/accept-invitation/accept-invitation.ts";
+import { settledOrBlocked } from "./access-fixtures.ts";
 import {
   accept,
   branchInvite,
@@ -142,6 +143,22 @@ describe("POST /v1/invitations/accept", () => {
     expect(results.map((r) => r.statusCode).sort()).toEqual([200, 404]);
     expect(await accountsFor(invite.email)).toBe(1);
     expect(await membershipsFor(invite.email)).toBe(1);
+  });
+
+  it("NEGATIVE: an accept racing a branch deactivation waits for it and refuses the dead branch", async () => {
+    const { clinicId } = await clinicWithInvite(h);
+    const invite = await branchInvite(h, clinicId);
+    let accepting: ReturnType<typeof accept> | undefined;
+    // A deactivation past its stranded-members check: it holds the branches lock, not yet committed.
+    await h.owner.begin(async (tx) => {
+      await tx`SELECT pg_advisory_xact_lock(hashtextextended(${`branches:${clinicId}`}, 0))`;
+      await tx`UPDATE branches SET is_active = false WHERE id = ${invite.branchId}`;
+      accepting = accept(h, invite.token, strongPassword());
+      await settledOrBlocked(h, accepting);
+    });
+    expectInvalid(await accepting!);
+    expect(await accountsFor(invite.email)).toBe(0);
+    expect(await membershipsFor(invite.email)).toBe(0);
   });
 
   it("a failure after the account was created is recovered by retrying the same link", async () => {

@@ -29,13 +29,16 @@ import {
   lockClinicBranches,
   readMaxBranches,
   saveBranch,
+  type BranchFields,
 } from "../../persistence/pg-branch-store.ts";
+import type { ExclusiveMemberReader } from "../../ports/exclusive-member-reader.ts";
 
 /** اللي الـ use cases محتاجينه: pool العيادة (`eyadex_app`)، الوقت، والـ ids. */
 export interface BranchChangesDeps {
   readonly db: Database;
   readonly clock: Clock;
   readonly ids: IdGenerator;
+  readonly exclusive: ExclusiveMemberReader;
 }
 
 /** الفاعل: عضو العيادة اللي الـ guard حلّه. */
@@ -103,9 +106,10 @@ export class BranchChanges {
       );
       if (claimed.kind === "conflict") throw new ApiError("idempotency_conflict");
       if (claimed.kind === "replay") {
-        const branch = await findBranch(tx, clinicId, claimed.response.branchId);
-        if (branch === null) throw new ApiError("not_found");
-        return { branch, changed: false };
+        return {
+          branch: await this.reload(tx, clinicId, claimed.response.branchId),
+          changed: false,
+        };
       }
       await lockClinicBranches(tx, clinicId);
       await this.assertRoom(tx, clinicId);
@@ -140,7 +144,7 @@ export class BranchChanges {
     input: UpdateBranchRequest,
   ): Promise<BranchChange> {
     return this.change(actor, branchId, false, async (tx, before) => {
-      const after: BranchDetail = {
+      const after: BranchFields = {
         ...before,
         nameAr: input.nameAr ?? before.nameAr,
         nameEn: input.nameEn ?? before.nameEn,
@@ -156,18 +160,35 @@ export class BranchChanges {
 
   /**
    * يعطّل فرع (OD-7: آخر فرع نشط مرفوض بـ `last_active_branch`). فرع معطّل أصلاً: مفيش تغيير.
+   * لو فيه أعضاء الفرع ده فرعهم النشط الوحيد → `branch_has_exclusive_members` إلا لو اتأكّد (ADR-0012).
    *
    * @param actor الفاعل
    * @param branchId الفرع
+   * @param confirmStrandedMembers الأدمن وافق إن الأعضاء دول يفضلوا من غير فرع نشط
    * @returns الفرع بعد التعطيل
    */
-  async deactivate(actor: BranchActor, branchId: string): Promise<BranchChange> {
+  async deactivate(
+    actor: BranchActor,
+    branchId: string,
+    confirmStrandedMembers = false,
+  ): Promise<BranchChange> {
     return this.change(actor, branchId, true, async (tx, before) => {
       const active = await countActiveBranches(tx, actor.clinicId);
       const decision = decideBranchDeactivation(before, active);
       if (decision === "already_inactive") return null;
       if (decision === "last_active_branch") throw new ApiError("last_active_branch");
-      return { after: { ...before, isActive: false }, action: "branch.deactivated" };
+      const stranded = await this.deps.exclusive.members(tx, actor.clinicId, branchId);
+      if (stranded.length > 0 && !confirmStrandedMembers) {
+        throw new ApiError("branch_has_exclusive_members", {
+          count: stranded.length,
+          members: stranded.map((m) => ({ id: m.id, fullName: maskPhonesInText(m.fullName) })),
+        });
+      }
+      return {
+        after: { ...before, isActive: false },
+        action: "branch.deactivated",
+        extra: { strandedMemberCount: stranded.length },
+      };
     });
   }
 
@@ -195,8 +216,8 @@ export class BranchChanges {
     lockClinic: boolean,
     decide: (
       tx: Tx,
-      before: BranchDetail,
-    ) => Promise<{ after: BranchDetail; action: string } | null>,
+      before: BranchFields,
+    ) => Promise<{ after: BranchFields; action: string; extra?: Record<string, unknown> } | null>,
   ): Promise<BranchChange> {
     const { db, clock } = this.deps;
     const now = clock.now();
@@ -207,11 +228,14 @@ export class BranchChanges {
       const before = await findBranchForUpdate(tx, clinicId, branchId);
       if (before === null) throw new ApiError("not_found");
       const decided = await decide(tx, before);
-      if (decided === null) return { branch: before, changed: false };
+      if (decided === null) {
+        return { branch: await this.reload(tx, clinicId, branchId), changed: false };
+      }
       await saveBranch(tx, clinicId, decided.after, now);
       await this.audit(tx, actor, decided.action, branchId, {
         before: auditSnapshot(before),
         after: auditSnapshot(decided.after),
+        ...decided.extra,
       });
       return { branch: await this.reload(tx, clinicId, branchId), changed: true };
     });
@@ -232,7 +256,8 @@ export class BranchChanges {
   private async reload(tx: Tx, clinicId: string, branchId: string): Promise<BranchDetail> {
     const branch = await findBranch(tx, clinicId, branchId);
     if (branch === null) throw new ApiError("not_found");
-    return branch;
+    const counts = await this.deps.exclusive.counts(tx, clinicId, [branchId]);
+    return { ...branch, exclusiveMemberCount: counts.get(branchId) ?? 0 };
   }
 
   private audit(

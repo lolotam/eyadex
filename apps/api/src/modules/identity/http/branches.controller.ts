@@ -23,13 +23,22 @@ import {
   type UpdateBranchRequest,
 } from "@eyadex/contracts/branches";
 import { idSchema } from "@eyadex/contracts/common";
+import {
+  deactivateBranchRequestSchema,
+  type DeactivateBranchRequest,
+} from "@eyadex/contracts/user-admin";
 import { idempotencyKeySchema } from "@eyadex/contracts/onboarding";
 import type { Database } from "@eyadex/db";
 
 import { DATABASE } from "../../../shared/database.provider.ts";
 import { ApiError } from "../../../shared/errors.ts";
 import { ZodValidationPipe } from "../../../shared/zod-validation.pipe.ts";
-import { listBranches, type BranchChange, type BranchChanges } from "../../tenancy/index.ts";
+import {
+  listBranches,
+  type BranchChange,
+  type BranchChanges,
+  type ExclusiveMemberReader,
+} from "../../tenancy/index.ts";
 import { Require } from "../access/access-rules.ts";
 import type { ClinicRequest } from "../access/access.guard.ts";
 import {
@@ -38,6 +47,7 @@ import {
 } from "../ports/authorization-invalidator.ts";
 
 export const BRANCH_CHANGES = Symbol("identity.BranchChanges");
+export const EXCLUSIVE_MEMBER_READER = Symbol("identity.ExclusiveMemberReader");
 
 const logger = new Logger("branches");
 
@@ -61,6 +71,7 @@ export class BranchesController {
     @Inject(DATABASE) private readonly db: Database,
     @Inject(BRANCH_CHANGES) private readonly changes: BranchChanges,
     @Inject(AUTHORIZATION_INVALIDATOR) private readonly invalidator: AuthorizationInvalidator,
+    @Inject(EXCLUSIVE_MEMBER_READER) private readonly exclusive: ExclusiveMemberReader,
   ) {}
 
   @Get()
@@ -69,7 +80,7 @@ export class BranchesController {
     @Req() request: ClinicRequest,
     @Query(new ZodValidationPipe(branchListQuerySchema)) query: BranchListQuery,
   ): Promise<BranchListResponse> {
-    return listBranches(this.db, request.clinicContext.clinicId, query);
+    return listBranches(this.db, request.clinicContext.clinicId, query, this.exclusive);
   }
 
   @Post()
@@ -101,8 +112,17 @@ export class BranchesController {
   @Post(":id/deactivate")
   @HttpCode(200)
   @Require("deactivate:branches:clinic")
-  async deactivate(@Req() request: ClinicRequest, @Param("id") id: string): Promise<BranchDetail> {
-    return this.after(request, await this.changes.deactivate(actor(request), branchIdOf(id)));
+  async deactivate(
+    @Req() request: ClinicRequest,
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(deactivateBranchRequestSchema.optional()))
+    body: DeactivateBranchRequest | undefined,
+  ): Promise<BranchDetail> {
+    const confirm = body?.confirmStrandedMembers === true;
+    return this.after(
+      request,
+      await this.changes.deactivate(actor(request), branchIdOf(id), confirm),
+    );
   }
 
   @Post(":id/reactivate")

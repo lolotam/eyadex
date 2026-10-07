@@ -1,4 +1,7 @@
 import type { BranchDetail } from "@eyadex/contracts/branches";
+
+/** The stored columns; `exclusiveMemberCount` is added from identity's port (ADR-0012). */
+export type BranchFields = Omit<BranchDetail, "exclusiveMemberCount">;
 import type { Tx } from "@eyadex/db";
 import { sql } from "drizzle-orm";
 
@@ -20,7 +23,7 @@ const iso = (value: Date | string) => new Date(value).toISOString();
 
 export const BRANCH_COLUMNS = sql`id, name_ar, name_en, address, phone, is_active, created_at, updated_at`;
 
-export const toBranch = (row: BranchRow): BranchDetail => ({
+export const toBranch = (row: BranchRow): BranchFields => ({
   id: row.id,
   nameAr: row.name_ar,
   nameEn: row.name_en,
@@ -61,7 +64,7 @@ export async function findBranchForUpdate(
   tx: Tx,
   clinicId: string,
   id: string,
-): Promise<BranchDetail | null> {
+): Promise<BranchFields | null> {
   const rows = await tx.execute<BranchRow>(
     sql`SELECT ${BRANCH_COLUMNS} FROM branches
         WHERE clinic_id = ${clinicId} AND id = ${id} FOR UPDATE`,
@@ -73,7 +76,7 @@ export async function findBranch(
   tx: Tx,
   clinicId: string,
   id: string,
-): Promise<BranchDetail | null> {
+): Promise<BranchFields | null> {
   const rows = await tx.execute<BranchRow>(
     sql`SELECT ${BRANCH_COLUMNS} FROM branches WHERE clinic_id = ${clinicId} AND id = ${id}`,
   );
@@ -83,7 +86,7 @@ export async function findBranch(
 export async function insertBranch(
   tx: Tx,
   clinicId: string,
-  branch: Omit<BranchDetail, "createdAt" | "updatedAt">,
+  branch: Omit<BranchFields, "createdAt" | "updatedAt">,
   now: Date,
 ): Promise<void> {
   const at = now.toISOString();
@@ -99,7 +102,7 @@ export async function insertBranch(
 export async function saveBranch(
   tx: Tx,
   clinicId: string,
-  branch: BranchDetail,
+  branch: BranchFields,
   now: Date,
 ): Promise<void> {
   await tx.execute(

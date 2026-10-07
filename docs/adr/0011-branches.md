@@ -47,7 +47,8 @@ a phone to the branch; the table had neither.
    `is_active`). A member whose only branch is deactivated keeps the membership but reaches nothing
    branch-scoped; reactivating restores the exact previous scope. `all_branches` members are
    unaffected.
-   TODO(spec): whether the UI should warn the admin that such members are left with no branch.
+   Resolved (owner, option b): deactivating a branch that is some members' only active branch
+   answers 409 `branch_has_exclusive_members` unless the body confirms it — see ADR-0012.
 9. **Cache.** Every committed change calls `AuthorizationInvalidator.clinicChanged` after commit;
    a failure is logged and the 30 s TTL covers it (ADR-0009).
 10. **Platform read (story 17).** `GET /v1/platform/clinics/:id/branches` (`@PlatformStaff`,
