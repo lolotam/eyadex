@@ -19,8 +19,11 @@ const smtp = (host: string, port = 587) => ({
   password: "fake-password",
 });
 
-/** A factory whose DNS answers are fixed and whose transport creation is recorded, never used. */
-function factory(answers: string[] | Error) {
+/**
+ * A factory whose DNS answers are fixed. Each transport is recorded; `failures` maps an address to the
+ * error its send throws, and any other address accepts the message.
+ */
+function factory(answers: string[] | Error, failures: Record<string, { code: string }> = {}) {
   const created: SmtpSettings[] = [];
   const lookups: string[] = [];
   const senders = new RealClinicSenderFactory({
@@ -31,7 +34,14 @@ function factory(answers: string[] | Error) {
     },
     createTransport: (settings) => {
       created.push(settings);
-      return { sendMail: async () => ({}), close: () => undefined };
+      const failure = failures[settings.host];
+      return {
+        sendMail: async () => {
+          if (failure !== undefined) throw Object.assign(new Error("server text"), failure);
+          return {};
+        },
+        close: () => undefined,
+      };
     },
   });
   return { senders, created, lookups };
@@ -101,7 +111,8 @@ describe("clinic SMTP sender factory", () => {
 
   it("pins a public answer and keeps the name for TLS", async () => {
     const { senders, created } = factory(["8.8.8.8"]);
-    await senders.open(smtp("smtp.example.test", 465));
+    const clinic = await senders.open(smtp("smtp.example.test", 465));
+    expect(await clinic.sender.send(message)).toMatchObject({ sent: true, provider: "smtp" });
     expect(created).toEqual([
       {
         host: "8.8.8.8",
@@ -111,5 +122,23 @@ describe("clinic SMTP sender factory", () => {
         servername: "smtp.example.test",
       },
     ]);
+  });
+
+  it("tries the next vetted address when one cannot be reached, IPv4 first", async () => {
+    const { senders, created, lookups } = factory(["2606:4700:4700::1111", "8.8.8.8", "1.1.1.1"], {
+      "8.8.8.8": { code: "ECONNREFUSED" },
+      "1.1.1.1": { code: "EHOSTUNREACH" },
+    });
+    const clinic = await senders.open(smtp("smtp.example.test"));
+    expect(await clinic.sender.send(message)).toMatchObject({ sent: true });
+    expect(created.map((c) => c.host)).toEqual(["8.8.8.8", "1.1.1.1", "2606:4700:4700::1111"]);
+    expect(lookups).toHaveLength(1);
+  });
+
+  it("stops at a server's own answer: a refused login is not retried on another address", async () => {
+    const { senders, created } = factory(["8.8.8.8", "1.1.1.1"], { "8.8.8.8": { code: "EAUTH" } });
+    const clinic = await senders.open(smtp("smtp.example.test"));
+    expect(await clinic.sender.send(message)).toEqual({ sent: false, error: "smtp_auth" });
+    expect(created).toHaveLength(1);
   });
 });

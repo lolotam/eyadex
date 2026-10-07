@@ -86,7 +86,9 @@ handed to SMTP after Resend may already have accepted it is mailed twice.
      budget), refuses it unless every answer is a public address (loopback, private, shared, link-local,
      documentation, multicast and reserved IPv4 ranges blocked; IPv6 must be global unicast `2000::/3`
      outside Teredo/IETF `2001::/23`, documentation and 6to4; IPv4-mapped IPv6 unwrapped first), and
-     pins the transport to the checked address with `tls.servername` = the name, so the certificate is
+     pins the sender to the checked addresses (IPv4 first, at most 4, tried in turn only when the
+     connection itself fails, all inside the 5 s budget and with no fresh DNS) with `tls.servername` =
+     the name, so the certificate is
      still verified by name and DNS rebinding cannot swap the target. Codes: `smtp_port_not_allowed`,
      `smtp_dns`, `smtp_blocked_address`. The contract also refuses IP literals, single-label and local-only
      names and other ports at `PUT`; that check is syntax only, and the worker's is the guard.
