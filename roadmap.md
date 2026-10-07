@@ -47,3 +47,10 @@
 - [ ] Retention of dispatched and failed outbox rows (TODO(spec))
 - [ ] Slice 8: role CRUD (call `AuthorizationInvalidator`)
 - [ ] Reverse-proxy routes `app.`/`platform.` `/api/*` → api with `/api` stripped (orchestrator)
+
+## Slice W1 — web wired to the real API
+
+- [x] HTTP `ApiClient` adapter next to the mock, chosen by `VITE_API_MODE` (default `mock`)
+- [x] Real sign-in (email + password, platform TOTP enrolment with QR), area-host guard, coming-soon states
+- [ ] `build:all` with Node 24 / `NITRO_PRESET=node-server` (orchestrator)
+- [ ] TODO(spec): clinic-side limits read; platform clinic read with time zone / language / created date; platform defaults read for new clinics
