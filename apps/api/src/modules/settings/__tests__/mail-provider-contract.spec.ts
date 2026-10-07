@@ -29,7 +29,9 @@ describe("SMTP provider request", () => {
   });
 
   it.each([22, 80, 5432, 6379, 0])("refuses port %i", (port) => {
-    expect(mailProviderRequestSchema.safeParse(smtp("smtp.example.test", port)).success).toBe(false);
+    expect(mailProviderRequestSchema.safeParse(smtp("smtp.example.test", port)).success).toBe(
+      false,
+    );
   });
 
   it.each([

@@ -15,7 +15,8 @@ export const SMTP_PORTS = [25, 465, 587, 2525] as const;
 
 // A public DNS name only: no IP literal (its last label is all digits or holds ':'), no single-label or
 // local-only name. Syntax only: the worker resolves the name and refuses any non-public address.
-const DNS_NAME = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{0,61}[a-z0-9]$/;
+const DNS_NAME =
+  /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{0,61}[a-z0-9]$/;
 const LOCAL_SUFFIX = /(?:^|\.)(?:localhost|local|internal|lan|home\.arpa)$/;
 const smtpHost = z
   .string()

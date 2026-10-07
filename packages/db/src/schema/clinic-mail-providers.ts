@@ -58,6 +58,7 @@ export const clinicMailProviders = pgTable(
       "clinic_mail_providers_consecutive_failures_check",
       sql.raw("(consecutive_failures >= 0)"),
     ),
+    check("clinic_mail_providers_version_check", sql.raw("(version >= 1)")),
     check("clinic_mail_providers_last_error_check", sql.raw("(char_length(last_error) <= 120)")),
     check(
       "clinic_mail_providers_kind_fields",
