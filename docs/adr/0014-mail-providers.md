@@ -60,3 +60,7 @@ handed to SMTP after Resend may already have accepted it is mailed twice.
 - An ambiguous Resend failure delays mail by the retry schedule rather than risk a duplicate.
 - SMTP sends are not idempotent: a crash between an SMTP accept and the commit can mail twice. This is
   accepted because SMTP is reached only after a definitive Resend refusal.
+- An SMTP send cut off by the 5 s cap (`smtp_timeout`) may still be delivered after the event is
+  rescheduled, and the retry can then mail a second copy through Resend. This is accepted too: it
+  needs a Resend 5xx and an SMTP timeout on the same event, and the cap must hold because the
+  invitation row is locked during the send.
