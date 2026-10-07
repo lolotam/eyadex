@@ -5,7 +5,9 @@ import {
   decideInvitationResend,
   decideMemberDeactivation,
   decideRoleChange,
+  mayTouchAdminRole,
   personAuditSnapshot,
+  reachesABranch,
   sameBranchSet,
 } from "../user-rules.ts";
 
@@ -31,6 +33,23 @@ describe("ADM-01 rules", () => {
     expect(decideRoleChange(doctor, "r1", { id: "r2", systemKey: "clinic_admin" }, 1)).toBe(
       "allowed",
     );
+  });
+});
+
+describe("admin-role guard (ADR-0012 §15)", () => {
+  it("only an admin may grant, change or act on the admin role", () => {
+    expect(mayTouchAdminRole(false, ["clinic_admin"])).toBe(false);
+    expect(mayTouchAdminRole(false, ["doctor", "clinic_admin"])).toBe(false);
+    expect(mayTouchAdminRole(true, ["clinic_admin"])).toBe(true);
+    expect(mayTouchAdminRole(false, ["doctor", null])).toBe(true);
+  });
+});
+
+describe("reactivation reach (ADR-0012 §16)", () => {
+  it("an all-branches member always reaches one; otherwise one active branch is needed", () => {
+    expect(reachesABranch(true, 0)).toBe(true);
+    expect(reachesABranch(false, 1)).toBe(true);
+    expect(reachesABranch(false, 0)).toBe(false);
   });
 });
 

@@ -181,7 +181,7 @@ export class BranchChanges {
       if (stranded.length > 0 && !confirmStrandedMembers) {
         throw new ApiError("branch_has_exclusive_members", {
           count: stranded.length,
-          members: stranded.map((m) => ({ id: m.id, fullName: m.fullName })),
+          members: stranded.map((m) => ({ id: m.id, fullName: maskPhonesInText(m.fullName) })),
         });
       }
       return {

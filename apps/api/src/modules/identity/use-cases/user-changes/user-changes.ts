@@ -10,14 +10,18 @@ import { checkLimit, limitReachedDetails, usersUsage, type Clock } from "../../.
 import {
   decideMemberDeactivation,
   decideRoleChange,
+  mayTouchAdminRole,
   personAuditSnapshot,
+  reachesABranch,
   sameBranchSet,
 } from "../../domain/user-rules.ts";
 import {
   activeRole,
   assertActiveBranches,
   countActiveAdmins,
+  countActiveBranchesIn,
   findMemberForUpdate,
+  isActiveAdminUser,
   lockClinicBranches,
   lockClinicUsers,
   readSeats,
@@ -56,6 +60,16 @@ type Decision = {
 export const usersLimitError = (used: number, max: number) =>
   new ApiError("limit_reached", limitReachedDetails("users", checkLimit({ used, max })));
 
+/** Only an active clinic admin may grant the admin role or act on an admin (ADR-0012 §15). */
+export async function assertMayTouchAdmin(
+  tx: Tx,
+  actor: UserActor,
+  roleKeys: readonly (string | null)[],
+): Promise<void> {
+  const actorIsAdmin = await isActiveAdminUser(tx, actor.clinicId, actor.userId);
+  if (!mayTouchAdminRole(actorIsAdmin, roleKeys)) throw new ApiError("forbidden");
+}
+
 /**
  * تغيير دور/فروع/حالة عضو (stories 39–42، ADM-01، ADR-0012). كل عملية transaction واحدة تحت قفل
  * مستخدمي العيادة، فآخر أدمن والحد بيتقرروا من غير سباق. إلغاء الجلسات وإبطال الكاش عند المنادي
@@ -74,7 +88,10 @@ export class UserChanges {
    */
   changeRole(actor: UserActor, memberId: string, roleId: string): Promise<UserChange> {
     return this.change(actor, memberId, async (tx, before) => {
+      // A no-op first: re-sending the current role answers 200 even if that role is now inactive.
+      if (roleId === before.roleId) return null;
       const target = await activeRole(tx, actor.clinicId, roleId);
+      await assertMayTouchAdmin(tx, actor, [target.systemKey]);
       const admins = await countActiveAdmins(tx, actor.clinicId);
       const decision = decideRoleChange(before, before.roleId, target, admins);
       if (decision === "same") return null;
@@ -98,13 +115,14 @@ export class UserChanges {
   ): Promise<UserChange> {
     const branchIds = input.allBranches ? [] : input.branchIds;
     return this.change(actor, memberId, async (tx, before) => {
-      // The stranded-members count of a branch deactivation reads these links under the branch lock.
-      await lockClinicBranches(tx, actor.clinicId);
-      await assertActiveBranches(tx, actor.clinicId, branchIds);
+      // A no-op first: re-sending the current set answers 200 even if one of them is now inactive.
       const same =
         before.allBranches === input.allBranches &&
         (input.allBranches || sameBranchSet(before.branchIds, branchIds));
       if (same) return null;
+      // The stranded-members count of a branch deactivation reads these links under the branch lock.
+      await lockClinicBranches(tx, actor.clinicId);
+      await assertActiveBranches(tx, actor.clinicId, branchIds);
       const { clinicId } = actor;
       const { ids, clock } = this.deps;
       const newId = () => ids.newId();
@@ -143,16 +161,20 @@ export class UserChanges {
   }
 
   /**
-   * يرجّع عضو معطّل؛ بيتحسب على حد المستخدمين (SUB-03) ودوره لازم يكون نشط.
+   * يرجّع عضو معطّل؛ بيتحسب على حد المستخدمين (SUB-03)، ودوره لازم يكون نشط، ولازم يوصل لفرع نشط.
    *
    * @param actor الفاعل
    * @param memberId العضوية
-   * @returns العضو بعد التفعيل؛ عند الحد → `limit_reached`
+   * @returns العضو بعد التفعيل؛ عند الحد → `limit_reached`، ومن غير فرع نشط → `branch_inactive`
    */
   reactivate(actor: UserActor, memberId: string): Promise<UserChange> {
     return this.change(actor, memberId, async (tx, before) => {
       if (before.status === "active") return null;
       await activeRole(tx, actor.clinicId, before.roleId);
+      // Under the branch lock, so a parallel branch deactivation cannot strand the member (ADR-0012 §16).
+      await lockClinicBranches(tx, actor.clinicId);
+      const reachable = await countActiveBranchesIn(tx, actor.clinicId, before.branchIds);
+      if (!reachesABranch(before.allBranches, reachable)) throw new ApiError("branch_inactive");
       const seats = await readSeats(tx, actor.clinicId, this.deps.clock.now());
       const usage = usersUsage(seats.members, seats.invitations, seats.max);
       if (checkLimit(usage).kind === "exceeded") throw usersLimitError(usage.used, usage.max);
@@ -172,6 +194,7 @@ export class UserChanges {
       await lockClinicUsers(tx, clinicId);
       const before = await findMemberForUpdate(tx, clinicId, memberId);
       if (before === null) throw new ApiError("not_found");
+      await assertMayTouchAdmin(tx, actor, [before.roleSystemKey]);
       const beforeView = await this.view(tx, clinicId, memberId);
       const decided = await decide(tx, before);
       if (decided === null) return { user: beforeView, changed: false, revokeUserId: null };

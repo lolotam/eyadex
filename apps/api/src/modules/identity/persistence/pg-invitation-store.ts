@@ -8,6 +8,10 @@ export interface InvitationLock {
   readonly email: string;
   readonly status: "pending" | "accepted" | "cancelled";
   readonly expiresAt: Date;
+  readonly roleId: string;
+  readonly roleSystemKey: string | null;
+  readonly allBranches: boolean;
+  readonly branchIds: readonly string[];
 }
 
 /** The invitation, row-locked; `null` = unknown here (another clinic's id included). */
@@ -21,13 +25,30 @@ export async function findInvitationForUpdate(
     email: string;
     status: InvitationLock["status"];
     expires_at: Date | string;
+    role_id: string;
+    all_branches: boolean;
   }>(
-    sql`SELECT id, email, status, expires_at FROM invitations
+    sql`SELECT id, email, status, expires_at, role_id, all_branches FROM invitations
         WHERE clinic_id = ${clinicId} AND id = ${id} FOR UPDATE`,
   );
   const row = rows[0];
   if (row === undefined) return null;
-  return { id: row.id, email: row.email, status: row.status, expiresAt: new Date(row.expires_at) };
+  const extra = await tx.execute<{ system_key: string | null; branch_ids: string[] | null }>(
+    sql`SELECT (SELECT system_key FROM roles WHERE clinic_id = ${clinicId} AND id = ${row.role_id})
+                 AS system_key,
+               (SELECT jsonb_agg(branch_id ORDER BY branch_id) FROM invitation_branches
+                 WHERE clinic_id = ${clinicId} AND invitation_id = ${id}) AS branch_ids`,
+  );
+  return {
+    id: row.id,
+    email: row.email,
+    status: row.status,
+    expiresAt: new Date(row.expires_at),
+    roleId: row.role_id,
+    roleSystemKey: extra[0]?.system_key ?? null,
+    allBranches: row.all_branches,
+    branchIds: extra[0]?.branch_ids ?? [],
+  };
 }
 
 /** Holds the email for this invitation (0015); `false` = a platform account, member or live invitation has it. */

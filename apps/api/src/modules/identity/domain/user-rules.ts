@@ -55,6 +55,34 @@ export function decideRoleChange(
   return demotes && activeAdmins <= 1 ? "last_active_admin" : "allowed";
 }
 
+/**
+ * هل الفاعل يقدر يعمل العملية دي لو بتلمس دور أدمن العيادة؟ قرار المالك (2026-10-07): الأدمن بس
+ * هو اللي يمنح دور الأدمن أو يغيّر في عضوية أو دعوة عليه، عشان صلاحية "تعديل المستخدمين" على دور
+ * مخصص ماتبقاش طريق لترقية النفس.
+ *
+ * @param actorIsAdmin الفاعل عضو نشط على دور الأدمن
+ * @param roleKeys مفاتيح النظام للأدوار اللي العملية بتلمسها (الحالي والجديد)
+ * @returns `true` لو مسموح
+ */
+export function mayTouchAdminRole(
+  actorIsAdmin: boolean,
+  roleKeys: readonly (string | null)[],
+): boolean {
+  return actorIsAdmin || !roleKeys.includes(CLINIC_ADMIN_KEY);
+}
+
+/**
+ * إعادة تفعيل عضو مش بتسيبه نشط من غير ولا فرع نشط (ADR-0011 الخيار ب): لو فروعه كلها اتعطلت
+ * وهو معطّل، الأدمن يغيّر فروعه الأول.
+ *
+ * @param allBranches العضو على كل الفروع
+ * @param activeBranches عدد فروعه اللي لسه نشطة (جوه قفل الفروع)
+ * @returns `true` لو هيوصل لفرع واحد على الأقل
+ */
+export function reachesABranch(allBranches: boolean, activeBranches: number): boolean {
+  return allBranches || activeBranches > 0;
+}
+
 /** الحالة المخزّنة للدعوة. */
 export type StoredInvitationStatus = "pending" | "accepted" | "cancelled";
 

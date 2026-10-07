@@ -29,8 +29,9 @@ only writes outbox events.
    seat, so it runs the same check; resending a live one does not change usage. Over the limit →
    `limit_reached` (409) `{ resource: "users", used, max }`.
 4. **Idempotency.** `POST /v1/invitations` requires `Idempotency-Key`, claimed in
-   `clinic_idempotency_keys` (scope `invitation:create:<userId>`) in the same transaction. A
-   replay returns the stored invitation with no new row, audit row or outbox event.
+   `clinic_idempotency_keys` (scope `invitation:create:<userId>`) in the same transaction. The key
+   stores the invitation id; a replay returns that invitation as it is NOW (a later resend or cancel
+   shows), with no new row, audit row or outbox event.
 5. **Email hold.** Invite calls `reserve_invitation_email` (a platform account, a member of any
    clinic — active or deactivated — or a live invitation → `email_taken`); resend calls
    `renew_invitation_email` before moving `expires_at` (the 0017 trigger checks the hold); cancel
@@ -71,6 +72,24 @@ expiresAt, reason: "invited" | "resent", sealedToken }`, sealed with the event i
     `user.role_changed|branches_changed|deactivated|reactivated`. Before/after come from an
     allowlist (name, email, role id + names, allBranches, branchIds, status, expiresAt); never a
     token, hash or sealed token; names go through `maskPhonesInText` and `redactSecrets`.
+
+15. **Only an admin touches the admin role** (owner, 2026-10-07). Granting the clinic-admin role
+    (invite, role change), and any write on a member or invitation that holds it (role change,
+    branches, deactivate, reactivate, resend, cancel), needs an actor who is an active member on
+    that role; anyone else gets 403 `forbidden`. Without it, a custom role holding
+    `update:users:clinic` or `create:users:clinic` could promote itself. The check reads the role's
+    system key, never its name (`mayTouchAdminRole`).
+16. **Users lock, then branches lock, before any branch check.** Invite and resend take `users:`
+    then `branches:` before checking the role and branches, so a parallel branch deactivation
+    waits and cannot leave a fresh link pointing at a dead branch. Resend re-checks the role and
+    branches like an invite (`role_inactive` / `branch_inactive`), and when the old email hold
+    expired and was taken over and released meanwhile it reserves the free email again.
+    Reactivation also takes the branches lock and refuses (`branch_inactive`) a member limited to
+    branches that are all inactive: the admin changes the member's branches first. Branch
+    deactivation does not count pending invitations among stranded members.
+    TODO(spec): whether it should, or should cancel them.
+17. **No-ops before validation.** Re-sending a member's current role or branch set answers 200
+    and writes nothing, even if that role or one of those branches was deactivated since.
 
 ## Consequences
 

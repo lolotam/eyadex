@@ -97,6 +97,35 @@ export async function countActiveAdmins(tx: Tx, clinicId: string): Promise<numbe
   return Number(rows[0]?.n ?? 0);
 }
 
+/** The account holds an ACTIVE membership of this clinic on the clinic-admin system role. */
+export async function isActiveAdminUser(
+  tx: Tx,
+  clinicId: string,
+  userId: string,
+): Promise<boolean> {
+  const rows = await tx.execute<{ yes: boolean }>(
+    sql`SELECT EXISTS (SELECT 1 FROM memberships m
+          JOIN roles r ON r.clinic_id = m.clinic_id AND r.id = m.role_id
+          WHERE m.clinic_id = ${clinicId} AND m.user_id = ${userId} AND m.status = 'active'
+            AND r.system_key = ${CLINIC_ADMIN_KEY}) AS yes`,
+  );
+  return rows[0]?.yes === true;
+}
+
+/** How many of these branch ids are ACTIVE branches of this clinic. */
+export async function countActiveBranchesIn(
+  tx: Tx,
+  clinicId: string,
+  branchIds: readonly string[],
+): Promise<number> {
+  if (branchIds.length === 0) return 0;
+  const rows = await tx.execute<{ n: number }>(
+    sql`SELECT count(*)::int AS n FROM branches WHERE clinic_id = ${clinicId} AND is_active
+          AND id IN (SELECT value::uuid FROM jsonb_array_elements_text(${JSON.stringify(branchIds)}::jsonb))`,
+  );
+  return Number(rows[0]?.n ?? 0);
+}
+
 export interface MemberRow {
   readonly id: string;
   readonly userId: string;

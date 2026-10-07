@@ -34,11 +34,16 @@ import {
 import {
   activeRole,
   assertActiveBranches,
+  lockClinicBranches,
   lockClinicUsers,
   readSeats,
 } from "../../persistence/pg-user-store.ts";
 import { findInvitationView } from "../../queries/invitation-views.ts";
-import { usersLimitError, type UserActor } from "../user-changes/user-changes.ts";
+import {
+  assertMayTouchAdmin,
+  usersLimitError,
+  type UserActor,
+} from "../user-changes/user-changes.ts";
 
 /** نوع حدث الـ outbox اللي الـ dispatcher هيبعت بيه إيميل الدعوة (ADR-0006، ADR-0012). */
 export const USER_INVITED_EVENT = "clinic.user_invited";
@@ -99,9 +104,13 @@ export class InvitationChanges {
           changed: false,
         };
       }
+      // Users lock, then branches: a parallel branch deactivation waits, so the branches checked
+      // here are still active at COMMIT (ADR-0012 §16).
+      await lockClinicUsers(tx, clinicId);
+      await lockClinicBranches(tx, clinicId);
       const role = await activeRole(tx, clinicId, input.roleId);
       await assertActiveBranches(tx, clinicId, branchIds);
-      await lockClinicUsers(tx, clinicId);
+      await assertMayTouchAdmin(tx, actor, [role.systemKey]);
       await this.assertSeat(tx, clinicId, now);
       const id = ids.newId();
       const expiresAt = invitationExpiry(now);
@@ -154,13 +163,20 @@ export class InvitationChanges {
           locked.status === "accepted" ? "invitation_used" : "invitation_cancelled",
         );
       }
+      // A fresh link must still be acceptable: its role and branches are re-checked like an invite.
+      await lockClinicBranches(tx, clinicId);
+      const role = await activeRole(tx, clinicId, locked.roleId);
+      await assertActiveBranches(tx, clinicId, locked.allBranches ? [] : locked.branchIds);
+      await assertMayTouchAdmin(tx, actor, [role.systemKey]);
       if (decision === "reoccupies_seat") await this.assertSeat(tx, clinicId, now);
       const before = await this.view(tx, clinicId, invitationId);
       const expiresAt = invitationExpiry(now);
-      // The hold first: the 0017 trigger checks it covers the new expiry.
-      if (!(await renewEmail(tx, locked.email, invitationId, expiresAt))) {
-        throw new ApiError("email_taken");
-      }
+      // The hold first: the 0017 trigger checks it covers the new expiry. An expired hold may have
+      // been taken over and released since, so a free email is reserved again for this invitation.
+      const held =
+        (await renewEmail(tx, locked.email, invitationId, expiresAt)) ||
+        (await reserveEmail(tx, locked.email, invitationId, expiresAt));
+      if (!held) throw new ApiError("email_taken");
       const { token, hash } = issueInvitationToken();
       await rotateInvitation(tx, clinicId, invitationId, hash, expiresAt);
       const invitation = await this.view(tx, clinicId, invitationId);
@@ -188,6 +204,7 @@ export class InvitationChanges {
       await lockClinicUsers(tx, clinicId);
       const locked = await findInvitationForUpdate(tx, clinicId, invitationId);
       if (locked === null) throw new ApiError("not_found");
+      await assertMayTouchAdmin(tx, actor, [locked.roleSystemKey]);
       const decision = decideInvitationCancel(locked.status);
       if (decision === "accepted") throw new ApiError("invitation_used");
       const before = await this.view(tx, clinicId, invitationId);
