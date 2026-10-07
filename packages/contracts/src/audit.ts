@@ -118,6 +118,9 @@ export const CLINIC_AUDIT_ACTIONS = [
   "patient.archived",
   "patient.restored",
   "clinic.settings_updated",
+  "clinic.mail_provider_updated",
+  "clinic.mail_provider_removed",
+  "clinic.mail_provider_test_requested",
 ] as const;
 
 /** Actions only the platform writes (its own log). */
