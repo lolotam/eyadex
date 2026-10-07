@@ -1,41 +1,25 @@
 import { randomBytes, randomUUID } from "node:crypto";
 
 import { createDatabase, createDispatcherOutbox } from "@eyadex/db";
-import { SecretSealer } from "@eyadex/secrets";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { PgProviderTestStore } from "../../mail-provider-test/persistence/pg-provider-test-store.ts";
-import type { ClinicProviderCredentials } from "../../mail-provider-test/ports/clinic-sender-factory.ts";
-import { OutboxPoller } from "../../shared/outbox-poller.ts";
-import { invitationDispatcher } from "../dispatch-invitation.ts";
-import { ADMIN_INVITED, INVITATION_EVENT_TYPES, USER_INVITED } from "../domain/invitation-event.ts";
+import { ADMIN_INVITED } from "../domain/invitation-event.ts";
 import { RETRY_DELAYS_MS } from "../domain/retry-schedule.ts";
-import { PgInvitationStateReader } from "../persistence/pg-invitation-state-reader.ts";
 import {
-  APP_URL,
-  captureLogs,
-  drain,
-  eventRow,
-  FakeMail,
-  newToken,
-  owner,
-  ownerJson,
-  parkLeftovers,
-  seedClinic,
-  seedEvent,
-  seedInvitation,
-  urls,
-  userFields,
-} from "./dispatch-fixtures.ts";
-
-const q = (v: string) => `'${v.replace(/'/g, "''")}'`;
-const outboxSealer = new SecretSealer(randomBytes(32).toString("base64"));
-const KEY = randomBytes(32).toString("base64");
-const FAKE_SECRET = "re_fake_clinic_key_value";
-const PLATFORM_FROM = "Eyadex <noreply@example.test>";
+  degradedAudit,
+  FAKE_SECRET,
+  invite,
+  provider,
+  q,
+  routingHarness,
+  state,
+} from "./clinic-routing-fixtures.ts";
+import { drain, eventRow, owner, parkLeftovers, seedClinic, urls } from "./dispatch-fixtures.ts";
 
 let app: ReturnType<typeof createDatabase>;
 let outbox: ReturnType<typeof createDispatcherOutbox>;
+const make = () => routingHarness(app, outbox);
 
 beforeAll(() => {
   parkLeftovers();
@@ -46,80 +30,6 @@ afterEach(parkLeftovers);
 afterAll(async () => {
   await Promise.all([app.close(), outbox.close()]);
 });
-
-function make() {
-  const platform = new FakeMail();
-  const clinic = new FakeMail();
-  const seen: ClinicProviderCredentials[] = [];
-  const clock = { t: new Date(), now: () => new Date(clock.t) };
-  const { lines, logger } = captureLogs();
-  const poller = new OutboxPoller({
-    outbox,
-    types: INVITATION_EVENT_TYPES,
-    now: () => clock.now(),
-    intervalMs: 20,
-    logger,
-    handle: invitationDispatcher({
-      sealer: outboxSealer,
-      invitations: new PgInvitationStateReader(app, { newId: randomUUID }),
-      mail: platform,
-      clock,
-      appUrl: APP_URL,
-      logger,
-      clinicMail: {
-        sealer: new SecretSealer(KEY),
-        senders: {
-          open: async (c) => {
-            seen.push(c);
-            return { sender: clinic, close: () => undefined };
-          },
-        },
-        platformFrom: PLATFORM_FROM,
-      },
-    }),
-  });
-  return { platform, clinic, seen, clock, lines, poller };
-}
-
-interface ProviderOptions {
-  verified?: boolean;
-  degraded?: boolean;
-  failures?: number;
-  sealKey?: string;
-}
-
-function provider(clinicId: string, o: ProviderOptions = {}): string {
-  const id = randomUUID();
-  const sealed = new SecretSealer(o.sealKey ?? KEY).seal(FAKE_SECRET, id);
-  owner(`INSERT INTO clinic_mail_providers (clinic_id, id, kind, from_name, from_email, reply_to,
-           sealed_credentials, verified_at, degraded_at, consecutive_failures, created_at, updated_at)
-         VALUES (${q(clinicId)}, ${q(id)}, 'resend', 'Clinic Desk', 'clinic@example.test',
-           'desk@example.test', ${q(sealed)}, ${o.verified === false ? "NULL" : "now()"},
-           ${o.degraded ? "now()" : "NULL"}, ${o.failures ?? 0}, now(), now())`);
-  return id;
-}
-
-type ProviderState = {
-  consecutive_failures: number;
-  degraded_at: string | null;
-  last_error: string | null;
-};
-const state = (id: string) =>
-  ownerJson<ProviderState[]>(
-    `SELECT consecutive_failures, degraded_at, last_error FROM clinic_mail_providers WHERE id = ${q(id)}`,
-  )[0]!;
-const degradedAudit = (clinicId: string) =>
-  ownerJson<{ actor_user_id: string; details: Record<string, unknown> }[]>(
-    `SELECT actor_user_id, details FROM audit_log WHERE clinic_id = ${q(clinicId)}
-     AND action = 'clinic.mail_provider_degraded'`,
-  );
-
-function invite(type = USER_INVITED, clinic = seedClinic()) {
-  const token = newToken();
-  const inv = seedInvitation(clinic, token);
-  const id = seedEvent(outboxSealer, type, clinic.clinicId, userFields(inv, "en"), token);
-  return { clinic, inv, id };
-}
 
 describe("clinic provider routing (ADR-0014 7c-2b)", () => {
   it("a verified, healthy provider sends with the clinic from/reply-to; the platform gets nothing", async () => {
