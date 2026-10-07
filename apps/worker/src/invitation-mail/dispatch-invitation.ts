@@ -74,7 +74,7 @@ export function invitationDispatcher(deps: InvitationDispatchDeps) {
     clinic: ClinicMailDeps,
     locked: LockedClinicProvider,
     message: MailMessage,
-  ): Promise<MailResult> => {
+  ): Promise<{ result: MailResult; degraded: boolean }> => {
     const { row } = locked;
     let result: MailResult;
     let secret: string | null = null;
@@ -100,7 +100,7 @@ export function invitationDispatcher(deps: InvitationDispatchDeps) {
         sender.close();
       }
     }
-    await locked.record(
+    const degraded = await locked.record(
       result.sent
         ? { ok: true }
         : {
@@ -110,7 +110,17 @@ export function invitationDispatcher(deps: InvitationDispatchDeps) {
             at: deps.clock.now(),
           },
     );
-    return result.sent ? { sent: true, provider: row.kind, fallback: false } : result;
+    return {
+      result: result.sent ? { sent: true, provider: row.kind, fallback: false } : result,
+      degraded,
+    };
+  };
+
+  // This attempt degraded the provider: its next attempt goes through the platform, even when the
+  // schedule would give up now (ambiguous failures may have used up the earlier attempts).
+  const platformNext = (event: ClaimedEvent, error: string): DispatchOutcome => {
+    note(event, "retry", { error, reason: "provider_degraded", attempt: event.attempts + 1 });
+    return { kind: "retry", error, nextAttemptAt: deps.clock.now() };
   };
 
   return async (event: ClaimedEvent): Promise<DispatchOutcome> => {
@@ -161,8 +171,9 @@ export function invitationDispatcher(deps: InvitationDispatchDeps) {
         const locked = state.clinicProvider;
         const route = routeInvitation(event.type, locked?.row ?? null);
         let result: MailResult;
+        let degradedNow = false;
         if (route.kind === "clinic" && locked !== null && deps.clinicMail !== undefined) {
-          result = await viaClinic(deps.clinicMail, locked, message);
+          ({ result, degraded: degradedNow } = await viaClinic(deps.clinicMail, locked, message));
         } else if (route.kind === "platform_on_behalf" && deps.clinicMail !== undefined) {
           // The clinic's name and reply-to, the platform's verified address: never the clinic's domain.
           result = await deps.mail.send({
@@ -173,7 +184,9 @@ export function invitationDispatcher(deps: InvitationDispatchDeps) {
         } else {
           result = await deps.mail.send(message);
         }
-        if (!result.sent) return fail(event, result.error);
+        if (!result.sent) {
+          return degradedNow ? platformNext(event, result.error) : fail(event, result.error);
+        }
         note(event, "sent", {
           provider: result.provider,
           fallback: result.fallback,

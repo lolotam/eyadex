@@ -13,12 +13,7 @@ const SMTP_DEFINITIVE = new Set([
   "smtp_port_not_allowed",
 ]);
 
-const OTHER_DEFINITIVE = new Set([
-  "resend_unreachable",
-  "resend_401",
-  "resend_403",
-  "seal_unreadable",
-]);
+const OTHER_DEFINITIVE = new Set(["resend_unreachable", "seal_unreadable"]);
 
 /**
  * فشل مزود العيادة أكيد (بيتحسب في التحويل للمنصة) ولا غامض؟ الأكيد: Resend 5xx أو ما وصلش، مفتاح
@@ -30,8 +25,9 @@ const OTHER_DEFINITIVE = new Set([
  */
 export function isDefinitiveClinicFailure(error: string): boolean {
   if (OTHER_DEFINITIVE.has(error) || SMTP_DEFINITIVE.has(error)) return true;
-  // Resend may append `:<name>` to the status; SMTP is a bare response code.
-  return /^resend_5\d\d(?::|$)/.test(error) || /^smtp_5\d\d$/.test(error);
+  // Resend may append `:<name>` to any status (a revoked key can be `resend_401:validation_error`);
+  // SMTP is a bare response code.
+  return /^resend_(?:5\d\d|401|403)(?::|$)/.test(error) || /^smtp_5\d\d$/.test(error);
 }
 
 /** الخطوة بعد فشل أكيد: العداد الجديد، وهل المزود بيتحوّل دلوقتي. */

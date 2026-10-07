@@ -143,6 +143,21 @@ describe("clinic provider degradation", () => {
     expect(state(pid).consecutive_failures).toBe(0);
   });
 
+  it("degrading on the event's last attempt still leaves it one try through the platform", async () => {
+    const h = make();
+    const { clinic, id } = invite();
+    const pid = provider(clinic.clinicId, { failures: 2 });
+    // Ambiguous failures already used four of the five attempts.
+    owner(`UPDATE outbox_events SET attempts = 4 WHERE id = ${q(id)}`);
+    h.clinic.result = async () => ({ sent: false, error: "resend_401:validation_error" });
+    await drain(h.poller);
+    expect(state(pid).degraded_at).not.toBeNull();
+    expect(eventRow(id).failed_at).toBeNull();
+    await drain(h.poller);
+    expect(h.platform.sent).toHaveLength(1);
+    expect(eventRow(id).dispatched_at).not.toBeNull();
+  });
+
   it("a wrong seal key is seal_unreadable and counts as definitive", async () => {
     const h = make();
     const { clinic, id } = invite();

@@ -17,6 +17,8 @@ describe("clinic provider failure classification (ADR-0014 7c-2b)", () => {
     "resend_unreachable",
     "resend_401",
     "resend_403",
+    "resend_401:validation_error",
+    "resend_403:restricted_api_key",
     "smtp_econnrefused",
     "smtp_econnection",
     "smtp_econnreset",
