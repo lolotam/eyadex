@@ -63,14 +63,32 @@ handed to SMTP after Resend may already have accepted it is mailed twice.
    `MAIL_PROVIDER_SEAL_KEY`, not the plain SHA-256 other routes use: an unkeyed hash in
    `clinic_idempotency_keys` would let anyone who reads that table guess a weak password offline.
 5. **Test send is a worker job.** The use case appends `clinic.mail_provider_test_requested`
-   `{ clinicId, providerId, actorUserId }` (ids only) and an audit row. The worker
+   `{ clinicId, providerId, providerVersion, actorUserId }` (ids and a version only) and an audit row. The worker
    (`apps/worker/src/mail-provider-test`), in one `withTenant` transaction on `eyadex_app`: locks the row
    `FOR UPDATE`, reads the actor's **active** membership email (never an address from a request), skips with
-   no write if the row is gone or `updated_at` is later than the event (replaced since), opens the seal
+   no write if the row is gone or its `version` differs from the event's (replaced since), opens the seal
    (`seal_unreadable` on failure), sends one fixed bilingual message from `fromName <fromEmail>` with
    `replyTo` and `Idempotency-Key` = event id through the clinic's own Resend key or a fresh SMTP transporter
    closed after the send — **no platform fallback** — and writes `verified_at` or a short `last_error`. The
    outbox outcome is `dispatched` either way; a DB error retries on the shared schedule.
+   - **Supersession by version, not clock.** Every replacement bumps `version` in its transaction; the
+     event carries the version it was requested for and the worker compares it under the row lock. A
+     wall-clock comparison fails across API replicas with skewed clocks or within one millisecond.
+   - **One test per clinic per minute.** `requestTest` reads `test_requested_at` after the row lock and
+     refuses a second request within 60 s (`rate_limited`, `retryAfterSeconds`); a replacement clears it.
+     An SMTP test can hold the worker's single poller for 5 s, so the cooldown bounds how much one clinic
+     can delay everyone's invitations.
+   - **Public addresses only (SSRF).** A clinic chooses the SMTP host and port, and the worker connects to
+     them. The worker allows ports 25/465/587/2525 only, resolves the host (1.5 s cap, inside the 5 s
+     budget), refuses it unless every answer is a public address (loopback, private, shared, link-local,
+     documentation, multicast, reserved and ULA ranges blocked; IPv4-mapped IPv6 unwrapped first), and
+     pins the transport to the checked address with `tls.servername` = the name, so the certificate is
+     still verified by name and DNS rebinding cannot swap the target. Codes: `smtp_port_not_allowed`,
+     `smtp_dns`, `smtp_blocked_address`. The contract also refuses IP literals, single-label and local-only
+     names and other ports at `PUT`; that check is syntax only, and the worker's is the guard.
+   - **Audit masking.** Every clinic-typed field in the audit snapshots (`fromName`, `fromEmail`,
+     `replyTo`, `smtpHost`, `smtpUser`) goes through `maskPhonesInText`. The view returned to the admin is
+     unmasked.
 6. **Mail port.** `MailMessage` gained optional `from` and `replyTo`; without them both adapters use
    `MAIL_FROM`, so invitations are unchanged. Display names are stripped of line breaks (no header injection).
 
