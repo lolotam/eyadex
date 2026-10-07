@@ -13,6 +13,10 @@ import { FallbackMailSender } from "./invitation-mail/mail/fallback-mail-sender.
 import { ResendMailSender } from "./invitation-mail/mail/resend-mail-sender.ts";
 import { createSmtpTransport, SmtpMailSender } from "./invitation-mail/mail/smtp-mail-sender.ts";
 import { PgInvitationStateReader } from "./invitation-mail/persistence/pg-invitation-state-reader.ts";
+import { MAIL_PROVIDER_TEST_REQUESTED } from "./mail-provider-test/domain/test-event.ts";
+import { mailProviderTestHandler } from "./mail-provider-test/handle-test-requested.ts";
+import { RealClinicSenderFactory } from "./mail-provider-test/mail/clinic-sender-factory.ts";
+import { PgProviderTestStore } from "./mail-provider-test/persistence/pg-provider-test-store.ts";
 import { routeEvents } from "./shared/event-router.ts";
 import { readConfig } from "./shared/config.ts";
 import { WORKER_LOG_EVENTS } from "./shared/log-events.ts";
@@ -46,6 +50,13 @@ try {
   const route = routeEvents({
     [ADMIN_INVITED]: mailInvitation,
     [USER_INVITED]: mailInvitation,
+    [MAIL_PROVIDER_TEST_REQUESTED]: mailProviderTestHandler({
+      sealer: new SecretSealer(config.MAIL_PROVIDER_SEAL_KEY),
+      store: new PgProviderTestStore(app),
+      senders: new RealClinicSenderFactory(),
+      clock,
+      logger,
+    }),
     [BRANCH_DEACTIVATED]: branchDeactivatedHandler({
       canceller: new PgOrphanInvitationCanceller(app, ids),
       clock,
