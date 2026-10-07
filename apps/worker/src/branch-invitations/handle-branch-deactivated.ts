@@ -33,6 +33,7 @@ export function branchDeactivatedHandler(deps: BranchDeactivatedDeps) {
         {
           clinicId: parsed.clinicId,
           branchId: parsed.branchId,
+          deactivatedAt: new Date(parsed.deactivatedAt),
           eventId: event.id,
           actorUserId: parsed.actorUserId,
         },

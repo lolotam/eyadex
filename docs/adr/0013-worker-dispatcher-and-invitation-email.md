@@ -84,9 +84,14 @@ AND event_type IN (…) ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1`. The
       before the branches lock here too, or the two would deadlock. A mail send that holds the row
       `FOR SHARE` (§4) finishes first.
     - **Decision at handling time.** Cancel every invitation of the clinic that is `pending`, not
-      `all_branches`, and has no `invitation_branches` row on an active branch. `branchId` is audit
-      detail only: a branch reactivated before the job runs means no cancel, and a replay or retry
-      cancels nothing new.
+      `all_branches`, is on the event's branch, and has no `invitation_branches` row on an active
+      branch. A branch reactivated before the job runs means no cancel, and a replay or retry cancels
+      nothing new. An invitation is orphaned only by the deactivation of its last active branch, whose
+      own event covers it, so scoping to the event's branch loses nothing.
+    - **Superseded events.** When the clinic audit log has a `branch.reactivated` row for the branch
+      after the event's `deactivatedAt` (read under the branches lock, which reactivation also takes),
+      the event cancels nothing: a later deactivation has its own event, and the audit row must name
+      that admin, not the one whose deactivation was undone.
     - **Effect per invitation.** `release_invitation_email`, `status = 'cancelled'`, `responded_at`, and
       one `audit_log` row: actor = the payload's `actorUserId`, action `invitation.auto_cancelled`
       (distinct from the manual `invitation.cancelled`), entity `invitation`, details

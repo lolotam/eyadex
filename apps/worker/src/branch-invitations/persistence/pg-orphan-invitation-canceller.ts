@@ -47,13 +47,16 @@ export class PgOrphanInvitationCanceller implements OrphanInvitationCanceller {
   }
 
   cancelOrphaned(request: OrphanCancelRequest, now: () => Date): Promise<number> {
-    const { clinicId } = request;
+    const { clinicId, branchId } = request;
     return this.#db.withTenant(clinicId, async (tx) => {
       // Lock order (ADR-0012 §16): users → invitation rows (by id) → branches → clock → fresh read.
       await advisory(tx, `users:${clinicId}`);
       const locked = (await tx.execute(
         sql`SELECT i.id FROM invitations i
             WHERE i.clinic_id = ${clinicId} AND i.status = 'pending' AND NOT i.all_branches
+              AND EXISTS (
+                SELECT 1 FROM invitation_branches eb
+                WHERE eb.clinic_id = i.clinic_id AND eb.invitation_id = i.id AND eb.branch_id = ${branchId})
               AND NOT EXISTS (
                 SELECT 1 FROM invitation_branches ib
                 JOIN branches b ON b.clinic_id = ib.clinic_id AND b.id = ib.branch_id
@@ -62,6 +65,7 @@ export class PgOrphanInvitationCanceller implements OrphanInvitationCanceller {
       )) as unknown as { id: string }[];
       if (locked.length === 0) return 0;
       await advisory(tx, `branches:${clinicId}`);
+      if (await this.#superseded(tx, request)) return 0;
       const at = now();
       const rows = await this.#fresh(
         tx,
@@ -82,6 +86,20 @@ export class PgOrphanInvitationCanceller implements OrphanInvitationCanceller {
       }
       return cancelled;
     });
+  }
+
+  // A reactivation after this event means a later deactivation (if any) has its own event and actor, so
+  // this one must not cancel and audit in the older admin's name. Read under the branches lock, which
+  // reactivation takes too.
+  async #superseded(tx: Tx, request: OrphanCancelRequest): Promise<boolean> {
+    const rows = (await tx.execute(
+      sql`SELECT 1 FROM audit_log
+          WHERE clinic_id = ${request.clinicId} AND entity_type = 'branch'
+            AND entity_id = ${request.branchId} AND action = 'branch.reactivated'
+            AND created_at > ${request.deactivatedAt.toISOString()}::timestamptz
+          LIMIT 1`,
+    )) as unknown as unknown[];
+    return rows.length > 0;
   }
 
   async #fresh(tx: Tx, clinicId: string, ids: string[]): Promise<Row[]> {

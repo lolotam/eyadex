@@ -128,6 +128,7 @@ describe("auto-cancel on clinic.branch_deactivated (ADR-0013 §12)", () => {
     const request = {
       clinicId: clinic.clinicId,
       branchId: deactivated,
+      deactivatedAt: new Date(),
       eventId: randomUUID(),
       actorUserId: randomUUID(),
     };
@@ -222,6 +223,7 @@ describe("auto-cancel on clinic.branch_deactivated (ADR-0013 §12)", () => {
     const request = {
       clinicId: clinic.clinicId,
       branchId: deactivated,
+      deactivatedAt: new Date(),
       eventId: randomUUID(),
       actorUserId: randomUUID(),
     };
@@ -267,6 +269,7 @@ describe("auto-cancel on clinic.branch_deactivated (ADR-0013 §12)", () => {
     const request = {
       clinicId,
       branchId: deactivated,
+      deactivatedAt: new Date(),
       eventId: randomUUID(),
       actorUserId: randomUUID(),
     };
