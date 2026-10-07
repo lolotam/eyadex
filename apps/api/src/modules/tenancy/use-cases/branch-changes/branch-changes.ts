@@ -20,6 +20,7 @@ import {
   decideBranchReactivation,
 } from "../../domain/branch-rules.ts";
 import { branchesUsage, checkLimit, limitReachedDetails } from "../../domain/limits.ts";
+import { publishBranchDeactivated } from "../../events/published.ts";
 import type { Clock } from "../../ports/clock.ts";
 import {
   countActiveBranches,
@@ -237,6 +238,12 @@ export class BranchChanges {
         after: auditSnapshot(decided.after),
         ...decided.extra,
       });
+      // Unconditional: tenancy never reads invitations; the worker decides what to cancel (ADR-0013 §12).
+      if (decided.action === "branch.deactivated") {
+        const at = now.toISOString();
+        const payload = { clinicId, branchId, actorUserId: actor.userId, deactivatedAt: at };
+        await publishBranchDeactivated(tx, this.deps.ids.newId(), payload, now);
+      }
       return { branch: await this.reload(tx, clinicId, branchId), changed: true };
     });
   }

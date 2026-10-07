@@ -38,7 +38,7 @@
 - [ ] Retention of idempotency keys (platform ledger and `clinic_idempotency_keys`)
 - [x] Slice 7: users + invitations API — invite/resend/cancel (outbox `clinic.user_invited`, sealed token, rotation), lists, role/branches, deactivate/reactivate with session revoke, last admin and user limit under the users lock, stranded-member confirmation on branch deactivation (ADR-0012, no SQL)
 - [x] Slice 7b-1: worker dispatches `clinic.admin_invited` and `clinic.user_invited` through Resend with the send-time check (ADR-0013)
-- [ ] Slice 7b-2: auto-cancel invitations on deactivated branches
+- [x] Slice 7b-2: the worker auto-cancels pending invitations left with no active branch (ADR-0013 §12)
 - [ ] Slice 7c: platform SMTP and per-clinic mail providers
 - [ ] Worker production image + Dokploy service (orchestrator; not in 7b-1)
 - [ ] Retention of dispatched and failed outbox rows (TODO(spec))

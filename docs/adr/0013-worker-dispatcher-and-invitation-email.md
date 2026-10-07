@@ -61,10 +61,39 @@ AND event_type IN (…) ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1`. The
     `/health` stays pure liveness; `/health/ready` pings both pools (503 when one is down). Log lines
     are catalogued in `log-events.ts` and carry the event id, type, outcome, skip reason or error code
     only.
+12. **Second job: auto-cancel on a deactivated branch (slice 7b-2, ADR-0012 §16).**
+    - **Event.** Every successful `BranchChanges.deactivate` appends one `clinic.branch_deactivated`
+      in the same `withTenant` transaction (`tenancy/events/published.ts`), payload
+      `{ clinicId, branchId, actorUserId, deactivatedAt }` and nothing else. No event on a no-op or a
+      refusal (`last_active_branch`, `branch_has_exclusive_members`). Tenancy emits unconditionally
+      and never reads or writes invitations.
+    - **Routing.** One poller claims the union of the handled types through `shared/event-router.ts`
+      (type → handler); a type with no handler is never claimed.
+    - **Payload.** Zod-validated; malformed, or `clinicId` ≠ the row's `clinic_id` → `failed`
+      (`invalid_payload`) at once.
+    - **Lock order** on the `eyadex_app` pool under `withTenant(clinicId)`: advisory `users:<clinic>` →
+      candidate invitation rows `FOR UPDATE` ordered by id → advisory `branches:<clinic>` → clock read →
+      a fresh statement re-evaluates each locked row. The keys and function are the API's, so this job
+      serialises with invites, resends, copy-link, cancels, accepts and branch changes. A mail send that
+      holds the row `FOR SHARE` (§4) finishes first.
+    - **Decision at handling time.** Cancel every invitation of the clinic that is `pending`, not
+      `all_branches`, and has no `invitation_branches` row on an active branch. `branchId` is audit
+      detail only: a branch reactivated before the job runs means no cancel, and a replay or retry
+      cancels nothing new.
+    - **Effect per invitation.** `release_invitation_email`, `status = 'cancelled'`, `responded_at`, and
+      one `audit_log` row: actor = the payload's `actorUserId`, action `invitation.auto_cancelled`
+      (distinct from the manual `invitation.cancelled`), entity `invitation`, details
+      `{ reason: "branch_deactivated", branchId, eventId, before, after }` with the manual cancel's
+      snapshot shape and names passed through `maskPhonesInText`. This is a system rule: it applies
+      whether or not the deactivating admin could cancel that invitation by hand (for example one on
+      the clinic-admin role).
+    - **Outcome.** `dispatched` on success (log `outcome: "cancelled"`, `count`). A database error
+      rolls the tenant transaction back and retries on the mail schedule with `last_error = db_error`;
+      after the 5th failure it is `failed`. No raw error message and no email is logged.
 
 ## Consequences
 
 - An email can arrive late (backoff) but never with a dead link, and never twice for one event.
 - A clinic that is suspended still gets its pending invitation mailed; acceptance refuses it (ADR-0008).
-- Auto-cancel of invitations on a deactivated branch is 7b-2; SMTP and per-clinic providers are 7c.
+- Auto-cancel shipped in 7b-2 (§12); SMTP and per-clinic providers are 7c.
 - TODO(spec): retention of dispatched and failed outbox rows.
