@@ -38,7 +38,7 @@ When reviewing a pull request, report only real defects, ranked by severity. Che
 
 - The product brand is `Eyadex` in both languages and its domain is `eyadex.com`; `clinic` remains the business-domain term in code and URLs.
 - Frontend only: no Lovable Cloud, no database, no server functions with business logic — a separate backend API comes later.
-- All data goes through the `ApiClient` interface (`apps/web/src/shared/api/api-client.ts`) via `useApi()`; screens never import the mock adapter — so the adapter can be swapped for HTTP.
+- All data goes through the `ApiClient` interface (`apps/web/src/shared/api/api-client.ts`) via `useApi()`; screens never import an adapter. `VITE_API_MODE` (build time, default `mock`) picks the mock or the HTTP adapter (`shared/api/http/`, same-origin `/api`, one mapper file per namespace, every answer `safeParse`d with the API schema) — so the preview and tests keep the mock while production talks to the API.
 - Zod schemas in `packages/contracts` (alias `@eyadex/contracts/*`) are the single source of types for forms and the API client.
 - Folders are named after the business (`apps/web/src/platform`, `branches`, `users`, `roles`, `patients`, `audit`, `settings`, `shared`); never `utils/helpers/common/misc/services/models` — keeps the domain readable.
 - Route files are thin: head() + component re-export only — pages live in business folders.
