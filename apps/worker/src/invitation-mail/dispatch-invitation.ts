@@ -116,9 +116,10 @@ export function invitationDispatcher(deps: InvitationDispatchDeps) {
     };
   };
 
-  // This attempt degraded the provider: its next attempt goes through the platform, even when the
-  // schedule would give up now (ambiguous failures may have used up the earlier attempts).
-  const platformNext = (event: ClaimedEvent, error: string): DispatchOutcome => {
+  // This attempt degraded the provider, so the next one goes through the platform. When the schedule
+  // would give up now (ambiguous failures used the earlier attempts), that platform try is kept anyway.
+  const afterDegrading = (event: ClaimedEvent, error: string): DispatchOutcome => {
+    if (afterFailure(event.attempts, deps.clock.now()).kind === "retry") return fail(event, error);
     note(event, "retry", { error, reason: "provider_degraded", attempt: event.attempts + 1 });
     return { kind: "retry", error, nextAttemptAt: deps.clock.now() };
   };
@@ -185,7 +186,7 @@ export function invitationDispatcher(deps: InvitationDispatchDeps) {
           result = await deps.mail.send(message);
         }
         if (!result.sent) {
-          return degradedNow ? platformNext(event, result.error) : fail(event, result.error);
+          return degradedNow ? afterDegrading(event, result.error) : fail(event, result.error);
         }
         note(event, "sent", {
           provider: result.provider,
