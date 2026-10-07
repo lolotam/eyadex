@@ -263,3 +263,39 @@ A 6th P2 was waived by the advisor and recorded in ADR-0013 §12 as a known limi
   - grants: `eyadex_app` only, none for the platform or dispatcher roles.
 
 **Next:** 7c-1, 7c-2, then the web-wiring + deploy slice, then the Resend webhook.
+
+## 11. Update 2026-10-07 (after PRs #42–#44: slice 7c complete)
+
+**Merged:**
+- **#42, slice 7c-1:** platform SMTP fallback.
+  - Resend is primary. SMTP is used only after a definitive Resend failure (5xx, or `resend_unreachable`).
+  - Resend and SMTP share one 7 s send deadline.
+  - `nodemailer@10.0.15` was added by the orchestrator.
+  - Docs: ADR-0014.
+- **#43, slice 7c-2a:** a clinic configures, seals and verifies its own provider.
+  - New `settings` API module. Owner decision: `settings → identity`, imported only through `identity/index.ts`; CLAUDE.architecture.md §2.2 is updated.
+  - Migration 0030 `clinic_mail_providers`, sealed with `MAIL_PROVIDER_SEAL_KEY`. The test send runs in the worker.
+  - Hardening from 3 fix rounds:
+    - SSRF guard: public addresses only; IPv6 limited to `2000::/3`; ports 25/465/587/2525; DNS answers pinned, IPv4 tried first, at most 4.
+    - A 60 s test cooldown, ledgered in the audit.
+    - A per-clinic advisory lock on provider writes.
+    - A `version` column on the provider row.
+    - Masking of every clinic-typed field in the audit.
+- **#44, slice 7c-2b:** `clinic.user_invited` goes through a verified, non-degraded clinic provider.
+  - After 3 definitive failures in a row, the provider degrades and the platform sends on the clinic's behalf (the clinic's display name, the platform address, the clinic's reply-to).
+  - Timeouts do not count toward degradation.
+  - Recovery happens only through a successful re-test or a replacement.
+  - The degradation audit row names the inviter as the actor.
+  - Fixes from review: suffixed Resend 401/403 count as definitive; an event degraded on its last attempt keeps one platform try; `clinic_mail_provider` is accepted as an audit entity.
+  - Accepted limitation (ADR-0014): if an admin changes the provider between ambiguous retries, the invitee may get a second copy.
+
+**Deploy needs, not done yet:**
+- **Migrations:** 0029 and 0030 are not on production.
+- **Worker:** it has no Dockerfile, image or Dokploy service.
+- **Shared secrets:** the API and the worker must share `OUTBOX_SEAL_KEY` and `MAIL_PROVIDER_SEAL_KEY`.
+- **Worker env:** `RESEND_API_KEY`, `MAIL_FROM`, the optional `SMTP_*` set, and `DISPATCHER_DATABASE_URL`.
+- **Owner:**
+  - pastes the secrets into Dokploy;
+  - must remove the spaces from the Gmail app password.
+
+**Next:** the deploy slice (worker image, Dokploy services, production migrations with a backup first), then wiring the web app to the HTTP API, then the Resend webhook, then PRD §5.5 items 8–12.
