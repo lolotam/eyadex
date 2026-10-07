@@ -15,3 +15,4 @@ export {
 } from "./auth.ts";
 export { outboxEvents, idempotencyKeys } from "./outbox.ts";
 export { clinicIdempotencyKeys } from "./clinic-idempotency.ts";
+export { clinicMailProviders } from "./clinic-mail-providers.ts";

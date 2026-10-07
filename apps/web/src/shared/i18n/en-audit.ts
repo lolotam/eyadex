@@ -37,6 +37,7 @@ export const enAudit = {
       patient: "Patient",
       platform_account: "Platform account",
       platform_settings: "Platform settings",
+      clinic_mail_provider: "Mail provider",
     },
     actions: {
       branch: {
@@ -80,6 +81,9 @@ export const enAudit = {
         subscription_updated: "Subscription updated",
         feature_toggled: "Module switched",
         settings_updated: "Clinic settings updated",
+        mail_provider_updated: "Mail provider saved",
+        mail_provider_removed: "Mail provider removed",
+        mail_provider_test_requested: "Mail provider test requested",
       },
       platform_account: {
         invited: "Platform member invited",

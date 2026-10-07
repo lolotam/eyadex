@@ -1,11 +1,13 @@
 import { createTransport } from "nodemailer";
 
+import { displayName } from "../domain/mail-address.ts";
 import type { MailMessage, MailResult, MailSender } from "../ports/mail-sender.ts";
 
 /** The part of a nodemailer transporter this file uses: tests pass a jsonTransport/streamTransport. */
 export interface SmtpTransport {
   sendMail(mail: {
-    from: string;
+    from: string | { name: string; address: string };
+    replyTo?: string;
     to: string;
     subject: string;
     html: string;
@@ -19,6 +21,11 @@ export interface SmtpSettings {
   readonly port: number;
   readonly user: string;
   readonly password: string;
+  /**
+   * The name the certificate must match when `host` is an address pinned after a DNS check (a clinic's
+   * own SMTP, 7c-2a): TLS still verifies the server by its name.
+   */
+  readonly servername?: string;
 }
 
 // The invitation row is locked during the send (ADR-0013 §4): the whole send stays inside 5 s.
@@ -35,6 +42,7 @@ export function createSmtpTransport(settings: SmtpSettings): SmtpTransport {
     secure: settings.port === 465,
     requireTLS: settings.port !== 465,
     auth: { user: settings.user, pass: settings.password },
+    ...(settings.servername === undefined ? {} : { tls: { servername: settings.servername } }),
     connectionTimeout: 2_000,
     greetingTimeout: 1_500,
     socketTimeout: 1_500,
@@ -76,7 +84,11 @@ export class SmtpMailSender implements MailSender {
     try {
       const outcome = await Promise.race([
         this.transport.sendMail({
-          from: this.from,
+          from:
+            message.from === undefined
+              ? this.from
+              : { name: displayName(message.from.name), address: message.from.address },
+          ...(message.replyTo === undefined ? {} : { replyTo: message.replyTo }),
           to: message.to,
           subject: message.subject,
           html: message.html,

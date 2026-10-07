@@ -27,6 +27,8 @@ BEGIN
     INSERT INTO patients VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'9')::uuid, '1', 'x', '+9650000000'||s, '1990-01-01', 'female', ('00000000-0000-7000-8000-0000000001'||s||'2')::uuid, null, 'active', now(), now());
     INSERT INTO clinic_counters VALUES (c, 'patient_file_number', 1, now());
     INSERT INTO clinic_idempotency_keys VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'c')::uuid, 'branch:create', 'k', repeat('a', 64), '{}', now());
+    INSERT INTO clinic_mail_providers (clinic_id, id, kind, from_name, from_email, sealed_credentials, created_at, updated_at)
+      VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'d')::uuid, 'resend', 'n', s||'@example.com', 'v1.x.y.z', now(), now());
     INSERT INTO audit_log VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'a')::uuid, ('00000000-0000-7000-8000-0000000002'||s||'5')::uuid, 'user.invited', 'administrative', 'user', null, null, '{}', now());
     INSERT INTO audit_log VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'b')::uuid, ('00000000-0000-7000-8000-0000000002'||s||'5')::uuid, 'patient.opened', 'patient_access', 'patient', null, null, '{}', now());
   END LOOP;
@@ -53,7 +55,7 @@ BEGIN
   -- Every clinic table: clinic A sees zero rows of clinic B.
   FOREACH t IN ARRAY ARRAY['clinic_features','branches','roles','role_permissions','memberships',
       'membership_branches','invitations','invitation_branches','patients','audit_log','clinic_counters',
-      'clinic_idempotency_keys'] LOOP
+      'clinic_idempotency_keys','clinic_mail_providers'] LOOP
     EXECUTE format('SELECT count(*) FROM %I WHERE clinic_id = $1', t) INTO n USING other;
     IF n <> 0 THEN RAISE EXCEPTION 'ISO-01 read leak: % shows % rows of another clinic', t, n; END IF;
     EXECUTE format('SELECT count(*) FROM %I', t) INTO n;
@@ -111,6 +113,11 @@ BEGIN
     RAISE EXCEPTION 'ISO-01 write leak: clinic_idempotency_keys';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   BEGIN
+    INSERT INTO clinic_mail_providers (clinic_id, id, kind, from_name, from_email, sealed_credentials, created_at, updated_at)
+      VALUES (b, gen_random_uuid(), 'resend', 'x', 'x@example.com', 'v1', now(), now());
+    RAISE EXCEPTION 'ISO-01 write leak: clinic_mail_providers';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
     INSERT INTO audit_log VALUES (b, gen_random_uuid(), gen_random_uuid(), 'user.invited', 'administrative', 'user', null, null, '{}', now());
     RAISE EXCEPTION 'ISO-01 write leak: audit_log';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
@@ -118,7 +125,7 @@ BEGIN
   DECLARE t text;
   BEGIN
     FOREACH t IN ARRAY ARRAY['branches','roles','role_permissions','memberships','membership_branches',
-        'invitations','invitation_branches','patients','clinic_counters'] LOOP
+        'invitations','invitation_branches','patients','clinic_counters','clinic_mail_providers'] LOOP
       BEGIN
         EXECUTE format('UPDATE %I SET clinic_id = $1', t) USING b;
         RAISE EXCEPTION 'ISO-01 write leak: % rows can be moved to another clinic', t;
@@ -157,6 +164,8 @@ BEGIN
   BEGIN PERFORM 1 FROM clinic_counters LIMIT 1; RAISE EXCEPTION 'PLAT-01: platform can read clinic_counters';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   BEGIN PERFORM 1 FROM clinic_idempotency_keys LIMIT 1; RAISE EXCEPTION 'PLAT: platform can read clinic_idempotency_keys';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN PERFORM 1 FROM clinic_mail_providers LIMIT 1; RAISE EXCEPTION 'PLAT: platform can read clinic_mail_providers';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   BEGIN PERFORM 1 FROM audit_log LIMIT 1; RAISE EXCEPTION 'PLAT-01: platform can read audit_log';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
