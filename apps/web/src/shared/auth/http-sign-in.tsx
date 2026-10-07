@@ -12,6 +12,9 @@ import type { Area } from "@/shared/api/area-host";
 import { TextField } from "@/shared/forms/form-fields";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { DEFAULT_PERSONA, SESSION_KEY } from "@/shared/persona/persona-context";
+import type { TotpEnrollment } from "@/shared/api/http/auth-client";
+import { BackupCodeStep } from "./backup-code-step";
+import { BackupCodesList } from "./backup-codes-list";
 import { QrCode } from "./qr-code";
 import { TotpStep } from "./totp-step";
 import { useAuthClient } from "./use-auth-client";
@@ -21,7 +24,11 @@ const credentialsSchema = z.object({
   password: z.string().min(1, "validation.required"),
 });
 type Credentials = z.infer<typeof credentialsSchema>;
-type Step = { kind: "password" } | { kind: "verify" } | { kind: "enroll"; uri: string | null };
+type Step =
+  | { kind: "password" }
+  | { kind: "verify" }
+  | { kind: "backup" }
+  | { kind: "enroll"; enrollment: TotpEnrollment | null };
 
 /** Email + password; on the platform, then the mandatory second factor (enrol on first sign-in). */
 export function HttpSignIn({ area }: { area: Area }) {
@@ -68,7 +75,7 @@ export function HttpSignIn({ area }: { area: Area }) {
       } catch (e) {
         if (errorCodeOf(e) !== "two_factor_required") throw e;
         setPassword(v.password);
-        setStep({ kind: "enroll", uri: null });
+        setStep({ kind: "enroll", enrollment: null });
       }
     });
 
@@ -76,6 +83,12 @@ export function HttpSignIn({ area }: { area: Area }) {
     run(async () => {
       await auth.verifyTotp(code);
       setPassword("");
+      await enter();
+    });
+
+  const verifyBackup = (code: string) =>
+    run(async () => {
+      await auth.verifyBackupCode(code);
       await enter();
     });
 
@@ -87,12 +100,37 @@ export function HttpSignIn({ area }: { area: Area }) {
         pending={pending}
         error={error}
         onSubmit={(code) => void verify(code)}
+      >
+        <Button
+          type="button"
+          variant="link"
+          className="self-start px-0"
+          onClick={() => {
+            setError(null);
+            setStep({ kind: "backup" });
+          }}
+        >
+          {t("auth.useBackupCode")}
+        </Button>
+      </TotpStep>
+    );
+  }
+  if (step.kind === "backup") {
+    return (
+      <BackupCodeStep
+        pending={pending}
+        error={error}
+        onSubmit={(code) => void verifyBackup(code)}
+        onUseTotp={() => {
+          setError(null);
+          setStep({ kind: "verify" });
+        }}
       />
     );
   }
   if (step.kind === "enroll") {
-    const uri = step.uri;
-    if (uri === null) {
+    const enrollment = step.enrollment;
+    if (enrollment === null) {
       return (
         <div className="flex flex-col gap-3">
           <p className="font-medium">{t("auth.enrollTitle")}</p>
@@ -106,7 +144,7 @@ export function HttpSignIn({ area }: { area: Area }) {
             disabled={pending}
             onClick={() =>
               void run(async () =>
-                setStep({ kind: "enroll", uri: await auth.enableTotp(password) }),
+                setStep({ kind: "enroll", enrollment: await auth.enableTotp(password) }),
               )
             }
           >
@@ -115,7 +153,7 @@ export function HttpSignIn({ area }: { area: Area }) {
         </div>
       );
     }
-    const secret = new URL(uri).searchParams.get("secret") ?? "";
+    const secret = new URL(enrollment.uri).searchParams.get("secret") ?? "";
     return (
       <TotpStep
         title={t("auth.enrollTitle")}
@@ -125,11 +163,12 @@ export function HttpSignIn({ area }: { area: Area }) {
         onSubmit={(code) => void verify(code)}
       >
         <div className="flex flex-col items-center gap-2">
-          <QrCode value={uri} label={t("auth.qrLabel")} />
+          <QrCode value={enrollment.uri} label={t("auth.qrLabel")} />
           <p className="text-xs text-muted-foreground">{t("auth.manualKey")}</p>
           <code dir="ltr" className="break-all rounded-sm bg-muted px-2 py-1 text-xs">
             {secret}
           </code>
+          <BackupCodesList codes={enrollment.backupCodes} />
         </div>
       </TotpStep>
     );

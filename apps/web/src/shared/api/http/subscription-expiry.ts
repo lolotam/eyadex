@@ -37,8 +37,45 @@ export function explicitExpiry(
   return `${date}T23:59:59Z`;
 }
 
-/** Days after today, used for a new clinic's trial; same end-of-day rule. */
-export function expiryAfterDays(days: number, now: Date): string {
-  const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + days));
-  return `${end.toISOString().slice(0, 10)}T23:59:59Z`;
+/** Minutes the zone is ahead of UTC at that instant (Cairo moves with daylight saving). */
+function zoneOffsetMinutes(at: Date, timeZone: string): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(at);
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((p) => p.type === type)?.value);
+  const local = Date.UTC(
+    part("year"),
+    part("month") - 1,
+    part("day"),
+    part("hour"),
+    part("minute"),
+    part("second"),
+  );
+  return Math.round((local - at.getTime()) / 60_000);
+}
+
+/** 23:59:59 of a calendar date in a time zone, as a UTC instant. */
+export function endOfLocalDay(date: string, timeZone: string): string {
+  const asUtc = new Date(`${date}T23:59:59Z`);
+  const instant = new Date(asUtc.getTime() - zoneOffsetMinutes(asUtc, timeZone) * 60_000);
+  return instant.toISOString().replace(".000Z", "Z");
+}
+
+/** N calendar days after a date. */
+export function addCalendarDays(date: string, days: number): string {
+  const [y, m, d] = date.split("-").map(Number) as [number, number, number];
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
+
+/** A new clinic's trial: N days after the clinic's own today, to the end of that local day. */
+export function trialExpiry(days: number, timeZone: string, now: Date): string {
+  return endOfLocalDay(addCalendarDays(todayIn(timeZone, now), days), timeZone);
 }

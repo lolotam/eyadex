@@ -29,7 +29,16 @@ export const enAccess = {
     qrLabel: "Setup code for your authenticator app",
     manualKey: "Can't scan? Enter this key in the app",
     back: "Back",
-    validation: { code: "Enter the 6-digit code" },
+    useBackupCode: "Lost your authenticator? Use a recovery code",
+    useTotp: "Use the authenticator code instead",
+    backupTitle: "Use a recovery code",
+    backupBody:
+      "Enter one of the recovery codes you saved when you set up two-step verification. Each code works once.",
+    backupCode: "Recovery code",
+    backupCodesTitle: "Your recovery codes",
+    backupCodesBody:
+      "Save these codes somewhere safe now: they are shown only once. Each one signs you in once if you lose your authenticator.",
+    validation: { code: "Enter the 6-digit code", backupCode: "Enter a recovery code" },
   },
   area: {
     wrongHostTitle: "This page is on another address",

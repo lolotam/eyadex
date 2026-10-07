@@ -22,7 +22,7 @@ import { ApiError } from "../api-error";
 import { toBranch } from "./http-branches";
 import type { HttpContext } from "./http-context";
 import { collectPages } from "./http-transport";
-import { expiryAfterDays, explicitExpiry } from "./subscription-expiry";
+import { explicitExpiry, trialExpiry } from "./subscription-expiry";
 
 const notImplemented = () => Promise.reject(new ApiError("not_implemented"));
 
@@ -63,7 +63,7 @@ export function toCreateClinicRequest(input: CreateClinicInput, now: Date): Crea
     defaultLanguage: input.defaultLanguage,
     timezone,
     status: "trial",
-    expiresAt: expiryAfterDays(DEFAULT_PLATFORM_SETTINGS.defaultTrialDays, now),
+    expiresAt: trialExpiry(DEFAULT_PLATFORM_SETTINGS.defaultTrialDays, timezone, now),
     ...NEW_CLINIC,
     admin: { fullName: input.adminName, email: input.adminEmail },
   };

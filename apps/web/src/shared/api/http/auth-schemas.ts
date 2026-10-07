@@ -24,8 +24,17 @@ export const signInResponseSchema = z.union([
 ]);
 export type SignInResponse = z.infer<typeof signInResponseSchema>;
 
-/** `POST /api/auth/two-factor/enable`: the otpauth URI the authenticator app reads. */
-export const enableTotpResponseSchema = z.object({ totpURI: z.string().startsWith("otpauth://") });
+/**
+ * `POST /api/auth/two-factor/enable`: the otpauth URI the authenticator app reads, and the one-time
+ * recovery codes. They are shown once and never stored by the web.
+ */
+export const enableTotpResponseSchema = z.object({
+  totpURI: z.string().startsWith("otpauth://"),
+  backupCodes: z.array(z.string().min(1)).min(1),
+});
+
+/** `POST /api/auth/two-factor/verify-backup-code`: the web reads nothing from the answer. */
+export const verifyBackupCodeResponseSchema = z.object({}).passthrough();
 
 /** `POST /api/auth/two-factor/verify-totp`. */
 export const verifyTotpResponseSchema = z.object({ user: authUserSchema }).passthrough();
