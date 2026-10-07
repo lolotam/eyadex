@@ -18,7 +18,9 @@ describe("error envelope", () => {
     expect(error.details).toEqual({ "admin.email": "invalid_string" });
   });
   it("carries numeric details such as count, never nested lists", () => {
-    expect(flattenDetails({ count: 2, members: [{ id: "x", fullName: "y" }] })).toEqual({ count: 2 });
+    expect(flattenDetails({ count: 2, members: [{ id: "x", fullName: "y" }] })).toEqual({
+      count: 2,
+    });
   });
   it("turns an unknown code into unknown", () => {
     expect(errorFromResponse(418, { code: "teapot", message_ar: "x", message_en: "x" }).code).toBe(
@@ -36,9 +38,13 @@ describe("transport", () => {
   });
   it("turns a response that drifted from the API schema into unknown and logs no values", async () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const { fetchImpl } = stubFetch(() => ({ body: { ...branchDetail, isActive: "secret-value" } }));
+    const { fetchImpl } = stubFetch(() => ({
+      body: { ...branchDetail, isActive: "secret-value" },
+    }));
     const t = createTransport(fetchImpl);
-    expect((await code(t.send("GET", "/v1/drift", { schema: branchDetailSchema }))).code).toBe("unknown");
+    expect((await code(t.send("GET", "/v1/drift", { schema: branchDetailSchema }))).code).toBe(
+      "unknown",
+    );
     await code(t.send("GET", "/v1/drift", { schema: branchDetailSchema }));
     expect(log).toHaveBeenCalledTimes(1);
     expect(JSON.stringify(log.mock.calls)).not.toContain("secret-value");
@@ -46,16 +52,26 @@ describe("transport", () => {
   it("a 401 on /v1 clears the session (notifies the guard)", async () => {
     const listener = vi.fn();
     const stop = onUnauthorized(listener);
-    const { fetchImpl } = stubFetch(() => ({ status: 401, body: { code: "unauthorized", message_ar: "x", message_en: "x" } }));
-    expect((await code(createTransport(fetchImpl).sendEmpty("GET", "/v1/me"))).code).toBe("unauthorized");
+    const { fetchImpl } = stubFetch(() => ({
+      status: 401,
+      body: { code: "unauthorized", message_ar: "x", message_en: "x" },
+    }));
+    expect((await code(createTransport(fetchImpl).sendEmpty("GET", "/v1/me"))).code).toBe(
+      "unauthorized",
+    );
     expect(listener).toHaveBeenCalledTimes(1);
     stop();
   });
   it("a 403 does not end the session", async () => {
     const listener = vi.fn();
     const stop = onUnauthorized(listener);
-    const { fetchImpl } = stubFetch(() => ({ status: 403, body: { code: "forbidden", message_ar: "x", message_en: "x" } }));
-    expect((await code(createTransport(fetchImpl).sendEmpty("GET", "/v1/me"))).code).toBe("forbidden");
+    const { fetchImpl } = stubFetch(() => ({
+      status: 403,
+      body: { code: "forbidden", message_ar: "x", message_en: "x" },
+    }));
+    expect((await code(createTransport(fetchImpl).sendEmpty("GET", "/v1/me"))).code).toBe(
+      "forbidden",
+    );
     expect(listener).not.toHaveBeenCalled();
     stop();
   });

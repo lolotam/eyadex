@@ -151,7 +151,9 @@ describe("platform settings (story 26)", () => {
         slug: "trial-clinic",
         adminName: "Admin Person",
         adminEmail: "admin-trial@example.com",
-      }, crypto.randomUUID());
+      },
+      crypto.randomUUID(),
+    );
     const days = (new Date(clinic.expiresAt).getTime() - Date.now()) / DAY;
     expect(Math.round(days)).toBe(7);
   });

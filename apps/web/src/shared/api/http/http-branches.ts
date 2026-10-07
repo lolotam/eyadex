@@ -34,7 +34,9 @@ function toBranchBody(input: BranchInput): CreateBranchRequest & UpdateBranchReq
   };
 }
 
-export function branchListQuery(query: Pick<BranchListQuery, "cursor" | "limit" | "search" | "status">) {
+export function branchListQuery(
+  query: Pick<BranchListQuery, "cursor" | "limit" | "search" | "status">,
+) {
   return {
     cursor: query.cursor,
     limit: query.limit,

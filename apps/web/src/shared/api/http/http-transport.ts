@@ -23,7 +23,11 @@ export type Transport = {
     options: RequestOptions<S>,
   ): Promise<z.infer<S>>;
   /** For answers with no body (204) or whose body is not needed. */
-  sendEmpty(method: Method, path: string, options?: Omit<RequestOptions<z.ZodTypeAny>, "schema">): Promise<void>;
+  sendEmpty(
+    method: Method,
+    path: string,
+    options?: Omit<RequestOptions<z.ZodTypeAny>, "schema">,
+  ): Promise<void>;
 };
 
 type Listener = () => void;

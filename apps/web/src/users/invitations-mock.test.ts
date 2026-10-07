@@ -200,7 +200,9 @@ describe("invitations mock", () => {
         timezone: "Asia/Kuwait",
         adminName: "First Admin",
         adminEmail: "first.admin@example.com",
-      }, crypto.randomUUID());
+      },
+      crypto.randomUUID(),
+    );
     expect(JSON.stringify(getState().platformAudit)).not.toContain(created.firstAdminInvite.token);
     expect(
       await api.platform.getFirstAdminInvitation(
@@ -295,7 +297,9 @@ describe("invitations mock", () => {
         timezone: "Asia/Kuwait",
         adminName: "First Admin",
         adminEmail: "  First-Admin@Example.com ",
-      }, crypto.randomUUID());
+      },
+      crypto.randomUUID(),
+    );
     const entries = getState().clinicAudit.filter((e) => e.clinicId === created.clinic.id);
     expect(entries.some((e) => e.action === "invitation.sent")).toBe(true);
     expect(created.firstAdminInvite.email).toBe("first-admin@example.com");

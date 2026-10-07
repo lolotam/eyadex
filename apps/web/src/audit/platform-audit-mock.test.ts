@@ -113,16 +113,20 @@ describe("platform audit log", () => {
     expect(toggle && "summary" in toggle).toBe(false);
   });
   it("records a first-admin resend once in the platform feed", async () => {
-    const created = await api.platform.createClinic(PLATFORM, {
-      nameAr: "عيادة الاختبار",
-      nameEn: "Resend Test Clinic",
-      slug: "resend-test",
-      specialty: "general",
-      defaultLanguage: "ar",
-      timezone: "Asia/Kuwait",
-      adminName: "Admin Person",
-      adminEmail: "resend.admin@example.com",
-    }, crypto.randomUUID());
+    const created = await api.platform.createClinic(
+      PLATFORM,
+      {
+        nameAr: "عيادة الاختبار",
+        nameEn: "Resend Test Clinic",
+        slug: "resend-test",
+        specialty: "general",
+        defaultLanguage: "ar",
+        timezone: "Asia/Kuwait",
+        adminName: "Admin Person",
+        adminEmail: "resend.admin@example.com",
+      },
+      crypto.randomUUID(),
+    );
     await api.platform.resendFirstAdminInvitation(PLATFORM, created.clinic.id);
     const feed = await api.audit.platformList(PLATFORM, {
       ...PLATFORM_QUERY,

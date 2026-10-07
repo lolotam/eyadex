@@ -116,7 +116,9 @@ class Grid {
 
   constructor(ver: number) {
     this.size = ver * 4 + 17;
-    this.modules = Array.from({ length: this.size }, () => new Array<boolean>(this.size).fill(false));
+    this.modules = Array.from({ length: this.size }, () =>
+      new Array<boolean>(this.size).fill(false),
+    );
     this.fixed = Array.from({ length: this.size }, () => new Array<boolean>(this.size).fill(false));
   }
 

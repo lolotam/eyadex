@@ -105,7 +105,9 @@ export function HttpSignIn({ area }: { area: Area }) {
           <Button
             disabled={pending}
             onClick={() =>
-              void run(async () => setStep({ kind: "enroll", uri: await auth.enableTotp(password) }))
+              void run(async () =>
+                setStep({ kind: "enroll", uri: await auth.enableTotp(password) }),
+              )
             }
           >
             {t("auth.enrollStart")}
@@ -135,7 +137,13 @@ export function HttpSignIn({ area }: { area: Area }) {
   return (
     <Form {...form}>
       <form className="flex flex-col gap-4" onSubmit={form.handleSubmit((v) => void signIn(v))}>
-        <TextField control={form.control} name="email" type="email" dir="ltr" label={t("auth.email")} />
+        <TextField
+          control={form.control}
+          name="email"
+          type="email"
+          dir="ltr"
+          label={t("auth.email")}
+        />
         <TextField
           control={form.control}
           name="password"

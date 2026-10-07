@@ -102,7 +102,8 @@ const path = (id: string) => `/v1/platform/clinics/${encodeURIComponent(id)}`;
 
 export function createHttpPlatform(ctx: HttpContext): ApiClient["platform"] {
   const { transport } = ctx;
-  const detail = (id: string) => transport.send("GET", path(id), { schema: platformClinicDetailSchema });
+  const detail = (id: string) =>
+    transport.send("GET", path(id), { schema: platformClinicDetailSchema });
   return {
     async createClinic(_persona, input, idempotencyKey) {
       const now = ctx.now();

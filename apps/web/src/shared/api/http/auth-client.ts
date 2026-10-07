@@ -1,4 +1,8 @@
-import { enableTotpResponseSchema, signInResponseSchema, verifyTotpResponseSchema } from "./auth-schemas";
+import {
+  enableTotpResponseSchema,
+  signInResponseSchema,
+  verifyTotpResponseSchema,
+} from "./auth-schemas";
 import type { SignInResponse } from "./auth-schemas";
 import { createTransport, type Transport } from "./http-transport";
 

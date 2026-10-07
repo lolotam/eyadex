@@ -4,7 +4,12 @@ import { useApi } from "@/shared/api/api-provider";
 import { API_MODE } from "@/shared/api/api-mode";
 import { HttpPersonaProvider } from "./http-persona-provider";
 import { MockPersonaProvider } from "./mock-persona-provider";
-import { PersonaContext, SESSION_KEY, type PersonaValue, type SessionState } from "./persona-context";
+import {
+  PersonaContext,
+  SESSION_KEY,
+  type PersonaValue,
+  type SessionState,
+} from "./persona-context";
 
 export function PersonaProvider({ children }: { children: ReactNode }) {
   return API_MODE === "http" ? (

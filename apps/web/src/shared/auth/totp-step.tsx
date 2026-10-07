@@ -7,7 +7,12 @@ import { Form } from "@/components/ui/form";
 import { TextField } from "@/shared/forms/form-fields";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 
-const codeSchema = z.object({ code: z.string().trim().regex(/^\d{6}$/, "auth.validation.code") });
+const codeSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, "auth.validation.code"),
+});
 type CodeInput = z.infer<typeof codeSchema>;
 
 /** The 6-digit code step, used after sign-in and to finish enrolment. No trust-device option. */
@@ -20,7 +25,10 @@ export function TotpStep(props: {
   children?: ReactNode;
 }) {
   const { t } = useI18n();
-  const form = useForm<CodeInput>({ resolver: zodResolver(codeSchema), defaultValues: { code: "" } });
+  const form = useForm<CodeInput>({
+    resolver: zodResolver(codeSchema),
+    defaultValues: { code: "" },
+  });
   return (
     <div className="flex flex-col gap-4">
       <div>
@@ -33,12 +41,7 @@ export function TotpStep(props: {
           className="flex flex-col gap-4"
           onSubmit={form.handleSubmit((v) => props.onSubmit(v.code))}
         >
-          <TextField
-            control={form.control}
-            name="code"
-            dir="ltr"
-            label={t("auth.totpCode")}
-          />
+          <TextField control={form.control} name="code" dir="ltr" label={t("auth.totpCode")} />
           {props.error && (
             <p role="alert" className="text-sm text-destructive">
               {props.error}

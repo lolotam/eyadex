@@ -25,7 +25,9 @@ export function toBranchOption(branch: BranchDetail): BranchOption {
   return { id: branch.id, nameAr: branch.nameAr, nameEn: branch.nameEn, isActive: branch.isActive };
 }
 
-function userQuery(query: UserListQuery): Partial<Record<keyof UserListHttpQuery, string | number | null>> {
+function userQuery(
+  query: UserListQuery,
+): Partial<Record<keyof UserListHttpQuery, string | number | null>> {
   return {
     cursor: query.cursor,
     limit: query.limit,

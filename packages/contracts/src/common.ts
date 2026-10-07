@@ -61,7 +61,11 @@ export type ApiErrorCode = z.infer<typeof apiErrorCodeSchema>;
  * yet. Kept apart from `apiErrorCodeSchema` because the API's message table must cover exactly the
  * codes the API can return.
  */
-export const webErrorCodeSchema = z.enum([...apiErrorCodeSchema.options, "conflict", "not_implemented"]);
+export const webErrorCodeSchema = z.enum([
+  ...apiErrorCodeSchema.options,
+  "conflict",
+  "not_implemented",
+]);
 export type WebErrorCode = z.infer<typeof webErrorCodeSchema>;
 
 /**

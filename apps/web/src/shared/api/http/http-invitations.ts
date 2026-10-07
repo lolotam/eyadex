@@ -59,7 +59,11 @@ export function createHttpInvitations(ctx: HttpContext): ApiClient["invitations"
           status: query.status,
         },
       });
-      return { items: page.items.map(toInvitation), nextCursor: page.nextCursor, total: page.total };
+      return {
+        items: page.items.map(toInvitation),
+        nextCursor: page.nextCursor,
+        total: page.total,
+      };
     },
     async invite(_persona, input, idempotencyKey) {
       const invitation = await transport.send("POST", "/v1/invitations", {
