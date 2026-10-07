@@ -62,6 +62,10 @@ export const enUsers = {
     cancelTitle: "Cancel the invitation for {email}?",
     cancelBody: "The link will stop working and the seat is freed.",
     keepInvitation: "Keep invitation",
+    copyLinkTitle: "Make a new link for {email}?",
+    copyLinkBody:
+      "A new invitation link valid for 7 days will be created and copied. The link sent by email will stop working.",
+    copyLinkConfirm: "Make and copy link",
     invited: "Invitation sent",
     resent: "Invitation resent with a new 7-day expiry",
     cancelled: "Invitation cancelled",

@@ -4,6 +4,7 @@ import {
   type InvitationRecord,
 } from "@eyadex/contracts/invitations";
 import type { MembershipUser, MembershipUserView, UserUsage } from "@eyadex/contracts/users";
+import type { Role } from "@eyadex/contracts/organization";
 import { ApiError } from "../api-error";
 import type { MockState } from "./mock-store";
 
@@ -83,18 +84,17 @@ export function toUserView(db: MockState, member: MembershipUser): MembershipUse
   return { ...member, ...roleNames(db, member.roleId) };
 }
 
-/** The link token is a bearer secret: only callers allowed to create users receive it. */
+/** Like the API: views never carry the link token; only `copyLink` returns one. */
 export function toInvitationView(
   db: MockState,
   record: InvitationRecord,
-  includeToken = true,
 ): Invitation {
   const { tokenHash: _hash, ...rest } = record;
   return {
     ...rest,
     ...roleNames(db, record.roleId),
     status: computeInvitationStatus(record),
-    token: includeToken ? (db.inviteOutbox[record.id] ?? null) : null,
+    token: null,
   };
 }
 
@@ -111,4 +111,11 @@ export function paginate<T extends { id: string }>(
     total: rows.length,
     nextCursor: start + limit < rows.length && last ? last.id : null,
   };
+}
+
+/** ADR-0012 §15: only an active clinic admin may invite to, or act on, the clinic-admin role. */
+export function enforceMayTouchAdmin(db: MockState, actorRole: Role, roleId: string): void {
+  if (isAdminRole(db, roleId) && actorRole.systemKey !== "clinic_admin") {
+    throw new ApiError("forbidden");
+  }
 }
