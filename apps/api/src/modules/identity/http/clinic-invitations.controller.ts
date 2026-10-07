@@ -10,7 +10,7 @@ import {
   Query,
   Req,
 } from "@nestjs/common";
-import type { Invitation } from "@eyadex/contracts/invitations";
+import type { Invitation, InvitationLink } from "@eyadex/contracts/invitations";
 import { idempotencyKeySchema } from "@eyadex/contracts/onboarding";
 import {
   invitationListHttpQuerySchema,
@@ -85,6 +85,18 @@ export class ClinicInvitationsController {
   @Require("create:users:clinic")
   async resend(@Req() request: ClinicRequest, @Param("id") id: string): Promise<Invitation> {
     return this.after(request, await this.changes.resend(actorOf(request), idOf(id)));
+  }
+
+  // The only response that ever carries a token (ADR-0012 §6); no email is sent.
+  @Post(":id/link")
+  @HttpCode(200)
+  @Require("create:users:clinic")
+  async copyLink(@Req() request: ClinicRequest, @Param("id") id: string): Promise<InvitationLink> {
+    const { link, changed } = await this.changes.copyLink(actorOf(request), idOf(id));
+    if (changed) {
+      await afterUserCommit(request.clinicContext.clinicId, this.invalidator, this.revoker, null);
+    }
+    return link;
   }
 
   @Post(":id/cancel")

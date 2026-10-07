@@ -56,6 +56,7 @@ export const enAudit = {
       invitation: {
         sent: "Invitation sent",
         resent: "Invitation resent",
+        link_copied: "Invitation link copied",
         cancelled: "Invitation cancelled",
         accepted: "Invitation accepted",
       },

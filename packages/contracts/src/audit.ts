@@ -104,6 +104,7 @@ export const CLINIC_AUDIT_ACTIONS = [
   "user.profile_updated",
   "invitation.sent",
   "invitation.resent",
+  "invitation.link_copied",
   "invitation.cancelled",
   "invitation.accepted",
   "role.created",

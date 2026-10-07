@@ -56,6 +56,7 @@ export const arAudit = {
       invitation: {
         sent: "إرسال دعوة",
         resent: "إعادة إرسال دعوة",
+        link_copied: "نسخ رابط دعوة",
         cancelled: "إلغاء دعوة",
         accepted: "قبول دعوة",
       },

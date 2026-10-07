@@ -32,6 +32,7 @@ import type {
   AcceptInvitationInput,
   Invitation,
   InvitationListQuery,
+  InvitationLink,
   InvitationPreview,
 } from "@eyadex/contracts/invitations";
 import type {
@@ -144,8 +145,13 @@ export interface ApiClient {
      * duplicate-email error, so a lost response never looks like a rejection.
      */
     invite(persona: Persona, input: InviteUserInput, idempotencyKey: string): Promise<Invitation>;
-    /** New expiry, same invitation and link. */
+    /** New link and a new 7-day expiry, emailed; the previous link stops working. */
     resend(persona: Persona, invitationId: string): Promise<Invitation>;
+    /**
+     * New link returned once to the caller (no email); every previous link, including the emailed
+     * one, stops working. The only call that ever returns a token.
+     */
+    copyLink(persona: Persona, invitationId: string): Promise<InvitationLink>;
     cancel(persona: Persona, invitationId: string): Promise<Invitation>;
     /** Public: what the invitation link shows before accepting. */
     preview(token: string): Promise<InvitationPreview>;

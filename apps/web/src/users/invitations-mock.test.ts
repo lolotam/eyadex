@@ -25,6 +25,8 @@ function roleId(clinicId: string, key: string) {
   if (!role) throw new Error(key);
   return role.id;
 }
+/** The mock outbox stands in for the email: it holds the link last sent by email. */
+const emailed = (id: string) => getState().inviteOutbox[id] ?? "";
 function invite(clinicId: string, email: string, persona = admin(clinicId)) {
   return api.invitations.invite(
     persona,
@@ -95,9 +97,10 @@ describe("invitations mock", () => {
       code: "invitation_expired",
     });
     const sent = await invite(clinic.id, "joiner@example.com");
-    const accepted = await api.invitations.accept(sent.token ?? "", password);
+    const token = emailed(sent.id);
+    const accepted = await api.invitations.accept(token, password);
     expect(getState().members.some((m) => m.id === accepted.memberId)).toBe(true);
-    await expect(api.invitations.accept(sent.token ?? "", password)).rejects.toMatchObject({
+    await expect(api.invitations.accept(token, password)).rejects.toMatchObject({
       code: "invitation_used",
     });
   });
@@ -108,7 +111,7 @@ describe("invitations mock", () => {
     const role = getState().roles.find((r) => r.id === sent.roleId);
     if (!role) throw new Error("no role");
     role.isActive = false;
-    await expect(api.invitations.accept(sent.token ?? "", password)).rejects.toMatchObject({
+    await expect(api.invitations.accept(emailed(sent.id), password)).rejects.toMatchObject({
       code: "role_inactive",
     });
     const stored = getState().invitations.find((i) => i.id === sent.id);
@@ -132,7 +135,7 @@ describe("invitations mock", () => {
       crypto.randomUUID(),
     );
     branch.isActive = false;
-    await expect(api.invitations.accept(sent.token ?? "", password)).rejects.toMatchObject({
+    await expect(api.invitations.accept(emailed(sent.id), password)).rejects.toMatchObject({
       code: "branch_inactive",
     });
     expect(getState().invitations.find((i) => i.id === sent.id)?.status).toBe("pending");
@@ -141,19 +144,16 @@ describe("invitations mock", () => {
   it("keeps link tokens and their hashes out of every audit entry", async () => {
     const clinic = clinicBySlug("serenity");
     const sent = await invite(clinic.id, "audit-token@example.com");
-    const first = sent.token ?? "";
+    const first = emailed(sent.id);
     const resent = await api.invitations.resend(admin(clinic.id), sent.id);
-    expect(resent.token).not.toBe(first);
+    expect(resent.token).toBeNull();
+    expect(emailed(sent.id)).not.toBe(first);
     await expect(api.invitations.preview(first)).rejects.toMatchObject({ code: "not_found" });
-    await api.invitations.accept(resent.token ?? "", password);
+    const second = emailed(sent.id);
+    await api.invitations.accept(second, password);
     const audit = JSON.stringify(getState().clinicAudit);
     const hashes = getState().invitations.map((i) => i.tokenHash);
-    for (const secret of [
-      first,
-      resent.token ?? "",
-      ...Object.values(getState().inviteOutbox),
-      ...hashes,
-    ])
+    for (const secret of [first, second, ...Object.values(getState().inviteOutbox), ...hashes])
       expect(audit.includes(secret)).toBe(false);
     expect(audit.includes("tokenHash")).toBe(false);
   });
@@ -173,6 +173,7 @@ describe("invitations mock", () => {
       },
       crypto.randomUUID(),
     );
+    const link = emailed(sent.id);
     branch.isActive = false;
     await expect(api.invitations.resend(admin(clinic.id), sent.id)).rejects.toMatchObject({
       code: "branch_inactive",
@@ -184,7 +185,7 @@ describe("invitations mock", () => {
     await expect(api.invitations.resend(admin(clinic.id), sent.id)).rejects.toMatchObject({
       code: "role_inactive",
     });
-    expect(getState().inviteOutbox[sent.id]).toBe(sent.token);
+    expect(emailed(sent.id)).toBe(link);
   });
 
   it("lets a new clinic's first admin accept with the link returned by createClinic", async () => {
@@ -263,7 +264,8 @@ describe("invitations mock", () => {
       search: "",
       status: "pending",
     });
-    expect(adminPage.items.some((i) => typeof i.token === "string")).toBe(true);
+    // Like the API: no list response ever carries a token, whoever asks.
+    expect(adminPage.items.every((i) => i.token === null)).toBe(true);
   });
   it("replays an invitation retried with the same idempotency key", async () => {
     const clinic = clinicBySlug("serenity");

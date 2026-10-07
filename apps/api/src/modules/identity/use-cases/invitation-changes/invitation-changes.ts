@@ -1,4 +1,4 @@
-import type { Invitation } from "@eyadex/contracts/invitations";
+import type { Invitation, InvitationLink } from "@eyadex/contracts/invitations";
 import type { InviteUserInput } from "@eyadex/contracts/users";
 import type { Database, Tx } from "@eyadex/db";
 import type { IdGenerator } from "@eyadex/ids";
@@ -12,9 +12,9 @@ import { ApiError } from "../../../../shared/errors.ts";
 import { requestHash } from "../../../../shared/idempotency.ts";
 import { appendOutboxEvent } from "../../../../shared/outbox.ts";
 import type { SecretSealer } from "../../../../shared/secret-sealer.ts";
-import { checkLimit, usersUsage, type Clock } from "../../../tenancy/index.ts";
+import type { Clock } from "../../../tenancy/index.ts";
 import { invitationExpiry } from "../../domain/system-roles.ts";
-import { decideInvitationCancel, decideInvitationResend } from "../../domain/user-rules.ts";
+import { decideInvitationCancel } from "../../domain/user-rules.ts";
 import { issueInvitationToken } from "../../persistence/pg-first-admin-provisioner.ts";
 import {
   cancelInvitation,
@@ -22,24 +22,20 @@ import {
   insertInvitation,
   readClinicForMail,
   releaseEmail,
-  renewEmail,
   reserveEmail,
-  rotateInvitation,
 } from "../../persistence/pg-invitation-store.ts";
 import {
   activeRole,
   assertActiveBranches,
   lockClinicBranches,
   lockClinicUsers,
-  readSeats,
 } from "../../persistence/pg-user-store.ts";
-import { findInvitationView } from "../../queries/invitation-views.ts";
 import {
   assertMayTouchAdmin,
   auditSnapshot,
-  usersLimitError,
   type UserActor,
 } from "../user-changes/user-changes.ts";
+import { assertSeat, invitationView, rotateInvitationLink } from "./invitation-rotation.ts";
 
 /** نوع حدث الـ outbox اللي الـ dispatcher هيبعت بيه إيميل الدعوة (ADR-0006، ADR-0012). */
 export const USER_INVITED_EVENT = "clinic.user_invited";
@@ -110,7 +106,7 @@ export class InvitationChanges {
       const role = await activeRole(tx, clinicId, input.roleId);
       await assertActiveBranches(tx, clinicId, branchIds);
       await assertMayTouchAdmin(tx, actor, [role.systemKey]);
-      await this.assertSeat(tx, clinicId, now);
+      await assertSeat(tx, clinicId, now);
       const id = ids.newId();
       const expiresAt = invitationExpiry(now);
       if (!(await reserveEmail(tx, input.email, id, expiresAt))) throw new ApiError("email_taken");
@@ -149,44 +145,46 @@ export class InvitationChanges {
    * @returns الدعوة بعد الإرسال
    */
   async resend(actor: UserActor, invitationId: string): Promise<InvitationChange> {
-    const { db, clock } = this.deps;
-    const { clinicId } = actor;
-    return db.withTenant(clinicId, async (tx) => {
-      await lockClinicUsers(tx, clinicId);
-      // Read after the lock: time spent waiting may expire this invitation, and an expired one must
-      // pass the seat check against the writes that held the lock meanwhile.
-      const now = clock.now();
-      const locked = await findInvitationForUpdate(tx, clinicId, invitationId);
-      if (locked === null) throw new ApiError("not_found");
-      const decision = decideInvitationResend(locked.status, locked.expiresAt, now);
-      if (decision === "not_pending") {
-        throw new ApiError(
-          locked.status === "accepted" ? "invitation_used" : "invitation_cancelled",
-        );
-      }
-      // A fresh link must still be acceptable: its role and branches are re-checked like an invite.
-      await lockClinicBranches(tx, clinicId);
-      const role = await activeRole(tx, clinicId, locked.roleId);
-      await assertActiveBranches(tx, clinicId, locked.allBranches ? [] : locked.branchIds);
-      await assertMayTouchAdmin(tx, actor, [role.systemKey]);
-      if (decision === "reoccupies_seat") await this.assertSeat(tx, clinicId, now);
-      const before = await this.view(tx, clinicId, invitationId);
-      const expiresAt = invitationExpiry(now);
-      // The hold first: the 0017 trigger checks it covers the new expiry. An expired hold may have
-      // been taken over and released since, so a free email is reserved again for this invitation.
-      const held =
-        (await renewEmail(tx, locked.email, invitationId, expiresAt)) ||
-        (await reserveEmail(tx, locked.email, invitationId, expiresAt));
-      if (!held) throw new ApiError("email_taken");
-      const { token, hash } = issueInvitationToken();
-      await rotateInvitation(tx, clinicId, invitationId, hash, expiresAt);
-      const invitation = await this.view(tx, clinicId, invitationId);
+    return this.deps.db.withTenant(actor.clinicId, async (tx) => {
+      const { before, invitation, token } = await rotateInvitationLink(
+        tx,
+        this.deps.clock,
+        actor,
+        invitationId,
+      );
       await this.mail(tx, invitation, token, "resent");
       await this.audit(tx, actor, "invitation.resent", invitationId, {
         before: auditSnapshot(before),
         after: auditSnapshot(invitation),
       });
       return { invitation, changed: true };
+    });
+  }
+
+  /**
+   * ينسخ رابط دعوة pending (حتى المنتهية): نفس فحوص إعادة الإرسال وبنفس الترتيب، ورمز جديد يموّت
+   * أي رابط قديم (حتى اللي اتبعت بالإيميل). من غير حدث outbox، والرمز بيرجع في الرد ده بس.
+   *
+   * @param actor الفاعل
+   * @param invitationId الدعوة
+   * @returns الرابط الجديد وانتهاؤه، ومعاه هل حصل تغيير (دايمًا `true`)
+   */
+  async copyLink(
+    actor: UserActor,
+    invitationId: string,
+  ): Promise<{ link: InvitationLink; changed: boolean }> {
+    return this.deps.db.withTenant(actor.clinicId, async (tx) => {
+      const { before, invitation, token } = await rotateInvitationLink(
+        tx,
+        this.deps.clock,
+        actor,
+        invitationId,
+      );
+      await this.audit(tx, actor, "invitation.link_copied", invitationId, {
+        before: auditSnapshot(before),
+        after: auditSnapshot(invitation),
+      });
+      return { link: { token, expiresAt: invitation.expiresAt }, changed: true };
     });
   }
 
@@ -221,12 +219,6 @@ export class InvitationChanges {
     });
   }
 
-  private async assertSeat(tx: Tx, clinicId: string, now: Date): Promise<void> {
-    const seats = await readSeats(tx, clinicId, now);
-    const usage = usersUsage(seats.members, seats.invitations, seats.max);
-    if (checkLimit(usage).kind === "exceeded") throw usersLimitError(usage.used, usage.max);
-  }
-
   // One event per send. The dispatcher re-checks pending + unexpired + sha256(token) = token_hash at send
   // time, so a cancelled or superseded link is never mailed (ADR-0012).
   private async mail(
@@ -259,10 +251,8 @@ export class InvitationChanges {
     });
   }
 
-  private async view(tx: Tx, clinicId: string, id: string): Promise<Invitation> {
-    const view = await findInvitationView(tx, clinicId, id, this.deps.clock.now());
-    if (view === null) throw new ApiError("not_found");
-    return view;
+  private view(tx: Tx, clinicId: string, id: string): Promise<Invitation> {
+    return invitationView(tx, clinicId, id, this.deps.clock.now());
   }
 
   private audit(
