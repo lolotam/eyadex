@@ -97,9 +97,10 @@ describe("invitations mock", () => {
       code: "invitation_expired",
     });
     const sent = await invite(clinic.id, "joiner@example.com");
-    const accepted = await api.invitations.accept(emailed(sent.id), password);
+    const token = emailed(sent.id);
+    const accepted = await api.invitations.accept(token, password);
     expect(getState().members.some((m) => m.id === accepted.memberId)).toBe(true);
-    await expect(api.invitations.accept(emailed(sent.id), password)).rejects.toMatchObject({
+    await expect(api.invitations.accept(token, password)).rejects.toMatchObject({
       code: "invitation_used",
     });
   });
@@ -148,12 +149,13 @@ describe("invitations mock", () => {
     expect(resent.token).toBeNull();
     expect(emailed(sent.id)).not.toBe(first);
     await expect(api.invitations.preview(first)).rejects.toMatchObject({ code: "not_found" });
-    await api.invitations.accept(emailed(sent.id), password);
+    const second = emailed(sent.id);
+    await api.invitations.accept(second, password);
     const audit = JSON.stringify(getState().clinicAudit);
     const hashes = getState().invitations.map((i) => i.tokenHash);
     for (const secret of [
       first,
-      emailed(sent.id),
+      second,
       ...Object.values(getState().inviteOutbox),
       ...hashes,
     ])

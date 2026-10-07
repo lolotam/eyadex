@@ -10,7 +10,7 @@ const { createMockApiClient } = await import("@/shared/api/mock/mock-adapter");
 const { getState, resetMockData } = await import("@/shared/api/mock/mock-store");
 
 const api = createMockApiClient();
-const password = "Corr3ct-Horse-Battery";
+const password = { password: "secret-123", confirmPassword: "secret-123" };
 
 const clinic = () => getState().clinics.find((c) => c.slug === "serenity")!;
 const admin = (): Persona => ({ kind: "clinic_admin", clinicId: clinic().id, memberId: null });
