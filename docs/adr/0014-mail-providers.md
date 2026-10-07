@@ -166,3 +166,9 @@ providerVersion }` — no secret, no address.
   rescheduled, and the retry can then mail a second copy through Resend. This is accepted too: it
   needs a Resend 5xx and an SMTP timeout on the same event, and the cap must hold because the
   invitation row is locked during the send.
+- The route is chosen from the live provider row on every attempt. If a clinic send fails ambiguously
+  (a timeout) and an admin replaces or removes the provider before the retry, the retry goes through
+  the new provider or the platform, and the invitee may get a second copy of the same link. This is
+  accepted: it needs an ambiguous failure and a provider change within the retry window. A removed
+  provider cannot be used again in any case, and the only alternative is not to send at all. Pinning
+  the route would also mean carrying it in the outbox row.
