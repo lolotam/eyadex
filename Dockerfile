@@ -17,6 +17,11 @@ RUN pnpm fetch
 COPY . .
 # Still no NODE_ENV: the build needs the devDependencies (vite, nitro), so pnpm must not skip them.
 RUN pnpm install --offline --frozen-lockfile
+# Vite compiles VITE_API_MODE into the bundle, so it is a build argument, never a runtime setting:
+# "mock" (the default) keeps the demo data, "http" calls the API on the same origin (ADR-0004).
+# Dokploy passes it as a build arg; nothing reads it at run time.
+ARG VITE_API_MODE=mock
+ENV VITE_API_MODE=$VITE_API_MODE
 # Production mode is set for the build step alone.
 ENV NODE_ENV=production
 RUN pnpm --filter @eyadex/web build

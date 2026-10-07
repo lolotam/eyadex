@@ -6,7 +6,11 @@ name: eyadex
 
 services:
   web:
-    build: .
+    build:
+      context: .
+      # Compiled into the bundle by Vite (see Dockerfile); "http" needs the api service on /api.
+      args:
+        VITE_API_MODE: ${VITE_API_MODE:-mock}
     image: eyadex-web:local
     restart: unless-stopped
     environment:
@@ -51,13 +55,24 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}", "--maxmemory", "256mb", "--maxmemory-policy", "noeviction"]
+    command:
+      [
+        "redis-server",
+        "--appendonly",
+        "yes",
+        "--requirepass",
+        "${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}",
+        "--maxmemory",
+        "256mb",
+        "--maxmemory-policy",
+        "noeviction",
+      ]
     volumes:
       - redisdata:/data
     ports:
       - "127.0.0.1:${REDIS_PORT:-6379}:6379" # local only, never public
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep PONG"]
+      test: ["CMD-SHELL", 'redis-cli -a "$$REDIS_PASSWORD" --no-auth-warning ping | grep PONG']
       interval: 10s
       timeout: 5s
       retries: 5
