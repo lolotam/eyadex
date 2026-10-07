@@ -87,7 +87,12 @@ export interface ApiClient {
   platform: {
     listClinics(persona: Persona, query: ClinicListQuery): Promise<Page<ClinicListItem>>;
     getClinic(persona: Persona, clinicId: string): Promise<ClinicDetail>;
-    createClinic(persona: Persona, input: CreateClinicInput): Promise<CreatedClinic>;
+    /** A retry with the same key replays the first result; a changed request is a conflict. */
+    createClinic(
+      persona: Persona,
+      input: CreateClinicInput,
+      idempotencyKey: string,
+    ): Promise<CreatedClinic>;
     /** Null once a clinic admin is active. */
     getFirstAdminInvitation(
       persona: Persona,
@@ -99,11 +104,8 @@ export interface ApiClient {
       clinicId: string,
       input: ClinicDetailsInput,
     ): Promise<Clinic>;
-    updateSubscription(
-      persona: Persona,
-      clinicId: string,
-      input: SubscriptionInput,
-    ): Promise<Clinic>;
+    /** Screens re-read the clinic afterwards; the answer carries nothing they use. */
+    updateSubscription(persona: Persona, clinicId: string, input: SubscriptionInput): Promise<void>;
     setClinicFeature(
       persona: Persona,
       clinicId: string,
@@ -114,15 +116,30 @@ export interface ApiClient {
     listClinicBranches(persona: Persona, clinicId: string): Promise<Branch[]>;
   };
   branches: {
-    list(persona: Persona, query: BranchListQuery): Promise<Page<Branch> & { usage: BranchUsage }>;
-    create(persona: Persona, input: BranchInput): Promise<Branch>;
+    /** usage null = unknown to this adapter; the limit is still enforced on create (409). */
+    // TODO(spec): a clinic-side limits read, so the HTTP adapter can show the counter too.
+    list(
+      persona: Persona,
+      query: BranchListQuery,
+    ): Promise<Page<Branch> & { usage: BranchUsage | null }>;
+    /** A retry with the same key replays the first result; a changed request is a conflict. */
+    create(persona: Persona, input: BranchInput, idempotencyKey: string): Promise<Branch>;
     update(persona: Persona, branchId: string, input: BranchInput): Promise<Branch>;
-    deactivate(persona: Persona, branchId: string): Promise<Branch>;
+    /**
+     * Rejected with branch_has_exclusive_members (details.count) while some active members would be
+     * left with no active branch, unless confirmStrandedMembers is true (ADR-0012).
+     */
+    deactivate(
+      persona: Persona,
+      branchId: string,
+      options?: { confirmStrandedMembers?: boolean },
+    ): Promise<Branch>;
     reactivate(persona: Persona, branchId: string): Promise<Branch>;
   };
   users: {
     list(persona: Persona, query: UserListQuery): Promise<Page<MembershipUserView>>;
-    usage(persona: Persona): Promise<UserUsage>;
+    /** null = unknown to this adapter (same TODO(spec) as branches.list usage). */
+    usage(persona: Persona): Promise<UserUsage | null>;
     listRoleOptions(persona: Persona): Promise<RoleOption[]>;
     listBranchOptions(persona: Persona): Promise<BranchOption[]>;
     changeRole(

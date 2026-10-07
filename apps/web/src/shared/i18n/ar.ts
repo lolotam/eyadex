@@ -3,6 +3,7 @@ import { arPatients } from "./ar-patients";
 import { arAudit } from "./ar-audit";
 import { arUsers } from "./ar-users";
 import { arSettings } from "./ar-settings";
+import { arAccess, arAccessErrors } from "./ar-access";
 
 import type { Dictionary } from "./dictionary";
 
@@ -68,12 +69,7 @@ export const ar: Dictionary = {
     account: "حسابي",
     menu: "القائمة",
   },
-  comingNext: { title: "قريبًا", body: "هذه الشاشة ضمن المرحلة التالية." },
-  forbidden: {
-    title: "غير مسموح",
-    body: "دورك الحالي لا يملك صلاحية الوصول لهذه الصفحة.",
-    home: "الذهاب لصفحتي الرئيسية",
-  },
+  ...arAccess,
   blocked: {
     suspendedTitle: "هذه العيادة موقوفة",
     suspendedBody: "الدخول معطّل أثناء إيقاف الاشتراك. يرجى التواصل مع مدير المنصة.",
@@ -252,6 +248,7 @@ export const ar: Dictionary = {
     smtpHost: "اكتب اسم نطاق خادم البريد، مثل smtp.example.com",
   },
   errors: {
+    ...arAccessErrors,
     patient_phone_taken: "هذا الهاتف مسجّل لمراجع آخر في هذه العيادة",
     patient_civil_id_taken: "هذا الرقم المدني مسجّل لمراجع آخر في هذه العيادة",
     email_taken: "هذا البريد مستخدم لدى مستخدم آخر أو في دعوة معلّقة",

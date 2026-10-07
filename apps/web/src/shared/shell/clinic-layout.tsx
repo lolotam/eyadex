@@ -5,20 +5,26 @@ import { useI18n } from "@/shared/i18n/i18n-provider";
 import { usePersona, useSession } from "@/shared/persona/persona-provider";
 import { can } from "@/shared/permissions/can";
 import { useAccountDisabledGuard } from "@/shared/persona/use-account-guard";
+import { isSessionLoadFailure } from "@/shared/persona/session-readiness";
 import { AppShell } from "./app-shell";
+import { blockedReasonOf } from "./blocked-reason";
 import { ForbiddenPage } from "./forbidden-page";
 import { LoadingBlock } from "./loading-block";
 import { CLINIC_NAV } from "./nav-items";
 import { StatusPanel } from "./status-panel";
 import { ExpiryBanner } from "./expiry-banner";
+import { HttpAreaGate } from "./http-area-gate";
+import { SessionErrorPanel } from "./session-error-panel";
+import { errorCodeOf } from "@/shared/api/api-error";
 
 export function ClinicLayout() {
   const { t, pick } = useI18n();
-  const { persona } = usePersona();
-  const { session, isLoading } = useSession();
+  const { persona, http } = usePersona();
+  const { session, isLoading, error } = useSession();
   useAccountDisabledGuard();
 
-  if (persona.kind === "platform_admin") {
+  if (http && http.area !== "clinic") return <HttpAreaGate area="clinic">{null}</HttpAreaGate>;
+  if (!http && persona.kind === "platform_admin") {
     return (
       <AppShell areaLabel="nav.clinicArea" items={[]}>
         <ForbiddenPage />
@@ -40,10 +46,24 @@ export function ClinicLayout() {
   let content = (
     <>
       {session?.expiresInDays != null && <ExpiryBanner days={session.expiresInDays} />}
-      <Outlet />
+      <HttpAreaGate area="clinic">
+        <Outlet />
+      </HttpAreaGate>
     </>
   );
-  if (isLoading || !session) content = <LoadingBlock />;
+  if (errorCodeOf(error) === "subscription_blocked") {
+    const suspended = blockedReasonOf(error) === "suspended";
+    content = (
+      <StatusPanel
+        icon={Lock}
+        title={t(suspended ? "blocked.suspendedTitle" : "blocked.expiredTitle")}
+        body={t(suspended ? "blocked.suspendedBody" : "blocked.expiredBody")}
+        action={signInLink}
+      />
+    );
+  } else if (http && isSessionLoadFailure(http.error, http.session !== undefined))
+    content = <SessionErrorPanel error={http.error} onRetry={http.retry} />;
+  else if (isLoading || !session) content = <LoadingBlock />;
   else if (session.blocked === "suspended")
     content = (
       <StatusPanel

@@ -4,7 +4,7 @@ import type { RoleListItem } from "@eyadex/contracts/roles";
 import { Button } from "@/components/ui/button";
 import { errorCodeOf } from "@/shared/api/api-error";
 import { useI18n } from "@/shared/i18n/i18n-provider";
-import { can } from "@/shared/permissions/can";
+import { API_MODE } from "@/shared/api/api-mode";
 import { useSession } from "@/shared/persona/persona-provider";
 import { PageHeader } from "@/shared/shell/page-header";
 import { StatusPanel } from "@/shared/shell/status-panel";
@@ -12,6 +12,7 @@ import { DataTable } from "@/shared/table/data-table";
 import { RoleFormDialog } from "./role-form-dialog";
 import { useRoleList } from "./role-queries";
 import { RoleStatusDialog } from "./role-status-dialog";
+import { roleWriteAccess } from "./role-write-access";
 import { useRoleColumns } from "./use-role-columns";
 
 export function RolesContent() {
@@ -22,9 +23,7 @@ export function RolesContent() {
   const [editing, setEditing] = useState<RoleListItem | null>(null);
   const [statusTarget, setStatusTarget] = useState<RoleListItem | null>(null);
   const permissions = session?.permissions ?? [];
-  const mayCreate = can(permissions, "create", "roles");
-  const mayUpdate = can(permissions, "update", "roles");
-  const mayDeactivate = can(permissions, "deactivate", "roles");
+  const { mayCreate, mayUpdate, mayDeactivate } = roleWriteAccess(permissions, API_MODE);
   const onOpen = useCallback((role: RoleListItem) => {
     setEditing(role);
     setFormOpen(true);

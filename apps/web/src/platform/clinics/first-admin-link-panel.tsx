@@ -8,6 +8,22 @@ import { useI18n } from "@/shared/i18n/i18n-provider";
 /** Shows the simulated first-admin invitation link; in production it is emailed instead. */
 export function FirstAdminLinkPanel({ invite }: { invite: FirstAdminInviteLink }) {
   const { t, formatDate } = useI18n();
+  if (invite.token === null) {
+    return (
+      <div className="flex items-start gap-3 rounded-lg border bg-card p-4">
+        <MailCheck className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden />
+        <div className="min-w-0">
+          <p className="font-medium">{t("createdClinic.emailedTitle")}</p>
+          <p className="text-sm text-muted-foreground">
+            {t("createdClinic.emailedBody", { email: invite.email })}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {t("clinics.firstAdmin.expires", { date: formatDate(invite.expiresAt) })}
+          </p>
+        </div>
+      </div>
+    );
+  }
   const url =
     typeof window === "undefined"
       ? `/invite/${invite.token}`

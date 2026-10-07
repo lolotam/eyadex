@@ -62,8 +62,9 @@ export type InvitationListQuery = z.infer<typeof invitationListQuerySchema>;
 export const invitationPreviewSchema = z.object({
   clinicNameAr: z.string(),
   clinicNameEn: z.string(),
-  roleNameAr: z.string(),
-  roleNameEn: z.string(),
+  /** null = the API's inspect answer does not name the role. */
+  roleNameAr: z.string().nullable(),
+  roleNameEn: z.string().nullable(),
   fullName: z.string(),
   email: z.string(),
   status: invitationStatusSchema,
@@ -83,7 +84,8 @@ export type AcceptInvitationInput = z.infer<typeof acceptInvitationInputSchema>;
 
 export const acceptedInvitationSchema = z.object({
   clinicId: idSchema,
-  memberId: idSchema,
+  /** null = no session is opened; the person signs in with email and password (ADR-0008). */
+  memberId: idSchema.nullable(),
   roleKey: z.string().nullable(),
 });
 export type AcceptedInvitation = z.infer<typeof acceptedInvitationSchema>;

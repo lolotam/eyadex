@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form } from "@/components/ui/form";
 import { useApi } from "@/shared/api/api-provider";
+import { API_MODE } from "@/shared/api/api-mode";
 import { acceptErrorMessage } from "./accept-error-message";
 import { TextField } from "@/shared/forms/form-fields";
 import { useI18n } from "@/shared/i18n/i18n-provider";
@@ -50,7 +51,7 @@ export function AcceptInvitationPage() {
 
   function signIn() {
     const done = accept.data;
-    if (!done) return;
+    if (!done || done.memberId === null) return;
     const kind = personaKindSchema.safeParse(done.roleKey);
     setPersona({
       // A clinic-created role has no system key: it signs in as "custom", pinned to this account.
@@ -76,7 +77,15 @@ export function AcceptInvitationPage() {
         icon={CircleCheck}
         title={t("invite.acceptedTitle")}
         body={t("invite.acceptedBody")}
-        action={<Button onClick={signIn}>{t("invite.signInAsMe")}</Button>}
+        action={
+          accept.data?.memberId === null ? (
+            <Button asChild>
+              <Link to="/login">{t("inviteHttp.signInNow")}</Link>
+            </Button>
+          ) : (
+            <Button onClick={signIn}>{t("invite.signInAsMe")}</Button>
+          )
+        }
       />
     );
   else if (!preview.data || preview.data.status !== "pending") {
@@ -98,7 +107,9 @@ export function AcceptInvitationPage() {
             {t("invite.title", { clinic: pick(p.clinicNameAr, p.clinicNameEn) })}
           </CardTitle>
           <CardDescription>
-            {t("invite.body", { role: pick(p.roleNameAr, p.roleNameEn) })}
+            {p.roleNameAr !== null && p.roleNameEn !== null
+              ? t("invite.body", { role: pick(p.roleNameAr, p.roleNameEn) })
+              : t("inviteHttp.bodyNoRole")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -109,8 +120,12 @@ export function AcceptInvitationPage() {
             <dd dir="ltr" className="text-start">
               {p.email}
             </dd>
-            <dt className="text-muted-foreground">{t("invite.invitedAs")}</dt>
-            <dd>{pick(p.roleNameAr, p.roleNameEn)}</dd>
+            {p.roleNameAr !== null && p.roleNameEn !== null && (
+              <>
+                <dt className="text-muted-foreground">{t("invite.invitedAs")}</dt>
+                <dd>{pick(p.roleNameAr, p.roleNameEn)}</dd>
+              </>
+            )}
           </dl>
           <Form {...form}>
             <form
@@ -139,7 +154,9 @@ export function AcceptInvitationPage() {
               <Button type="submit" disabled={accept.isPending}>
                 {t("invite.accept")}
               </Button>
-              <p className="text-xs text-muted-foreground">{t("invite.mockNote")}</p>
+              {API_MODE === "mock" && (
+                <p className="text-xs text-muted-foreground">{t("invite.mockNote")}</p>
+              )}
             </form>
           </Form>
         </CardContent>

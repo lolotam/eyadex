@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -41,6 +41,12 @@ export function BranchFormSheet({
     defaultValues: EMPTY,
   });
 
+  // One key per opening of the form: a retry of the same submit replays, a new form is a new branch.
+  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
+  useEffect(() => {
+    if (open) setIdempotencyKey(crypto.randomUUID());
+  }, [open]);
+
   useEffect(() => {
     form.reset(
       branch
@@ -56,7 +62,9 @@ export function BranchFormSheet({
 
   const mutation = useMutation({
     mutationFn: (input: BranchInput) =>
-      branch ? api.branches.update(persona, branch.id, input) : api.branches.create(persona, input),
+      branch
+        ? api.branches.update(persona, branch.id, input)
+        : api.branches.create(persona, input, idempotencyKey),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: branchKeys.all });
       void queryClient.invalidateQueries({ queryKey: ["platform", "clinics"] });

@@ -42,11 +42,13 @@ export function ClinicSubscriptionTab({ clinic }: { clinic: ClinicDetail }) {
   const mutation = useMutation({
     mutationFn: (input: SubscriptionInput) =>
       api.platform.updateSubscription(persona, clinic.id, input),
-    onSuccess: () => {
+    // Against the API the subscription and the limits are two writes; when the second fails the
+    // first has still landed, so the screen reloads either way to show what is really saved.
+    onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: clinicKeys.all });
       void queryClient.invalidateQueries({ queryKey: ["session"] });
-      toast.success(t("clinics.subscription.saved"));
     },
+    onSuccess: () => toast.success(t("clinics.subscription.saved")),
     onError: (e) => toast.error(t(`errors.${errorCodeOf(e)}`)),
   });
 

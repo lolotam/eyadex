@@ -7,13 +7,18 @@ import { ForbiddenPage } from "@/shared/shell/forbidden-page";
 import { LoadingBlock } from "@/shared/shell/loading-block";
 import { PageHeader } from "@/shared/shell/page-header";
 import { errorCodeOf } from "@/shared/api/api-error";
+import { API_MODE } from "@/shared/api/api-mode";
+import { ComingSoonPanel } from "@/shared/shell/coming-soon-panel";
 import { ClinicBranchesTab } from "./clinic-branches-tab";
 import { ClinicDetailsTab } from "./clinic-details-tab";
 import { ClinicModulesTab } from "./clinic-modules-tab";
 import { useClinic } from "./clinic-queries";
 import { ClinicStatusBadge } from "./clinic-status-badge";
 import { ClinicSubscriptionTab } from "./clinic-subscription-tab";
+import { isClinicTabServed, type ClinicTab } from "./clinic-tabs-served";
 import { ClinicUsersTab } from "./clinic-users-tab";
+
+const served = (tab: ClinicTab) => isClinicTabServed(tab, API_MODE);
 
 export function ClinicPage({ clinicId }: { clinicId: string }) {
   const { t, pick } = useI18n();
@@ -56,7 +61,7 @@ export function ClinicPage({ clinicId }: { clinicId: string }) {
           <TabsTrigger value="branches">{t("clinics.tabs.branches")}</TabsTrigger>
         </TabsList>
         <TabsContent value="details">
-          <ClinicDetailsTab clinic={data} />
+          {served("details") ? <ClinicDetailsTab clinic={data} /> : <ComingSoonPanel />}
         </TabsContent>
         <TabsContent value="subscription">
           <ClinicSubscriptionTab clinic={data} />
@@ -65,7 +70,7 @@ export function ClinicPage({ clinicId }: { clinicId: string }) {
           <ClinicModulesTab clinic={data} />
         </TabsContent>
         <TabsContent value="users">
-          <ClinicUsersTab clinicId={data.id} />
+          {served("users") ? <ClinicUsersTab clinicId={data.id} /> : <ComingSoonPanel />}
         </TabsContent>
         <TabsContent value="branches">
           <ClinicBranchesTab clinicId={data.id} />

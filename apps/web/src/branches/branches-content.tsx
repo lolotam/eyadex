@@ -147,9 +147,11 @@ export function BranchesContent() {
         subtitle={t("branches.subtitle")}
         actions={
           <div className="flex flex-wrap items-center justify-end gap-3">
-            <span className="rounded-md border bg-card px-3 py-2 text-sm font-medium">
-              {t("branches.usage", { active: usage?.active ?? 0, limit: usage?.limit ?? 0 })}
-            </span>
+            {usage !== null && (
+              <span className="rounded-md border bg-card px-3 py-2 text-sm font-medium">
+                {t("branches.usage", { active: usage?.active ?? 0, limit: usage?.limit ?? 0 })}
+              </span>
+            )}
             {mayCreate && (
               <Button
                 onClick={() => {

@@ -32,6 +32,18 @@ function enforceLimit(db: MockState, clinicId: string) {
   if (current.active >= current.limit) throw new ApiError("limit_reached", undefined, current);
 }
 
+/** ADR-0012: active members whose only active branch is this one would reach no branch at all. */
+function strandedCount(db: MockState, clinicId: string, branchId: string): number {
+  const active = new Set(
+    db.branches.filter((b) => b.clinicId === clinicId && b.isActive).map((b) => b.id),
+  );
+  return db.members.filter((m) => {
+    if (m.clinicId !== clinicId || m.status !== "active" || m.allBranches) return false;
+    const reachable = m.branchIds.filter((id) => active.has(id));
+    return reachable.length === 1 && reachable[0] === branchId;
+  }).length;
+}
+
 function audit(
   db: MockState,
   clinicId: string,
@@ -80,11 +92,19 @@ export function createMockBranches(): ApiClient["branches"] {
       };
     },
 
-    async create(persona, rawInput) {
+    async create(persona, rawInput, idempotencyKey) {
       await delay();
       const input = validateInput(rawInput);
       const db = getState();
       const { clinic, actorName } = authorize(db, persona, "create", "branches");
+      const replayKey = `${clinic.id}:${idempotencyKey}`;
+      const fingerprint = JSON.stringify(input);
+      const previous = db.idempotentBranches?.[replayKey];
+      if (previous) {
+        if (previous.fingerprint !== fingerprint) throw new ApiError("idempotency_conflict");
+        const replayed = db.branches.find((b) => b.id === previous.branchId);
+        if (replayed) return replayed;
+      }
       enforceLimit(db, clinic.id);
       const branch: Branch = {
         id: newId(),
@@ -97,6 +117,10 @@ export function createMockBranches(): ApiClient["branches"] {
         createdAt: new Date().toISOString(),
       };
       db.branches.push(branch);
+      db.idempotentBranches = {
+        ...db.idempotentBranches,
+        [replayKey]: { branchId: branch.id, fingerprint },
+      };
       audit(db, clinic.id, actorName, "branch.created", null, branch);
       persist();
       return branch;
@@ -119,13 +143,17 @@ export function createMockBranches(): ApiClient["branches"] {
       return branch;
     },
 
-    async deactivate(persona, branchId) {
+    async deactivate(persona, branchId, options) {
       await delay();
       const db = getState();
       const { clinic, actorName } = authorize(db, persona, "deactivate", "branches");
       const branch = findBranch(db, clinic.id, branchId);
       if (!branch.isActive) return branch;
       if (usage(db, clinic.id).active <= 1) throw new ApiError("last_active_branch");
+      const stranded = strandedCount(db, clinic.id, branch.id);
+      if (stranded > 0 && options?.confirmStrandedMembers !== true) {
+        throw new ApiError("branch_has_exclusive_members", undefined, { count: stranded });
+      }
       const before = { ...branch };
       branch.isActive = false;
       audit(db, clinic.id, actorName, "branch.deactivated", before, branch);
