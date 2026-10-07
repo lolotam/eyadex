@@ -17,6 +17,8 @@ export interface MailProviderRecord {
   readonly degradedAt: Date | null;
   /** بيزيد مع كل استبدال؛ حدث التجربة بيحمله عشان الـ worker يعرف لو الإعدادات اتغيّرت. */
   readonly version: number;
+  /** آخر طلب تجربة اتقبل، أو `null`. */
+  readonly testRequestedAt: Date | null;
 }
 
 /** الحقول غير السرية من الطلب، والسر لوحده عشان يتختم. */
@@ -93,4 +95,20 @@ export function keyedRequestHash(request: MailProviderRequest, base64Key: string
   return createHmac("sha256", Buffer.from(base64Key, "base64"))
     .update("mail-provider-put:" + JSON.stringify(entries))
     .digest("hex");
+}
+
+/** تجربة واحدة لكل عيادة في الدقيقة: إرسال SMTP بياخد لحد 5 ثواني من الـ poller الوحيد. */
+export const TEST_COOLDOWN_MS = 60_000;
+
+/**
+ * فاضل قد إيه قبل ما العيادة تقدر تطلب تجربة تانية.
+ *
+ * @param lastRequestedAt آخر طلب اتقبل، أو `null`
+ * @param now وقت القرار (بعد قفل الصف)
+ * @returns الثواني الباقية (مقرّبة لفوق)، أو `0` لو مسموح
+ */
+export function testCooldownSeconds(lastRequestedAt: Date | null, now: Date): number {
+  if (lastRequestedAt === null) return 0;
+  const left = lastRequestedAt.getTime() + TEST_COOLDOWN_MS - now.getTime();
+  return left > 0 ? Math.ceil(left / 1000) : 0;
 }

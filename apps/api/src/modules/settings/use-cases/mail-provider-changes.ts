@@ -13,11 +13,17 @@ import { ApiError } from "../../../shared/errors.ts";
 import { requestHash } from "../../../shared/idempotency.ts";
 import { appendOutboxEvent } from "../../../shared/outbox.ts";
 import type { Clock } from "../../tenancy/index.ts";
-import { keyedRequestHash, mailProviderView, splitRequest } from "../domain/mail-provider-rules.ts";
+import {
+  keyedRequestHash,
+  mailProviderView,
+  splitRequest,
+  testCooldownSeconds,
+} from "../domain/mail-provider-rules.ts";
 import { publishTestRequested } from "../events/published.ts";
 import {
   deleteMailProvider,
   findMailProvider,
+  markTestRequested,
   upsertMailProvider,
 } from "../persistence/pg-mail-provider-store.ts";
 
@@ -151,7 +157,8 @@ export class MailProviderChanges {
   }
 
   /**
-   * بيطلب إيميل تجربة (شغلانة worker): حدث outbox بـ ids بس، وصف سجل. مفيش مزود → `not_found`.
+   * بيطلب إيميل تجربة (شغلانة worker): حدث outbox بـ ids بس، وصف سجل. مفيش مزود → `not_found`؛
+   * تجربة اتقبلت في آخر دقيقة → `rate_limited` بالثواني الباقية.
    *
    * @param actor الأدمن (الرسالة بتروح لإيميل عضويته هو بس)
    * @param idempotencyKey المفتاح
@@ -176,7 +183,11 @@ export class MailProviderChanges {
       if (claimed.kind === "conflict") throw new ApiError("idempotency_conflict");
       const provider = await findMailProvider(tx, actor.clinicId, true);
       if (provider === null) throw new ApiError("not_found");
+      // After the row lock (ADR-0012 §16): two parallel requests cannot both pass the cooldown.
       const now = clock.now();
+      const wait = testCooldownSeconds(provider.testRequestedAt, now);
+      if (wait > 0) throw new ApiError("rate_limited", { retryAfterSeconds: wait });
+      await markTestRequested(tx, actor.clinicId, provider.id, now);
       const event = publishTestRequested(ids.newId(), now, {
         clinicId: actor.clinicId,
         providerId: provider.id,

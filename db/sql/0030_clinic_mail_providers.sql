@@ -20,6 +20,9 @@ CREATE TABLE clinic_mail_providers (
   -- event is recognised without comparing wall clocks across API replicas.
   version              integer NOT NULL DEFAULT 1 CHECK (version >= 1),
   verified_at          timestamptz NULL,
+  -- The last accepted test request: one test per clinic per minute, so test jobs cannot crowd out the
+  -- worker's single poller. A replacement clears it.
+  test_requested_at    timestamptz NULL,
   consecutive_failures integer NOT NULL DEFAULT 0 CHECK (consecutive_failures >= 0),
   degraded_at          timestamptz NULL,
   last_error           text NULL CHECK (char_length(last_error) <= 120),

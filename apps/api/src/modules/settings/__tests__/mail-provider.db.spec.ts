@@ -168,6 +168,30 @@ describe("clinic mail provider (ADR-0014, 7c-2a)", () => {
     });
   });
 
+  it("accepts one test request per clinic per minute; a replacement resets it", async () => {
+    let time = new Date(Date.now() - 10 * 60_000);
+    const timed = new MailProviderChanges({
+      db,
+      clock: { now: () => new Date(time) },
+      ids: systemUuidV7(),
+      sealKey: KEY,
+    });
+    const clinicId = await seedClinic();
+    const actor = { clinicId, userId: newId() };
+    await timed.put(actor, resend, "c-put");
+    await timed.requestTest(actor, "c1");
+    time = new Date(time.getTime() + 30_000);
+    const refused = await timed.requestTest(actor, "c2").catch((error: unknown) => error);
+    expect(refused).toMatchObject({ code: "rate_limited", details: { retryAfterSeconds: 30 } });
+    time = new Date(time.getTime() + 31_000);
+    await timed.requestTest(actor, "c3");
+    await timed.put(actor, smtp, "c-put-2");
+    await timed.requestTest(actor, "c4");
+    const events = await owner`SELECT 1 FROM outbox_events
+      WHERE clinic_id = ${clinicId} AND event_type = 'clinic.mail_provider_test_requested'`;
+    expect(events).toHaveLength(3);
+  });
+
   it("remove deletes the config row and audits it; another clinic's row is invisible", async () => {
     const a = await seedClinic();
     const b = await seedClinic();

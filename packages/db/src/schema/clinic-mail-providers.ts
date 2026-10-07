@@ -31,6 +31,7 @@ export const clinicMailProviders = pgTable(
     sealedCredentials: text("sealed_credentials").notNull(),
     version: integer("version").notNull().default(1),
     verifiedAt: timestamp("verified_at", tz),
+    testRequestedAt: timestamp("test_requested_at", tz),
     consecutiveFailures: integer("consecutive_failures").notNull().default(0),
     degradedAt: timestamp("degraded_at", tz),
     lastError: text("last_error"),
