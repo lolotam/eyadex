@@ -43,11 +43,12 @@ AND event_type IN (…) ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1`. The
 5. **Outcome.** Sent or skipped → `dispatched_at` set and `sealedToken` removed in the same UPDATE.
 6. **Failures.** `attempts + 1`, `next_attempt_at = now + delay`, `last_error` = provider status and
    Resend's error name only (`resend_500`, `resend_422:validation_error`, `resend_timeout`,
-   `resend_network`) — never the token, the link, the address or a response body. Delays after
+   `resend_network`, `resend_unreachable`) — never the token, the link, the address or a response body. Delays after
    failures 1–4: 1 min, 5 min, 30 min, 2 h. The 5th failure sets `failed_at` and scrubs the token; the
    admin resends or copies a new link. The brief's 6 h step would follow the 5th failure, which is the
    give-up point, so it is listed in `RETRY_DELAYS_MS` but never reached. A malformed payload or a seal
-   that does not open fails at once (no retry can fix it).
+   that does not open fails at once (no retry can fix it). Which failures hand the message to the
+   platform SMTP fallback, and which retry Resend, is ADR-0014.
 7. **Mail port.** `MailSender.send({ to, subject, html, text, idempotencyKey })` returns
    `{ sent: true } | { sent: false, error }` and never throws for a provider failure. One adapter,
    `ResendMailSender`: `POST https://api.resend.com/emails` with `fetch`, `Idempotency-Key: <event id>`,

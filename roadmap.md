@@ -39,7 +39,8 @@
 - [x] Slice 7: users + invitations API — invite/resend/cancel (outbox `clinic.user_invited`, sealed token, rotation), lists, role/branches, deactivate/reactivate with session revoke, last admin and user limit under the users lock, stranded-member confirmation on branch deactivation (ADR-0012, no SQL)
 - [x] Slice 7b-1: worker dispatches `clinic.admin_invited` and `clinic.user_invited` through Resend with the send-time check (ADR-0013)
 - [x] Slice 7b-2: the worker auto-cancels pending invitations left with no active branch (ADR-0013 §12)
-- [ ] Slice 7c: platform SMTP and per-clinic mail providers
+- [x] Slice 7c-1: platform SMTP fallback for worker mail (ADR-0014)
+- [ ] Slice 7c-2: per-clinic mail providers (`clinic_mail_providers`, ADR-0014 proposal)
 - [ ] Worker production image + Dokploy service (orchestrator; not in 7b-1)
 - [ ] Retention of dispatched and failed outbox rows (TODO(spec))
 - [ ] Slice 8: role CRUD (call `AuthorizationInvalidator`)

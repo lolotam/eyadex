@@ -95,7 +95,7 @@ export function invitationDispatcher(deps: InvitationDispatchDeps) {
           idempotencyKey: event.id,
         });
         if (!result.sent) return fail(event, result.error);
-        note(event, "sent");
+        note(event, "sent", { provider: result.provider, fallback: result.fallback });
         return DONE;
       },
     );

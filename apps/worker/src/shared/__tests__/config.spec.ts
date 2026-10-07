@@ -51,3 +51,41 @@ describe("readConfig", () => {
     }
   });
 });
+
+describe("readConfig SMTP fallback (ADR-0014)", () => {
+  const smtp = {
+    SMTP_HOST: "smtp.example.test",
+    SMTP_PORT: "587",
+    SMTP_USER: "mailer",
+    SMTP_PASSWORD: "test-only-value",
+  };
+
+  it("all four keys → fallback configured", () => {
+    expect(readConfig({ ...required, ...smtp }).SMTP).toEqual({
+      host: "smtp.example.test",
+      port: 587,
+      user: "mailer",
+      password: "test-only-value",
+    });
+  });
+
+  it("none (or all empty) → no fallback", () => {
+    expect(readConfig(required).SMTP).toBeNull();
+    expect(
+      readConfig({ ...required, SMTP_HOST: "", SMTP_PORT: "", SMTP_USER: "", SMTP_PASSWORD: "" })
+        .SMTP,
+    ).toBeNull();
+  });
+
+  it("a partial set stops startup, naming only the missing keys", () => {
+    const attempt = () =>
+      readConfig({ ...required, SMTP_HOST: smtp.SMTP_HOST, SMTP_PASSWORD: smtp.SMTP_PASSWORD });
+    expect(attempt).toThrow(/SMTP_PORT, SMTP_USER/);
+    try {
+      attempt();
+    } catch (error) {
+      expect(String(error)).not.toContain("test-only-value");
+      expect(String(error)).not.toContain("smtp.example.test");
+    }
+  });
+});
