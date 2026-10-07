@@ -87,10 +87,10 @@ describe("clinic mail provider (ADR-0014, 7c-2a)", () => {
     expect(audit).not.toContain(PASSWORD);
     const [row] =
       await owner`SELECT id, sealed_credentials FROM clinic_mail_providers WHERE clinic_id = ${clinicId}`;
-    expect(row!.sealed_credentials).not.toContain(PASSWORD);
-    expect(new SecretSealer(KEY).open(row!.sealed_credentials as string, row!.id as string)).toBe(
-      PASSWORD,
-    );
+    expect(row!["sealed_credentials"]).not.toContain(PASSWORD);
+    expect(
+      new SecretSealer(KEY).open(row!["sealed_credentials"] as string, row!["id"] as string),
+    ).toBe(PASSWORD);
     const keys = JSON.stringify(
       await owner`SELECT * FROM clinic_idempotency_keys WHERE clinic_id = ${clinicId}`,
     );
@@ -125,7 +125,7 @@ describe("clinic mail provider (ADR-0014, 7c-2a)", () => {
       FROM clinic_mail_providers WHERE clinic_id = ${clinicId}`;
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
-      id: before!.id,
+      id: before!["id"],
       verified_at: null,
       last_error: null,
       consecutive_failures: 0,
@@ -144,9 +144,9 @@ describe("clinic mail provider (ADR-0014, 7c-2a)", () => {
     const events = await owner`SELECT payload FROM outbox_events
       WHERE clinic_id = ${clinicId} AND event_type = 'clinic.mail_provider_test_requested'`;
     expect(events).toHaveLength(1);
-    expect(events[0]!.payload).toEqual({
+    expect(events[0]!["payload"]).toEqual({
       clinicId,
-      providerId: row!.id,
+      providerId: row!["id"],
       actorUserId: actor.userId,
     });
   });

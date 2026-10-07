@@ -9,6 +9,7 @@ import {
   completeClinicIdempotencyKey,
 } from "../../../shared/clinic-idempotency.ts";
 import { ApiError } from "../../../shared/errors.ts";
+import { requestHash } from "../../../shared/idempotency.ts";
 import { appendOutboxEvent } from "../../../shared/outbox.ts";
 import type { Clock } from "../../tenancy/index.ts";
 import { keyedRequestHash, mailProviderView, splitRequest } from "../domain/mail-provider-rules.ts";
@@ -146,7 +147,7 @@ export class MailProviderChanges {
       clinicId: actor.clinicId,
       scope: `mail_provider:test:${actor.userId}`,
       key: idempotencyKey,
-      hash: "test",
+      hash: requestHash({ op: "mail_provider:test" }),
     };
     return db.withTenant(actor.clinicId, async (tx) => {
       const claimed = await claimClinicIdempotencyKey<{ eventId: string }>(
