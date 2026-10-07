@@ -68,6 +68,30 @@ describe("RBAC-01: every user endpoint", () => {
     });
   }
 
+  it("a role with only view:users:clinic can list but is refused every user write", async () => {
+    const viewer = await memberOn(
+      h,
+      A.admin,
+      await customRole(h, A.admin.clinicId, ["view:users:clinic"]),
+    );
+    const id = await memberIdOf(A.doctor.userId);
+    expect((await get(h, "/v1/users", viewer.cookie)).statusCode).toBe(200);
+    for (const res of [
+      await act(h, viewer.cookie, `/v1/users/${id}/role`, { roleId: doctorRole }, "PATCH"),
+      await act(
+        h,
+        viewer.cookie,
+        `/v1/users/${id}/branches`,
+        { allBranches: true, branchIds: [] },
+        "PATCH",
+      ),
+      await act(h, viewer.cookie, `/v1/users/${id}/deactivate`),
+      await act(h, viewer.cookie, `/v1/users/${id}/reactivate`),
+    ]) {
+      expect([res.statusCode, code(res)]).toEqual([403, "forbidden"]);
+    }
+  });
+
   it("slice-6 gap: a role with only view:branches:clinic is refused every branch write", async () => {
     const viewer = await memberOn(
       h,
@@ -162,12 +186,15 @@ describe("ADM-01: the last active admin", () => {
     );
     expect(code(demote)).toBe("last_active_admin");
 
-    const second = await memberOn(h, C.admin, cAdminRole);
+    const others = [];
+    for (let i = 0; i < 4; i += 1) others.push(await memberOn(h, C.admin, cAdminRole));
+    // Five admins deactivated in parallel: the users lock lets exactly four through.
     const results = await Promise.all([
       act(h, C.admin.cookie, `/v1/users/${first}/deactivate`),
-      act(h, second.cookie, `/v1/users/${second.memberId}/deactivate`),
+      ...others.map((o) => act(h, o.cookie, `/v1/users/${o.memberId}/deactivate`)),
     ]);
-    expect(results.map((r) => r.statusCode).sort()).toEqual([200, 409]);
+    expect(results.filter((r) => r.statusCode === 200)).toHaveLength(4);
+    expect(results.filter((r) => code(r) === "last_active_admin")).toHaveLength(1);
     const [row] = await h.owner`SELECT count(*)::int AS n FROM memberships m
       JOIN roles r ON r.clinic_id = m.clinic_id AND r.id = m.role_id
       WHERE m.clinic_id = ${C.admin.clinicId} AND m.status = 'active' AND r.system_key = 'clinic_admin'`;

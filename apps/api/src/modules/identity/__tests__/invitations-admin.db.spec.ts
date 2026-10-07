@@ -18,6 +18,8 @@ import { accept, strongPassword } from "./invitation-fixtures.ts";
 import {
   act,
   audit,
+  customRole,
+  memberOn,
   invitationEvents,
   invite,
   inviteBody,
@@ -80,6 +82,25 @@ describe("RBAC-01: every invitation endpoint", () => {
       expect((await run(A.admin.cookie, PLATFORM)).statusCode).toBe(404);
     });
   }
+});
+
+describe("RBAC-01: a role with only view:users:clinic", () => {
+  it("can list but is refused invite, resend and cancel", async () => {
+    const viewer = await memberOn(
+      h,
+      A.admin,
+      await customRole(h, A.admin.clinicId, ["view:users:clinic"]),
+    );
+    const target = await created(A.admin.cookie);
+    expect((await get(h, "/v1/invitations", viewer.cookie)).statusCode).toBe(200);
+    for (const res of [
+      await invite(h, viewer.cookie, inviteBody(doctorRole)),
+      await act(h, viewer.cookie, `/v1/invitations/${target.id}/resend`),
+      await act(h, viewer.cookie, `/v1/invitations/${target.id}/cancel`),
+    ]) {
+      expect([res.statusCode, code(res)]).toEqual([403, "forbidden"]);
+    }
+  });
 });
 
 describe("invite (AUD-01, outbox, idempotency)", () => {
@@ -219,14 +240,14 @@ describe("SUB-03: the user limit", () => {
     await setMaxUsers(h, clinicId, 50);
   });
 
-  it("two parallel invites at limit − 1 → exactly one 201", async () => {
+  it("parallel invites at limit − 1 → exactly one 201", async () => {
     const clinicId = A.admin.clinicId;
     await setMaxUsers(h, clinicId, (await used(clinicId)) + 1);
-    const results = await Promise.all([
-      invite(h, A.admin.cookie, inviteBody(doctorRole)),
-      invite(h, A.admin.cookie, inviteBody(doctorRole)),
-    ]);
-    expect(results.map((r) => r.statusCode).sort()).toEqual([201, 409]);
+    const results = await Promise.all(
+      Array.from({ length: 6 }, () => invite(h, A.admin.cookie, inviteBody(doctorRole))),
+    );
+    expect(results.filter((r) => r.statusCode === 201)).toHaveLength(1);
+    expect(results.filter((r) => code(r) === "limit_reached")).toHaveLength(5);
     await setMaxUsers(h, clinicId, 50);
   });
 });
