@@ -22,6 +22,9 @@ export function areaOfHost(hostname: string): Area | null {
 /** The origin an area lives on, derived from the current one (same scheme and port). */
 export function areaOrigin(area: Area, location: Pick<Location, "protocol" | "hostname" | "port">) {
   const base = location.hostname.toLowerCase().replace(AREA_PREFIX, "");
-  const host = area === "platform" ? `platform.${base}` : isLocal(base) ? base : `app.${base}`;
+  // A bare IP has no subdomains; local development serves the platform on `platform.localhost`.
+  const platformBase = isLocal(base) ? "localhost" : base;
+  const host =
+    area === "platform" ? `platform.${platformBase}` : isLocal(base) ? base : `app.${base}`;
   return `${location.protocol}//${host}${location.port ? `:${location.port}` : ""}`;
 }

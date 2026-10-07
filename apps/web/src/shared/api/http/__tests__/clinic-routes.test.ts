@@ -175,7 +175,7 @@ const PLAIN = [
   [
     "users.listBranchOptions",
     "GET",
-    "/api/v1/branches?limit=100&status=active",
+    "/api/v1/branches?limit=100",
     () => h.api.users.listBranchOptions(P),
     undefined,
   ],

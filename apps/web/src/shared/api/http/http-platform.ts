@@ -104,9 +104,15 @@ export function createHttpPlatform(ctx: HttpContext): ApiClient["platform"] {
   const { transport } = ctx;
   const detail = (id: string) =>
     transport.send("GET", path(id), { schema: platformClinicDetailSchema });
+  // A retry under the same key must send the same body, or the API answers idempotency_conflict;
+  // the expiry is derived from "today", so a retry after midnight would otherwise differ.
+  const firstAttempts = new Map<string, { input: string; now: Date }>();
   return {
     async createClinic(_persona, input, idempotencyKey) {
-      const now = ctx.now();
+      const sameInput = JSON.stringify(input);
+      const first = firstAttempts.get(idempotencyKey);
+      const now = first?.input === sameInput ? first.now : ctx.now();
+      firstAttempts.set(idempotencyKey, { input: sameInput, now });
       const request = toCreateClinicRequest(input, now);
       const answer = await transport.send("POST", "/v1/platform/clinics", {
         schema: createClinicResponseSchema,

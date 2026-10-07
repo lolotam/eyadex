@@ -222,10 +222,12 @@ commit, `lovable` fast-forwarded to `main`):
 **Merged:** #41, slice 7b-2 (`4e4e1da`).
 
 What it does:
+
 - Branch deactivation emits `clinic.branch_deactivated`.
 - The worker cancels pending invitations on that branch that have no active branch left. It releases the email hold and audits the cancellation as `invitation.auto_cancelled`, with the deactivating admin as actor (ADR-0013 §12).
 
 Five fix rounds:
+
 1. The audit catalogue and the labels for the new action.
 2. A send-time check that the invitation still has an active branch, so a backlog never mails a dying link.
 3. The invitation's branch rows held `FOR SHARE` through the send.
@@ -235,6 +237,7 @@ Five fix rounds:
 A 6th P2 was waived by the advisor and recorded in ADR-0013 §12 as a known limitation: multi-branch attribution in a backlog.
 
 **Owner decisions on mail providers (2026-10-07):**
+
 - **Platform mail:**
   - Resend is primary.
   - Platform SMTP is the automatic fallback, only on a definitive Resend failure (a 5xx, or no connection).
@@ -254,6 +257,7 @@ A 6th P2 was waived by the advisor and recorded in ADR-0013 §12 as a known limi
 - **The auto-cancel audit actor stays the deactivating admin.** No real rows exist yet, so this can still change before the deploy.
 
 **Slice 7c is split in two:**
+
 - **7c-1:** platform SMTP fallback, worker only, no schema change. `nodemailer@10.0.15` is added by the orchestrator (`fa84028`).
 - **7c-2:** per-clinic providers. The proposed shape, to settle in its own PR:
   - table `clinic_mail_providers` with PK `(clinic_id, id)`, unique `clinic_id`, `kind IN ('resend','smtp')`;
@@ -267,6 +271,7 @@ A 6th P2 was waived by the advisor and recorded in ADR-0013 §12 as a known limi
 ## 11. Update 2026-10-07 (after PRs #42–#44: slice 7c complete)
 
 **Merged:**
+
 - **#42, slice 7c-1:** platform SMTP fallback.
   - Resend is primary. SMTP is used only after a definitive Resend failure (5xx, or `resend_unreachable`).
   - Resend and SMTP share one 7 s send deadline.
@@ -290,6 +295,7 @@ A 6th P2 was waived by the advisor and recorded in ADR-0013 §12 as a known limi
   - Accepted limitation (ADR-0014): if an admin changes the provider between ambiguous retries, the invitee may get a second copy.
 
 **Deploy needs, not done yet:**
+
 - **Migrations:** 0029 and 0030 are not on production.
 - **Worker:** it has no Dockerfile, image or Dokploy service.
 - **Shared secrets:** the API and the worker must share `OUTBOX_SEAL_KEY` and `MAIL_PROVIDER_SEAL_KEY`.
@@ -306,12 +312,13 @@ Production is the Dokploy host **musalam-2** (`116.202.66.131`). The owner creat
 
 **Verified after a session restart on 2026-10-08:**
 
-| Owner's name | What it is | How it shows in the tool list | Status |
-|---|---|---|---|
-| `ssh-musalam-2-mcp` | SSH to the host (profile `musalam-2`): `docker`, `psql` inside the Postgres container, migrations, logs | claude.ai connector `mcp__e024a441-2f34-4be6-87df-277abbcd0b92__*` | ✅ works |
-| `dokploy-musalam-2-mcp` | The host's Dokploy API: applications, env, domains, deploys | claude.ai connector `mcp__b473c753-53ec-44b3-8d3a-2687d85edec2__*`; `settings-getIp` returns `116.202.66.131` | ✅ works |
+| Owner's name            | What it is                                                                                              | How it shows in the tool list                                                                                 | Status   |
+| ----------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | -------- |
+| `ssh-musalam-2-mcp`     | SSH to the host (profile `musalam-2`): `docker`, `psql` inside the Postgres container, migrations, logs | claude.ai connector `mcp__e024a441-2f34-4be6-87df-277abbcd0b92__*`                                            | ✅ works |
+| `dokploy-musalam-2-mcp` | The host's Dokploy API: applications, env, domains, deploys                                             | claude.ai connector `mcp__b473c753-53ec-44b3-8d3a-2687d85edec2__*`; `settings-getIp` returns `116.202.66.131` | ✅ works |
 
 **Do not use:**
+
 - the local `ssh-musalam-2-mcp`, which fails with "Connection closed";
 - the local `dokploy-Musalam-2-mcp`, which fails with "Authentication failed / DOKPLOY_API_KEY".
 
@@ -319,15 +326,16 @@ Production is the Dokploy host **musalam-2** (`116.202.66.131`). The owner creat
 
 **Dokploy layout** (project `Eyadex.com`, environment `production` `94tiYk1Bb6T8GPP4AVcmQ`):
 
-| Service | Dokploy id | Swarm service | Source | Domains |
-|---|---|---|---|---|
-| Eyadex-Main (web) | `Y3UZYu_vnzzY74r0JCBJy` | `eyadexcom-eyadex-v907db` | `Dockerfile` | eyadex.com, www., app., platform. (`/`) |
-| Eyadex-API | `QZ0XhgHIWVCZk2OuywuTP` | `app-parse-virtual-system-ayw2vk` | `apps/api/Dockerfile` | app. and platform. on `/api` (strip path) |
-| Eyadex-Worker | `6NBqsac1kCfq-DtC-GA0V` | `app-parse-multi-byte-system-he5ig5` | `apps/worker/Dockerfile` | none (internal); stop grace 60 s |
-| Postgres 18 | `1KpZwh5dEQpGsBbuz0iC_` | `eyadexcom-eyadex-dn2tcg` | — | internal |
-| Redis 8 | `fNmqMTvbn85VFqzYSBEqf` | `eyadexcom-eyadexredis-1gwghg` | — | internal |
+| Service           | Dokploy id              | Swarm service                        | Source                   | Domains                                   |
+| ----------------- | ----------------------- | ------------------------------------ | ------------------------ | ----------------------------------------- |
+| Eyadex-Main (web) | `Y3UZYu_vnzzY74r0JCBJy` | `eyadexcom-eyadex-v907db`            | `Dockerfile`             | eyadex.com, www., app., platform. (`/`)   |
+| Eyadex-API        | `QZ0XhgHIWVCZk2OuywuTP` | `app-parse-virtual-system-ayw2vk`    | `apps/api/Dockerfile`    | app. and platform. on `/api` (strip path) |
+| Eyadex-Worker     | `6NBqsac1kCfq-DtC-GA0V` | `app-parse-multi-byte-system-he5ig5` | `apps/worker/Dockerfile` | none (internal); stop grace 60 s          |
+| Postgres 18       | `1KpZwh5dEQpGsBbuz0iC_` | `eyadexcom-eyadex-dn2tcg`            | —                        | internal                                  |
+| Redis 8           | `fNmqMTvbn85VFqzYSBEqf` | `eyadexcom-eyadexredis-1gwghg`       | —                        | internal                                  |
 
 **Working notes:**
+
 - **Env is encrypted at rest** (`enc:v1:`). To check configuration without reading secrets, inspect the running behaviour instead: `/health/ready`, and the Postgres log for authentication failures.
 - **Production DB:** 0001–0030 are applied. Backup before 0029: `/root/backups/eyadex-pre0029-2026-10-07_1445.dump` and `roles-pre0029-…sql`.
 - **Secrets** (env values, role passwords) are pasted by the owner. The orchestrator does not enter or change them.

@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useApi } from "@/shared/api/api-provider";
 import { areaOfHost, type Area } from "@/shared/api/area-host";
 import { DEFAULT_PERSONA, PersonaContext, SESSION_KEY, type PersonaValue } from "./persona-context";
+import { isSessionReady } from "./session-readiness";
 import { useHttpSessionGuard } from "./use-http-session-guard";
 
 const noop = () => undefined;
@@ -28,7 +29,7 @@ export function HttpPersonaProvider({ children }: { children: ReactNode }) {
   useHttpSessionGuard(query.error);
 
   const value = useMemo<PersonaValue>(() => {
-    const ready = area !== undefined && (!enabled || query.isSuccess);
+    const ready = isSessionReady(area, query.data !== undefined);
     return {
       persona: query.data?.persona ?? DEFAULT_PERSONA,
       ready,
@@ -40,7 +41,7 @@ export function HttpPersonaProvider({ children }: { children: ReactNode }) {
         error: query.error,
       },
     };
-  }, [area, enabled, query.data, query.error, query.isPending, query.isSuccess]);
+  }, [area, enabled, query.data, query.error, query.isPending]);
 
   return <PersonaContext.Provider value={value}>{children}</PersonaContext.Provider>;
 }

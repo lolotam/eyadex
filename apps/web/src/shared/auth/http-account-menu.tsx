@@ -1,9 +1,11 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { LogOut, UserRound } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { useSession } from "@/shared/persona/persona-provider";
+import { signOutOfApi } from "./sign-out";
 import { useAuthClient } from "./use-auth-client";
 
 /** HTTP mode header: who is signed in, and sign-out. */
@@ -15,12 +17,12 @@ export function HttpAccountMenu() {
   const navigate = useNavigate();
 
   async function signOut() {
-    try {
-      await auth.signOut();
-    } finally {
-      queryClient.clear();
-      void navigate({ to: "/login" });
+    if (!(await signOutOfApi(auth))) {
+      toast.error(t("errors.unknown"));
+      return;
     }
+    queryClient.clear();
+    void navigate({ to: "/login" });
   }
 
   return (

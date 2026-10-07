@@ -66,7 +66,8 @@ export function createHttpUsers(ctx: HttpContext): ApiClient["users"] {
       const branches = await collectPages((cursor) =>
         transport.send("GET", "/v1/branches", {
           schema: branchListResponseSchema,
-          query: { cursor, limit: LIMIT, status: "active" },
+          // Inactive ones too, like the mock: names of past scopes and the user filter need them.
+          query: { cursor, limit: LIMIT },
         }),
       );
       return branches.map(toBranchOption);

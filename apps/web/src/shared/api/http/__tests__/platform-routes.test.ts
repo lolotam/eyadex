@@ -10,7 +10,9 @@ import {
   page,
   platformDetail,
   type Call,
+  stubFetch,
 } from "./fetch-stub";
+import { createHttpApiClient } from "../http-adapter";
 
 const P: Persona = { kind: "platform_admin", clinicId: null, memberId: null };
 const created = {
@@ -62,6 +64,23 @@ describe("wired platform methods", () => {
       admin: { fullName: "Admin Person", email: "admin@example.test" },
     });
     expect(result.firstAdminInvite.token).toBeNull();
+  });
+  it("a createClinic retry after midnight resends the first body under the same key", async () => {
+    let failFirst = true;
+    const stub = stubFetch((call) => {
+      if (failFirst) {
+        failFirst = false;
+        return { status: 503 };
+      }
+      return answer(call);
+    });
+    const clock = [new Date("2026-01-31T23:59:00Z"), new Date("2026-02-01T00:01:00Z")];
+    const api = createHttpApiClient(stub.fetchImpl, () => clock.shift() ?? new Date());
+    expect(await code(api.platform.createClinic(P, input, "key-r"))).toMatchObject({
+      code: "unknown",
+    });
+    await api.platform.createClinic(P, input, "key-r");
+    expect(stub.calls[1]!.body).toEqual(stub.calls[0]!.body);
   });
   it("getClinic, listClinicBranches and setClinicFeature use their routes", async () => {
     const h = clientWith(answer);
