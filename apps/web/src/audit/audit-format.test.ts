@@ -7,7 +7,9 @@ import {
   AUDIT_ACTIONS,
   CLINIC_AUDIT_ACTIONS,
   PLATFORM_AUDIT_ACTIONS,
+  platformAuditEntitySchema,
 } from "@eyadex/contracts/audit";
+import { clinicAuditEntitySchema } from "@eyadex/contracts/organization";
 import { PERMISSION_CATALOG } from "@eyadex/contracts/permissions";
 import { membershipUserStatusSchema } from "@eyadex/contracts/users";
 import { ar } from "@/shared/i18n/ar";
@@ -59,6 +61,19 @@ describe("audit value translations", () => {
           labelled.push(`${group}.${action}`);
       expect([...labelled].sort()).toEqual([...AUDIT_ACTIONS].sort());
     }
+  });
+
+  it("keeps the audit entity schemas and the entity labels in sync", () => {
+    const schemas = new Set<string>([
+      ...clinicAuditEntitySchema.options,
+      ...platformAuditEntitySchema.options,
+    ]);
+    for (const dict of [ar, en]) {
+      expect(Object.keys(dict.audit.entities).sort()).toEqual([...schemas].sort());
+    }
+    // Written by the API and the worker for the clinic mail provider (ADR-0014): readable on both screens.
+    expect(clinicAuditEntitySchema.safeParse("clinic_mail_provider").success).toBe(true);
+    expect(platformAuditEntitySchema.safeParse("clinic_mail_provider").success).toBe(true);
   });
 
   it("offers each screen exactly the actions its log can contain", () => {

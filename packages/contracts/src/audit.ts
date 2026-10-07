@@ -46,6 +46,7 @@ export const platformAuditEntitySchema = z.enum([
   "role",
   "platform_account",
   "platform_settings",
+  "clinic_mail_provider",
 ]);
 export type PlatformAuditEntity = z.infer<typeof platformAuditEntitySchema>;
 
@@ -121,6 +122,7 @@ export const CLINIC_AUDIT_ACTIONS = [
   "clinic.mail_provider_updated",
   "clinic.mail_provider_removed",
   "clinic.mail_provider_test_requested",
+  "clinic.mail_provider_degraded",
 ] as const;
 
 /** Actions only the platform writes (its own log). */

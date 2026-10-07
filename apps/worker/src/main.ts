@@ -38,10 +38,14 @@ try {
     ? new SmtpMailSender(createSmtpTransport(config.SMTP), config.MAIL_FROM)
     : null;
   const mail = smtp ? new FallbackMailSender(resend, smtp, decideFallback) : resend;
+  const providerSealer = new SecretSealer(config.MAIL_PROVIDER_SEAL_KEY);
+  const clinicSenders = new RealClinicSenderFactory();
   const mailInvitation = invitationDispatcher({
     sealer: new SecretSealer(config.OUTBOX_SEAL_KEY),
-    invitations: new PgInvitationStateReader(app),
+    invitations: new PgInvitationStateReader(app, ids),
     mail,
+    // ADR-0014 7c-2b: staff invitations go through a verified, healthy clinic provider.
+    clinicMail: { sealer: providerSealer, senders: clinicSenders, platformFrom: config.MAIL_FROM },
     clock,
     appUrl: config.APP_URL,
     logger,
@@ -51,9 +55,9 @@ try {
     [ADMIN_INVITED]: mailInvitation,
     [USER_INVITED]: mailInvitation,
     [MAIL_PROVIDER_TEST_REQUESTED]: mailProviderTestHandler({
-      sealer: new SecretSealer(config.MAIL_PROVIDER_SEAL_KEY),
+      sealer: providerSealer,
       store: new PgProviderTestStore(app),
-      senders: new RealClinicSenderFactory(),
+      senders: clinicSenders,
       clock,
       logger,
     }),

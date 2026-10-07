@@ -11,6 +11,51 @@ export interface InvitationState {
   readonly hasActiveBranch: boolean;
   /** المنطقة الزمنية للعيادة، عشان تاريخ الانتهاء يتكتب بوقتها. */
   readonly timezone: string;
+  /** اللي بعت الدعوة: فاعل سطر التحويل في السجل (مفيش فاعل نظام، نفس `invitation.auto_cancelled`). */
+  readonly invitedByUserId: string;
+  /** صف مزود العيادة ممسوك `FOR UPDATE`، لو اتطلب وموجود. */
+  readonly clinicProvider: LockedClinicProvider | null;
+}
+
+/** صف مزود العيادة وقت الإرسال. `sealedCredentials` لسه مقفول. */
+export interface ClinicProviderRow {
+  readonly id: string;
+  readonly kind: "resend" | "smtp";
+  readonly fromName: string;
+  readonly fromEmail: string;
+  readonly replyTo: string | null;
+  readonly smtpHost: string | null;
+  readonly smtpPort: number | null;
+  readonly smtpUser: string | null;
+  readonly sealedCredentials: string;
+  readonly version: number;
+  readonly verifiedAt: Date | null;
+  readonly degradedAt: Date | null;
+  readonly consecutiveFailures: number;
+}
+
+/** نتيجة إرسال عبر مزود العيادة اللي بتتكتب على الصف. الغامض مابيتكتبش. */
+export type ClinicSendOutcome =
+  | { readonly ok: true }
+  | { readonly ok: false; readonly error: string; readonly definitive: boolean; readonly at: Date };
+
+/** صف المزود والصف ممسوك، وطريقة تسجيل النتيجة في نفس الـ transaction. */
+export interface LockedClinicProvider {
+  readonly row: ClinicProviderRow;
+  /**
+   * بيكتب النتيجة (ADR-0014، 7c-2b): النجاح بيصفّر العداد؛ الفشل الأكيد بيزوّده، وعند 3 بيحط
+   * `degraded_at` و`last_error` وسطر سجل واحد `clinic.mail_provider_degraded`.
+   *
+   * @param outcome نتيجة الإرسال
+   * @returns `true` لو المزود اتحوّل للمنصة دلوقتي
+   */
+  record(outcome: ClinicSendOutcome): Promise<boolean>;
+}
+
+/** اختيارات القراءة. */
+export interface LockOptions {
+  /** يقرا صف مزود العيادة (`FOR UPDATE`) بعد صف الدعوة وفروعها — لدعوة المستخدم بس. */
+  readonly clinicProvider?: boolean;
 }
 
 /**
@@ -26,11 +71,13 @@ export interface InvitationStateReader {
    * @param clinicId عيادة الحدث
    * @param invitationId الدعوة
    * @param use بياخد الحالة (أو `null` لو مش موجودة في العيادة دي) وبيقرر ويبعت والصف ممسوك
+   * @param options هل نقرا صف مزود العيادة كمان
    * @returns اللي `use` رجّعه
    */
   whileLocked<T>(
     clinicId: string,
     invitationId: string,
     use: (state: InvitationState | null) => Promise<T>,
+    options?: LockOptions,
   ): Promise<T>;
 }

@@ -1,6 +1,12 @@
-import { sql, type Database } from "@eyadex/db";
+import { sql, type Database, type IdGenerator } from "@eyadex/db";
+import { randomUUID } from "node:crypto";
 
-import type { InvitationState, InvitationStateReader } from "../ports/invitation-state-reader.ts";
+import type {
+  InvitationState,
+  InvitationStateReader,
+  LockOptions,
+} from "../ports/invitation-state-reader.ts";
+import { lockClinicProvider } from "./pg-clinic-provider-lock.ts";
 
 type Row = {
   status: InvitationState["status"];
@@ -8,6 +14,7 @@ type Row = {
   token_hash: string;
   timezone: string;
   all_branches: boolean;
+  invited_by_user_id: string;
 };
 
 /**
@@ -16,19 +23,23 @@ type Row = {
  */
 export class PgInvitationStateReader implements InvitationStateReader {
   readonly #db: Database;
+  readonly #ids: IdGenerator;
 
-  constructor(db: Database) {
+  constructor(db: Database, ids: IdGenerator = { newId: randomUUID }) {
     this.#db = db;
+    this.#ids = ids;
   }
 
   whileLocked<T>(
     clinicId: string,
     invitationId: string,
     use: (state: InvitationState | null) => Promise<T>,
+    options: LockOptions = {},
   ): Promise<T> {
     return this.#db.withTenant(clinicId, async (tx) => {
       const rows = (await tx.execute(
-        sql`SELECT i.status, i.expires_at::text AS expires_at, i.token_hash, c.timezone, i.all_branches
+        sql`SELECT i.status, i.expires_at::text AS expires_at, i.token_hash, c.timezone, i.all_branches,
+                   i.invited_by_user_id
             FROM invitations i JOIN clinics c ON c.id = i.clinic_id
             WHERE i.clinic_id = ${clinicId} AND i.id = ${invitationId}
             FOR SHARE OF i`,
@@ -45,12 +56,17 @@ export class PgInvitationStateReader implements InvitationStateReader {
                 WHERE ib.clinic_id = ${clinicId} AND ib.invitation_id = ${invitationId}
                 ORDER BY b.id FOR SHARE OF b`,
           )) as unknown as { is_active: boolean }[]);
+      const clinicProvider = options.clinicProvider
+        ? await lockClinicProvider(tx, clinicId, row.invited_by_user_id, this.#ids)
+        : null;
       return use({
         status: row.status,
         expiresAt: new Date(row.expires_at),
         tokenHash: row.token_hash,
         hasActiveBranch: row.all_branches || branches.some((b) => b.is_active),
         timezone: row.timezone,
+        invitedByUserId: row.invited_by_user_id,
+        clinicProvider,
       });
     });
   }
