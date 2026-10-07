@@ -46,6 +46,7 @@ export const platformAuditEntitySchema = z.enum([
   "role",
   "platform_account",
   "platform_settings",
+  "clinic_mail_provider",
 ]);
 export type PlatformAuditEntity = z.infer<typeof platformAuditEntitySchema>;
 
