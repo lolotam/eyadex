@@ -36,3 +36,6 @@ dist-ssr
 .env
 .env.*
 !.env.example
+
+# Redis snapshots written by a local redis-server
+dump.rdb
