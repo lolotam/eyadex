@@ -4,12 +4,7 @@ import type { InvitationState } from "../ports/invitation-state-reader.ts";
 
 /** ليه الحدث ما اتبعتش. بيتسجّل كما هو، فمفيش فيه أي بيانات. */
 export type SkipReason =
-  | "missing"
-  | "accepted"
-  | "cancelled"
-  | "expired"
-  | "no_active_branch"
-  | "superseded";
+  "missing" | "accepted" | "cancelled" | "expired" | "no_active_branch" | "superseded";
 
 /**
  * فحص وقت الإرسال (ADR-0012 §8): الدعوة لسه `pending`، ما انتهتش عند `now`، والرمز اللي في الحدث هو
