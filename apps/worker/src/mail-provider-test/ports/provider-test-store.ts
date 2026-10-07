@@ -9,7 +9,7 @@ export interface ProviderUnderTest {
   readonly smtpPort: number | null;
   readonly smtpUser: string | null;
   readonly sealedCredentials: string;
-  readonly updatedAt: Date;
+  readonly version: number;
 }
 
 /** اللي اتلقى وقت القفل: الصف (أو `null` لو اتشال) وإيميل عضوية الفاعل (أو `null`). */

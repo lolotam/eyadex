@@ -109,7 +109,7 @@ function setup(kind: "resend" | "smtp" = "resend") {
   const admin = `admin-${tag}@example.test`;
   const actor = member(clinicId, roleId, admin);
   const providerId = provider(clinicId, kind);
-  const eventId = event({ clinicId, providerId, actorUserId: actor }, clinicId);
+  const eventId = event({ clinicId, providerId, providerVersion: 1, actorUserId: actor }, clinicId);
   return { clinicId, providerId, eventId, admin };
 }
 
@@ -170,7 +170,10 @@ describe("clinic mail provider test send (ADR-0014, 7c-2a)", () => {
     const mail = new FakeMail();
     const h = harness(mail);
     const { clinicId, eventId } = setup();
-    owner(`UPDATE clinic_mail_providers SET updated_at = now() WHERE clinic_id = ${q(clinicId)}`);
+    // Replaced by a replica whose clock is behind: the timestamps say the row is older than the
+    // event, and only the version tells the replacement apart.
+    owner(`UPDATE clinic_mail_providers SET version = version + 1,
+             updated_at = now() - interval '3 hours' WHERE clinic_id = ${q(clinicId)}`);
     await drain(h.poller);
     expect(mail.sent).toHaveLength(0);
     expect(row(clinicId)).toEqual({ verified_at: null, last_error: null });
@@ -182,7 +185,7 @@ describe("clinic mail provider test send (ADR-0014, 7c-2a)", () => {
     const { clinicId, providerId } = setup();
     const bad = event({ clinicId, providerId }, clinicId);
     const other = event(
-      { clinicId: randomUUID(), providerId, actorUserId: randomUUID() },
+      { clinicId: randomUUID(), providerId, providerVersion: 1, actorUserId: randomUUID() },
       clinicId,
     );
     await drain(h.poller);

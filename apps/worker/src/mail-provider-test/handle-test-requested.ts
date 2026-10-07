@@ -52,9 +52,9 @@ export function mailProviderTestHandler(deps: MailProviderTestDeps) {
       "outbox event handled",
     );
 
-  const attempt = async (event: ClaimedEvent, state: ProviderTestState) => {
+  const attempt = async (event: ClaimedEvent, version: number, state: ProviderTestState) => {
     const { provider, recipient } = state;
-    if (provider === null || isSuperseded(provider.updatedAt, event.createdAt)) {
+    if (provider === null || isSuperseded(provider.version, version)) {
       log(event, "skipped", { reason: provider === null ? "removed" : "replaced" });
       return null;
     }
@@ -101,7 +101,7 @@ export function mailProviderTestHandler(deps: MailProviderTestDeps) {
     }
     try {
       await deps.store.withProvider(parsed.clinicId, parsed.providerId, parsed.actorUserId, (s) =>
-        attempt(event, s),
+        attempt(event, parsed.providerVersion, s),
       );
     } catch {
       // The tenant transaction rolled back: retry on the shared schedule. The raw message is never logged.

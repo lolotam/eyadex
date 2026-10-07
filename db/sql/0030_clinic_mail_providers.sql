@@ -16,6 +16,9 @@ CREATE TABLE clinic_mail_providers (
   smtp_port            integer NULL CHECK (smtp_port BETWEEN 1 AND 65535),
   smtp_user            text NULL,
   sealed_credentials   text NOT NULL,
+  -- Bumped by every replacement: a test event carries the version it was requested for, so a stale
+  -- event is recognised without comparing wall clocks across API replicas.
+  version              integer NOT NULL DEFAULT 1 CHECK (version >= 1),
   verified_at          timestamptz NULL,
   consecutive_failures integer NOT NULL DEFAULT 0 CHECK (consecutive_failures >= 0),
   degraded_at          timestamptz NULL,

@@ -180,6 +180,7 @@ export class MailProviderChanges {
       const event = publishTestRequested(ids.newId(), now, {
         clinicId: actor.clinicId,
         providerId: provider.id,
+        providerVersion: provider.version,
         actorUserId: actor.userId,
       });
       await appendOutboxEvent(tx, event);

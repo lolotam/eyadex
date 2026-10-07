@@ -163,6 +163,7 @@ describe("clinic mail provider (ADR-0014, 7c-2a)", () => {
     expect(events[0]!["payload"]).toEqual({
       clinicId,
       providerId: row!["id"],
+      providerVersion: 1,
       actorUserId: actor.userId,
     });
   });

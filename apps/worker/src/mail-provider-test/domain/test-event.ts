@@ -7,6 +7,7 @@ const schema = z
   .object({
     clinicId: z.string().uuid(),
     providerId: z.string().uuid(),
+    providerVersion: z.number().int().min(1),
     actorUserId: z.string().uuid(),
   })
   .strict();
@@ -31,15 +32,15 @@ export function parseMailProviderTest(
 }
 
 /**
- * الصف اتغيّر بعد الطلب؟ الـ API بيكتب `updated_at` و`created_at` الحدث من نفس الساعة، والتجربة نفسها
- * ما بتلمسش `updated_at`، فصف أحدث من الحدث معناه إن الإعدادات اتبدّلت ومش هي اللي اتطلب تجربتها.
+ * الصف اتبدّل بعد الطلب؟ كل استبدال بيزوّد `version` في نفس الـ transaction، والتجربة نفسها
+ * مابتغيّروش، فإصدار مختلف معناه إن الإعدادات اللي اتطلبت تجربتها مابقتش موجودة — من غير مقارنة ساعات.
  *
- * @param providerUpdatedAt `clinic_mail_providers.updated_at`
- * @param eventCreatedAt `outbox_events.created_at`
+ * @param providerVersion `clinic_mail_providers.version` تحت القفل
+ * @param requestedVersion الإصدار اللي في الحدث
  * @returns `true` لو لازم نتخطّى من غير كتابة
  */
-export function isSuperseded(providerUpdatedAt: Date, eventCreatedAt: Date): boolean {
-  return providerUpdatedAt.getTime() > eventCreatedAt.getTime();
+export function isSuperseded(providerVersion: number, requestedVersion: number): boolean {
+  return providerVersion !== requestedVersion;
 }
 
 /** رسالة التجربة الثابتة، عربي وإنجليزي في نفس الإيميل. مفيش بيانات من الطلب غير اسم المرسل. */

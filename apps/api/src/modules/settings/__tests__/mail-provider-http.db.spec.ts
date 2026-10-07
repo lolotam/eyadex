@@ -115,6 +115,7 @@ describe("mail provider over HTTP", () => {
       "actorUserId",
       "clinicId",
       "providerId",
+      "providerVersion",
     ]);
   });
 

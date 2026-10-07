@@ -17,7 +17,7 @@ type Row = {
   smtp_port: number | null;
   smtp_user: string | null;
   sealed_credentials: string;
-  updated_at: string;
+  version: number;
 };
 
 const provider = (row: Row): ProviderUnderTest => ({
@@ -30,7 +30,7 @@ const provider = (row: Row): ProviderUnderTest => ({
   smtpPort: row.smtp_port,
   smtpUser: row.smtp_user,
   sealedCredentials: row.sealed_credentials,
-  updatedAt: new Date(row.updated_at),
+  version: row.version,
 });
 
 /**
@@ -49,7 +49,7 @@ export class PgProviderTestStore implements ProviderTestStore {
     return this.db.withTenant(clinicId, async (tx) => {
       const rows = (await tx.execute(
         sql`SELECT id, kind, from_name, from_email, reply_to, smtp_host, smtp_port, smtp_user,
-                   sealed_credentials, updated_at
+                   sealed_credentials, version
             FROM clinic_mail_providers WHERE clinic_id = ${clinicId} AND id = ${providerId}
             FOR UPDATE`,
       )) as unknown as Row[];

@@ -15,6 +15,7 @@ type Row = {
   verified_at: string | null;
   last_error: string | null;
   degraded_at: string | null;
+  version: number;
 };
 
 const date = (v: string | null) => (v === null ? null : new Date(v));
@@ -31,6 +32,7 @@ const record = (row: Row): MailProviderRecord => ({
   verifiedAt: date(row.verified_at),
   lastError: row.last_error,
   degradedAt: date(row.degraded_at),
+  version: row.version,
 });
 
 /** صف العيادة (واحد بالكتير)، بقفل `FOR UPDATE` لو طُلب. الختم مابيتقراش هنا أبداً. */
@@ -42,7 +44,7 @@ export async function findMailProvider(
   const lock = forUpdate ? sql` FOR UPDATE` : sql``;
   const rows = await tx.execute<Row>(
     sql`SELECT id, kind, from_name, from_email, reply_to, smtp_host, smtp_port, smtp_user,
-               verified_at, last_error, degraded_at
+               verified_at, last_error, degraded_at, version
         FROM clinic_mail_providers WHERE clinic_id = ${clinicId}${lock}`,
   );
   return rows[0] === undefined ? null : record(rows[0]);
@@ -71,7 +73,7 @@ export async function upsertMailProvider(
           smtp_port = EXCLUDED.smtp_port, smtp_user = EXCLUDED.smtp_user,
           sealed_credentials = EXCLUDED.sealed_credentials, verified_at = NULL,
           consecutive_failures = 0, degraded_at = NULL, last_error = NULL,
-          updated_at = EXCLUDED.updated_at`,
+          version = clinic_mail_providers.version + 1, updated_at = EXCLUDED.updated_at`,
   );
 }
 

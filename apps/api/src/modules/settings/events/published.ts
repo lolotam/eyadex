@@ -7,6 +7,8 @@ export const MAIL_PROVIDER_TEST_REQUESTED = "clinic.mail_provider_test_requested
 export interface MailProviderTestRequested {
   readonly clinicId: string;
   readonly providerId: string;
+  /** إصدار الإعدادات اللي اتطلبت تجربتها؛ الـ worker بيتخطّى لو الصف اتبدّل بعدها. */
+  readonly providerVersion: number;
   readonly actorUserId: string;
 }
 
@@ -30,6 +32,7 @@ export function publishTestRequested(
     payload: {
       clinicId: payload.clinicId,
       providerId: payload.providerId,
+      providerVersion: payload.providerVersion,
       actorUserId: payload.actorUserId,
     },
     createdAt,

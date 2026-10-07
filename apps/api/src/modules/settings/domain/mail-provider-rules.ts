@@ -15,6 +15,8 @@ export interface MailProviderRecord {
   readonly verifiedAt: Date | null;
   readonly lastError: string | null;
   readonly degradedAt: Date | null;
+  /** بيزيد مع كل استبدال؛ حدث التجربة بيحمله عشان الـ worker يعرف لو الإعدادات اتغيّرت. */
+  readonly version: number;
 }
 
 /** الحقول غير السرية من الطلب، والسر لوحده عشان يتختم. */
