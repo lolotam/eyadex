@@ -1,6 +1,7 @@
 import type { MailProviderRequest, MailProviderView } from "@eyadex/contracts/mail-provider";
 import type { Database } from "@eyadex/db";
 import type { IdGenerator } from "@eyadex/ids";
+import { maskPhonesInText } from "@eyadex/observability";
 import { SecretSealer } from "@eyadex/secrets";
 
 import { writeClinicAudit } from "../../../shared/clinic-audit.ts";
@@ -36,6 +37,12 @@ export interface MailProviderActor {
 }
 
 const ENTITY = "clinic_mail_provider";
+
+// The append-only audit keeps no full phone number, not even one typed into the sender's display name.
+const auditView = (view: MailProviderView): MailProviderView => ({
+  ...view,
+  fromName: maskPhonesInText(view.fromName),
+});
 
 /**
  * إعداد مزود بريد العيادة (ADR-0014، 7c-2a). كل عملية transaction واحدة جوه `withTenant` فيها صف
@@ -100,7 +107,10 @@ export class MailProviderChanges {
         action: "clinic.mail_provider_updated",
         entityType: ENTITY,
         entityId: id,
-        details: { before: before === null ? null : mailProviderView(before), after: view },
+        details: {
+          before: before === null ? null : auditView(mailProviderView(before)),
+          after: auditView(view),
+        },
         createdAt: now,
       });
       await completeClinicIdempotencyKey(tx, claim, view);
@@ -127,7 +137,7 @@ export class MailProviderChanges {
         action: "clinic.mail_provider_removed",
         entityType: ENTITY,
         entityId: before.id,
-        details: { before: mailProviderView(before), after: null },
+        details: { before: auditView(mailProviderView(before)), after: null },
         createdAt: clock.now(),
       });
       return true;

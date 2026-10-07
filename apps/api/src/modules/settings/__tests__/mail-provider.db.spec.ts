@@ -98,6 +98,18 @@ describe("clinic mail provider (ADR-0014, 7c-2a)", () => {
     expect(keys).not.toContain(API_KEY);
   });
 
+  it("masks a phone number typed into the sender name in every audit row", async () => {
+    const clinicId = await seedClinic();
+    const actor = { clinicId, userId: newId() };
+    const view = await changes.put(actor, { ...resend, fromName: "Clinic 99887766" }, "p1");
+    expect(view.fromName).toBe("Clinic 99887766");
+    await changes.put(actor, smtp, "p2");
+    await changes.remove(actor);
+    const audit = await auditText(clinicId);
+    expect(audit).toContain("clinic.mail_provider_removed");
+    expect(audit).not.toContain("99887766");
+  });
+
   it("a replay returns the same view with one audit row; another body conflicts", async () => {
     const clinicId = await seedClinic();
     const actor = { clinicId, userId: newId() };
