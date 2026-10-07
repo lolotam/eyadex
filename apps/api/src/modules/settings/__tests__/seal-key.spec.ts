@@ -13,8 +13,12 @@ describe("MAIL_PROVIDER_SEAL_KEY (required when settings is mounted)", () => {
   it.each([{}, { MAIL_PROVIDER_SEAL_KEY: "" }, { MAIL_PROVIDER_SEAL_KEY: "c2hvcnQ=" }])(
     "stops startup naming only the key: %j",
     (env) => {
-      expect(() => mailProviderSealKey(env)).toThrow(/^Invalid API configuration: MAIL_PROVIDER_SEAL_KEY/);
-      expect(() => mailProviderSealKey({ MAIL_PROVIDER_SEAL_KEY: "c2hvcnQ=" })).not.toThrow(/c2hvcnQ/);
+      expect(() => mailProviderSealKey(env)).toThrow(
+        /^Invalid API configuration: MAIL_PROVIDER_SEAL_KEY/,
+      );
+      expect(() => mailProviderSealKey({ MAIL_PROVIDER_SEAL_KEY: "c2hvcnQ=" })).not.toThrow(
+        /c2hvcnQ/,
+      );
     },
   );
 });

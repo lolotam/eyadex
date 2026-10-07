@@ -1,6 +1,6 @@
 # ADR-0014 — Mail providers: platform SMTP fallback (7c-1) and clinic providers (7c-2)
 
-Status: accepted for 7c-1 (2026-10-07) and 7c-2a (2026-10-08); 7c-2b next.
+Status: accepted for 7c-1 (2026-10-07) and 7c-2a (2026-10-07); 7c-2b next.
 
 ## Context
 
