@@ -24,3 +24,14 @@ export function formatAddress(from: MailAddress): string {
   const name = displayName(from.name).replace(/["\\]/g, (c) => `\\${c}`);
   return name === "" ? from.address : `"${name}" <${from.address}>`;
 }
+
+/**
+ * عنوان المنصة من `MAIL_FROM` (`Name <addr>` أو العنوان لوحده)، للإرسال بالنيابة عن عيادة متحوّلة.
+ *
+ * @param mailFrom قيمة `MAIL_FROM`
+ * @returns العنوان بس
+ */
+export function addressOf(mailFrom: string): string {
+  const match = /<([^<>]+)>\s*$/.exec(mailFrom);
+  return (match?.[1] ?? mailFrom).trim();
+}
