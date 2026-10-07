@@ -69,5 +69,8 @@ describe("audit value translations", () => {
     expect(platform.some((a) => a.startsWith("patient."))).toBe(false);
     expect(platform).toContain("clinic.settings_updated");
     expect(platform).toContain("platform_account.joined");
+    // Written by the worker, not the API (ADR-0013 §12): both screens must still offer and label it.
+    expect(clinic).toContain("invitation.auto_cancelled");
+    expect(platform).toContain("invitation.auto_cancelled");
   });
 });
