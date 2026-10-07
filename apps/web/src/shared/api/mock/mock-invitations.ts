@@ -8,8 +8,9 @@ import {
 import { inviteUserInputSchema, type MembershipUser } from "@eyadex/contracts/users";
 import type { ApiClient } from "../api-client";
 import { ApiError } from "../api-error";
-import { authorize, clinicBlockReason, effectivePermissions } from "./mock-actor";
+import { authorize, clinicBlockReason } from "./mock-actor";
 import { writeClinicAudit } from "./mock-audit";
+import { rotateInvitationLink } from "./mock-invite-rotation";
 import {
   findInvitationByToken,
   invitationAuditSnapshot,
@@ -20,6 +21,7 @@ import {
   enforceAssignableBranches,
   enforceAssignableRole,
   enforceEmailFree,
+  enforceMayTouchAdmin,
   enforceUserLimit,
   paginate,
   toInvitationView,
@@ -54,11 +56,10 @@ export function createMockInvitations(): ApiClient["invitations"] {
       const db = getState();
       const actor = authorize(db, persona, "view", "users");
       const { clinic } = actor;
-      const mayCreate = effectivePermissions(db, actor).includes("create:users:clinic");
       const term = query.search.toLocaleLowerCase();
       const rows = db.invitations
         .filter((i) => i.clinicId === clinic.id)
-        .map((i) => toInvitationView(db, i, mayCreate))
+        .map((i) => toInvitationView(db, i))
         .filter((i) => !query.status || i.status === query.status)
         .filter(
           (i) =>
@@ -76,7 +77,7 @@ export function createMockInvitations(): ApiClient["invitations"] {
       if (!parsed.success) throw new ApiError("validation");
       const input = parsed.data;
       const db = getState();
-      const { clinic, actorName } = authorize(db, persona, "create", "users");
+      const { clinic, actorName, role } = authorize(db, persona, "create", "users");
       const replayKey = `${clinic.id}:${idempotencyKey}`;
       // The same key must carry the same request; a changed recipient or assignment is a conflict,
       // never a silent success for the old invitation.
@@ -91,10 +92,11 @@ export function createMockInvitations(): ApiClient["invitations"] {
       if (previous) {
         if (previous.fingerprint !== fingerprint) throw new ApiError("idempotency_conflict");
         const replayed = db.invitations.find((i) => i.id === previous.invitationId);
-        if (replayed) return toInvitationView(db, replayed, true);
+        if (replayed) return toInvitationView(db, replayed);
       }
       enforceEmailFree(db, input.email);
       enforceAssignableRole(db, clinic.id, input.roleId);
+      enforceMayTouchAdmin(db, role, input.roleId);
       const branchIds = enforceAssignableBranches(db, clinic.id, input);
       enforceUserLimit(db, clinic.id);
       const now = Date.now();
@@ -134,26 +136,11 @@ export function createMockInvitations(): ApiClient["invitations"] {
     async resend(persona, invitationId) {
       await delay();
       const db = getState();
-      const { clinic, actorName } = authorize(db, persona, "create", "users");
-      const inv = findInvitation(db, clinic.id, invitationId);
-      const status = computeInvitationStatus(inv);
-      if (status === "cancelled") throw new ApiError("invitation_cancelled");
-      if (status === "accepted") throw new ApiError("invitation_used");
-      // The role or branches may have been deactivated since sending: re-check before renewing.
-      enforceAssignableRole(db, clinic.id, inv.roleId);
-      enforceAssignableBranches(db, clinic.id, inv);
-      if (status === "expired") {
-        // An expired invitation stops counting; renewing it must fit the limit and the email rule again.
-        enforceEmailFree(db, inv.email, inv.id);
-        enforceUserLimit(db, clinic.id);
-      }
-      const before = invitationAuditSnapshot(inv);
-      inv.expiresAt = new Date(Date.now() + INVITATION_TTL_DAYS * DAY).toISOString();
-      // A resend issues a new link; the previous one stops working.
-      issueInviteToken(db, inv);
+      const actor = authorize(db, persona, "create", "users");
+      const { inv, before } = rotateInvitationLink(db, actor, invitationId);
       writeClinicAudit(db, {
-        clinicId: clinic.id,
-        actorName,
+        clinicId: actor.clinic.id,
+        actorName: actor.actorName,
         action: "invitation.resent",
         entity: "invitation",
         before,
@@ -163,11 +150,31 @@ export function createMockInvitations(): ApiClient["invitations"] {
       return toInvitationView(db, inv);
     },
 
+    async copyLink(persona, invitationId) {
+      await delay();
+      const db = getState();
+      const actor = authorize(db, persona, "create", "users");
+      const { inv, before, token } = rotateInvitationLink(db, actor, invitationId);
+      // No email: the link goes only to the caller, so the mock outbox drops it.
+      delete db.inviteOutbox[inv.id];
+      writeClinicAudit(db, {
+        clinicId: actor.clinic.id,
+        actorName: actor.actorName,
+        action: "invitation.link_copied",
+        entity: "invitation",
+        before,
+        after: invitationAuditSnapshot(inv),
+      });
+      persist();
+      return { token, expiresAt: inv.expiresAt };
+    },
+
     async cancel(persona, invitationId) {
       await delay();
       const db = getState();
-      const { clinic, actorName } = authorize(db, persona, "deactivate", "users");
+      const { clinic, actorName, role } = authorize(db, persona, "deactivate", "users");
       const inv = findInvitation(db, clinic.id, invitationId);
+      enforceMayTouchAdmin(db, role, inv.roleId);
       const status = computeInvitationStatus(inv);
       if (status === "accepted") throw new ApiError("invitation_used");
       if (status === "cancelled") return toInvitationView(db, inv);

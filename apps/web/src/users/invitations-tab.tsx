@@ -9,6 +9,7 @@ import { can } from "@/shared/permissions/can";
 import { usePersona, useSession } from "@/shared/persona/persona-provider";
 import { useCursorPages } from "@/shared/table/use-cursor-pages";
 import { CancelInvitationDialog } from "./cancel-invitation-dialog";
+import { CopyInvitationLinkDialog } from "./copy-invitation-link-dialog";
 import { FilterSelect } from "@/shared/table/filter-select";
 import { ListBody } from "./list-body";
 import { SearchBox } from "@/shared/table/search-box";
@@ -28,6 +29,7 @@ export function InvitationsTab() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [cancelTarget, setCancelTarget] = useState<Invitation | null>(null);
+  const [copyTarget, setCopyTarget] = useState<Invitation | null>(null);
   const branches = useBranchOptions();
   const list = useInvitationList({
     cursor: pages.cursor,
@@ -54,16 +56,7 @@ export function InvitationsTab() {
     branches: branches.data ?? [],
     onResend: useCallback((inv: Invitation) => resend.mutate(inv), [resend]),
     onCancel: useCallback((inv: Invitation) => setCancelTarget(inv), []),
-    onCopy: useCallback(
-      (inv: Invitation) => {
-        const url = `${window.location.origin}/invite/${inv.token}`;
-        void navigator.clipboard
-          ?.writeText(url)
-          .then(() => toast.success(t("users.linkCopied")))
-          .catch(() => toast.message(url));
-      },
-      [t],
-    ),
+    onCopy: useCallback((inv: Invitation) => setCopyTarget(inv), []),
   });
 
   return (
@@ -101,6 +94,7 @@ export function InvitationsTab() {
         emptyBody={t("users.emptyInvitationsBody")}
         pages={pages}
       />
+      <CopyInvitationLinkDialog invitation={copyTarget} onClose={() => setCopyTarget(null)} />
       <CancelInvitationDialog invitation={cancelTarget} onClose={() => setCancelTarget(null)} />
     </div>
   );

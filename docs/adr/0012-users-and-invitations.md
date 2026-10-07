@@ -40,10 +40,14 @@ only writes outbox events.
 6. **Token rotation and no token in responses.** Only the SHA-256 hash is stored. Resend issues a
    new token and hash, so the old link stops working at once. Responses always carry
    `token: null`; the raw token exists only sealed inside the outbox event.
-   Owner decision (2026-10-07), not built yet (the follow-up after this slice): a "copy link" action
-   on a pending invitation rotates the token like resend, returns the link once, writes an audit row
-   and sends no email; it needs `create:users:clinic`, and an invitation on the clinic-admin role
-   needs an active admin (§15). Until it ships, this rule and `token: null` stand.
+   Copy link (owner decision 2026-10-07, implemented in slice 7a): `POST /v1/invitations/:id/link`
+   (`create:users:clinic`) runs resend's checks in resend's order through the same rotation
+   (users lock → row → branches lock → clock → pending only → active role and branches → §15
+   admin-role guard → seat if expired → email hold → new token, hash and expiry), so every older
+   link, including an emailed one, dies at once. It writes no outbox event, one audit row
+   `invitation.link_copied` (snapshots only, never the token or its hash), and returns
+   `{ token, expiresAt }` once. It is the only response that ever carries a token; every other
+   invitation response keeps `token: null`.
 7. **Outbox event `clinic.user_invited`**, one per invite and per resend, with `{ clinicId,
 invitationId, email, fullName, language, clinicNameAr, clinicNameEn, roleNameAr, roleNameEn,
 expiresAt, reason: "invited" | "resent", sealedToken }`, sealed with the event id as AAD.

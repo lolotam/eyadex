@@ -33,10 +33,17 @@ export const invitationSchema = invitationRecordSchema.omit({ tokenHash: true })
   status: invitationStatusSchema,
   roleNameAr: z.string(),
   roleNameEn: z.string(),
-  /** Bearer token for the invitation link; null unless the caller may create users. */
+  /** Always null: the only response that carries a token is `InvitationLink` (copy link). */
   token: z.string().nullable(),
 });
 export type Invitation = z.infer<typeof invitationSchema>;
+
+/** `POST /v1/invitations/:id/link`: a fresh link token, returned once (ADR-0012 §6). */
+export const invitationLinkSchema = z.object({
+  token: z.string().min(1),
+  expiresAt: z.string().datetime(),
+});
+export type InvitationLink = z.infer<typeof invitationLinkSchema>;
 
 export function computeInvitationStatus(
   record: Pick<InvitationRecord, "status" | "expiresAt">,
