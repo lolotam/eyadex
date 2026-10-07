@@ -131,7 +131,11 @@ describe("invite (AUD-01, outbox, idempotency)", () => {
   });
 
   it("refuses a taken email, another clinic's role or branch, and an inactive branch", async () => {
-    const taken = await invite(h, A.admin.cookie, inviteBody(doctorRole, { email: B.doctor.email }));
+    const taken = await invite(
+      h,
+      A.admin.cookie,
+      inviteBody(doctorRole, { email: B.doctor.email }),
+    );
     expect([taken.statusCode, code(taken)]).toEqual([409, "email_taken"]);
     const foreignRole = await roleIdOf(h, B.admin.clinicId, "doctor");
     expect((await invite(h, A.admin.cookie, inviteBody(foreignRole))).statusCode).toBe(404);
@@ -209,7 +213,9 @@ describe("SUB-03: the user limit", () => {
     const resend = await act(h, A.admin.cookie, `/v1/invitations/${stale.id}/resend`);
     expect([resend.statusCode, code(resend)]).toEqual([409, "limit_reached"]);
     await setMaxUsers(h, clinicId, (await used(clinicId)) + 1);
-    expect((await act(h, A.admin.cookie, `/v1/invitations/${stale.id}/resend`)).statusCode).toBe(200);
+    expect((await act(h, A.admin.cookie, `/v1/invitations/${stale.id}/resend`)).statusCode).toBe(
+      200,
+    );
     await setMaxUsers(h, clinicId, 50);
   });
 
@@ -227,7 +233,10 @@ describe("SUB-03: the user limit", () => {
 
 describe("ISO-02 and the list", () => {
   it("clinic A cannot resend or cancel clinic B's invitation (404) and never lists it", async () => {
-    const theirs = await created(B.admin.cookie, inviteBody(await roleIdOf(h, B.admin.clinicId, "doctor")));
+    const theirs = await created(
+      B.admin.cookie,
+      inviteBody(await roleIdOf(h, B.admin.clinicId, "doctor")),
+    );
     for (const action of ["resend", "cancel"]) {
       const res = await act(h, A.admin.cookie, `/v1/invitations/${theirs.id}/${action}`);
       expect([res.statusCode, code(res)]).toEqual([404, "not_found"]);

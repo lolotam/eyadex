@@ -6,7 +6,8 @@ import { signedIn } from "./access-fixtures.ts";
 import { accept, strongPassword } from "./invitation-fixtures.ts";
 
 export const roleIdOf = async (h: Harness, clinicId: string, key: string) => {
-  const [row] = await h.owner`SELECT id FROM roles WHERE clinic_id = ${clinicId} AND system_key = ${key}`;
+  const [row] =
+    await h.owner`SELECT id FROM roles WHERE clinic_id = ${clinicId} AND system_key = ${key}`;
   return row!["id"] as string;
 };
 
@@ -79,7 +80,10 @@ export async function latestToken(h: Harness, invitationId: string): Promise<str
   const events = await invitationEvents(h, invitationId);
   const event = events.at(-1)!;
   const payload = event["payload"] as { sealedToken: string };
-  return new SecretSealer(process.env["OUTBOX_SEAL_KEY"]!).open(payload.sealedToken, event["id"] as string);
+  return new SecretSealer(process.env["OUTBOX_SEAL_KEY"]!).open(
+    payload.sealedToken,
+    event["id"] as string,
+  );
 }
 
 /** Invites through the API, accepts with the sealed token and signs in: a real member on `roleId`. */
