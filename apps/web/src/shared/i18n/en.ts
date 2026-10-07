@@ -253,6 +253,7 @@ export const en = {
     civilId: "Enter a valid 12-digit Kuwaiti civil ID",
     civilIdBirthDate: "The civil ID does not match the birth date",
     outOfRange: "Outside the allowed range",
+    smtpHost: "Enter the mail server's domain name, e.g. smtp.example.com",
   },
   errors: {
     patient_phone_taken: "This phone already belongs to another patient in this clinic",

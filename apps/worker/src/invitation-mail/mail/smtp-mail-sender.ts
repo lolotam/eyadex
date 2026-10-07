@@ -21,6 +21,11 @@ export interface SmtpSettings {
   readonly port: number;
   readonly user: string;
   readonly password: string;
+  /**
+   * The name the certificate must match when `host` is an address pinned after a DNS check (a clinic's
+   * own SMTP, 7c-2a): TLS still verifies the server by its name.
+   */
+  readonly servername?: string;
 }
 
 // The invitation row is locked during the send (ADR-0013 §4): the whole send stays inside 5 s.
@@ -37,6 +42,7 @@ export function createSmtpTransport(settings: SmtpSettings): SmtpTransport {
     secure: settings.port === 465,
     requireTLS: settings.port !== 465,
     auth: { user: settings.user, pass: settings.password },
+    ...(settings.servername === undefined ? {} : { tls: { servername: settings.servername } }),
     connectionTimeout: 2_000,
     greetingTimeout: 1_500,
     socketTimeout: 1_500,

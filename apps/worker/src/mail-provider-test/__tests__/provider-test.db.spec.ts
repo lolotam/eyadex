@@ -48,7 +48,7 @@ function harness(sender: MailSender, sealKey = KEY) {
       sealer: new SecretSealer(sealKey),
       store: new PgProviderTestStore(app),
       senders: {
-        open: (c) => {
+        open: async (c) => {
           seen.push(c);
           return { sender, close: () => undefined };
         },

@@ -20,10 +20,11 @@ export interface ClinicSender {
 /** منفذ بناء مرسل العيادة (ADR-0014): من غير بديل المنصة، عشان التجربة تثبت مسار العيادة نفسه. */
 export interface ClinicSenderFactory {
   /**
-   * بيبني مرسل بنفس سقوف الـ 5 ثواني.
+   * بيبني مرسل بنفس سقوف الـ 5 ثواني. SMTP بيتصل بس بعنوان عام على منفذ SMTP معروف؛ غير كده بيرجع
+   * مرسل بيفشل بكود قصير (`smtp_blocked_address`، `smtp_port_not_allowed`، `smtp_dns`) من غير اتصال.
    *
    * @param credentials بيانات الاتصال
    * @returns المرسل ودالة القفل
    */
-  open(credentials: ClinicProviderCredentials): ClinicSender;
+  open(credentials: ClinicProviderCredentials): Promise<ClinicSender>;
 }

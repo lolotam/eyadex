@@ -249,6 +249,7 @@ export const ar: Dictionary = {
     civilId: "أدخل رقمًا مدنيًا كويتيًا صحيحًا من 12 رقمًا",
     civilIdBirthDate: "الرقم المدني لا يطابق تاريخ الميلاد",
     outOfRange: "خارج النطاق المسموح",
+    smtpHost: "اكتب اسم نطاق خادم البريد، مثل smtp.example.com",
   },
   errors: {
     patient_phone_taken: "هذا الهاتف مسجّل لمراجع آخر في هذه العيادة",

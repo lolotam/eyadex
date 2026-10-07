@@ -71,7 +71,7 @@ export function mailProviderTestHandler(deps: MailProviderTestDeps) {
     }
     const credentials = credentialsOf(provider, secret);
     if (credentials === null) return failed("invalid_provider");
-    const clinic = deps.senders.open(credentials);
+    const clinic = await deps.senders.open(credentials);
     try {
       const result = await clinic.sender.send({
         to: recipient,

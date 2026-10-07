@@ -10,6 +10,21 @@ const sender = {
   replyTo: email.optional(),
 };
 
+/** The SMTP ports a clinic may use; the worker refuses any other at connect time too. */
+export const SMTP_PORTS = [25, 465, 587, 2525] as const;
+
+// A public DNS name only: no IP literal (its last label is all digits or holds ':'), no single-label or
+// local-only name. Syntax only: the worker resolves the name and refuses any non-public address.
+const DNS_NAME = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{0,61}[a-z0-9]$/;
+const LOCAL_SUFFIX = /(?:^|\.)(?:localhost|local|internal|lan|home\.arpa)$/;
+const smtpHost = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .min(1, "validation.required")
+  .max(253, "validation.tooLong")
+  .refine((host) => DNS_NAME.test(host) && !LOCAL_SUFFIX.test(host), "validation.smtpHost");
+
 export const mailProviderKindSchema = z.enum(["resend", "smtp"]);
 export type MailProviderKind = z.infer<typeof mailProviderKindSchema>;
 
@@ -24,8 +39,11 @@ export const resendMailProviderRequestSchema = z
 export const smtpMailProviderRequestSchema = z
   .object({
     kind: z.literal("smtp"),
-    host: z.string().trim().min(1, "validation.required").max(253, "validation.tooLong"),
-    port: z.number().int().min(1).max(65_535),
+    host: smtpHost,
+    port: z
+      .number()
+      .int()
+      .refine((port) => (SMTP_PORTS as readonly number[]).includes(port), "validation.outOfRange"),
     user: z.string().min(1, "validation.required").max(200, "validation.tooLong"),
     password: z.string().min(1, "validation.required").max(500, "validation.tooLong"),
     ...sender,
