@@ -58,6 +58,7 @@ export const enAudit = {
         resent: "Invitation resent",
         link_copied: "Invitation link copied",
         cancelled: "Invitation cancelled",
+        auto_cancelled: "Invitation auto-cancelled (branch deactivated)",
         accepted: "Invitation accepted",
       },
       role: {

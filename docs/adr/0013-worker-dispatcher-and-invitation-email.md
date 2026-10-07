@@ -32,9 +32,14 @@ AND event_type IN (…) ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1`. The
    cancel or accept that arrives meanwhile waits instead of invalidating a link already being mailed
    (the API takes the same row `FOR UPDATE`). The Resend timeout (5 s) stays under the API's 10 s
    transaction cap, so a waiting API write still completes. Read the clock after the lock; send only when `status = 'pending'`,
-   `expires_at > now` and `sha256(token) = token_hash` (constant-time compare). Otherwise the event is
-   done as **skipped** with no email (missing, accepted, cancelled, expired, superseded). Only the two
-   invitation types are claimed; any other type stays untouched for later slices.
+   `expires_at > now`, the invitation is `all_branches` or still has an active branch, and
+   `sha256(token) = token_hash` (constant-time compare). Otherwise the event is done as **skipped**
+   with no email (missing, accepted, cancelled, expired, no_active_branch, superseded). The branch
+   check matters because events are claimed by `created_at`: in a backlog, an invitation's mail comes
+   before the later `clinic.branch_deactivated` that cancels it (§12), and must not mail a link about to
+   die. The invitation's branch rows are read `FOR SHARE` too and stay locked through the send, so a
+   deactivation (which takes its branch `FOR UPDATE`) waits instead of landing between the check and
+   the email; only those branches wait, not the clinic's other writes. Only the handled types are claimed; any other type stays untouched for later slices.
 5. **Outcome.** Sent or skipped → `dispatched_at` set and `sealedToken` removed in the same UPDATE.
 6. **Failures.** `attempts + 1`, `next_attempt_at = now + delay`, `last_error` = provider status and
    Resend's error name only (`resend_500`, `resend_422:validation_error`, `resend_timeout`,
@@ -61,10 +66,51 @@ AND event_type IN (…) ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1`. The
     `/health` stays pure liveness; `/health/ready` pings both pools (503 when one is down). Log lines
     are catalogued in `log-events.ts` and carry the event id, type, outcome, skip reason or error code
     only.
+12. **Second job: auto-cancel on a deactivated branch (slice 7b-2, ADR-0012 §16).**
+    - **Event.** Every successful `BranchChanges.deactivate` appends one `clinic.branch_deactivated`
+      in the same `withTenant` transaction (`tenancy/events/published.ts`), payload
+      `{ clinicId, branchId, actorUserId, deactivatedAt }` and nothing else. No event on a no-op or a
+      refusal (`last_active_branch`, `branch_has_exclusive_members`). Tenancy emits unconditionally
+      and never reads or writes invitations.
+    - **Routing.** One poller claims the union of the handled types through `shared/event-router.ts`
+      (type → handler); a type with no handler is never claimed.
+    - **Payload.** Zod-validated; malformed, or `clinicId` ≠ the row's `clinic_id` → `failed`
+      (`invalid_payload`) at once.
+    - **Lock order** on the `eyadex_app` pool under `withTenant(clinicId)`: advisory `users:<clinic>` →
+      candidate invitation rows `FOR UPDATE` ordered by id → advisory `branches:<clinic>` → clock read →
+      a fresh statement re-evaluates each locked row. The keys and function are the API's, so this job
+      serialises with invites, resends, copy-link, cancels, accepts and branch changes. Acceptance takes
+      no users lock but locks the invitation row before the branches lock, so the row lock must come
+      before the branches lock here too, or the two would deadlock. A mail send that holds the row
+      `FOR SHARE` (§4) finishes first.
+    - **Decision at handling time.** Cancel every invitation of the clinic that is `pending`, not
+      `all_branches`, is on the event's branch, and has no `invitation_branches` row on an active
+      branch. A branch reactivated before the job runs means no cancel, and a replay or retry cancels
+      nothing new. An invitation is orphaned only by the deactivation of its last active branch, whose
+      own event covers it, so scoping to the event's branch loses nothing.
+    - **Superseded events.** When the clinic audit log has a `branch.reactivated` row for the branch
+      after the event's `deactivatedAt` (read under the branches lock, which reactivation also takes),
+      the event cancels nothing: a later deactivation has its own event, and the audit row must name
+      that admin, not the one whose deactivation was undone. The API reads `deactivatedAt` after the
+      branches lock (ADR-0012 §16), so a reactivation the deactivation waited on is always earlier.
+      Known limitation: when two of an invitation's branches are deactivated one after the other and
+      both events wait in a backlog, the older event cancels it and names that admin, who deactivated
+      one of its branches but not its last one. The row's `branchId` and `eventId` still identify the
+      exact deactivation.
+    - **Effect per invitation.** `release_invitation_email`, `status = 'cancelled'`, `responded_at`, and
+      one `audit_log` row: actor = the payload's `actorUserId`, action `invitation.auto_cancelled`
+      (distinct from the manual `invitation.cancelled`), entity `invitation`, details
+      `{ reason: "branch_deactivated", branchId, eventId, before, after }` with the manual cancel's
+      snapshot shape and names passed through `maskPhonesInText`. This is a system rule: it applies
+      whether or not the deactivating admin could cancel that invitation by hand (for example one on
+      the clinic-admin role).
+    - **Outcome.** `dispatched` on success (log `outcome: "cancelled"`, `count`). A database error
+      rolls the tenant transaction back and retries on the mail schedule with `last_error = db_error`;
+      after the 5th failure it is `failed`. No raw error message and no email is logged.
 
 ## Consequences
 
 - An email can arrive late (backoff) but never with a dead link, and never twice for one event.
 - A clinic that is suspended still gets its pending invitation mailed; acceptance refuses it (ADR-0008).
-- Auto-cancel of invitations on a deactivated branch is 7b-2; SMTP and per-clinic providers are 7c.
+- Auto-cancel shipped in 7b-2 (§12); SMTP and per-clinic providers are 7c.
 - TODO(spec): retention of dispatched and failed outbox rows.

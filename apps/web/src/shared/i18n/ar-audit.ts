@@ -58,6 +58,7 @@ export const arAudit = {
         resent: "إعادة إرسال دعوة",
         link_copied: "نسخ رابط دعوة",
         cancelled: "إلغاء دعوة",
+        auto_cancelled: "إلغاء تلقائي لدعوة (فرع معطّل)",
         accepted: "قبول دعوة",
       },
       role: {

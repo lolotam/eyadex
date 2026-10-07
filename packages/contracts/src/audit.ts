@@ -106,6 +106,7 @@ export const CLINIC_AUDIT_ACTIONS = [
   "invitation.resent",
   "invitation.link_copied",
   "invitation.cancelled",
+  "invitation.auto_cancelled",
   "invitation.accepted",
   "role.created",
   "role.updated",
