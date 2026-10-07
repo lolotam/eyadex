@@ -123,7 +123,8 @@ export const call = (h: Harness, o: Call) =>
     headers: {
       host: new URL(o.host).host,
       origin: o.host,
-      "content-type": "application/json",
+      // A bodiless DELETE with a JSON content type is refused by Fastify before any guard runs.
+      ...(o.method === "DELETE" ? {} : { "content-type": "application/json" }),
       ...(o.cookie === undefined ? {} : { cookie: o.cookie }),
       ...o.headers,
     },
