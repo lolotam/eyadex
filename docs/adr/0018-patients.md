@@ -49,7 +49,8 @@ fileNumber }`) only when the caller's view scope covers the existing file; other
    `patient.updated`, `patient.archived`, `patient.restored`. Snapshots are an allowlist: id, file
    number, name (phones in it masked), phone (last 3 digits), gender, branch, status — no civil ID
    and no birth date (the audit sanitiser removes birth dates anyway, ADR-0001). The Phase-A mock's
-   snapshot mirrors it.
+   snapshot mirrors the field allowlist and the phone mask (masking phones inside the name is
+   API-only).
 8. **Branch tables.** Branch names and the target-branch check are read with a join / `FOR SHARE`
    inside the patients transaction, the same way identity reads `branches` (identity → tenancy):
    patients → tenancy is an allowed arrow, and the decision must be taken inside the writing

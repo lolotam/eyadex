@@ -1,6 +1,6 @@
 # Slice 9 — Patients API (Phase B)
 
-- Status: in progress (2026-10-08)
+- Status: implemented (2026-10-08), branch `slice-9-patients`
 - Owner of the decision record: [ADR-0018](../adr/0018-patients.md)
 - PRD: §4.3 (`patients` imports `tenancy` only), §4.5 (grants), §4.6 (Patient, civil ID rule),
   §4.7 (permissions + check order), §4.8 (the `patients` flag), §4.11 (audit), §4.12 (API),
@@ -160,6 +160,15 @@ Every negative test is proven to fail with its guard removed (reported in the sl
 ## 10. Open items (`TODO(spec)`)
 
 - Searching the list is not audited (PRD §4.11 lists opening and editing a file only).
-- The audit snapshot masks the phone (API rule); the Phase-A mock mirrors it.
+- The audit snapshot masks the phone and leaves out the birth date (API rule); the Phase-A mock
+  mirrors the field allowlist and the phone mask. Masking phone numbers written inside the name is
+  API-only (the web app has no dependency on `@eyadex/observability`, and none is added).
+- Search by civil-ID digits matches any run of digits (mock parity; a web test relies on it). The
+  more conservative reading — an exact 12-digit match only — was not taken because the Phase-A rule
+  is binding; the list answer still carries only the last 4 digits, and search runs inside the view
+  scope only.
+- A duplicate the caller cannot see answers `validation` without `details`, while a schema failure
+  carries field details, so the two are distinguishable (same as the mock). The unique constraint
+  makes some signal unavoidable; the existing file is never identified.
 - `branchOptions` for a branch-scoped member offers only the member's **active** branches (the
   guard's snapshot keeps active ones only); the mock also lists a deactivated assigned branch.

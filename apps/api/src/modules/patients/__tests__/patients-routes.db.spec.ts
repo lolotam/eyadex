@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
+  formatFileNumber,
   patientDetailSchema,
   patientWriteResultSchema,
   type PatientDetail,
@@ -178,6 +179,18 @@ describe("happy paths (clinic admin)", () => {
       (await search(h, C.admin.cookie, { q: "5550-0001" })).json(),
     );
     expect(byPhone.items.map((p) => p.fullName)).toEqual(["Happy Path"]);
+    const [happy] = await h.owner`SELECT file_number, civil_id FROM patients
+                                  WHERE clinic_id = ${C.clinicId} AND full_name = 'Happy Path'`;
+    const padded = formatFileNumber(Number(happy!["file_number"]));
+    const byFileNumber = patientListResponseSchema.parse(
+      (await search(h, C.admin.cookie, { q: padded })).json(),
+    );
+    expect(byFileNumber.items.map((p) => p.fullName)).toEqual(["Happy Path"]);
+    // Digits of the civil ID, like the mock (a run of 7 is enough to find the file).
+    const byCivilDigits = patientListResponseSchema.parse(
+      (await search(h, C.admin.cookie, { q: (happy!["civil_id"] as string).slice(5) })).json(),
+    );
+    expect(byCivilDigits.items.map((p) => p.fullName)).toContain("Happy Path");
     const bad = await search(h, C.admin.cookie, { cursor: "bm90LWEtbnVtYmVy" });
     expect(bad.statusCode).toBe(400);
   });
