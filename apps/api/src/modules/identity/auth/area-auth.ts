@@ -1,4 +1,10 @@
-import { createAuth, type AreaSession, type AuthArea, type EyadexAuth } from "@eyadex/auth";
+import {
+  areaCookiePrefix,
+  createAuth,
+  type AreaSession,
+  type AuthArea,
+  type EyadexAuth,
+} from "@eyadex/auth";
 import type { IdGenerator } from "@eyadex/ids";
 
 import { AreaHosts } from "./area-hosts.ts";
@@ -11,6 +17,8 @@ export const AREA_AUTH = Symbol("identity.AreaAuth");
 export interface AreaAuth {
   readonly hosts: AreaHosts;
   of(area: AuthArea): EyadexAuth;
+  /** بادئة cookies المنطقة في البيئة دي (`eyadex-clinic` أو `eyadex-staging-clinic`، ADR-0021). */
+  cookiePrefix(area: AuthArea): string;
   close(): Promise<void>;
 }
 
@@ -65,6 +73,9 @@ export function buildAreaAuth(config: AuthConfig, ids: IdGenerator): AreaAuth {
       databaseUrl: config.AUTH_DATABASE_URL,
       secret: config.BETTER_AUTH_SECRET,
       baseUrl: hosts.origin(area),
+      ...(config.AUTH_COOKIE_PREFIX === undefined
+        ? {}
+        : { cookiePrefix: config.AUTH_COOKIE_PREFIX }),
       ids,
     });
   const instances: Record<AuthArea, EyadexAuth> = {
@@ -74,6 +85,7 @@ export function buildAreaAuth(config: AuthConfig, ids: IdGenerator): AreaAuth {
   return {
     hosts,
     of: (area) => instances[area],
+    cookiePrefix: (area) => areaCookiePrefix(config.AUTH_COOKIE_PREFIX, area),
     close: async () => {
       await Promise.all([instances.clinic.close(), instances.platform.close()]);
     },

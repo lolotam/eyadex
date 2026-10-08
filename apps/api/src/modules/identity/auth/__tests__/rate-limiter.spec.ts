@@ -97,7 +97,7 @@ describe("rateRulesFor", () => {
     const decisions = [];
     for (let i = 0; i < AUTH_LIMITS.sensitivePerUser.max + 1; i++) {
       const rules = rateRulesFor({
-        area: "clinic",
+        cookiePrefix: "eyadex-clinic",
         path: paths[i % paths.length]!,
         ip: "192.0.2.1",
         body: "",
@@ -110,7 +110,7 @@ describe("rateRulesFor", () => {
   });
 
   const base = {
-    area: "clinic" as const,
+    cookiePrefix: "eyadex-clinic",
     ip: "192.0.2.1",
     cookieHeader: undefined,
     userId: undefined,
@@ -146,6 +146,24 @@ describe("rateRulesFor", () => {
     expect(pending[1]?.limit).toBe(AUTH_LIMITS.secondFactorPerSubject);
   });
 
+  it("NEGATIVE: a staging deployment counts its own pending cookie, never production's", () => {
+    const staging = { ...base, cookiePrefix: "eyadex-staging-clinic" };
+    const own = rateRulesFor({
+      ...staging,
+      path: "/two-factor/verify-totp",
+      body: "",
+      cookieHeader: "__Secure-eyadex-staging-clinic.two_factor=abc",
+    });
+    expect(own[1]?.value).toBe("pending:abc");
+    const foreign = rateRulesFor({
+      ...staging,
+      path: "/two-factor/verify-totp",
+      body: "",
+      cookieHeader: "__Secure-eyadex-clinic.two_factor=abc",
+    });
+    expect(foreign.map((rule) => rule.dimension)).toEqual(["ip"]);
+  });
+
   it("change-password and enable count the user; unlimited routes count nothing", () => {
     expect(
       rateRulesFor({ ...base, path: "/change-password", body: "", userId: "u1" })[0]?.limit,
@@ -166,7 +184,7 @@ describe("every exposed POST that takes a secret is limited", () => {
   for (const route of AUTH_ROUTES.filter((r) => r.method === "POST" && !UNLIMITED.has(r.path))) {
     it(`${route.path} has at least one counter`, () => {
       const rules = rateRulesFor({
-        area: "clinic",
+        cookiePrefix: "eyadex-clinic",
         path: route.path,
         ip: "203.0.113.7",
         body: JSON.stringify({ email: "someone@example.com" }),

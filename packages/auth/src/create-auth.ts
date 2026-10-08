@@ -5,7 +5,6 @@ import {
   authUsers,
   authVerifications,
 } from "@eyadex/db/schema";
-import type { IdGenerator } from "@eyadex/ids";
 import { runWithTransaction } from "@better-auth/core/context";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
@@ -15,27 +14,16 @@ import postgres from "postgres";
 
 import { CLIENT_IP_HEADER, sessionAreaHook } from "./area-binding.ts";
 import { createEnrollmentLock, type LockedResult } from "./enrollment-lock.ts";
-import { assertOptions, assertPassword, PASSWORD_LIMITS, type AuthArea } from "./options.ts";
+import {
+  areaCookiePrefix,
+  assertOptions,
+  assertPassword,
+  PASSWORD_LIMITS,
+  type AuthArea,
+  type CreateAuthOptions,
+} from "./options.ts";
 
-export type { AuthArea } from "./options.ts";
-
-/** خيارات الـ factory. كل قيمة سرية جاية من الـ env، ومفيش default ليها. */
-export interface CreateAuthOptions {
-  /** منطقة الجلسة: `platform` أو `clinic` — كل واحدة ليها اسم cookie مختلف. */
-  readonly area: AuthArea;
-  /** رابط الداتابيز على الدور `eyadex_auth` بس (PRD §4.5). */
-  readonly databaseUrl: string;
-  /** `BETTER_AUTH_SECRET`: بيوقّع الـ cookies وبيشفّر سر الـ TOTP. 32 حرف على الأقل. */
-  readonly secret: string;
-  /** الـ origin بتاع المنطقة (مثلاً `https://app.eyadex.com`). */
-  readonly baseUrl: string;
-  /** مولّد UUID v7 من `@eyadex/ids`. */
-  readonly ids: IdGenerator;
-  /** المسار اللي المتصفح شايفه للـ auth (افتراضياً `/api/auth`، same-origin — ADR-0004). */
-  readonly basePath?: string;
-  /** حجم الـ pool، افتراضياً 5. */
-  readonly maxConnections?: number;
-}
+export type { AuthArea, CreateAuthOptions } from "./options.ts";
 
 const schema = {
   user: authUsers,
@@ -103,8 +91,9 @@ function buildAuth(options: CreateAuthOptions, client: postgres.Sql) {
     // apps/api counts every limited route in Redis before Better Auth is called (ADR-0005).
     rateLimit: { enabled: false },
     advanced: {
-      // A distinct prefix per area: app. and platform. never share a session cookie (PRD §4.15).
-      cookiePrefix: `eyadex-${options.area}`,
+      // One prefix per area and per environment: app. and platform. never share a session cookie
+      // (PRD §4.15), and neither do staging and production (ADR-0021).
+      cookiePrefix: areaCookiePrefix(options.cookiePrefix, options.area),
       useSecureCookies: base.protocol === "https:",
       // Better Auth skips the Origin check when NODE_ENV is "test"; stated false so tests see production.
       disableOriginCheck: false,

@@ -39,6 +39,41 @@ describe("createAuth", () => {
     expect(clinic.auth.options.advanced.cookiePrefix).toBe("eyadex-clinic");
   });
 
+  it("adds the environment's prefix, so staging and production never share a cookie name", async () => {
+    const staging = createAuth({
+      area: "clinic",
+      databaseUrl,
+      secret,
+      baseUrl: "https://staging-app.example.com",
+      ids: systemUuidV7(),
+      cookiePrefix: "eyadex-staging",
+    });
+    try {
+      expect(staging.auth.options.advanced.cookiePrefix).toBe("eyadex-staging-clinic");
+      expect(staging.auth.options.advanced.cookiePrefix).not.toBe(
+        clinic.auth.options.advanced.cookiePrefix,
+      );
+    } finally {
+      await staging.close();
+    }
+  });
+
+  it.each(["", "Eyadex", "eyadex.staging", "eyadex staging", "-eyadex", "eyadex-", "a".repeat(33)])(
+    "refuses the cookie prefix %j before opening a pool",
+    (cookiePrefix) => {
+      expect(() =>
+        createAuth({
+          area: "clinic",
+          databaseUrl,
+          secret,
+          baseUrl: "https://app.example.com",
+          ids: systemUuidV7(),
+          cookiePrefix,
+        }),
+      ).toThrow(TypeError);
+    },
+  );
+
   it("configures the two-factor plugin", () => {
     expect(platform.auth.options.plugins.map((plugin) => plugin.id)).toContain("two-factor");
   });

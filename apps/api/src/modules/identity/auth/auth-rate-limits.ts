@@ -1,5 +1,3 @@
-import type { AuthArea } from "@eyadex/auth";
-
 import type { Limit, RateRule } from "./rate-limiter.ts";
 
 const MINUTE = 60_000;
@@ -16,7 +14,8 @@ export const AUTH_LIMITS = {
 
 /** What the handler knows about a request when it picks the counters. */
 export interface RateContext {
-  readonly area: AuthArea;
+  /** The area's cookie prefix here: `eyadex-clinic`, or `eyadex-staging-clinic` (ADR-0021). */
+  readonly cookiePrefix: string;
   readonly path: string;
   /** From `AreaHosts.clientIp` only; `undefined` when the proxy chain is not the deployed one. */
   readonly ip: string | undefined;
@@ -49,9 +48,9 @@ function emailOf(body: unknown): string | undefined {
   }
 }
 
-/** The area's pending-sign-in cookie, with or without the `__Secure-` prefix. */
-function twoFactorCookie(area: AuthArea, header: string | undefined): string | undefined {
-  const name = `eyadex-${area}.two_factor`;
+/** The area's pending-sign-in cookie in this environment, with or without the `__Secure-` prefix. */
+function twoFactorCookie(cookiePrefix: string, header: string | undefined): string | undefined {
+  const name = `${cookiePrefix}.two_factor`;
   for (const pair of (header ?? "").split(";")) {
     const at = pair.indexOf("=");
     if (at < 0) continue;
@@ -86,9 +85,9 @@ export function rateRulesFor(ctx: RateContext): RateRule[] {
     const subject =
       ctx.userId !== undefined
         ? `user:${ctx.userId}`
-        : twoFactorCookie(ctx.area, ctx.cookieHeader) === undefined
+        : twoFactorCookie(ctx.cookiePrefix, ctx.cookieHeader) === undefined
           ? undefined
-          : `pending:${twoFactorCookie(ctx.area, ctx.cookieHeader)}`;
+          : `pending:${twoFactorCookie(ctx.cookiePrefix, ctx.cookieHeader)}`;
     if (subject !== undefined) {
       rules.push({
         route,

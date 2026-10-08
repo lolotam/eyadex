@@ -42,6 +42,7 @@ import { HealthController } from "./shared/health.controller.ts";
 import { API_LOG_EVENTS } from "./shared/log-events.ts";
 import { PinoNestLogger } from "./shared/nest-logger.ts";
 import { ApiError, codeForStatus } from "./shared/errors.ts";
+import { applySecurityHeaders } from "./shared/security-headers.ts";
 import { LOGS, SHUTDOWN, ShutdownHook, UNCLEAN } from "./shared/shutdown.ts";
 
 export { SHUTDOWN_WATCHDOG_MS, watchShutdown } from "./shared/shutdown.ts";
@@ -202,6 +203,7 @@ export function apiAdapter(logger: Logger, ids: IdGenerator): FastifyAdapter {
       const context = enterRequestContext(request.id);
       contexts.set(request, context);
       void reply.header("x-request-id", request.id);
+      applySecurityHeaders(reply);
       if (apiError.code === "unknown") request.log.error({ err: error }, "unhandled error");
       void reply.code(apiError.status).send(apiError.toEnvelope());
       logCompleted(request, reply);
@@ -213,6 +215,7 @@ export function apiAdapter(logger: Logger, ids: IdGenerator): FastifyAdapter {
   adapter.getInstance().addHook("onRequest", async (request, reply) => {
     contexts.set(request, enterRequestContext(request.id));
     void reply.header("x-request-id", request.id);
+    applySecurityHeaders(reply);
   });
   adapter.getInstance().addHook("onResponse", async (request, reply) => {
     logCompleted(request, reply);
