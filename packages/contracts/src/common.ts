@@ -80,3 +80,13 @@ export const apiErrorEnvelopeSchema = z.object({
   details: z.unknown().optional(),
 });
 export type ApiErrorEnvelope = z.infer<typeof apiErrorEnvelopeSchema>;
+
+/**
+ * Drops invisible format and control characters (ZWJ, ZWNJ, bidi marks and overrides, isolates,
+ * soft hyphen, BOM, C0/C1 controls) and keeps ordinary whitespace. They render as nothing, so in a
+ * name or a search term they can only hide or split what a reader sees: a civil ID or a phone split
+ * by a ZWJ slips past digit-run checks, and a bidi override reorders the name on screen.
+ */
+export function stripInvisibleControls(text: string): string {
+  return text.replace(/[\p{Cf}\p{Cc}]/gu, (c) => (/[\t\n\v\f\r]/.test(c) ? c : ""));
+}

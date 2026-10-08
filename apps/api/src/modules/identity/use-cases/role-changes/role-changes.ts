@@ -1,9 +1,9 @@
+import { scrubPatientAuditText as scrubAuditText } from "../../../../shared/patient-audit-text.ts";
 import type { RoleSummary } from "@eyadex/contracts/access";
 import type { PermissionKey } from "@eyadex/contracts/permissions";
 import type { CreateRoleRequest, UpdateRoleRequest } from "@eyadex/contracts/role-admin";
 import { DatabaseError, type Database, type Tx } from "@eyadex/db";
 import type { IdGenerator } from "@eyadex/ids";
-import { maskPhonesInText } from "@eyadex/observability";
 
 import {
   claimClinicIdempotencyKey,
@@ -59,11 +59,12 @@ type Decision = { readonly after: RoleRow; readonly action: string } | null;
 
 const NAME_INDEXES = new Set(["roles_name_ar_unique", "roles_name_en_unique"]);
 
-// Every free-text name is masked: `redactSecrets` keeps phone-like values, so a number typed into a
+// Every free-text name goes through the strict audit scrub (invisible controls dropped, digits of any
+// script folded, every 8+ digit run masked wherever it sits): `redactSecrets` keeps phone-like values, so a number typed into a
 // role name would otherwise reach the append-only audit (AGENTS.md review rules).
 const auditSnapshot = (role: RoleAuditSnapshot) => {
   const s = roleAuditSnapshot(role);
-  return { ...s, nameAr: maskPhonesInText(s.nameAr), nameEn: maskPhonesInText(s.nameEn) };
+  return { ...s, nameAr: scrubAuditText(s.nameAr), nameEn: scrubAuditText(s.nameEn) };
 };
 
 /** The 0018 indexes decide name clashes, so two parallel writes can never both pass. */

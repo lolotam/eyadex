@@ -1,9 +1,9 @@
+import { scrubPatientAuditText as scrubAuditText } from "../../../../shared/patient-audit-text.ts";
 import type { PermissionKey } from "@eyadex/contracts/permissions";
 import type { ChangeBranchesInput } from "@eyadex/contracts/users";
 import type { MembershipUserView } from "@eyadex/contracts/users";
 import type { Database, Tx } from "@eyadex/db";
 import type { IdGenerator } from "@eyadex/ids";
-import { maskPhonesInText } from "@eyadex/observability";
 
 import { writeClinicAudit } from "../../../../shared/clinic-audit.ts";
 import { ApiError } from "../../../../shared/errors.ts";
@@ -239,14 +239,15 @@ export class UserChanges {
   }
 }
 
-// Every free-text name is masked: `redactSecrets` keeps phone-like values, so a number typed into a
+// Every free-text name goes through the strict audit scrub (invisible controls dropped, digits of any
+// script folded, every 8+ digit run masked wherever it sits): `redactSecrets` keeps phone-like values, so a number typed into a
 // person's or a custom role's name would otherwise reach the audit log (AGENTS.md review rules).
 export const auditSnapshot = (person: PersonAuditSnapshot) => {
   const s = personAuditSnapshot(person);
   return {
     ...s,
-    fullName: maskPhonesInText(s.fullName),
-    roleNameAr: maskPhonesInText(s.roleNameAr),
-    roleNameEn: maskPhonesInText(s.roleNameEn),
+    fullName: scrubAuditText(s.fullName),
+    roleNameAr: scrubAuditText(s.roleNameAr),
+    roleNameEn: scrubAuditText(s.roleNameEn),
   };
 };
