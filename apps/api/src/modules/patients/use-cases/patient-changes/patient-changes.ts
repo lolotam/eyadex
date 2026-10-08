@@ -33,6 +33,7 @@ import {
   updatePatientFields,
 } from "../../persistence/pg-patient-store.ts";
 import {
+  replayResult,
   requireScope,
   uniqueViolationAsValidation,
   writeResult,
@@ -161,14 +162,8 @@ export class PatientChanges {
           clock.now(),
         );
         if (claimed.kind === "conflict") throw new ApiError("idempotency_conflict");
-        if (claimed.kind === "replay") {
-          // The replay needs the create scope over the file NOW (it may have changed since).
-          const replayed = await findPatient(tx, actor.clinicId, claimed.response.id);
-          if (replayed === null || !coversBranch(scope, replayed.registrationBranchId)) {
-            throw new ApiError("not_found");
-          }
-          return writeResult(tx, actor, replayed);
-        }
+        // The replay needs the create scope over the file NOW (it may have changed since).
+        if (claimed.kind === "replay") return replayResult(tx, actor, scope, claimed.response.id);
         await lockClinicPatients(tx, actor.clinicId);
         await assertFilingBranch(tx, actor, scope, normalized.registrationBranchId);
         await assertUnique(tx, actor, normalized, null);
