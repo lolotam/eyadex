@@ -113,6 +113,7 @@ export const en = {
     searchPlaceholder: "Search by name or slug",
     anyStatus: "Any status",
     anySpecialty: "Any specialty",
+    expired: "Expired",
     expiringSoon: "Expires soon",
     columns: {
       name: "Clinic",
