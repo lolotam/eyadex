@@ -26,9 +26,9 @@ import { DataTable } from "@/shared/table/data-table";
 import { useCursorPages } from "@/shared/table/use-cursor-pages";
 import { ClinicStatusBadge } from "./clinic-status-badge";
 import { useClinicList } from "./clinic-queries";
+import { expiryFlagOf } from "./expiry-flag";
 
 const PAGE_SIZE = 10;
-const SOON_MS = 14 * 24 * 60 * 60 * 1000;
 const ANY = "any";
 
 export function ClinicsListPage() {
@@ -69,13 +69,13 @@ export function ClinicsListPage() {
         id: "expires",
         header: t("clinics.columns.expiresAt"),
         cell: ({ row }) => {
-          const soon = new Date(row.original.expiresAt).getTime() - Date.now() < SOON_MS;
+          const flag = expiryFlagOf(row.original.expiresAt, Date.now());
           return (
             <div className="flex min-w-24 flex-col items-start gap-1 whitespace-nowrap">
               <span>{formatDate(row.original.expiresAt)}</span>
-              {soon && (
+              {flag && (
                 <Badge variant="outline" className="border-destructive/40 text-destructive">
-                  {t("clinics.expiringSoon")}
+                  {t(flag === "expired" ? "clinics.expired" : "clinics.expiringSoon")}
                 </Badge>
               )}
             </div>

@@ -12,6 +12,7 @@ import { appendOutboxEvent } from "../../../../shared/outbox.ts";
 import { writePlatformAudit } from "../../../../shared/platform-audit.ts";
 import type { SecretSealer } from "@eyadex/secrets";
 import { checkNewClinic } from "../../domain/new-clinic.ts";
+import { trialEndsAt } from "../../domain/trial.ts";
 import { insertNewClinic } from "../../persistence/pg-new-clinic-writer.ts";
 import type { Clock } from "../../ports/clock.ts";
 import type { FirstAdminProvisioner } from "../../ports/first-admin-provisioner.ts";
@@ -60,10 +61,15 @@ export class CreateClinicWithAdmin {
         if (claim.kind === "replay") return claim.response;
         if (claim.kind === "conflict") throw new ApiError("idempotency_conflict");
 
-        const check = checkNewClinic(input.slug, new Date(input.expiresAt), now);
+        // A relative trial is resolved once, on the server clock; the key makes a retry replay it.
+        const expiry =
+          input.trialDays === undefined
+            ? new Date(input.expiresAt ?? Number.NaN)
+            : trialEndsAt(input.trialDays, input.timezone, now);
+        const check = checkNewClinic(input.slug, expiry, now);
         if (!check.ok) throw new ApiError(check.code);
 
-        await insertNewClinic(tx, clinicId, input, ids.newId(), now);
+        await insertNewClinic(tx, clinicId, { ...input, expiresAt: expiry }, ids.newId(), now);
         const invited = await provisioner.provision(tx, {
           clinicId,
           actorUserId,
@@ -87,7 +93,7 @@ export class CreateClinicWithAdmin {
               nameEn: input.nameEn,
               specialty: input.specialty,
               status: input.status,
-              expiresAt: new Date(input.expiresAt).toISOString(),
+              expiresAt: expiry.toISOString(),
               maxUsers: input.maxUsers,
               maxBranches: input.maxBranches,
               modules: input.modules,

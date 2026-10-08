@@ -5,7 +5,6 @@
 const UNSERVED = [
   /^\/clinic\/(patients|settings|account)(\/|$)/,
   /^\/platform\/?$/,
-  /^\/platform\/clinics\/?$/,
   /^\/platform\/(team|settings)(\/|$)/,
 ];
 
@@ -14,9 +13,9 @@ export function isUnservedPath(pathname: string): boolean {
 }
 
 /**
- * The platform home and clinic list are unserved, but they hold the only link to creating a clinic,
- * which the API does serve; their "coming soon" state keeps that action.
+ * The platform home (overview, slice 11) is unserved, but it holds a link to creating a clinic,
+ * which the API does serve; its "coming soon" state keeps that action.
  */
 export function comingSoonActionFor(pathname: string): "createClinic" | null {
-  return /^\/platform(\/clinics)?\/?$/.test(pathname) ? "createClinic" : null;
+  return /^\/platform\/?$/.test(pathname) ? "createClinic" : null;
 }

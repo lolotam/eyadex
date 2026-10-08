@@ -116,12 +116,8 @@ export interface ApiClient {
     listClinicBranches(persona: Persona, clinicId: string): Promise<Branch[]>;
   };
   branches: {
-    /** usage null = unknown to this adapter; the limit is still enforced on create (409). */
     // TODO(spec): a clinic-side limits read, so the HTTP adapter can show the counter too.
-    list(
-      persona: Persona,
-      query: BranchListQuery,
-    ): Promise<Page<Branch> & { usage: BranchUsage | null }>;
+    list(persona: Persona, query: BranchListQuery): Promise<Page<Branch> & { usage: BranchUsage }>;
     /** A retry with the same key replays the first result; a changed request is a conflict. */
     create(persona: Persona, input: BranchInput, idempotencyKey: string): Promise<Branch>;
     update(persona: Persona, branchId: string, input: BranchInput): Promise<Branch>;
@@ -138,8 +134,7 @@ export interface ApiClient {
   };
   users: {
     list(persona: Persona, query: UserListQuery): Promise<Page<MembershipUserView>>;
-    /** null = unknown to this adapter (same TODO(spec) as branches.list usage). */
-    usage(persona: Persona): Promise<UserUsage | null>;
+    usage(persona: Persona): Promise<UserUsage>;
     listRoleOptions(persona: Persona): Promise<RoleOption[]>;
     listBranchOptions(persona: Persona): Promise<BranchOption[]>;
     changeRole(

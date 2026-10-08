@@ -14,7 +14,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-// Mirror of db/sql/0001 + 0002. db/sql stays the source of truth; the drift test compares the two.
+// Mirror of db/sql/0001 + 0002 (+ 0031's index). db/sql stays the source of truth; the drift test compares the two.
 // Constraint names repeat PostgreSQL's defaults so the drift test can match them by name.
 const tz = { withTimezone: true, mode: "date" } as const;
 
@@ -40,6 +40,7 @@ export const clinics = pgTable(
   (t) => [
     unique("clinics_slug_key").on(t.slug),
     index("clinics_status_expires_idx").on(t.status, t.expiresAt),
+    index("clinics_created_at_id_idx").on(t.createdAt, t.id),
     check(
       "clinics_default_language_check",
       sql.raw("(default_language = ANY (ARRAY['ar'::text, 'en'::text]))"),

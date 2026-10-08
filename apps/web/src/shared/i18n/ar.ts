@@ -112,6 +112,7 @@ export const ar: Dictionary = {
     searchPlaceholder: "ابحث بالاسم أو المعرّف",
     anyStatus: "كل الحالات",
     anySpecialty: "كل التخصصات",
+    expired: "منتهي",
     expiringSoon: "ينتهي قريبًا",
     columns: {
       name: "العيادة",
