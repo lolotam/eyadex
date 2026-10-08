@@ -162,16 +162,14 @@ describe("createFirstPlatformAccount (ADR-0021)", () => {
     const team = await owner<{ email: string; status: string }[]>`
       SELECT email, status FROM platform_accounts`;
     expect(team).toEqual([{ email: row!.email, status: "active" }]);
-    // ADR-0021 (0039): exactly one platform audit row for the bootstrap, by the new account itself,
-    // holding no typed text: the email and the name never reach the append-only row.
-    const audit = await owner<{ actor: boolean; details: unknown }[]>`
-      SELECT a.actor_user_id = u.id AS actor, a.details
-      FROM platform_audit_log a JOIN auth_users u ON u.area = 'platform'
-      WHERE a.action = 'platform_account.bootstrapped'`;
+    // ADR-0021 (0039): exactly one platform audit row for this bootstrap, by the new account itself,
+    // holding no typed text: the email and the name never reach the append-only row. Scoped to the new
+    // account: the audit log is append-only, so earlier runs on a shared test database leave rows.
     const [user] = await owner<{ id: string }[]>`SELECT id FROM auth_users WHERE area = 'platform'`;
-    expect(audit).toEqual([
-      { actor: true, details: { accountId: user!.id, after: { status: "active" } } },
-    ]);
+    const audit = await owner<{ details: unknown }[]>`
+      SELECT details FROM platform_audit_log
+      WHERE action = 'platform_account.bootstrapped' AND actor_user_id = ${user!.id}`;
+    expect(audit).toEqual([{ details: { accountId: user!.id, after: { status: "active" } } }]);
   });
 
   it("NEGATIVE: once a platform account exists, the bootstrap refuses for good", async () => {
