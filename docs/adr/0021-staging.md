@@ -137,7 +137,9 @@ The API image runs it as `dist/bootstrap-platform-account.js`, with the containe
 argument or a variable). The first sign-in on the platform host must enrol TOTP (ADR-0004).
 The bootstrap writes a `platform_account.bootstrapped` platform audit row in the same transaction
 (owner decision 2026-10-09, SQL 0039): `link_first_platform_account` now takes the row's id from the
-app (UUID v7) and inserts it itself, so no first account can be linked without its audit row.
+app (UUID v7) and inserts it itself, so no first account can be linked without its audit row. The
+row holds the account id and status only: no email or name, which are typed text the function cannot
+scrub (Codex review).
 
 ### Rollback
 

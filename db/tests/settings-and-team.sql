@@ -134,12 +134,13 @@ BEGIN
   IF (SELECT count(*) FROM platform_accounts WHERE email = 'first@example.test' AND status = 'active') <> 1 THEN
     RAISE EXCEPTION 'TEAM: the linked first member is not active';
   END IF;
-  -- ADR-0021 (0039): the bootstrap link writes its platform audit row, once, with no name as typed.
+  -- ADR-0021 (0039): the bootstrap link writes its platform audit row, once, with no typed text:
+  -- the details are the account id and the status, never the email or the name.
   IF (SELECT count(*) FROM platform_audit_log WHERE id = '00000000-0000-7000-8000-0000000011e1'
         AND action = 'platform_account.bootstrapped'
         AND actor_user_id = '00000000-0000-7000-8000-0000000011d1'
-        AND details -> 'after' ->> 'email' = 'first@example.test'
-        AND NOT (details -> 'after') ? 'fullName') <> 1 THEN
+        AND details = jsonb_build_object('accountId', '00000000-0000-7000-8000-0000000011d1',
+                                         'after', jsonb_build_object('status', 'active'))) <> 1 THEN
     RAISE EXCEPTION 'TEAM: the bootstrap link wrote no platform_account.bootstrapped audit row';
   END IF;
   IF EXISTS (SELECT 1 FROM platform_audit_log

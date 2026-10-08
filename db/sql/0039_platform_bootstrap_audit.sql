@@ -4,8 +4,9 @@
 
 -- The link function is the bootstrap's one way into the team table (0037). It now also writes the
 -- audit row, so a first account can never be linked without it. The row's id comes from the app
--- (UUID v7, CLAUDE.md §5: no database defaults); the details hold the account id, its email and its
--- status only, never the name as typed (names reach the audit through the strict scrub in the app).
+-- (UUID v7, CLAUDE.md §5: no database defaults). The details hold the account id and its status only:
+-- the email and the name are text a person typed, and this function cannot run the app's strict audit
+-- scrub, so neither reaches an append-only row (the account id leads to both for anyone allowed).
 GRANT INSERT ON platform_audit_log TO eyadex_platform_team_owner;
 
 DROP FUNCTION link_first_platform_account(uuid, text, text);
@@ -28,8 +29,7 @@ BEGIN
       now(), now(), now());
   INSERT INTO platform_audit_log (id, actor_user_id, action, clinic_id, details, created_at)
     VALUES (p_audit_id, p_user_id, 'platform_account.bootstrapped', NULL,
-      jsonb_build_object('accountId', p_user_id,
-        'after', jsonb_build_object('email', v_email, 'status', 'active')),
+      jsonb_build_object('accountId', p_user_id, 'after', jsonb_build_object('status', 'active')),
       now());
   RETURN true;
 END
