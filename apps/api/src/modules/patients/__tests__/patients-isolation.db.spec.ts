@@ -103,6 +103,20 @@ describe("RBAC-02: a receptionist scoped to branch R", () => {
     expect(row?.actions).toEqual({ update: true, deactivate: false });
   });
 
+  it("row actions follow each action's own branch scope, not the view scope", async () => {
+    // Views every branch, but may edit and archive branch R only.
+    const role = await customRole(h, A.clinicId, [
+      "view:patients:clinic",
+      "update:patients:branch",
+      "deactivate:patients:branch",
+    ]);
+    const editor = await memberOn(h, A.admin, role, { allBranches: false, branchIds: [A.branchR] });
+    const page = patientListResponseSchema.parse((await search(h, editor.cookie)).json());
+    const actionsOf = (id: string) => page.items.find((p) => p.id === id)?.actions;
+    expect(actionsOf(inR)).toEqual({ update: true, deactivate: true });
+    expect(actionsOf(inX)).toEqual({ update: false, deactivate: false });
+  });
+
   it("a write that moves a file out of the caller's VIEW scope answers it without detail", async () => {
     // View at branch scope (R) but update at clinic scope: the move is allowed, the file then hidden.
     const role = await customRole(h, A.clinicId, [
