@@ -3,6 +3,9 @@ import { newId, type MockState } from "./mock-store";
 
 type Snapshot = { id: string } & Record<string, unknown>;
 
+// An id no longer found keeps the API's shape (ADR-0019): the id with null names.
+const unnamed = (id: unknown) => (typeof id === "string" ? { id, nameAr: null, nameEn: null } : id);
+
 /** Reference fields stored with the names they had at write time (history never changes). */
 const ROLE_REFS = new Set(["roleId"]);
 const BRANCH_REFS = new Set(["branchId", "branchIds", "registrationBranchId"]);
@@ -10,11 +13,11 @@ const BRANCH_REFS = new Set(["branchId", "branchIds", "registrationBranchId"]);
 function withNames(db: MockState, clinicId: string, snap: Snapshot): Record<string, unknown> {
   const role = (id: unknown) => {
     const r = db.roles.find((x) => x.clinicId === clinicId && x.id === id);
-    return r ? { id: r.id, nameAr: r.nameAr, nameEn: r.nameEn } : id;
+    return r ? { id: r.id, nameAr: r.nameAr, nameEn: r.nameEn } : unnamed(id);
   };
   const branch = (id: unknown) => {
     const b = db.branches.find((x) => x.clinicId === clinicId && x.id === id);
-    return b ? { id: b.id, nameAr: b.nameAr, nameEn: b.nameEn } : id;
+    return b ? { id: b.id, nameAr: b.nameAr, nameEn: b.nameEn } : unnamed(id);
   };
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(structuredClone(snap))) {

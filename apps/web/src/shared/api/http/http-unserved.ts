@@ -6,14 +6,9 @@ const notImplemented = () => Promise.reject(new ApiError("not_implemented"));
 
 export function createUnservedNamespaces(): Pick<
   ApiClient,
-  "audit" | "clinicSettings" | "account" | "platformOverview" | "platformTeam" | "platformSettings"
+  "clinicSettings" | "account" | "platformOverview" | "platformTeam" | "platformSettings"
 > {
   return {
-    audit: {
-      clinicList: notImplemented,
-      platformList: notImplemented,
-      platformClinicOptions: notImplemented,
-    },
     clinicSettings: { get: notImplemented, update: notImplemented },
     account: { get: notImplemented, update: notImplemented },
     platformOverview: { get: notImplemented },

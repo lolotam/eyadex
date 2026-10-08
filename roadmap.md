@@ -47,6 +47,7 @@
 - [x] Slice 9: patients API — search (POST body), branch options, audited opens, idempotent create, update, archive/restore under branch scope and the `patients` flag; web HTTP adapter wired (ADR-0018, no SQL)
 - [ ] Retention of dispatched and failed outbox rows (TODO(spec))
 - [ ] Slice 8: role CRUD (call `AuthorizationInvalidator`)
+- [x] Slice 10: audit log read — `GET /v1/clinic/audit`, `/v1/platform/audit` (+ `/clinics`); patient rows kept from the platform by grants; actor names via `platform_audit_actors` (ADR-0019, SQL 0034)
 - [ ] Reverse-proxy routes `app.`/`platform.` `/api/*` → api with `/api` stripped (orchestrator)
 
 ## Slice W1 — web wired to the real API
