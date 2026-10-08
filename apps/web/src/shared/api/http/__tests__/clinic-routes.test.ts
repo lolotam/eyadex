@@ -18,13 +18,13 @@ import {
 
 const P: Persona = { kind: "custom", clinicId: CLINIC, memberId: USER };
 const TOKEN = "tok_abc-DEF_123";
+const USAGE = { active: 2, limit: 3 };
 
 /** Answers every wired clinic route with a valid API body. */
 function answer(call: Call) {
   const path = call.url.replace(/\?.*$/, "");
   if (path === "/api/v1/me") return { body: me };
-  if (path === "/api/v1/branches/usage") return { body: { active: 2, limit: 3 } };
-  if (path === "/api/v1/users/usage") return { body: { used: 4, limit: 10 } };
+  if (path === "/api/v1/branches/usage") return { body: USAGE };
   if (path === "/api/v1/branches" && call.method === "GET") return { body: page([branchDetail]) };
   if (path.startsWith("/api/v1/branches"))
     return {
