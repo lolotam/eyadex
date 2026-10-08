@@ -36,3 +36,5 @@ export {
   readFirstPlatformAccountInput,
   type FirstPlatformAccountInput,
 } from "./auth/first-platform-account-input.ts";
+export { PgMemberNames } from "./persistence/pg-member-names.ts";
+export { PgRoleNames } from "./persistence/pg-role-names.ts";

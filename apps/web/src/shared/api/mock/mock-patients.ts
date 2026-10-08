@@ -9,6 +9,7 @@ import {
 import type { ApiClient } from "../api-client";
 import { ApiError } from "../api-error";
 import { writeClinicAudit } from "./mock-audit";
+import { actorReplayKey } from "./mock-idempotency";
 import {
   authorizePatients,
   enforceBirthDate,
@@ -136,7 +137,7 @@ export function createMockPatients(): ApiClient["patients"] {
       const access = authorizePatients(db, persona, "create");
       const input = parseInput(rawInput);
       enforceBirthDate(access, input.birthDate);
-      const replayKey = `${access.clinic.id}:${idempotencyKey}`;
+      const replayKey = actorReplayKey(access.clinic.id, access.member.id, idempotencyKey);
       const fingerprint = JSON.stringify({ ...input, civilId: input.civilId || null });
       const previous = db.idempotentPatients?.[replayKey];
       if (previous) {

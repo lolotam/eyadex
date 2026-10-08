@@ -1,3 +1,4 @@
+import { scrubAuditText } from "@eyadex/observability";
 import { describe, expect, it } from "vitest";
 
 import { ApiError } from "../../../shared/errors.ts";
@@ -5,7 +6,6 @@ import { matchActors } from "../domain/audit-actors.ts";
 import { decodeAuditCursor } from "../domain/audit-cursor.ts";
 import { refIdsOf, withRefNames } from "../domain/audit-refs.ts";
 import { auditSnapshots } from "../domain/audit-snapshot.ts";
-import { shownText } from "../domain/audit-text.ts";
 
 // Synthetic values only: zero-padded phone-shaped runs and an all-zero civil ID.
 const ROLE = "0190a000-4000-7000-8000-000000000001";
@@ -25,7 +25,7 @@ describe("Unicode cannot hide a number from the reader", () => {
     ["a civil ID split by ZWNJ", "Id 3000‌00000000", "Id [REDACTED]"],
     ["a full-width civil ID", "Id ３０００００００００００", "Id [REDACTED]"],
   ])("%s", (_label, stored, shown) => {
-    expect(shownText(stored)).toBe(shown);
+    expect(scrubAuditText(stored)).toBe(shown);
   });
 
   it("applies to every snapshot string, ids and instants kept only under their own keys", () => {
