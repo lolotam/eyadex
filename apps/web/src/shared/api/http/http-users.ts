@@ -1,6 +1,10 @@
 import { roleListResponseSchema, type RoleSummary } from "@eyadex/contracts/access";
 import { branchListResponseSchema, type BranchDetail } from "@eyadex/contracts/branches";
-import { userListResponseSchema, type UserListHttpQuery } from "@eyadex/contracts/user-admin";
+import {
+  userListResponseSchema,
+  userUsageResponseSchema,
+  type UserListHttpQuery,
+} from "@eyadex/contracts/user-admin";
 import {
   membershipUserViewSchema,
   type BranchOption,
@@ -51,8 +55,12 @@ export function createHttpUsers(ctx: HttpContext): ApiClient["users"] {
       });
       return { items: page.items.map(toUserView), nextCursor: page.nextCursor, total: page.total };
     },
-    // TODO(spec): a clinic-side limits read; until then the counter hides and the API's 409 decides.
-    usage: () => Promise.resolve(null),
+    async usage() {
+      const usage = await transport.send("GET", "/v1/users/usage", {
+        schema: userUsageResponseSchema,
+      });
+      return { used: usage.used, limit: usage.limit };
+    },
     async listRoleOptions() {
       const roles = await collectPages((cursor) =>
         transport.send("GET", "/v1/roles", {

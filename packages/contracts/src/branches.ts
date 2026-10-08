@@ -75,3 +75,9 @@ export const branchListResponseSchema = z.object({
   total: z.number().int().nonnegative(),
 });
 export type BranchListResponse = z.infer<typeof branchListResponseSchema>;
+
+/** `GET /v1/branches/usage` (ADR-0016): active branches against the clinic's limit. */
+export const branchUsageResponseSchema = z
+  .object({ active: z.number().int().nonnegative(), limit: z.number().int().positive() })
+  .strict();
+export type BranchUsageResponse = z.infer<typeof branchUsageResponseSchema>;
