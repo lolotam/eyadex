@@ -115,6 +115,9 @@ export const platformDetail = {
   status: "active",
   access: "allowed",
   expiresAt: TS,
+  defaultLanguage: "en",
+  timezone: "Asia/Kuwait",
+  createdAt: TS,
   modules: { patients: true },
   usage: { users: { used: 2, max: 10 }, branches: { used: 1, max: 3 } },
 };

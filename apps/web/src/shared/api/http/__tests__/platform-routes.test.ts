@@ -22,6 +22,8 @@ const created = {
 };
 function answer(call: Call) {
   if (call.url === "/api/v1/platform/clinics") return { status: 201, body: created };
+  if (call.url.startsWith("/api/v1/platform/clinics?"))
+    return { body: { items: [platformDetail], nextCursor: "next-1", total: 7 } };
   if (call.url.includes("/branches")) return { body: page([branchDetail]) };
   return { body: platformDetail };
 }
@@ -65,7 +67,16 @@ describe("wired platform methods", () => {
     });
     expect(result.firstAdminInvite.token).toBeNull();
   });
-  it("a createClinic retry after midnight resends the first body under the same key", async () => {
+  it("createClinic sends trialDays and no expiresAt, then reads the clinic back", async () => {
+    const h = clientWith(answer);
+    const result = await h.api.platform.createClinic(P, input, "key-t");
+    const body = h.calls[0]!.body as Record<string, unknown>;
+    expect(body["trialDays"]).toBe(14);
+    expect(body).not.toHaveProperty("expiresAt");
+    expect(h.calls[1]).toMatchObject({ method: "GET", url: base });
+    expect(result.clinic).toMatchObject({ timezone: "Asia/Kuwait", expiresAt: platformDetail.expiresAt });
+  });
+  it("a createClinic retry under the same key resends the same body whatever the clock says", async () => {
     let failFirst = true;
     const stub = stubFetch((call) => {
       if (failFirst) {
@@ -82,10 +93,41 @@ describe("wired platform methods", () => {
     await api.platform.createClinic(P, input, "key-r");
     expect(stub.calls[1]!.body).toEqual(stub.calls[0]!.body);
   });
+  it("listClinics sends its query and maps the real zone, language and creation time", async () => {
+    const h = clientWith(answer);
+    const result = await h.api.platform.listClinics(P, {
+      cursor: "c-1",
+      limit: 10,
+      search: "  derm ",
+      status: "trial",
+      specialty: null,
+    });
+    expect(h.calls[0]).toMatchObject({
+      method: "GET",
+      url: "/api/v1/platform/clinics?cursor=c-1&limit=10&search=derm&status=trial",
+      credentials: "same-origin",
+    });
+    expect(h.calls[0]?.body).toBeUndefined();
+    expect(result).toMatchObject({ nextCursor: "next-1", total: 7 });
+    expect(result.items[0]).toMatchObject({
+      timezone: "Asia/Kuwait",
+      defaultLanguage: "en",
+      createdAt: platformDetail.createdAt,
+      usersCount: 2,
+      maxBranches: 3,
+    });
+  });
   it("getClinic, listClinicBranches and setClinicFeature use their routes", async () => {
     const h = clientWith(answer);
     const detail = await h.api.platform.getClinic(P, CLINIC);
-    expect(detail).toMatchObject({ maxUsers: 10, usersCount: 2, features: { patients: true } });
+    expect(detail).toMatchObject({
+      maxUsers: 10,
+      usersCount: 2,
+      timezone: "Asia/Kuwait",
+      defaultLanguage: "en",
+      createdAt: platformDetail.createdAt,
+      features: { patients: true },
+    });
     const branches = await h.api.platform.listClinicBranches(P, CLINIC);
     expect(branches[0]?.clinicId).toBe(CLINIC);
     await h.api.platform.setClinicFeature(P, CLINIC, "patients", false);
@@ -101,7 +143,8 @@ describe("wired platform methods", () => {
     await h.api.platform.updateSubscription(P, CLINIC, sub({ durationMonths: 1 }));
     const patches = h.calls.filter((c) => c.method === "PATCH");
     expect(patches.map((c) => c.url)).toEqual([`${base}/subscription`]);
-    expect(patches[0]?.body).toEqual({ status: "active", expiresAt: "2026-02-28T23:59:59Z" });
+    // 31 January in Kuwait + 1 month, ending 23:59:59 Kuwait time.
+    expect(patches[0]?.body).toEqual({ status: "active", expiresAt: "2026-02-28T20:59:59Z" });
     expect(JSON.stringify(patches[0]?.body)).not.toContain("durationDays");
   });
   it("date mode sends the chosen day; changed limits go in a second PATCH, changed fields only", async () => {
@@ -112,7 +155,8 @@ describe("wired platform methods", () => {
       sub({ expiryMode: "date", expiresOn: "2027-03-15", maxBranches: 5 }),
     );
     const patches = h.calls.filter((c) => c.method === "PATCH");
-    expect(patches[0]?.body).toEqual({ status: "active", expiresAt: "2027-03-15T23:59:59Z" });
+    // The clinic is in Asia/Kuwait (UTC+3): the chosen day ends at 20:59:59 UTC.
+    expect(patches[0]?.body).toEqual({ status: "active", expiresAt: "2027-03-15T20:59:59Z" });
     expect(patches[1]).toMatchObject({ url: `${base}/limits`, body: { maxBranches: 5 } });
   });
   it("calendar months clamp to the month's last day", () => {
@@ -125,17 +169,6 @@ describe("unserved methods throw not_implemented", () => {
   const h = clientWith(() => ({ body: {} }));
   const a = h.api;
   const methods: [string, () => Promise<unknown>][] = [
-    [
-      "platform.listClinics",
-      () =>
-        a.platform.listClinics(P, {
-          cursor: null,
-          limit: 10,
-          search: "",
-          status: null,
-          specialty: null,
-        }),
-    ],
     ["platform.getFirstAdminInvitation", () => a.platform.getFirstAdminInvitation(P, CLINIC)],
     ["platform.resendFirstAdminInvitation", () => a.platform.resendFirstAdminInvitation(P, CLINIC)],
     ["platform.updateClinicDetails", () => a.platform.updateClinicDetails(P, CLINIC, input)],

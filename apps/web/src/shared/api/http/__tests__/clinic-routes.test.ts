@@ -23,6 +23,8 @@ const TOKEN = "tok_abc-DEF_123";
 function answer(call: Call) {
   const path = call.url.replace(/\?.*$/, "");
   if (path === "/api/v1/me") return { body: me };
+  if (path === "/api/v1/branches/usage") return { body: { active: 2, limit: 3 } };
+  if (path === "/api/v1/users/usage") return { body: { used: 4, limit: 10 } };
   if (path === "/api/v1/branches" && call.method === "GET") return { body: page([branchDetail]) };
   if (path.startsWith("/api/v1/branches"))
     return {
@@ -285,11 +287,14 @@ describe("wired clinic methods", () => {
     expect(ctx.blocked).toBeNull();
     expect(ctx.expiresInDays).toBeNull();
   });
-  it("usage counters are unknown over HTTP", async () => {
-    expect(
-      (await h.api.branches.list(P, { cursor: null, limit: 10, search: "", status: null })).usage,
-    ).toBeNull();
-    expect(await h.api.users.usage(P)).toBeNull();
+  it("usage counters read their own routes", async () => {
+    const branches = await h.api.branches.list(P, { cursor: null, limit: 10, search: "", status: null });
+    expect(branches.usage).toEqual({ active: 2, limit: 3 });
+    expect(h.calls.map((c) => `${c.method} ${c.url}`)).toContain("GET /api/v1/branches/usage");
+    h.calls.length = 0;
+    expect(await h.api.users.usage(P)).toEqual({ used: 4, limit: 10 });
+    expect(last()).toMatchObject({ method: "GET", url: "/api/v1/users/usage", credentials: "same-origin" });
+    expect(last().body).toBeUndefined();
   });
   it("maps role counts and the catalogue module", async () => {
     expect((await h.api.roles.list(P))[0]?.memberCount).toBe(2);
