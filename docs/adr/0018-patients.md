@@ -34,8 +34,10 @@ sees any of it (§4.5, PLAT-01/02). The tables, grants and counters already exis
 clinic_id)`: the idempotency claim (clinic ledger, scope `patients:create:<userId>`), the target
    branch `FOR SHARE` (a parallel deactivation waits), the duplicate checks, the 0019 counter upsert,
    the row and the audit row. A unique violation that still slips through is a plain `validation`.
-   The stored idempotency response is `{ id, fileNumber }` only; a replay re-reads the file under the
-   caller's current create scope. The request fingerprint is an unkeyed SHA-256 of the normalized
+   The stored idempotency response is `{ id, fileNumber }` only. A replay takes the patients lock first and reads
+   the file once; the create scope and the view scope are both judged on that row, and every write
+   answer likewise decides `detail` on the row it returns, never on an earlier read (a file moved out
+   of scope in between is never disclosed). The request fingerprint is an unkeyed SHA-256 of the normalized
    input: unlike the mail-provider credentials (ADR-0014), the civil ID is not a secret from the
    readers of `clinic_idempotency_keys` — that table is RLS-bound to `eyadex_app` of the same clinic,
    which reads `patients.civil_id` directly — so a keyed HMAC would add an environment key without
@@ -50,7 +52,11 @@ fileNumber }`) only when the caller's view scope covers the existing file; other
    number, name (phones in it masked), phone (last 3 digits), gender, branch, status — no civil ID
    and no birth date (the audit sanitiser removes birth dates anyway, ADR-0001). The Phase-A mock's
    snapshot mirrors the field allowlist and the phone mask (masking phones inside the name is
-   API-only).
+   API-only). Before the shared sanitiser, the writer runs a stricter patients-only pass over every
+   string but a UUID, at any depth (`shared/patient-audit-text.ts`): NFKC plus Arabic-Indic digits
+   folded to ASCII, then every run of 8+ digits masked wherever it sits — 12+ digits replaced whole,
+   shorter runs keep their last 3 — so a civil ID or phone glued to a name, or typed in full-width or
+   Arabic-Indic digits, never reaches the append-only row.
 8. **Branch tables.** Branch names and the target-branch check are read with a join / `FOR SHARE`
    inside the patients transaction, the same way identity reads `branches` (identity → tenancy):
    patients → tenancy is an allowed arrow, and the decision must be taken inside the writing
