@@ -44,7 +44,8 @@ export function createMockPlatformOverview(): ApiClient["platformOverview"] {
       const expiringSoon = db.clinics
         .filter((c) => effectiveClinicStatus(c, now) !== "suspended")
         .map((c) => ({ c, daysLeft: daysUntil(c.expiresAt, now) }))
-        .filter(({ c, daysLeft }) => new Date(c.expiresAt).getTime() >= now && daysLeft <= alert)
+        // Strictly after now, like the API's `expires_at > now`: an expiry at now is already expired.
+        .filter(({ c, daysLeft }) => new Date(c.expiresAt).getTime() > now && daysLeft <= alert)
         .sort((a, b) => a.c.expiresAt.localeCompare(b.c.expiresAt))
         .map(({ c, daysLeft }) => ({
           id: c.id,

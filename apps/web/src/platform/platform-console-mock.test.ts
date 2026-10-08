@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api, as, getState, PLATFORM, resetMockData } from "@/shared/api/mock/mock-test-kit";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -6,6 +6,7 @@ const PATIENT_FIELDS = /patient|fileNumber|civilId|birthDate|phone|gender/i;
 
 describe("platform overview (stories 3-4)", () => {
   beforeEach(() => resetMockData());
+  afterEach(() => vi.restoreAllMocks());
 
   it("is platform admin only", async () => {
     await expect(api.platformOverview.get(as("clinic_admin"))).rejects.toMatchObject({
@@ -53,6 +54,18 @@ describe("platform overview (stories 3-4)", () => {
     });
     overview = await api.platformOverview.get(PLATFORM);
     expect(overview.expiringSoon.map((c) => c.id)).toContain(b.id);
+  });
+
+  it("never lists a clinic expiring exactly now as upcoming: it is expired (API boundary)", async () => {
+    const clinic = getState().clinics[0];
+    if (!clinic) throw new Error("no clinic");
+    const now = Date.now();
+    clinic.status = "active";
+    clinic.expiresAt = new Date(now).toISOString();
+    vi.spyOn(Date, "now").mockReturnValue(now);
+    const overview = await api.platformOverview.get(PLATFORM);
+    expect(overview.counts.expired).toBeGreaterThanOrEqual(1);
+    expect(overview.expiringSoon.map((c) => c.id)).not.toContain(clinic.id);
   });
 
   it("returns no patient fields", async () => {
