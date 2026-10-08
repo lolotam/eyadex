@@ -55,6 +55,8 @@ export const arSettings: Shape<typeof enSettings> = {
     invite: "دعوة عضو",
     inviteTitle: "دعوة إلى فريق المنصة",
     inviteBody: "في الإنتاج تُرسل دعوة بالبريد. في هذا العرض يظهر الحساب كمدعو.",
+    inviteBodyLive:
+      "تُرسل رسالة بريد فيها رابط للانضمام صالح لمدة 7 أيام. دعوة البريد نفسه مرة أخرى ترسل رابطًا جديدًا.",
     invited: "تم تسجيل الدعوة",
     columns: { name: "الاسم", email: "البريد الإلكتروني", status: "الحالة", since: "أضيف في" },
     status: { active: "نشط", invited: "مدعو", deactivated: "معطّل" },
