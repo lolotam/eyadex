@@ -1,7 +1,7 @@
 import type { Tx } from "@eyadex/db";
 import { sql } from "drizzle-orm";
 
-import type { DuplicateFile, NormalizedPatient, PatientRecord } from "../domain/patient-rules.ts";
+import type { DuplicateFile, PatientRecord } from "../domain/patient-rules.ts";
 
 // Every statement here runs inside the caller's withTenant(clinicId) transaction AND filters on
 // clinic_id itself: RLS and the explicit predicate are two independent layers (ISO-01).
@@ -130,22 +130,21 @@ export async function nextFileNumber(tx: Tx, clinicId: string, now: Date): Promi
   return value;
 }
 
-/** Inserts a new active file. */
+/** Inserts a new file with the record's id, file number and status. */
 export async function insertPatient(
   tx: Tx,
   clinicId: string,
-  id: string,
-  fileNumber: number,
-  input: NormalizedPatient,
+  record: PatientRecord,
   now: Date,
 ): Promise<void> {
   const at = now.toISOString();
   await tx.execute(
     sql`INSERT INTO patients (clinic_id, id, file_number, full_name, phone, birth_date, gender,
           registration_branch_id, civil_id, status, created_at, updated_at)
-        VALUES (${clinicId}, ${id}, ${String(fileNumber)}, ${input.fullName}, ${input.phone},
-          ${input.birthDate}::date, ${input.gender}, ${input.registrationBranchId}, ${input.civilId},
-          'active', ${at}::timestamptz, ${at}::timestamptz)`,
+        VALUES (${clinicId}, ${record.id}, ${String(record.fileNumber)}, ${record.fullName},
+          ${record.phone}, ${record.birthDate}::date, ${record.gender},
+          ${record.registrationBranchId}, ${record.civilId}, ${record.status},
+          ${at}::timestamptz, ${at}::timestamptz)`,
   );
 }
 
@@ -153,16 +152,15 @@ export async function insertPatient(
 export async function updatePatientFields(
   tx: Tx,
   clinicId: string,
-  id: string,
-  input: NormalizedPatient,
+  record: PatientRecord,
   now: Date,
 ): Promise<void> {
   await tx.execute(
-    sql`UPDATE patients SET full_name = ${input.fullName}, phone = ${input.phone},
-          birth_date = ${input.birthDate}::date, gender = ${input.gender},
-          registration_branch_id = ${input.registrationBranchId}, civil_id = ${input.civilId},
+    sql`UPDATE patients SET full_name = ${record.fullName}, phone = ${record.phone},
+          birth_date = ${record.birthDate}::date, gender = ${record.gender},
+          registration_branch_id = ${record.registrationBranchId}, civil_id = ${record.civilId},
           updated_at = ${now.toISOString()}::timestamptz
-        WHERE clinic_id = ${clinicId} AND id = ${id}`,
+        WHERE clinic_id = ${clinicId} AND id = ${record.id}`,
   );
 }
 
@@ -170,12 +168,12 @@ export async function updatePatientFields(
 export async function setPatientStatus(
   tx: Tx,
   clinicId: string,
-  id: string,
-  status: PatientRecord["status"],
+  record: PatientRecord,
   now: Date,
 ): Promise<void> {
   await tx.execute(
-    sql`UPDATE patients SET status = ${status}, updated_at = ${now.toISOString()}::timestamptz
-        WHERE clinic_id = ${clinicId} AND id = ${id}`,
+    sql`UPDATE patients SET status = ${record.status},
+          updated_at = ${now.toISOString()}::timestamptz
+        WHERE clinic_id = ${clinicId} AND id = ${record.id}`,
   );
 }

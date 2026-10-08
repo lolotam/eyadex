@@ -38,8 +38,7 @@ import { OPEN_PATIENT, PATIENT_CHANGES } from "../ports/tokens.ts";
 import { patientBranchOptions } from "../queries/patient-branch-options.ts";
 import { searchPatients } from "../queries/patient-views.ts";
 import type { OpenPatient } from "../use-cases/open-patient/open-patient.ts";
-import type { PatientActor } from "../use-cases/patient-actor.ts";
-import { requireScope } from "../use-cases/patient-actor.ts";
+import { requireScope, type PatientActor } from "../use-cases/patient-actor.ts";
 import type { PatientChanges } from "../use-cases/patient-changes/patient-changes.ts";
 
 // A malformed id is an unknown file: 404, the same answer as another clinic's id (ISO-02).

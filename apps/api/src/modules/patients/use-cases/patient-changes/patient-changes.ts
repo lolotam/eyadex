@@ -179,7 +179,7 @@ export class PatientChanges {
           fileNumber: await nextFileNumber(tx, actor.clinicId, now),
           status: "active",
         };
-        await insertPatient(tx, actor.clinicId, record.id, record.fileNumber, normalized, now);
+        await insertPatient(tx, actor.clinicId, record, now);
         await this.audit(tx, actor, "patient.created", null, record);
         await completeClinicIdempotencyKey(tx, claim, {
           id: record.id,
@@ -213,8 +213,8 @@ export class PatientChanges {
           await assertFilingBranch(tx, actor, scope, normalized.registrationBranchId);
         }
         await assertUnique(tx, actor, normalized, before.id);
-        await updatePatientFields(tx, actor.clinicId, before.id, normalized, clock.now());
         const after: PatientRecord = { ...before, ...normalized };
+        await updatePatientFields(tx, actor.clinicId, after, clock.now());
         await this.audit(tx, actor, "patient.updated", before, after);
         return writeResult(tx, actor, after);
       })
@@ -243,8 +243,8 @@ export class PatientChanges {
         throw new ApiError("not_found");
       }
       if (before.status === status) return writeResult(tx, actor, before);
-      await setPatientStatus(tx, actor.clinicId, before.id, status, clock.now());
       const after: PatientRecord = { ...before, status };
+      await setPatientStatus(tx, actor.clinicId, after, clock.now());
       const action = status === "archived" ? "patient.archived" : "patient.restored";
       await this.audit(tx, actor, action, before, after);
       return writeResult(tx, actor, after);

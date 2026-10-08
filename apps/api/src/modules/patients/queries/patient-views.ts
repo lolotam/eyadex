@@ -1,7 +1,7 @@
 import type { PatientDetail, PatientListItem } from "@eyadex/contracts/patients";
 import type { PatientListResponse, PatientSearchRequest } from "@eyadex/contracts/patients-api";
 import type { Database, Tx } from "@eyadex/db";
-import { sql } from "drizzle-orm";
+import { sql, type SQL } from "drizzle-orm";
 
 import { ApiError } from "../../../shared/errors.ts";
 import {
@@ -25,17 +25,26 @@ function decodeCursor(cursor: string | null): string | null {
   return value;
 }
 
-/** The scope as two bound parameters: "every branch", or a JSON array of branch ids. */
-const scopeParams = (scope: PatientScope) => ({
-  all: scope.all,
-  ids: JSON.stringify(scope.all ? [] : scope.branchIds),
-});
-
+/** "Every branch" or a JSON array of branch ids, both as bound parameters (never SQL text). */
 const inScopeSql = (scope: PatientScope) => {
-  const { all, ids } = scopeParams(scope);
-  return sql`(${all}::boolean OR p.registration_branch_id IN
+  const ids = JSON.stringify(scope.all ? [] : scope.branchIds);
+  return sql`(${scope.all}::boolean OR p.registration_branch_id IN
     (SELECT value::uuid FROM jsonb_array_elements_text(${ids}::jsonb)))`;
 };
+
+/** The WHERE clause shared by the page and its total: clinic, view scope, filters, search. */
+function listFilters(clinicId: string, view: PatientScope, query: PatientSearchRequest): SQL {
+  const { namePattern, digitsPattern } = searchTerms(query.q);
+  return sql`p.clinic_id = ${clinicId} AND ${inScopeSql(view)}
+    AND (${query.branchId}::uuid IS NULL OR p.registration_branch_id = ${query.branchId}::uuid)
+    AND (${query.status}::text IS NULL OR p.status = ${query.status}::text)
+    AND (${namePattern}::text IS NULL OR p.full_name ILIKE ${namePattern}::text
+      OR (${digitsPattern}::text IS NOT NULL AND (
+        regexp_replace(p.phone, '[^0-9]', '', 'g') LIKE ${digitsPattern}::text
+        OR repeat('0', greatest(0, 6 - length(p.file_number))) || p.file_number
+          LIKE ${digitsPattern}::text
+        OR coalesce(p.civil_id, '') LIKE ${digitsPattern}::text)))`;
+}
 
 interface ListRow {
   id: string;
@@ -48,6 +57,19 @@ interface ListRow {
   civil_id_last4: string | null;
   status: PatientListItem["status"];
 }
+
+const toListItem = (row: ListRow, scopes: PatientScopes): PatientListItem => ({
+  id: row.id,
+  fileNumber: Number(row.file_number),
+  fullName: row.full_name,
+  phone: row.phone,
+  registrationBranchId: row.registration_branch_id,
+  branchNameAr: row.branch_name_ar,
+  branchNameEn: row.branch_name_en,
+  civilIdLast4: row.civil_id_last4,
+  status: row.status,
+  actions: recordActions(scopes, row.registration_branch_id),
+});
 
 /**
  * قايمة الملفات (story P1، نفس قواعد الـ mock): جوه نطاق العرض بس، أحدث رقم ملف الأول، بـ cursor.
@@ -67,16 +89,7 @@ export async function searchPatients(
   query: PatientSearchRequest,
 ): Promise<PatientListResponse> {
   const after = decodeCursor(query.cursor);
-  const { namePattern, digitsPattern } = searchTerms(query.q);
-  const filters = sql`p.clinic_id = ${clinicId} AND ${inScopeSql(scopes.view)}
-    AND (${query.branchId}::uuid IS NULL OR p.registration_branch_id = ${query.branchId}::uuid)
-    AND (${query.status}::text IS NULL OR p.status = ${query.status}::text)
-    AND (${namePattern}::text IS NULL OR p.full_name ILIKE ${namePattern}::text
-      OR (${digitsPattern}::text IS NOT NULL AND (
-        regexp_replace(p.phone, '[^0-9]', '', 'g') LIKE ${digitsPattern}::text
-        OR repeat('0', greatest(0, 6 - length(p.file_number))) || p.file_number
-          LIKE ${digitsPattern}::text
-        OR coalesce(p.civil_id, '') LIKE ${digitsPattern}::text)))`;
+  const filters = listFilters(clinicId, scopes.view, query);
   const { rows, total } = await db.withTenant(clinicId, async (tx) => ({
     rows: await tx.execute<ListRow>(
       sql`SELECT p.id, p.file_number, p.full_name, p.phone, p.registration_branch_id,
@@ -95,23 +108,10 @@ export async function searchPatients(
   }));
   const page = rows.slice(0, query.limit);
   const last = page.at(-1);
+  const more = rows.length > query.limit && last !== undefined;
   return {
-    items: page.map((row) => ({
-      id: row.id,
-      fileNumber: Number(row.file_number),
-      fullName: row.full_name,
-      phone: row.phone,
-      registrationBranchId: row.registration_branch_id,
-      branchNameAr: row.branch_name_ar,
-      branchNameEn: row.branch_name_en,
-      civilIdLast4: row.civil_id_last4,
-      status: row.status,
-      actions: recordActions(scopes, row.registration_branch_id),
-    })),
-    nextCursor:
-      rows.length > query.limit && last !== undefined
-        ? encodeCursor(Number(last.file_number))
-        : null,
+    items: page.map((row) => toListItem(row, scopes)),
+    nextCursor: more ? encodeCursor(Number(last.file_number)) : null,
     total: Number(total[0]?.total ?? 0),
   };
 }
