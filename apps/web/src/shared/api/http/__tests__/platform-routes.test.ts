@@ -153,7 +153,6 @@ describe("unserved methods throw not_implemented", () => {
     ...(
       [
         "patients",
-        "audit",
         "clinicSettings",
         "account",
         "platformOverview",

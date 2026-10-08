@@ -3,10 +3,10 @@
  * "coming soon" state instead of calling a method that answers not_implemented.
  */
 const UNSERVED = [
-  /^\/clinic\/(patients|audit|settings|account)(\/|$)/,
+  /^\/clinic\/(patients|settings|account)(\/|$)/,
   /^\/platform\/?$/,
   /^\/platform\/clinics\/?$/,
-  /^\/platform\/(team|settings|audit)(\/|$)/,
+  /^\/platform\/(team|settings)(\/|$)/,
 ];
 
 export function isUnservedPath(pathname: string): boolean {

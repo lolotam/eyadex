@@ -1,3 +1,5 @@
+import { enAuditApiClinicActions } from "./en-audit-api";
+
 // Audit log strings, split out to keep each dictionary file small.
 export const enAudit = {
   audit: {
@@ -77,6 +79,7 @@ export const enAudit = {
       },
       clinic: {
         created: "Clinic created",
+        ...enAuditApiClinicActions,
         details_updated: "Clinic details updated",
         subscription_updated: "Subscription updated",
         feature_toggled: "Module switched",
