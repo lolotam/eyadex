@@ -65,6 +65,10 @@ export const platformClinicDetailSchema = z
     status: clinicStatusSchema,
     access: z.enum(["allowed", "suspended", "expired"]),
     expiresAt: z.string().datetime(),
+    defaultLanguage: z.enum(["ar", "en"]),
+    /** IANA zone the clinic's dates are shown and counted in. */
+    timezone: z.string(),
+    createdAt: z.string().datetime(),
     modules: z.object({ patients: z.boolean() }).strict(),
     usage: z.object({ users: usageSchema, branches: usageSchema }).strict(),
   })
@@ -73,3 +77,28 @@ export type PlatformClinicDetail = z.infer<typeof platformClinicDetailSchema>;
 
 /** The `:module` path segment. */
 export const featureModuleParamSchema = moduleSchema;
+
+/**
+ * `GET /v1/platform/clinics` (story 18 list, ADR-0016): newest first (`created_at desc, id desc`),
+ * cursor pagination. `search` matches the Arabic or English name or the slug.
+ */
+export const platformClinicListQuerySchema = z
+  .object({
+    cursor: z.string().min(1).max(200).optional(),
+    limit: z.coerce.number().int().min(1).max(100).default(50),
+    search: z.string().trim().min(1).max(100).optional(),
+    status: clinicStatusSchema.optional(),
+    specialty: specialtySchema.optional(),
+  })
+  .strict();
+export type PlatformClinicListQuery = z.infer<typeof platformClinicListQuerySchema>;
+
+/** Every item is the detail shape: strict, so no patient field or count can slip in (PLAT-02). */
+export const platformClinicListResponseSchema = z
+  .object({
+    items: z.array(platformClinicDetailSchema),
+    nextCursor: z.string().nullable(),
+    total: z.number().int().nonnegative(),
+  })
+  .strict();
+export type PlatformClinicListResponse = z.infer<typeof platformClinicListResponseSchema>;

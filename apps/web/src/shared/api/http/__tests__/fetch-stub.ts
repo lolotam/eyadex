@@ -115,6 +115,9 @@ export const platformDetail = {
   status: "active",
   access: "allowed",
   expiresAt: TS,
+  defaultLanguage: "en",
+  timezone: "Asia/Kuwait",
+  createdAt: TS,
   modules: { patients: true },
   usage: { users: { used: 2, max: 10 }, branches: { used: 1, max: 3 } },
 };
@@ -135,3 +138,11 @@ export async function code(p: Promise<unknown>): Promise<{ code: string; details
   }
   return { code: "resolved" };
 }
+
+export const inspection = {
+  clinicNameAr: "ع",
+  clinicNameEn: "C",
+  email: "new@example.test",
+  fullName: "New Person",
+  expiresAt: "2026-02-01T00:00:00.000Z",
+};

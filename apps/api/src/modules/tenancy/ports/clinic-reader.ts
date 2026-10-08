@@ -8,6 +8,9 @@ export interface ClinicSnapshot {
   readonly nameAr: string;
   readonly nameEn: string;
   readonly specialty: string;
+  readonly defaultLanguage: "ar" | "en";
+  readonly timezone: string;
+  readonly createdAt: Date;
   readonly status: ClinicStatus;
   readonly expiresAt: Date;
   readonly maxUsers: number;

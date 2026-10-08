@@ -16,7 +16,7 @@ import { sql } from "drizzle-orm";
 export async function insertNewClinic(
   tx: Tx,
   clinicId: string,
-  input: CreateClinicRequest,
+  input: Omit<CreateClinicRequest, "expiresAt" | "trialDays"> & { readonly expiresAt: Date },
   featureId: string,
   now: Date,
 ): Promise<void> {
@@ -26,7 +26,7 @@ export async function insertNewClinic(
           status, expires_at, max_users, max_branches, created_at, updated_at)
         VALUES (${clinicId}, ${input.slug}, ${input.nameAr}, ${input.nameEn}, ${input.specialty},
           ${input.defaultLanguage}, ${input.timezone}, ${input.status},
-          ${new Date(input.expiresAt).toISOString()}::timestamptz, ${input.maxUsers},
+          ${input.expiresAt.toISOString()}::timestamptz, ${input.maxUsers},
           ${input.maxBranches}, ${at}::timestamptz, ${at}::timestamptz)`,
   );
   await tx.execute(
