@@ -19,6 +19,7 @@ import {
   type BranchDetail,
   type BranchListQuery,
   type BranchListResponse,
+  type BranchUsageResponse,
   type CreateBranchRequest,
   type UpdateBranchRequest,
 } from "@eyadex/contracts/branches";
@@ -37,6 +38,7 @@ import {
   listBranches,
   type BranchChange,
   type BranchChanges,
+  type ClinicUsage,
   type ExclusiveMemberReader,
 } from "../../tenancy/index.ts";
 import { Require } from "../access/access-rules.ts";
@@ -48,6 +50,17 @@ import {
 
 export const BRANCH_CHANGES = Symbol("identity.BranchChanges");
 export const EXCLUSIVE_MEMBER_READER = Symbol("identity.ExclusiveMemberReader");
+export const CLINIC_USAGE = Symbol("identity.ClinicUsage");
+
+/** يقرا استهلاك عيادة السياق؛ `null` = العيادة مش ظاهرة. */
+export type ClinicUsageReader = (clinicId: string) => Promise<ClinicUsage | null>;
+
+/** الاستهلاك أو 404 لو العيادة مش ظاهرة (مش هيحصل بعد الـ guard، بس default deny). */
+export async function usageOf(read: ClinicUsageReader, clinicId: string): Promise<ClinicUsage> {
+  const usage = await read(clinicId);
+  if (usage === null) throw new ApiError("not_found");
+  return usage;
+}
 
 const logger = new Logger("branches");
 
@@ -72,7 +85,16 @@ export class BranchesController {
     @Inject(BRANCH_CHANGES) private readonly changes: BranchChanges,
     @Inject(AUTHORIZATION_INVALIDATOR) private readonly invalidator: AuthorizationInvalidator,
     @Inject(EXCLUSIVE_MEMBER_READER) private readonly exclusive: ExclusiveMemberReader,
+    @Inject(CLINIC_USAGE) private readonly usage: ClinicUsageReader,
   ) {}
+
+  // ADR-0016: for the counter only; a create still decides the limit inside its own transaction.
+  @Get("usage")
+  @Require("view:branches:clinic")
+  async usageRead(@Req() request: ClinicRequest): Promise<BranchUsageResponse> {
+    const { branches } = await usageOf(this.usage, request.clinicContext.clinicId);
+    return { active: branches.used, limit: branches.max };
+  }
 
   @Get()
   @Require("view:branches:clinic")

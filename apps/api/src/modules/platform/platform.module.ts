@@ -20,6 +20,7 @@ import {
   CreateClinicWithAdmin,
   FIRST_ADMIN_PROVISIONER,
   getPlatformClinicDetail,
+  listPlatformClinics,
   PgClinicReader,
   PlatformClinicChanges,
   TenancyModule,
@@ -33,7 +34,12 @@ import {
   PlatformClinicAdminController,
   type ClinicDetailReader,
 } from "./http/platform-clinic-admin.controller.ts";
-import { CREATE_CLINIC, PlatformClinicsController } from "./http/platform-clinics.controller.ts";
+import {
+  CREATE_CLINIC,
+  PLATFORM_CLINIC_LIST,
+  PlatformClinicsController,
+  type ClinicListReader,
+} from "./http/platform-clinics.controller.ts";
 
 /**
  * منطقة المنصة: `POST /v1/platform/clinics` + تفاصيل العيادة واشتراكها وحدودها وموديولاتها (ADR-0010). الـ use case بتاع `tenancy` بيتركّب هنا على pool
@@ -77,6 +83,12 @@ import { CREATE_CLINIC, PlatformClinicsController } from "./http/platform-clinic
         const seats = new PgSeatUsageReader(db);
         return (clinicId) => getPlatformClinicDetail(reader, seats, clock, clinicId);
       },
+    },
+    {
+      provide: PLATFORM_CLINIC_LIST,
+      inject: [PLATFORM_DATABASE, PLATFORM_CLINIC_DETAIL],
+      useFactory: (db: Database, detail: ClinicDetailReader): ClinicListReader => (query) =>
+        listPlatformClinics(db, detail, query),
     },
     // tenancy's port, implemented by identity, bound here like the seat reader above.
     { provide: PLATFORM_EXCLUSIVE_MEMBERS, useValue: new PgExclusiveMembers() },

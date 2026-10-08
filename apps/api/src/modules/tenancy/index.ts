@@ -56,3 +56,9 @@ export {
   type ExclusiveMemberReader,
 } from "./ports/exclusive-member-reader.ts";
 export { usersUsage } from "./domain/limits.ts";
+export { readClinicUsage, type ClinicUsage } from "./queries/clinic-usage.ts";
+export {
+  listPlatformClinics,
+  type PlatformClinicDetailReader,
+} from "./queries/list-platform-clinics.ts";
+export { trialEndsAt } from "./domain/trial.ts";

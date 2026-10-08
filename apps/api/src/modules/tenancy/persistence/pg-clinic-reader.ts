@@ -11,6 +11,9 @@ interface ClinicRow {
   name_ar: string;
   name_en: string;
   specialty: string;
+  default_language: "ar" | "en";
+  timezone: string;
+  created_at: Date | string;
   status: ClinicStatus;
   expires_at: Date | string;
   max_users: number;
@@ -31,7 +34,8 @@ export class PgClinicReader implements ClinicReader {
   async readSnapshot(clinicId: string): Promise<ClinicSnapshot | null> {
     return this.db.withTenant(clinicId, async (tx) => {
       const clinics = await tx.execute<ClinicRow>(
-        sql`SELECT id, slug, name_ar, name_en, specialty, status, expires_at, max_users, max_branches
+        sql`SELECT id, slug, name_ar, name_en, specialty, default_language, timezone, created_at,
+                   status, expires_at, max_users, max_branches
             FROM clinics WHERE id = ${clinicId}`,
       );
       const clinic = clinics[0];
@@ -50,6 +54,9 @@ export class PgClinicReader implements ClinicReader {
         nameAr: clinic.name_ar,
         nameEn: clinic.name_en,
         specialty: clinic.specialty,
+        defaultLanguage: clinic.default_language,
+        timezone: clinic.timezone,
+        createdAt: toDate(clinic.created_at),
         status: clinic.status,
         expiresAt: toDate(clinic.expires_at),
         maxUsers: Number(clinic.max_users),
