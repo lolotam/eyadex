@@ -7,23 +7,40 @@ import {
   type RoleListResponse,
 } from "@eyadex/contracts/access";
 import { PERMISSION_CATALOG } from "@eyadex/contracts/permissions";
+import { expiryAlertDays } from "@eyadex/contracts/platform";
 import type { Database } from "@eyadex/db";
 
 import { DATABASE } from "../../../shared/database.provider.ts";
 import { ZodValidationPipe } from "../../../shared/zod-validation.pipe.ts";
+import { CLOCK, type Clock } from "../../tenancy/index.ts";
 import { Authenticated, Require } from "../access/access-rules.ts";
 import type { ClinicRequest } from "../access/access.guard.ts";
 import { listRoles } from "../queries/list-roles.ts";
+
+/** أيام نافذة تنبيه الانتهاء من إعدادات المنصة (0036، ADR-0020). */
+export type ExpiryAlertWindow = () => Promise<number>;
+export const EXPIRY_ALERT_WINDOW = Symbol("identity.ExpiryAlertWindow");
 
 // Read-only routes that prove the guard (slice 4). Every check already ran in AccessGuard; these
 // only shape the answer from the resolved context.
 
 @Controller("me")
 export class MeController {
+  constructor(
+    @Inject(EXPIRY_ALERT_WINDOW) private readonly alertWindow: ExpiryAlertWindow,
+    @Inject(CLOCK) private readonly clock: Clock,
+  ) {}
+
   @Get()
   @Authenticated()
-  me(@Req() request: ClinicRequest): MeResponse {
+  async me(@Req() request: ClinicRequest): Promise<MeResponse> {
     const { member, context } = { member: request.clinicMember, context: request.clinicContext };
+    // Story 30: the banner window is the platform's setting, counted on the API clock (ADR-0020).
+    const expiresInDays = expiryAlertDays(
+      member.clinic.expiresAt,
+      await this.alertWindow(),
+      this.clock.now().getTime(),
+    );
     return {
       user: {
         id: member.userId,
@@ -45,6 +62,7 @@ export class MeController {
       allBranches: context.branchScope.all,
       branchIds: context.branchScope.all ? [] : [...context.branchScope.branchIds],
       modules: [...context.enabledModules],
+      expiresInDays,
     };
   }
 }

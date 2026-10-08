@@ -28,6 +28,7 @@ const STATUS: Partial<Record<ApiErrorCode, number>> = {
   last_active_branch: 409,
   branch_has_exclusive_members: 409,
   last_active_admin: 409,
+  last_active_platform_account: 409,
   role_locked: 409,
   role_in_use: 409,
   role_name_taken: 409,

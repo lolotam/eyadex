@@ -1,4 +1,9 @@
-import type { Clinic, ClinicDetail, FirstAdminInviteLink } from "@eyadex/contracts/clinics";
+import {
+  effectiveClinicStatus,
+  type Clinic,
+  type ClinicDetail,
+  type FirstAdminInviteLink,
+} from "@eyadex/contracts/clinics";
 import {
   clinicDetailsInputSchema,
   createClinicInputSchema,
@@ -64,13 +69,8 @@ function clinicDetails(c: Clinic) {
     timezone: c.timezone,
   };
 }
-function clinicSubscription(c: Clinic) {
-  return {
-    status: c.status,
-    expiresAt: c.expiresAt.slice(0, 10),
-    maxUsers: c.maxUsers,
-    maxBranches: c.maxBranches,
-  };
+function clinicSubscription({ status, expiresAt, maxUsers, maxBranches }: Clinic) {
+  return { status, expiresAt: expiresAt.slice(0, 10), maxUsers, maxBranches };
 }
 
 function addMonths(date: Date, months: number): Date {
@@ -90,7 +90,7 @@ export function createMockPlatform(): Omit<
       const db = getState();
       const term = query.search.trim().toLowerCase();
       const filtered = db.clinics
-        .filter((c) => !query.status || c.status === query.status)
+        .filter((c) => !query.status || effectiveClinicStatus(c) === query.status)
         .filter((c) => !query.specialty || c.specialty === query.specialty)
         .filter(
           (c) => !term || [c.nameAr, c.nameEn, c.slug].some((v) => v.toLowerCase().includes(term)),

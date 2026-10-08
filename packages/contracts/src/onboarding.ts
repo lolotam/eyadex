@@ -54,7 +54,10 @@ export const createClinicRequestSchema = z
     timezone: z.enum(timezoneOptions),
     // TODO(spec): may a clinic be created already suspended? Not allowed until the PRD says so.
     status: z.enum(["trial", "active"]),
-    /** EITHER an explicit instant OR `trialDays`, never both, never neither (ADR-0016). */
+    /**
+     * EITHER an explicit instant OR `trialDays`, never both (ADR-0016). Neither = the platform's
+     * default trial days, read by the server when it creates the clinic (ADR-0020).
+     */
     expiresAt: z.string().datetime({ offset: true }).optional(),
     /** Days after the clinic's local today, ending 23:59:59 there; counted on the server clock. */
     trialDays: z.number().int().min(1).max(365).optional(),
@@ -71,7 +74,7 @@ export const createClinicRequestSchema = z
   })
   .strict()
   .superRefine((value, ctx) => {
-    if ((value.expiresAt === undefined) === (value.trialDays === undefined)) {
+    if (value.expiresAt !== undefined && value.trialDays !== undefined) {
       ctx.addIssue({ code: "custom", path: ["expiresAt"], message: "validation.oneExpiry" });
     }
   });

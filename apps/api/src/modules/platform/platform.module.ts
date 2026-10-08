@@ -14,6 +14,7 @@ import {
   IdentityModule,
   PgExclusiveMembers,
   PgSeatUsageReader,
+  PlatformTeamModule,
 } from "../identity/index.ts";
 import {
   CLOCK,
@@ -23,6 +24,9 @@ import {
   listPlatformClinics,
   PgClinicReader,
   PlatformClinicChanges,
+  PlatformSettingsChanges,
+  readPlatformOverview,
+  readPlatformSettings,
   TenancyModule,
   type Clock,
   type FirstAdminProvisioner,
@@ -40,6 +44,15 @@ import {
   PlatformClinicsController,
   type ClinicListReader,
 } from "./http/platform-clinics.controller.ts";
+import {
+  PLATFORM_OVERVIEW,
+  PLATFORM_SETTINGS_CHANGES,
+  PLATFORM_SETTINGS_READER,
+  PlatformConsoleController,
+  type OverviewReader,
+  type SettingsReader,
+} from "./http/platform-console.controller.ts";
+import { PlatformTeamController } from "./http/platform-team.controller.ts";
 
 /**
  * منطقة المنصة: `POST /v1/platform/clinics` + تفاصيل العيادة واشتراكها وحدودها وموديولاتها (ADR-0010). الـ use case بتاع `tenancy` بيتركّب هنا على pool
@@ -52,8 +65,14 @@ import {
     IdentityModule,
     TenancyModule,
     PlatformDatabaseModule,
+    PlatformTeamModule,
   ],
-  controllers: [PlatformClinicsController, PlatformClinicAdminController],
+  controllers: [
+    PlatformClinicsController,
+    PlatformClinicAdminController,
+    PlatformConsoleController,
+    PlatformTeamController,
+  ],
   providers: [
     {
       provide: CREATE_CLINIC,
@@ -86,14 +105,38 @@ import {
     },
     {
       provide: PLATFORM_CLINIC_LIST,
-      inject: [PLATFORM_DATABASE, PLATFORM_CLINIC_DETAIL],
+      inject: [PLATFORM_DATABASE, PLATFORM_CLINIC_DETAIL, CLOCK],
       useFactory:
-        (db: Database, detail: ClinicDetailReader): ClinicListReader =>
+        (db: Database, detail: ClinicDetailReader, clock: Clock): ClinicListReader =>
         (query) =>
-          listPlatformClinics(db, detail, query),
+          listPlatformClinics(db, detail, query, clock.now()),
+    },
+    {
+      provide: PLATFORM_OVERVIEW,
+      inject: [PLATFORM_DATABASE, CLOCK],
+      useFactory:
+        (db: Database, clock: Clock): OverviewReader =>
+        () =>
+          readPlatformOverview(db, clock),
+    },
+    {
+      provide: PLATFORM_SETTINGS_READER,
+      inject: [PLATFORM_DATABASE],
+      useFactory:
+        (db: Database): SettingsReader =>
+        () =>
+          readPlatformSettings(db),
+    },
+    {
+      provide: PLATFORM_SETTINGS_CHANGES,
+      inject: [PLATFORM_DATABASE, CLOCK],
+      useFactory: (db: Database, clock: Clock) =>
+        new PlatformSettingsChanges({ db, clock, ids: systemUuidV7() }),
     },
     // tenancy's port, implemented by identity, bound here like the seat reader above.
     { provide: PLATFORM_EXCLUSIVE_MEMBERS, useValue: new PgExclusiveMembers() },
   ],
+  // The root AccessGuard asks the platform-account gate on every platform request (ADR-0020).
+  exports: [PlatformTeamModule],
 })
 export class PlatformModule {}

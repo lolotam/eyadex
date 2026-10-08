@@ -51,6 +51,7 @@ export const me = {
   allBranches: true,
   branchIds: [],
   modules: ["patients"],
+  expiresInDays: null,
 };
 export const branchDetail = {
   id: BRANCH,

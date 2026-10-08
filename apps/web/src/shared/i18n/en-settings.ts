@@ -21,6 +21,13 @@ export const enSettings = {
     passwordTitle: "Password",
     passwordNote: "Changing your password is coming with sign-in.",
     passwordButton: "Change password",
+    passwordNoteLive: "Changing it signs you out on your other devices.",
+    passwordDialogBody: "Enter your current password, then the new one twice.",
+    currentPassword: "Current password",
+    newPassword: "New password",
+    confirmPassword: "Confirm the new password",
+    passwordSaved: "Your password was changed",
+    passwordWrong: "The current password is not correct",
   },
   expiryBanner: {
     today: "Your clinic's subscription ends today. Contact the platform to renew it.",

@@ -24,6 +24,13 @@ export const arSettings: Shape<typeof enSettings> = {
     passwordTitle: "كلمة المرور",
     passwordNote: "تغيير كلمة المرور يأتي مع تسجيل الدخول الفعلي.",
     passwordButton: "تغيير كلمة المرور",
+    passwordNoteLive: "تغييرها يُخرجك من أجهزتك الأخرى.",
+    passwordDialogBody: "اكتب كلمة المرور الحالية، ثم الجديدة مرتين.",
+    currentPassword: "كلمة المرور الحالية",
+    newPassword: "كلمة المرور الجديدة",
+    confirmPassword: "تأكيد كلمة المرور الجديدة",
+    passwordSaved: "تم تغيير كلمة المرور",
+    passwordWrong: "كلمة المرور الحالية غير صحيحة",
   },
   expiryBanner: {
     today: "ينتهي اشتراك عيادتك اليوم. تواصل مع المنصة لتجديده.",

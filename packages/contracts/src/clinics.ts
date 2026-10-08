@@ -7,6 +7,22 @@ export { RESERVED_CLINIC_SLUGS, timezoneOptions };
 export const clinicStatusSchema = z.enum(["trial", "active", "suspended"]);
 export type ClinicStatus = z.infer<typeof clinicStatusSchema>;
 
+/** Status as read now: "expired" is computed from the expiry date, never stored (SUB-02). */
+export const effectiveClinicStatusSchema = z.enum(["trial", "active", "suspended", "expired"]);
+export type EffectiveClinicStatus = z.infer<typeof effectiveClinicStatusSchema>;
+
+/**
+ * The stored status read at `now`: suspended wins; otherwise a clinic whose expiry is at or before
+ * `now` is expired — the access guard's own boundary (access is allowed only while now < expiresAt).
+ */
+export function effectiveClinicStatus(
+  clinic: { status: ClinicStatus; expiresAt: string },
+  now = Date.now(),
+): EffectiveClinicStatus {
+  if (clinic.status === "suspended") return "suspended";
+  return new Date(clinic.expiresAt).getTime() <= now ? "expired" : clinic.status;
+}
+
 export const specialtySchema = z.enum([
   "psychiatry",
   "psychology",
@@ -65,7 +81,8 @@ export type ClinicDetail = z.infer<typeof clinicDetailSchema>;
 
 export const clinicListQuerySchema = pageQuerySchema.extend({
   search: z.string(),
-  status: clinicStatusSchema.nullable(),
+  /** The effective status: "trial" and "active" leave out clinics whose expiry has passed. */
+  status: effectiveClinicStatusSchema.nullable(),
   specialty: specialtySchema.nullable(),
 });
 export type ClinicListQuery = z.infer<typeof clinicListQuerySchema>;

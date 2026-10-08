@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { idSchema } from "./common.ts";
-import { clinicStatusSchema, moduleSchema, specialtySchema } from "./clinics.ts";
+import {
+  clinicStatusSchema,
+  effectiveClinicStatusSchema,
+  moduleSchema,
+  specialtySchema,
+} from "./clinics.ts";
 
 // Phase B slice 5 (ADR-0010): what the platform team changes about one clinic, and what it reads.
 // None of these shapes has a patient field (PRD §4.5, PLAT-02); a test pins that.
@@ -87,7 +92,8 @@ export const platformClinicListQuerySchema = z
     cursor: z.string().min(1).max(200).optional(),
     limit: z.coerce.number().int().min(1).max(100).default(50),
     search: z.string().trim().min(1).max(100).optional(),
-    status: clinicStatusSchema.optional(),
+    /** Effective status (ADR-0020): "expired" is computed on the server clock, never stored. */
+    status: effectiveClinicStatusSchema.optional(),
     specialty: specialtySchema.optional(),
   })
   .strict();

@@ -52,7 +52,12 @@ describe("sessionless /v1 POST routes", () => {
         }
       }
     }
-    expect(found.sort()).toEqual(["/v1/invitations/accept", "/v1/invitations/inspect"]);
+    expect(found.sort()).toEqual([
+      "/v1/invitations/accept",
+      "/v1/invitations/inspect",
+      "/v1/platform/invitations/accept",
+      "/v1/platform/invitations/inspect",
+    ]);
   });
 
   it("the contract's password bounds are Better Auth's", () => {

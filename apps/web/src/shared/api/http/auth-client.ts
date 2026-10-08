@@ -20,6 +20,8 @@ export type AuthClient = {
   verifyTotp(code: string): Promise<void>;
   /** The second step with a one-time recovery code, for a lost authenticator. */
   verifyBackupCode(code: string): Promise<void>;
+  /** Story 64: Better Auth's own change-password; the account's other sessions end. */
+  changePassword(currentPassword: string, newPassword: string): Promise<void>;
 };
 
 export type TotpEnrollment = { uri: string; backupCodes: string[] };
@@ -45,6 +47,10 @@ export function createAuthClient(transport: Transport = createTransport()): Auth
         body: { code },
       });
     },
+    changePassword: (currentPassword, newPassword) =>
+      transport.sendEmpty("POST", "/auth/change-password", {
+        body: { currentPassword, newPassword, revokeOtherSessions: true },
+      }),
     verifyBackupCode: async (code) => {
       await transport.send("POST", "/auth/two-factor/verify-backup-code", {
         schema: verifyBackupCodeResponseSchema,

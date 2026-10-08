@@ -5,10 +5,15 @@ import type { HttpContext } from "./http-context";
 import { createHttpInvitations } from "./http-invitations";
 import { createHttpPatients } from "./http-patients";
 import { createHttpPlatform } from "./http-platform";
+import {
+  createHttpPlatformOverview,
+  createHttpPlatformSettings,
+  createHttpPlatformTeam,
+} from "./http-platform-console";
 import { createHttpRoles } from "./http-roles";
 import { createHttpSession } from "./http-session";
+import { createHttpAccount, createHttpClinicSettings } from "./http-settings";
 import { createTransport } from "./http-transport";
-import { createUnservedNamespaces } from "./http-unserved";
 import { createHttpUsers } from "./http-users";
 
 /**
@@ -29,6 +34,10 @@ export function createHttpApiClient(
     roles: createHttpRoles(ctx),
     patients: createHttpPatients(ctx),
     audit: createHttpAudit(ctx),
-    ...createUnservedNamespaces(),
+    clinicSettings: createHttpClinicSettings(ctx),
+    account: createHttpAccount(ctx),
+    platformOverview: createHttpPlatformOverview(ctx),
+    platformTeam: createHttpPlatformTeam(ctx),
+    platformSettings: createHttpPlatformSettings(ctx),
   };
 }

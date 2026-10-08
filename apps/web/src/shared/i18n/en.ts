@@ -83,7 +83,7 @@ export const en = {
     body: "Explore the shared clinic-management core for every specialty with the right persona.",
     enter: "Enter",
   },
-  clinicStatus: { trial: "Trial", active: "Active", suspended: "Suspended" },
+  clinicStatus: { trial: "Trial", active: "Active", suspended: "Suspended", expired: "Expired" },
   specialty: {
     psychiatry: "Psychiatry",
     psychology: "Psychology",
@@ -251,6 +251,7 @@ export const en = {
     civilIdBirthDate: "The civil ID does not match the birth date",
     outOfRange: "Outside the allowed range",
     smtpHost: "Enter the mail server's domain name, e.g. smtp.example.com",
+    controlChars: "Remove line breaks and hidden characters",
   },
   errors: {
     ...enAccessErrors,

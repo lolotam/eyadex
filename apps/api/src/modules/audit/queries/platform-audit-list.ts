@@ -56,12 +56,17 @@ const PLATFORM_EVENT_ENTITY = sql`CASE
     WHEN starts_with(action, 'platform.') THEN 'platform_settings'
     ELSE 'clinic' END`;
 
+// A platform-team event names its account in details.accountId (ADR-0020); the rest name the clinic.
+const PLATFORM_EVENT_ENTITY_ID = sql`CASE
+    WHEN starts_with(action, 'platform_account.') THEN (details ->> 'accountId')::uuid
+    ELSE clinic_id END`;
+
 // PLAT-01 is the grant, not this query: eyadex_platform cannot read audit_log at all, and the admin
 // view (0013) returns administrative non-patient rows only. There is deliberately no category
 // condition here — a patient row cannot be filtered out because it can never be read.
 const ENTRIES = sql`(
   SELECT 'platform' AS source, id, created_at, actor_user_id, action, clinic_id,
-         ${PLATFORM_EVENT_ENTITY} AS entity, clinic_id AS entity_id, details
+         ${PLATFORM_EVENT_ENTITY} AS entity, ${PLATFORM_EVENT_ENTITY_ID} AS entity_id, details
   FROM platform_audit_log
   UNION ALL
   SELECT 'clinic', id, created_at, actor_user_id, action, clinic_id,

@@ -49,7 +49,7 @@ describe("platform clinic detail contract", () => {
   });
 });
 
-describe("create clinic: exactly one expiry input", () => {
+describe("create clinic: at most one expiry input (neither = the platform default, ADR-0020)", () => {
   const request = {
     nameAr: "عيادة",
     nameEn: "Clinic",
@@ -63,15 +63,15 @@ describe("create clinic: exactly one expiry input", () => {
     modules: { patients: true },
     admin: { fullName: "Test Admin", email: "admin@example.test" },
   };
-  it("accepts trialDays alone or expiresAt alone", () => {
+  it("accepts trialDays alone, expiresAt alone, or neither", () => {
     expect(createClinicRequestSchema.safeParse({ ...request, trialDays: 14 }).success).toBe(true);
+    expect(createClinicRequestSchema.safeParse(request).success).toBe(true);
     const at = { ...request, expiresAt: "2099-01-01T00:00:00Z" };
     expect(createClinicRequestSchema.safeParse(at).success).toBe(true);
   });
-  it("NEGATIVE: refuses both, neither, and a trial outside 1–365", () => {
+  it("NEGATIVE: refuses both, and a trial outside 1–365", () => {
     const both = { ...request, trialDays: 14, expiresAt: "2099-01-01T00:00:00Z" };
     expect(createClinicRequestSchema.safeParse(both).success).toBe(false);
-    expect(createClinicRequestSchema.safeParse(request).success).toBe(false);
     expect(createClinicRequestSchema.safeParse({ ...request, trialDays: 366 }).success).toBe(false);
   });
 });

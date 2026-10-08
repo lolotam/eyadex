@@ -16,6 +16,7 @@ import { trialEndsAt } from "../../domain/trial.ts";
 import { insertNewClinic } from "../../persistence/pg-new-clinic-writer.ts";
 import type { Clock } from "../../ports/clock.ts";
 import type { FirstAdminProvisioner } from "../../ports/first-admin-provisioner.ts";
+import { readPlatformSettingsIn } from "../../queries/platform-settings.ts";
 
 /** اللي الـ use case محتاجه — كله متحقن، مفيش ساعة ولا random جوه. */
 export interface CreateClinicDeps {
@@ -62,10 +63,16 @@ export class CreateClinicWithAdmin {
         if (claim.kind === "conflict") throw new ApiError("idempotency_conflict");
 
         // A relative trial is resolved once, on the server clock; the key makes a retry replay it.
+        // Neither field = the platform's default trial, read in this transaction (ADR-0020).
+        const trialDays =
+          input.trialDays ??
+          (input.expiresAt === undefined
+            ? (await readPlatformSettingsIn(tx)).defaultTrialDays
+            : undefined);
         const expiry =
-          input.trialDays === undefined
+          trialDays === undefined
             ? new Date(input.expiresAt ?? Number.NaN)
-            : trialEndsAt(input.trialDays, input.timezone, now);
+            : trialEndsAt(trialDays, input.timezone, now);
         const check = checkNewClinic(input.slug, expiry, now);
         if (!check.ok) throw new ApiError(check.code);
 

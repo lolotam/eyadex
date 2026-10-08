@@ -63,3 +63,14 @@ export {
   type PlatformClinicDetailReader,
 } from "./queries/list-platform-clinics.ts";
 export { trialEndsAt } from "./domain/trial.ts";
+export { readPlatformSettings, readPlatformSettingsIn } from "./queries/platform-settings.ts";
+export { readPlatformOverview } from "./queries/platform-overview.ts";
+export {
+  PlatformSettingsChanges,
+  type PlatformSettingsChangesDeps,
+} from "./use-cases/platform-settings-changes/platform-settings-changes.ts";
+export {
+  ClinicSettingsChanges,
+  type ClinicSettingsActor,
+  type ClinicSettingsChangesDeps,
+} from "./use-cases/clinic-settings-changes/clinic-settings-changes.ts";

@@ -48,6 +48,7 @@ import type {
   UserUsage,
   AccountProfile,
   AccountProfileInput,
+  ChangePasswordInput,
 } from "@eyadex/contracts/users";
 import type { PermissionDefinition } from "@eyadex/contracts/permissions";
 import type {
@@ -116,7 +117,6 @@ export interface ApiClient {
     listClinicBranches(persona: Persona, clinicId: string): Promise<Branch[]>;
   };
   branches: {
-    // TODO(spec): a clinic-side limits read, so the HTTP adapter can show the counter too.
     list(persona: Persona, query: BranchListQuery): Promise<Page<Branch> & { usage: BranchUsage }>;
     /** A retry with the same key replays the first result; a changed request is a conflict. */
     create(persona: Persona, input: BranchInput, idempotencyKey: string): Promise<Branch>;
@@ -214,6 +214,8 @@ export interface ApiClient {
   account: {
     get(persona: Persona): Promise<AccountProfile>;
     update(persona: Persona, input: AccountProfileInput): Promise<AccountProfile>;
+    /** Better Auth's change-password over HTTP; a wrong current password is invalid_credentials. */
+    changePassword(persona: Persona, input: ChangePasswordInput): Promise<void>;
   };
   /** Platform admin only. Clinic names and statuses; never patient data or counts. */
   platformOverview: {
@@ -222,7 +224,15 @@ export interface ApiClient {
   /** Platform admin only. The last active platform account cannot be deactivated. */
   platformTeam: {
     list(persona: Persona): Promise<PlatformAccount[]>;
-    invite(persona: Persona, input: InvitePlatformAccountInput): Promise<PlatformAccount>;
+    /**
+     * Emails a link to join; an account still invited gets a new one. A retry with the same key
+     * replays the first answer; a changed request is a conflict.
+     */
+    invite(
+      persona: Persona,
+      input: InvitePlatformAccountInput,
+      idempotencyKey: string,
+    ): Promise<PlatformAccount>;
     deactivate(persona: Persona, accountId: string): Promise<PlatformAccount>;
     reactivate(persona: Persona, accountId: string): Promise<PlatformAccount>;
   };

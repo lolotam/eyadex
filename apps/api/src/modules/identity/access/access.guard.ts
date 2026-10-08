@@ -14,6 +14,7 @@ import type { AuthenticatedRequest } from "../auth/session.guard.ts";
 import { PERMISSION_CATALOG } from "@eyadex/contracts/permissions";
 import type { ClinicModule } from "@eyadex/contracts/clinics";
 
+import { PLATFORM_ACCOUNT_GATE, type PlatformAccountGate } from "../ports/platform-account-gate.ts";
 import { accessRulesOf, featureOf, type AccessRule } from "./access-rules.ts";
 import {
   CLINIC_CONTEXT_RESOLVER,
@@ -43,7 +44,8 @@ export class AccessDeclarationError extends Error {
 }
 
 /**
- * الـ guard العام (ADR-0009): بيشتغل قبل أي guard تاني، بالترتيب: host → جلسة → (المنصة: TOTP) →
+ * الـ guard العام (ADR-0009): بيشتغل قبل أي guard تاني، بالترتيب: host → جلسة → (المنصة: TOTP ثم
+ * حساب فريق نشط، ADR-0020) →
  * عضوية نشطة → العيادة مسموح لها → الموديول مفعّل (`@RequiresFeature`، ADR-0010) → الصلاحية. الرفض هو الافتراضي.
  */
 @Injectable()
@@ -51,6 +53,7 @@ export class AccessGuard implements CanActivate {
   constructor(
     @Optional() @Inject(AREA_AUTH) private readonly areaAuth?: AreaAuth,
     @Optional() @Inject(CLINIC_CONTEXT_RESOLVER) private readonly resolver?: ClinicContextResolver,
+    @Optional() @Inject(PLATFORM_ACCOUNT_GATE) private readonly platformGate?: PlatformAccountGate,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -76,6 +79,12 @@ export class AccessGuard implements CanActivate {
     const session = await areaAuth.of("platform").getSession(toHeaders(request.headers));
     if (session === null) throw new ApiError("unauthorized");
     if (!hasTwoFactor(session)) throw new ApiError("two_factor_required");
+    // ADR-0020: the session must belong to an active platform-team account. Not mounted = nothing
+    // can be verified, so nothing passes (the same rule as an unmounted clinic context).
+    if (this.platformGate === undefined) throw new Error("access guard: platform gate not mounted");
+    if (!(await this.platformGate.isActive(session.user.id))) {
+      throw new ApiError("account_disabled");
+    }
     (request as AuthenticatedRequest).areaSession = { area: "platform", session };
     return true;
   }

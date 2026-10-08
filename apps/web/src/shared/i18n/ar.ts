@@ -82,7 +82,7 @@ export const ar: Dictionary = {
     body: "نسخة تجريبية لأساس إدارة العيادات بكل تخصصاتها، مع اختيار الشخصية المناسبة.",
     enter: "دخول",
   },
-  clinicStatus: { trial: "تجريبي", active: "نشط", suspended: "موقوف" },
+  clinicStatus: { trial: "تجريبي", active: "نشط", suspended: "موقوف", expired: "منتهٍ" },
   specialty: {
     psychiatry: "طب نفسي",
     psychology: "علاج نفسي",
@@ -247,6 +247,7 @@ export const ar: Dictionary = {
     civilIdBirthDate: "الرقم المدني لا يطابق تاريخ الميلاد",
     outOfRange: "خارج النطاق المسموح",
     smtpHost: "اكتب اسم نطاق خادم البريد، مثل smtp.example.com",
+    controlChars: "احذف فواصل الأسطر والرموز المخفية",
   },
   errors: {
     ...arAccessErrors,

@@ -83,7 +83,8 @@ export const acceptInvitationInputSchema = z
 export type AcceptInvitationInput = z.infer<typeof acceptInvitationInputSchema>;
 
 export const acceptedInvitationSchema = z.object({
-  clinicId: idSchema,
+  /** null = a platform-team invitation (ADR-0020): no clinic. */
+  clinicId: idSchema.nullable(),
   /** null = no session is opened; the person signs in with email and password (ADR-0008). */
   memberId: idSchema.nullable(),
   roleKey: z.string().nullable(),
