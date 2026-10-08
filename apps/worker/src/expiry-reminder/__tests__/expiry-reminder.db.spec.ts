@@ -33,11 +33,13 @@ const ids = systemUuidV7();
 let app: Database;
 let platform: Database;
 
-beforeAll(() => {
+beforeAll(async () => {
   app = createDatabase({ url: urls().app, role: "eyadex_app", ids });
   const url = process.env["EYADEX_TEST_PLATFORM_URL"];
   if (!url) throw new Error("EYADEX_TEST_PLATFORM_URL is not set");
   platform = createDatabase({ url, role: "eyadex_platform", ids });
+  // The worker's /health/ready pings this pool (ADR-0020): it must pass on the platform role.
+  await platform.ping();
 });
 
 afterAll(async () => {
