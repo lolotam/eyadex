@@ -1,9 +1,9 @@
-import { scrubPatientAuditText as scrubAuditText } from "../../../../shared/patient-audit-text.ts";
 import type { PermissionKey } from "@eyadex/contracts/permissions";
 import type { ChangeBranchesInput } from "@eyadex/contracts/users";
 import type { MembershipUserView } from "@eyadex/contracts/users";
 import type { Database, Tx } from "@eyadex/db";
 import type { IdGenerator } from "@eyadex/ids";
+import { scrubAuditText } from "@eyadex/observability";
 
 import { writeClinicAudit } from "../../../../shared/clinic-audit.ts";
 import { ApiError } from "../../../../shared/errors.ts";

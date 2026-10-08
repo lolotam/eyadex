@@ -91,10 +91,10 @@ apps/api/src/modules/<module>/
 | `platform`      | super-admin HTTP: wires tenancy/identity use cases (clinics, overview, platform team, platform settings)     | `tenancy`, `identity` (index.ts only)                           |
 | `patients`      | patient (المراجع) files — identity data only                                                                 | `tenancy`                                                       |
 | `settings`      | clinic settings                                                                                              | `tenancy`, `identity` (index.ts: guards and request types only) |
-| `audit`         | reading the audit log (writes go through the shared primitive)                                               | —                                                               |
+| `audit`         | reading the audit log (writes go through the shared primitive)                                               | `tenancy`, `identity` (index.ts; adapters in audit.module.ts)   |
 | `notifications` | system emails (invite, password reset, expiry reminder)                                                      | —                                                               |
 
-Any module may use identity's access guards and request types through `identity/index.ts`; that is the only import of identity a module other than identity may make.
+Any module may use identity's access guards and request types through `identity/index.ts`; that is the only import of identity a module other than identity may make, except that a `<module>.module.ts` may bind an identity adapter (exported by `identity/index.ts`) to a port the module owns (platform, audit — ADR-0019 §10).
 
 - Cross-module **reads**: a port defined by the consumer, implemented by an adapter on the owner
   (e.g. `platform` reads clinic users through a port backed by `identity`).

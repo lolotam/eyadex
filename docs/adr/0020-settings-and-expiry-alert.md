@@ -63,8 +63,7 @@ module that already decides the rule, and `platform` only wires HTTP (the ADR-00
 - Account: the caller's own membership only (`full_name`, `preferred_language`); before/after
   `{ fullName, preferredLanguage }`. `auth_users.name` is not changed (Better Auth's `update-user` is
   not on the allowlist); every clinic screen reads the membership name.
-- Names typed by a person go through the strict audit scrub (`shared/audit-name-scrub.ts`, the one
-  import of `shared/patient-audit-text.ts` this slice makes).
+- Names typed by a person go through the strict audit scrub (`scrubAuditText`, `@eyadex/observability`).
 - Both writes call `AuthorizationInvalidator.clinicChanged` after commit (the member snapshot carries
   names, language and time zone).
 - **Password** (story 64): Better Auth's `POST /auth/change-password` (allowlisted and rate-limited

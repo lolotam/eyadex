@@ -3,7 +3,7 @@ import type { Database } from "@eyadex/db";
 import type { IdGenerator } from "@eyadex/ids";
 import { sql } from "drizzle-orm";
 
-import { scrubAuditName } from "../../../../shared/audit-name-scrub.ts";
+import { scrubAuditText } from "@eyadex/observability";
 import { writePlatformAudit } from "../../../../shared/platform-audit.ts";
 import type { Clock } from "../../ports/clock.ts";
 import { readPlatformSettingsIn } from "../../queries/platform-settings.ts";
@@ -19,7 +19,7 @@ export interface PlatformSettingsChangesDeps {
 // The audit copy of the sender name is free text a person typed.
 const audited = (s: PlatformSettings) => ({
   ...s,
-  emailSenderName: scrubAuditName(s.emailSenderName),
+  emailSenderName: scrubAuditText(s.emailSenderName),
 });
 
 /**

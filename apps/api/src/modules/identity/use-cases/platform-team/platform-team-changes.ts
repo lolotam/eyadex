@@ -9,7 +9,7 @@ import type { Database, Tx } from "@eyadex/db";
 import type { IdGenerator } from "@eyadex/ids";
 import type { SecretSealer } from "@eyadex/secrets";
 
-import { scrubAuditName } from "../../../../shared/audit-name-scrub.ts";
+import { scrubAuditText } from "@eyadex/observability";
 import { ApiError } from "../../../../shared/errors.ts";
 import {
   claimIdempotencyKey,
@@ -63,7 +63,7 @@ export interface StatusChange {
 
 // PRD §4.11: an allowlist; the name is text a person typed. No hash, link or user id.
 const snapshot = (a: PlatformAccountResponse) => ({
-  fullName: scrubAuditName(a.fullName),
+  fullName: scrubAuditText(a.fullName),
   email: a.email,
   status: a.status,
 });

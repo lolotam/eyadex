@@ -1,4 +1,4 @@
-import { normalizedText, shownText } from "./audit-text.ts";
+import { normalizeAuditText, scrubAuditText } from "@eyadex/observability";
 
 /** فاعل ليه اسم القارئ يقدر يشوفه. */
 export interface KnownActor {
@@ -13,7 +13,7 @@ export interface ActorMatch {
 }
 
 /**
- * بحث الفاعل على الاسم زي ما القارئ بيشوفه بالظبط (`shownText`)، مش على المتخزن: لو البحث كان
+ * بحث الفاعل على الاسم زي ما القارئ بيشوفه بالظبط (`scrubAuditText`)، مش على المتخزن: لو البحث كان
  * على المتخزن، عدد النتايج كان هيكشف رقم مدني أو باسورد أو تليفون مستخبي حرف حرف.
  *
  * @param search النص اللي اتكتب في البحث
@@ -26,8 +26,8 @@ export function matchActors(
   actors: readonly KnownActor[],
   unnamedName: string,
 ): ActorMatch {
-  const needle = normalizedText(search).toLocaleLowerCase();
-  const hit = (name: string) => shownText(name).toLocaleLowerCase().includes(needle);
+  const needle = normalizeAuditText(search).toLocaleLowerCase();
+  const hit = (name: string) => scrubAuditText(name).toLocaleLowerCase().includes(needle);
   return {
     userIds: actors.filter((actor) => hit(actor.name)).map((actor) => actor.userId),
     unnamed: hit(unnamedName),

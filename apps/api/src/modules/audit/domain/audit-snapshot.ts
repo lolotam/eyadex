@@ -1,9 +1,7 @@
 import type { PlatformAuditEntity } from "@eyadex/contracts/audit";
 import type { clinicAuditEntitySchema } from "@eyadex/contracts/organization";
-import { maskPhone } from "@eyadex/observability";
+import { maskPhone, normalizeAuditText, scrubAuditValue } from "@eyadex/observability";
 import type { z } from "zod";
-
-import { normalizedText, shownValue } from "./audit-text.ts";
 
 /** كل كيان ممكن يظهر في أي من السجلين. */
 export type AuditEntity = z.infer<typeof clinicAuditEntitySchema> | PlatformAuditEntity;
@@ -84,14 +82,14 @@ function project(entity: AuditEntity, side: unknown, context: Snapshot): Snapsho
     // A phone field keeps 3 digits even when it is shorter than a phone-looking run.
     out[key] =
       key === "phone" && value !== null
-        ? maskPhone(typeof value === "string" ? normalizedText(value) : value)
+        ? maskPhone(typeof value === "string" ? normalizeAuditText(value) : value)
         : value;
   }
   if (Object.keys(out).length === 0) return null;
   // Defence in depth over the allowlist, at every depth (`firstAdmin.email` is nested): a secret, PEM
   // or civil ID typed into an allowed field, and a phone number written anywhere — an email's local
   // part included.
-  return shownValue(out) as Snapshot;
+  return scrubAuditValue(out) as Snapshot;
 }
 
 /**

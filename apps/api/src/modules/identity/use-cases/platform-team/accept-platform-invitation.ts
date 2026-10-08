@@ -6,7 +6,7 @@ import type {
 import type { Database } from "@eyadex/db";
 import type { IdGenerator } from "@eyadex/ids";
 
-import { scrubAuditName } from "../../../../shared/audit-name-scrub.ts";
+import { scrubAuditText } from "@eyadex/observability";
 import { ApiError } from "../../../../shared/errors.ts";
 import { writePlatformAudit } from "../../../../shared/platform-audit.ts";
 import type { Clock } from "../../../tenancy/index.ts";
@@ -95,7 +95,7 @@ export class AcceptPlatformInvitation {
       }
       await markJoined(tx, row.id, userId, now);
       const shown = (status: string) => ({
-        fullName: scrubAuditName(row.full_name),
+        fullName: scrubAuditText(row.full_name),
         email: row.email,
         status,
       });

@@ -3,7 +3,7 @@ import type { Database, Tx } from "@eyadex/db";
 import type { IdGenerator } from "@eyadex/ids";
 import { sql } from "drizzle-orm";
 
-import { scrubAuditName } from "../../../../shared/audit-name-scrub.ts";
+import { scrubAuditText } from "@eyadex/observability";
 import { writeClinicAudit } from "../../../../shared/clinic-audit.ts";
 import { ApiError } from "../../../../shared/errors.ts";
 import type { Clock } from "../../../tenancy/index.ts";
@@ -61,7 +61,7 @@ async function readRow(tx: Tx, owner: AccountOwner, lock: boolean): Promise<Acco
 
 // PRD §4.11: an allowlist; the name is text a person typed.
 const snapshot = (v: AccountResponse) => ({
-  fullName: scrubAuditName(v.fullName),
+  fullName: scrubAuditText(v.fullName),
   preferredLanguage: v.preferredLanguage,
 });
 

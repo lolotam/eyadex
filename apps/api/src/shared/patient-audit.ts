@@ -1,8 +1,6 @@
 import type { Tx } from "@eyadex/db";
-import { redactSecrets } from "@eyadex/observability";
+import { redactSecrets, scrubAuditValue } from "@eyadex/observability";
 import { sql } from "drizzle-orm";
-
-import { scrubPatientAuditDetails } from "./patient-audit-text.ts";
 
 /** صف وصول لملف مراجع في سجل العيادة (0011): التصنيف `patient_access` والكيان `patient` دايمًا. */
 export interface PatientAccessEntry {
@@ -29,8 +27,9 @@ export interface PatientAccessEntry {
  */
 export async function writePatientAccessAudit(tx: Tx, entry: PatientAccessEntry): Promise<void> {
   // Defence in depth over the writer's allowlist: a name can still carry a civil ID, a phone or a
-  // credential. The strict patients pass runs first (glued and non-ASCII digits), then the shared one.
-  const details = redactSecrets(scrubPatientAuditDetails(entry.details));
+  // credential. The strict audit text scrub runs on every string (glued and non-ASCII digits), then the
+  // key-based rules of the shared sanitiser.
+  const details = redactSecrets(scrubAuditValue(entry.details));
   await tx.execute(
     sql`INSERT INTO audit_log (clinic_id, id, actor_user_id, action, category, entity_type,
           entity_id, branch_id, details, created_at)

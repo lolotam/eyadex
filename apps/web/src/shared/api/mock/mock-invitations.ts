@@ -10,6 +10,7 @@ import type { ApiClient } from "../api-client";
 import { ApiError } from "../api-error";
 import { authorize, clinicBlockReason } from "./mock-actor";
 import { writeClinicAudit } from "./mock-audit";
+import { actorReplayKey } from "./mock-idempotency";
 import { rotateInvitationLink } from "./mock-invite-rotation";
 import {
   findInvitationByToken,
@@ -80,21 +81,23 @@ export function createMockInvitations(): ApiClient["invitations"] {
       const db = getState();
       const actor = authorize(db, persona, "create", "users");
       const { clinic, actorName, role } = actor;
-      const replayKey = `${clinic.id}:${idempotencyKey}`;
+      const replayKey = actorReplayKey(clinic.id, actor.member.id, idempotencyKey);
       // The same key must carry the same request; a changed recipient or assignment is a conflict,
-      // never a silent success for the old invitation.
+      // never a silent success for the old invitation. Like the API's hash, the branch list counts
+      // in the order it was sent (the contract already trimmed and lower-cased the email).
       const fingerprint = JSON.stringify({
-        email: input.email.trim().toLowerCase(),
+        email: input.email,
         fullName: input.fullName,
         roleId: input.roleId,
         allBranches: input.allBranches,
-        branchIds: [...input.branchIds].sort(),
+        branchIds: input.branchIds,
       });
       const previous = db.idempotentInvites?.[replayKey];
       if (previous) {
         if (previous.fingerprint !== fingerprint) throw new ApiError("idempotency_conflict");
         const replayed = db.invitations.find((i) => i.id === previous.invitationId);
-        if (replayed) return toInvitationView(db, replayed);
+        if (!replayed) throw new ApiError("not_found");
+        return toInvitationView(db, replayed);
       }
       enforceEmailFree(db, input.email);
       enforceAssignableRole(db, clinic.id, input.roleId);

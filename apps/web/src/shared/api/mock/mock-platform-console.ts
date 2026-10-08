@@ -1,3 +1,4 @@
+import { actorReplayKey } from "./mock-idempotency";
 import {
   daysUntil,
   effectiveClinicStatus,
@@ -74,7 +75,8 @@ export function createMockPlatformTeam(): ApiClient["platformTeam"] {
       const parsed = invitePlatformAccountInputSchema.safeParse(raw);
       if (!parsed.success) throw new ApiError("validation");
       const fingerprint = JSON.stringify(parsed.data);
-      const replay = inviteReplays.get(idempotencyKey);
+      const replayKey = actorReplayKey("platform", actor.id, idempotencyKey);
+      const replay = inviteReplays.get(replayKey);
       if (replay) {
         if (replay.fingerprint !== fingerprint) throw new ApiError("idempotency_conflict");
         return findAccount(db, replay.accountId);
@@ -102,7 +104,7 @@ export function createMockPlatformTeam(): ApiClient["platformTeam"] {
         before: existing ? platformAccountSnapshot(existing) : null,
         after: platformAccountSnapshot(account),
       });
-      inviteReplays.set(idempotencyKey, { fingerprint, accountId: account.id });
+      inviteReplays.set(replayKey, { fingerprint, accountId: account.id });
       persist();
       return account;
     },

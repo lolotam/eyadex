@@ -1,8 +1,8 @@
 import { clinicAuditQuerySchema, platformAuditQuerySchema } from "@eyadex/contracts/audit-http";
+import { scrubAuditText } from "@eyadex/observability";
 import { describe, expect, it } from "vitest";
 
 import { auditSnapshots } from "../domain/audit-snapshot.ts";
-import { shownText } from "../domain/audit-text.ts";
 
 // Synthetic values only: an all-zero civil ID and phone-shaped runs of zeros.
 const CIVIL_ID = "300000000000";
@@ -11,10 +11,10 @@ const ID = "0190a000-4000-7000-8000-000000000001";
 
 describe("shown text (actor and clinic names)", () => {
   it("drops a civil-ID run and credential text, and keeps 3 digits of a phone", () => {
-    expect(shownText(`Sara +96500000005 ${CIVIL_ID} password=${PASSWORD}`)).toBe(
+    expect(scrubAuditText(`Sara +96500000005 ${CIVIL_ID} password=${PASSWORD}`)).toBe(
       "Sara ***005 [REDACTED] password=[REDACTED]",
     );
-    expect(shownText("Sara Ahmad")).toBe("Sara Ahmad");
+    expect(scrubAuditText("Sara Ahmad")).toBe("Sara Ahmad");
   });
 });
 

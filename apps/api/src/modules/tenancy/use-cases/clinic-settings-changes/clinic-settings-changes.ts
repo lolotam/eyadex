@@ -6,7 +6,7 @@ import type { Database, Tx } from "@eyadex/db";
 import type { IdGenerator } from "@eyadex/ids";
 import { sql } from "drizzle-orm";
 
-import { scrubAuditName } from "../../../../shared/audit-name-scrub.ts";
+import { scrubAuditText } from "@eyadex/observability";
 import { writeClinicAudit } from "../../../../shared/clinic-audit.ts";
 import { ApiError } from "../../../../shared/errors.ts";
 import type { Clock } from "../../ports/clock.ts";
@@ -45,8 +45,8 @@ const toView = (row: SettingsRow): ClinicSettingsResponse => ({
 
 // PRD §4.11: before/after is an allowlist; the names are text a person typed.
 const snapshot = (v: ClinicSettingsResponse) => ({
-  nameAr: scrubAuditName(v.nameAr),
-  nameEn: scrubAuditName(v.nameEn),
+  nameAr: scrubAuditText(v.nameAr),
+  nameEn: scrubAuditText(v.nameEn),
   defaultLanguage: v.defaultLanguage,
   timezone: v.timezone,
 });

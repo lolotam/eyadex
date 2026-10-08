@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { scrubPatientAuditDetails, scrubPatientAuditText } from "../patient-audit-text.ts";
+import { scrubAuditText, scrubAuditValue } from "../audit-text.ts";
 
 // Fictional, checksum-valid civil ID (the web mock's fixture) and a fictional 5550 phone; synthetic only.
 const CIVIL_ID = "290040112347";
@@ -10,14 +10,14 @@ const fullWidth = (digits: string) =>
 const arabicIndic = (digits: string) =>
   digits.replace(/\d/g, (d) => String.fromCharCode(0x0660 + Number(d)));
 
-describe("scrubPatientAuditText", () => {
+describe("scrubAuditText", () => {
   it.each([
     ["glued to a word", `Test${CIVIL_ID}`],
     ["in full-width digits", `Test ${fullWidth(CIVIL_ID)}`],
     ["in Arabic-Indic digits", `مراجع${arabicIndic(CIVIL_ID)}`],
     ["split by spaces", `Test ${CIVIL_ID.replace(/(\d{4})/g, "$1 ")}`],
   ])("a civil ID %s is removed whole", (_label, text) => {
-    const out = scrubPatientAuditText(text);
+    const out = scrubAuditText(text);
     expect(out).toContain("[REDACTED]");
     expect(out.replace(/\D/g, "")).toBe("");
   });
@@ -28,7 +28,7 @@ describe("scrubPatientAuditText", () => {
     ["in Arabic-Indic digits", `Test${arabicIndic(PHONE)}`],
     ["with a country code", `Test +965 ${PHONE}`],
   ])("a phone %s keeps its last 3 digits only", (_label, text) => {
-    const out = scrubPatientAuditText(text);
+    const out = scrubAuditText(text);
     expect(out).toMatch(/\*\*\*234$/);
     expect(out.replace(/\D/g, "")).toBe("234");
   });
@@ -44,23 +44,23 @@ describe("scrubPatientAuditText", () => {
   ] as const;
 
   it.each(MARKS)("a civil ID split by %s is removed whole", (_label, mark) => {
-    const out = scrubPatientAuditText(`Test${split(CIVIL_ID, mark)}`);
+    const out = scrubAuditText(`Test${split(CIVIL_ID, mark)}`);
     expect(out).toBe("Test[REDACTED]");
   });
 
   it.each(MARKS)("a phone split by %s keeps its last 3 digits only", (_label, mark) => {
-    expect(scrubPatientAuditText(`Test${split(PHONE, mark)}`)).toBe("Test***234");
+    expect(scrubAuditText(`Test${split(PHONE, mark)}`)).toBe("Test***234");
   });
 
   it("leaves a name without long digit runs as it is", () => {
-    expect(scrubPatientAuditText("Noura Al-Ali 3")).toBe("Noura Al-Ali 3");
+    expect(scrubAuditText("Noura Al-Ali 3")).toBe("Noura Al-Ali 3");
   });
 });
 
-describe("scrubPatientAuditDetails", () => {
+describe("scrubAuditValue", () => {
   it("scrubs a UUID-shaped name: only known id keys keep a UUID", () => {
     const shaped = `aaaaaaaa-aaaa-aaaa-aaaa-${CIVIL_ID}`;
-    const out = scrubPatientAuditDetails({
+    const out = scrubAuditValue({
       after: { id: shaped, fullName: shaped, tags: [shaped] },
     });
     expect(out).toEqual({
@@ -74,7 +74,7 @@ describe("scrubPatientAuditDetails", () => {
 
   it("scrubs every string at any depth and keeps UUIDs and numbers", () => {
     const id = "01a118ec-3185-7119-9bfc-1b7232f3bd00";
-    const out = scrubPatientAuditDetails({
+    const out = scrubAuditValue({
       before: null,
       after: { id, fileNumber: 12, fullName: `x${CIVIL_ID}`, tags: [[`y${PHONE}`]] },
     });

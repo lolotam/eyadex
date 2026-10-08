@@ -127,7 +127,7 @@ export function createMockPlatform(): Omit<
       }
       const input = createClinicInputSchema.parse(raw);
       const db = getState();
-      const replayed = replayClinicCreate(db, idempotencyKey, input);
+      const replayed = replayClinicCreate(db, actor.id, idempotencyKey, input);
       if (replayed) return replayed;
       if (db.clinics.some((c) => c.slug === input.slug)) throw new ApiError("slug_taken");
       enforceEmailFree(db, input.adminEmail);
@@ -195,7 +195,7 @@ export function createMockPlatform(): Omit<
         { ...clinicDetails(clinic), ...clinicSubscription(clinic), email: input.adminEmail },
       );
       if (!firstAdminInvite) throw new ApiError("not_found");
-      rememberClinicCreate(db, idempotencyKey, input, { clinic, firstAdminInvite });
+      rememberClinicCreate(db, actor.id, idempotencyKey, input, { clinic, firstAdminInvite });
       persist();
       return { clinic, firstAdminInvite };
     },
