@@ -67,7 +67,8 @@ fileNumber }`) only when the caller's view scope covers the existing file; other
    `index.ts`) without importing patients — the class matches the port structurally, and the patients
    module binds it through a variable typed with the port, so a drift fails the type check. The list
    and detail queries read `patients` only and take the names from the port. The branch options use
-   tenancy's own `BranchReader` port.
+   the same port's `listForOptions(tx, clinic, language)`, so patients depends on no tenancy-owned
+   reader or DTO at all.
 9. **Search digits in any script.** The digits of a search term are folded to ASCII first
    (`searchDigits` in the contract: NFKC for full-width digits, `normalizeCivilId` for Arabic-Indic
    and Persian ones), in the API and the mock alike, so a phone, file number or civil ID typed on an

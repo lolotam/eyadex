@@ -32,7 +32,6 @@ import { ApiError } from "../../../shared/errors.ts";
 import { ZodValidationPipe } from "../../../shared/zod-validation.pipe.ts";
 // The one identity import a module may make: guards and request types (CLAUDE.architecture.md §2.2).
 import { Require, RequiresFeature, type ClinicRequest } from "../../identity/index.ts";
-import { BRANCH_READER, type BranchReader } from "../../tenancy/index.ts";
 import { patientScopes } from "../domain/patient-rules.ts";
 import type { PatientBranchReader } from "../ports/patient-branch-reader.ts";
 import { OPEN_PATIENT, PATIENT_BRANCH_READER, PATIENT_CHANGES } from "../ports/tokens.ts";
@@ -70,10 +69,9 @@ const actorOf = (request: ClinicRequest): PatientActor => ({
 export class PatientsController {
   constructor(
     @Inject(DATABASE) private readonly db: Database,
-    @Inject(BRANCH_READER) private readonly branches: BranchReader,
     @Inject(PATIENT_CHANGES) private readonly changes: PatientChanges,
     @Inject(OPEN_PATIENT) private readonly opener: OpenPatient,
-    @Inject(PATIENT_BRANCH_READER) private readonly branchNames: PatientBranchReader,
+    @Inject(PATIENT_BRANCH_READER) private readonly branches: PatientBranchReader,
   ) {}
 
   @Post("search")
@@ -88,7 +86,7 @@ export class PatientsController {
     const view = requireScope(actor.scopes.view);
     return searchPatients(
       this.db,
-      this.branchNames,
+      this.branches,
       { ...actor, scopes: { ...actor.scopes, view } },
       body,
     );
@@ -168,6 +166,7 @@ export class PatientsController {
     const actor = actorOf(request);
     const scope = requireScope(actor.scopes[action]);
     return patientBranchOptions(
+      this.db,
       this.branches,
       actor.clinicId,
       scope,

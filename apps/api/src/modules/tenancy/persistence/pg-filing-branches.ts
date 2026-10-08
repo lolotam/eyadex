@@ -48,4 +48,35 @@ export class PgFilingBranches {
     );
     return new Map(rows.map((row) => [row.id, { nameAr: row.name_ar, nameEn: row.name_en }]));
   }
+
+  /**
+   * كل فروع العيادة لقايمة اختيارات المراجعين، بنفس ترتيب `PgBranchReader.listBranches`.
+   *
+   * @param tx الـ transaction جوه `withTenant(clinicId)`
+   * @param clinicId العيادة
+   * @param language لغة ترتيب الأسماء (bound parameter، مش اسم عمود)
+   * @returns الفروع
+   */
+  async listForOptions(
+    tx: Tx,
+    clinicId: string,
+    language: "ar" | "en",
+  ): Promise<readonly { id: string; nameAr: string; nameEn: string; isActive: boolean }[]> {
+    const rows = await tx.execute<{
+      id: string;
+      name_ar: string;
+      name_en: string;
+      is_active: boolean;
+    }>(
+      sql`SELECT id, name_ar, name_en, is_active FROM branches
+          WHERE clinic_id = ${clinicId}
+          ORDER BY is_active DESC, CASE WHEN ${language} = 'ar' THEN name_ar ELSE name_en END, id`,
+    );
+    return rows.map((row) => ({
+      id: row.id,
+      nameAr: row.name_ar,
+      nameEn: row.name_en,
+      isActive: row.is_active,
+    }));
+  }
 }

@@ -6,6 +6,12 @@ export interface BranchNames {
   readonly nameEn: string;
 }
 
+/** فرع في قايمة اختيارات المراجعين (تسجيل أو فلترة). */
+export interface PatientBranchOption extends BranchNames {
+  readonly id: string;
+  readonly isActive: boolean;
+}
+
 /**
  * اللي موديول المراجعين محتاجه من جدول الفروع (ملك tenancy)، جوه transaction المراجعين نفسها. الـ port
  * ده بتاع المراجعين، و tenancy هي اللي بتنفّذه (`PgFilingBranches`)، فمفيش موديول بيقرا جدول موديول
@@ -36,4 +42,19 @@ export interface PatientBranchReader {
     clinicId: string,
     branchIds: readonly string[],
   ): Promise<ReadonlyMap<string, BranchNames>>;
+
+  /**
+   * كل فروع العيادة لقايمة الاختيارات: النشطة الأول، وبعدين بالاسم في لغة المستخدم. المتعطلة بتفضل
+   * ظاهرة (الفلاتر وأسماء الملفات القديمة محتاجاها).
+   *
+   * @param tx transaction المراجعين جوه `withTenant(clinicId)`
+   * @param clinicId العيادة
+   * @param language لغة ترتيب الأسماء
+   * @returns الفروع
+   */
+  listForOptions(
+    tx: Tx,
+    clinicId: string,
+    language: "ar" | "en",
+  ): Promise<readonly PatientBranchOption[]>;
 }
