@@ -145,7 +145,9 @@ expires_at)` `ON CONFLICT DO NOTHING` and only when a row was inserted appends o
   `clinic.expiry_reminder` per admin (`{ clinicId, reminderId, expiresAt, membershipId, daysLeft }`).
   The unique key makes it once per clinic per expiry date whatever the tick rate or replica count;
   a renewal is a new date and earns one new reminder. Access never depends on this job (SUB-02).
-- **Send** — the dispatcher handler re-reads under `withTenant`: skip (no email) when the clinic is
+- **Send** — the dispatcher handler re-reads under `withTenant`, holding the clinic row and the
+  recipient's membership and role `FOR SHARE` until the send returns (a renewal, suspension or demotion
+  waits, as in ADR-0013): skip (no email) when the clinic is
   suspended, its `expires_at` differs from the event's (renewed or changed), it has already expired,
   or the event's member is no longer an active clinic admin. Always platform mail (owner decision
   2026-10-07: billing mail is platform-sent), in the clinic's default language (story 82), the date in

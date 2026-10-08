@@ -4,9 +4,9 @@ import type { Logger } from "@eyadex/observability";
 import { formatExpiry } from "../invitation-mail/domain/invitation-email.ts";
 import { afterFailure } from "../invitation-mail/domain/retry-schedule.ts";
 import type { MailSender } from "../invitation-mail/ports/mail-sender.ts";
-import { parseReminderEvent, reminderSkip } from "./domain/reminder-rules.ts";
+import { parseReminderEvent, reminderSkip, type ReminderEvent } from "./domain/reminder-rules.ts";
 import { renderReminderEmail } from "./domain/reminder-email.ts";
-import type { ReminderStateReader } from "./ports/reminder-store.ts";
+import type { ReminderState, ReminderStateReader } from "./ports/reminder-store.ts";
 
 export interface ReminderDispatchDeps {
   readonly state: ReminderStateReader;
@@ -41,16 +41,26 @@ export function expiryReminderDispatcher(deps: ReminderDispatchDeps) {
     return { kind: "retry", error, nextAttemptAt: step.nextAttemptAt };
   };
 
-  return async (event: ClaimedEvent): Promise<DispatchOutcome> => {
+  const handle = async (event: ClaimedEvent): Promise<DispatchOutcome> => {
     const reminder = parseReminderEvent(event.payload, event.clinicId);
     if (reminder === null) return failed(event, "invalid_payload");
-    let state;
     try {
-      state = await deps.state.read(reminder.clinicId, reminder.membershipId);
+      // The clinic and the recipient stay locked until the send returns: a renewal, a suspension or a
+      // demotion waits, so the state checked here is the state the email is about.
+      return await deps.state.whileLocked(reminder.clinicId, reminder.membershipId, (state) =>
+        send(event, reminder, state),
+      );
     } catch {
       return retry(event, "db_error");
     }
-    // Decision time is after the read: a renewal, a suspension or a demotion that landed meanwhile wins.
+  };
+
+  const send = async (
+    event: ClaimedEvent,
+    reminder: ReminderEvent,
+    state: ReminderState | null,
+  ): Promise<DispatchOutcome> => {
+    // Decision time is after the locks.
     const skip = reminderSkip(state, reminder, deps.clock.now());
     if (skip !== null || state === null || state.recipient === null) {
       note(event, "skipped", { reason: skip ?? "missing" });
@@ -77,4 +87,6 @@ export function expiryReminderDispatcher(deps: ReminderDispatchDeps) {
     note(event, "sent", { provider: result.provider, fallback: result.fallback });
     return { kind: "dispatched" };
   };
+
+  return handle;
 }

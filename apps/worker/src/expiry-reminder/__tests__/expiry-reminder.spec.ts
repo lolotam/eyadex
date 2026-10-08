@@ -81,6 +81,12 @@ describe("the reminder window (story 79, ADR-0020)", () => {
   });
 });
 
+/** A reader that runs the send inside its callback, like the real lock. */
+const locked = (value: ReminderState) => ({
+  whileLocked: <T>(_c: string, _m: string, fn: (s: ReminderState | null) => Promise<T>) =>
+    fn(value),
+});
+
 function state(admin = true): ReminderState {
   return {
     clinic: {
@@ -118,7 +124,7 @@ describe("sending a reminder", () => {
     const sent: MailMessage[] = [];
     const { logger, lines } = logs();
     const handle = expiryReminderDispatcher({
-      state: { read: async () => state() },
+      state: locked(state()),
       mail: {
         send: async (m): Promise<MailResult> => (
           sent.push(m),
@@ -132,7 +138,7 @@ describe("sending a reminder", () => {
     expect(await handle(e)).toEqual({ kind: "dispatched" });
     // A day later (a retry crossing midnight): the body comes from the event, so it is identical.
     const later = expiryReminderDispatcher({
-      state: { read: async () => state() },
+      state: locked(state()),
       mail: {
         send: async (m) => (sent.push(m), { sent: true, provider: "resend", fallback: false }),
       },
@@ -151,7 +157,7 @@ describe("sending a reminder", () => {
   it("NEGATIVE: a renewed clinic or a demoted admin gets no email; a malformed payload fails", async () => {
     const sent: MailMessage[] = [];
     const handle = expiryReminderDispatcher({
-      state: { read: async () => state() },
+      state: locked(state()),
       mail: {
         send: async (m) => (sent.push(m), { sent: true, provider: "resend", fallback: false }),
       },
@@ -160,7 +166,7 @@ describe("sending a reminder", () => {
     });
     expect(await handle(event(randomUUID(), at(30 * DAY)))).toEqual({ kind: "dispatched" });
     const demoted = expiryReminderDispatcher({
-      state: { read: async () => state(false) },
+      state: locked(state(false)),
       mail: {
         send: async (m) => (sent.push(m), { sent: true, provider: "resend", fallback: false }),
       },
@@ -175,7 +181,7 @@ describe("sending a reminder", () => {
 
   it("retries on the mail schedule when a send fails", async () => {
     const handle = expiryReminderDispatcher({
-      state: { read: async () => state() },
+      state: locked(state()),
       mail: { send: async () => ({ sent: false, error: "resend_500" }) },
       clock: { now: () => NOW },
       logger: logs().logger,

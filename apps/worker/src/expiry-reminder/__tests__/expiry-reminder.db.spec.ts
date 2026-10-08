@@ -126,6 +126,51 @@ describe("expiry reminder (story 79)", () => {
     expect(new Set(found).size).toBe(found.length);
   });
 
+  it("holds the clinic and the recipient while the email is sent: a renewal or a demotion waits", async () => {
+    const clinic = clinicExpiringIn(2 * 86_400_000);
+    await scanner().runOnce();
+    const [event] = reminderEvents(clinic.clinicId);
+    const member = event!.payload["membershipId"]!;
+    const blocked: Record<string, boolean> = {};
+    const tryWrite = (label: string, statement: string) => {
+      try {
+        owner(`SET lock_timeout = '300ms'; ${statement}`);
+        blocked[label] = false;
+      } catch {
+        blocked[label] = true;
+      }
+    };
+    const mail = new FakeMail();
+    mail.result = async () => {
+      tryWrite(
+        "renewal",
+        `UPDATE clinics SET expires_at = expires_at + interval '30 days'
+                          WHERE id = ${q(clinic.clinicId)}`,
+      );
+      tryWrite(
+        "demotion",
+        `UPDATE memberships SET status = 'deactivated'
+                           WHERE clinic_id = ${q(clinic.clinicId)} AND id = ${q(member)}`,
+      );
+      return { sent: true, provider: "resend", fallback: false };
+    };
+    const handle = expiryReminderDispatcher({
+      state: new PgReminderStateReader(app),
+      mail,
+      clock: { now: () => new Date() },
+      logger: captureLogs().logger,
+    });
+    const claimed = {
+      id: event!.id,
+      clinicId: clinic.clinicId,
+      type: EXPIRY_REMINDER,
+      payload: event!.payload,
+      attempts: 0,
+    } as never;
+    expect(await handle(claimed)).toEqual({ kind: "dispatched" });
+    expect(blocked).toEqual({ renewal: true, demotion: true });
+  });
+
   it("mails the clinic's active admin, and skips a clinic renewed after the scan", async () => {
     const clinic = clinicExpiringIn(2 * 86_400_000);
     await scanner().runOnce();

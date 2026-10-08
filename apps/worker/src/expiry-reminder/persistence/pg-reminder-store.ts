@@ -22,13 +22,12 @@ type MemberRow = { id: string; full_name: string; email: string };
 type DueRow = { id: string; expires_at: string };
 
 // The admin is found by its system role key, never by a name (ADR-0012).
-const activeAdmins = (tx: Tx, clinicId: string, membershipId: string | null) =>
+const activeAdmins = (tx: Tx, clinicId: string) =>
   tx.execute(
     sql`SELECT m.id, m.full_name, m.email FROM memberships m
         JOIN roles r ON r.clinic_id = m.clinic_id AND r.id = m.role_id
         WHERE m.clinic_id = ${clinicId} AND m.status = 'active'
           AND r.system_key = 'clinic_admin' AND r.is_active
-          AND (${membershipId}::uuid IS NULL OR m.id = ${membershipId}::uuid)
         ORDER BY m.id`,
   ) as unknown as Promise<MemberRow[]>;
 
@@ -109,7 +108,7 @@ export class PgReminderLedger implements ReminderLedger {
       const at = now();
       const expiresAt = new Date(clinic.expires_at);
       if (!isDue({ status: clinic.status, expiresAt }, Number(clinic.alert_days), at)) return false;
-      const admins = await activeAdmins(tx, clinicId, null);
+      const admins = await activeAdmins(tx, clinicId);
       if (admins.length === 0) return false;
       const reminderId = this.#ids.newId();
       const inserted = (await tx.execute(
@@ -140,7 +139,11 @@ export class PgReminderLedger implements ReminderLedger {
   }
 }
 
-/** حالة الإرسال على `eyadex_app` تحت `withTenant`: العيادة، والمستلم لو لسه أدمن نشط. */
+/**
+ * حالة الإرسال على `eyadex_app` تحت `withTenant`: صف العيادة ثم عضوية المستلم ودوره `FOR SHARE` لحد
+ * ما الإرسال يرجع (نفس فكرة ADR-0013 للدعوات). كتابات الـ API على الصفوف دي بتاخد `FOR UPDATE` بس،
+ * من غير ما تمسك صف العيادة بعد العضوية، فمفيش ترتيب أقفال معكوس.
+ */
 export class PgReminderStateReader implements ReminderStateReader {
   readonly #db: Database;
 
@@ -148,17 +151,27 @@ export class PgReminderStateReader implements ReminderStateReader {
     this.#db = db;
   }
 
-  read(clinicId: string, membershipId: string): Promise<ReminderState | null> {
+  whileLocked<T>(
+    clinicId: string,
+    membershipId: string,
+    fn: (state: ReminderState | null) => Promise<T>,
+  ): Promise<T> {
     return this.#db.withTenant(clinicId, async (tx) => {
       const clinic = (
         (await tx.execute(
           sql`SELECT status, expires_at, name_ar, name_en, default_language, timezone
-              FROM clinics WHERE id = ${clinicId}`,
+              FROM clinics WHERE id = ${clinicId} FOR SHARE`,
         )) as unknown as ClinicRow[]
       )[0];
-      if (clinic === undefined) return null;
-      const [admin] = await activeAdmins(tx, clinicId, membershipId);
-      return {
+      if (clinic === undefined) return fn(null);
+      const [admin] = (await tx.execute(
+        sql`SELECT m.id, m.full_name, m.email FROM memberships m
+            JOIN roles r ON r.clinic_id = m.clinic_id AND r.id = m.role_id
+            WHERE m.clinic_id = ${clinicId} AND m.id = ${membershipId}::uuid
+              AND m.status = 'active' AND r.system_key = 'clinic_admin' AND r.is_active
+            FOR SHARE OF m, r`,
+      )) as unknown as MemberRow[];
+      return fn({
         clinic: {
           status: clinic.status,
           expiresAt: new Date(clinic.expires_at),
@@ -168,7 +181,7 @@ export class PgReminderStateReader implements ReminderStateReader {
           timezone: clinic.timezone,
         },
         recipient: admin === undefined ? null : toRecipient(admin),
-      };
+      });
     });
   }
 }

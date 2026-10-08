@@ -46,11 +46,17 @@ export interface ReminderState {
 /** قارئ حالة الإرسال على pool العيادة. */
 export interface ReminderStateReader {
   /**
-   * العيادة، والمستلم لو لسه أدمن نشط (دور النظام `clinic_admin`).
+   * يمسك صف العيادة وعضوية المستلم ودوره `FOR SHARE` ويشغّل `fn` وهم ممسوكين: تجديد أو إيقاف أو تعطيل
+   * المستلم بيستنى لحد ما الإرسال يرجع، فالحالة اللي اتفحصت هي الحالة اللي اتبعت عليها.
    *
    * @param clinicId العيادة
    * @param membershipId المستلم من الحدث
-   * @returns الحالة، أو `null` لو العيادة مش موجودة
+   * @param fn القرار والإرسال؛ بياخد الحالة (`null` لو العيادة مش موجودة)
+   * @returns نتيجة `fn`
    */
-  read(clinicId: string, membershipId: string): Promise<ReminderState | null>;
+  whileLocked<T>(
+    clinicId: string,
+    membershipId: string,
+    fn: (state: ReminderState | null) => Promise<T>,
+  ): Promise<T>;
 }

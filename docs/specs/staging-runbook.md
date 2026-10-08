@@ -158,13 +158,15 @@ Expected for all four: `rolsuper = f`, `rolbypassrls = f`, `rolcanlogin = t`, `t
 
   ```
   APP_URL=https://staging-app.eyadex.com
+  PLATFORM_URL=https://staging-platform.eyadex.com
   MAIL_FROM=Eyadex Staging <no-reply-staging@eyadex.com>
   LOG_LEVEL=info
   OUTBOX_POLL_INTERVAL_MS=2000
   ```
 
   Secrets, pasted by the owner: `DATABASE_URL` (`eyadex_app`), `DISPATCHER_DATABASE_URL`
-  (`eyadex_dispatcher`), `OUTBOX_SEAL_KEY` and `MAIL_PROVIDER_SEAL_KEY` (the **same** values as the
+  (`eyadex_dispatcher`), `PLATFORM_DATABASE_URL` (`eyadex_platform`: the expiry scan and platform-team
+  links, ADR-0020), `OUTBOX_SEAL_KEY` and `MAIL_PROVIDER_SEAL_KEY` (the **same** values as the
   staging api's), `RESEND_API_KEY` (a staging key). Platform SMTP is optional: all four `SMTP_*` or none.
 
 - `MAIL_FROM` must be on a domain verified in Resend; `eyadex.com` is the one in use. A staging subdomain
@@ -239,7 +241,8 @@ Then, in a browser:
 | `eyadex-redis-staging`    | Redis password                                                             |
 | `eyadex-api-staging`      | `DATABASE_URL`, `AUTH_DATABASE_URL`, `PLATFORM_DATABASE_URL`, `REDIS_URL`, |
 |                           | `BETTER_AUTH_SECRET`, `OUTBOX_SEAL_KEY`, `MAIL_PROVIDER_SEAL_KEY`          |
-| `eyadex-worker-staging`   | `DATABASE_URL`, `DISPATCHER_DATABASE_URL`, `OUTBOX_SEAL_KEY`,              |
+| `eyadex-worker-staging`   | `DATABASE_URL`, `DISPATCHER_DATABASE_URL`, `PLATFORM_DATABASE_URL`,        |
+|                           | `OUTBOX_SEAL_KEY`,                                                         |
 |                           | `MAIL_PROVIDER_SEAL_KEY`, `RESEND_API_KEY`, optional `SMTP_PASSWORD`       |
 | bootstrap (§8, stdin)     | the first platform account's password                                      |
 
