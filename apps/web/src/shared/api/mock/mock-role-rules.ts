@@ -3,6 +3,7 @@ import type { Role } from "@eyadex/contracts/organization";
 import { PERMISSION_CATALOG, type PermissionDefinition } from "@eyadex/contracts/permissions";
 import type { RoleListItem } from "@eyadex/contracts/roles";
 import { ApiError } from "../api-error";
+import type { Actor } from "./mock-actor";
 import type { MockState } from "./mock-store";
 
 export function findRole(db: MockState, clinicId: string, roleId: string): Role {
@@ -92,4 +93,49 @@ export function enforceUniqueNames(
 
 export function enforceNotLocked(role: Role): void {
   if (role.isLocked) throw new ApiError("role_locked");
+}
+
+type Reach = { allBranches: boolean; branchIds: readonly string[] };
+
+/** The API's `uncoveredKeys`: stored keys of every module; a clinic key covers its branch scope. */
+function covers(held: readonly string[], key: string): boolean {
+  const [action, resource] = key.split(":");
+  return held.includes(key) || held.includes(`${action}:${resource}:clinic`);
+}
+
+/** The actor's reach: every branch, or its active branches only. */
+function actorReach(db: MockState, actor: Actor): Reach {
+  if (actor.member.allBranches) return { allBranches: true, branchIds: [] };
+  const active = new Set(db.branches.filter((b) => b.isActive).map((b) => b.id));
+  return { allBranches: false, branchIds: actor.member.branchIds.filter((id) => active.has(id)) };
+}
+
+function within(target: Reach, actor: Reach): boolean {
+  if (actor.allBranches) return true;
+  if (target.allBranches) return false;
+  return target.branchIds.every((id) => actor.branchIds.includes(id));
+}
+
+/**
+ * Role definition writes (create, update, deactivate, reactivate), as the API decides them (ADR-0017
+ * §6): an active, all-branch actor whose stored role keys — every module, switched-off ones too —
+ * cover the role's keys. TODO(spec): a looser delegation model needs an owner decision.
+ */
+export function enforceMayDefineRole(db: MockState, actor: Actor, roleKeys: readonly string[]) {
+  const usable = actor.member.status === "active" && actor.role.isActive;
+  if (!usable || !actorReach(db, actor).allBranches) throw new ApiError("forbidden");
+  if (roleKeys.some((key) => !covers(actor.role.permissions, key))) throw new ApiError("forbidden");
+}
+
+/**
+ * Role grants (change role or branches, invite, resend, copy link, member reactivation): the
+ * actor's stored keys cover the role's, and the target's branch scope sits inside the actor's.
+ */
+export function enforceMayGrantRole(db: MockState, actor: Actor, roleId: string, target: Reach) {
+  const role = findRole(db, actor.clinic.id, roleId);
+  const usable = actor.member.status === "active" && actor.role.isActive;
+  if (!usable || role.permissions.some((key) => !covers(actor.role.permissions, key))) {
+    throw new ApiError("forbidden");
+  }
+  if (!within(target, actorReach(db, actor))) throw new ApiError("forbidden");
 }

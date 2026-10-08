@@ -1,9 +1,14 @@
 import { z } from "zod";
-import { idSchema } from "./common.ts";
+import { idSchema, stripInvisibleControls } from "./common.ts";
 import { systemRoleKeySchema } from "./organization.ts";
 import { PERMISSION_CATALOG, actionSchema } from "./permissions.ts";
 
-const roleName = z.string().trim().min(1, "validation.required").max(100, "validation.tooLong");
+// Invisible format/control characters render as nothing; they could only split a number past the audit
+// scrub or spoof a name, so they are dropped before the usual checks (as patient names, ADR-0018).
+const roleName = z
+  .string()
+  .transform(stripInvisibleControls)
+  .pipe(z.string().trim().min(1, "validation.required").max(100, "validation.tooLong"));
 
 export const roleListItemSchema = z.object({
   id: idSchema,

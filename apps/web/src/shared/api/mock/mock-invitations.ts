@@ -26,6 +26,7 @@ import {
   paginate,
   toInvitationView,
 } from "./mock-user-rules";
+import { enforceMayGrantRole } from "./mock-role-rules";
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -77,7 +78,8 @@ export function createMockInvitations(): ApiClient["invitations"] {
       if (!parsed.success) throw new ApiError("validation");
       const input = parsed.data;
       const db = getState();
-      const { clinic, actorName, role } = authorize(db, persona, "create", "users");
+      const actor = authorize(db, persona, "create", "users");
+      const { clinic, actorName, role } = actor;
       const replayKey = `${clinic.id}:${idempotencyKey}`;
       // The same key must carry the same request; a changed recipient or assignment is a conflict,
       // never a silent success for the old invitation.
@@ -97,6 +99,7 @@ export function createMockInvitations(): ApiClient["invitations"] {
       enforceEmailFree(db, input.email);
       enforceAssignableRole(db, clinic.id, input.roleId);
       enforceMayTouchAdmin(db, role, input.roleId);
+      enforceMayGrantRole(db, actor, input.roleId, input);
       const branchIds = enforceAssignableBranches(db, clinic.id, input);
       enforceUserLimit(db, clinic.id);
       const now = Date.now();

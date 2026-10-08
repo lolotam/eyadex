@@ -104,6 +104,7 @@ export const roleSummary = {
   isLocked: false,
   isActive: true,
   activeUserCount: 2,
+  memberCount: 3,
   permissionKeys: ["view:branches:clinic"],
 };
 export const platformDetail = {

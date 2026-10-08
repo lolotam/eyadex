@@ -46,7 +46,7 @@
 - [x] Worker production image (ADR-0015; Dokploy service: orchestrator)
 - [x] Slice 9: patients API — search (POST body), branch options, audited opens, idempotent create, update, archive/restore under branch scope and the `patients` flag; web HTTP adapter wired (ADR-0018, no SQL)
 - [ ] Retention of dispatched and failed outbox rows (TODO(spec))
-- [ ] Slice 8: role CRUD (call `AuthorizationInvalidator`)
+- [x] Slice 8: custom roles — create/update/deactivate/reactivate with the locked admin role, hidden module keys kept, unique names, idempotent create, `role_in_use`, delegation model (stored keys + branch scope under a `roles:` lock) on every path that defines or grants a role, audit + cache bump; user editor options under `view:users` (`/v1/users/role-options`, `/branch-options`, deferred from PR #46) (ADR-0017, no SQL)
 - [x] Slice 10: audit log read — `GET /v1/clinic/audit`, `/v1/platform/audit` (+ `/clinics`); patient rows kept from the platform by grants; actor names via `platform_audit_actors` (ADR-0019, SQL 0034)
 - [ ] Reverse-proxy routes `app.`/`platform.` `/api/*` → api with `/api` stripped (orchestrator)
 
@@ -64,5 +64,5 @@
 - [x] Platform detail gains `timezone`, `defaultLanguage`, `createdAt`
 - [x] `GET /v1/branches/usage`, `GET /v1/users/usage`; web counters no longer nullable
 - [x] New clinic `trialDays` computed on the API clock in the clinic zone; subscription saves end at the clinic's local midnight
-- [ ] Slice 8 note: option lists (branch/role pickers) are read through `view:*` permissions today; decide a dedicated options permission when roles are writable (deferred)
+- [x] Slice 8 note: the user editor's option lists are `GET /v1/users/role-options` and `/branch-options` under `view:users:clinic` (done in slice 8)
 - [ ] Apply `db/sql/0031` to production (orchestrator), then switch production to `VITE_API_MODE=http`

@@ -2,6 +2,7 @@ import { computeInvitationStatus, INVITATION_TTL_DAYS } from "@eyadex/contracts/
 import { ApiError } from "../api-error";
 import type { Actor } from "./mock-actor";
 import { invitationAuditSnapshot, issueInviteToken } from "./mock-invite-tokens";
+import { enforceMayGrantRole } from "./mock-role-rules";
 import type { MockState } from "./mock-store";
 import {
   enforceAssignableBranches,
@@ -15,7 +16,7 @@ const DAY = 24 * 60 * 60 * 1000;
 
 /**
  * Resend and copy-link share this rotation, in the API's order (ADR-0012 §6): pending only, active
- * role and branches, the admin-role guard, a seat when expired, then a new token and expiry — so
+ * role and branches, the admin-role guard, the granting bound, a seat when expired, then a new token and expiry — so
  * every older link, including an emailed one, stops working.
  */
 export function rotateInvitationLink(db: MockState, actor: Actor, invitationId: string) {
@@ -27,6 +28,8 @@ export function rotateInvitationLink(db: MockState, actor: Actor, invitationId: 
   enforceAssignableRole(db, actor.clinic.id, inv.roleId);
   enforceAssignableBranches(db, actor.clinic.id, inv);
   enforceMayTouchAdmin(db, actor.role, inv.roleId);
+  // Resend mails a link and copy-link hands one to the actor: both grant the role (ADR-0017).
+  enforceMayGrantRole(db, actor, inv.roleId, inv);
   if (status === "expired") {
     // An expired invitation stops counting; renewing it must fit the limit and the email rule again.
     enforceUserLimit(db, actor.clinic.id);

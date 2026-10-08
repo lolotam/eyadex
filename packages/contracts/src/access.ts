@@ -60,6 +60,7 @@ export const roleSummarySchema = z.object({
   isActive: z.boolean(),
   /** Active members holding the role (PRD story 50). */
   activeUserCount: z.number().int().nonnegative(),
+  memberCount: z.number().int().nonnegative(), // memberships in any status (slice 8: role_in_use)
   permissionKeys: z.array(z.string()),
 });
 export type RoleSummary = z.infer<typeof roleSummarySchema>;

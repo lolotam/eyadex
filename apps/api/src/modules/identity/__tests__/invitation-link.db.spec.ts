@@ -87,7 +87,12 @@ describe("POST /v1/invitations/:id/link", () => {
     const manager = await memberOn(
       h,
       A.admin,
-      await customRole(h, A.admin.clinicId, ["view:users:clinic", "create:users:clinic"]),
+      // It holds the doctor role's key too: copying a link grants that role (ADR-0017 granting bound).
+      await customRole(h, A.admin.clinicId, [
+        "view:users:clinic",
+        "create:users:clinic",
+        "view:patients:branch",
+      ]),
     );
     const adminRole = await roleIdOf(h, A.admin.clinicId, "clinic_admin");
     const onAdmin = await sent(A.admin.cookie, inviteBody(adminRole));

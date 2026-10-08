@@ -20,6 +20,8 @@ import {
   readSeats,
 } from "../../persistence/pg-user-store.ts";
 import { findInvitationView } from "../../queries/invitation-views.ts";
+import { lockClinicRoles } from "../../persistence/pg-role-store.ts";
+import { assertActorMay, assertMayGrantRole } from "../role-changes/grant-bound.ts";
 import {
   assertMayTouchAdmin,
   usersLimitError,
@@ -55,8 +57,8 @@ export async function invitationView(
 }
 
 /**
- * Users lock → invitation row → branches lock → clock → pending only → active role and branches →
- * admin-role guard → seat when expired → email hold → new token, hash and expiry.
+ * Roles lock → users lock → invitation row → branches lock → clock → pending only → active role and branches →
+ * admin-role guard → granting bound → seat when expired → email hold → new token, hash and expiry.
  */
 export async function rotateInvitationLink(
   tx: Tx,
@@ -65,7 +67,10 @@ export async function rotateInvitationLink(
   invitationId: string,
 ): Promise<Rotation> {
   const { clinicId } = actor;
+  await lockClinicRoles(tx, clinicId);
   await lockClinicUsers(tx, clinicId);
+  // Resend and copy-link share the route key; rechecked on the actor as it is after the locks.
+  await assertActorMay(tx, actor, "create:users:clinic");
   const locked = await findInvitationForUpdate(tx, clinicId, invitationId);
   if (locked === null) throw new ApiError("not_found");
   await lockClinicBranches(tx, clinicId);
@@ -78,6 +83,8 @@ export async function rotateInvitationLink(
   const role = await activeRole(tx, clinicId, locked.roleId);
   await assertActiveBranches(tx, clinicId, locked.allBranches ? [] : locked.branchIds);
   await assertMayTouchAdmin(tx, actor, [role.systemKey]);
+  // Resend mails a link and copy-link hands one to the actor: both give the role to someone.
+  await assertMayGrantRole(tx, actor, "create:users:clinic", role.id, locked);
   if (decision === "reoccupies_seat") await assertSeat(tx, clinicId, now);
   const before = await invitationView(tx, clinicId, invitationId, now);
   const expiresAt = invitationExpiry(now);

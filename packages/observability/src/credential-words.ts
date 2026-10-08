@@ -98,6 +98,7 @@ const STRUCTURAL_KEYS: ReadonlySet<string> = new Set([
   "messagekey",
   "translationkey",
   "i18nkey",
+  "permissionkeys", // catalogue strings like "view:roles:clinic" (role audit, ADR-0017)
 ]);
 
 // A plural container ("passwords", "hashes") holds secrets under ordinary child keys, so the short-word

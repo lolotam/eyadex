@@ -5,6 +5,7 @@ import { ApiError } from "../api-error";
 import { authorize } from "./mock-actor";
 import { writeClinicAudit } from "./mock-audit";
 import {
+  enforceMayDefineRole,
   enforceNotLocked,
   enforceUniqueNames,
   findRole,
@@ -21,6 +22,10 @@ function parseInput(raw: RoleInput) {
   if (!result.success) throw new ApiError("validation");
   return result.data;
 }
+
+/** The same key must carry the same request; a key set is a set, so its order does not count. */
+const fingerprintOf = (input: RoleInput) =>
+  JSON.stringify({ ...input, permissionKeys: [...input.permissionKeys].sort() });
 
 function audit(
   db: MockState,
@@ -46,8 +51,11 @@ function setActive(
   active: boolean,
 ) {
   const db = getState();
-  const { clinic, actorName } = authorize(db, persona, "deactivate", "roles");
+  const actor = authorize(db, persona, "deactivate", "roles");
+  const { clinic, actorName } = actor;
   const role = findRole(db, clinic.id, roleId);
+  // Every definition write needs an all-branch actor covering the role (ADR-0017 §6).
+  enforceMayDefineRole(db, actor, role.permissions);
   enforceNotLocked(role);
   if (role.isActive === active) return toRoleListItem(db, role);
   if (!active) {
@@ -83,12 +91,24 @@ export function createMockRoles(): ApiClient["roles"] {
       return visibleCatalog(db, clinic.id);
     },
 
-    async create(persona, rawInput) {
+    async create(persona, rawInput, idempotencyKey) {
       await delay();
       const db = getState();
-      const { clinic, actorName } = authorize(db, persona, "create", "roles");
+      const actor = authorize(db, persona, "create", "roles");
+      const { clinic, actorName } = actor;
       const input = parseInput(rawInput);
+      // Scoped by the actor like the API (`role:create:<userId>`): two users never share a key.
+      const replayKey = `${clinic.id}:${actor.member.id}:${idempotencyKey}`;
+      const previous = db.idempotentRoles?.[replayKey];
+      if (previous) {
+        if (previous.fingerprint !== fingerprintOf(input))
+          throw new ApiError("idempotency_conflict");
+        const replayed = db.roles.find((r) => r.id === previous.roleId);
+        if (replayed) return toRoleListItem(db, replayed);
+      }
       enforceUniqueNames(db, clinic.id, input);
+      const permissions = mergeHiddenKeys(db, clinic.id, input.permissionKeys, []);
+      enforceMayDefineRole(db, actor, permissions);
       const role: Role = {
         id: newId(),
         clinicId: clinic.id,
@@ -97,9 +117,13 @@ export function createMockRoles(): ApiClient["roles"] {
         nameEn: input.nameEn,
         isLocked: false,
         isActive: true,
-        permissions: mergeHiddenKeys(db, clinic.id, input.permissionKeys, []),
+        permissions,
       };
       db.roles.push(role);
+      db.idempotentRoles = {
+        ...db.idempotentRoles,
+        [replayKey]: { roleId: role.id, fingerprint: fingerprintOf(input) },
+      };
       audit(db, clinic.id, actorName, "role.created", null, role);
       persist();
       return toRoleListItem(db, role);
@@ -108,15 +132,19 @@ export function createMockRoles(): ApiClient["roles"] {
     async update(persona, roleId, rawInput) {
       await delay();
       const db = getState();
-      const { clinic, actorName } = authorize(db, persona, "update", "roles");
+      const actor = authorize(db, persona, "update", "roles");
+      const { clinic, actorName } = actor;
       const role = findRole(db, clinic.id, roleId);
+      enforceMayDefineRole(db, actor, role.permissions);
       enforceNotLocked(role);
       const input = parseInput(rawInput);
       enforceUniqueNames(db, clinic.id, input, role.id);
+      const permissions = mergeHiddenKeys(db, clinic.id, input.permissionKeys, role.permissions);
+      enforceMayDefineRole(db, actor, permissions);
       const before = structuredClone(role);
       role.nameAr = input.nameAr;
       role.nameEn = input.nameEn;
-      role.permissions = mergeHiddenKeys(db, clinic.id, input.permissionKeys, role.permissions);
+      role.permissions = permissions;
       audit(db, clinic.id, actorName, "role.updated", before, role);
       persist();
       return toRoleListItem(db, role);

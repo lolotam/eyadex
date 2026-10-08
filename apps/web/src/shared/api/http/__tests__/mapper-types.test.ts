@@ -12,6 +12,10 @@ import type {
 import type { Invitation, InvitationLink } from "@eyadex/contracts/invitations";
 import type { CreateClinicResponse } from "@eyadex/contracts/onboarding";
 import type { PlatformClinicDetail } from "@eyadex/contracts/platform-clinics";
+import type {
+  BranchOptionListResponse,
+  RoleOptionListResponse,
+} from "@eyadex/contracts/role-admin";
 import type { MembershipUserView } from "@eyadex/contracts/users";
 import { toBranch } from "../http-branches";
 import { toAccepted, toInvitation, toInvitationLink, toPreview } from "../http-invitations";
@@ -41,9 +45,9 @@ const checks = {
   contextFromMe: true,
 } satisfies {
   toBranch: Equal<In<typeof toBranch>, BranchDetail>;
-  toBranchOption: Equal<In<typeof toBranchOption>, BranchDetail>;
+  toBranchOption: Equal<In<typeof toBranchOption>, BranchOptionListResponse["items"][number]>;
   toUserView: Equal<In<typeof toUserView>, MembershipUserView>;
-  toRoleOption: Equal<In<typeof toRoleOption>, RoleSummary>;
+  toRoleOption: Equal<In<typeof toRoleOption>, RoleOptionListResponse["items"][number]>;
   toRoleListItem: Equal<In<typeof toRoleListItem>, RoleSummary>;
   toCatalog: Equal<In<typeof toCatalog>, PermissionCatalogueResponse>;
   toInvitation: Equal<In<typeof toInvitation>, Invitation>;

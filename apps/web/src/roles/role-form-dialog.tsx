@@ -41,6 +41,11 @@ export function RoleFormDialog({ open, role, readOnly, onOpenChange }: Props) {
   const refresh = useRefreshRoles();
   const catalog = usePermissionCatalog();
   const [keys, setKeys] = useState<string[]>([]);
+  // One key per opening of the form: a retry of the same submit replays, a new form is a new role.
+  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
+  useEffect(() => {
+    if (open) setIdempotencyKey(crypto.randomUUID());
+  }, [open]);
   const form = useForm<Names>({
     resolver: zodResolver(namesSchema),
     defaultValues: { nameAr: "", nameEn: "" },
@@ -54,7 +59,9 @@ export function RoleFormDialog({ open, role, readOnly, onOpenChange }: Props) {
   const mutation = useMutation({
     mutationFn: (names: Names) => {
       const input = { ...names, permissionKeys: keys };
-      return role ? api.roles.update(persona, role.id, input) : api.roles.create(persona, input);
+      return role
+        ? api.roles.update(persona, role.id, input)
+        : api.roles.create(persona, input, idempotencyKey);
     },
     onSuccess: () => {
       refresh();

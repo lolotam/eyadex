@@ -35,6 +35,8 @@ import {
   auditSnapshot,
   type UserActor,
 } from "../user-changes/user-changes.ts";
+import { lockClinicRoles } from "../../persistence/pg-role-store.ts";
+import { assertActorMay, assertMayGrantRole } from "../role-changes/grant-bound.ts";
 import { assertSeat, invitationView, rotateInvitationLink } from "./invitation-rotation.ts";
 
 /** نوع حدث الـ outbox اللي الـ dispatcher هيبعت بيه إيميل الدعوة (ADR-0006، ADR-0012). */
@@ -83,6 +85,10 @@ export class InvitationChanges {
       hash: requestHash(input),
     };
     return db.withTenant(clinicId, async (tx) => {
+      // The roles lock first, in every path that grants a role (ADR-0017 §6).
+      await lockClinicRoles(tx, clinicId);
+      // Before any row, the idempotency claim included: the guard's grant may have been revoked.
+      await assertActorMay(tx, actor, "create:users:clinic");
       const claimed = await claimClinicIdempotencyKey<{ invitationId: string }>(
         tx,
         claim,
@@ -106,6 +112,10 @@ export class InvitationChanges {
       const role = await activeRole(tx, clinicId, input.roleId);
       await assertActiveBranches(tx, clinicId, branchIds);
       await assertMayTouchAdmin(tx, actor, [role.systemKey]);
+      await assertMayGrantRole(tx, actor, "create:users:clinic", role.id, {
+        allBranches: input.allBranches,
+        branchIds,
+      });
       await assertSeat(tx, clinicId, now);
       const id = ids.newId();
       const expiresAt = invitationExpiry(now);
@@ -199,7 +209,10 @@ export class InvitationChanges {
     const { db, clock } = this.deps;
     const { clinicId } = actor;
     return db.withTenant(clinicId, async (tx) => {
+      // Roles lock first and the route's permission rechecked, like every identity write (ADR-0017 §6).
+      await lockClinicRoles(tx, clinicId);
       await lockClinicUsers(tx, clinicId);
+      await assertActorMay(tx, actor, "deactivate:users:clinic");
       const now = clock.now();
       const locked = await findInvitationForUpdate(tx, clinicId, invitationId);
       if (locked === null) throw new ApiError("not_found");

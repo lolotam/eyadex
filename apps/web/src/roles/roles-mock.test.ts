@@ -10,6 +10,9 @@ const { createMockApiClient } = await import("@/shared/api/mock/mock-adapter");
 const { getState, resetMockData } = await import("@/shared/api/mock/mock-store");
 
 const api = createMockApiClient();
+// A fresh Idempotency-Key per call: each create below is a new request.
+const createRole = (persona: Persona, input: Parameters<typeof api.roles.create>[1]) =>
+  api.roles.create(persona, input, crypto.randomUUID());
 
 function clinicId() {
   const clinic = getState().clinics[0];
@@ -59,25 +62,25 @@ describe("roles mock", () => {
       code: "role_in_use",
       details: { count: holders },
     });
-    const created = await api.roles.create(admin(), { ...NAMES, permissionKeys: [] });
+    const created = await createRole(admin(), { ...NAMES, permissionKeys: [] });
     expect((await api.roles.deactivate(admin(), created.id)).isActive).toBe(false);
     expect((await api.roles.reactivate(admin(), created.id)).isActive).toBe(true);
   });
 
   it("rejects duplicate names, case-insensitive", async () => {
     await rejectsWith(
-      api.roles.create(admin(), { nameAr: "جديد", nameEn: "doctor", permissionKeys: [] }),
+      createRole(admin(), { nameAr: "جديد", nameEn: "doctor", permissionKeys: [] }),
       "role_name_taken",
     );
   });
 
   it("rejects an unknown permission key and two scopes for one action", async () => {
     await rejectsWith(
-      api.roles.create(admin(), { ...NAMES, permissionKeys: ["delete:everything:clinic"] }),
+      createRole(admin(), { ...NAMES, permissionKeys: ["delete:everything:clinic"] }),
       "validation",
     );
     await rejectsWith(
-      api.roles.create(admin(), {
+      createRole(admin(), {
         ...NAMES,
         permissionKeys: ["view:patients:clinic", "view:patients:branch"],
       }),
@@ -120,7 +123,7 @@ describe("roles mock", () => {
   });
 
   it("writes an administrative audit entry with names and keys", async () => {
-    const created = await api.roles.create(admin(), {
+    const created = await createRole(admin(), {
       ...NAMES,
       permissionKeys: ["view:users:clinic"],
     });
@@ -138,7 +141,7 @@ describe("roles mock", () => {
     const target = role("technician");
     const input = { ...NAMES, permissionKeys: [] };
     await rejectsWith(api.roles.list(doctor), "forbidden");
-    await rejectsWith(api.roles.create(doctor, input), "forbidden");
+    await rejectsWith(createRole(doctor, input), "forbidden");
     await rejectsWith(api.roles.update(doctor, target.id, input), "forbidden");
     await rejectsWith(api.roles.deactivate(doctor, target.id), "forbidden");
     await rejectsWith(api.roles.reactivate(doctor, target.id), "forbidden");
@@ -151,13 +154,13 @@ describe("roles mock", () => {
       "view:clinic_settings:clinic",
     ]);
     await rejectsWith(
-      api.roles.create(admin(), { ...NAMES, permissionKeys: ["deactivate:audit_log:clinic"] }),
+      createRole(admin(), { ...NAMES, permissionKeys: ["deactivate:audit_log:clinic"] }),
       "validation",
     );
   });
 
   it("counts deactivated holders, so their role cannot be deactivated under them", async () => {
-    const created = await api.roles.create(admin(), { ...NAMES, permissionKeys: [] });
+    const created = await createRole(admin(), { ...NAMES, permissionKeys: [] });
     const db = getState();
     const adminRoleId = role("clinic_admin").id;
     const holder = db.members.find(
@@ -171,10 +174,10 @@ describe("roles mock", () => {
   });
   it("rejects a write permission without view on the same resource", async () => {
     await rejectsWith(
-      api.roles.create(admin(), { ...NAMES, permissionKeys: ["create:patients:branch"] }),
+      createRole(admin(), { ...NAMES, permissionKeys: ["create:patients:branch"] }),
       "validation",
     );
-    const ok = await api.roles.create(admin(), {
+    const ok = await createRole(admin(), {
       ...NAMES,
       permissionKeys: ["view:patients:clinic", "create:patients:branch"],
     });
