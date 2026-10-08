@@ -4,7 +4,7 @@ import type { Logger } from "@eyadex/observability";
 import { formatExpiry } from "../invitation-mail/domain/invitation-email.ts";
 import { afterFailure } from "../invitation-mail/domain/retry-schedule.ts";
 import type { MailSender } from "../invitation-mail/ports/mail-sender.ts";
-import { daysLeft, parseReminderEvent, reminderSkip } from "./domain/reminder-rules.ts";
+import { parseReminderEvent, reminderSkip } from "./domain/reminder-rules.ts";
 import { renderReminderEmail } from "./domain/reminder-email.ts";
 import type { ReminderStateReader } from "./ports/reminder-store.ts";
 
@@ -17,9 +17,9 @@ export interface ReminderDispatchDeps {
 }
 
 /**
- * بيبعت حدث `clinic.expiry_reminder` لكل أدمن نشط في العيادة، بعد ما يعيد الفحص وقت الإرسال: العيادة
- * اتجدّدت أو اتوقفت أو انتهت → مفيش إيميل. مفتاح الـ idempotency لكل مستلم `<الحدث>:<العضوية>`، فإعادة
- * المحاولة بعد فشل جزئي ماتبعتش لمزود Resend نفس الرسالة مرتين. السطر المسجّل فيه أعداد وأكواد بس.
+ * بيبعت حدث `clinic.expiry_reminder` لأدمن واحد (حدث لكل أدمن)، بعد ما يعيد الفحص وقت الإرسال: العيادة
+ * اتجدّدت أو اتوقفت أو انتهت، أو المستلم مابقاش أدمن نشط → مفيش إيميل. مفتاح الـ idempotency هو id الحدث
+ * والجسم ثابت بين المحاولات. السطر المسجّل فيه أكواد بس، مفيش إيميل ولا اسم.
  */
 export function expiryReminderDispatcher(deps: ReminderDispatchDeps) {
   const note = (event: ClaimedEvent, outcome: string, extra: Record<string, unknown> = {}) =>
@@ -46,37 +46,35 @@ export function expiryReminderDispatcher(deps: ReminderDispatchDeps) {
     if (reminder === null) return failed(event, "invalid_payload");
     let state;
     try {
-      state = await deps.state.read(reminder.clinicId);
+      state = await deps.state.read(reminder.clinicId, reminder.membershipId);
     } catch {
       return retry(event, "db_error");
     }
-    // Decision time is after the read: a renewal or a suspension that landed meanwhile wins.
-    const now = deps.clock.now();
-    const skip = reminderSkip(state, reminder, now);
-    if (skip !== null || state === null) {
+    // Decision time is after the read: a renewal, a suspension or a demotion that landed meanwhile wins.
+    const skip = reminderSkip(state, reminder, deps.clock.now());
+    if (skip !== null || state === null || state.recipient === null) {
       note(event, "skipped", { reason: skip ?? "missing" });
       return { kind: "dispatched" };
     }
-    const { clinic } = state;
-    const expiresOn = formatExpiry(clinic.expiresAt, clinic.language, clinic.timezone);
-    for (const recipient of state.recipients) {
-      const email = renderReminderEmail({
-        language: clinic.language,
-        clinicName: clinic.language === "ar" ? clinic.nameAr : clinic.nameEn,
-        recipientName: recipient.fullName,
-        daysLeft: daysLeft(clinic.expiresAt, now),
-        expiresOn,
-      });
-      const result = await deps.mail.send({
-        to: recipient.email,
-        subject: email.subject,
-        html: email.html,
-        text: email.text,
-        idempotencyKey: `${event.id}:${recipient.membershipId}`,
-      });
-      if (!result.sent) return retry(event, result.error);
-    }
-    note(event, "sent", { count: state.recipients.length });
+    const { clinic, recipient } = state;
+    // Everything in the body comes from the event or the stored expiry it was checked against, so a
+    // retry sends the same message under the same idempotency key.
+    const email = renderReminderEmail({
+      language: clinic.language,
+      clinicName: clinic.language === "ar" ? clinic.nameAr : clinic.nameEn,
+      recipientName: recipient.fullName,
+      daysLeft: reminder.daysLeft,
+      expiresOn: formatExpiry(new Date(reminder.expiresAt), clinic.language, clinic.timezone),
+    });
+    const result = await deps.mail.send({
+      to: recipient.email,
+      subject: email.subject,
+      html: email.html,
+      text: email.text,
+      idempotencyKey: event.id,
+    });
+    if (!result.sent) return retry(event, result.error);
+    note(event, "sent", { provider: result.provider, fallback: result.fallback });
     return { kind: "dispatched" };
   };
 }

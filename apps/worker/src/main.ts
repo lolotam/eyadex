@@ -50,6 +50,14 @@ try {
     role: "eyadex_platform",
     ids,
   });
+  // Its own pool for the sender name: a send runs inside the invitation's (app) or the team row's
+  // (platform) transaction, and a pool refuses a second transaction nested in its first.
+  const settings = createDatabase({
+    url: config.DATABASE_URL,
+    role: "eyadex_app",
+    ids,
+    maxConnections: 1,
+  });
   const clock = { now: () => new Date() };
   const resend = new ResendMailSender({ apiKey: config.RESEND_API_KEY, from: config.MAIL_FROM });
   // ADR-0014: the SMTP fallback exists only when all four SMTP_* keys are set.
@@ -60,7 +68,7 @@ try {
   const mail = new NamedPlatformSender(
     smtp ? new FallbackMailSender(resend, smtp, decideFallback) : resend,
     addressOf(config.MAIL_FROM),
-    platformSenderName(app),
+    platformSenderName(settings),
   );
   const providerSealer = new SecretSealer(config.MAIL_PROVIDER_SEAL_KEY);
   const clinicSenders = new RealClinicSenderFactory();
@@ -133,7 +141,7 @@ try {
       },
       release: async () => {
         smtp?.close();
-        await Promise.all([app.close(), outbox.close(), platform.close()]);
+        await Promise.all([app.close(), outbox.close(), platform.close(), settings.close()]);
       },
     },
     logger,

@@ -15,6 +15,7 @@ import {
   urls,
 } from "../../invitation-mail/__tests__/dispatch-fixtures.ts";
 import { TEAM_INVITED } from "../../platform-invite-mail/domain/team-invite.ts";
+import { NamedPlatformSender, platformSenderName } from "../../shared/named-platform-sender.ts";
 import { teamInviteDispatcher } from "../../platform-invite-mail/handle-team-invited.ts";
 import { PgTeamInviteStateReader } from "../../platform-invite-mail/pg-team-invite-state.ts";
 import { EXPIRY_REMINDER } from "../domain/reminder-rules.ts";
@@ -46,20 +47,25 @@ afterAll(async () => {
   await Promise.all([app.close(), platform.close()]);
 });
 
-function clinicExpiringIn(ms: number, status = "active") {
+function addAdmin(clinicId: string, label: string): string {
+  const adminRole = owner(
+    `SELECT id FROM roles WHERE clinic_id = ${q(clinicId)} AND system_key = 'clinic_admin'`,
+  );
+  const email = `${label}-${clinicId.slice(0, 8)}@example.test`;
+  owner(`INSERT INTO memberships (clinic_id, id, user_id, full_name, email, role_id, all_branches, status,
+           preferred_language, last_login_at, created_at, updated_at)
+         VALUES (${q(clinicId)}, ${q(randomUUID())}, ${q(randomUUID())}, 'Admin', ${q(email)},
+           ${q(adminRole)}, true, 'active', 'en', NULL, now(), now())`);
+  return email;
+}
+
+function clinicExpiringIn(ms: number, status = "active", withAdmin = true) {
   const clinic = seedClinic("en");
   const at = new Date(Date.now() + ms).toISOString();
   owner(`UPDATE clinics SET expires_at = ${q(at)}, status = ${q(status)} WHERE id = ${q(clinic.clinicId)};
          INSERT INTO roles (clinic_id, id, system_key, name_ar, name_en, is_locked, is_active, created_at, updated_at)
          VALUES (${q(clinic.clinicId)}, ${q(randomUUID())}, 'clinic_admin', 'أدمن', 'Admin', true, true, now(), now())`);
-  const adminRole = owner(
-    `SELECT id FROM roles WHERE clinic_id = ${q(clinic.clinicId)} AND system_key = 'clinic_admin'`,
-  );
-  const email = `admin-${clinic.clinicId.slice(0, 8)}@example.test`;
-  owner(`INSERT INTO memberships (clinic_id, id, user_id, full_name, email, role_id, all_branches, status,
-           preferred_language, last_login_at, created_at, updated_at)
-         VALUES (${q(clinic.clinicId)}, ${q(randomUUID())}, ${q(randomUUID())}, 'Admin', ${q(email)},
-           ${q(adminRole)}, true, 'active', 'en', NULL, now(), now())`);
+  const email = withAdmin ? addAdmin(clinic.clinicId, "admin") : "";
   return { ...clinic, email };
 }
 
@@ -96,6 +102,30 @@ describe("expiry reminder (story 79)", () => {
     expect(reminderEvents(due.clinicId)).toHaveLength(2);
   });
 
+  it("queues one event per active admin, and waits for a clinic that has no admin yet", async () => {
+    const two = clinicExpiringIn(4 * 86_400_000);
+    addAdmin(two.clinicId, "second");
+    const none = clinicExpiringIn(4 * 86_400_000, "active", false);
+    await scanner().runOnce();
+    const events = reminderEvents(two.clinicId);
+    expect(events).toHaveLength(2);
+    expect(new Set(events.map((e) => e.payload["membershipId"])).size).toBe(2);
+    expect(reminderEvents(none.clinicId)).toHaveLength(0);
+    expect(
+      owner(`SELECT count(*) FROM clinic_expiry_reminders WHERE clinic_id = ${q(none.clinicId)}`),
+    ).toBe("0");
+    addAdmin(none.clinicId, "late");
+    await scanner().runOnce();
+    expect(reminderEvents(none.clinicId)).toHaveLength(1);
+  });
+
+  it("pages through every due clinic, past the first page", async () => {
+    const due = [1, 2, 3].map(() => clinicExpiringIn(5 * 86_400_000).clinicId);
+    const found = await new PgDueClinicFinder(platform, 1).dueClinics(new Date());
+    expect(found).toEqual(expect.arrayContaining(due));
+    expect(new Set(found).size).toBe(found.length);
+  });
+
   it("mails the clinic's active admin, and skips a clinic renewed after the scan", async () => {
     const clinic = clinicExpiringIn(2 * 86_400_000);
     await scanner().runOnce();
@@ -128,6 +158,51 @@ describe("expiry reminder (story 79)", () => {
     });
     expect(await renewed(claimed)).toEqual({ kind: "dispatched" });
     expect(again.sent).toHaveLength(0);
+  });
+});
+
+describe("the platform sender name", () => {
+  it("is read on its own pool while a send runs inside another transaction", async () => {
+    const settings = createDatabase({
+      url: urls().app,
+      role: "eyadex_app",
+      ids,
+      maxConnections: 1,
+    });
+    try {
+      const seen: (string | undefined)[] = [];
+      const inner = {
+        send: async (m: { from?: { name: string } }) => (
+          seen.push(m.from?.name),
+          { sent: true as const, provider: "resend" as const, fallback: false }
+        ),
+      };
+      const own = new NamedPlatformSender(
+        inner,
+        "no-reply@example.test",
+        platformSenderName(settings),
+      );
+      const shared = new NamedPlatformSender(
+        inner,
+        "no-reply@example.test",
+        platformSenderName(app),
+      );
+      const message = {
+        to: "a@example.test",
+        subject: "s",
+        html: "h",
+        text: "t",
+        idempotencyKey: "k",
+      };
+      await app.withNoTenant(async () => {
+        await own.send(message);
+        // The same pool refuses a nested transaction: the name is lost (why main.ts gives it its own).
+        await shared.send(message);
+      });
+      expect(seen).toEqual(["Eyadex", undefined]);
+    } finally {
+      await settings.close();
+    }
   });
 });
 

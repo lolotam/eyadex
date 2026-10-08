@@ -15,6 +15,7 @@ import { ExpiryReminderScanner } from "../scan-expiry-reminders.ts";
 
 const NOW = new Date("2031-05-10T09:00:00Z");
 const DAY = 24 * 3600 * 1000;
+const MEMBER = "0190a000-0000-7000-8000-000000000001";
 const at = (ms: number) => new Date(NOW.getTime() + ms);
 
 function logs() {
@@ -42,23 +43,25 @@ describe("the reminder window (story 79, ADR-0020)", () => {
       clinicId: randomUUID(),
       reminderId: randomUUID(),
       expiresAt: at(3 * DAY).toISOString(),
+      membershipId: randomUUID(),
+      daysLeft: 3,
     };
     const clinic = { status: "active" as const, expiresAt: at(3 * DAY) };
-    const admin = [{}];
-    expect(reminderSkip({ clinic, recipients: admin }, event, NOW)).toBeNull();
+    const admin = {};
+    expect(reminderSkip({ clinic, recipient: admin }, event, NOW)).toBeNull();
     expect(reminderSkip(null, event, NOW)).toBe("missing");
     expect(
       reminderSkip(
-        { clinic: { ...clinic, expiresAt: at(40 * DAY) }, recipients: admin },
+        { clinic: { ...clinic, expiresAt: at(40 * DAY) }, recipient: admin },
         event,
         NOW,
       ),
     ).toBe("renewed");
     expect(
-      reminderSkip({ clinic: { ...clinic, status: "suspended" }, recipients: admin }, event, NOW),
+      reminderSkip({ clinic: { ...clinic, status: "suspended" }, recipient: admin }, event, NOW),
     ).toBe("suspended");
-    expect(reminderSkip({ clinic, recipients: admin }, event, at(3 * DAY))).toBe("expired");
-    expect(reminderSkip({ clinic, recipients: [] }, event, NOW)).toBe("no_recipients");
+    expect(reminderSkip({ clinic, recipient: admin }, event, at(3 * DAY))).toBe("expired");
+    expect(reminderSkip({ clinic, recipient: null }, event, NOW)).toBe("not_admin");
     expect(daysLeft(at(2 * DAY - 1000), NOW)).toBe(2);
   });
 
@@ -78,7 +81,7 @@ describe("the reminder window (story 79, ADR-0020)", () => {
   });
 });
 
-function state(recipients: number): ReminderState {
+function state(admin = true): ReminderState {
   return {
     clinic: {
       status: "active",
@@ -88,11 +91,9 @@ function state(recipients: number): ReminderState {
       language: "en",
       timezone: "Asia/Kuwait",
     },
-    recipients: Array.from({ length: recipients }, (_v, i) => ({
-      membershipId: `0190a000-0000-7000-8000-00000000000${i}`,
-      fullName: `Admin ${i}`,
-      email: `admin${i}@example.test`,
-    })),
+    recipient: admin
+      ? { membershipId: MEMBER, fullName: "Admin", email: "admin0@example.test" }
+      : null,
   };
 }
 
@@ -101,17 +102,23 @@ function event(clinicId: string, expiresAt = at(3 * DAY)): ClaimedEvent {
     id: randomUUID(),
     clinicId,
     type: EXPIRY_REMINDER,
-    payload: { clinicId, reminderId: randomUUID(), expiresAt: expiresAt.toISOString() },
+    payload: {
+      clinicId,
+      reminderId: randomUUID(),
+      expiresAt: expiresAt.toISOString(),
+      membershipId: MEMBER,
+      daysLeft: 3,
+    },
     attempts: 0,
   } as unknown as ClaimedEvent;
 }
 
 describe("sending a reminder", () => {
-  it("mails every active admin through platform mail, one idempotency key per recipient", async () => {
+  it("mails its admin through platform mail; a retry sends the same message under the same key", async () => {
     const sent: MailMessage[] = [];
     const { logger, lines } = logs();
     const handle = expiryReminderDispatcher({
-      state: { read: async () => state(2) },
+      state: { read: async () => state() },
       mail: {
         send: async (m): Promise<MailResult> => (
           sent.push(m),
@@ -123,18 +130,28 @@ describe("sending a reminder", () => {
     });
     const e = event(randomUUID());
     expect(await handle(e)).toEqual({ kind: "dispatched" });
-    expect(sent.map((m) => m.to)).toEqual(["admin0@example.test", "admin1@example.test"]);
-    expect(new Set(sent.map((m) => m.idempotencyKey)).size).toBe(2);
-    expect(sent[0]!.idempotencyKey.startsWith(`${e.id}:`)).toBe(true);
+    // A day later (a retry crossing midnight): the body comes from the event, so it is identical.
+    const later = expiryReminderDispatcher({
+      state: { read: async () => state() },
+      mail: {
+        send: async (m) => (sent.push(m), { sent: true, provider: "resend", fallback: false }),
+      },
+      clock: { now: () => at(DAY) },
+      logger,
+    });
+    expect(await later(e)).toEqual({ kind: "dispatched" });
+    expect(sent.map((m) => m.to)).toEqual(["admin0@example.test", "admin0@example.test"]);
+    expect(sent[1]).toEqual(sent[0]);
+    expect(sent[0]!.idempotencyKey).toBe(e.id);
     // Platform mail: no clinic sender is ever set here.
     expect(sent.every((m) => m.from === undefined)).toBe(true);
     expect(lines.join("")).not.toContain("admin0@example.test");
   });
 
-  it("NEGATIVE: a renewed clinic gets no email; a malformed payload fails at once", async () => {
+  it("NEGATIVE: a renewed clinic or a demoted admin gets no email; a malformed payload fails", async () => {
     const sent: MailMessage[] = [];
     const handle = expiryReminderDispatcher({
-      state: { read: async () => state(1) },
+      state: { read: async () => state() },
       mail: {
         send: async (m) => (sent.push(m), { sent: true, provider: "resend", fallback: false }),
       },
@@ -142,6 +159,15 @@ describe("sending a reminder", () => {
       logger: logs().logger,
     });
     expect(await handle(event(randomUUID(), at(30 * DAY)))).toEqual({ kind: "dispatched" });
+    const demoted = expiryReminderDispatcher({
+      state: { read: async () => state(false) },
+      mail: {
+        send: async (m) => (sent.push(m), { sent: true, provider: "resend", fallback: false }),
+      },
+      clock: { now: () => NOW },
+      logger: logs().logger,
+    });
+    expect(await demoted(event(randomUUID()))).toEqual({ kind: "dispatched" });
     expect(sent).toHaveLength(0);
     const bad = { ...event(randomUUID()), payload: { clinicId: "x" } } as ClaimedEvent;
     expect(await handle(bad)).toMatchObject({ kind: "failed", error: "invalid_payload" });
@@ -149,7 +175,7 @@ describe("sending a reminder", () => {
 
   it("retries on the mail schedule when a send fails", async () => {
     const handle = expiryReminderDispatcher({
-      state: { read: async () => state(1) },
+      state: { read: async () => state() },
       mail: { send: async () => ({ sent: false, error: "resend_500" }) },
       clock: { now: () => NOW },
       logger: logs().logger,

@@ -16,6 +16,9 @@ export type FirstPlatformAccountResult =
   | { readonly created: true; readonly userId: string }
   | { readonly created: false; readonly reason: "platform_account_exists" | "email_taken" };
 
+/** The platform team already has an active member (0037): the bootstrap must write nothing. */
+class TeamAlreadyActive extends Error {}
+
 // Two bootstraps at once must not both see an empty platform: one waits for the other's commit.
 const BOOTSTRAP_LOCK = "eyadex:first-platform-account";
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -79,8 +82,16 @@ export async function createFirstPlatformAccount(
       const inTransaction = Object.assign(tx, { options: client.options });
       const auth = buildAuth(platform, inTransaction as unknown as postgres.Sql, false);
       const { userId } = await createAccountOn(auth, "platform", { email, name, password });
+      // ADR-0020: the platform gate needs the account's team row; written in this same transaction.
+      const [link] = await tx<{ linked: boolean }[]>`
+        SELECT link_first_platform_account(${userId}, ${email}, ${name}) AS linked`;
+      if (link?.linked !== true) throw new TeamAlreadyActive();
       return { created: true, userId };
     });
+  } catch (error) {
+    // Thrown only to roll the user, its credential and the hold back: nothing was written.
+    if (error instanceof TeamAlreadyActive) return { created: false, reason: "platform_account_exists" };
+    throw error;
   } finally {
     await client.end({ timeout: 5 });
   }

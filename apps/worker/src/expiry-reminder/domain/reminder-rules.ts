@@ -31,6 +31,10 @@ export interface ReminderEvent {
   readonly reminderId: string;
   /** الانتهاء اللي التنبيه اتعمل عشانه: لو اتغيّر (تجديد) الإيميل مابيتبعتش. */
   readonly expiresAt: string;
+  /** المستلم: حدث لكل أدمن، فمحاولة فاشلة لواحد ماتعطّلش الباقيين. */
+  readonly membershipId: string;
+  /** الأيام الباقية وقت الفحص: ثابتة بين المحاولات، فجسم الرسالة مايتغيرش تحت نفس مفتاح الـ idempotency. */
+  readonly daysLeft: number;
 }
 
 const payloadSchema = z
@@ -38,6 +42,8 @@ const payloadSchema = z
     clinicId: z.string().uuid(),
     reminderId: z.string().uuid(),
     expiresAt: z.string().datetime(),
+    membershipId: z.string().uuid(),
+    daysLeft: z.number().int().min(1).max(60),
   })
   .strict();
 
@@ -58,19 +64,19 @@ export function parseReminderEvent(
 }
 
 /** سبب عدم الإرسال وقت الإرسال، أو `null` = ابعت. */
-export type ReminderSkip = "missing" | "suspended" | "expired" | "renewed" | "no_recipients";
+export type ReminderSkip = "missing" | "suspended" | "expired" | "renewed" | "not_admin";
 
 /**
  * القرار وقت الإرسال (بعد الفحص بفترة): العيادة لسه موجودة، مش موقوفة، ماانتهتش، وانتهاؤها هو نفسه
- * اللي التنبيه اتعمل عشانه، وفيه أدمن نشط واحد على الأقل.
+ * اللي التنبيه اتعمل عشانه، والمستلم لسه أدمن نشط.
  *
- * @param state العيادة والمستلمين، أو `null`
+ * @param state العيادة والمستلم (`null` لو مابقاش أدمن نشط)، أو `null`
  * @param event الحدث
  * @param now الوقت من الـ Clock
  * @returns سبب التخطي أو `null`
  */
 export function reminderSkip(
-  state: { clinic: ClinicTerm; recipients: readonly unknown[] } | null,
+  state: { clinic: ClinicTerm; recipient: unknown } | null,
   event: ReminderEvent,
   now: Date,
 ): ReminderSkip | null {
@@ -78,7 +84,7 @@ export function reminderSkip(
   if (state.clinic.status === "suspended") return "suspended";
   if (state.clinic.expiresAt.getTime() <= now.getTime()) return "expired";
   if (state.clinic.expiresAt.getTime() !== new Date(event.expiresAt).getTime()) return "renewed";
-  if (state.recipients.length === 0) return "no_recipients";
+  if (state.recipient === null) return "not_admin";
   return null;
 }
 

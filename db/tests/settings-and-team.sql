@@ -43,6 +43,12 @@ BEGIN
      OR has_table_privilege('eyadex_dispatcher', 'clinic_expiry_reminders', 'SELECT') THEN
     RAISE EXCEPTION 'REMINDERS: the ledger is append-only for eyadex_app and closed to others';
   END IF;
+  IF NOT has_function_privilege('eyadex_auth', 'link_first_platform_account(uuid, text, text)', 'EXECUTE')
+     OR has_function_privilege('eyadex_app', 'link_first_platform_account(uuid, text, text)', 'EXECUTE')
+     OR has_function_privilege('eyadex_platform', 'link_first_platform_account(uuid, text, text)', 'EXECUTE')
+     OR has_function_privilege('eyadex_dispatcher', 'link_first_platform_account(uuid, text, text)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'TEAM: only the auth bootstrap may link the first platform account';
+  END IF;
   IF NOT (SELECT relrowsecurity AND relforcerowsecurity FROM pg_class WHERE relname = 'clinic_expiry_reminders') THEN
     RAISE EXCEPTION 'REMINDERS: RLS is not enabled and forced';
   END IF;
@@ -88,6 +94,25 @@ BEGIN
       NULL, NULL, NULL, NULL, now(), now());
     RAISE EXCEPTION 'TEAM: a mixed-case email was accepted';
   EXCEPTION WHEN check_violation THEN NULL; END;
+END $$;
+
+-- The bootstrap link (eyadex_auth) adds the first active member once, never a second one.
+SET LOCAL ROLE eyadex_auth;
+DO $$
+BEGIN
+  IF NOT link_first_platform_account('00000000-0000-7000-8000-0000000011d1', 'First@Example.test', 'First') THEN
+    RAISE EXCEPTION 'TEAM: the first member was not linked';
+  END IF;
+  IF link_first_platform_account('00000000-0000-7000-8000-0000000011d2', 'second@example.test', 'Second') THEN
+    RAISE EXCEPTION 'TEAM: a second active member was linked behind the team';
+  END IF;
+END $$;
+RESET ROLE;
+DO $$
+BEGIN
+  IF (SELECT count(*) FROM platform_accounts WHERE email = 'first@example.test' AND status = 'active') <> 1 THEN
+    RAISE EXCEPTION 'TEAM: the linked first member is not active';
+  END IF;
 END $$;
 
 -- The platform role works the team table and cannot delete.

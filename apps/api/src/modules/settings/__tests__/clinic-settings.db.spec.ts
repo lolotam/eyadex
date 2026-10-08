@@ -147,6 +147,18 @@ describe("my account (story 64)", () => {
   });
 });
 
+describe("stored values the form would not accept are still shown", () => {
+  it("a 110-character member name from an invitation loads the account and the settings", async () => {
+    const long = `Admin ${"x".repeat(104)}`;
+    await h.owner`UPDATE memberships SET full_name = ${long} WHERE user_id = ${B.admin.userId}`;
+    await h.owner`UPDATE clinics SET name_en = ${long} WHERE id = ${B.admin.clinicId}`;
+    const account = await get(h, "/v1/account", B.admin.cookie);
+    expect(account.statusCode).toBe(200);
+    expect(account.json().fullName).toBe(long);
+    expect((await get(h, "/v1/clinic/settings", B.admin.cookie)).json().nameEn).toBe(long);
+  });
+});
+
 describe("expiry banner (story 30)", () => {
   it("expiresInDays follows the platform alert window on the API clock, and is null outside it", async () => {
     const clock = h.app.get<{ now: () => Date }>(CLOCK);

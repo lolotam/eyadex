@@ -37,3 +37,36 @@ INSERT INTO platform_accounts (id, user_id, email, full_name, status, token_hash
   FROM auth_users u
   WHERE u.area = 'platform'
   ON CONFLICT DO NOTHING;
+
+-- ADR-0021's bootstrap creates the first platform account on eyadex_auth, which has no grant on this
+-- table. This function is its one way in: it links that new user as the team's first active member,
+-- and only while the team has no active member, so it can never add a second account behind the
+-- team's back. Same shape as 0014 / 0027: owned by a NOLOGIN role nobody can log in as.
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'eyadex_platform_team_owner') THEN
+    CREATE ROLE eyadex_platform_team_owner NOLOGIN NOBYPASSRLS;
+  END IF;
+END $$;
+GRANT USAGE ON SCHEMA public TO eyadex_platform_team_owner;
+GRANT SELECT, INSERT ON platform_accounts TO eyadex_platform_team_owner;
+
+CREATE FUNCTION link_first_platform_account(p_user_id uuid, p_email text, p_name text) RETURNS boolean
+  LANGUAGE plpgsql VOLATILE SECURITY DEFINER
+  SET search_path = public, pg_temp
+AS $$
+BEGIN
+  IF p_user_id IS NULL THEN RAISE EXCEPTION 'user id is required'; END IF;
+  -- One linker at a time: two bootstraps cannot both see an empty team.
+  PERFORM pg_advisory_xact_lock(hashtextextended('platform_team', 0));
+  IF EXISTS (SELECT 1 FROM platform_accounts WHERE status = 'active') THEN RETURN false; END IF;
+  INSERT INTO platform_accounts (id, user_id, email, full_name, status, token_hash, token_expires_at,
+      invited_by, joined_at, created_at, updated_at)
+    VALUES (p_user_id, p_user_id, lower(btrim(p_email)),
+      COALESCE(NULLIF(left(btrim(p_name), 100), ''), 'Eyadex'), 'active', NULL, NULL, NULL,
+      now(), now(), now());
+  RETURN true;
+END
+$$;
+ALTER FUNCTION link_first_platform_account(uuid, text, text) OWNER TO eyadex_platform_team_owner;
+REVOKE ALL ON FUNCTION link_first_platform_account(uuid, text, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION link_first_platform_account(uuid, text, text) TO eyadex_auth;

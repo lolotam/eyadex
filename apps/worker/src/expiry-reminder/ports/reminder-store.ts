@@ -14,8 +14,8 @@ export interface DueClinicFinder {
 /** دفتر التنبيهات (0038) على pool العيادة، تحت `withTenant`. */
 export interface ReminderLedger {
   /**
-   * يعيد فحص العيادة جوه سياقها، ولو التنبيه لسه مستحق وماتسجلش لنفس الانتهاء قبل كده: يسجّله ويكتب
-   * حدث `clinic.expiry_reminder` في نفس الـ transaction.
+   * يعيد فحص العيادة جوه سياقها، ولو التنبيه لسه مستحق وماتسجلش لنفس الانتهاء قبل كده وفيه أدمن نشط:
+   * يسجّله ويكتب حدث `clinic.expiry_reminder` لكل أدمن نشط في نفس الـ transaction.
    *
    * @param clinicId العيادة
    * @param now الوقت من الـ Clock، بيتقري بعد ما الصف يتقري
@@ -39,16 +39,18 @@ export interface ReminderState {
     readonly language: "ar" | "en";
     readonly timezone: string;
   };
-  readonly recipients: readonly ReminderRecipient[];
+  /** المستلم لو لسه أدمن نشط، وإلا `null`. */
+  readonly recipient: ReminderRecipient | null;
 }
 
 /** قارئ حالة الإرسال على pool العيادة. */
 export interface ReminderStateReader {
   /**
-   * العيادة وأدمنها النشطين (دور النظام `clinic_admin`).
+   * العيادة، والمستلم لو لسه أدمن نشط (دور النظام `clinic_admin`).
    *
    * @param clinicId العيادة
+   * @param membershipId المستلم من الحدث
    * @returns الحالة، أو `null` لو العيادة مش موجودة
    */
-  read(clinicId: string): Promise<ReminderState | null>;
+  read(clinicId: string, membershipId: string): Promise<ReminderState | null>;
 }
