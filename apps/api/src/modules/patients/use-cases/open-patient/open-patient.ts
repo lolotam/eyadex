@@ -6,6 +6,7 @@ import { ApiError } from "../../../../shared/errors.ts";
 import { writePatientAccessAudit } from "../../../../shared/patient-audit.ts";
 import type { Clock } from "../../../tenancy/index.ts";
 import { coversBranch } from "../../domain/patient-rules.ts";
+import type { PatientBranchReader } from "../../ports/patient-branch-reader.ts";
 import { readPatientDetail } from "../../queries/patient-views.ts";
 import { requireScope, type PatientActor } from "../patient-actor.ts";
 
@@ -13,6 +14,8 @@ export interface OpenPatientDeps {
   readonly db: Database;
   readonly clock: Clock;
   readonly ids: IdGenerator;
+  /** Tenancy's branches behind the patients port. */
+  readonly branches: PatientBranchReader;
 }
 
 /**
@@ -33,7 +36,7 @@ export class OpenPatient {
     const scope = requireScope(actor.scopes.view);
     const { db, clock, ids } = this.deps;
     return db.withTenant(actor.clinicId, async (tx) => {
-      const detail = await readPatientDetail(tx, actor.clinicId, id, actor.scopes);
+      const detail = await readPatientDetail({ tx, branches: this.deps.branches }, actor, id);
       if (detail === null || !coversBranch(scope, detail.registrationBranchId)) {
         throw new ApiError("not_found");
       }

@@ -34,7 +34,8 @@ import { ZodValidationPipe } from "../../../shared/zod-validation.pipe.ts";
 import { Require, RequiresFeature, type ClinicRequest } from "../../identity/index.ts";
 import { BRANCH_READER, type BranchReader } from "../../tenancy/index.ts";
 import { patientScopes } from "../domain/patient-rules.ts";
-import { OPEN_PATIENT, PATIENT_CHANGES } from "../ports/tokens.ts";
+import type { PatientBranchReader } from "../ports/patient-branch-reader.ts";
+import { OPEN_PATIENT, PATIENT_BRANCH_READER, PATIENT_CHANGES } from "../ports/tokens.ts";
 import { patientBranchOptions } from "../queries/patient-branch-options.ts";
 import { searchPatients } from "../queries/patient-views.ts";
 import type { OpenPatient } from "../use-cases/open-patient/open-patient.ts";
@@ -72,6 +73,7 @@ export class PatientsController {
     @Inject(BRANCH_READER) private readonly branches: BranchReader,
     @Inject(PATIENT_CHANGES) private readonly changes: PatientChanges,
     @Inject(OPEN_PATIENT) private readonly opener: OpenPatient,
+    @Inject(PATIENT_BRANCH_READER) private readonly branchNames: PatientBranchReader,
   ) {}
 
   @Post("search")
@@ -84,7 +86,12 @@ export class PatientsController {
   ): Promise<PatientListResponse> {
     const actor = actorOf(request);
     const view = requireScope(actor.scopes.view);
-    return searchPatients(this.db, actor.clinicId, { ...actor.scopes, view }, body);
+    return searchPatients(
+      this.db,
+      this.branchNames,
+      { ...actor, scopes: { ...actor.scopes, view } },
+      body,
+    );
   }
 
   @Get("branch-options/view")

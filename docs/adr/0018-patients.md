@@ -16,7 +16,8 @@ sees any of it (§4.5, PLAT-01/02). The tables, grants and counters already exis
 ## Decision
 
 1. **A `patients` module** (`apps/api/src/modules/patients`) that imports `tenancy` (the `Clock` and
-   `BranchReader` ports) and identity's `index.ts` only (guards and request types). It owns no new
+   `BranchReader` ports, and `PgFilingBranches`, which implements the patients-owned
+   `PatientBranchReader`) and identity's `index.ts` only (guards and request types). It owns no new
    table and adds no migration.
 2. **Routes** (clinic host, `/v1/patients`): `POST /search`, `GET /branch-options/{view,create,update}`,
    `GET /:id` (open), `POST /` (create, `Idempotency-Key`), `PUT /:id`, `POST /:id/{archive,restore}`.
@@ -58,20 +59,29 @@ fileNumber }`) only when the caller's view scope covers the existing file; other
    digits folded to ASCII, then every run of 8+ digits masked wherever it sits — 12+ digits replaced whole,
    shorter runs keep their last 3 — so a civil ID or phone glued to a name, or typed in full-width or
    Arabic-Indic digits, never reaches the append-only row.
-8. **Branch tables.** Branch names and the target-branch check are read with a join / `FOR SHARE`
-   inside the patients transaction, the same way identity reads `branches` (identity → tenancy):
-   patients → tenancy is an allowed arrow, and the decision must be taken inside the writing
-   transaction. The branch options use tenancy's `BranchReader` port.
-9. **Invisible controls in free text.** The contract (`stripInvisibleControls` in
-   `patients.ts`) removes `\p{Cf}` (ZWJ, ZWNJ, bidi marks, overrides and isolates, soft hyphen, BOM)
-   and `\p{Cc}` except ordinary whitespace from a patient name and from the search term before they
-   are trimmed and validated. They render as nothing, so they could only split an identifier past a
-   check, reorder a name on screen (bidi spoofing) or make search miss; the conservative choice is to
-   store and search the visible text. The web form, the mock and the API share the schema, so all
-   three normalize the same way. The audit scrub strips them again on its own (defence in depth).
-   Cost: a ZWNJ some Persian spellings use inside a word is dropped, which changes nothing a reader
-   sees in Arabic or English names.
-10. **The platform** has no route here and no grant change; the existing PLAT-01 negatives hold.
+8. **Branch tables, through a port.** `branches` belongs to tenancy, so patients never queries it
+   (apps/api/AGENTS.md). Patients defines `PatientBranchReader` (`ports/patient-branch-reader.ts`):
+   `lockForFiling(tx, clinic, branch)` reads the target branch `FOR SHARE` inside the patients
+   transaction (a parallel deactivation waits), and `namesOf(tx, clinic, ids)` returns the names of a
+   whole page in one call (no N+1). Tenancy implements it (`PgFilingBranches`, exported from its
+   `index.ts`) without importing patients — the class matches the port structurally, and the patients
+   module binds it through a variable typed with the port, so a drift fails the type check. The list
+   and detail queries read `patients` only and take the names from the port. The branch options use
+   tenancy's own `BranchReader` port.
+9. **Search digits in any script.** The digits of a search term are folded to ASCII first
+   (`searchDigits` in the contract: NFKC for full-width digits, `normalizeCivilId` for Arabic-Indic
+   and Persian ones), in the API and the mock alike, so a phone, file number or civil ID typed on an
+   Arabic or Persian keyboard still finds the file.
+10. **Invisible controls in free text.** The contract (`stripInvisibleControls` in
+    `patients.ts`) removes `\p{Cf}` (ZWJ, ZWNJ, bidi marks, overrides and isolates, soft hyphen, BOM)
+    and `\p{Cc}` except ordinary whitespace from a patient name and from the search term before they
+    are trimmed and validated. They render as nothing, so they could only split an identifier past a
+    check, reorder a name on screen (bidi spoofing) or make search miss; the conservative choice is to
+    store and search the visible text. The web form, the mock and the API share the schema, so all
+    three normalize the same way. The audit scrub strips them again on its own (defence in depth).
+    Cost: a ZWNJ some Persian spellings use inside a word is dropped, which changes nothing a reader
+    sees in Arabic or English names.
+11. **The platform** has no route here and no grant change; the existing PLAT-01 negatives hold.
 
 ## Consequences
 

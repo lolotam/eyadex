@@ -1,5 +1,5 @@
 import type { PatientDetail, PatientWriteResult } from "@eyadex/contracts/patients";
-import { DatabaseError, type Tx } from "@eyadex/db";
+import { DatabaseError } from "@eyadex/db";
 
 import { ApiError } from "../../../shared/errors.ts";
 import {
@@ -9,7 +9,7 @@ import {
   type PatientScopes,
 } from "../domain/patient-rules.ts";
 import { lockClinicPatients } from "../persistence/pg-patient-store.ts";
-import { readPatientDetail } from "../queries/patient-views.ts";
+import { readPatientDetail, type PatientReads } from "../queries/patient-views.ts";
 
 /** الفاعل: عضو العيادة اللي الـ guard حلّه، بنطاقات أفعاله على المراجعين ومنطقة عيادته. */
 export interface PatientActor {
@@ -41,11 +41,11 @@ function resultOf(actor: PatientActor, detail: PatientDetail): PatientWriteResul
  * held, so no other patient write can commit in between).
  */
 export async function writeResult(
-  tx: Tx,
+  reads: PatientReads,
   actor: PatientActor,
   record: PatientRecord,
 ): Promise<PatientWriteResult> {
-  const detail = await readPatientDetail(tx, actor.clinicId, record.id, actor.scopes);
+  const detail = await readPatientDetail(reads, actor, record.id);
   if (detail === null) throw new ApiError("not_found");
   return resultOf(actor, detail);
 }
@@ -56,13 +56,13 @@ export async function writeResult(
  * can change before this transaction ends. Outside the create scope it is `not_found`, like `open`.
  */
 export async function replayResult(
-  tx: Tx,
+  reads: PatientReads,
   actor: PatientActor,
   createScope: PatientScope,
   patientId: string,
 ): Promise<PatientWriteResult> {
-  await lockClinicPatients(tx, actor.clinicId);
-  const detail = await readPatientDetail(tx, actor.clinicId, patientId, actor.scopes);
+  await lockClinicPatients(reads.tx, actor.clinicId);
+  const detail = await readPatientDetail(reads, actor, patientId);
   if (detail === null || !coversBranch(createScope, detail.registrationBranchId)) {
     throw new ApiError("not_found");
   }

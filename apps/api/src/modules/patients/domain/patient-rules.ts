@@ -1,6 +1,7 @@
 import {
   isBirthDateValid,
   normalizeKuwaitPhone,
+  searchDigits,
   todayInTimeZone,
   type Gender,
   type PatientInput,
@@ -108,7 +109,7 @@ const escapeLike = (text: string) => text.replace(/[\\%_]/g, (c) => `\\${c}`);
  */
 export function searchTerms(q: string): SearchTerms {
   if (q === "") return { namePattern: null, digitsPattern: null };
-  const digits = q.replace(/\D/g, "");
+  const digits = searchDigits(q);
   return {
     namePattern: `%${escapeLike(q)}%`,
     digitsPattern: digits === "" ? null : `%${digits}%`,

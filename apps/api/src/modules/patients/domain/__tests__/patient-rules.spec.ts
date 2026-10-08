@@ -67,6 +67,13 @@ describe("record actions and coverage", () => {
 });
 
 describe("searchTerms (same rule as the mock)", () => {
+  it("Arabic-Indic, Persian and full-width digits search like ASCII ones", () => {
+    for (const zero of [0x0660, 0x06f0, 0xff10]) {
+      const typed = "5550".replace(/\d/g, (d) => String.fromCharCode(zero + Number(d)));
+      expect(searchTerms(typed).digitsPattern, zero.toString(16)).toBe("%5550%");
+    }
+  });
+
   it("empty search filters nothing", () => {
     expect(searchTerms("")).toEqual({ namePattern: null, digitsPattern: null });
   });

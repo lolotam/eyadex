@@ -22,7 +22,6 @@ import {
   type PatientScope,
 } from "../../domain/patient-rules.ts";
 import {
-  findBranchForFiling,
   findCivilIdOwner,
   findPatient,
   findPhoneOwner,
@@ -32,6 +31,8 @@ import {
   setPatientStatus,
   updatePatientFields,
 } from "../../persistence/pg-patient-store.ts";
+import type { PatientBranchReader } from "../../ports/patient-branch-reader.ts";
+import type { PatientReads } from "../../queries/patient-views.ts";
 import {
   replayResult,
   requireScope,
@@ -44,6 +45,8 @@ export interface PatientChangesDeps {
   readonly db: Database;
   readonly clock: Clock;
   readonly ids: IdGenerator;
+  /** Tenancy's branches behind the patients port (apps/api/AGENTS.md: no direct cross-module read). */
+  readonly branches: PatientBranchReader;
 }
 
 /** What an idempotency key keeps: ids only, never the file (it carries the civil ID). */
@@ -54,12 +57,12 @@ interface StoredCreate {
 
 /** The registration branch: unknown → not_found, outside the action's scope → forbidden, inactive. */
 async function assertFilingBranch(
-  tx: Tx,
+  reads: PatientReads,
   actor: PatientActor,
   scope: PatientScope,
   branchId: string,
 ): Promise<void> {
-  const branch = await findBranchForFiling(tx, actor.clinicId, branchId);
+  const branch = await reads.branches.lockForFiling(reads.tx, actor.clinicId, branchId);
   if (branch === null) throw new ApiError("not_found");
   if (!coversBranch(scope, branchId)) throw new ApiError("forbidden");
   if (!branch.isActive) throw new ApiError("branch_inactive");
@@ -97,6 +100,10 @@ async function assertUnique(
  */
 export class PatientChanges {
   constructor(private readonly deps: PatientChangesDeps) {}
+
+  private reads(tx: Tx): PatientReads {
+    return { tx, branches: this.deps.branches };
+  }
 
   private normalized(actor: PatientActor, input: PatientInput): NormalizedPatient {
     const normalized = normalizePatientInput(input);
@@ -163,9 +170,10 @@ export class PatientChanges {
         );
         if (claimed.kind === "conflict") throw new ApiError("idempotency_conflict");
         // The replay needs the create scope over the file NOW (it may have changed since).
-        if (claimed.kind === "replay") return replayResult(tx, actor, scope, claimed.response.id);
+        if (claimed.kind === "replay")
+          return replayResult(this.reads(tx), actor, scope, claimed.response.id);
         await lockClinicPatients(tx, actor.clinicId);
-        await assertFilingBranch(tx, actor, scope, normalized.registrationBranchId);
+        await assertFilingBranch(this.reads(tx), actor, scope, normalized.registrationBranchId);
         await assertUnique(tx, actor, normalized, null);
         const now = clock.now();
         const record: PatientRecord = {
@@ -180,7 +188,7 @@ export class PatientChanges {
           id: record.id,
           fileNumber: record.fileNumber,
         } satisfies StoredCreate);
-        return writeResult(tx, actor, record);
+        return writeResult(this.reads(tx), actor, record);
       })
       .catch(uniqueViolationAsValidation);
   }
@@ -205,13 +213,13 @@ export class PatientChanges {
           throw new ApiError("not_found");
         }
         if (normalized.registrationBranchId !== before.registrationBranchId) {
-          await assertFilingBranch(tx, actor, scope, normalized.registrationBranchId);
+          await assertFilingBranch(this.reads(tx), actor, scope, normalized.registrationBranchId);
         }
         await assertUnique(tx, actor, normalized, before.id);
         const after: PatientRecord = { ...before, ...normalized };
         await updatePatientFields(tx, actor.clinicId, after, clock.now());
         await this.audit(tx, actor, "patient.updated", before, after);
-        return writeResult(tx, actor, after);
+        return writeResult(this.reads(tx), actor, after);
       })
       .catch(uniqueViolationAsValidation);
   }
@@ -237,12 +245,12 @@ export class PatientChanges {
       if (before === null || !coversBranch(scope, before.registrationBranchId)) {
         throw new ApiError("not_found");
       }
-      if (before.status === status) return writeResult(tx, actor, before);
+      if (before.status === status) return writeResult(this.reads(tx), actor, before);
       const after: PatientRecord = { ...before, status };
       await setPatientStatus(tx, actor.clinicId, after, clock.now());
       const action = status === "archived" ? "patient.archived" : "patient.restored";
       await this.audit(tx, actor, action, before, after);
-      return writeResult(tx, actor, after);
+      return writeResult(this.reads(tx), actor, after);
     });
   }
 }

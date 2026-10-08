@@ -75,6 +75,15 @@ export function normalizeCivilId(raw: string): string {
     .replace(/[\s-]/g, "");
 }
 
+/**
+ * The digits of a search term, as ASCII: full-width digits are folded by NFKC and Arabic-Indic /
+ * Eastern Arabic-Indic digits by `normalizeCivilId`, so a phone, file number or civil ID typed on an
+ * Arabic or Persian keyboard still finds the file.
+ */
+export function searchDigits(term: string): string {
+  return normalizeCivilId(term.normalize("NFKC")).replace(/\D/g, "");
+}
+
 /** A real calendar day, so 30 February and 29 February in a common year are both refused. */
 function isRealCalendarDate(year: number, month: number, day: number): boolean {
   const date = new Date(Date.UTC(year, month - 1, day));

@@ -59,21 +59,6 @@ export async function findPatient(
   return rows[0] === undefined ? null : toRecord(rows[0]);
 }
 
-/**
- * The target branch of a create or a move, read `FOR SHARE` so a parallel deactivation waits for this
- * transaction. Branches belong to tenancy; patients → tenancy is an allowed arrow (ADR-0018).
- */
-export async function findBranchForFiling(
-  tx: Tx,
-  clinicId: string,
-  branchId: string,
-): Promise<{ isActive: boolean } | null> {
-  const rows = await tx.execute<{ is_active: boolean }>(
-    sql`SELECT is_active FROM branches WHERE clinic_id = ${clinicId} AND id = ${branchId} FOR SHARE`,
-  );
-  return rows[0] === undefined ? null : { isActive: rows[0].is_active };
-}
-
 async function findDuplicate(
   tx: Tx,
   clinicId: string,

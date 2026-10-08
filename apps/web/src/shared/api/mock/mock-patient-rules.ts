@@ -2,6 +2,7 @@ import type { Branch } from "@eyadex/contracts/organization";
 import type { PermissionAction } from "@eyadex/contracts/permissions";
 import {
   isBirthDateValid,
+  searchDigits,
   todayInTimeZone,
   type Patient,
   type PatientDetail,
@@ -226,7 +227,7 @@ export function writeResult(db: MockState, persona: Persona, p: Patient): Patien
 export function matchesSearch(p: Patient, term: string): boolean {
   if (!term) return true;
   const lower = term.toLocaleLowerCase();
-  const digits = term.replace(/\D/g, "");
+  const digits = searchDigits(term);
   if (p.fullName.toLocaleLowerCase().includes(lower)) return true;
   if (!digits) return false;
   return (

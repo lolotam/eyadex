@@ -195,6 +195,34 @@ describe("happy paths (clinic admin)", () => {
     expect(bad.statusCode).toBe(400);
   });
 
+  it("search by a phone typed in Arabic-Indic, Persian or full-width digits finds the file", async () => {
+    const inScript = (zero: number) => (digits: string) =>
+      digits.replace(/\d/g, (d) => String.fromCharCode(zero + Number(d)));
+    for (const zero of [0x0660, 0x06f0, 0xff10]) {
+      const res = await search(h, C.admin.cookie, { q: inScript(zero)("55500001") });
+      const page = patientListResponseSchema.parse(res.json());
+      expect(
+        page.items.map((p) => p.fullName),
+        zero.toString(16),
+      ).toEqual(["Happy Path"]);
+    }
+  });
+
+  it("list rows and the open file carry each branch's names, read through the port", async () => {
+    const stored = await h.owner`SELECT id, name_ar, name_en FROM branches
+                                 WHERE clinic_id = ${C.clinicId}`;
+    const names = new Map(stored.map((b) => [b["id"] as string, [b["name_ar"], b["name_en"]]]));
+    const page = patientListResponseSchema.parse((await search(h, C.admin.cookie)).json());
+    expect(new Set(page.items.map((p) => p.registrationBranchId)).size).toBeGreaterThan(1);
+    for (const item of page.items) {
+      expect([item.branchNameAr, item.branchNameEn]).toEqual(names.get(item.registrationBranchId));
+    }
+    const detail = patientDetailSchema.parse((await openPatient(h, C.admin.cookie, fileId)).json());
+    expect([detail.branchNameAr, detail.branchNameEn]).toEqual(
+      names.get(detail.registrationBranchId),
+    );
+  });
+
   it("open answers the full file", async () => {
     const res = await openPatient(h, C.admin.cookie, fileId);
     expect(res.statusCode).toBe(200);

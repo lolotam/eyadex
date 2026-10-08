@@ -11,6 +11,7 @@ import {
   type PatientScopes,
 } from "../domain/patient-rules.ts";
 import { PATIENT_COLUMNS, toRecord } from "../persistence/pg-patient-store.ts";
+import type { BranchNames, PatientBranchReader } from "../ports/patient-branch-reader.ts";
 
 // The cursor is the last file number seen, base64url-encoded so the client treats it as opaque.
 const FILE_NUMBER = /^[1-9][0-9]{0,17}$/;
@@ -45,6 +46,25 @@ function listFilters(clinicId: string, view: PatientScope, query: PatientSearchR
           LIKE ${digitsPattern}::text
         OR coalesce(p.civil_id, '') LIKE ${digitsPattern}::text)))`;
 }
+/** A read inside the patients transaction, with tenancy's branch names behind the patients port. */
+export interface PatientReads {
+  readonly tx: Tx;
+  readonly branches: PatientBranchReader;
+}
+
+/** Who reads: the clinic and the caller's per-action scopes (a `PatientActor` fits). */
+export interface PatientReader {
+  readonly clinicId: string;
+  readonly scopes: PatientScopes;
+}
+
+// The branches FK makes a missing name impossible; the dash is the mock's placeholder all the same.
+const NO_NAMES: BranchNames = { nameAr: "—", nameEn: "—" };
+
+const branchNamesOf = (names: ReadonlyMap<string, BranchNames>, branchId: string) => {
+  const found = names.get(branchId) ?? NO_NAMES;
+  return { branchNameAr: found.nameAr, branchNameEn: found.nameEn };
+};
 
 interface ListRow {
   id: string;
@@ -52,20 +72,21 @@ interface ListRow {
   full_name: string;
   phone: string;
   registration_branch_id: string;
-  branch_name_ar: string;
-  branch_name_en: string;
   civil_id_last4: string | null;
   status: PatientListItem["status"];
 }
 
-const toListItem = (row: ListRow, scopes: PatientScopes): PatientListItem => ({
+const toListItem = (
+  row: ListRow,
+  names: ReadonlyMap<string, BranchNames>,
+  scopes: PatientScopes,
+): PatientListItem => ({
   id: row.id,
   fileNumber: Number(row.file_number),
   fullName: row.full_name,
   phone: row.phone,
   registrationBranchId: row.registration_branch_id,
-  branchNameAr: row.branch_name_ar,
-  branchNameEn: row.branch_name_en,
+  ...branchNamesOf(names, row.registration_branch_id),
   civilIdLast4: row.civil_id_last4,
   status: row.status,
   actions: recordActions(scopes, row.registration_branch_id),
@@ -74,43 +95,50 @@ const toListItem = (row: ListRow, scopes: PatientScopes): PatientListItem => ({
 /**
  * قايمة الملفات (story P1، نفس قواعد الـ mock): جوه نطاق العرض بس، أحدث رقم ملف الأول، بـ cursor.
  * البحث بالاسم، أو بأرقام الموبايل / رقم الملف بستة أرقام / الرقم المدني. الرقم المدني الكامل
- * عمره ما بيتقري هنا: الصف بياخد آخر 4 أرقام بس.
+ * عمره ما بيتقري هنا: الصف بياخد آخر 4 أرقام بس. أسماء الفروع من port الفروع في نداء واحد للصفحة.
  *
  * @param db الـ pool على `eyadex_app`
- * @param clinicId عيادة السياق
- * @param scopes نطاقات الفاعل (`view` مش null: الـ guard عدّاه)
+ * @param branches port أسماء الفروع (بتنفّذه tenancy)
+ * @param reader العيادة ونطاقات الفاعل (`view` مش null: الـ guard عدّاه)
  * @param query الفلاتر والـ cursor
  * @returns الصفحة
  */
 export async function searchPatients(
   db: Database,
-  clinicId: string,
-  scopes: PatientScopes & { view: PatientScope },
+  branches: PatientBranchReader,
+  reader: PatientReader & { scopes: { view: PatientScope } },
   query: PatientSearchRequest,
 ): Promise<PatientListResponse> {
+  const { clinicId, scopes } = reader;
   const after = decodeCursor(query.cursor);
   const filters = listFilters(clinicId, scopes.view, query);
-  const { rows, total } = await db.withTenant(clinicId, async (tx) => ({
-    rows: await tx.execute<ListRow>(
+  const { rows, total, names } = await db.withTenant(clinicId, async (tx) => {
+    const page = await tx.execute<ListRow>(
       sql`SELECT p.id, p.file_number, p.full_name, p.phone, p.registration_branch_id,
-            b.name_ar AS branch_name_ar, b.name_en AS branch_name_en,
             right(p.civil_id, 4) AS civil_id_last4, p.status
           FROM patients p
-          JOIN branches b ON b.clinic_id = p.clinic_id AND b.id = p.registration_branch_id
           WHERE ${filters}
             AND (${after}::bigint IS NULL OR p.file_number::bigint < ${after}::bigint)
           ORDER BY p.file_number::bigint DESC
           LIMIT ${query.limit + 1}`,
-    ),
-    total: await tx.execute<{ total: number }>(
-      sql`SELECT count(*)::int AS total FROM patients p WHERE ${filters}`,
-    ),
-  }));
+    );
+    return {
+      rows: page,
+      total: await tx.execute<{ total: number }>(
+        sql`SELECT count(*)::int AS total FROM patients p WHERE ${filters}`,
+      ),
+      names: await branches.namesOf(
+        tx,
+        clinicId,
+        page.map((row) => row.registration_branch_id),
+      ),
+    };
+  });
   const page = rows.slice(0, query.limit);
   const last = page.at(-1);
   const more = rows.length > query.limit && last !== undefined;
   return {
-    items: page.map((row) => toListItem(row, scopes)),
+    items: page.map((row) => toListItem(row, names, scopes)),
     nextCursor: more ? encodeCursor(Number(last.file_number)) : null,
     total: Number(total[0]?.total ?? 0),
   };
@@ -120,34 +148,25 @@ export async function searchPatients(
  * ملف كامل بشكل الرد (فيه الرقم المدني الكامل)، جوه transaction المنادي. المنادي هو اللي بيقرر إن
  * الفاعل يقدر يشوفه.
  *
- * @param tx الـ transaction جوه `withTenant`
- * @param clinicId العيادة
+ * @param reads الـ transaction جوه `withTenant` و port أسماء الفروع
+ * @param reader العيادة ونطاقات الفاعل (لأزرار السجل)
  * @param id الملف
- * @param scopes نطاقات الفاعل (لأزرار السجل)
  * @returns الملف، أو `null`
  */
 export async function readPatientDetail(
-  tx: Tx,
-  clinicId: string,
+  reads: PatientReads,
+  reader: PatientReader,
   id: string,
-  scopes: PatientScopes,
 ): Promise<PatientDetail | null> {
-  const rows = await tx.execute<
-    Parameters<typeof toRecord>[0] & {
-      created_at: Date | string;
-      branch_name_ar: string;
-      branch_name_en: string;
-    }
-  >(
-    sql`SELECT ${PATIENT_COLUMNS}, p.created_at, b.name_ar AS branch_name_ar,
-          b.name_en AS branch_name_en
-        FROM patients p
-        JOIN branches b ON b.clinic_id = p.clinic_id AND b.id = p.registration_branch_id
-        WHERE p.clinic_id = ${clinicId} AND p.id = ${id}`,
+  const { tx, branches } = reads;
+  const rows = await tx.execute<Parameters<typeof toRecord>[0] & { created_at: Date | string }>(
+    sql`SELECT ${PATIENT_COLUMNS}, p.created_at FROM patients p
+        WHERE p.clinic_id = ${reader.clinicId} AND p.id = ${id}`,
   );
   const row = rows[0];
   if (row === undefined) return null;
   const record = toRecord(row);
+  const names = await branches.namesOf(tx, reader.clinicId, [record.registrationBranchId]);
   return {
     id: record.id,
     fileNumber: record.fileNumber,
@@ -159,8 +178,7 @@ export async function readPatientDetail(
     civilId: record.civilId,
     status: record.status,
     createdAt: new Date(row.created_at).toISOString(),
-    branchNameAr: row.branch_name_ar,
-    branchNameEn: row.branch_name_en,
-    actions: recordActions(scopes, record.registrationBranchId),
+    ...branchNamesOf(names, record.registrationBranchId),
+    actions: recordActions(reader.scopes, record.registrationBranchId),
   };
 }

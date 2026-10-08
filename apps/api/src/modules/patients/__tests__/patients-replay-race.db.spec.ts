@@ -22,16 +22,20 @@ afterAll(async () => {
   await closeHarness(h);
 });
 
-/** Until some session waits for a lock on `branches` (the owner holds it); throws if none ever does. */
-async function untilBlockedOnBranches(): Promise<void> {
+/**
+ * Until the replay waits on one of the owner's locks — the clinic's patients lock or the `branches`
+ * table — and throws if it never does, so the race can never pass by not happening.
+ */
+async function untilReplayBlocked(): Promise<void> {
   for (let i = 0; i < 200; i += 1) {
     const [row] = await h.owner`SELECT count(*)::int AS n FROM pg_locks l
-                                JOIN pg_class c ON c.oid = l.relation
-                                WHERE NOT l.granted AND c.relname = 'branches'`;
+                                LEFT JOIN pg_class c ON c.oid = l.relation
+                                WHERE NOT l.granted
+                                  AND (l.locktype = 'advisory' OR c.relname = 'branches')`;
     if (row!["n"] !== 0) return;
     await new Promise((resolve) => setTimeout(resolve, 25));
   }
-  throw new Error("the replay never reached the branches read");
+  throw new Error("the replay never waited on the move");
 }
 
 describe("idempotent replay racing a branch move", () => {
@@ -45,12 +49,14 @@ describe("idempotent replay racing a branch move", () => {
     expect((await search(h, C.receptionist.cookie)).statusCode).toBe(200);
 
     let replay: ReturnType<typeof createPatient> | undefined;
-    // The owner blocks every read of `branches`, so the replay stops at the read that joins it; the
-    // move to branch X (outside the receptionist's scope) commits while the replay waits.
+    // The owner plays an admin's move to branch X (outside the receptionist's scope): like every
+    // patient write it holds the clinic's patients lock, and it also blocks every read of `branches`,
+    // so a replay that read the file BEFORE waiting (the bug) would answer with the moved file.
     await h.owner.begin(async (tx) => {
+      await tx`SELECT pg_advisory_xact_lock(hashtextextended(${`patients:${C.clinicId}`}, 0))`;
       await tx`LOCK TABLE branches IN ACCESS EXCLUSIVE MODE`;
       replay = createPatient(h, C.receptionist.cookie, body, key);
-      await untilBlockedOnBranches();
+      await untilReplayBlocked();
       await tx`UPDATE patients SET registration_branch_id = ${C.branchX} WHERE id = ${id}`;
     });
     const res = await replay!;

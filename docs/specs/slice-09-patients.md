@@ -79,7 +79,8 @@ applied by the use case / query (step 5), and RLS is the last line (step 6).
 - Every statement runs inside `withTenant(clinicId)` on the `eyadex_app` pool and also filters
   `clinic_id = …` explicitly (two independent layers).
 - Writes take `pg_advisory_xact_lock('patients:' || clinic_id)` first, then read and decide in the
-  same transaction: duplicate checks, the branch (`FOR SHARE`), the file-number counter (0019
+  same transaction: duplicate checks, the branch (`FOR SHARE`, through the patients-owned
+  `PatientBranchReader` port that tenancy implements — patients never queries `branches` itself), the file-number counter (0019
   upsert). A unique violation that still slips through maps to `validation`, never a 500 that would
   log the constraint detail.
 - `eyadex_platform` keeps no grant on `patients` / `clinic_counters` / patient audit rows; nothing in
@@ -161,7 +162,7 @@ Every negative test is proven to fail with its guard removed (reported in the sl
 ## 10. Open items (`TODO(spec)`)
 
 - Patient names and search terms drop invisible format/control characters at the contract (ADR-0018
-  §9); a ZWNJ inside a Persian spelling is dropped with them.
+  §10); a ZWNJ inside a Persian spelling is dropped with them.
 - Searching the list is not audited (PRD §4.11 lists opening and editing a file only).
 - The audit snapshot masks the phone and leaves out the birth date (API rule); the Phase-A mock
   mirrors the field allowlist and the phone mask. Masking phone numbers written inside the name is
