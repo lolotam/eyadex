@@ -104,13 +104,17 @@ describe("guards", () => {
       expect((await get(h, path, A.admin.cookie, PLATFORM)).statusCode).toBe(404);
     });
     it(`NEGATIVE ${path} (ISO-02): another clinic's rows are never listed`, async () => {
-      const page = (await get(h, `${path}?limit=100`, A.admin.cookie)).json() as {
-        items: { id: string }[];
-      };
       const table = path.endsWith("role-options") ? "roles" : "branches";
-      const theirs = new Set(await ids(B.admin.clinicId, table));
-      expect(page.items.length).toBeGreaterThan(0);
-      expect(page.items.some((item) => theirs.has(item.id))).toBe(false);
+      // Each clinic lists exactly its own rows, so a leak shows whichever clinic is older.
+      for (const clinic of [A, B]) {
+        const page = (await get(h, `${path}?limit=100`, clinic.admin.cookie)).json() as {
+          items: { id: string }[];
+          total: number;
+        };
+        const own = await ids(clinic.admin.clinicId, table);
+        expect(page.items.map((item) => item.id)).toEqual(own);
+        expect(page.total).toBe(own.length);
+      }
     });
   }
 });

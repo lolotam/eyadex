@@ -1,6 +1,6 @@
 # Slice 8 — Custom roles (Phase B)
 
-- Status: in progress
+- Status: implemented
 - Date: 2026-10-08
 - PRD: §4.6 (Role, RolePermission), §4.7 (catalogue, ready roles, check order), §4.8 (locked
   modules keep their keys), §4.11 (audit), §4.12 (Idempotency-Key, cursor lists), §5.5 item 8,
@@ -74,16 +74,18 @@ stays.
    (409); the index decides, so two parallel creates cannot both pass.
 5. **Deactivation.** Refused with `role_in_use` (409, `details.count`) while any membership holds
    the role, deactivated members included (mock `memberCount`). Counted under the per-clinic
-   `users:` advisory lock (ADR-0012), then the role row lock, so a parallel role change, invite or
-   member reactivation cannot slip a holder in.
+   `users:` advisory lock, then the `branches:` lock (ADR-0012 order), then the role row lock: role
+   changes, invites and member reactivations hold the first, invitation acceptance the second, so
+   no holder can slip in.
 6. **No-ops.** Deactivating an inactive role, reactivating an active one, or a PATCH with the same
    names and the same saved key set → 200, nothing written, no audit row, no cache bump.
 7. **Inactive roles grant nothing** (already true in `effectivePermissions`); an inactive role can
    still be edited (mock).
 8. **Granting is bounded by the actor's own keys.** TODO(spec): neither PRD nor mock settles who
    may grant what. Conservative reading implemented: a create or update may only ADD keys the actor
-   currently holds (effective, module-filtered); otherwise `forbidden` (403). Removing keys and
-   keeping existing ones are not restricted. The Clinic Admin holds every catalogue key, so it is
+   currently holds (effective, module-filtered; a `clinic` key covers the same action at `branch`
+   scope, as in `grantFor`); otherwise `forbidden` (403). Removing keys and keeping existing ones
+   are not restricted. The Clinic Admin holds every catalogue key at clinic scope, so it is
    unaffected. Mirrored in the mock.
 9. **Pending invitations on a deactivated role.** TODO(spec): not counted by the deactivation rule
    (mock parity, story 51 speaks of users). Such an invitation cannot be accepted while the role is
@@ -116,7 +118,9 @@ One administrative `audit_log` row per committed change, `entity_type = 'role'`,
 `entity_id` = role id: `role.created` (`after`), `role.updated` / `role.deactivated` /
 `role.reactivated` (`before` + `after`). Snapshot allowlist: `nameAr`, `nameEn` (phone-like text
 masked with `maskPhonesInText`), `isActive`, `permissionKeys` (sorted). `writeClinicAudit` also
-runs `redactSecrets`.
+runs `redactSecrets`, whose secret-key rule matched `permissionKeys` (it ends in "key(s)"); the
+field is added to its structural exemptions (`@eyadex/observability`), since catalogue keys are
+not credentials.
 
 ## 8. Cache (ADR-0009)
 
