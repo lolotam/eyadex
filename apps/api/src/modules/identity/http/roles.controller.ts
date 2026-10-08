@@ -37,7 +37,6 @@ const logger = new Logger("roles");
 const actorOf = (request: ClinicRequest) => ({
   clinicId: request.clinicContext.clinicId,
   userId: request.clinicContext.userId,
-  permissions: request.clinicContext.permissions,
 });
 
 // Stories 46–52 (ADR-0017). The reads (`GET /v1/roles`, the catalogue) stay in access.controllers.ts;

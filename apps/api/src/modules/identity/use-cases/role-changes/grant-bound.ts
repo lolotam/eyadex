@@ -1,33 +1,54 @@
 import type { Tx } from "@eyadex/db";
 
 import { ApiError } from "../../../../shared/errors.ts";
-import { keysBeyondActor } from "../../domain/role-rules.ts";
-import { readEnabledModules, readRoleKeys } from "../../persistence/pg-role-store.ts";
+import {
+  decideRoleDefinition,
+  decideRoleGrant,
+  type BranchReach,
+} from "../../domain/grant-rules.ts";
+import { readGrantingMember, readRoleKeys } from "../../persistence/pg-role-store.ts";
 
-/** الفاعل كما الـ guard حلّه، ومعاه صلاحياته الفعلية (ADR-0017 حد المنح). */
+/** الفاعل: عضو العيادة اللي الـ guard حلّه (صلاحياته بتتقري من الداتابيز هنا، مش من السياق). */
 export interface GrantingActor {
   readonly clinicId: string;
-  readonly permissions: readonly string[];
+  readonly userId: string;
 }
 
 /**
- * يرفض (`forbidden`) أي عملية بتحطّ حد على دور فيه مفتاح فعّال الفاعل مايملكوش: تغيير دور عضو،
- * دعوة، إعادة إرسال الدعوة أو نسخ رابطها، إعادة تفعيل عضو، وإعادة تفعيل الدور نفسه. المفاتيح
- * والموديولات بتتقري جوه نفس الـ transaction.
+ * يرفض (`forbidden`) كتابة تعريف دور إلا لو الفاعل، كما هو في الداتابيز دلوقتي، على كل الفروع
+ * ومفاتيحه المخزّنة بتغطي مفاتيح الدور. المنادي ماسك قفل `roles:` الأول (ADR-0017 §6).
+ *
+ * @param tx transaction العيادة
+ * @param actor الفاعل
+ * @param roleKeys مفاتيح الدور المستهدف
+ * @returns بيخلص لو مسموح
+ */
+export async function assertMayDefineRole(
+  tx: Tx,
+  actor: GrantingActor,
+  roleKeys: readonly string[],
+): Promise<void> {
+  const member = await readGrantingMember(tx, actor.clinicId, actor.userId);
+  if (decideRoleDefinition(member, roleKeys) === "forbidden") throw new ApiError("forbidden");
+}
+
+/**
+ * يرفض (`forbidden`) منح دور لحد إلا لو مفاتيح الفاعل المخزّنة بتغطي مفاتيح الدور، ووصول الهدف
+ * للفروع جوه وصول الفاعل. المنادي ماسك قفل `roles:` الأول (ADR-0017 §6).
  *
  * @param tx transaction العيادة
  * @param actor الفاعل
  * @param roleId الدور اللي بيتمنح
+ * @param target وصول العضو أو الدعوة للفروع بعد العملية
  * @returns بيخلص لو مسموح
  */
 export async function assertMayGrantRole(
   tx: Tx,
   actor: GrantingActor,
   roleId: string,
+  target: BranchReach,
 ): Promise<void> {
+  const member = await readGrantingMember(tx, actor.clinicId, actor.userId);
   const keys = await readRoleKeys(tx, actor.clinicId, roleId);
-  const modules = await readEnabledModules(tx, actor.clinicId);
-  if (keysBeyondActor(keys, [], actor.permissions, modules).length > 0) {
-    throw new ApiError("forbidden");
-  }
+  if (decideRoleGrant(member, keys, target) === "forbidden") throw new ApiError("forbidden");
 }

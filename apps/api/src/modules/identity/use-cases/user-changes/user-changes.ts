@@ -31,6 +31,7 @@ import {
   type MemberRow,
 } from "../../persistence/pg-user-store.ts";
 import { findUserView } from "../../queries/user-views.ts";
+import { lockClinicRoles } from "../../persistence/pg-role-store.ts";
 import { assertMayGrantRole } from "../role-changes/grant-bound.ts";
 
 export interface UserChangesDeps {
@@ -39,11 +40,10 @@ export interface UserChangesDeps {
   readonly ids: IdGenerator;
 }
 
-/** الفاعل: عضو العيادة اللي الـ guard حلّه، ومعاه صلاحياته الفعلية (حد المنح، ADR-0017). */
+/** الفاعل: عضو العيادة اللي الـ guard حلّه؛ حقه في المنح بيتقري من الداتابيز (ADR-0017 §6). */
 export interface UserActor {
   readonly clinicId: string;
   readonly userId: string;
-  readonly permissions: readonly string[];
 }
 
 /** نتيجة تغيير: العضو بعده، اتغيّر ولا لأ، و`revoke` = حساب جلساته لازم تتلغي بعد الـ commit. */
@@ -95,7 +95,8 @@ export class UserChanges {
       if (roleId === before.roleId) return null;
       const target = await activeRole(tx, actor.clinicId, roleId);
       await assertMayTouchAdmin(tx, actor, [target.systemKey]);
-      await assertMayGrantRole(tx, actor, target.id);
+      // The member keeps its branch scope, so it must sit inside the actor's too.
+      await assertMayGrantRole(tx, actor, target.id, before);
       const admins = await countActiveAdmins(tx, actor.clinicId);
       const decision = decideRoleChange(before, before.roleId, target, admins);
       if (decision === "same") return null;
@@ -127,6 +128,11 @@ export class UserChanges {
       // The stranded-members count of a branch deactivation reads these links under the branch lock.
       await lockClinicBranches(tx, actor.clinicId);
       await assertActiveBranches(tx, actor.clinicId, branchIds);
+      // New branches grant the member's role there: the same bound as a role grant.
+      await assertMayGrantRole(tx, actor, before.roleId, {
+        allBranches: input.allBranches,
+        branchIds,
+      });
       const { clinicId } = actor;
       const { ids, clock } = this.deps;
       const newId = () => ids.newId();
@@ -175,7 +181,7 @@ export class UserChanges {
     return this.change(actor, memberId, async (tx, before) => {
       if (before.status === "active") return null;
       await activeRole(tx, actor.clinicId, before.roleId);
-      await assertMayGrantRole(tx, actor, before.roleId);
+      await assertMayGrantRole(tx, actor, before.roleId, before);
       // Under the branch lock, so a parallel branch deactivation cannot strand the member (ADR-0012 §16).
       await lockClinicBranches(tx, actor.clinicId);
       const reachable = await countActiveBranchesIn(tx, actor.clinicId, before.branchIds);
@@ -195,7 +201,8 @@ export class UserChanges {
     const { db, clock } = this.deps;
     const { clinicId } = actor;
     return db.withTenant(clinicId, async (tx) => {
-      // Users lock first, then the row: the same order in every path (ADR-0012).
+      // Roles lock, then users lock, then the row: the same order in every path (ADR-0012, 0017 §6).
+      await lockClinicRoles(tx, clinicId);
       await lockClinicUsers(tx, clinicId);
       const before = await findMemberForUpdate(tx, clinicId, memberId);
       if (before === null) throw new ApiError("not_found");

@@ -106,19 +106,19 @@ describe("granting bound on role writes (only keys the actor holds)", () => {
     expect(res.statusCode).toBe(201);
   });
 
-  it("NEGATIVE: update may keep a key the actor lacks, never add one", async () => {
+  it("NEGATIVE: an editor cannot touch a role holding a key it lacks, even to keep it", async () => {
     const id = await customRole(h, A.admin.clinicId, ["view:users:clinic"]);
     const keep = await patchRole(h, editor.cookie, id, {
       ...names(),
       permissionKeys: ["view:users:clinic", "view:roles:clinic"],
     });
-    expect(keep.statusCode).toBe(200);
+    expect([keep.statusCode, code(keep)]).toEqual([403, "forbidden"]);
     const add = await patchRole(h, editor.cookie, id, {
       ...names(),
-      permissionKeys: ["view:users:clinic", "view:branches:clinic"],
+      permissionKeys: ["view:roles:clinic"],
     });
     expect(add.statusCode).toBe(403);
-    expect((await roleRow(h, id)).keys).toEqual(["view:roles:clinic", "view:users:clinic"]);
+    expect((await roleRow(h, id)).keys).toEqual(["view:users:clinic"]);
   });
 });
 

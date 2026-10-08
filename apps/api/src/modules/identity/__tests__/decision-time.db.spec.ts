@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DATABASE } from "../../../shared/database.provider.ts";
 import { SecretSealer } from "@eyadex/secrets";
 import { closeHarness, openHarness, type Harness } from "../auth/__tests__/auth-http-harness.ts";
-import { INVITATION_LIFETIME_MS, SYSTEM_ROLES } from "../domain/system-roles.ts";
+import { INVITATION_LIFETIME_MS } from "../domain/system-roles.ts";
 import { AcceptInvitation } from "../use-cases/accept-invitation/accept-invitation.ts";
 import { InvitationChanges } from "../use-cases/invitation-changes/invitation-changes.ts";
 import { clinicWithMembers, settledOrBlocked } from "./access-fixtures.ts";
@@ -29,8 +29,6 @@ afterAll(async () => {
 });
 
 const MINUTE = 60_000;
-// The Clinic Admin's keys, as the guard would hand them to the use case.
-const ADMIN_KEYS = SYSTEM_ROLES.find((r) => r.key === "clinic_admin")!.permissions;
 const lockKey = (scope: "users" | "branches", clinicId: string) => `${scope}:${clinicId}`;
 
 /** A clock the test moves; every use case built here reads it. */
@@ -79,7 +77,7 @@ describe("decision time after the last lock (ADR-0012 §16)", () => {
   it("resend: a link that expired while waiting needs a free seat", async () => {
     const { D, invitationId, expiry } = await fullClinicWithExpiringInvitation();
     const clock = fakeClock(new Date(expiry.getTime() - MINUTE));
-    const actor = { clinicId: D.admin.clinicId, userId: D.admin.userId, permissions: ADMIN_KEYS };
+    const actor = { clinicId: D.admin.clinicId, userId: D.admin.userId };
     // Another seat write holds the users lock while the link expires, then takes the freed seat.
     const resending = whileLocked(
       lockKey("users", D.admin.clinicId),
@@ -96,7 +94,7 @@ describe("decision time after the last lock (ADR-0012 §16)", () => {
     const { D, doctor, expiry } = await fullClinicWithExpiringInvitation();
     const clock = fakeClock(new Date(expiry.getTime() - MINUTE));
     const decidedAt = new Date(expiry.getTime() + MINUTE);
-    const actor = { clinicId: D.admin.clinicId, userId: D.admin.userId, permissions: ADMIN_KEYS };
+    const actor = { clinicId: D.admin.clinicId, userId: D.admin.userId };
     const sent = await whileLocked(
       lockKey("users", D.admin.clinicId),
       () => invitationChanges(clock).invite(actor, inviteBody(doctor), randomUUID()),
@@ -111,7 +109,7 @@ describe("decision time after the last lock (ADR-0012 §16)", () => {
     const { D, invitationId, expiry } = await fullClinicWithExpiringInvitation();
     const clock = fakeClock(new Date(expiry.getTime() - 30 * MINUTE));
     const decidedAt = new Date(expiry.getTime() - 10 * MINUTE);
-    const actor = { clinicId: D.admin.clinicId, userId: D.admin.userId, permissions: ADMIN_KEYS };
+    const actor = { clinicId: D.admin.clinicId, userId: D.admin.userId };
     const resent = await whileLocked(
       lockKey("branches", D.admin.clinicId),
       () => invitationChanges(clock).resend(actor, invitationId),

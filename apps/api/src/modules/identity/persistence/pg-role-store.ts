@@ -2,6 +2,8 @@ import type { ClinicModule } from "@eyadex/contracts/clinics";
 import type { Tx } from "@eyadex/db";
 import { sql } from "drizzle-orm";
 
+import type { GrantingMember } from "../domain/grant-rules.ts";
+
 // SQL of the role writes (ADR-0017). Every function runs inside the caller's withTenant(clinicId)
 // transaction, so RLS confines it to that clinic.
 
@@ -131,4 +133,48 @@ export async function replaceRolePermissions(
           VALUES (${clinicId}, ${newId()}, ${roleId}, ${permission.id}, ${now.toISOString()}::timestamptz)`,
     );
   }
+}
+
+/**
+ * The first lock of every path that defines or grants a role (ADR-0017 §6): `roles:` before the
+ * `users:` and `branches:` locks (ADR-0012), so a revocation and a grant never interleave.
+ */
+export async function lockClinicRoles(tx: Tx, clinicId: string): Promise<void> {
+  await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${`roles:${clinicId}`}, 0))`);
+}
+
+/**
+ * The actor as the database holds it now — membership and role status, stored role keys of every
+ * module, and its active branches — never the cached, module-filtered request context.
+ */
+export async function readGrantingMember(
+  tx: Tx,
+  clinicId: string,
+  userId: string,
+): Promise<GrantingMember | null> {
+  const rows = await tx.execute<{
+    id: string;
+    status: string;
+    all_branches: boolean;
+    role_id: string;
+    role_active: boolean;
+  }>(
+    sql`SELECT m.id, m.status, m.all_branches, m.role_id, r.is_active AS role_active
+        FROM memberships m JOIN roles r ON r.clinic_id = m.clinic_id AND r.id = m.role_id
+        WHERE m.clinic_id = ${clinicId} AND m.user_id = ${userId}`,
+  );
+  const row = rows[0];
+  if (row === undefined) return null;
+  const branches = row.all_branches
+    ? []
+    : await tx.execute<{ branch_id: string }>(
+        sql`SELECT mb.branch_id FROM membership_branches mb
+            JOIN branches b ON b.clinic_id = mb.clinic_id AND b.id = mb.branch_id
+            WHERE mb.clinic_id = ${clinicId} AND mb.membership_id = ${row.id} AND b.is_active`,
+      );
+  return {
+    active: row.status === "active" && row.role_active,
+    keys: await readRoleKeys(tx, clinicId, row.role_id),
+    reach: { allBranches: row.all_branches, branchIds: branches.map((b) => b.branch_id) },
+  };
 }

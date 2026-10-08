@@ -1,7 +1,5 @@
 import type { ClinicModule } from "@eyadex/contracts/clinics";
-import { PERMISSION_CATALOG, type PermissionKey } from "@eyadex/contracts/permissions";
-
-import { grantFor } from "./permission-check.ts";
+import { PERMISSION_CATALOG } from "@eyadex/contracts/permissions";
 
 const MODULE_OF: ReadonlyMap<string, ClinicModule | null> = new Map(
   PERMISSION_CATALOG.map((p) => [p.key, p.module]),
@@ -48,34 +46,6 @@ export function mergeHiddenKeys(
   const kept = existing.filter((key) => !isEditableKey(key, enabledModules));
   const asked = requested.filter((key) => isEditableKey(key, enabledModules));
   return [...new Set([...asked, ...kept])].sort();
-}
-
-/**
- * حد المنح (ADR-0017): المفاتيح الفعّالة اللي العملية دي بتمنحها والفاعل نفسه مايملكهاش. قاعدة
- * واحدة لكل طريق بيدّي حد صلاحيات: إنشاء دور وتعديله (المفاتيح المضافة)، إعادة تفعيل دور، تغيير
- * دور عضو، دعوة على دور، إعادة إرسال الدعوة أو نسخ رابطها، وإعادة تفعيل عضو (مفاتيح الدور كلها من
- * الصفر). المفتاح الفعّال = في الكتالوج وموديوله مفتوح دلوقتي؛ مفتاح موديول مقفول مالوش أثر فمش
- * محسوب. مفتاح `clinic` عند الفاعل بيغطي نفس الفعل والمورد بنطاق `branch` زي `grantFor`. أدمن
- * العيادة شايل الكتالوج كله بنطاق `clinic` فمش متأثر.
- *
- * @param granted المفاتيح اللي هتبقى ممنوحة بعد العملية (مفاتيح الدور)
- * @param alreadyGranted المفاتيح اللي الدور كان بيمنحها قبلها (`[]` لما الدور بيتمنح من الأول)
- * @param actorKeys صلاحيات الفاعل الفعلية من سياق الطلب
- * @param enabledModules الموديولات المفتوحة للعيادة، مقروءة جوه transaction الكتابة
- * @returns المفاتيح اللي الفاعل مايقدرش يمنحها، مترتبة؛ فاضية = مسموح
- */
-export function keysBeyondActor(
-  granted: readonly string[],
-  alreadyGranted: readonly string[],
-  actorKeys: readonly string[],
-  enabledModules: readonly ClinicModule[],
-): string[] {
-  const before = new Set(alreadyGranted);
-  // An effective key is a catalogue key, so it is a PermissionKey.
-  const covered = (key: string) => grantFor(actorKeys, key as PermissionKey) !== null;
-  return [...new Set(granted)]
-    .filter((key) => isEditableKey(key, enabledModules) && !before.has(key) && !covered(key))
-    .sort();
 }
 
 /**

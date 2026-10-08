@@ -35,6 +35,7 @@ import {
   auditSnapshot,
   type UserActor,
 } from "../user-changes/user-changes.ts";
+import { lockClinicRoles } from "../../persistence/pg-role-store.ts";
 import { assertMayGrantRole } from "../role-changes/grant-bound.ts";
 import { assertSeat, invitationView, rotateInvitationLink } from "./invitation-rotation.ts";
 
@@ -84,6 +85,8 @@ export class InvitationChanges {
       hash: requestHash(input),
     };
     return db.withTenant(clinicId, async (tx) => {
+      // The roles lock first, in every path that grants a role (ADR-0017 §6).
+      await lockClinicRoles(tx, clinicId);
       const claimed = await claimClinicIdempotencyKey<{ invitationId: string }>(
         tx,
         claim,
@@ -107,7 +110,7 @@ export class InvitationChanges {
       const role = await activeRole(tx, clinicId, input.roleId);
       await assertActiveBranches(tx, clinicId, branchIds);
       await assertMayTouchAdmin(tx, actor, [role.systemKey]);
-      await assertMayGrantRole(tx, actor, role.id);
+      await assertMayGrantRole(tx, actor, role.id, { allBranches: input.allBranches, branchIds });
       await assertSeat(tx, clinicId, now);
       const id = ids.newId();
       const expiresAt = invitationExpiry(now);

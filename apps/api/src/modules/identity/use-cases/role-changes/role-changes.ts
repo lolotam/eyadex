@@ -16,7 +16,6 @@ import {
   decideRoleDeactivation,
   decideRoleReactivation,
   decideRoleUpdate,
-  keysBeyondActor,
   mergeHiddenKeys,
   roleAuditSnapshot,
   sameKeySet,
@@ -27,6 +26,7 @@ import {
   countRoleMembers,
   findRoleForUpdate,
   insertRole,
+  lockClinicRoles,
   readEnabledModules,
   replaceRolePermissions,
   saveRole,
@@ -34,6 +34,7 @@ import {
 } from "../../persistence/pg-role-store.ts";
 import { lockClinicBranches, lockClinicUsers } from "../../persistence/pg-user-store.ts";
 import { findRoleSummary } from "../../queries/role-summary.ts";
+import { assertMayDefineRole } from "./grant-bound.ts";
 
 export interface RoleChangesDeps {
   readonly db: Database;
@@ -41,11 +42,10 @@ export interface RoleChangesDeps {
   readonly ids: IdGenerator;
 }
 
-/** الفاعل: عضو العيادة اللي الـ guard حلّه، ومعاه صلاحياته الفعلية (حد المنح، rule 8). */
+/** الفاعل: عضو العيادة اللي الـ guard حلّه؛ حقه في تعريف الأدوار بيتقري من الداتابيز (ADR-0017 §6). */
 export interface RoleActor {
   readonly clinicId: string;
   readonly userId: string;
-  readonly permissions: readonly string[];
 }
 
 /** نتيجة تغيير: الدور بعده، وهل حصل تغيير فعلًا (عشان المنادي يبطّل الكاش بس لو اتغيّر). */
@@ -107,6 +107,7 @@ export class RoleChanges {
     };
     return mapNameClash(() =>
       db.withTenant(clinicId, async (tx) => {
+        await lockClinicRoles(tx, clinicId);
         const claimed = await claimClinicIdempotencyKey<{ roleId: string }>(
           tx,
           claim,
@@ -119,9 +120,7 @@ export class RoleChanges {
         }
         const modules = await readEnabledModules(tx, clinicId);
         const keys = mergeHiddenKeys(body.permissionKeys, [], modules);
-        if (keysBeyondActor(keys, [], actor.permissions, modules).length > 0) {
-          throw new ApiError("forbidden");
-        }
+        await assertMayDefineRole(tx, actor, keys);
         const role = { id: ids.newId(), nameAr: input.nameAr, nameEn: input.nameEn };
         await insertRole(tx, clinicId, role, now);
         await replaceRolePermissions(tx, clinicId, role.id, keys, () => ids.newId(), now);
@@ -149,9 +148,8 @@ export class RoleChanges {
       const keys = mergeHiddenKeys(input.permissionKeys, before.permissionKeys, modules);
       const after = { ...before, nameAr: input.nameAr, nameEn: input.nameEn, permissionKeys: keys };
       if (sameRole(before, after)) return null;
-      if (keysBeyondActor(keys, before.permissionKeys, actor.permissions, modules).length > 0) {
-        throw new ApiError("forbidden");
-      }
+      // The role as it will be; the role as it is was checked in change().
+      await assertMayDefineRole(tx, actor, keys);
       return { after, action: "role.updated" };
     });
   }
@@ -177,22 +175,18 @@ export class RoleChanges {
   }
 
   /**
-   * يرجّع دور معطّل؛ أعضاؤه (لو فيه) بيرجعلهم أثره. إعادة التفعيل منح لكل مفاتيحه الفعّالة من
-   * الصفر، فحد المنح بيسري عليها (من غيره، دور معطّل أقوى من الفاعل كان يرجع ويتسند له).
+   * يرجّع دور معطّل؛ أعضاؤه (لو فيه) بيرجعلهم أثره. حد التعريف (في `change`) بيمنع فاعل أضعف
+   * من الدور إنه يرجّعه.
    *
    * @param actor الفاعل
    * @param roleId الدور
    * @returns الدور بعد التفعيل؛ نشط أصلًا → مفيش تغيير
    */
   reactivate(actor: RoleActor, roleId: string): Promise<RoleChange> {
-    return this.change(actor, roleId, false, async (tx, before) => {
+    return this.change(actor, roleId, false, async (_tx, before) => {
       const decision = decideRoleReactivation(before);
       if (decision === "locked") throw new ApiError("role_locked");
       if (decision === "already_active") return null;
-      const modules = await readEnabledModules(tx, actor.clinicId);
-      if (keysBeyondActor(before.permissionKeys, [], actor.permissions, modules).length > 0) {
-        throw new ApiError("forbidden");
-      }
       return { after: { ...before, isActive: true }, action: "role.reactivated" };
     });
   }
@@ -207,12 +201,16 @@ export class RoleChanges {
     const { clinicId } = actor;
     return mapNameClash(() =>
       db.withTenant(clinicId, async (tx) => {
+        // roles → users → branches → row, in every path (ADR-0017 §6): the actor is read after them.
+        await lockClinicRoles(tx, clinicId);
         if (lockMembers) {
           await lockClinicUsers(tx, clinicId);
           await lockClinicBranches(tx, clinicId);
         }
         const before = await findRoleForUpdate(tx, clinicId, roleId);
         if (before === null) throw new ApiError("not_found");
+        // Every definition write needs an all-branch actor covering the role as it is.
+        await assertMayDefineRole(tx, actor, before.permissionKeys);
         const decided = await decide(tx, before);
         if (decided === null) {
           return { role: await this.reload(tx, clinicId, roleId), changed: false };
