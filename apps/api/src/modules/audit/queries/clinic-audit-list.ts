@@ -6,12 +6,12 @@ import {
 } from "@eyadex/contracts/audit-http";
 import { clinicAuditEntitySchema } from "@eyadex/contracts/organization";
 import type { Database } from "@eyadex/db";
+import { scrubAuditText } from "@eyadex/observability";
 import { sql } from "drizzle-orm";
 
 import { matchActors } from "../domain/audit-actors.ts";
 import { refIdsOf, withRefNames } from "../domain/audit-refs.ts";
 import { auditSnapshots } from "../domain/audit-snapshot.ts";
-import { shownText } from "../domain/audit-text.ts";
 import type { ClinicAuditScope } from "../ports/audit-readers.ts";
 import {
   actorCondition,
@@ -100,7 +100,7 @@ export async function listClinicAudit(
       return {
         id: row.id,
         at: new Date(row.at_key).toISOString(),
-        actorName: shownText(row.actor_name),
+        actorName: scrubAuditText(row.actor_name),
         action: row.action,
         entity,
         category: auditCategorySchema.parse(row.category),

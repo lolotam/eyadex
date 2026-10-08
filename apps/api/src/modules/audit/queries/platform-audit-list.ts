@@ -11,12 +11,12 @@ import {
   type PlatformAuditQuery,
 } from "@eyadex/contracts/audit-http";
 import type { Database } from "@eyadex/db";
+import { scrubAuditText } from "@eyadex/observability";
 import { sql } from "drizzle-orm";
 
 import { matchActors } from "../domain/audit-actors.ts";
 import { refIdsOf, withRefNames, type RefNames } from "../domain/audit-refs.ts";
 import { auditSnapshots } from "../domain/audit-snapshot.ts";
-import { shownText } from "../domain/audit-text.ts";
 import {
   actorCondition,
   afterCursor,
@@ -133,15 +133,15 @@ export async function listPlatformAudit(
     return {
       id: row.id,
       at: new Date(row.at_key).toISOString(),
-      actorName: shownText(row.actor_name),
+      actorName: scrubAuditText(row.actor_name),
       action: row.action,
       source: platformAuditSourceSchema.parse(row.source),
       entity,
       category: "administrative" as const,
       entityId: row.entity_id,
       clinicId: row.clinic_id,
-      clinicNameAr: row.name_ar === null ? null : shownText(row.name_ar),
-      clinicNameEn: row.name_en === null ? null : shownText(row.name_en),
+      clinicNameAr: row.name_ar === null ? null : scrubAuditText(row.name_ar),
+      clinicNameEn: row.name_en === null ? null : scrubAuditText(row.name_en),
       ...auditSnapshots(entity, parseDetails(row.details)),
     };
   });
@@ -199,8 +199,8 @@ export async function listPlatformAuditClinics(
   return platformAuditClinicOptionsResponseSchema.parse(
     rows.map((row) => ({
       id: row.id,
-      nameAr: shownText(row.name_ar),
-      nameEn: shownText(row.name_en),
+      nameAr: scrubAuditText(row.name_ar),
+      nameEn: scrubAuditText(row.name_en),
     })),
   );
 }

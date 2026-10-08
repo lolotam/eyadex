@@ -40,8 +40,9 @@ want filters by actor, action, entity and date.
    platform-account and platform-settings entries expose no field until their slices define one.
    `details.module` is copied into both sides.
    - **Every string the reader sees** — actor names, clinic names (list and options), every snapshot
-     string at any depth, resolved role/branch names — goes through `shownText`
-     (`domain/audit-text.ts`):
+     string at any depth, resolved role/branch names — goes through `scrubAuditText` /
+     `scrubAuditValue` (`@eyadex/observability` `audit-text.ts`, the same scrub the writers run before
+     a row is stored: patient access, role and member names — ADR-0018 item 7):
      1. NFKC;
      2. format and control characters removed;
      3. Arabic-Indic digits made ASCII;
@@ -54,7 +55,7 @@ want filters by actor, action, entity and date.
      (0013). An id the reader cannot name keeps null names.
    - These are current names, not names at write time.
    - The actor search matches the **shown** name only. The reader's visible actors are loaded, sanitized
-     with `shownText`, and matched in TS; SQL then filters by `actor_user_id` (or "no name" for
+     with `scrubAuditText`, and matched in TS; SQL then filters by `actor_user_id` (or "no name" for
      `Eyadex`), so rows and `total` never depend on a hidden value. The platform loads every name of
      `platform_audit_actors` for a search — fine at MVP scale.
    - `action` is a code the writers set, never user text, so it is not sanitized.
