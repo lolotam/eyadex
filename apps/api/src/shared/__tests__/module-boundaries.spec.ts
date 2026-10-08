@@ -40,7 +40,27 @@ const identityDeepImports = (module: string): string[] =>
       .map((target) => `${file.slice(modulesDir.length)}: ${target}`),
   );
 
+// apps/api/AGENTS.md: the audit module reads the audit relations only (0011, 0012, 0013, 0034); names
+// from memberships and roles (identity), branches and clinics (tenancy) come through its ports.
+const AUDIT_RELATIONS = [
+  "audit_log",
+  "platform_audit_actors",
+  "platform_audit_log",
+  "platform_clinic_admin_audit",
+];
+const auditSqlRelations = (): string[] =>
+  sourceFiles(join(modulesDir, "audit")).flatMap((file) =>
+    [...readFileSync(file, "utf8").matchAll(/\b(?:FROM|JOIN|UPDATE|INTO)\s+([a-z_]+)/g)]
+      .map(([, relation = ""]) => relation)
+      .filter((relation) => !AUDIT_RELATIONS.includes(relation))
+      .map((relation) => `${file.slice(modulesDir.length)}: ${relation}`),
+  );
+
 describe("module boundaries", () => {
+  it("the audit module's SQL names only the audit relations; other tables come through its ports", () => {
+    expect(auditSqlRelations()).toEqual([]);
+  });
+
   it("no module other than identity imports identity except through identity/index.ts", () => {
     const others = readdirSync(modulesDir).filter((name) => name !== "identity");
     expect(others).toEqual(expect.arrayContaining(["platform", "settings", "tenancy"]));
