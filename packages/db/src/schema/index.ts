@@ -6,6 +6,7 @@ export { memberships, membershipBranches, emailReservations } from "./membership
 export { invitations, invitationBranches } from "./invitations.ts";
 export { patients } from "./patients.ts";
 export { auditLog, platformAuditLog, platformClinicAdminAudit } from "./audit.ts";
+export { platformAuditActors } from "./audit-actors.ts";
 export {
   authUsers,
   authSessions,

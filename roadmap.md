@@ -46,6 +46,7 @@
 - [x] Worker production image (ADR-0015; Dokploy service: orchestrator)
 - [ ] Retention of dispatched and failed outbox rows (TODO(spec))
 - [ ] Slice 8: role CRUD (call `AuthorizationInvalidator`)
+- [x] Slice 10: audit log read — `GET /v1/clinic/audit`, `/v1/platform/audit` (+ `/clinics`); patient rows kept from the platform by grants; actor names via `platform_audit_actors` (ADR-0019, SQL 0034)
 - [ ] Reverse-proxy routes `app.`/`platform.` `/api/*` → api with `/api` stripped (orchestrator)
 
 ## Slice W1 — web wired to the real API

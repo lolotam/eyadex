@@ -32,6 +32,8 @@ export function AuditDetailDialog({ entry, timeZone, onClose }: Props) {
   const one = (value: unknown): string => {
     if (value && typeof value === "object" && "nameAr" in value && "nameEn" in value) {
       const named = value as { nameAr: unknown; nameEn: unknown };
+      // A role or branch the reader may not name comes as the id with null names.
+      if (named.nameAr === null && named.nameEn === null) return "—";
       return pick(String(named.nameAr), String(named.nameEn));
     }
     if (typeof value === "object") return "—";
