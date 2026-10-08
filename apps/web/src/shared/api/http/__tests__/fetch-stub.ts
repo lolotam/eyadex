@@ -138,3 +138,11 @@ export async function code(p: Promise<unknown>): Promise<{ code: string; details
   }
   return { code: "resolved" };
 }
+
+export const inspection = {
+  clinicNameAr: "ع",
+  clinicNameEn: "C",
+  email: "new@example.test",
+  fullName: "New Person",
+  expiresAt: "2026-02-01T00:00:00.000Z",
+};

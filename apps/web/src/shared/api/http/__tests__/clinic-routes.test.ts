@@ -8,6 +8,7 @@ import {
   USER,
   branchDetail,
   clientWith,
+  inspection,
   invitation,
   me,
   page,
@@ -53,16 +54,7 @@ function answer(call: Call) {
       },
     };
   if (path === "/api/v1/invitations" && call.method === "GET") return { body: page([invitation]) };
-  if (path === "/api/v1/invitations/inspect")
-    return {
-      body: {
-        clinicNameAr: "ع",
-        clinicNameEn: "C",
-        email: "new@example.test",
-        fullName: "New Person",
-        expiresAt: "2026-02-01T00:00:00.000Z",
-      },
-    };
+  if (path === "/api/v1/invitations/inspect") return { body: inspection };
   if (path === "/api/v1/invitations/accept")
     return { body: { clinicId: CLINIC, email: "new@example.test" } };
   if (path.endsWith("/link"))
