@@ -21,6 +21,7 @@ export {
 export { assertRouteAccess, registeredRoutes } from "./access/route-access-check.ts";
 export type { ClinicRequestContext, BranchScope } from "./access/clinic-context.ts";
 export { ClinicAccessModule } from "./clinic-access.module.ts";
+export { RolesModule } from "./roles.module.ts";
 export {
   AUTHORIZATION_INVALIDATOR,
   type AuthorizationInvalidator,

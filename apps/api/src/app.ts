@@ -29,6 +29,7 @@ import {
   AuthModule,
   InvitationsModule,
   registerAuthRoutes,
+  RolesModule,
   type AreaAuth,
   type AuthRateLimit,
 } from "./modules/identity/index.ts";
@@ -124,7 +125,7 @@ export function apiModule(
       ...(deps.mountAuth === true ? [AuthModule] : []),
       ...(deps.mountPlatform === true ? [PlatformModule] : []),
       ...(deps.mountInvitations === true ? [InvitationsModule] : []),
-      ...(deps.mountClinic === true ? [ClinicAccessModule, SettingsModule] : []),
+      ...(deps.mountClinic === true ? [ClinicAccessModule, SettingsModule, RolesModule] : []),
     ],
     controllers: [HealthController, ...controllers],
     providers: [
