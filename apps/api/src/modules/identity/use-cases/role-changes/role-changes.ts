@@ -1,9 +1,9 @@
-import { scrubPatientAuditText as scrubAuditText } from "../../../../shared/patient-audit-text.ts";
 import type { RoleSummary } from "@eyadex/contracts/access";
 import type { PermissionKey } from "@eyadex/contracts/permissions";
 import type { CreateRoleRequest, UpdateRoleRequest } from "@eyadex/contracts/role-admin";
 import { DatabaseError, type Database, type Tx } from "@eyadex/db";
 import type { IdGenerator } from "@eyadex/ids";
+import { scrubAuditText } from "@eyadex/observability";
 
 import {
   claimClinicIdempotencyKey,

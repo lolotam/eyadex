@@ -11,12 +11,13 @@ import {
   type PlatformAuditQuery,
 } from "@eyadex/contracts/audit-http";
 import type { Database } from "@eyadex/db";
+import { scrubAuditText } from "@eyadex/observability";
 import { sql } from "drizzle-orm";
 
 import { matchActors } from "../domain/audit-actors.ts";
 import { refIdsOf, withRefNames, type RefNames } from "../domain/audit-refs.ts";
 import { auditSnapshots } from "../domain/audit-snapshot.ts";
-import { shownText } from "../domain/audit-text.ts";
+import type { AuditNameReaders, BilingualName } from "../ports/audit-name-readers.ts";
 import {
   actorCondition,
   afterCursor,
@@ -41,8 +42,6 @@ interface Row {
   entity_id: string | null;
   clinic_id: string | null;
   clinic_key: string;
-  name_ar: string | null;
-  name_en: string | null;
   details: string;
 }
 
@@ -72,22 +71,24 @@ const ENTRIES = sql`(
 const NAMED = sql`(
   SELECT e.*, COALESCE(e.clinic_id, ${NO_CLINIC}::uuid) AS clinic_key,
          n.user_id IS NOT NULL AS actor_named,
-         COALESCE(n.full_name, ${UNNAMED_ACTOR}) AS actor_name, c.name_ar, c.name_en
+         COALESCE(n.full_name, ${UNNAMED_ACTOR}) AS actor_name
   FROM ${ENTRIES} e
   LEFT JOIN platform_audit_actors n ON n.user_id = e.actor_user_id
-  LEFT JOIN clinics c ON c.id = e.clinic_id
 ) AS named`;
 
 /**
  * سجل المنصة بـ cursor: أحداث المنصة + الأحداث الإدارية للعيادات، عبر العيادات كلها (من غير
- * عيادة سياق). صفوف المراجعين مش بتوصل هنا أصلاً لأن الدور ماعندوش grant عليها.
+ * عيادة سياق). صفوف المراجعين مش بتوصل هنا أصلاً لأن الدور ماعندوش grant عليها. أسماء العيادات
+ * والأدوار والفروع من ports السجل (tenancy و identity بينفّذوهم)، نداء واحد لكل نوع.
  *
  * @param db الـ pool على `eyadex_platform`
+ * @param readers قرّاء الأسماء
  * @param query الـ cursor والحد والفلاتر
  * @returns الصفحة، متحققة بالعقد الـ strict
  */
 export async function listPlatformAudit(
   db: Database,
+  readers: AuditNameReaders,
   query: PlatformAuditQuery,
 ): Promise<PlatformAuditListResponse> {
   const entities = query.entity === undefined ? platformAuditEntitySchema.options : [query.entity];
@@ -98,7 +99,7 @@ export async function listPlatformAudit(
   if (query.source !== undefined) conditions.push(sql`source = ${query.source}`);
   if (query.clinicId !== undefined) conditions.push(sql`clinic_id = ${query.clinicId}::uuid`);
   const cursor = afterCursor(query.cursor, "platform");
-  const { rows, total } = await db.withNoTenant(async (tx) => {
+  const { rows, total, clinicNames } = await db.withNoTenant(async (tx) => {
     if (query.actor !== undefined) {
       // Every name the platform may see; matched as shown, so the filter never reads a hidden value.
       const known = await tx.execute<{ user_id: string; full_name: string }>(
@@ -107,17 +108,22 @@ export async function listPlatformAudit(
       const actors = known.map((a) => ({ userId: a.user_id, name: a.full_name }));
       conditions.push(actorCondition(matchActors(query.actor, actors, UNNAMED_ACTOR)));
     }
+    const found = await tx.execute<Row>(
+      sql`SELECT id, ${INSTANT_TEXT} AS at_key, source, actor_name, action, entity, entity_id,
+                 clinic_id, clinic_key, details::text AS details
+          FROM ${NAMED}
+          WHERE ${where(cursor === null ? conditions : [...conditions, cursor])}
+          ORDER BY created_at DESC, id DESC, source DESC, clinic_key DESC
+          LIMIT ${query.limit + 1}`,
+    );
     return {
-      rows: await tx.execute<Row>(
-        sql`SELECT id, ${INSTANT_TEXT} AS at_key, source, actor_name, action, entity, entity_id,
-                   clinic_id, clinic_key, name_ar, name_en, details::text AS details
-            FROM ${NAMED}
-            WHERE ${where(cursor === null ? conditions : [...conditions, cursor])}
-            ORDER BY created_at DESC, id DESC, source DESC, clinic_key DESC
-            LIMIT ${query.limit + 1}`,
-      ),
+      rows: found,
       total: await tx.execute<{ total: number }>(
         sql`SELECT count(*)::int AS total FROM ${NAMED} WHERE ${where(conditions)}`,
+      ),
+      clinicNames: await readers.clinics.namesOf(
+        tx,
+        found.flatMap((row) => (row.clinic_id === null ? [] : [row.clinic_id])),
       ),
     };
   });
@@ -130,23 +136,25 @@ export async function listPlatformAudit(
   }));
   const items = page.map((row) => {
     const entity = platformAuditEntitySchema.parse(row.entity);
+    const clinic: BilingualName | undefined =
+      row.clinic_id === null ? undefined : clinicNames.get(row.clinic_id);
     return {
       id: row.id,
       at: new Date(row.at_key).toISOString(),
-      actorName: shownText(row.actor_name),
+      actorName: scrubAuditText(row.actor_name),
       action: row.action,
       source: platformAuditSourceSchema.parse(row.source),
       entity,
       category: "administrative" as const,
       entityId: row.entity_id,
       clinicId: row.clinic_id,
-      clinicNameAr: row.name_ar === null ? null : shownText(row.name_ar),
-      clinicNameEn: row.name_en === null ? null : shownText(row.name_en),
+      clinicNameAr: clinic === undefined ? null : scrubAuditText(clinic.nameAr),
+      clinicNameEn: clinic === undefined ? null : scrubAuditText(clinic.nameEn),
       ...auditSnapshots(entity, parseDetails(row.details)),
     };
   });
   return platformAuditListResponseSchema.parse({
-    items: await withClinicRefNames(db, items),
+    items: await withClinicRefNames(db, readers, items),
     nextCursor,
     total: Number(total[0]?.total ?? 0),
   });
@@ -160,7 +168,11 @@ type Item = {
 
 // Role and branch names are clinic rows: the platform reads them one clinic at a time inside that
 // clinic's context, with the SELECT it already holds (0013) — never a cross-clinic window for this.
-async function withClinicRefNames<T extends Item>(db: Database, items: readonly T[]): Promise<T[]> {
+async function withClinicRefNames<T extends Item>(
+  db: Database,
+  readers: AuditNameReaders,
+  items: readonly T[],
+): Promise<T[]> {
   const byClinic = new Map<string, RefNames>();
   for (const clinicId of new Set(items.map((item) => item.clinicId))) {
     if (clinicId === null) continue;
@@ -168,7 +180,10 @@ async function withClinicRefNames<T extends Item>(db: Database, items: readonly 
       items.filter((i) => i.clinicId === clinicId).flatMap((i) => [i.before, i.after]),
     );
     if (ids.roles.length + ids.branches.length === 0) continue;
-    byClinic.set(clinicId, await db.withTenant(clinicId, (tx) => readRefNames(tx, clinicId, ids)));
+    byClinic.set(
+      clinicId,
+      await db.withTenant(clinicId, (tx) => readRefNames(tx, readers, clinicId, ids)),
+    );
   }
   return items.map((item) => {
     const names = (item.clinicId !== null && byClinic.get(item.clinicId)) || NO_NAMES;
@@ -186,21 +201,19 @@ const NO_NAMES: RefNames = { roles: new Map(), branches: new Map() };
  * كل العيادات بالاسمين لفلتر العيادة في سجل المنصة (من غير حد للصفحات).
  *
  * @param db الـ pool على `eyadex_platform`
+ * @param readers قرّاء الأسماء (العيادات من tenancy)
  * @returns العيادات مرتبة بالاسم الإنجليزي
  */
 export async function listPlatformAuditClinics(
   db: Database,
+  readers: Pick<AuditNameReaders, "clinics">,
 ): Promise<PlatformAuditClinicOptionsResponse> {
-  const rows = await db.withNoTenant((tx) =>
-    tx.execute<{ id: string; name_ar: string; name_en: string }>(
-      sql`SELECT id, name_ar, name_en FROM clinics ORDER BY name_en, id`,
-    ),
-  );
+  const clinics = await db.withNoTenant((tx) => readers.clinics.listOptions(tx));
   return platformAuditClinicOptionsResponseSchema.parse(
-    rows.map((row) => ({
-      id: row.id,
-      nameAr: shownText(row.name_ar),
-      nameEn: shownText(row.name_en),
+    clinics.map((clinic) => ({
+      id: clinic.id,
+      nameAr: scrubAuditText(clinic.nameAr),
+      nameEn: scrubAuditText(clinic.nameEn),
     })),
   );
 }

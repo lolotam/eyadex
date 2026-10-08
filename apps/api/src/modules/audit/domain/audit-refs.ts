@@ -1,4 +1,4 @@
-import { shownText } from "./audit-text.ts";
+import { scrubAuditText } from "@eyadex/observability";
 
 type Snapshot = Record<string, unknown>;
 
@@ -44,7 +44,7 @@ export function refIdsOf(snapshots: readonly (Snapshot | null)[]): RefIds {
 
 /**
  * بيبدّل id الدور/الفرع بـ `{ id, nameAr, nameEn }` زي الـ mock. اسم مش متاح للقارئ → الاسمين
- * `null`. الأسماء نفسها بتعدّي على `shownText` زي أي نص معروض.
+ * `null`. الأسماء نفسها بتعدّي على `scrubAuditText` زي أي نص معروض.
  *
  * @param snapshot اللقطة بعد التنضيف
  * @param names الأسماء اللي اتقرت
@@ -58,8 +58,8 @@ export function withRefNames(snapshot: Snapshot | null, names: RefNames): Snapsh
     const found = map.get(value);
     return {
       id: value,
-      nameAr: found === undefined ? null : shownText(found.nameAr),
-      nameEn: found === undefined ? null : shownText(found.nameEn),
+      nameAr: found === undefined ? null : scrubAuditText(found.nameAr),
+      nameEn: found === undefined ? null : scrubAuditText(found.nameEn),
     };
   };
   for (const [keys, map] of [

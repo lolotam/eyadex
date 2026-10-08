@@ -53,12 +53,13 @@ fileNumber }`) only when the caller's view scope covers the existing file; other
    number, name (phones in it masked), phone (last 3 digits), gender, branch, status — no civil ID
    and no birth date (the audit sanitiser removes birth dates anyway, ADR-0001). The Phase-A mock's
    snapshot mirrors the field allowlist and the phone mask (masking phones inside the name is
-   API-only). Before the shared sanitiser, the writer runs a stricter patients-only pass over every
-   string but a UUID, at any depth (`shared/patient-audit-text.ts`): invisible format/control
-   characters (`\p{Cf}`, and `\p{Cc}` except ordinary whitespace) removed, NFKC plus Arabic-Indic
-   digits folded to ASCII, then every run of 8+ digits masked wherever it sits — 12+ digits replaced whole,
-   shorter runs keep their last 3 — so a civil ID or phone glued to a name, or typed in full-width or
-   Arabic-Indic digits, never reaches the append-only row.
+   API-only). Before the shared sanitiser, the writer runs the one audit text scrub over every
+   string but an id under its own key, at any depth (`scrubAuditValue`, `@eyadex/observability`
+   `audit-text.ts`, shared with the audit read side — ADR-0019 §6): invisible format/control
+   characters (`\p{Cf}`, `\p{Cc}`; tabs and line breaks become spaces) removed, NFKC plus Arabic-Indic
+   digits folded to ASCII, `redactSecrets`, then every run of 7+ digits masked wherever it sits — 12+
+   digits replaced whole, shorter runs keep their last 3 — so a civil ID or phone glued to a name, or
+   typed in full-width or Arabic-Indic digits, never reaches the append-only row.
 8. **Branch tables, through a port.** `branches` belongs to tenancy, so patients never queries it
    (apps/api/AGENTS.md). Patients defines `PatientBranchReader` (`ports/patient-branch-reader.ts`):
    `lockForFiling(tx, clinic, branch)` reads the target branch `FOR SHARE` inside the patients
