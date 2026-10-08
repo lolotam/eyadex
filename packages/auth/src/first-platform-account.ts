@@ -22,6 +22,23 @@ const MAX_EMAIL = 254;
 const MAX_NAME = 120;
 
 /**
+ * بيطبّع الحساب ويرفضه قبل أي اتصال لو الإيميل أو الاسم أو كلمة المرور برا الحدود.
+ *
+ * @param account الحساب الخام
+ * @returns الحساب بإيميل lowercase واسم من غير مسافات على الأطراف
+ */
+function normalizedAccount(account: FirstPlatformAccount): FirstPlatformAccount {
+  assertPassword(account.password);
+  const email = account.email.trim().toLowerCase();
+  if (email.length > MAX_EMAIL || !EMAIL.test(email)) throw new TypeError("email is not valid");
+  const name = account.name.trim();
+  if (name === "" || name.length > MAX_NAME) {
+    throw new TypeError(`name must be 1–${MAX_NAME} characters`);
+  }
+  return { email, name, password: account.password };
+}
+
+/**
  * بينشئ أول حساب منصة على داتابيز فاضية (ADR-0021) — مرة واحدة بس: لو فيه أي حساب منصة، أو الإيميل
  * محجوز لأي حد، بيرفض ومابيكتبش حاجة. الحجز (0015) بيفضل جوه transaction مفتوحة لحد ما Better Auth
  * يكتب المستخدم، فلو الإنشاء فشل الحجز بيترجع والتشغيل التاني يقدر يكمل. أول دخول بيطلب تسجيل TOTP.
@@ -34,13 +51,7 @@ export async function createFirstPlatformAccount(
   options: Omit<CreateAuthOptions, "area" | "basePath" | "maxConnections">,
   account: FirstPlatformAccount,
 ): Promise<FirstPlatformAccountResult> {
-  assertPassword(account.password);
-  const email = account.email.trim().toLowerCase();
-  if (email.length > MAX_EMAIL || !EMAIL.test(email)) throw new TypeError("email is not valid");
-  const name = account.name.trim();
-  if (name === "" || name.length > MAX_NAME) {
-    throw new TypeError(`name must be 1–${MAX_NAME} characters`);
-  }
+  const { email, name, password } = normalizedAccount(account);
   // Validates the options (eyadex_auth only, the secret, the cookie prefix) before any connection.
   const auth = createAuth({ ...options, area: "platform", maxConnections: 1 });
   const client = postgres(options.databaseUrl, {
@@ -58,7 +69,7 @@ export async function createFirstPlatformAccount(
       if (taken.length > 0) return { created: false, reason: "email_taken" };
       const [hold] = await tx<{ held: boolean }[]>`SELECT reserve_platform_email(${email}) AS held`;
       if (hold?.held !== true) return { created: false, reason: "email_taken" };
-      const { userId } = await auth.createUserAccount({ email, name, password: account.password });
+      const { userId } = await auth.createUserAccount({ email, name, password });
       return { created: true, userId };
     });
   } finally {

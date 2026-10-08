@@ -35,7 +35,7 @@ export const MIN_SECRET_LENGTH = 32;
 const AREAS: readonly string[] = ["platform", "clinic"];
 
 /** بادئة الـ cookies لو البيئة ماحددتش غيرها: أسماء الإنتاج تفضل `eyadex-<area>` (ADR-0021). */
-export const DEFAULT_COOKIE_PREFIX = "eyadex";
+const DEFAULT_COOKIE_PREFIX = "eyadex";
 
 // Lowercase words joined by single hyphens: Better Auth appends `.<cookie>` and https adds
 // `__Secure-` in front, so a dot, a space or an uppercase letter would not read back the same way.
