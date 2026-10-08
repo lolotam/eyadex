@@ -105,6 +105,9 @@ now + alertDays`, soonest first, `daysLeft` rounded up. The list filter `status`
   idempotency ledger (0025, scope `platform:team-invite:<actor>`) stores ids only. Inviting the email
   of an account that is still `invited` re-issues its link (new hash and expiry, new event, audited
   as `invited` again); any other existing account is `email_taken`.
+- **Actor re-check**: every team write re-reads the actor's own row after the team lock and refuses
+  with `account_disabled` unless it is still `active`, so a deactivation that commits while a request
+  waits for the lock wins (no self-reactivation).
 - **Deactivate / reactivate**: a global `pg_advisory_xact_lock('platform_team')`, the row `FOR
 UPDATE`, the clock after the locks. Deactivating the last `active` account →
   `last_active_platform_account` (409, ADM-02); an `invited` account kills its link. After commit
@@ -154,6 +157,9 @@ expires_at)` `ON CONFLICT DO NOTHING` and only when a row was inserted appends o
   on-behalf and clinic-provider messages keep their own name (ADR-0014). The name is read on a
   one-connection pool of its own: a send runs inside the invitation's or the team row's transaction,
   and a pool refuses a nested one.
+- **Changed bodies under one key** — a Resend `409 invalid_idempotent_request` means an earlier
+  attempt of the same event (its id is the key) was accepted and a value read at send time changed
+  since (the sender name, a clinic name); the worker counts it as sent instead of failing the event.
 - **Platform invitation mail** — `platform.team_invited`: open the sealed token, then on the platform
   pool hold the account row `FOR SHARE` through the send and mail only when it is still `invited`,
   unexpired and the hash matches; link `${PLATFORM_URL}/invite/<token>`; Arabic and English in one

@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { SecretSealer } from "@eyadex/secrets";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { clinicWithMembers } from "../../identity/__tests__/access-fixtures.ts";
+import { clinicWithMembers, settledOrBlocked } from "../../identity/__tests__/access-fixtures.ts";
 import {
   APP,
   call,
@@ -211,6 +211,30 @@ describe("the gate and deactivation (ADM-02)", () => {
       "invited",
     );
     expect((await pub("inspect", { token })).statusCode).toBe(404);
+  });
+
+  it("NEGATIVE: a deactivation that lands while a request waits for the team lock wins (no self-reactivation)", async () => {
+    const member = await createUser(h, h.areaAuth.of("platform"), "racer");
+    await joinPlatformTeam(h, member);
+    const cookie = await enrolledCookie(h, member.email);
+    // Another member's deactivation of this account, holding the team lock until it commits.
+    const other = await h.owner.reserve();
+    try {
+      await other`BEGIN`;
+      await other`SELECT pg_advisory_xact_lock(hashtextextended('platform_team', 0))`;
+      await other`UPDATE platform_accounts SET status = 'deactivated' WHERE id = ${member.userId}`;
+      // The request passed the gate (the change is not committed yet) and now waits for the lock.
+      const pending = post(`/v1/platform/team/${member.userId}/reactivate`, cookie);
+      await settledOrBlocked(h, pending);
+      await other`COMMIT`;
+      const res = await pending;
+      expect(res.statusCode).toBe(401);
+      expect(res.json().code).toBe("account_disabled");
+    } finally {
+      other.release();
+    }
+    const [row] = await h.owner`SELECT status FROM platform_accounts WHERE id = ${member.userId}`;
+    expect(row!["status"]).toBe("deactivated");
   });
 
   it("NEGATIVE: the last active platform account cannot be deactivated", async () => {

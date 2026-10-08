@@ -68,6 +68,15 @@ const snapshot = (a: PlatformAccountResponse) => ({
   status: a.status,
 });
 
+/**
+ * The guard checked the actor before the team lock; a deactivation that committed while this request
+ * waited for the lock must still win, or an account could reactivate itself (Codex r2, ADR-0020).
+ */
+async function assertActorActive(tx: Tx, actorUserId: string): Promise<void> {
+  const actor = await accountByUser(tx, actorUserId);
+  if (actor?.status !== "active") throw new ApiError("account_disabled");
+}
+
 const facts = (row: PlatformAccountRow) => ({
   status: row.status,
   joinedAt: row.joined_at === null ? null : new Date(row.joined_at),
@@ -139,6 +148,7 @@ export class PlatformTeamChanges {
       if (claim.kind === "conflict") throw new ApiError("idempotency_conflict");
       if (claim.kind === "replay") return this.current(tx, claim.response.accountId);
       await lockPlatformTeam(tx);
+      await assertActorActive(tx, actorUserId);
       const existing = await accountByEmail(tx, input.email, "update");
       const decision = decideInvite(existing);
       if (decision === "email_taken") throw new ApiError("email_taken");
@@ -242,6 +252,7 @@ export class PlatformTeamChanges {
     const { db, clock, ids } = this.deps;
     return db.withNoTenant(async (tx) => {
       await lockPlatformTeam(tx);
+      await assertActorActive(tx, actorUserId);
       const row = await accountById(tx, accountId, "update");
       if (row === null) throw new ApiError("not_found");
       const change = await decide(tx, row);
