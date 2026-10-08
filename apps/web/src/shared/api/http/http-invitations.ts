@@ -53,6 +53,7 @@ export function toPlatformPreview(answer: InspectPlatformInvitationResponse): In
     fullName: answer.fullName,
     email: answer.email,
     status: "pending",
+    area: "platform",
   };
 }
 

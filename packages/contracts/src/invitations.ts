@@ -68,6 +68,8 @@ export const invitationPreviewSchema = z.object({
   fullName: z.string(),
   email: z.string(),
   status: invitationStatusSchema,
+  /** Who invites: a clinic (absent) or the platform team (ADR-0020), so the page picks its copy. */
+  area: z.enum(["clinic", "platform"]).optional(),
 });
 export type InvitationPreview = z.infer<typeof invitationPreviewSchema>;
 
