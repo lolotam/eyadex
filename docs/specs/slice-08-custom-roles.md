@@ -81,12 +81,24 @@ stays.
    names and the same saved key set → 200, nothing written, no audit row, no cache bump.
 7. **Inactive roles grant nothing** (already true in `effectivePermissions`); an inactive role can
    still be edited (mock).
-8. **Granting is bounded by the actor's own keys.** TODO(spec): neither PRD nor mock settles who
-   may grant what. Conservative reading implemented: a create or update may only ADD keys the actor
-   currently holds (effective, module-filtered; a `clinic` key covers the same action at `branch`
-   scope, as in `grantFor`); otherwise `forbidden` (403). Removing keys and keeping existing ones
-   are not restricted. The Clinic Admin holds every catalogue key at clinic scope, so it is
-   unaffected. Mirrored in the mock.
+8. **Granting is bounded by the actor's own keys** (resolves the earlier TODO(spec) with the
+   conservative rule, ADR-0017 §6): one pure function, `keysBeyondActor` (`identity/domain/role-rules.ts`), decides every path that
+   puts someone on a role, and the actor may only grant effective keys it holds itself (a
+   `clinic` key covers the same action at `branch` scope, as `grantFor` does; a key of a
+   switched-off module has no effect and is not counted):
+   - role create and update: the keys they add (keeping or removing keys is free);
+   - role reactivation: every key of the role, from nothing (otherwise an actor with
+     `deactivate:roles` + `update:users` reactivates a dormant stronger role and assigns it to
+     itself);
+   - change role (`PATCH /v1/users/:id/role`), invite (`POST /v1/invitations`), resend and copy
+     link (both hand the role to someone; copy link hands the link to the actor) and member
+     reactivation: every key of the target role, through `assertMayGrantRole`
+     (`use-cases/role-changes/grant-bound.ts`, keys and modules read in the transaction).
+
+   Otherwise `forbidden` (403). The Clinic Admin holds the whole catalogue at clinic scope, so it
+   is unaffected, and the admin-role guard of ADR-0012 §15 stays as it is. The mock enforces the
+   same rule in one place (`enforceGrantable` in `mock-role-rules.ts`).
+
 9. **Pending invitations on a deactivated role.** TODO(spec): not counted by the deactivation rule
    (mock parity, story 51 speaks of users). Such an invitation cannot be accepted while the role is
    inactive (`invitationGrants` → `invitation_invalid`) and works again after reactivation.
@@ -150,7 +162,9 @@ API `test:db` (`identity/__tests__/roles-admin.db.spec.ts`, `role-options.db.spe
 - catalogue: unknown key / two scopes / write without view → `validation`.
 - module locked: the role's patients keys are kept on update; requested ones are dropped.
 - `role_in_use` with a count that includes deactivated members; free role deactivates/reactivates.
-- granting bound: an actor with `create:roles` but not `view:patients` cannot grant it.
+- granting bound (`role-grants.db.spec.ts`): reactivate-then-self-assign, change role to a stronger
+  role, member reactivation, invite, resend and copy link on a stronger role are refused; the
+  Clinic Admin still succeeds; create/update may not add a key the actor lacks.
 - audit row content (allowlisted keys, masked phone in a name).
 - RBAC-03: a member's `/v1/me` permissions change on the next request after a role update.
 - option reads: a role holding `view:users` but not `view:roles`/`view:branches` gets both lists;

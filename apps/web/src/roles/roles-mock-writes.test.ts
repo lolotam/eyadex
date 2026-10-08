@@ -68,7 +68,22 @@ describe("idempotent role create (mock)", () => {
   });
 });
 
-describe("granting bound (TODO(spec), mock)", () => {
+describe("idempotency is scoped by the actor, like the API (role:create:<userId>)", () => {
+  beforeEach(() => resetMockData());
+
+  it("two actors with the same key and different bodies each create their own role", async () => {
+    const editor = await personaWith(["view:roles:clinic", "create:roles:clinic"]);
+    const key = crypto.randomUUID();
+    const mine = await api.roles.create(admin(), { ...names("h"), permissionKeys: [] }, key);
+    const theirs = await api.roles.create(editor, { ...names("i"), permissionKeys: [] }, key);
+    expect(theirs.id).not.toBe(mine.id);
+    expect(theirs.nameEn).toBe("Role i");
+    const again = await api.roles.create(editor, { ...names("i"), permissionKeys: [] }, key);
+    expect(again.id).toBe(theirs.id);
+  });
+});
+
+describe("granting bound (ADR-0017, mock)", () => {
   beforeEach(() => resetMockData());
 
   it("create may only grant keys the actor holds", async () => {

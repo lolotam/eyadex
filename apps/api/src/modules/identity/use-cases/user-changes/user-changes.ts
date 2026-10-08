@@ -31,6 +31,7 @@ import {
   type MemberRow,
 } from "../../persistence/pg-user-store.ts";
 import { findUserView } from "../../queries/user-views.ts";
+import { assertMayGrantRole } from "../role-changes/grant-bound.ts";
 
 export interface UserChangesDeps {
   readonly db: Database;
@@ -38,10 +39,11 @@ export interface UserChangesDeps {
   readonly ids: IdGenerator;
 }
 
-/** الفاعل: عضو العيادة اللي الـ guard حلّه. */
+/** الفاعل: عضو العيادة اللي الـ guard حلّه، ومعاه صلاحياته الفعلية (حد المنح، ADR-0017). */
 export interface UserActor {
   readonly clinicId: string;
   readonly userId: string;
+  readonly permissions: readonly string[];
 }
 
 /** نتيجة تغيير: العضو بعده، اتغيّر ولا لأ، و`revoke` = حساب جلساته لازم تتلغي بعد الـ commit. */
@@ -93,6 +95,7 @@ export class UserChanges {
       if (roleId === before.roleId) return null;
       const target = await activeRole(tx, actor.clinicId, roleId);
       await assertMayTouchAdmin(tx, actor, [target.systemKey]);
+      await assertMayGrantRole(tx, actor, target.id);
       const admins = await countActiveAdmins(tx, actor.clinicId);
       const decision = decideRoleChange(before, before.roleId, target, admins);
       if (decision === "same") return null;
@@ -172,6 +175,7 @@ export class UserChanges {
     return this.change(actor, memberId, async (tx, before) => {
       if (before.status === "active") return null;
       await activeRole(tx, actor.clinicId, before.roleId);
+      await assertMayGrantRole(tx, actor, before.roleId);
       // Under the branch lock, so a parallel branch deactivation cannot strand the member (ADR-0012 §16).
       await lockClinicBranches(tx, actor.clinicId);
       const reachable = await countActiveBranchesIn(tx, actor.clinicId, before.branchIds);

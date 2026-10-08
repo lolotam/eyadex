@@ -18,7 +18,7 @@ import {
 } from "./role-fixtures.ts";
 import { act, customRole, memberOn, setMaxUsers } from "./user-fixtures.ts";
 
-// FLAG-02, story 51, the granting bound (TODO(spec)), AUD-01 and RBAC-03 for the role writes (ADR-0017).
+// FLAG-02, story 51, the granting bound, AUD-01 and RBAC-03 for the role writes (ADR-0017).
 let h: Harness;
 let A: Awaited<ReturnType<typeof clinicWithMembers>>;
 
@@ -77,7 +77,7 @@ describe("story 51: a role with members cannot be deactivated", () => {
   });
 });
 
-describe("granting bound (TODO(spec): only keys the actor holds)", () => {
+describe("granting bound on role writes (only keys the actor holds)", () => {
   let editor: Awaited<ReturnType<typeof memberOn>>;
   beforeAll(async () => {
     const keys = ["view:roles:clinic", "create:roles:clinic", "update:roles:clinic"];

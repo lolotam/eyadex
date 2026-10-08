@@ -51,25 +51,31 @@ export function mergeHiddenKeys(
 }
 
 /**
- * المفاتيح اللي الكتابة دي بتضيفها والفاعل نفسه مايملكهاش. TODO(spec): الـ PRD والـ mock
- * ماحددوش مين يمنح إيه؛ القراءة المتحفظة: الفاعل يضيف بس مفاتيح هو شايلها فعلًا (بعد فلترة
- * الموديولات)، ومفتاح `clinic` بيغطي نفس الفعل والمورد بنطاق `branch` زي `grantFor`. الحذف
- * والإبقاء مش مقيّدين. أدمن العيادة شايل الكتالوج كله بنطاق `clinic` فمش متأثر.
+ * حد المنح (ADR-0017): المفاتيح الفعّالة اللي العملية دي بتمنحها والفاعل نفسه مايملكهاش. قاعدة
+ * واحدة لكل طريق بيدّي حد صلاحيات: إنشاء دور وتعديله (المفاتيح المضافة)، إعادة تفعيل دور، تغيير
+ * دور عضو، دعوة على دور، إعادة إرسال الدعوة أو نسخ رابطها، وإعادة تفعيل عضو (مفاتيح الدور كلها من
+ * الصفر). المفتاح الفعّال = في الكتالوج وموديوله مفتوح دلوقتي؛ مفتاح موديول مقفول مالوش أثر فمش
+ * محسوب. مفتاح `clinic` عند الفاعل بيغطي نفس الفعل والمورد بنطاق `branch` زي `grantFor`. أدمن
+ * العيادة شايل الكتالوج كله بنطاق `clinic` فمش متأثر.
  *
- * @param saved المفاتيح النهائية بعد `mergeHiddenKeys`
- * @param existing مفاتيح الدور قبل الكتابة
+ * @param granted المفاتيح اللي هتبقى ممنوحة بعد العملية (مفاتيح الدور)
+ * @param alreadyGranted المفاتيح اللي الدور كان بيمنحها قبلها (`[]` لما الدور بيتمنح من الأول)
  * @param actorKeys صلاحيات الفاعل الفعلية من سياق الطلب
- * @returns المفاتيح الممنوعة، مترتبة؛ فاضية = مسموح
+ * @param enabledModules الموديولات المفتوحة للعيادة، مقروءة جوه transaction الكتابة
+ * @returns المفاتيح اللي الفاعل مايقدرش يمنحها، مترتبة؛ فاضية = مسموح
  */
 export function keysBeyondActor(
-  saved: readonly string[],
-  existing: readonly string[],
+  granted: readonly string[],
+  alreadyGranted: readonly string[],
   actorKeys: readonly string[],
+  enabledModules: readonly ClinicModule[],
 ): string[] {
-  const before = new Set(existing);
-  // Saved keys passed the catalogue contract, so each one is a PermissionKey.
+  const before = new Set(alreadyGranted);
+  // An effective key is a catalogue key, so it is a PermissionKey.
   const covered = (key: string) => grantFor(actorKeys, key as PermissionKey) !== null;
-  return saved.filter((key) => !before.has(key) && !covered(key)).sort();
+  return [...new Set(granted)]
+    .filter((key) => isEditableKey(key, enabledModules) && !before.has(key) && !covered(key))
+    .sort();
 }
 
 /**

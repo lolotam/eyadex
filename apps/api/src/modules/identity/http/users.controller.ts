@@ -54,6 +54,7 @@ export const idOf = (raw: string): string => {
 export const actorOf = (request: ClinicRequest) => ({
   clinicId: request.clinicContext.clinicId,
   userId: request.clinicContext.userId,
+  permissions: request.clinicContext.permissions,
 });
 
 // Stories 38–42, 44 (ADR-0012). `:id` is the membership id.

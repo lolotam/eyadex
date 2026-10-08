@@ -37,12 +37,25 @@ on PR #46 also deferred one item: the user editor read its pickers from `/v1/rol
    `users:` then `branches:` advisory locks (ADR-0012 order) and the role row lock: role changes,
    invites and member reactivations hold the first, invitation acceptance the second, so a holder
    cannot slip in between the count and the update. Create and update take only the row lock.
-6. **Granting bound.** TODO(spec): the PRD does not say who may grant what, and a holder of
-   `update:roles:clinic` could otherwise grant itself every key. Conservative reading: a write may
-   only ADD keys the actor holds (effective, module-filtered; a `clinic` key covers the same
-   action at `branch` scope, as `grantFor` does). Keeping or removing keys is free; the Clinic
-   Admin holds the whole catalogue at clinic scope, so it is unaffected. `forbidden` (403)
-   otherwise. The mock enforces the same.
+6. **Granting bound (resolves the earlier TODO(spec), conservative rule; Codex review of
+   `e098103`).** The PRD does not say who may grant what, and without a bound a holder of a role
+   write or of `update:users` could reach any key. Decision: one pure function, `keysBeyondActor` (`identity/domain/role-rules.ts`), decides every path that
+   puts someone on a role, and the actor may only grant effective keys it holds itself (a
+   `clinic` key covers the same action at `branch` scope, as `grantFor` does; a key of a
+   switched-off module has no effect and is not counted):
+   - role create and update: the keys they add (keeping or removing keys is free);
+   - role reactivation: every key of the role, from nothing (otherwise an actor with
+     `deactivate:roles` + `update:users` reactivates a dormant stronger role and assigns it to
+     itself);
+   - change role (`PATCH /v1/users/:id/role`), invite (`POST /v1/invitations`), resend and copy
+     link (both hand the role to someone; copy link hands the link to the actor) and member
+     reactivation: every key of the target role, through `assertMayGrantRole`
+     (`use-cases/role-changes/grant-bound.ts`, keys and modules read in the transaction).
+
+   Otherwise `forbidden` (403). The Clinic Admin holds the whole catalogue at clinic scope, so it
+   is unaffected, and the admin-role guard of ADR-0012 §15 stays as it is. The mock enforces the
+   same rule in one place (`enforceGrantable` in `mock-role-rules.ts`).
+
 7. **Idempotent create.** Scope `role:create:<userId>` in `clinic_idempotency_keys` (ADR-0011),
    hash over the parsed body with sorted keys (a key set is a set). Replay → same role, no second
    row or audit row, no cache bump; another body → `idempotency_conflict`.
@@ -73,6 +86,7 @@ on PR #46 also deferred one item: the user editor read its pickers from `/v1/rol
 - TODO(spec): a pending invitation on a deactivated role is not counted by rule 5 (mock parity;
   story 51 speaks of users). It cannot be accepted while the role is inactive (`invitationGrants`)
   and works again once the role is reactivated.
-- TODO(spec): the granting bound (6) needs an owner decision; lifting it is a one-function change
-  in `role-rules.ts` and `mock-roles.ts`.
+- Rule 6 also tightens slice-7 paths (change role, invite, resend, copy link, member
+  reactivation): a member with `update:users` or `create:users` but fewer keys than a role can no
+  longer hand that role out. Loosening it later is a change to one function per side.
 - The web offers role writes in both API modes (`roleWriteAccess` follows permissions only).

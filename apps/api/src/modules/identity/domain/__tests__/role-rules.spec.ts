@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { PERMISSION_CATALOG } from "@eyadex/contracts/permissions";
+
 import {
   decideRoleDeactivation,
   decideRoleReactivation,
@@ -45,23 +47,44 @@ describe("hidden module keys (PRD §4.8, FLAG-02)", () => {
   });
 });
 
-describe("granting bound (TODO(spec), rule 8)", () => {
-  it("returns only added keys the actor does not hold", () => {
+describe("granting bound (ADR-0017): one rule for every path that grants a role", () => {
+  const ON = ["patients"] as const;
+
+  it("returns the granted keys the actor does not hold", () => {
     expect(
-      keysBeyondActor(["view:patients:clinic", "view:users:clinic"], [], ["view:users:clinic"]),
+      keysBeyondActor(["view:patients:clinic", "view:users:clinic"], [], ["view:users:clinic"], ON),
     ).toEqual(["view:patients:clinic"]);
   });
 
-  it("a clinic-scope key covers granting the same action at branch scope, never the reverse", () => {
-    expect(keysBeyondActor(["create:patients:branch"], [], ["create:patients:clinic"])).toEqual([]);
-    expect(keysBeyondActor(["create:patients:clinic"], [], ["create:patients:branch"])).toEqual([
-      "create:patients:clinic",
-    ]);
+  it("a clinic-scope key covers the same action at branch scope, never the reverse", () => {
+    expect(keysBeyondActor(["create:patients:branch"], [], ["create:patients:clinic"], ON)).toEqual(
+      [],
+    );
+    expect(keysBeyondActor(["create:patients:clinic"], [], ["create:patients:branch"], ON)).toEqual(
+      ["create:patients:clinic"],
+    );
   });
 
-  it("keeping or removing keys is never restricted", () => {
-    expect(keysBeyondActor(["view:patients:clinic"], ["view:patients:clinic"], [])).toEqual([]);
-    expect(keysBeyondActor([], ["view:patients:clinic"], [])).toEqual([]);
+  it("keys already granted are not re-checked: keeping or removing them is free", () => {
+    expect(keysBeyondActor(["view:patients:clinic"], ["view:patients:clinic"], [], ON)).toEqual([]);
+    expect(keysBeyondActor([], ["view:patients:clinic"], [], ON)).toEqual([]);
+  });
+
+  it("granting a whole role (assign, invite, reactivate) checks every effective key", () => {
+    const role = ["view:users:clinic", "update:users:clinic"];
+    expect(keysBeyondActor(role, [], ["view:users:clinic"], ON)).toEqual(["update:users:clinic"]);
+    expect(keysBeyondActor(role, [], role, ON)).toEqual([]);
+  });
+
+  it("a key of a switched-off module has no effect, so it is not counted", () => {
+    expect(keysBeyondActor(["view:patients:branch"], [], [], [])).toEqual([]);
+    expect(keysBeyondActor(["view:patients:branch"], [], [], ON)).toEqual(["view:patients:branch"]);
+  });
+
+  it("the Clinic Admin's keys (whole catalogue at clinic scope) cover any role", () => {
+    const admin = PERMISSION_CATALOG.filter((p) => p.scope === "clinic").map((p) => p.key);
+    const every = PERMISSION_CATALOG.map((p) => p.key);
+    expect(keysBeyondActor(every, [], admin, ON)).toEqual([]);
   });
 });
 

@@ -119,7 +119,7 @@ export class RoleChanges {
         }
         const modules = await readEnabledModules(tx, clinicId);
         const keys = mergeHiddenKeys(body.permissionKeys, [], modules);
-        if (keysBeyondActor(keys, [], actor.permissions).length > 0) {
+        if (keysBeyondActor(keys, [], actor.permissions, modules).length > 0) {
           throw new ApiError("forbidden");
         }
         const role = { id: ids.newId(), nameAr: input.nameAr, nameEn: input.nameEn };
@@ -149,7 +149,7 @@ export class RoleChanges {
       const keys = mergeHiddenKeys(input.permissionKeys, before.permissionKeys, modules);
       const after = { ...before, nameAr: input.nameAr, nameEn: input.nameEn, permissionKeys: keys };
       if (sameRole(before, after)) return null;
-      if (keysBeyondActor(keys, before.permissionKeys, actor.permissions).length > 0) {
+      if (keysBeyondActor(keys, before.permissionKeys, actor.permissions, modules).length > 0) {
         throw new ApiError("forbidden");
       }
       return { after, action: "role.updated" };
@@ -177,17 +177,22 @@ export class RoleChanges {
   }
 
   /**
-   * يرجّع دور معطّل؛ أعضاؤه (لو فيه) بيرجعلهم أثره.
+   * يرجّع دور معطّل؛ أعضاؤه (لو فيه) بيرجعلهم أثره. إعادة التفعيل منح لكل مفاتيحه الفعّالة من
+   * الصفر، فحد المنح بيسري عليها (من غيره، دور معطّل أقوى من الفاعل كان يرجع ويتسند له).
    *
    * @param actor الفاعل
    * @param roleId الدور
    * @returns الدور بعد التفعيل؛ نشط أصلًا → مفيش تغيير
    */
   reactivate(actor: RoleActor, roleId: string): Promise<RoleChange> {
-    return this.change(actor, roleId, false, async (_tx, before) => {
+    return this.change(actor, roleId, false, async (tx, before) => {
       const decision = decideRoleReactivation(before);
       if (decision === "locked") throw new ApiError("role_locked");
       if (decision === "already_active") return null;
+      const modules = await readEnabledModules(tx, actor.clinicId);
+      if (keysBeyondActor(before.permissionKeys, [], actor.permissions, modules).length > 0) {
+        throw new ApiError("forbidden");
+      }
       return { after: { ...before, isActive: true }, action: "role.reactivated" };
     });
   }

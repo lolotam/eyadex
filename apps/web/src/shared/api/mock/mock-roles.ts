@@ -2,9 +2,11 @@ import type { Role } from "@eyadex/contracts/organization";
 import { roleInputSchema, type RoleInput } from "@eyadex/contracts/roles";
 import type { ApiClient } from "../api-client";
 import { ApiError } from "../api-error";
-import { authorize, effectivePermissions, type Actor } from "./mock-actor";
+import { authorize } from "./mock-actor";
 import { writeClinicAudit } from "./mock-audit";
 import {
+  enforceGrantable,
+  enforceGrantableRole,
   enforceNotLocked,
   enforceUniqueNames,
   findRole,
@@ -20,22 +22,6 @@ function parseInput(raw: RoleInput) {
   const result = roleInputSchema.safeParse(raw);
   if (!result.success) throw new ApiError("validation");
   return result.data;
-}
-
-/**
- * TODO(spec) (ADR-0017 rule 8): a write may only ADD keys the actor holds itself, as the API does;
- * a clinic-scope key covers the same action at branch scope. Keeping or removing keys is not
- * restricted. The clinic admin holds every key at clinic scope.
- */
-function enforceGrantable(db: MockState, actor: Actor, saved: string[], existing: string[]): void {
-  const held = new Set(effectivePermissions(db, actor));
-  const covered = (key: string) => {
-    const [action, resource] = key.split(":");
-    return held.has(key) || held.has(`${action}:${resource}:clinic`);
-  };
-  if (saved.some((key) => !existing.includes(key) && !covered(key))) {
-    throw new ApiError("forbidden");
-  }
 }
 
 /** The same key must carry the same request; a key set is a set, so its order does not count. */
@@ -66,10 +52,13 @@ function setActive(
   active: boolean,
 ) {
   const db = getState();
-  const { clinic, actorName } = authorize(db, persona, "deactivate", "roles");
+  const actor = authorize(db, persona, "deactivate", "roles");
+  const { clinic, actorName } = actor;
   const role = findRole(db, clinic.id, roleId);
   enforceNotLocked(role);
   if (role.isActive === active) return toRoleListItem(db, role);
+  // Reactivation grants the role's keys again, so the granting bound applies (ADR-0017).
+  if (active) enforceGrantableRole(db, actor, role.id);
   if (!active) {
     const count = memberCount(db, role);
     if (count > 0) throw new ApiError("role_in_use", undefined, { count });
@@ -109,7 +98,8 @@ export function createMockRoles(): ApiClient["roles"] {
       const actor = authorize(db, persona, "create", "roles");
       const { clinic, actorName } = actor;
       const input = parseInput(rawInput);
-      const replayKey = `${clinic.id}:${idempotencyKey}`;
+      // Scoped by the actor like the API (`role:create:<userId>`): two users never share a key.
+      const replayKey = `${clinic.id}:${actor.member.id}:${idempotencyKey}`;
       const previous = db.idempotentRoles?.[replayKey];
       if (previous) {
         if (previous.fingerprint !== fingerprintOf(input))

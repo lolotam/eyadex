@@ -42,11 +42,12 @@ export async function findRoleForUpdate(
     nameEn: row.name_en,
     isLocked: row.is_locked,
     isActive: row.is_active,
-    permissionKeys: await roleKeys(tx, clinicId, id),
+    permissionKeys: await readRoleKeys(tx, clinicId, id),
   };
 }
 
-async function roleKeys(tx: Tx, clinicId: string, roleId: string): Promise<string[]> {
+/** The role's keys, sorted (no lock: the caller holds whatever lock its rule needs). */
+export async function readRoleKeys(tx: Tx, clinicId: string, roleId: string): Promise<string[]> {
   const rows = await tx.execute<{ key: string }>(
     sql`SELECT p.key FROM role_permissions rp JOIN permissions p ON p.id = rp.permission_id
         WHERE rp.clinic_id = ${clinicId} AND rp.role_id = ${roleId} ORDER BY p.key`,

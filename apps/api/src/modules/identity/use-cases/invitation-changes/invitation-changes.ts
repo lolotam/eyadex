@@ -35,6 +35,7 @@ import {
   auditSnapshot,
   type UserActor,
 } from "../user-changes/user-changes.ts";
+import { assertMayGrantRole } from "../role-changes/grant-bound.ts";
 import { assertSeat, invitationView, rotateInvitationLink } from "./invitation-rotation.ts";
 
 /** نوع حدث الـ outbox اللي الـ dispatcher هيبعت بيه إيميل الدعوة (ADR-0006، ADR-0012). */
@@ -106,6 +107,7 @@ export class InvitationChanges {
       const role = await activeRole(tx, clinicId, input.roleId);
       await assertActiveBranches(tx, clinicId, branchIds);
       await assertMayTouchAdmin(tx, actor, [role.systemKey]);
+      await assertMayGrantRole(tx, actor, role.id);
       await assertSeat(tx, clinicId, now);
       const id = ids.newId();
       const expiresAt = invitationExpiry(now);
