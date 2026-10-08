@@ -26,7 +26,7 @@ import {
   paginate,
   toInvitationView,
 } from "./mock-user-rules";
-import { enforceGrantableRole } from "./mock-role-rules";
+import { enforceMayGrantRole } from "./mock-role-rules";
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -99,7 +99,7 @@ export function createMockInvitations(): ApiClient["invitations"] {
       enforceEmailFree(db, input.email);
       enforceAssignableRole(db, clinic.id, input.roleId);
       enforceMayTouchAdmin(db, role, input.roleId);
-      enforceGrantableRole(db, actor, input.roleId);
+      enforceMayGrantRole(db, actor, input.roleId, input);
       const branchIds = enforceAssignableBranches(db, clinic.id, input);
       enforceUserLimit(db, clinic.id);
       const now = Date.now();

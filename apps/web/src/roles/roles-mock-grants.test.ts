@@ -42,6 +42,8 @@ async function memberWith(keys: string[]) {
   if (!member) throw new Error("no member left");
   used.add(member.id);
   member.roleId = roleId;
+  member.allBranches = true;
+  member.branchIds = [];
   const persona: Persona = { kind: "custom", clinicId: clinicId(), memberId: member.id };
   return { persona, memberId: member.id };
 }
@@ -54,7 +56,7 @@ const inviteInput = (roleId: string) => ({
 });
 const forbidden = (p: Promise<unknown>) => expect(p).rejects.toMatchObject({ code: "forbidden" });
 
-describe("granting bound (mock)", () => {
+describe("role grants (ADR-0017 §6, mock)", () => {
   beforeEach(() => {
     resetMockData();
     used.clear();
@@ -95,6 +97,27 @@ describe("granting bound (mock)", () => {
     const sent = await api.invitations.invite(admin(), inviteInput(strong), crypto.randomUUID());
     await forbidden(api.invitations.resend(actor.persona, sent.id));
     await forbidden(api.invitations.copyLink(actor.persona, sent.id));
+  });
+
+  it("refuses a branch-scoped grantor giving a role to an all-branch member", async () => {
+    const weak = await roleWith(["view:users:clinic"]);
+    const actor = await memberWith(["view:users:clinic", "update:users:clinic"]);
+    const branch = getState().branches.find((b) => b.clinicId === clinicId() && b.isActive)!;
+    const self = getState().members.find((m) => m.id === actor.memberId)!;
+    self.allBranches = false;
+    self.branchIds = [branch.id];
+    const target = await memberWith(["view:users:clinic"]);
+    await forbidden(api.users.changeRole(actor.persona, target.memberId, { roleId: weak }));
+  });
+
+  it("counts a role's key of a switched-off module", async () => {
+    getState().features[clinicId()] = { patients: false };
+    const hidden = await roleWith([]);
+    getState()
+      .roles.find((r) => r.id === hidden)!
+      .permissions.push("view:patients:branch");
+    const actor = await memberWith(["view:users:clinic", "update:users:clinic"]);
+    await forbidden(api.users.changeRole(actor.persona, actor.memberId, { roleId: hidden }));
   });
 
   it("leaves the clinic admin unaffected", async () => {

@@ -36,25 +36,40 @@ on PR #46 also deferred one item: the user editor read its pickers from `/v1/rol
    the role, deactivated members included (mock `memberCount`). The count is read under the
    `users:` then `branches:` advisory locks (ADR-0012 order) and the role row lock: role changes,
    invites and member reactivations hold the first, invitation acceptance the second, so a holder
-   cannot slip in between the count and the update. Create and update take only the row lock.
-6. **Granting bound (resolves the earlier TODO(spec), conservative rule; Codex review of
-   `e098103`).** The PRD does not say who may grant what, and without a bound a holder of a role
-   write or of `update:users` could reach any key. Decision: one pure function, `keysBeyondActor` (`identity/domain/role-rules.ts`), decides every path that
-   puts someone on a role, and the actor may only grant effective keys it holds itself (a
-   `clinic` key covers the same action at `branch` scope, as `grantFor` does; a key of a
-   switched-off module has no effect and is not counted):
-   - role create and update: the keys they add (keeping or removing keys is free);
-   - role reactivation: every key of the role, from nothing (otherwise an actor with
-     `deactivate:roles` + `update:users` reactivates a dormant stronger role and assigns it to
-     itself);
-   - change role (`PATCH /v1/users/:id/role`), invite (`POST /v1/invitations`), resend and copy
-     link (both hand the role to someone; copy link hands the link to the actor) and member
-     reactivation: every key of the target role, through `assertMayGrantRole`
-     (`use-cases/role-changes/grant-bound.ts`, keys and modules read in the transaction).
+   cannot slip in between the count and the update. Every role write takes the `roles:` lock
+   first (rule 6).
+6. **Delegation model (Codex round 2 on `a2ace7d`; replaces the earlier
+   context-permission bound).** One domain module, `identity/domain/grant-rules.ts`, decides it
+   on the actor as the database holds it, never on the request context (that one is filtered by
+   module and cached for up to 30 s):
+   - **Role definition writes** (create, update, deactivate, reactivate): the actor's membership
+     and role are active, the membership has `allBranches = true` (roles are clinic-wide), and its
+     **stored** role keys — every module, switched-off ones included — cover the target role's
+     keys as they are and, for create/update, as they will be. A `clinic` key covers the same
+     action at `branch` scope (`grantFor`). TODO(spec): a looser delegation model needs an owner
+     decision.
+   - **Role grants** (change role, change branches, invite, resend, copy link, member
+     reactivation): the same stored-key coverage of the granted role, plus **data-scope
+     containment**: an all-branch target needs an all-branch actor; otherwise the target's
+     branches must be among the actor's active branches. Change role checks the member's
+     existing scope (it keeps it); change branches checks the new scope. Slice 7 enforced no
+     actor scope on invite or change branches, so nothing is duplicated.
+   - Otherwise 403 `forbidden`. It is a permission/scope check, never a role-name check; the Clinic
+     Admin (whole catalogue at clinic scope, all branches) passes everything, and ADR-0012 §15's
+     admin-role guard stays.
 
-   Otherwise `forbidden` (403). The Clinic Admin holds the whole catalogue at clinic scope, so it
-   is unaffected, and the admin-role guard of ADR-0012 §15 stays as it is. The mock enforces the
-   same rule in one place (`enforceGrantable` in `mock-role-rules.ts`).
+   **Where and when.** Every one of those paths takes `pg_advisory_xact_lock(hashtextextended(
+'roles:' || clinic_id, 0))` as its first lock, then its existing `users:` → `branches:` →
+   row locks, and only then reloads the actor (membership status, `all_branches`, active
+   branches, role status, `role_permissions`) — so a revocation committed while the request
+   waited is what the decision sees. Role update and deactivate are revocations and take the same
+   first lock. **No deadlock:** the advisory locks are always taken in the one order `roles:` →
+   `users:` → `branches:`, `roles:` only ever as the first statement-level lock of a transaction,
+   and no path takes `roles:` after any other lock; the paths that do not take `roles:` (branch
+   writes, invitation cancel and acceptance, worker) keep their unchanged ADR-0011/0012 orders,
+   which already start at `users:` or `branches:` or an invitation row and never wait for
+   `roles:`. Row locks (role row, membership row, invitation row) come after the advisory locks
+   in every path that takes `roles:`.
 
 7. **Idempotent create.** Scope `role:create:<userId>` in `clinic_idempotency_keys` (ADR-0011),
    hash over the parsed body with sorted keys (a key set is a set). Replay → same role, no second
@@ -86,7 +101,8 @@ on PR #46 also deferred one item: the user editor read its pickers from `/v1/rol
 - TODO(spec): a pending invitation on a deactivated role is not counted by rule 5 (mock parity;
   story 51 speaks of users). It cannot be accepted while the role is inactive (`invitationGrants`)
   and works again once the role is reactivated.
-- Rule 6 also tightens slice-7 paths (change role, invite, resend, copy link, member
-  reactivation): a member with `update:users` or `create:users` but fewer keys than a role can no
-  longer hand that role out. Loosening it later is a change to one function per side.
+- Rule 6 also tightens slice-7 paths (change role, change branches, invite, resend, copy link,
+  member reactivation): a member with `update:users` or `create:users` can only hand out roles its
+  own stored keys cover, inside its own branch scope. If a further review still finds a
+  delegation hole, the feature narrows to admin-equivalent actors only.
 - The web offers role writes in both API modes (`roleWriteAccess` follows permissions only).

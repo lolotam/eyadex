@@ -5,8 +5,7 @@ import { ApiError } from "../api-error";
 import { authorize } from "./mock-actor";
 import { writeClinicAudit } from "./mock-audit";
 import {
-  enforceGrantable,
-  enforceGrantableRole,
+  enforceMayDefineRole,
   enforceNotLocked,
   enforceUniqueNames,
   findRole,
@@ -55,10 +54,10 @@ function setActive(
   const actor = authorize(db, persona, "deactivate", "roles");
   const { clinic, actorName } = actor;
   const role = findRole(db, clinic.id, roleId);
+  // Every definition write needs an all-branch actor covering the role (ADR-0017 §6).
+  enforceMayDefineRole(db, actor, role.permissions);
   enforceNotLocked(role);
   if (role.isActive === active) return toRoleListItem(db, role);
-  // Reactivation grants the role's keys again, so the granting bound applies (ADR-0017).
-  if (active) enforceGrantableRole(db, actor, role.id);
   if (!active) {
     const count = memberCount(db, role);
     if (count > 0) throw new ApiError("role_in_use", undefined, { count });
@@ -109,7 +108,7 @@ export function createMockRoles(): ApiClient["roles"] {
       }
       enforceUniqueNames(db, clinic.id, input);
       const permissions = mergeHiddenKeys(db, clinic.id, input.permissionKeys, []);
-      enforceGrantable(db, actor, permissions, []);
+      enforceMayDefineRole(db, actor, permissions);
       const role: Role = {
         id: newId(),
         clinicId: clinic.id,
@@ -136,11 +135,12 @@ export function createMockRoles(): ApiClient["roles"] {
       const actor = authorize(db, persona, "update", "roles");
       const { clinic, actorName } = actor;
       const role = findRole(db, clinic.id, roleId);
+      enforceMayDefineRole(db, actor, role.permissions);
       enforceNotLocked(role);
       const input = parseInput(rawInput);
       enforceUniqueNames(db, clinic.id, input, role.id);
       const permissions = mergeHiddenKeys(db, clinic.id, input.permissionKeys, role.permissions);
-      enforceGrantable(db, actor, permissions, role.permissions);
+      enforceMayDefineRole(db, actor, permissions);
       const before = structuredClone(role);
       role.nameAr = input.nameAr;
       role.nameEn = input.nameEn;

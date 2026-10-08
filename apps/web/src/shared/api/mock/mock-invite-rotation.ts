@@ -2,7 +2,7 @@ import { computeInvitationStatus, INVITATION_TTL_DAYS } from "@eyadex/contracts/
 import { ApiError } from "../api-error";
 import type { Actor } from "./mock-actor";
 import { invitationAuditSnapshot, issueInviteToken } from "./mock-invite-tokens";
-import { enforceGrantableRole } from "./mock-role-rules";
+import { enforceMayGrantRole } from "./mock-role-rules";
 import type { MockState } from "./mock-store";
 import {
   enforceAssignableBranches,
@@ -29,7 +29,7 @@ export function rotateInvitationLink(db: MockState, actor: Actor, invitationId: 
   enforceAssignableBranches(db, actor.clinic.id, inv);
   enforceMayTouchAdmin(db, actor.role, inv.roleId);
   // Resend mails a link and copy-link hands one to the actor: both grant the role (ADR-0017).
-  enforceGrantableRole(db, actor, inv.roleId);
+  enforceMayGrantRole(db, actor, inv.roleId, inv);
   if (status === "expired") {
     // An expired invitation stops counting; renewing it must fit the limit and the email rule again.
     enforceUserLimit(db, actor.clinic.id);

@@ -45,7 +45,7 @@
 - [x] Slice 7c-2b: route clinic mail through the clinic provider, failure count, degrade after 3
 - [x] Worker production image (ADR-0015; Dokploy service: orchestrator)
 - [ ] Retention of dispatched and failed outbox rows (TODO(spec))
-- [x] Slice 8: custom roles — create/update/deactivate/reactivate with the locked admin role, hidden module keys kept, unique names, idempotent create, `role_in_use`, granting bound on every path that grants a role, audit + cache bump; user editor options under `view:users` (`/v1/users/role-options`, `/branch-options`, deferred from PR #46) (ADR-0017, no SQL)
+- [x] Slice 8: custom roles — create/update/deactivate/reactivate with the locked admin role, hidden module keys kept, unique names, idempotent create, `role_in_use`, delegation model (stored keys + branch scope under a `roles:` lock) on every path that defines or grants a role, audit + cache bump; user editor options under `view:users` (`/v1/users/role-options`, `/branch-options`, deferred from PR #46) (ADR-0017, no SQL)
 - [ ] Reverse-proxy routes `app.`/`platform.` `/api/*` → api with `/api` stripped (orchestrator)
 
 ## Slice W1 — web wired to the real API

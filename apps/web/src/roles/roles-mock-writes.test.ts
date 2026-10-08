@@ -35,6 +35,8 @@ async function personaWith(keys: string[]): Promise<Persona> {
   );
   if (!member) throw new Error("no member");
   member.roleId = role.id;
+  member.allBranches = true; // roles are clinic-wide: definition writes need an all-branch actor
+  member.branchIds = [];
   return { kind: "custom", clinicId: clinicId(), memberId: member.id };
 }
 
@@ -83,7 +85,7 @@ describe("idempotency is scoped by the actor, like the API (role:create:<userId>
   });
 });
 
-describe("granting bound (ADR-0017, mock)", () => {
+describe("role definition writes (ADR-0017 §6, mock)", () => {
   beforeEach(() => resetMockData());
 
   it("create may only grant keys the actor holds", async () => {
@@ -103,23 +105,29 @@ describe("granting bound (ADR-0017, mock)", () => {
     expect(own.permissionKeys).toEqual(["view:roles:clinic"]);
   });
 
-  it("update may keep a key the actor lacks, never add one", async () => {
+  it("update may not touch a role holding a key the actor lacks, even to keep it", async () => {
     const target = await api.roles.create(
       admin(),
       { ...names("f"), permissionKeys: ["view:users:clinic"] },
       crypto.randomUUID(),
     );
     const editor = await personaWith(["view:roles:clinic", "update:roles:clinic"]);
-    const kept = await api.roles.update(editor, target.id, {
-      ...names("g"),
-      permissionKeys: ["view:users:clinic", "view:roles:clinic"],
-    });
-    expect(kept.permissionKeys).toEqual(["view:users:clinic", "view:roles:clinic"]);
     await expect(
       api.roles.update(editor, target.id, {
         ...names("g"),
-        permissionKeys: ["view:users:clinic", "view:branches:clinic"],
+        permissionKeys: ["view:users:clinic", "view:roles:clinic"],
       }),
+    ).rejects.toMatchObject({ code: "forbidden" });
+  });
+
+  it("a branch-scoped editor can do no role definition write", async () => {
+    const editor = await personaWith(["view:roles:clinic", "create:roles:clinic"]);
+    const member = getState().members.find((m) => m.id === editor.memberId)!;
+    const branch = getState().branches.find((b) => b.clinicId === clinicId() && b.isActive)!;
+    member.allBranches = false;
+    member.branchIds = [branch.id];
+    await expect(
+      api.roles.create(editor, { ...names("j"), permissionKeys: [] }, crypto.randomUUID()),
     ).rejects.toMatchObject({ code: "forbidden" });
   });
 });

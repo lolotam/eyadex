@@ -18,7 +18,7 @@ import {
   toUserView,
   userUsage,
 } from "./mock-user-rules";
-import { enforceGrantableRole } from "./mock-role-rules";
+import { enforceMayGrantRole } from "./mock-role-rules";
 
 function findMember(db: MockState, clinicId: string, id: string): MembershipUser {
   const member = db.members.find((m) => m.clinicId === clinicId && m.id === id);
@@ -93,7 +93,7 @@ export function createMockUsers(): ApiClient["users"] {
       const member = findMember(db, clinic.id, memberId);
       if (member.roleId === parsed.data.roleId) return toUserView(db, member);
       enforceAssignableRole(db, clinic.id, parsed.data.roleId);
-      enforceGrantableRole(db, actor, parsed.data.roleId);
+      enforceMayGrantRole(db, actor, parsed.data.roleId, member);
       enforceNotLastAdmin(db, member);
       const before = { ...member };
       member.roleId = parsed.data.roleId;
@@ -114,9 +114,15 @@ export function createMockUsers(): ApiClient["users"] {
       const parsed = changeBranchesInputSchema.safeParse(rawInput);
       if (!parsed.success) throw new ApiError("validation");
       const db = getState();
-      const { clinic, actorName } = authorize(db, persona, "update", "users");
+      const actor = authorize(db, persona, "update", "users");
+      const { clinic, actorName } = actor;
       const member = findMember(db, clinic.id, memberId);
       const branchIds = enforceAssignableBranches(db, clinic.id, parsed.data);
+      // New branches grant the member's role there (ADR-0017 §6).
+      enforceMayGrantRole(db, actor, member.roleId, {
+        allBranches: parsed.data.allBranches,
+        branchIds,
+      });
       const before = { ...member, branchIds: [...member.branchIds] };
       member.allBranches = parsed.data.allBranches;
       member.branchIds = branchIds;
@@ -164,7 +170,7 @@ export function createMockUsers(): ApiClient["users"] {
       // A role or branch may have been deactivated while the account was off; reactivating must
       // not create an active account whose access points only at inactive assignments.
       enforceAssignableRole(db, clinic.id, member.roleId);
-      enforceGrantableRole(db, actor, member.roleId);
+      enforceMayGrantRole(db, actor, member.roleId, member);
       enforceAssignableBranches(db, clinic.id, {
         allBranches: member.allBranches,
         branchIds: member.branchIds,
