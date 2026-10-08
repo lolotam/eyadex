@@ -82,9 +82,10 @@ export async function createFirstPlatformAccount(
       const inTransaction = Object.assign(tx, { options: client.options });
       const auth = buildAuth(platform, inTransaction as unknown as postgres.Sql, false);
       const { userId } = await createAccountOn(auth, "platform", { email, name, password });
-      // ADR-0020: the platform gate needs the account's team row; written in this same transaction.
+      // ADR-0020: the platform gate needs the account's team row, and ADR-0021 its platform audit row
+      // (`platform_account.bootstrapped`, SQL 0039): both written by the link, in this transaction.
       const [link] = await tx<{ linked: boolean }[]>`
-        SELECT link_first_platform_account(${userId}, ${email}, ${name}) AS linked`;
+        SELECT link_first_platform_account(${userId}, ${email}, ${name}, ${options.ids.newId()}) AS linked`;
       if (link?.linked !== true) throw new TeamAlreadyActive();
       return { created: true, userId };
     });

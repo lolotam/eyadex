@@ -6,6 +6,8 @@ export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
   "www",
   "admin",
   "staging",
+  "staging-app",
+  "staging-platform",
   "cdn",
   "mail",
   "status",

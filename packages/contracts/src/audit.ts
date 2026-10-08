@@ -138,6 +138,7 @@ export const PLATFORM_ONLY_AUDIT_ACTIONS = [
   "platform_account.deactivated",
   "platform_account.reactivated",
   "platform_account.joined",
+  "platform_account.bootstrapped",
   "platform.settings_updated",
 ] as const;
 

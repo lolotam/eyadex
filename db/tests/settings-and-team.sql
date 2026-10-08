@@ -43,10 +43,10 @@ BEGIN
      OR has_table_privilege('eyadex_dispatcher', 'clinic_expiry_reminders', 'SELECT') THEN
     RAISE EXCEPTION 'REMINDERS: the ledger is append-only for eyadex_app and closed to others';
   END IF;
-  IF NOT has_function_privilege('eyadex_auth', 'link_first_platform_account(uuid, text, text)', 'EXECUTE')
-     OR has_function_privilege('eyadex_app', 'link_first_platform_account(uuid, text, text)', 'EXECUTE')
-     OR has_function_privilege('eyadex_platform', 'link_first_platform_account(uuid, text, text)', 'EXECUTE')
-     OR has_function_privilege('eyadex_dispatcher', 'link_first_platform_account(uuid, text, text)', 'EXECUTE') THEN
+  IF NOT has_function_privilege('eyadex_auth', 'link_first_platform_account(uuid, text, text, uuid)', 'EXECUTE')
+     OR has_function_privilege('eyadex_app', 'link_first_platform_account(uuid, text, text, uuid)', 'EXECUTE')
+     OR has_function_privilege('eyadex_platform', 'link_first_platform_account(uuid, text, text, uuid)', 'EXECUTE')
+     OR has_function_privilege('eyadex_dispatcher', 'link_first_platform_account(uuid, text, text, uuid)', 'EXECUTE') THEN
     RAISE EXCEPTION 'TEAM: only the auth bootstrap may link the first platform account';
   END IF;
   IF NOT (SELECT relrowsecurity AND relforcerowsecurity FROM pg_class WHERE relname = 'clinic_expiry_reminders') THEN
@@ -108,9 +108,12 @@ END $$;
 SET LOCAL ROLE eyadex_auth;
 DO $$
 BEGIN
-  IF current_setting('eyadex.test_team_populated', true) = 'yes'
-     AND link_first_platform_account('00000000-0000-7000-8000-0000000011d0', 'probe@example.test', 'Probe') THEN
-    RAISE EXCEPTION 'TEAM: a member was linked while the team already had one';
+  -- Nested on purpose: SQL does not promise to skip the right side of AND, so a single condition
+  -- would call the link on an empty team too.
+  IF current_setting('eyadex.test_team_populated', true) = 'yes' THEN
+    IF link_first_platform_account('00000000-0000-7000-8000-0000000011d0', 'probe@example.test', 'Probe', '00000000-0000-7000-8000-0000000011e0') THEN
+      RAISE EXCEPTION 'TEAM: a member was linked while the team already had one';
+    END IF;
   END IF;
 END $$;
 RESET ROLE;
@@ -118,10 +121,10 @@ UPDATE platform_accounts SET status = 'deactivated', updated_at = now() WHERE st
 SET LOCAL ROLE eyadex_auth;
 DO $$
 BEGIN
-  IF NOT link_first_platform_account('00000000-0000-7000-8000-0000000011d1', 'First@Example.test', 'First') THEN
+  IF NOT link_first_platform_account('00000000-0000-7000-8000-0000000011d1', 'First@Example.test', 'First', '00000000-0000-7000-8000-0000000011e1') THEN
     RAISE EXCEPTION 'TEAM: the first member was not linked';
   END IF;
-  IF link_first_platform_account('00000000-0000-7000-8000-0000000011d2', 'second@example.test', 'Second') THEN
+  IF link_first_platform_account('00000000-0000-7000-8000-0000000011d2', 'second@example.test', 'Second', '00000000-0000-7000-8000-0000000011e2') THEN
     RAISE EXCEPTION 'TEAM: a second active member was linked behind the team';
   END IF;
 END $$;
@@ -130,6 +133,21 @@ DO $$
 BEGIN
   IF (SELECT count(*) FROM platform_accounts WHERE email = 'first@example.test' AND status = 'active') <> 1 THEN
     RAISE EXCEPTION 'TEAM: the linked first member is not active';
+  END IF;
+  -- ADR-0021 (0039): the bootstrap link writes its platform audit row, once, with no name as typed.
+  IF (SELECT count(*) FROM platform_audit_log WHERE id = '00000000-0000-7000-8000-0000000011e1'
+        AND action = 'platform_account.bootstrapped'
+        AND actor_user_id = '00000000-0000-7000-8000-0000000011d1'
+        AND details -> 'after' ->> 'email' = 'first@example.test'
+        AND NOT (details -> 'after') ? 'fullName') <> 1 THEN
+    RAISE EXCEPTION 'TEAM: the bootstrap link wrote no platform_account.bootstrapped audit row';
+  END IF;
+  IF EXISTS (SELECT 1 FROM platform_audit_log
+             WHERE id IN ('00000000-0000-7000-8000-0000000011e0', '00000000-0000-7000-8000-0000000011e2')) THEN
+    RAISE EXCEPTION 'TEAM: a refused link wrote an audit row';
+  END IF;
+  IF to_regprocedure('link_first_platform_account(uuid, text, text)') IS NOT NULL THEN
+    RAISE EXCEPTION 'TEAM: the link without an audit row (0037) still exists';
   END IF;
 END $$;
 

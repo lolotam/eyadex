@@ -366,7 +366,7 @@
 - الـ `web` container واحد ويخدم `app.` و `platform.` معًا؛ الفصل بالـ host وبالجلسة.
 - الـ cookies لا تُشارك بين `app.` و `platform.`.
 - إيميلات النظام تُرسل من دومين فرعي مخصص للإرسال (مثل `mail.eyadex.com`) حتى لا تتأثر سمعة الدومين الرئيسي.
-- قائمة الـ slugs المحجوزة (لا تُقبل كـ slug لعيادة): `app`، `platform`، `api`، `www`، `admin`، `staging`، `cdn`، `mail`، `status`، `docs`، `help`، `support`، `auth`، `static`، `assets`.
+- قائمة الـ slugs المحجوزة (لا تُقبل كـ slug لعيادة): `app`، `platform`، `api`، `www`، `admin`، `staging`، `staging-app`، `staging-platform`، `cdn`، `mail`، `status`، `docs`، `help`، `support`، `auth`، `static`، `assets`.
 
 ---
 
