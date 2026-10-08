@@ -107,6 +107,7 @@ jobs:
           EYADEX_TEST_OWNER_URL: postgres://eyadex_owner:ci-only-owner@localhost:5432/eyadex
           EYADEX_TEST_APP_URL: postgres://eyadex_app:ci-only-app@localhost:5432/eyadex
           EYADEX_TEST_DISPATCHER_URL: postgres://eyadex_dispatcher:ci-only-dispatcher@localhost:5432/eyadex
+          EYADEX_TEST_PLATFORM_URL: postgres://eyadex_platform:ci-only-platform@localhost:5432/eyadex
       - name: Better Auth database tests (@eyadex/auth)
         run: pnpm --filter @eyadex/auth test:db
         env:

@@ -118,6 +118,9 @@ UPDATE`, the clock after the locks. Deactivating the last `active` account →
   failed attempt reaches nothing: the gate needs the linked, active row. Rate limits as ADR-0008's,
   listed in `PUBLIC_V1_ROUTES`.
 - **Platform settings**: the singleton row `FOR UPDATE`, one audit row with before/after.
+- **`withNoTenant` for platform-global writes**: `platform_settings` and `platform_accounts` belong to no
+  clinic, so their writes run in `withNoTenant` on the platform pool (ADR-0019 §5 extended from reads);
+  every clinic table still answers zero rows there.
 - **New clinics** take `trialDays` from `platform_settings` when the create request carries neither
   `trialDays` nor `expiresAt` (read inside the onboarding transaction). The web sends neither.
 - **Privacy** (PLAT-02): every response schema is strict and has no patient field; the queries read
@@ -173,5 +176,6 @@ filters the clinic list by effective status and counts "expired" with the same b
   (optional `EXPIRY_SCAN_INTERVAL_MS`), and the owner's platform account must be checked active after
   0037's backfill. A platform account created later by hand needs its `platform_accounts` row.
 - Every platform request reads one row more (the gate).
+- CI's worker `test:db` step now also gets `EYADEX_TEST_PLATFORM_URL` (the scan and the team-link check).
 - The web has no "coming soon" page left in HTTP mode; the clinic-detail tabs ADR-0016 kept
   coming-soon (first-admin card, details write, members) are unchanged.

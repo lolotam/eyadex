@@ -6,7 +6,16 @@ import { SecretSealer } from "@eyadex/secrets";
 import { branchDeactivatedHandler } from "./branch-invitations/handle-branch-deactivated.ts";
 import { BRANCH_DEACTIVATED } from "./branch-invitations/domain/branch-event.ts";
 import { PgOrphanInvitationCanceller } from "./branch-invitations/persistence/pg-orphan-invitation-canceller.ts";
+import { expiryReminderDispatcher } from "./expiry-reminder/handle-expiry-reminder.ts";
+import { EXPIRY_REMINDER } from "./expiry-reminder/domain/reminder-rules.ts";
+import {
+  PgDueClinicFinder,
+  PgReminderLedger,
+  PgReminderStateReader,
+} from "./expiry-reminder/persistence/pg-reminder-store.ts";
+import { ExpiryReminderScanner } from "./expiry-reminder/scan-expiry-reminders.ts";
 import { invitationDispatcher } from "./invitation-mail/dispatch-invitation.ts";
+import { addressOf } from "./invitation-mail/domain/mail-address.ts";
 import { ADMIN_INVITED, USER_INVITED } from "./invitation-mail/domain/invitation-event.ts";
 import { decideFallback } from "./invitation-mail/domain/fallback-decision.ts";
 import { FallbackMailSender } from "./invitation-mail/mail/fallback-mail-sender.ts";
@@ -17,6 +26,10 @@ import { MAIL_PROVIDER_TEST_REQUESTED } from "./mail-provider-test/domain/test-e
 import { mailProviderTestHandler } from "./mail-provider-test/handle-test-requested.ts";
 import { RealClinicSenderFactory } from "./mail-provider-test/mail/clinic-sender-factory.ts";
 import { PgProviderTestStore } from "./mail-provider-test/persistence/pg-provider-test-store.ts";
+import { TEAM_INVITED } from "./platform-invite-mail/domain/team-invite.ts";
+import { teamInviteDispatcher } from "./platform-invite-mail/handle-team-invited.ts";
+import { PgTeamInviteStateReader } from "./platform-invite-mail/pg-team-invite-state.ts";
+import { NamedPlatformSender, platformSenderName } from "./shared/named-platform-sender.ts";
 import { routeEvents } from "./shared/event-router.ts";
 import { readConfig } from "./shared/config.ts";
 import { WORKER_LOG_EVENTS } from "./shared/log-events.ts";
@@ -31,13 +44,24 @@ try {
   const ids = systemUuidV7();
   const app = createDatabase({ url: config.DATABASE_URL, role: "eyadex_app", ids });
   const outbox = createDispatcherOutbox({ url: config.DISPATCHER_DATABASE_URL });
+  // ADR-0020: clinics + platform_settings for the expiry scan, platform_accounts for team links.
+  const platform = createDatabase({
+    url: config.PLATFORM_DATABASE_URL,
+    role: "eyadex_platform",
+    ids,
+  });
   const clock = { now: () => new Date() };
   const resend = new ResendMailSender({ apiKey: config.RESEND_API_KEY, from: config.MAIL_FROM });
   // ADR-0014: the SMTP fallback exists only when all four SMTP_* keys are set.
   const smtp = config.SMTP
     ? new SmtpMailSender(createSmtpTransport(config.SMTP), config.MAIL_FROM)
     : null;
-  const mail = smtp ? new FallbackMailSender(resend, smtp, decideFallback) : resend;
+  // Story 26: platform mail carries the sender name the platform team chose (ADR-0020).
+  const mail = new NamedPlatformSender(
+    smtp ? new FallbackMailSender(resend, smtp, decideFallback) : resend,
+    addressOf(config.MAIL_FROM),
+    platformSenderName(app),
+  );
   const providerSealer = new SecretSealer(config.MAIL_PROVIDER_SEAL_KEY);
   const clinicSenders = new RealClinicSenderFactory();
   const mailInvitation = invitationDispatcher({
@@ -61,6 +85,20 @@ try {
       clock,
       logger,
     }),
+    [EXPIRY_REMINDER]: expiryReminderDispatcher({
+      state: new PgReminderStateReader(app),
+      mail,
+      clock,
+      logger,
+    }),
+    [TEAM_INVITED]: teamInviteDispatcher({
+      sealer: new SecretSealer(config.OUTBOX_SEAL_KEY),
+      accounts: new PgTeamInviteStateReader(platform),
+      mail,
+      clock,
+      platformUrl: config.PLATFORM_URL,
+      logger,
+    }),
     [BRANCH_DEACTIVATED]: branchDeactivatedHandler({
       canceller: new PgOrphanInvitationCanceller(app, ids),
       clock,
@@ -75,13 +113,27 @@ try {
     intervalMs: config.OUTBOX_POLL_INTERVAL_MS,
     logger,
   });
+  // PRD §4.9: the daily reminder job; once per clinic per expiry date by the 0038 ledger.
+  const scanner = new ExpiryReminderScanner({
+    finder: new PgDueClinicFinder(platform),
+    ledger: new PgReminderLedger(app, ids),
+    clock,
+    logger,
+    intervalMs: config.EXPIRY_SCAN_INTERVAL_MS,
+  });
   const worker = await createWorker(
     {
-      stop: () => poller.stop(),
-      readiness: { app: () => app.ping(), dispatcher: () => outbox.ping() },
+      stop: async () => {
+        await Promise.all([poller.stop(), scanner.stop()]);
+      },
+      readiness: {
+        app: () => app.ping(),
+        dispatcher: () => outbox.ping(),
+        platform: () => platform.ping(),
+      },
       release: async () => {
         smtp?.close();
-        await Promise.all([app.close(), outbox.close()]);
+        await Promise.all([app.close(), outbox.close(), platform.close()]);
       },
     },
     logger,
@@ -95,6 +147,7 @@ try {
   watchShutdown({ logger, timeoutMs: SHUTDOWN_WATCHDOG_MS });
   await worker.listen({ host: config.WORKER_HOST, port: config.WORKER_PORT });
   poller.start();
+  scanner.start();
   logger.info({ capability: { name: "WORKER", state: "LISTENING" } }, "worker started");
 } catch (error) {
   // Only the sanitised diagnostic is logged — the error's message can carry an environment value.
