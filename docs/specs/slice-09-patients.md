@@ -96,7 +96,7 @@ applied by the use case / query (step 5), and RLS is the last line (step 6).
 | `patient.restored` | `{ before: snapshot, after: snapshot }`       |
 
 Snapshot allowlist: `id, fileNumber, fullName (phones in text masked), phone (last 3 digits),
-birthDate, gender, registrationBranchId, status`. **No civil ID in any form.** The writer still runs
+gender, registrationBranchId, status`. **No civil ID in any form**, and no birth date (the audit sanitiser removes it anyway, ADR-0001). The writer still runs
 `redactSecrets` as defence in depth. Written in the same transaction as the change / open.
 
 ## 7. Civil ID handling

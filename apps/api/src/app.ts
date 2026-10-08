@@ -32,6 +32,7 @@ import {
   type AreaAuth,
   type AuthRateLimit,
 } from "./modules/identity/index.ts";
+import { PatientsModule } from "./modules/patients/index.ts";
 import { PlatformModule } from "./modules/platform/index.ts";
 import { SettingsModule } from "./modules/settings/index.ts";
 import { EnvelopeExceptionFilter } from "./shared/exception.filter.ts";
@@ -68,8 +69,8 @@ export interface AppDependencies {
   readonly mountInvitations?: boolean;
   /**
    * Mounts the clinic request context behind the global access guard and `GET /v1/me`, `/v1/roles`,
-   * `/v1/permissions/catalogue`, `/v1/branches`, `/v1/users`, `/v1/invitations`, `/v1/clinic/mail-provider`
-   * (ADR-0009, 0011, 0012, 0014). Needs auth mounted, DATABASE_URL, REDIS_URL, OUTBOX_SEAL_KEY and
+   * `/v1/permissions/catalogue`, `/v1/branches`, `/v1/users`, `/v1/invitations`, `/v1/clinic/mail-provider`, `/v1/patients`
+   * (ADR-0009, 0011, 0012, 0014, 0018). Needs auth mounted, DATABASE_URL, REDIS_URL, OUTBOX_SEAL_KEY and
    * MAIL_PROVIDER_SEAL_KEY.
    */
   readonly mountClinic?: boolean;
@@ -124,7 +125,7 @@ export function apiModule(
       ...(deps.mountAuth === true ? [AuthModule] : []),
       ...(deps.mountPlatform === true ? [PlatformModule] : []),
       ...(deps.mountInvitations === true ? [InvitationsModule] : []),
-      ...(deps.mountClinic === true ? [ClinicAccessModule, SettingsModule] : []),
+      ...(deps.mountClinic === true ? [ClinicAccessModule, SettingsModule, PatientsModule] : []),
     ],
     controllers: [HealthController, ...controllers],
     providers: [
