@@ -1,4 +1,5 @@
 import type { RoleSummary } from "@eyadex/contracts/access";
+import type { PermissionKey } from "@eyadex/contracts/permissions";
 import type { CreateRoleRequest, UpdateRoleRequest } from "@eyadex/contracts/role-admin";
 import { DatabaseError, type Database, type Tx } from "@eyadex/db";
 import type { IdGenerator } from "@eyadex/ids";
@@ -34,7 +35,7 @@ import {
 } from "../../persistence/pg-role-store.ts";
 import { lockClinicBranches, lockClinicUsers } from "../../persistence/pg-user-store.ts";
 import { findRoleSummary } from "../../queries/role-summary.ts";
-import { assertMayDefineRole } from "./grant-bound.ts";
+import { assertActorMay, assertMayDefineRole } from "./grant-bound.ts";
 
 export interface RoleChangesDeps {
   readonly db: Database;
@@ -108,6 +109,8 @@ export class RoleChanges {
     return mapNameClash(() =>
       db.withTenant(clinicId, async (tx) => {
         await lockClinicRoles(tx, clinicId);
+        // Before any row, the idempotency claim included: the guard's grant may have been revoked.
+        await assertActorMay(tx, actor, "create:roles:clinic");
         const claimed = await claimClinicIdempotencyKey<{ roleId: string }>(
           tx,
           claim,
@@ -120,7 +123,7 @@ export class RoleChanges {
         }
         const modules = await readEnabledModules(tx, clinicId);
         const keys = mergeHiddenKeys(body.permissionKeys, [], modules);
-        await assertMayDefineRole(tx, actor, keys);
+        await assertMayDefineRole(tx, actor, "create:roles:clinic", keys);
         const role = { id: ids.newId(), nameAr: input.nameAr, nameEn: input.nameEn };
         await insertRole(tx, clinicId, role, now);
         await replaceRolePermissions(tx, clinicId, role.id, keys, () => ids.newId(), now);
@@ -142,14 +145,14 @@ export class RoleChanges {
    * @returns الدور بعد التعديل؛ مقفول → `role_locked`، مش في العيادة → `not_found`
    */
   update(actor: RoleActor, roleId: string, input: UpdateRoleRequest): Promise<RoleChange> {
-    return this.change(actor, roleId, false, async (tx, before) => {
+    return this.change(actor, roleId, "update:roles:clinic", false, async (tx, before) => {
       if (decideRoleUpdate(before) === "locked") throw new ApiError("role_locked");
       const modules = await readEnabledModules(tx, actor.clinicId);
       const keys = mergeHiddenKeys(input.permissionKeys, before.permissionKeys, modules);
       const after = { ...before, nameAr: input.nameAr, nameEn: input.nameEn, permissionKeys: keys };
       if (sameRole(before, after)) return null;
       // The role as it will be; the role as it is was checked in change().
-      await assertMayDefineRole(tx, actor, keys);
+      await assertMayDefineRole(tx, actor, "update:roles:clinic", keys);
       return { after, action: "role.updated" };
     });
   }
@@ -164,7 +167,7 @@ export class RoleChanges {
   deactivate(actor: RoleActor, roleId: string): Promise<RoleChange> {
     // Users lock, then branches lock (ADR-0012 order): role changes, invites and member
     // reactivations hold the first, invitation acceptance the second, so no holder slips in.
-    return this.change(actor, roleId, true, async (tx, before) => {
+    return this.change(actor, roleId, "deactivate:roles:clinic", true, async (tx, before) => {
       const count = await countRoleMembers(tx, actor.clinicId, roleId);
       const decision = decideRoleDeactivation(before, count);
       if (decision === "locked") throw new ApiError("role_locked");
@@ -183,7 +186,7 @@ export class RoleChanges {
    * @returns الدور بعد التفعيل؛ نشط أصلًا → مفيش تغيير
    */
   reactivate(actor: RoleActor, roleId: string): Promise<RoleChange> {
-    return this.change(actor, roleId, false, async (_tx, before) => {
+    return this.change(actor, roleId, "deactivate:roles:clinic", false, async (_tx, before) => {
       const decision = decideRoleReactivation(before);
       if (decision === "locked") throw new ApiError("role_locked");
       if (decision === "already_active") return null;
@@ -194,6 +197,7 @@ export class RoleChanges {
   private change(
     actor: RoleActor,
     roleId: string,
+    required: PermissionKey,
     lockMembers: boolean,
     decide: (tx: Tx, before: RoleRow) => Promise<Decision>,
   ): Promise<RoleChange> {
@@ -207,10 +211,12 @@ export class RoleChanges {
           await lockClinicUsers(tx, clinicId);
           await lockClinicBranches(tx, clinicId);
         }
+        // The route's own permission, on the actor as it is after the locks (`@Require` ran before).
+        await assertActorMay(tx, actor, required);
         const before = await findRoleForUpdate(tx, clinicId, roleId);
         if (before === null) throw new ApiError("not_found");
         // Every definition write needs an all-branch actor covering the role as it is.
-        await assertMayDefineRole(tx, actor, before.permissionKeys);
+        await assertMayDefineRole(tx, actor, required, before.permissionKeys);
         const decided = await decide(tx, before);
         if (decided === null) {
           return { role: await this.reload(tx, clinicId, roleId), changed: false };

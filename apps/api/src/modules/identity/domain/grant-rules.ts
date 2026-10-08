@@ -51,19 +51,38 @@ export function reachWithin(target: BranchReach, actor: BranchReach): boolean {
 }
 
 /**
+ * هل الفاعل، كما هو في الداتابيز دلوقتي، لسه شايل صلاحية الـ route نفسها؟ الـ guard قررها قبل ما
+ * الطلب يستنى القفل، وممكن تكون اتشالت وهو مستني (ADR-0017 §6). مفتاح `clinic` بيغطي `branch`.
+ *
+ * @param actor الفاعل من الداتابيز، أو `null` لو مالوش عضوية
+ * @param required الصلاحية اللي الـ route طالبها
+ * @returns `allowed` أو `forbidden`
+ */
+export function decideActorPermission(
+  actor: GrantingMember | null,
+  required: PermissionKey,
+): "allowed" | "forbidden" {
+  if (actor === null || !actor.active) return "forbidden";
+  return grantFor(actor.keys, required) === null ? "forbidden" : "allowed";
+}
+
+/**
  * كتابة تعريف دور (إنشاء، تعديل، تعطيل، إعادة تفعيل). TODO(spec): نموذج تفويض أوسع محتاج قرار
  * المالك. القراءة المتحفظة: الدور كيان على مستوى العيادة، فالفاعل لازم يكون على كل الفروع، ومفاتيحه
  * المخزّنة تغطي مفاتيح الدور المستهدف كلها. فحص صلاحيات ونطاق، مش فحص اسم دور.
  *
  * @param actor الفاعل من الداتابيز، أو `null` لو مالوش عضوية
+ * @param required صلاحية الـ route، بتتعاد هنا على المفاتيح المقروءة دلوقتي
  * @param roleKeys مفاتيح الدور المستهدف (قبل الكتابة وبعدها)
  * @returns `allowed` أو `forbidden`
  */
 export function decideRoleDefinition(
   actor: GrantingMember | null,
+  required: PermissionKey,
   roleKeys: readonly string[],
 ): "allowed" | "forbidden" {
-  if (actor === null || !actor.active || !actor.reach.allBranches) return "forbidden";
+  if (decideActorPermission(actor, required) === "forbidden") return "forbidden";
+  if (actor === null || !actor.reach.allBranches) return "forbidden";
   return uncoveredKeys(actor.keys, roleKeys).length === 0 ? "allowed" : "forbidden";
 }
 
@@ -72,16 +91,18 @@ export function decideRoleDefinition(
  * الفاعل المخزّنة تغطي مفاتيح الدور، ووصول الهدف للفروع جوه وصول الفاعل.
  *
  * @param actor الفاعل من الداتابيز، أو `null` لو مالوش عضوية
+ * @param required صلاحية الـ route، بتتعاد هنا على المفاتيح المقروءة دلوقتي
  * @param roleKeys مفاتيح الدور اللي بيتمنح، المخزّنة
  * @param target وصول العضو أو الدعوة للفروع بعد العملية
  * @returns `allowed` أو `forbidden`
  */
 export function decideRoleGrant(
   actor: GrantingMember | null,
+  required: PermissionKey,
   roleKeys: readonly string[],
   target: BranchReach,
 ): "allowed" | "forbidden" {
-  if (actor === null || !actor.active) return "forbidden";
+  if (decideActorPermission(actor, required) === "forbidden" || actor === null) return "forbidden";
   if (uncoveredKeys(actor.keys, roleKeys).length > 0) return "forbidden";
   return reachWithin(target, actor.reach) ? "allowed" : "forbidden";
 }

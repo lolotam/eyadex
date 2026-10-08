@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { SYSTEM_ROLES } from "../system-roles.ts";
 import {
+  decideActorPermission,
   decideRoleDefinition,
   decideRoleGrant,
   reachWithin,
@@ -48,38 +49,71 @@ describe("reachWithin (data-scope containment)", () => {
   });
 });
 
+describe("decideActorPermission (the route's own key, reloaded after the locks)", () => {
+  it("refuses an actor whose stored keys no longer hold the route's permission", () => {
+    expect(decideActorPermission(member(["create:roles:clinic"]), "create:roles:clinic")).toBe(
+      "allowed",
+    );
+    expect(decideActorPermission(member(["view:roles:clinic"]), "create:roles:clinic")).toBe(
+      "forbidden",
+    );
+    expect(
+      decideActorPermission(member(["create:roles:clinic"], ALL, false), "create:roles:clinic"),
+    ).toBe("forbidden");
+    expect(decideActorPermission(null, "create:roles:clinic")).toBe("forbidden");
+  });
+
+  it("a clinic key covers a branch requirement", () => {
+    expect(decideActorPermission(member(["view:patients:clinic"]), "view:patients:branch")).toBe(
+      "allowed",
+    );
+  });
+});
+
 describe("decideRoleDefinition (create, update, deactivate, reactivate)", () => {
-  it("needs an active, all-branch actor whose stored keys cover the role", () => {
-    const keys = ["view:roles:clinic", "view:users:clinic"];
-    expect(decideRoleDefinition(member(keys), ["view:users:clinic"])).toBe("allowed");
-    expect(decideRoleDefinition(member(keys), ["view:branches:clinic"])).toBe("forbidden");
-    expect(decideRoleDefinition(member(keys, branchA), [])).toBe("forbidden");
-    expect(decideRoleDefinition(member(keys, ALL, false), [])).toBe("forbidden");
-    expect(decideRoleDefinition(null, [])).toBe("forbidden");
+  const C = "create:roles:clinic";
+
+  it("needs the route key, an active all-branch actor, and stored keys covering the role", () => {
+    const keys = [C, "view:roles:clinic", "view:users:clinic"];
+    expect(decideRoleDefinition(member(keys), C, ["view:users:clinic"])).toBe("allowed");
+    expect(decideRoleDefinition(member(keys), C, ["view:branches:clinic"])).toBe("forbidden");
+    expect(decideRoleDefinition(member(keys, branchA), C, [])).toBe("forbidden");
+    expect(decideRoleDefinition(member(keys, ALL, false), C, [])).toBe("forbidden");
+    expect(decideRoleDefinition(null, C, [])).toBe("forbidden");
+  });
+
+  it("refuses an empty role once the route key is gone (Codex round 3)", () => {
+    expect(decideRoleDefinition(member(["view:roles:clinic"]), C, [])).toBe("forbidden");
   });
 
   it("the Clinic Admin covers every catalogue key, branch scopes included", () => {
     const every = ["view:patients:branch", "deactivate:patients:branch", "view:audit_log:clinic"];
-    expect(decideRoleDefinition(member(adminKeys), every)).toBe("allowed");
+    expect(decideRoleDefinition(member(adminKeys), C, every)).toBe("allowed");
   });
 });
 
 describe("decideRoleGrant (change role, branches, invite, resend, link, member reactivation)", () => {
-  const keys = ["view:users:clinic", "update:users:clinic"];
+  const U = "update:users:clinic";
+  const keys = ["view:users:clinic", U];
 
-  it("needs covering keys and a target scope inside the actor's", () => {
-    expect(decideRoleGrant(member(keys), ["view:users:clinic"], ALL)).toBe("allowed");
-    expect(decideRoleGrant(member(keys), ["view:branches:clinic"], ALL)).toBe("forbidden");
-    expect(decideRoleGrant(member(keys, branchA), ["view:users:clinic"], ALL)).toBe("forbidden");
-    expect(decideRoleGrant(member(keys, branchA), ["view:users:clinic"], branchA)).toBe("allowed");
-    expect(decideRoleGrant(member(keys, ALL, false), [], ALL)).toBe("forbidden");
+  it("needs the route key, covering keys and a target scope inside the actor's", () => {
+    expect(decideRoleGrant(member(keys), U, ["view:users:clinic"], ALL)).toBe("allowed");
+    expect(decideRoleGrant(member(keys), U, ["view:branches:clinic"], ALL)).toBe("forbidden");
+    expect(decideRoleGrant(member(keys, branchA), U, ["view:users:clinic"], ALL)).toBe("forbidden");
+    expect(decideRoleGrant(member(keys, branchA), U, ["view:users:clinic"], branchA)).toBe(
+      "allowed",
+    );
+    expect(decideRoleGrant(member(keys, ALL, false), U, [], ALL)).toBe("forbidden");
+    expect(decideRoleGrant(member(["view:users:clinic"]), U, [], ALL)).toBe("forbidden");
   });
 
   it("a hidden module key of the role is still a key to cover", () => {
-    expect(decideRoleGrant(member(keys), ["view:patients:branch"], ALL)).toBe("forbidden");
+    expect(decideRoleGrant(member(keys), U, ["view:patients:branch"], ALL)).toBe("forbidden");
   });
 
   it("the Clinic Admin grants any role anywhere", () => {
-    expect(decideRoleGrant(member(adminKeys), ["view:patients:branch"], branchA)).toBe("allowed");
+    expect(decideRoleGrant(member(adminKeys), U, ["view:patients:branch"], branchA)).toBe(
+      "allowed",
+    );
   });
 });

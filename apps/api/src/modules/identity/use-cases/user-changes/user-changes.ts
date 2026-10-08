@@ -1,3 +1,4 @@
+import type { PermissionKey } from "@eyadex/contracts/permissions";
 import type { ChangeBranchesInput } from "@eyadex/contracts/users";
 import type { MembershipUserView } from "@eyadex/contracts/users";
 import type { Database, Tx } from "@eyadex/db";
@@ -32,7 +33,7 @@ import {
 } from "../../persistence/pg-user-store.ts";
 import { findUserView } from "../../queries/user-views.ts";
 import { lockClinicRoles } from "../../persistence/pg-role-store.ts";
-import { assertMayGrantRole } from "../role-changes/grant-bound.ts";
+import { assertActorMay, assertMayGrantRole } from "../role-changes/grant-bound.ts";
 
 export interface UserChangesDeps {
   readonly db: Database;
@@ -90,13 +91,13 @@ export class UserChanges {
    * @returns العضو بعد التغيير
    */
   changeRole(actor: UserActor, memberId: string, roleId: string): Promise<UserChange> {
-    return this.change(actor, memberId, async (tx, before) => {
+    return this.change(actor, memberId, "update:users:clinic", async (tx, before) => {
       // A no-op first: re-sending the current role answers 200 even if that role is now inactive.
       if (roleId === before.roleId) return null;
       const target = await activeRole(tx, actor.clinicId, roleId);
       await assertMayTouchAdmin(tx, actor, [target.systemKey]);
       // The member keeps its branch scope, so it must sit inside the actor's too.
-      await assertMayGrantRole(tx, actor, target.id, before);
+      await assertMayGrantRole(tx, actor, "update:users:clinic", target.id, before);
       const admins = await countActiveAdmins(tx, actor.clinicId);
       const decision = decideRoleChange(before, before.roleId, target, admins);
       if (decision === "same") return null;
@@ -119,7 +120,7 @@ export class UserChanges {
     input: ChangeBranchesInput,
   ): Promise<UserChange> {
     const branchIds = input.allBranches ? [] : input.branchIds;
-    return this.change(actor, memberId, async (tx, before) => {
+    return this.change(actor, memberId, "update:users:clinic", async (tx, before) => {
       // A no-op first: re-sending the current set answers 200 even if one of them is now inactive.
       const same =
         before.allBranches === input.allBranches &&
@@ -129,7 +130,7 @@ export class UserChanges {
       await lockClinicBranches(tx, actor.clinicId);
       await assertActiveBranches(tx, actor.clinicId, branchIds);
       // New branches grant the member's role there: the same bound as a role grant.
-      await assertMayGrantRole(tx, actor, before.roleId, {
+      await assertMayGrantRole(tx, actor, "update:users:clinic", before.roleId, {
         allBranches: input.allBranches,
         branchIds,
       });
@@ -157,7 +158,7 @@ export class UserChanges {
    * @returns العضو بعد التعطيل
    */
   deactivate(actor: UserActor, memberId: string): Promise<UserChange> {
-    return this.change(actor, memberId, async (tx, before) => {
+    return this.change(actor, memberId, "deactivate:users:clinic", async (tx, before) => {
       const admins = await countActiveAdmins(tx, actor.clinicId);
       const decision = decideMemberDeactivation(before, admins);
       if (decision === "already_inactive") return null;
@@ -178,10 +179,10 @@ export class UserChanges {
    * @returns العضو بعد التفعيل؛ عند الحد → `limit_reached`، ومن غير فرع نشط → `branch_inactive`
    */
   reactivate(actor: UserActor, memberId: string): Promise<UserChange> {
-    return this.change(actor, memberId, async (tx, before) => {
+    return this.change(actor, memberId, "deactivate:users:clinic", async (tx, before) => {
       if (before.status === "active") return null;
       await activeRole(tx, actor.clinicId, before.roleId);
-      await assertMayGrantRole(tx, actor, before.roleId, before);
+      await assertMayGrantRole(tx, actor, "deactivate:users:clinic", before.roleId, before);
       // Under the branch lock, so a parallel branch deactivation cannot strand the member (ADR-0012 §16).
       await lockClinicBranches(tx, actor.clinicId);
       const reachable = await countActiveBranchesIn(tx, actor.clinicId, before.branchIds);
@@ -196,6 +197,7 @@ export class UserChanges {
   private change(
     actor: UserActor,
     memberId: string,
+    required: PermissionKey,
     decide: (tx: Tx, before: MemberRow) => Promise<Decision>,
   ): Promise<UserChange> {
     const { db, clock } = this.deps;
@@ -204,6 +206,8 @@ export class UserChanges {
       // Roles lock, then users lock, then the row: the same order in every path (ADR-0012, 0017 §6).
       await lockClinicRoles(tx, clinicId);
       await lockClinicUsers(tx, clinicId);
+      // The route's own permission, on the actor as it is after the locks (`@Require` ran before).
+      await assertActorMay(tx, actor, required);
       const before = await findMemberForUpdate(tx, clinicId, memberId);
       if (before === null) throw new ApiError("not_found");
       await assertMayTouchAdmin(tx, actor, [before.roleSystemKey]);

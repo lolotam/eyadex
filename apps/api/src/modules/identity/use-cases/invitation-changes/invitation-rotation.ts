@@ -21,7 +21,7 @@ import {
 } from "../../persistence/pg-user-store.ts";
 import { findInvitationView } from "../../queries/invitation-views.ts";
 import { lockClinicRoles } from "../../persistence/pg-role-store.ts";
-import { assertMayGrantRole } from "../role-changes/grant-bound.ts";
+import { assertActorMay, assertMayGrantRole } from "../role-changes/grant-bound.ts";
 import {
   assertMayTouchAdmin,
   usersLimitError,
@@ -69,6 +69,8 @@ export async function rotateInvitationLink(
   const { clinicId } = actor;
   await lockClinicRoles(tx, clinicId);
   await lockClinicUsers(tx, clinicId);
+  // Resend and copy-link share the route key; rechecked on the actor as it is after the locks.
+  await assertActorMay(tx, actor, "create:users:clinic");
   const locked = await findInvitationForUpdate(tx, clinicId, invitationId);
   if (locked === null) throw new ApiError("not_found");
   await lockClinicBranches(tx, clinicId);
@@ -82,7 +84,7 @@ export async function rotateInvitationLink(
   await assertActiveBranches(tx, clinicId, locked.allBranches ? [] : locked.branchIds);
   await assertMayTouchAdmin(tx, actor, [role.systemKey]);
   // Resend mails a link and copy-link hands one to the actor: both give the role to someone.
-  await assertMayGrantRole(tx, actor, role.id, locked);
+  await assertMayGrantRole(tx, actor, "create:users:clinic", role.id, locked);
   if (decision === "reoccupies_seat") await assertSeat(tx, clinicId, now);
   const before = await invitationView(tx, clinicId, invitationId, now);
   const expiresAt = invitationExpiry(now);
