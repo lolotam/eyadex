@@ -72,6 +72,16 @@ beforeAll(async () => {
     createdAt: "2031-02-02T00:00:00Z",
     details: { after: { fullName: "Someone", civilId: LEAKS.civilId, phone: LEAKS.phone } },
   });
+  // Patient access filed against a non-patient entity (0011 allows it): only the category keeps it
+  // out, and only the grant boundary sees the category — the API's entity list would let it through.
+  ids["patientOther"] = await seedAudit(h, {
+    ...admin,
+    action: "patient.exported",
+    category: "patient_access",
+    entityType: "clinic",
+    createdAt: "2031-02-02T00:00:01Z",
+    details: { after: { slug: LEAKS.civilId } },
+  });
   ids["feature"] = randomUUID();
   await h.owner`INSERT INTO platform_audit_log VALUES (${ids["feature"]}, ${staff.actorId},
     'clinic.feature_changed', ${A.admin.clinicId},
@@ -117,14 +127,15 @@ describe("PLAT-02: who may read the platform log", () => {
 
 describe("PLAT-01: patient access never reaches the platform", () => {
   it("a patient-access row is in no page, under no filter, and leaks nothing", async () => {
-    const everywhere = await every("", 100);
-    expect(everywhere.map((i) => i.id)).not.toContain(ids["patient"]);
+    const patientRows = [ids["patient"], ids["patientOther"]];
+    const everywhere = (await every("", 100)).map((i) => i.id);
+    for (const id of patientRows) expect(everywhere).not.toContain(id);
     const all = await inA();
     expect(all.map((i) => i.id)).toContain(ids["branch"]);
     expect((await body("action=patient.opened")).total).toBe(0);
-    expect(
-      (await body(`clinicId=${A.admin.clinicId}&source=clinic`)).items.map((i) => i.id),
-    ).not.toContain(ids["patient"]);
+    expect((await body("action=patient.exported")).total).toBe(0);
+    const clinicSide = (await inA("&source=clinic")).map((i) => i.id);
+    for (const id of patientRows) expect(clinicSide).not.toContain(id);
     for (const text of [JSON.stringify(all), h.logs.join("\n")]) {
       for (const value of Object.values(LEAKS)) expect(text).not.toContain(value);
     }
