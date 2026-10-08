@@ -48,6 +48,7 @@
 - [ ] Retention of dispatched and failed outbox rows (TODO(spec))
 - [x] Slice 8: custom roles — create/update/deactivate/reactivate with the locked admin role, hidden module keys kept, unique names, idempotent create, `role_in_use`, delegation model (stored keys + branch scope under a `roles:` lock) on every path that defines or grants a role, audit + cache bump; user editor options under `view:users` (`/v1/users/role-options`, `/branch-options`, deferred from PR #46) (ADR-0017, no SQL)
 - [x] Slice 10: audit log read — `GET /v1/clinic/audit`, `/v1/platform/audit` (+ `/clinics`); patient rows kept from the platform by grants; actor names via `platform_audit_actors` (ADR-0019, SQL 0034)
+- [x] Slice 11: clinic settings, my account (Better Auth password change), platform overview with computed "expired" + effective status filter, platform settings (new clinics take the default trial), platform team (invite/accept/deactivate/reactivate, last active account, gate on every platform request), expiry banner and the worker's pre-expiry reminder email (ADR-0020, SQL 0036–0038)
 - [x] Reverse-proxy routes `app.`/`platform.` `/api/*` → api with `/api` stripped (live in production; the staging hosts get the same routes, `docs/specs/staging-runbook.md` §5)
 
 ## Slice W1 — web wired to the real API
@@ -56,7 +57,7 @@
 - [x] Real sign-in (email + password, platform TOTP enrolment with QR), area-host guard, coming-soon states
 - [ ] `build:all` with Node 24 / `NITRO_PRESET=node-server` (orchestrator)
 - [x] Clinic-side limits read and platform clinic read with time zone / language / created date (W2)
-- [ ] TODO(spec): platform defaults read for new clinics (users/branches limits, trial days)
+- [x] Platform default trial days for new clinics (slice 11); TODO(spec): default user/branch limits and modules (not in story 26)
 
 ## Slice W2 — platform clinic list, usage reads, clinic time zone, server-side trial
 

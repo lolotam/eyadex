@@ -74,6 +74,8 @@ jobs:
         run: for f in db/tests/*.sql; do echo "$f"; psql -v ON_ERROR_STOP=1 -q -f "$f"; done
       - name: Migration runner self-test
         run: sh db/tests/migrate-runner.sh
+      - name: Platform team backfill (0037) holds each email, fails on a clinic hold
+        run: sh db/tests/platform-backfill.sh
       # @eyadex/db runs against the same database this job just migrated. The passwords are the
       # ci-only-* ones the runtime roles were created with above; the owner URL is for the fixtures
       # and the assertions only — the owner role never reaches the application (CLAUDE.md §5).
@@ -107,6 +109,7 @@ jobs:
           EYADEX_TEST_OWNER_URL: postgres://eyadex_owner:ci-only-owner@localhost:5432/eyadex
           EYADEX_TEST_APP_URL: postgres://eyadex_app:ci-only-app@localhost:5432/eyadex
           EYADEX_TEST_DISPATCHER_URL: postgres://eyadex_dispatcher:ci-only-dispatcher@localhost:5432/eyadex
+          EYADEX_TEST_PLATFORM_URL: postgres://eyadex_platform:ci-only-platform@localhost:5432/eyadex
       - name: Better Auth database tests (@eyadex/auth)
         run: pnpm --filter @eyadex/auth test:db
         env:
@@ -157,7 +160,9 @@ jobs:
             -e DATABASE_URL=postgres://eyadex_app:ci@127.0.0.1:1/eyadex \
             -e DISPATCHER_DATABASE_URL=postgres://eyadex_dispatcher:ci@127.0.0.1:1/eyadex \
             -e OUTBOX_SEAL_KEY="$(openssl rand -base64 32)" -e MAIL_PROVIDER_SEAL_KEY="$(openssl rand -base64 32)" \
-            -e APP_URL=https://app.eyadex.test -e RESEND_API_KEY=re_ci_dummy \
+            -e PLATFORM_DATABASE_URL=postgres://eyadex_platform:ci@127.0.0.1:1/eyadex \
+            -e APP_URL=https://app.eyadex.test -e PLATFORM_URL=https://platform.eyadex.test \
+            -e RESEND_API_KEY=re_ci_dummy \
             -e MAIL_FROM="Eyadex CI <ci@eyadex.test>" \
             eyadex-worker:ci
           for i in $(seq 1 30); do curl -sf http://127.0.0.1:3002/health && break; sleep 1; done

@@ -9,6 +9,7 @@ import {
   CLINIC_READER,
   CLOCK,
   readClinicUsage,
+  readPlatformSettings,
   type ClinicReader,
   TenancyModule,
   type Clock,
@@ -36,7 +37,15 @@ import { PgExclusiveMembers } from "./persistence/pg-exclusive-members.ts";
 import { PgSeatUsageReader } from "./persistence/pg-seat-usage-reader.ts";
 import { InvitationChanges } from "./use-cases/invitation-changes/invitation-changes.ts";
 import { UserChanges } from "./use-cases/user-changes/user-changes.ts";
-import { MeController, PermissionsController, RolesController } from "./http/access.controllers.ts";
+import {
+  EXPIRY_ALERT_WINDOW,
+  MeController,
+  PermissionsController,
+  RolesController,
+  type ExpiryAlertWindow,
+} from "./http/access.controllers.ts";
+import { ACCOUNT_CHANGES, AccountController } from "./http/account.controller.ts";
+import { AccountChanges } from "./use-cases/account-changes/account-changes.ts";
 import { PgMemberAccessReader } from "./persistence/pg-member-access-reader.ts";
 import { MEMBER_ACCESS_READER, type MemberAccessReader } from "./ports/member-access-reader.ts";
 import {
@@ -47,7 +56,7 @@ import {
 const logger = new NestLogger("authorization");
 
 /**
- * سياق العيادة للـ guard العام (ADR-0009) + `/v1/me`, `/v1/permissions/catalogue`, `/v1/roles`,
+ * سياق العيادة للـ guard العام (ADR-0009) + `/v1/me`, `/v1/account` (ADR-0020), `/v1/permissions/catalogue`, `/v1/roles`,
  * و `/v1/branches` (ADR-0011)، و `/v1/users` + `/v1/invitations` (ADR-0012، محتاج OUTBOX_SEAL_KEY).
  * محتاج الـ auth والـ DATABASE_URL والـ REDIS_URL.
  */
@@ -60,8 +69,24 @@ const logger = new NestLogger("authorization");
     BranchesController,
     UsersController,
     ClinicInvitationsController,
+    AccountController,
   ],
   providers: [
+    {
+      // Story 30: the platform's alert window, read on eyadex_app (SELECT only, 0036).
+      provide: EXPIRY_ALERT_WINDOW,
+      inject: [DATABASE],
+      useFactory:
+        (db: Database): ExpiryAlertWindow =>
+        async () =>
+          (await readPlatformSettings(db)).alertDaysBeforeExpiry,
+    },
+    {
+      provide: ACCOUNT_CHANGES,
+      inject: [DATABASE, CLOCK],
+      useFactory: (db: Database, clock: Clock) =>
+        new AccountChanges({ db, clock, ids: systemUuidV7() }),
+    },
     // tenancy's port, implemented by identity: one binding for the branch writes and the list.
     { provide: EXCLUSIVE_MEMBER_READER, useValue: new PgExclusiveMembers() },
     {

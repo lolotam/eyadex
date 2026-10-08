@@ -24,6 +24,13 @@ export const arSettings: Shape<typeof enSettings> = {
     passwordTitle: "كلمة المرور",
     passwordNote: "تغيير كلمة المرور يأتي مع تسجيل الدخول الفعلي.",
     passwordButton: "تغيير كلمة المرور",
+    passwordNoteLive: "تغييرها يُخرجك من أجهزتك الأخرى.",
+    passwordDialogBody: "اكتب كلمة المرور الحالية، ثم الجديدة مرتين.",
+    currentPassword: "كلمة المرور الحالية",
+    newPassword: "كلمة المرور الجديدة",
+    confirmPassword: "تأكيد كلمة المرور الجديدة",
+    passwordSaved: "تم تغيير كلمة المرور",
+    passwordWrong: "كلمة المرور الحالية غير صحيحة",
   },
   expiryBanner: {
     today: "ينتهي اشتراك عيادتك اليوم. تواصل مع المنصة لتجديده.",
@@ -48,6 +55,8 @@ export const arSettings: Shape<typeof enSettings> = {
     invite: "دعوة عضو",
     inviteTitle: "دعوة إلى فريق المنصة",
     inviteBody: "في الإنتاج تُرسل دعوة بالبريد. في هذا العرض يظهر الحساب كمدعو.",
+    inviteBodyLive:
+      "تُرسل رسالة بريد فيها رابط للانضمام صالح لمدة 7 أيام. دعوة البريد نفسه مرة أخرى ترسل رابطًا جديدًا.",
     invited: "تم تسجيل الدعوة",
     columns: { name: "الاسم", email: "البريد الإلكتروني", status: "الحالة", since: "أضيف في" },
     status: { active: "نشط", invited: "مدعو", deactivated: "معطّل" },

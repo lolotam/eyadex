@@ -67,6 +67,29 @@ describe("ResendMailSender", () => {
     expect(JSON.stringify(result)).not.toContain("example.test");
   });
 
+  it("a key Resend already accepted for another body is a delivered message, not a failure", async () => {
+    const { baseUrl } = await stub(409, '{"name":"invalid_idempotent_request","message":"x"}');
+    const sender = new ResendMailSender({
+      apiKey: "test-only",
+      from: "E <a@example.test>",
+      baseUrl,
+    });
+    expect(await sender.send(message)).toEqual({ sent: true, provider: "resend", fallback: false });
+  });
+
+  it("NEGATIVE: a request still in flight under the key is retried", async () => {
+    const busy = await stub(409, '{"name":"concurrent_idempotent_requests"}');
+    const again = new ResendMailSender({
+      apiKey: "test-only",
+      from: "E <a@example.test>",
+      baseUrl: busy.baseUrl,
+    });
+    expect(await again.send(message)).toEqual({
+      sent: false,
+      error: "resend_409:concurrent_idempotent_requests",
+    });
+  });
+
   it("maps a 500 and an unreachable host to codes", async () => {
     const { baseUrl } = await stub(500, "oops");
     expect(await new ResendMailSender({ apiKey: "k", from: "f", baseUrl }).send(message)).toEqual({

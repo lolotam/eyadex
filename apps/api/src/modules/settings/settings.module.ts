@@ -4,10 +4,16 @@ import { systemUuidV7 } from "@eyadex/ids";
 
 import { DatabaseModule } from "../../shared/database.module.ts";
 import { DATABASE } from "../../shared/database.provider.ts";
-import { CLOCK, TenancyModule, type Clock } from "../tenancy/index.ts";
+import { AuthorizationCacheModule } from "../identity/index.ts";
+import { ClinicSettingsChanges, CLOCK, TenancyModule, type Clock } from "../tenancy/index.ts";
+import { ClinicSettingsController } from "./http/clinic-settings.controller.ts";
 import { MailProviderController } from "./http/mail-provider.controller.ts";
 import type { MailProviderReader } from "./ports/mail-provider-reader.ts";
-import { MAIL_PROVIDER_CHANGES, MAIL_PROVIDER_READER } from "./ports/tokens.ts";
+import {
+  CLINIC_SETTINGS_CHANGES,
+  MAIL_PROVIDER_CHANGES,
+  MAIL_PROVIDER_READER,
+} from "./ports/tokens.ts";
 import { getMailProvider } from "./queries/mail-provider.ts";
 import { MailProviderChanges } from "./use-cases/mail-provider-changes.ts";
 
@@ -25,11 +31,20 @@ export function mailProviderSealKey(env: NodeJS.ProcessEnv): string {
   return value;
 }
 
-/** إعدادات العيادة (ADR-0014): `/v1/clinic/mail-provider`. محتاج DATABASE_URL و MAIL_PROVIDER_SEAL_KEY. */
+/**
+ * إعدادات العيادة: `/v1/clinic/mail-provider` (ADR-0014) و `/v1/clinic/settings` (ADR-0020). محتاج
+ * DATABASE_URL و MAIL_PROVIDER_SEAL_KEY والـ REDIS_URL (إبطال الكاش).
+ */
 @Module({
-  imports: [DatabaseModule, TenancyModule],
-  controllers: [MailProviderController],
+  imports: [DatabaseModule, TenancyModule, AuthorizationCacheModule],
+  controllers: [MailProviderController, ClinicSettingsController],
   providers: [
+    {
+      provide: CLINIC_SETTINGS_CHANGES,
+      inject: [DATABASE, CLOCK],
+      useFactory: (db: Database, clock: Clock) =>
+        new ClinicSettingsChanges({ db, clock, ids: systemUuidV7() }),
+    },
     {
       provide: MAIL_PROVIDER_READER,
       inject: [DATABASE],

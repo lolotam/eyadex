@@ -8,6 +8,8 @@ import { readConfig } from "../config.ts";
 const required = {
   DATABASE_URL: "postgres://eyadex_app:dev@localhost:5432/eyadex",
   DISPATCHER_DATABASE_URL: "postgres://eyadex_dispatcher:dev@localhost:5432/eyadex",
+  PLATFORM_DATABASE_URL: "postgres://eyadex_platform:dev@localhost:5432/eyadex",
+  PLATFORM_URL: "http://platform.localhost:3000/",
   OUTBOX_SEAL_KEY: randomBytes(32).toString("base64"),
   MAIL_PROVIDER_SEAL_KEY: randomBytes(32).toString("base64"),
   APP_URL: "http://localhost:3000/",
@@ -23,7 +25,19 @@ describe("readConfig", () => {
       LOG_LEVEL: "info",
       OUTBOX_POLL_INTERVAL_MS: 2000,
       APP_URL: "http://localhost:3000",
+      PLATFORM_URL: "http://platform.localhost:3000",
+      EXPIRY_SCAN_INTERVAL_MS: 3_600_000,
     });
+  });
+
+  it("needs the platform pool and origin for the expiry scan and team invitations (ADR-0020)", () => {
+    const { PLATFORM_DATABASE_URL: _p, PLATFORM_URL: _u, ...without } = required;
+    const attempt = () => readConfig(without);
+    expect(attempt).toThrow(/PLATFORM_DATABASE_URL/);
+    expect(attempt).toThrow(/PLATFORM_URL/);
+    expect(() => readConfig({ ...required, EXPIRY_SCAN_INTERVAL_MS: "1000" })).toThrow(
+      /EXPIRY_SCAN_INTERVAL_MS/,
+    );
   });
 
   it("reads the interface, the port and the level from the environment", () => {

@@ -3,7 +3,11 @@ import type { SessionContext } from "@eyadex/contracts/session";
 import type { ApiClient } from "../api-client";
 import { ApiError } from "../api-error";
 import { areaOfHost } from "../area-host";
-import { getSessionResponseSchema, type GetSessionResponse } from "./auth-schemas";
+import {
+  platformMeResponseSchema,
+  type PlatformMeResponse,
+} from "@eyadex/contracts/platform-console";
+import { getSessionResponseSchema } from "./auth-schemas";
 import type { HttpContext } from "./http-context";
 import { notifyUnauthorized } from "./http-transport";
 
@@ -24,15 +28,15 @@ export function contextFromMe(me: MeResponse): SessionContext {
     // A /v1/me answer has passed the API's subscription guard on the server clock; a blocked clinic
     // gets subscription_blocked instead, so the device clock never decides access.
     blocked: null,
-    // TODO(spec): slice 11 brings the expiry alert window to the clinic side.
-    expiresInDays: null,
+    // Story 30 (ADR-0020): the window is the platform setting, counted on the server clock.
+    expiresInDays: me.expiresInDays,
   };
 }
 
-export function contextFromAuthSession(session: NonNullable<GetSessionResponse>): SessionContext {
+export function contextFromPlatformMe(account: PlatformMeResponse): SessionContext {
   return {
-    persona: { kind: "platform_admin", clinicId: null, memberId: null },
-    user: { fullName: session.user.name, email: session.user.email, preferredLanguage: null },
+    persona: { kind: "platform_admin", clinicId: null, memberId: account.id },
+    user: { fullName: account.fullName, email: account.email, preferredLanguage: null },
     clinic: null,
     permissions: [],
     features: { patients: false },
@@ -59,7 +63,10 @@ export function createHttpSession(ctx: HttpContext): ApiClient["session"] {
           notifyUnauthorized();
           throw new ApiError("unauthorized");
         }
-        return contextFromAuthSession(session);
+        // The gate (ADR-0020): a deactivated or unlinked account is refused here, not on its first page.
+        return contextFromPlatformMe(
+          await ctx.transport.send("GET", "/v1/platform/me", { schema: platformMeResponseSchema }),
+        );
       }
       if (area === null) throw new ApiError("not_found");
       const me = await ctx.transport.send("GET", "/v1/me", { schema: meResponseSchema });

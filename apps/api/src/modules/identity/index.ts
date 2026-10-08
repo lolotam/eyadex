@@ -32,6 +32,16 @@ export {
 } from "./ports/member-session-revoker.ts";
 export { AuthorizationCacheModule } from "./access/authorization-cache.module.ts";
 export { PgExclusiveMembers } from "./persistence/pg-exclusive-members.ts";
+export { PlatformTeamModule, PLATFORM_TEAM_CHANGES } from "./platform-team.module.ts";
+export {
+  PlatformTeamChanges,
+  PLATFORM_TEAM_INVITED_EVENT,
+  type StatusChange,
+} from "./use-cases/platform-team/platform-team-changes.ts";
+export {
+  PLATFORM_SESSION_REVOKER,
+  type PlatformSessionRevoker,
+} from "./ports/platform-session-revoker.ts";
 export {
   readFirstPlatformAccountInput,
   type FirstPlatformAccountInput,

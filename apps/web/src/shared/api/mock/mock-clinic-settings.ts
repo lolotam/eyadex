@@ -60,6 +60,8 @@ export function createMockClinicSettings(): ApiClient["clinicSettings"] {
 
 export function createMockAccount(): ApiClient["account"] {
   return {
+    // The demo has no passwords: the account page offers the change in HTTP mode only (ADR-0020).
+    changePassword: () => Promise.reject(new ApiError("not_implemented")),
     async get(persona) {
       await delay();
       const { clinic, member, role } = resolveActor(getState(), persona);

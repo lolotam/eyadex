@@ -30,6 +30,11 @@ export const meResponseSchema = z.object({
   branchIds: z.array(idSchema),
   /** Modules enabled for the clinic (PRD §4.8); `permissions` already excludes the locked ones. */
   modules: z.array(moduleSchema),
+  /**
+   * Story 30 (ADR-0020): whole days left when the expiry is inside the platform's alert window,
+   * counted on the server clock; null = no banner.
+   */
+  expiresInDays: z.number().int().nonnegative().nullable(),
 });
 export type MeResponse = z.infer<typeof meResponseSchema>;
 

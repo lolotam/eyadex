@@ -19,6 +19,7 @@ const PERSON = [
   "status",
   "expiresAt",
   "invitationId",
+  "preferredLanguage",
 ] as const;
 
 // PRD §4.11: before/after is an allowlist. These are the fields the writers record today (branch,
@@ -55,12 +56,14 @@ const ALLOWED: Record<AuditEntity, readonly string[]> = {
     "module",
     "enabled",
     "firstAdmin",
+    "defaultLanguage",
+    "timezone",
   ],
   // TODO(spec): the patients slice defines what a patient-file entry may show; until then nothing.
   patient: [],
-  // No writer yet (platform team and settings slices): nothing until they define their fields.
-  platform_account: [],
-  platform_settings: [],
+  // ADR-0020: the platform team and settings writers. No link, hash or user id is ever recorded.
+  platform_account: ["fullName", "email", "status"],
+  platform_settings: ["defaultTrialDays", "alertDaysBeforeExpiry", "emailSenderName"],
 };
 
 // Context a writer keeps beside before/after that the reader needs to make sense of the change

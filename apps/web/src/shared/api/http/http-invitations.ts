@@ -13,6 +13,12 @@ import {
   type InvitationPreview,
 } from "@eyadex/contracts/invitations";
 import { invitationListResponseSchema } from "@eyadex/contracts/user-admin";
+import {
+  acceptPlatformInvitationResponseSchema,
+  inspectPlatformInvitationResponseSchema,
+  type InspectPlatformInvitationResponse,
+} from "@eyadex/contracts/platform-console";
+import { areaOfHost } from "../area-host";
 import type { ApiClient } from "../api-client";
 import type { HttpContext } from "./http-context";
 
@@ -36,6 +42,23 @@ export function toPreview(answer: InspectInvitationResponse): InvitationPreview 
     status: "pending",
   };
 }
+
+/** A platform-team link (ADR-0020): the team is named by the brand, written in Latin in both languages. */
+export function toPlatformPreview(answer: InspectPlatformInvitationResponse): InvitationPreview {
+  return {
+    clinicNameAr: "Eyadex",
+    clinicNameEn: "Eyadex",
+    roleNameAr: null,
+    roleNameEn: null,
+    fullName: answer.fullName,
+    email: answer.email,
+    status: "pending",
+    area: "platform",
+  };
+}
+
+const onPlatformHost = () =>
+  typeof window !== "undefined" && areaOfHost(window.location.hostname) === "platform";
 
 /** No session is opened (ADR-0008): no member id, the person signs in afterwards. */
 export function toAccepted(answer: AcceptInvitationResponse): AcceptedInvitation {
@@ -85,20 +108,36 @@ export function createHttpInvitations(ctx: HttpContext): ApiClient["invitations"
       toInvitationLink(
         await transport.send("POST", `${path(id)}/link`, { schema: invitationLinkSchema }),
       ),
-    // The token travels in the body only, never in a URL (ADR-0008).
+    // The token travels in the body only, never in a URL (ADR-0008). On the platform host the link
+    // is a platform-team invitation (ADR-0020).
     preview: async (token) =>
-      toPreview(
-        await transport.send("POST", "/v1/invitations/inspect", {
-          schema: inspectInvitationResponseSchema,
-          body: { token },
-        }),
-      ),
-    accept: async (token, input) =>
-      toAccepted(
+      onPlatformHost()
+        ? toPlatformPreview(
+            await transport.send("POST", "/v1/platform/invitations/inspect", {
+              schema: inspectPlatformInvitationResponseSchema,
+              body: { token },
+            }),
+          )
+        : toPreview(
+            await transport.send("POST", "/v1/invitations/inspect", {
+              schema: inspectInvitationResponseSchema,
+              body: { token },
+            }),
+          ),
+    accept: async (token, input) => {
+      if (onPlatformHost()) {
+        await transport.send("POST", "/v1/platform/invitations/accept", {
+          schema: acceptPlatformInvitationResponseSchema,
+          body: { token, password: input.password },
+        });
+        return { clinicId: null, memberId: null, roleKey: null };
+      }
+      return toAccepted(
         await transport.send("POST", "/v1/invitations/accept", {
           schema: acceptInvitationResponseSchema,
           body: { token, password: input.password },
         }),
-      ),
+      );
+    },
   };
 }

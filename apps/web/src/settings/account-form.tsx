@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
@@ -12,11 +13,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Form } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { API_MODE } from "@/shared/api/api-mode";
 import { useApi } from "@/shared/api/api-provider";
 import { errorCodeOf } from "@/shared/api/api-error";
 import { SelectField, TextField } from "@/shared/forms/form-fields";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { usePersona } from "@/shared/persona/persona-provider";
+import { ChangePasswordDialog } from "./change-password-dialog";
 import { useRefreshAfterSettings } from "./settings-queries";
 
 export function AccountForm({ profile }: { profile: AccountProfile }) {
@@ -24,6 +27,9 @@ export function AccountForm({ profile }: { profile: AccountProfile }) {
   const api = useApi();
   const { persona } = usePersona();
   const refresh = useRefreshAfterSettings();
+  const [passwordOpen, setPasswordOpen] = useState(false);
+  // The demo has no passwords; the real sign-in (HTTP mode) changes it through Better Auth.
+  const live = API_MODE === "http";
   const form = useForm<AccountProfileInput>({
     resolver: zodResolver(accountProfileInputSchema),
     defaultValues: { fullName: profile.fullName, preferredLanguage: profile.preferredLanguage },
@@ -80,13 +86,16 @@ export function AccountForm({ profile }: { profile: AccountProfile }) {
         <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-6">
           <div>
             <h2 className="text-sm font-semibold">{t("account.passwordTitle")}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">{t("account.passwordNote")}</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {t(live ? "account.passwordNoteLive" : "account.passwordNote")}
+            </p>
           </div>
-          <Button variant="outline" disabled>
+          <Button variant="outline" disabled={!live} onClick={() => setPasswordOpen(true)}>
             {t("account.passwordButton")}
           </Button>
         </CardContent>
       </Card>
+      {live && <ChangePasswordDialog open={passwordOpen} onOpenChange={setPasswordOpen} />}
     </div>
   );
 }

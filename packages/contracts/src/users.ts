@@ -110,3 +110,22 @@ export const accountProfileSchema = accountProfileInputSchema.extend({
   roleNameEn: z.string(),
 });
 export type AccountProfile = z.infer<typeof accountProfileSchema>;
+
+/**
+ * Story 64: a new password for the signed-in account (Better Auth's change-password, ADR-0020). The
+ * bounds are Better Auth's (`PASSWORD_LIMITS`); the confirmation never leaves the form.
+ */
+export const changePasswordInputSchema = z
+  .object({
+    currentPassword: z.string().min(1, "validation.required").max(128, "validation.tooLong"),
+    newPassword: z
+      .string()
+      .min(8, "invite.validation.passwordShort")
+      .max(128, "validation.tooLong"),
+    confirmPassword: z.string(),
+  })
+  .refine((v) => v.newPassword === v.confirmPassword, {
+    message: "invite.validation.passwordMismatch",
+    path: ["confirmPassword"],
+  });
+export type ChangePasswordInput = z.infer<typeof changePasswordInputSchema>;

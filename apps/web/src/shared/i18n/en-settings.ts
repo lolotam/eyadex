@@ -21,6 +21,13 @@ export const enSettings = {
     passwordTitle: "Password",
     passwordNote: "Changing your password is coming with sign-in.",
     passwordButton: "Change password",
+    passwordNoteLive: "Changing it signs you out on your other devices.",
+    passwordDialogBody: "Enter your current password, then the new one twice.",
+    currentPassword: "Current password",
+    newPassword: "New password",
+    confirmPassword: "Confirm the new password",
+    passwordSaved: "Your password was changed",
+    passwordWrong: "The current password is not correct",
   },
   expiryBanner: {
     today: "Your clinic's subscription ends today. Contact the platform to renew it.",
@@ -46,6 +53,8 @@ export const enSettings = {
     inviteTitle: "Invite to the platform team",
     inviteBody:
       "In production an invitation email is sent. In this demo the account is listed as invited.",
+    inviteBodyLive:
+      "An email with a link to join is sent; it works for 7 days. Inviting the same email again sends a new link.",
     invited: "Invitation recorded",
     columns: { name: "Name", email: "Email", status: "Status", since: "Added" },
     status: { active: "Active", invited: "Invited", deactivated: "Deactivated" },

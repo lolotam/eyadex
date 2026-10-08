@@ -1,3 +1,4 @@
+import { actorReplayKey } from "./mock-idempotency";
 import {
   daysUntil,
   effectiveClinicStatus,
@@ -15,6 +16,9 @@ import {
 } from "./mock-platform-actor";
 import { delay, getState, newId, persist, type MockState } from "./mock-store";
 import { enforceEmailFree } from "./mock-user-rules";
+
+// Idempotency-Key replays for the demo session (the API keeps them in its ledger, ADR-0020).
+const inviteReplays = new Map<string, { fingerprint: string; accountId: string }>();
 
 function findAccount(db: MockState, id: string): PlatformAccount {
   const account = db.platformAccounts.find((a) => a.id === id);
@@ -40,7 +44,8 @@ export function createMockPlatformOverview(): ApiClient["platformOverview"] {
       const expiringSoon = db.clinics
         .filter((c) => effectiveClinicStatus(c, now) !== "suspended")
         .map((c) => ({ c, daysLeft: daysUntil(c.expiresAt, now) }))
-        .filter(({ c, daysLeft }) => new Date(c.expiresAt).getTime() >= now && daysLeft <= alert)
+        // Strictly after now, like the API's `expires_at > now`: an expiry at now is already expired.
+        .filter(({ c, daysLeft }) => new Date(c.expiresAt).getTime() > now && daysLeft <= alert)
         .sort((a, b) => a.c.expiresAt.localeCompare(b.c.expiresAt))
         .map(({ c, daysLeft }) => ({
           id: c.id,
@@ -64,14 +69,25 @@ export function createMockPlatformTeam(): ApiClient["platformTeam"] {
       return [...db.platformAccounts].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     },
 
-    async invite(persona, raw) {
+    async invite(persona, raw, idempotencyKey) {
       await delay();
       const db = getState();
       const actor = resolvePlatformActor(db, persona);
       const parsed = invitePlatformAccountInputSchema.safeParse(raw);
       if (!parsed.success) throw new ApiError("validation");
-      enforceEmailFree(db, parsed.data.email);
-      const account: PlatformAccount = {
+      const fingerprint = JSON.stringify(parsed.data);
+      const replayKey = actorReplayKey("platform", actor.id, idempotencyKey);
+      const replay = inviteReplays.get(replayKey);
+      if (replay) {
+        if (replay.fingerprint !== fingerprint) throw new ApiError("idempotency_conflict");
+        return findAccount(db, replay.accountId);
+      }
+      // The API rule (ADR-0020): an account still invited gets a new link; any other holder is taken.
+      const existing = db.platformAccounts.find(
+        (a) => a.email.toLowerCase() === parsed.data.email && a.status === "invited",
+      );
+      if (!existing) enforceEmailFree(db, parsed.data.email);
+      const account: PlatformAccount = existing ?? {
         id: newId(),
         fullName: parsed.data.fullName,
         email: parsed.data.email,
@@ -79,16 +95,17 @@ export function createMockPlatformTeam(): ApiClient["platformTeam"] {
         joinedAt: null,
         createdAt: new Date().toISOString(),
       };
-      db.platformAccounts.push(account);
+      if (!existing) db.platformAccounts.push(account);
       writePlatformAudit(db, {
         actorName: actor.fullName,
         action: "platform_account.invited",
         clinicId: null,
         entityId: account.id,
         summary: `Invited ${account.email} to the platform team`,
-        before: null,
+        before: existing ? platformAccountSnapshot(existing) : null,
         after: platformAccountSnapshot(account),
       });
+      inviteReplays.set(replayKey, { fingerprint, accountId: account.id });
       persist();
       return account;
     },

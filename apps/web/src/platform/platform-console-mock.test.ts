@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api, as, getState, PLATFORM, resetMockData } from "@/shared/api/mock/mock-test-kit";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -6,6 +6,7 @@ const PATIENT_FIELDS = /patient|fileNumber|civilId|birthDate|phone|gender/i;
 
 describe("platform overview (stories 3-4)", () => {
   beforeEach(() => resetMockData());
+  afterEach(() => vi.restoreAllMocks());
 
   it("is platform admin only", async () => {
     await expect(api.platformOverview.get(as("clinic_admin"))).rejects.toMatchObject({
@@ -25,6 +26,18 @@ describe("platform overview (stories 3-4)", () => {
     expect(clinic.status).toBe("active");
   });
 
+  it("filters the clinic list by effective status: an expired trial is not a trial (ADR-0020)", async () => {
+    const clinic = getState().clinics[0];
+    if (!clinic) throw new Error("no clinic");
+    clinic.status = "trial";
+    clinic.expiresAt = new Date(Date.now() - DAY).toISOString();
+    const query = { cursor: null, limit: 100, search: "", specialty: null };
+    const ids = async (status: "trial" | "expired") =>
+      (await api.platform.listClinics(PLATFORM, { ...query, status })).items.map((c) => c.id);
+    expect(await ids("expired")).toContain(clinic.id);
+    expect(await ids("trial")).not.toContain(clinic.id);
+  });
+
   it("lists clinics expiring within the alert setting", async () => {
     const [a, b] = getState().clinics;
     if (!a || !b) throw new Error("no clinics");
@@ -41,6 +54,18 @@ describe("platform overview (stories 3-4)", () => {
     });
     overview = await api.platformOverview.get(PLATFORM);
     expect(overview.expiringSoon.map((c) => c.id)).toContain(b.id);
+  });
+
+  it("never lists a clinic expiring exactly now as upcoming: it is expired (API boundary)", async () => {
+    const clinic = getState().clinics[0];
+    if (!clinic) throw new Error("no clinic");
+    const now = Date.now();
+    clinic.status = "active";
+    clinic.expiresAt = new Date(now).toISOString();
+    vi.spyOn(Date, "now").mockReturnValue(now);
+    const overview = await api.platformOverview.get(PLATFORM);
+    expect(overview.counts.expired).toBeGreaterThanOrEqual(1);
+    expect(overview.expiringSoon.map((c) => c.id)).not.toContain(clinic.id);
   });
 
   it("returns no patient fields", async () => {
@@ -74,19 +99,41 @@ describe("platform team (stories 24-25)", () => {
     const member = getState().members[0];
     if (!member) throw new Error("seed");
     await expect(
-      api.platformTeam.invite(PLATFORM, { fullName: "Dup", email: member.email }),
+      api.platformTeam.invite(PLATFORM, { fullName: "Dup", email: member.email }, "k-dup"),
     ).rejects.toMatchObject({ code: "email_taken" });
-    await api.platformTeam.invite(PLATFORM, { fullName: "New Member", email: "new@eyadex.com" });
+    const first = await api.platformTeam.invite(
+      PLATFORM,
+      { fullName: "New Member", email: "new@eyadex.com" },
+      "k-new",
+    );
+    // Still invited: a second invite re-sends the link to the same account (ADR-0020).
+    const again = await api.platformTeam.invite(
+      PLATFORM,
+      { fullName: "Again", email: "new@eyadex.com" },
+      "k-again",
+    );
+    expect(again.id).toBe(first.id);
+    await api.platformTeam.deactivate(PLATFORM, first.id);
     await expect(
-      api.platformTeam.invite(PLATFORM, { fullName: "Again", email: "NEW@eyadex.com" }),
+      api.platformTeam.invite(PLATFORM, { fullName: "Third", email: "new@eyadex.com" }, "k-3"),
     ).rejects.toMatchObject({ code: "email_taken" });
   });
 
+  it("replays an invite under the same key and refuses a changed body", async () => {
+    const body = { fullName: "Replay Member", email: "replay@eyadex.com" };
+    const first = await api.platformTeam.invite(PLATFORM, body, "k-replay");
+    expect((await api.platformTeam.invite(PLATFORM, body, "k-replay")).id).toBe(first.id);
+    await expect(
+      api.platformTeam.invite(PLATFORM, { ...body, fullName: "Changed" }, "k-replay"),
+    ).rejects.toMatchObject({ code: "idempotency_conflict" });
+  });
+
   it("audits invite, deactivate and reactivate with before/after", async () => {
-    const invited = await api.platformTeam.invite(PLATFORM, {
-      fullName: "New Member",
-      email: "new@eyadex.com",
-    });
+    const invited = await api.platformTeam.invite(
+      PLATFORM,
+      { fullName: "New Member", email: "new@eyadex.com" },
+      "k-audit",
+    );
     await api.platformTeam.deactivate(PLATFORM, invited.id);
     const back = await api.platformTeam.reactivate(PLATFORM, invited.id);
     expect(back.status).toBe("invited");
@@ -217,10 +264,11 @@ describe("platform access follows the signed-in account", () => {
     await expect(api.platform.getClinic(pinned, db.clinics[0]?.id ?? "")).resolves.toBeDefined();
   });
   it("activates an invited platform account when it accepts, once", async () => {
-    const invited = await api.platformTeam.invite(PLATFORM, {
-      fullName: "New Operator",
-      email: "new.operator@example.com",
-    });
+    const invited = await api.platformTeam.invite(
+      PLATFORM,
+      { fullName: "New Operator", email: "new.operator@example.com" },
+      "k-operator",
+    );
     const pinned = { kind: "platform_admin" as const, clinicId: null, memberId: invited.id };
     await expect(api.session.getContext(pinned)).rejects.toMatchObject({
       code: "account_disabled",

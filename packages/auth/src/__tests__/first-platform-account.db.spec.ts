@@ -41,6 +41,7 @@ beforeAll(async () => {
   await owner`DELETE FROM auth_two_factors WHERE user_id IN
                 (SELECT id FROM auth_users WHERE area = 'platform')`;
   await owner`DELETE FROM auth_users WHERE area = 'platform'`;
+  await owner`DELETE FROM platform_accounts`;
 });
 
 afterAll(async () => {
@@ -116,6 +117,26 @@ describe("createFirstPlatformAccount (ADR-0021)", () => {
     expect(await platformAccounts()).toBe(0);
   });
 
+  it("NEGATIVE: a team that already has an active member is refused, and nothing is written (ADR-0020)", async () => {
+    const member = ids.newId();
+    const address = email("team-first");
+    await owner`INSERT INTO platform_accounts (id, user_id, email, full_name, status, token_hash,
+        token_expires_at, invited_by, joined_at, created_at, updated_at)
+      VALUES (${member}, ${member}, ${email("member")}, 'Member', 'active', NULL, NULL, NULL, now(), now(), now())`;
+    try {
+      const result = await createFirstPlatformAccount(options, {
+        email: address,
+        name: "Ops",
+        password,
+      });
+      expect(result).toEqual({ created: false, reason: "platform_account_exists" });
+      expect(await platformAccounts()).toBe(0);
+      expect(await holdOf(address)).toBeUndefined();
+    } finally {
+      await owner`DELETE FROM platform_accounts WHERE id = ${member}`;
+    }
+  });
+
   it("creates exactly one first account when two runs race, holding its email for the platform", async () => {
     const first = email("first");
     const second = email("second");
@@ -137,6 +158,10 @@ describe("createFirstPlatformAccount (ADR-0021)", () => {
       SELECT email, area FROM auth_users WHERE area = 'platform'`;
     expect([first, second]).toContain(row!.email);
     expect(await holdOf(row!.email)).toBe("platform");
+    // The platform gate's row (0037): the first account is the team's active member.
+    const team = await owner<{ email: string; status: string }[]>`
+      SELECT email, status FROM platform_accounts`;
+    expect(team).toEqual([{ email: row!.email, status: "active" }]);
   });
 
   it("NEGATIVE: once a platform account exists, the bootstrap refuses for good", async () => {

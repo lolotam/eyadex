@@ -32,3 +32,9 @@ export interface ClinicAccounts {
    */
   setAccountPassword(userId: string, password: string): Promise<void>;
 }
+
+/**
+ * نفس العمليات على instance منطقة المنصة (ADR-0020): قبول دعوة فريق المنصة بيعمل حساب في المنطقة دي
+ * بس، أو بيعيد استخدام حساب منصة سابه فشل سابق لنفس الرابط.
+ */
+export type PlatformAuthAccounts = ClinicAccounts;

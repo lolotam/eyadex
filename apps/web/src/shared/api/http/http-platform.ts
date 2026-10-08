@@ -12,7 +12,6 @@ import {
   type CreateClinicRequest,
   type CreateClinicResponse,
 } from "@eyadex/contracts/onboarding";
-import { DEFAULT_PLATFORM_SETTINGS } from "@eyadex/contracts/platform";
 import {
   platformClinicDetailSchema,
   platformClinicListResponseSchema,
@@ -29,8 +28,8 @@ import { explicitExpiry } from "./subscription-expiry";
 
 const notImplemented = () => Promise.reject(new ApiError("not_implemented"));
 
-// TODO(spec): the API requires the subscription of a new clinic; until the platform settings read
-// exists these mirror the mock's defaults (trial, default trial days, 10 users, 3 branches, patients on).
+// TODO(spec): story 26 sets no default limits or modules, so these mirror the mock (10 users,
+// 3 branches, patients on). The trial length is the platform setting, read by the server (ADR-0020).
 const NEW_CLINIC = { maxUsers: 10, maxBranches: 3, modules: { patients: true } } as const;
 export function toClinicListItem(detail: PlatformClinicDetail): ClinicListItem {
   return {
@@ -66,7 +65,10 @@ export function platformListQuery(query: ClinicListQuery) {
   };
 }
 
-/** No expiry is sent: the server derives the trial on its own clock (ADR-0016), so the body never depends on the device. */
+/**
+ * No expiry and no trial length are sent: the server applies the platform default trial on its own
+ * clock (ADR-0016, ADR-0020), so the body never depends on the device.
+ */
 export function toCreateClinicRequest(input: CreateClinicInput): CreateClinicRequest {
   const timezone = timezoneOptions.find((tz) => tz === input.timezone);
   if (!timezone) throw new ApiError("validation", undefined, { timezone: "invalid" });
@@ -78,7 +80,6 @@ export function toCreateClinicRequest(input: CreateClinicInput): CreateClinicReq
     defaultLanguage: input.defaultLanguage,
     timezone,
     status: "trial",
-    trialDays: DEFAULT_PLATFORM_SETTINGS.defaultTrialDays,
     ...NEW_CLINIC,
     admin: { fullName: input.adminName, email: input.adminEmail },
   };

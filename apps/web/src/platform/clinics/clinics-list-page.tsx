@@ -3,10 +3,10 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Plus, Search } from "lucide-react";
 import {
-  clinicStatusSchema,
+  effectiveClinicStatusSchema,
   specialtySchema,
   type ClinicListItem,
-  type ClinicStatus,
+  type EffectiveClinicStatus,
   type Specialty,
 } from "@eyadex/contracts/clinics";
 import { Badge } from "@/components/ui/badge";
@@ -36,7 +36,7 @@ export function ClinicsListPage() {
   const navigate = useNavigate();
   const pages = useCursorPages();
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<ClinicStatus | null>(null);
+  const [status, setStatus] = useState<EffectiveClinicStatus | null>(null);
   const [specialty, setSpecialty] = useState<Specialty | null>(null);
 
   const list = useClinicList({ cursor: pages.cursor, limit: PAGE_SIZE, search, status, specialty });
@@ -126,7 +126,7 @@ export function ClinicsListPage() {
         <Select
           value={status ?? ANY}
           onValueChange={(v) => {
-            setStatus(v === ANY ? null : clinicStatusSchema.parse(v));
+            setStatus(v === ANY ? null : effectiveClinicStatusSchema.parse(v));
             pages.reset();
           }}
         >
@@ -135,7 +135,7 @@ export function ClinicsListPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={ANY}>{t("clinics.anyStatus")}</SelectItem>
-            {clinicStatusSchema.options.map((s) => (
+            {effectiveClinicStatusSchema.options.map((s) => (
               <SelectItem key={s} value={s}>
                 {t(`clinicStatus.${s}`)}
               </SelectItem>

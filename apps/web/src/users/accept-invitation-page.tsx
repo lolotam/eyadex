@@ -15,6 +15,7 @@ import { Form } from "@/components/ui/form";
 import { useApi } from "@/shared/api/api-provider";
 import { API_MODE } from "@/shared/api/api-mode";
 import { acceptErrorMessage } from "./accept-error-message";
+import { invitationCopy } from "./invitation-copy";
 import { TextField } from "@/shared/forms/form-fields";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { LanguageSwitch } from "@/shared/i18n/language-switch";
@@ -69,14 +70,16 @@ export function AcceptInvitationPage() {
     </Button>
   );
 
+  // A platform-team acceptance has no clinic (ADR-0020); before it, the preview names its area.
+  const accepted = invitationCopy(accept.data?.clinicId === null ? "platform" : "clinic");
   let content;
   if (preview.isLoading) content = <LoadingBlock />;
   else if (accept.isSuccess)
     content = (
       <StatusPanel
         icon={CircleCheck}
-        title={t("invite.acceptedTitle")}
-        body={t("invite.acceptedBody")}
+        title={t(accepted.acceptedTitle)}
+        body={t(accepted.acceptedBody)}
         action={
           accept.data?.memberId === null ? (
             <Button asChild>
@@ -100,16 +103,17 @@ export function AcceptInvitationPage() {
     );
   } else {
     const p = preview.data;
+    const copy = invitationCopy(p.area ?? "clinic");
     content = (
       <Card className="w-full max-w-md">
         <CardHeader className="text-start">
           <CardTitle className="text-xl">
-            {t("invite.title", { clinic: pick(p.clinicNameAr, p.clinicNameEn) })}
+            {t(copy.title, { clinic: pick(p.clinicNameAr, p.clinicNameEn) })}
           </CardTitle>
           <CardDescription>
             {p.roleNameAr !== null && p.roleNameEn !== null
               ? t("invite.body", { role: pick(p.roleNameAr, p.roleNameEn) })
-              : t("inviteHttp.bodyNoRole")}
+              : t(copy.body)}
           </CardDescription>
         </CardHeader>
         <CardContent>

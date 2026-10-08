@@ -60,6 +60,11 @@ export const enAccess = {
   inviteHttp: {
     bodyNoRole: "You were invited to join this clinic. Choose a password to accept.",
     signInNow: "Go to sign in",
+    platformTitle: "Invitation to the Eyadex platform team",
+    platformBody: "You were invited to join the Eyadex platform team. Choose a password to accept.",
+    platformAcceptedTitle: "You are now on the platform team",
+    platformAcceptedBody:
+      "Your account is active. Sign in to the platform; you will be asked to set up two-step verification the first time.",
   },
 } as const;
 

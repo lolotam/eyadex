@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Form } from "@/components/ui/form";
+import { API_MODE } from "@/shared/api/api-mode";
 import { useApi } from "@/shared/api/api-provider";
 import { errorCodeOf } from "@/shared/api/api-error";
 import { TextField } from "@/shared/forms/form-fields";
@@ -41,11 +42,16 @@ export function InviteTeamDialog({
     resolver: zodResolver(invitePlatformAccountInputSchema),
     defaultValues: EMPTY,
   });
+  // One key per opened dialog: a retry after a lost answer replays it instead of inviting twice.
+  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
   useEffect(() => {
-    if (open) form.reset(EMPTY);
+    if (!open) return;
+    form.reset(EMPTY);
+    setIdempotencyKey(crypto.randomUUID());
   }, [open, form]);
   const mutation = useMutation({
-    mutationFn: (input: InvitePlatformAccountInput) => api.platformTeam.invite(persona, input),
+    mutationFn: (input: InvitePlatformAccountInput) =>
+      api.platformTeam.invite(persona, input, idempotencyKey),
     onSuccess: () => {
       refresh();
       toast.success(t("team.invited"));
@@ -59,7 +65,9 @@ export function InviteTeamDialog({
       <DialogContent className="max-h-[92svh] overflow-y-auto sm:max-w-lg">
         <DialogHeader className="text-start">
           <DialogTitle>{t("team.inviteTitle")}</DialogTitle>
-          <DialogDescription>{t("team.inviteBody")}</DialogDescription>
+          <DialogDescription>
+            {t(API_MODE === "http" ? "team.inviteBodyLive" : "team.inviteBody")}
+          </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form

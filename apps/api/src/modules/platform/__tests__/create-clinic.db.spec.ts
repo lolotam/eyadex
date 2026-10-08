@@ -16,6 +16,7 @@ import {
   type Harness,
 } from "../../identity/auth/__tests__/auth-http-harness.ts";
 import { totpFromUri } from "../../identity/auth/__tests__/totp.ts";
+import { joinPlatformTeam } from "./platform-staff.ts";
 import { PLATFORM_DATABASE } from "../../../shared/platform-database.ts";
 import { SecretSealer } from "@eyadex/secrets";
 import type { Database } from "@eyadex/db";
@@ -29,6 +30,7 @@ let actorId: string;
 beforeAll(async () => {
   h = await openHarness({}, true);
   const user = await createUser(h, h.areaAuth.of("platform"), "onboarder");
+  await joinPlatformTeam(h, user);
   actorId = user.userId;
   const signIn = await call(h, {
     url: "/auth/sign-in/email",
@@ -172,14 +174,28 @@ describe("POST /v1/platform/clinics (ONB-01)", () => {
     }
   });
 
-  it("NEGATIVE: both expiresAt and trialDays, or neither, are 400 and write nothing", async () => {
+  it("NEGATIVE: both expiresAt and trialDays are 400 and write nothing", async () => {
     const both = body();
     expect((await create({ ...both, trialDays: 14 })).statusCode).toBe(400);
     expect(await count("clinics", "slug", both.slug)).toBe(0);
-    const { expiresAt: _drop, ...neither } = body();
-    void _drop;
-    expect((await create(neither)).statusCode).toBe(400);
-    expect(await count("clinics", "slug", neither.slug)).toBe(0);
+  });
+
+  it("neither: the trial takes the platform's default trial days, read when the clinic is made", async () => {
+    const clock = h.app.get<{ now: () => Date }>(CLOCK);
+    const real = clock.now;
+    clock.now = () => new Date("2031-01-31T22:00:00Z"); // already 1 February in Kuwait
+    await h.owner`UPDATE platform_settings SET default_trial_days = 21`;
+    try {
+      const { expiresAt: _drop, ...neither } = body();
+      void _drop;
+      const res = await create(neither);
+      expect(res.statusCode).toBe(201);
+      const [row] = await h.owner`SELECT expires_at FROM clinics WHERE id = ${res.json().clinicId}`;
+      expect(new Date(row!["expires_at"]).toISOString()).toBe("2031-02-22T20:59:59.000Z");
+    } finally {
+      clock.now = real;
+      await h.owner`UPDATE platform_settings SET default_trial_days = 14`;
+    }
   });
 
   it("NEGATIVE: a missing Idempotency-Key is rejected", async () => {

@@ -17,6 +17,8 @@ const schema = z
     // ADR-0013: eyadex_app reads the invitation under its clinic; eyadex_dispatcher touches the outbox only.
     DATABASE_URL: z.string().url(),
     DISPATCHER_DATABASE_URL: z.string().url(),
+    // ADR-0020: the expiry scan (clinics + platform_settings) and the platform-team invitation check.
+    PLATFORM_DATABASE_URL: z.string().url(),
     OUTBOX_SEAL_KEY: z
       .string()
       .refine((v) => Buffer.from(v, "base64").length === 32, "32 bytes, base64"),
@@ -25,6 +27,13 @@ const schema = z
       .string()
       .url()
       .transform((v) => v.replace(/\/+$/, "")),
+    // The platform area's origin: a platform-team link is `${PLATFORM_URL}/invite/<token>` (ADR-0020).
+    PLATFORM_URL: z
+      .string()
+      .url()
+      .transform((v) => v.replace(/\/+$/, "")),
+    // How often the expiry reminder scan runs; the ledger makes a reminder once per expiry date anyway.
+    EXPIRY_SCAN_INTERVAL_MS: z.coerce.number().int().min(60_000).max(86_400_000).default(3_600_000),
     // ADR-0014 (7c-2): opens clinic mail credentials, bound to the provider row id. Not OUTBOX_SEAL_KEY.
     MAIL_PROVIDER_SEAL_KEY: z
       .string()

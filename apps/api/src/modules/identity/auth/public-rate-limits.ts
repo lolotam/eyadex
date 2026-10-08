@@ -27,6 +27,12 @@ export const PUBLIC_V1_ROUTES: Readonly<Record<string, PublicRouteRules>> = {
     ip: PUBLIC_LIMITS.invitationPerIp,
     token: PUBLIC_LIMITS.invitationPerToken,
   },
+  // ADR-0020: the platform team's invitation, on the platform host, with the same starting values.
+  "POST /v1/platform/invitations/inspect": { ip: PUBLIC_LIMITS.invitationPerIp },
+  "POST /v1/platform/invitations/accept": {
+    ip: PUBLIC_LIMITS.invitationPerIp,
+    token: PUBLIC_LIMITS.invitationPerToken,
+  },
 };
 
 /**

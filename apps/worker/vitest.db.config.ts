@@ -1,7 +1,12 @@
 import { defineConfig } from "vitest/config";
 
 // A missing URL must fail this run, never quietly skip it and report green.
-for (const name of ["EYADEX_TEST_OWNER_URL", "EYADEX_TEST_APP_URL", "EYADEX_TEST_DISPATCHER_URL"]) {
+for (const name of [
+  "EYADEX_TEST_OWNER_URL",
+  "EYADEX_TEST_APP_URL",
+  "EYADEX_TEST_DISPATCHER_URL",
+  "EYADEX_TEST_PLATFORM_URL",
+]) {
   if (!process.env[name]) throw new Error(`${name} is not set — @eyadex/worker test:db needs it`);
 }
 

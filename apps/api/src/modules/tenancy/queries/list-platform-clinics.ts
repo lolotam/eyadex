@@ -8,6 +8,7 @@ import type { Database } from "@eyadex/db";
 import { sql } from "drizzle-orm";
 
 import { ApiError } from "../../../shared/errors.ts";
+import { effectiveStatusSql } from "./effective-status.ts";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -35,23 +36,26 @@ export type PlatformClinicDetailReader = (clinicId: string) => Promise<PlatformC
 /**
  * قايمة العيادات للمنصة (story 18، ADR-0016): الأحدث الأول (`created_at desc, id desc`) بـ cursor
  * ثابت حتى لو اتنين ليهم نفس `created_at`. كل عنصر هو نفس شكل التفاصيل — مفيش أي بيانات مراجعين.
- * الـ total في جملة لوحده بنفس الفلاتر.
+ * الـ total في جملة لوحده بنفس الفلاتر. فلتر الحالة على الحالة الفعلية (ADR-0020): "منتهي" محسوب
+ * على `now`، و"تجريبي"/"نشط" مابيشملوش اللي انتهت.
  *
  * @param db الـ pool على `eyadex_platform` (الـ policy بتاعته بتشوف كل العيادات)
  * @param detail قارئ التفاصيل لكل عيادة في سياقها
  * @param query الـ cursor والحد والفلاتر
+ * @param now الوقت من الـ Clock المحقون
  * @returns الصفحة
  */
 export async function listPlatformClinics(
   db: Database,
   detail: PlatformClinicDetailReader,
   query: PlatformClinicListQuery,
+  now: Date,
 ): Promise<PlatformClinicListResponse> {
   const after = decodeCursor(query.cursor);
   const pattern = likePattern(query.search);
   const status = query.status ?? null;
   const specialty: Specialty | null = query.specialty ?? null;
-  const filters = sql`(${status}::text IS NULL OR status = ${status}::text)
+  const filters = sql`(${status}::text IS NULL OR ${effectiveStatusSql(now)} = ${status}::text)
       AND (${specialty}::text IS NULL OR specialty = ${specialty}::text)
       AND (${pattern}::text IS NULL OR name_ar ILIKE ${pattern}::text
            OR name_en ILIKE ${pattern}::text OR slug ILIKE ${pattern}::text)`;

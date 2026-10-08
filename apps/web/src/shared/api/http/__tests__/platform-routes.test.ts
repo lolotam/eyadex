@@ -67,11 +67,11 @@ describe("wired platform methods", () => {
     });
     expect(result.firstAdminInvite.token).toBeNull();
   });
-  it("createClinic sends trialDays and no expiresAt, then reads the clinic back", async () => {
+  it("createClinic sends no trial length and no expiresAt (the server's default), then reads it back", async () => {
     const h = clientWith(answer);
     const result = await h.api.platform.createClinic(P, input, "key-t");
     const body = h.calls[0]!.body as Record<string, unknown>;
-    expect(body["trialDays"]).toBe(14);
+    expect(body).not.toHaveProperty("trialDays");
     expect(body).not.toHaveProperty("expiresAt");
     expect(h.calls[1]).toMatchObject({ method: "GET", url: base });
     expect(result.clinic).toMatchObject({
@@ -180,14 +180,6 @@ describe("unserved methods throw not_implemented", () => {
     ["session.listLoginAccounts", () => a.session.listLoginAccounts(CLINIC)],
     ["session.listLoginPlatformAccounts", () => a.session.listLoginPlatformAccounts()],
     ["session.acceptPlatformInvitation", () => a.session.acceptPlatformInvitation(CLINIC)],
-    ...(
-      ["clinicSettings", "account", "platformOverview", "platformTeam", "platformSettings"] as const
-    ).flatMap((ns) =>
-      Object.entries(a[ns]).map(([m, fn]): [string, () => Promise<unknown>] => [
-        `${ns}.${m}`,
-        () => (fn as (...x: unknown[]) => Promise<unknown>)(P, CLINIC, {}),
-      ]),
-    ),
   ];
   it.each(methods)("%s", async (_name, run) => {
     expect((await code(run())).code).toBe("not_implemented");

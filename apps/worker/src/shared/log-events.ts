@@ -9,6 +9,8 @@ export const WORKER_LOG_EVENTS = [
   "outbox event handled",
   "outbox event failed",
   "outbox poll failed",
+  "expiry reminder scan completed",
+  "expiry reminder scan failed",
   "nest",
   "nest error",
   "nest warning",

@@ -83,6 +83,13 @@ export class ResendMailSender implements MailSender {
       await response.body?.cancel();
       return { sent: true, provider: "resend", fallback: false };
     }
-    return { sent: false, error: await errorCode(response) };
+    const error = await errorCode(response);
+    // The key is the outbox event id: Resend refusing it for a different body means an earlier attempt of
+    // this same event was accepted (its answer was lost) and a value read at send time changed since
+    // (the sender name, a clinic name). The message went out; retrying would only fail again.
+    if (error === "resend_409:invalid_idempotent_request") {
+      return { sent: true, provider: "resend", fallback: false };
+    }
+    return { sent: false, error };
   }
 }

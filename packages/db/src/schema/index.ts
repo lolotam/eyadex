@@ -17,3 +17,6 @@ export {
 export { outboxEvents, idempotencyKeys } from "./outbox.ts";
 export { clinicIdempotencyKeys } from "./clinic-idempotency.ts";
 export { clinicMailProviders } from "./clinic-mail-providers.ts";
+export { platformSettings } from "./platform-settings.ts";
+export { platformAccounts } from "./platform-accounts.ts";
+export { clinicExpiryReminders } from "./clinic-expiry-reminders.ts";

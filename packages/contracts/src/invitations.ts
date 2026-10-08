@@ -68,6 +68,8 @@ export const invitationPreviewSchema = z.object({
   fullName: z.string(),
   email: z.string(),
   status: invitationStatusSchema,
+  /** Who invites: a clinic (absent) or the platform team (ADR-0020), so the page picks its copy. */
+  area: z.enum(["clinic", "platform"]).optional(),
 });
 export type InvitationPreview = z.infer<typeof invitationPreviewSchema>;
 
@@ -83,7 +85,8 @@ export const acceptInvitationInputSchema = z
 export type AcceptInvitationInput = z.infer<typeof acceptInvitationInputSchema>;
 
 export const acceptedInvitationSchema = z.object({
-  clinicId: idSchema,
+  /** null = a platform-team invitation (ADR-0020): no clinic. */
+  clinicId: idSchema.nullable(),
   /** null = no session is opened; the person signs in with email and password (ADR-0008). */
   memberId: idSchema.nullable(),
   roleKey: z.string().nullable(),

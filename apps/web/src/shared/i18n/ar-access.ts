@@ -60,6 +60,11 @@ export const arAccess = {
   inviteHttp: {
     bodyNoRole: "تمت دعوتك للانضمام إلى هذه العيادة. اختر كلمة مرور لقبول الدعوة.",
     signInNow: "الذهاب لتسجيل الدخول",
+    platformTitle: "دعوة للانضمام إلى فريق منصة Eyadex",
+    platformBody: "تمت دعوتك للانضمام إلى فريق منصة Eyadex. اختر كلمة مرور لقبول الدعوة.",
+    platformAcceptedTitle: "أصبحت عضوًا في فريق المنصة",
+    platformAcceptedBody:
+      "حسابك نشط الآن. سجّل الدخول إلى المنصة، وسيُطلب منك تفعيل التحقق بخطوتين أول مرة.",
   },
 } as const;
 
