@@ -5,8 +5,6 @@ import {
   authUsers,
   authVerifications,
 } from "@eyadex/db/schema";
-import type { IdGenerator } from "@eyadex/ids";
-import { runWithTransaction } from "@better-auth/core/context";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { twoFactor } from "better-auth/plugins/two-factor";
@@ -15,27 +13,17 @@ import postgres from "postgres";
 
 import { CLIENT_IP_HEADER, sessionAreaHook } from "./area-binding.ts";
 import { createEnrollmentLock, type LockedResult } from "./enrollment-lock.ts";
-import { assertOptions, assertPassword, PASSWORD_LIMITS, type AuthArea } from "./options.ts";
+import { createAccountOn } from "./user-account.ts";
+import {
+  areaCookiePrefix,
+  assertOptions,
+  assertPassword,
+  PASSWORD_LIMITS,
+  type AuthArea,
+  type CreateAuthOptions,
+} from "./options.ts";
 
-export type { AuthArea } from "./options.ts";
-
-/** خيارات الـ factory. كل قيمة سرية جاية من الـ env، ومفيش default ليها. */
-export interface CreateAuthOptions {
-  /** منطقة الجلسة: `platform` أو `clinic` — كل واحدة ليها اسم cookie مختلف. */
-  readonly area: AuthArea;
-  /** رابط الداتابيز على الدور `eyadex_auth` بس (PRD §4.5). */
-  readonly databaseUrl: string;
-  /** `BETTER_AUTH_SECRET`: بيوقّع الـ cookies وبيشفّر سر الـ TOTP. 32 حرف على الأقل. */
-  readonly secret: string;
-  /** الـ origin بتاع المنطقة (مثلاً `https://app.eyadex.com`). */
-  readonly baseUrl: string;
-  /** مولّد UUID v7 من `@eyadex/ids`. */
-  readonly ids: IdGenerator;
-  /** المسار اللي المتصفح شايفه للـ auth (افتراضياً `/api/auth`، same-origin — ADR-0004). */
-  readonly basePath?: string;
-  /** حجم الـ pool، افتراضياً 5. */
-  readonly maxConnections?: number;
-}
+export type { AuthArea, CreateAuthOptions } from "./options.ts";
 
 const schema = {
   user: authUsers,
@@ -49,10 +37,15 @@ const schema = {
  * بيبني إعدادات Better Auth لمنطقة واحدة فوق client واحد.
  *
  * @param options خيارات الـ factory بعد التحقق
- * @param client الـ postgres.js pool على `eyadex_auth`
+ * @param client الـ postgres.js pool على `eyadex_auth`، أو transaction مفتوحة (`ownTransactions: false`)
+ * @param ownTransactions `false` لما الـ client نفسه transaction بيملكها اللي بينادي (ADR-0021)
  * @returns instance بتاع Better Auth
  */
-function buildAuth(options: CreateAuthOptions, client: postgres.Sql) {
+export function buildAuth(
+  options: CreateAuthOptions,
+  client: postgres.Sql,
+  ownTransactions = true,
+) {
   // Parsed once: `HTTPS://Host` or surrounding spaces pass assertOptions, so every setting below
   // reads the normalized origin and protocol, never the raw spelling.
   const base = new URL(options.baseUrl);
@@ -64,8 +57,9 @@ function buildAuth(options: CreateAuthOptions, client: postgres.Sql) {
     secret: options.secret,
     trustedOrigins: [base.origin],
     // The adapter's default is `transaction: false`, which runs Better Auth's multi-row writes
-    // (and runWithTransaction below) as separate statements.
-    database: drizzleAdapter(db, { provider: "pg", schema, transaction: true }),
+    // (and runWithTransaction in user-account.ts) as separate statements. Off only when the caller's own
+    // transaction already holds every write (the first platform account, ADR-0021).
+    database: drizzleAdapter(db, { provider: "pg", schema, transaction: ownTransactions }),
     // One account, one area (0024): no session is minted for a user of the other area, whatever the path.
     databaseHooks: { session: { create: { before: sessionAreaHook(db, options.area) } } },
     emailAndPassword: {
@@ -103,8 +97,9 @@ function buildAuth(options: CreateAuthOptions, client: postgres.Sql) {
     // apps/api counts every limited route in Redis before Better Auth is called (ADR-0005).
     rateLimit: { enabled: false },
     advanced: {
-      // A distinct prefix per area: app. and platform. never share a session cookie (PRD §4.15).
-      cookiePrefix: `eyadex-${options.area}`,
+      // One prefix per area and per environment: app. and platform. never share a session cookie
+      // (PRD §4.15), and neither do staging and production (ADR-0021).
+      cookiePrefix: areaCookiePrefix(options.cookiePrefix, options.area),
       useSecureCookies: base.protocol === "https:",
       // Better Auth skips the Origin check when NODE_ENV is "test"; stated false so tests see production.
       disableOriginCheck: false,
@@ -224,33 +219,8 @@ export function createAuth(options: CreateAuthOptions): EyadexAuth {
 
   return {
     auth,
-    createUserAccount: async ({ email, name, password }) => {
-      assertPassword(password);
-      const context = await auth.$context;
-      const hash = await context.password.hash(password);
-      // User and credential row commit together: a failed linkAccount must not leave a user that can
-      // never sign in while holding the email. TODO(spec): the global email hold (0015) belongs to
-      // the identity use case that calls this (invitation acceptance, slice 2b+).
-      return runWithTransaction(context.adapter, async () => {
-        const user = await context.internalAdapter.createUser(
-          {
-            email: email.trim().toLowerCase(),
-            name,
-            emailVerified: true,
-            // The instance's own area: a clinic instance creates clinic accounts only (0024).
-            area: options.area,
-          },
-          { method: "admin" },
-        );
-        await context.internalAdapter.linkAccount({
-          userId: user.id,
-          providerId: "credential",
-          accountId: user.id,
-          password: hash,
-        });
-        return { userId: user.id };
-      });
-    },
+    // The instance's own area: a clinic instance creates clinic accounts only (0024).
+    createUserAccount: (account) => createAccountOn(auth, options.area, account),
     findAccountByEmail: async (email) => {
       const rows = await client<{ id: string; area: AuthArea }[]>`
         SELECT id, area FROM auth_users WHERE email = ${email.trim().toLowerCase()}`;

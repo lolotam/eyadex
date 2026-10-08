@@ -215,3 +215,21 @@ describe("the shutdown watchdog", () => {
     }
   });
 });
+
+describe("security headers (ADR-0021)", () => {
+  const expected = {
+    "x-content-type-options": "nosniff",
+    "x-frame-options": "DENY",
+    "referrer-policy": "no-referrer",
+    "content-security-policy": "default-src 'none'; frame-ancestors 'none'",
+    "cache-control": "no-store",
+  };
+
+  it("are on a route's answer, on a 404 and on an error Fastify raises before Nest", async () => {
+    await start();
+    for (const url of ["/v1/health", "/v1/nothing-here", "/v1/%ZZ"]) {
+      const res = await app!.inject({ method: "GET", url });
+      expect(res.headers, url).toMatchObject(expected);
+    }
+  });
+});

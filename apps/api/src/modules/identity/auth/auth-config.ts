@@ -13,6 +13,9 @@ const schema = z.object({
     .refine((value) => /^rediss?:\/\//.test(value)),
   // 0 = the API is reached directly and Host is authoritative; N = exactly N reverse proxies in front.
   TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(10).default(0),
+  // ADR-0021: each environment names its cookies apart (`eyadex-staging` → eyadex-staging-clinic.*).
+  // Unset keeps production's `eyadex-<area>`; @eyadex/auth checks the format before any pool opens.
+  AUTH_COOKIE_PREFIX: z.preprocess((v) => (v === "" ? undefined : v), z.string().optional()),
 });
 
 export type AuthConfig = z.output<typeof schema>;

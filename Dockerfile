@@ -22,6 +22,12 @@ RUN pnpm install --offline --frozen-lockfile
 # Dokploy passes it as a build arg; nothing reads it at run time.
 ARG VITE_API_MODE=mock
 ENV VITE_API_MODE=$VITE_API_MODE
+# ADR-0021: the two area hosts, compiled in the same way. Empty (production) keeps the host-prefix
+# rules (`app.` / `platform.`); staging names its own hosts, and then only those two are areas.
+ARG VITE_APP_HOST=
+ARG VITE_PLATFORM_HOST=
+ENV VITE_APP_HOST=$VITE_APP_HOST \
+    VITE_PLATFORM_HOST=$VITE_PLATFORM_HOST
 # Production mode is set for the build step alone.
 ENV NODE_ENV=production
 RUN pnpm --filter @eyadex/web build
