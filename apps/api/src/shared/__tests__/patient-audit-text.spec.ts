@@ -58,6 +58,20 @@ describe("scrubPatientAuditText", () => {
 });
 
 describe("scrubPatientAuditDetails", () => {
+  it("scrubs a UUID-shaped name: only known id keys keep a UUID", () => {
+    const shaped = `aaaaaaaa-aaaa-aaaa-aaaa-${CIVIL_ID}`;
+    const out = scrubPatientAuditDetails({
+      after: { id: shaped, fullName: shaped, tags: [shaped] },
+    });
+    expect(out).toEqual({
+      after: {
+        id: shaped,
+        fullName: "aaaaaaaa-aaaa-aaaa-aaaa-[REDACTED]",
+        tags: ["aaaaaaaa-aaaa-aaaa-aaaa-[REDACTED]"],
+      },
+    });
+  });
+
   it("scrubs every string at any depth and keeps UUIDs and numbers", () => {
     const id = "01a118ec-3185-7119-9bfc-1b7232f3bd00";
     const out = scrubPatientAuditDetails({

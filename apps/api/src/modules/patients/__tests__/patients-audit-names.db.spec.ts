@@ -67,6 +67,12 @@ describe("the stored audit payload of a create", () => {
     ["a bidi-control-split civil ID", fakeCivilId, (v: string) => `Test${splitBy(BIDI)(v)}`],
     ["a soft-hyphen-split phone", fakePhone, (v: string) => `Test${splitBy(SOFT_HYPHEN)(v)}`],
     ["a C0-control-split civil ID", fakeCivilId, (v: string) => `Test${splitBy(BELL)(v)}`],
+    // UUID-shaped, last group a civil ID: no blanket "looks like a UUID" exemption may keep it.
+    [
+      "a UUID-shaped name ending in a civil ID",
+      fakeCivilId,
+      (v: string) => `aaaaaaaa-aaaa-aaaa-aaaa-${v}`,
+    ],
   ] as const;
 
   it.each(cases)("%s keeps none of its digits", async (_label, makeValue, nameOf) => {
