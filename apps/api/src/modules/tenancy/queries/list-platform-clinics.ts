@@ -21,7 +21,8 @@ function decodeCursor(cursor: string | undefined): { createdAt: string; id: stri
   if (rest.length > 0 || !UUID.test(id) || Number.isNaN(Date.parse(createdAt))) {
     throw new ApiError("validation", [{ path: ["cursor"], code: "invalid" }]);
   }
-  return { createdAt: new Date(createdAt).toISOString(), id };
+  // Kept as written: a Date would drop the microseconds and the next page would skip rows.
+  return { createdAt, id };
 }
 
 // LIKE metacharacters in the search are literal text, not wildcards.
@@ -55,8 +56,9 @@ export async function listPlatformClinics(
       AND (${pattern}::text IS NULL OR name_ar ILIKE ${pattern}::text
            OR name_en ILIKE ${pattern}::text OR slug ILIKE ${pattern}::text)`;
   const { rows, total } = await db.withNoTenant(async (tx) => ({
-    rows: await tx.execute<{ id: string; created_at: Date | string }>(
-      sql`SELECT id, created_at FROM clinics
+    rows: await tx.execute<{ id: string; cursor_at: string }>(
+      // created_at as full-precision text: the cursor must carry every microsecond PostgreSQL stores.
+      sql`SELECT id, to_json(created_at) #>> '{}' AS cursor_at FROM clinics
           WHERE ${filters}
             AND (${after?.createdAt ?? null}::timestamptz IS NULL
                  OR (created_at, id) < (${after?.createdAt ?? null}::timestamptz, ${after?.id ?? null}::uuid))
@@ -79,7 +81,7 @@ export async function listPlatformClinics(
     items,
     nextCursor:
       rows.length > query.limit && last !== undefined
-        ? encodeCursor(new Date(last.created_at).toISOString(), last.id)
+        ? encodeCursor(last.cursor_at, last.id)
         : null,
     total: Number(total[0]?.total ?? 0),
   };

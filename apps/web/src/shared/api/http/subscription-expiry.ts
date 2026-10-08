@@ -64,7 +64,10 @@ function zoneOffsetMinutes(at: Date, timeZone: string): number {
 
 /** 23:59:59 of a calendar date in a time zone, as a UTC instant. */
 export function endOfLocalDay(date: string, timeZone: string): string {
-  const asUtc = new Date(`${date}T23:59:59Z`);
-  const instant = new Date(asUtc.getTime() - zoneOffsetMinutes(asUtc, timeZone) * 60_000);
+  const target = Date.parse(`${date}T23:59:59Z`);
+  // Two passes, as the API's trialEndsAt: the offset must be the one in force at the local end of the
+  // day, and the first guess can fall on the other side of a DST change (Cairo, late April).
+  const guess = new Date(target - zoneOffsetMinutes(new Date(target), timeZone) * 60_000);
+  const instant = new Date(target - zoneOffsetMinutes(guess, timeZone) * 60_000);
   return instant.toISOString().replace(".000Z", "Z");
 }
