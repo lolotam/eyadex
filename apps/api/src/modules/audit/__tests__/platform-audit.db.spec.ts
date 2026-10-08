@@ -46,8 +46,10 @@ const body = async (query = ""): Promise<ListBody> => {
   expect(res.statusCode, res.body).toBe(200);
   return res.json() as ListBody;
 };
-const every = (query = "") =>
-  allPages((cursor) => body(`limit=3${query}${cursor === null ? "" : `&cursor=${cursor}`}`));
+const every = (query = "", limit = 3) =>
+  allPages((cursor) => body(`limit=${limit}${query}${cursor === null ? "" : `&cursor=${cursor}`}`));
+// The database is shared between runs and never emptied: most checks look at this run's clinic A.
+const inA = (query = "") => every(`&clinicId=${A.admin.clinicId}${query}`);
 
 beforeAll(async () => {
   h = await openHarness({}, true);
@@ -115,8 +117,9 @@ describe("PLAT-02: who may read the platform log", () => {
 
 describe("PLAT-01: patient access never reaches the platform", () => {
   it("a patient-access row is in no page, under no filter, and leaks nothing", async () => {
-    const all = await every();
-    expect(all.map((i) => i.id)).not.toContain(ids["patient"]);
+    const everywhere = await every("", 100);
+    expect(everywhere.map((i) => i.id)).not.toContain(ids["patient"]);
+    const all = await inA();
     expect(all.map((i) => i.id)).toContain(ids["branch"]);
     expect((await body("action=patient.opened")).total).toBe(0);
     expect(
@@ -145,12 +148,12 @@ describe("PLAT-01: patient access never reaches the platform", () => {
 
 describe("the platform log", () => {
   it("lists platform events and clinic administrative entries, newest first, with names", async () => {
-    const all = await every();
+    const all = await inA();
     const instants = all.map((i) => i.at);
     expect(instants).toEqual([...instants].sort().reverse());
     const keys = all.map((i) => `${String(i["source"])}:${String(i["clinicId"])}:${i.id}`);
     expect(new Set(keys).size).toBe(all.length);
-    expect((await body()).total).toBe(all.length);
+    expect((await body(`clinicId=${A.admin.clinicId}`)).total).toBe(all.length);
     expect(all.find((i) => i.id === ids["feature"])).toMatchObject({
       source: "platform",
       entity: "clinic",
@@ -198,8 +201,8 @@ describe("the platform log", () => {
     ],
     ["actor=STAFF", (i: ListBody["items"][number]) => i["actorName"] === "staff"],
   ])("filter %s returns exactly the matching rows", async (query, matches) => {
-    const all = await every();
-    const filtered = await every(`&${query}`);
+    const all = await inA();
+    const filtered = await inA(`&${query}`);
     expect(filtered.length).toBeGreaterThan(0);
     expect(filtered.map((i) => i.id)).toEqual(all.filter(matches).map((i) => i.id));
   });
