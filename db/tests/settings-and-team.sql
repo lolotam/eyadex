@@ -96,7 +96,25 @@ BEGIN
   EXCEPTION WHEN check_violation THEN NULL; END;
 END $$;
 
--- The bootstrap link (eyadex_auth) adds the first active member once, never a second one.
+-- The bootstrap link (eyadex_auth) adds the first active member once, never a second one. On a live
+-- database (production, staging) the team already has members: the link must refuse, then the team
+-- is emptied inside this transaction (rolled back) so the empty-team case is tested too.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM platform_accounts WHERE status = 'active') THEN
+    PERFORM set_config('eyadex.test_team_populated', 'yes', true);
+  END IF;
+END $$;
+SET LOCAL ROLE eyadex_auth;
+DO $$
+BEGIN
+  IF current_setting('eyadex.test_team_populated', true) = 'yes'
+     AND link_first_platform_account('00000000-0000-7000-8000-0000000011d0', 'probe@example.test', 'Probe') THEN
+    RAISE EXCEPTION 'TEAM: a member was linked while the team already had one';
+  END IF;
+END $$;
+RESET ROLE;
+UPDATE platform_accounts SET status = 'deactivated', updated_at = now() WHERE status = 'active';
 SET LOCAL ROLE eyadex_auth;
 DO $$
 BEGIN
