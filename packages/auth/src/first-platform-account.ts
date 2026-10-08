@@ -90,7 +90,8 @@ export async function createFirstPlatformAccount(
     });
   } catch (error) {
     // Thrown only to roll the user, its credential and the hold back: nothing was written.
-    if (error instanceof TeamAlreadyActive) return { created: false, reason: "platform_account_exists" };
+    if (error instanceof TeamAlreadyActive)
+      return { created: false, reason: "platform_account_exists" };
     throw error;
   } finally {
     await client.end({ timeout: 5 });

@@ -124,7 +124,11 @@ describe("createFirstPlatformAccount (ADR-0021)", () => {
         token_expires_at, invited_by, joined_at, created_at, updated_at)
       VALUES (${member}, ${member}, ${email("member")}, 'Member', 'active', NULL, NULL, NULL, now(), now(), now())`;
     try {
-      const result = await createFirstPlatformAccount(options, { email: address, name: "Ops", password });
+      const result = await createFirstPlatformAccount(options, {
+        email: address,
+        name: "Ops",
+        password,
+      });
       expect(result).toEqual({ created: false, reason: "platform_account_exists" });
       expect(await platformAccounts()).toBe(0);
       expect(await holdOf(address)).toBeUndefined();
