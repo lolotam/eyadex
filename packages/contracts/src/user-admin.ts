@@ -66,3 +66,12 @@ export const strandedMembersDetailsSchema = z.object({
   members: z.array(z.object({ id: idSchema, fullName: z.string() })),
 });
 export type StrandedMembersDetails = z.infer<typeof strandedMembersDetailsSchema>;
+
+/**
+ * `GET /v1/users/usage` (ADR-0016): `used` = active members + live pending invitations, the same
+ * rule as the limit check and the platform `usage.users`.
+ */
+export const userUsageResponseSchema = z
+  .object({ used: z.number().int().nonnegative(), limit: z.number().int().positive() })
+  .strict();
+export type UserUsageResponse = z.infer<typeof userUsageResponseSchema>;

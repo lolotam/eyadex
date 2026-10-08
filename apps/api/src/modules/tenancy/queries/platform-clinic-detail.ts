@@ -37,6 +37,9 @@ export async function getPlatformClinicDetail(
     status: snapshot.status,
     access: decideClinicAccess(snapshot, now),
     expiresAt: snapshot.expiresAt.toISOString(),
+    defaultLanguage: snapshot.defaultLanguage,
+    timezone: snapshot.timezone,
+    createdAt: snapshot.createdAt.toISOString(),
     modules: { patients: isModuleEnabled(snapshot.features, "patients") },
     usage: {
       users: usersUsage(usage.activeMemberships, usage.livePendingInvitations, snapshot.maxUsers),

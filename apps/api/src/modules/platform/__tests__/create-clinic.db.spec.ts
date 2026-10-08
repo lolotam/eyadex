@@ -156,6 +156,32 @@ describe("POST /v1/platform/clinics (ONB-01)", () => {
     expect(await count("clinics", "slug", email.slug)).toBe(0);
   });
 
+  it("trialDays: the server ends the trial at local midnight on the injected clock", async () => {
+    const clock = h.app.get<{ now: () => Date }>(CLOCK);
+    const real = clock.now;
+    clock.now = () => new Date("2031-01-31T22:00:00Z"); // already 1 February in Kuwait
+    try {
+      const { expiresAt: _drop, ...rest } = body();
+      void _drop;
+      const res = await create({ ...rest, trialDays: 14 });
+      expect(res.statusCode).toBe(201);
+      const [row] = await h.owner`SELECT expires_at FROM clinics WHERE id = ${res.json().clinicId}`;
+      expect(new Date(row!["expires_at"]).toISOString()).toBe("2031-02-15T20:59:59.000Z");
+    } finally {
+      clock.now = real;
+    }
+  });
+
+  it("NEGATIVE: both expiresAt and trialDays, or neither, are 400 and write nothing", async () => {
+    const both = body();
+    expect((await create({ ...both, trialDays: 14 })).statusCode).toBe(400);
+    expect(await count("clinics", "slug", both.slug)).toBe(0);
+    const { expiresAt: _drop, ...neither } = body();
+    void _drop;
+    expect((await create(neither)).statusCode).toBe(400);
+    expect(await count("clinics", "slug", neither.slug)).toBe(0);
+  });
+
   it("NEGATIVE: a missing Idempotency-Key is rejected", async () => {
     const b = body();
     const res = await create(b, null);

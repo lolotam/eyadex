@@ -8,6 +8,7 @@ import {
   USER,
   branchDetail,
   clientWith,
+  inspection,
   invitation,
   me,
   page,
@@ -18,11 +19,13 @@ import {
 
 const P: Persona = { kind: "custom", clinicId: CLINIC, memberId: USER };
 const TOKEN = "tok_abc-DEF_123";
+const USAGE = { active: 2, limit: 3 };
 
 /** Answers every wired clinic route with a valid API body. */
 function answer(call: Call) {
   const path = call.url.replace(/\?.*$/, "");
   if (path === "/api/v1/me") return { body: me };
+  if (path === "/api/v1/branches/usage") return { body: USAGE };
   if (path === "/api/v1/branches" && call.method === "GET") return { body: page([branchDetail]) };
   if (path.startsWith("/api/v1/branches"))
     return {
@@ -51,16 +54,7 @@ function answer(call: Call) {
       },
     };
   if (path === "/api/v1/invitations" && call.method === "GET") return { body: page([invitation]) };
-  if (path === "/api/v1/invitations/inspect")
-    return {
-      body: {
-        clinicNameAr: "ع",
-        clinicNameEn: "C",
-        email: "new@example.test",
-        fullName: "New Person",
-        expiresAt: "2026-02-01T00:00:00.000Z",
-      },
-    };
+  if (path === "/api/v1/invitations/inspect") return { body: inspection };
   if (path === "/api/v1/invitations/accept")
     return { body: { clinicId: CLINIC, email: "new@example.test" } };
   if (path.endsWith("/link"))
@@ -285,12 +279,7 @@ describe("wired clinic methods", () => {
     expect(ctx.blocked).toBeNull();
     expect(ctx.expiresInDays).toBeNull();
   });
-  it("usage counters are unknown over HTTP", async () => {
-    expect(
-      (await h.api.branches.list(P, { cursor: null, limit: 10, search: "", status: null })).usage,
-    ).toBeNull();
-    expect(await h.api.users.usage(P)).toBeNull();
-  });
+
   it("maps role counts and the catalogue module", async () => {
     expect((await h.api.roles.list(P))[0]?.memberCount).toBe(2);
     expect((await h.api.roles.catalog(P))[0]?.module).toBeNull();

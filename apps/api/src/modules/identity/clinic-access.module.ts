@@ -6,7 +6,10 @@ import { DatabaseModule } from "../../shared/database.module.ts";
 import { DATABASE } from "../../shared/database.provider.ts";
 import {
   BranchChanges,
+  CLINIC_READER,
   CLOCK,
+  readClinicUsage,
+  type ClinicReader,
   TenancyModule,
   type Clock,
   type ExclusiveMemberReader,
@@ -20,6 +23,8 @@ import { SecretSealer } from "@eyadex/secrets";
 import {
   BRANCH_CHANGES,
   BranchesController,
+  CLINIC_USAGE,
+  type ClinicUsageReader,
   EXCLUSIVE_MEMBER_READER,
 } from "./http/branches.controller.ts";
 import {
@@ -28,6 +33,7 @@ import {
 } from "./http/clinic-invitations.controller.ts";
 import { USER_CHANGES, UsersController } from "./http/users.controller.ts";
 import { PgExclusiveMembers } from "./persistence/pg-exclusive-members.ts";
+import { PgSeatUsageReader } from "./persistence/pg-seat-usage-reader.ts";
 import { InvitationChanges } from "./use-cases/invitation-changes/invitation-changes.ts";
 import { UserChanges } from "./use-cases/user-changes/user-changes.ts";
 import { MeController, PermissionsController, RolesController } from "./http/access.controllers.ts";
@@ -58,6 +64,15 @@ const logger = new NestLogger("authorization");
   providers: [
     // tenancy's port, implemented by identity: one binding for the branch writes and the list.
     { provide: EXCLUSIVE_MEMBER_READER, useValue: new PgExclusiveMembers() },
+    {
+      // Counters only, under withTenant on eyadex_app (ADR-0016).
+      provide: CLINIC_USAGE,
+      inject: [DATABASE, CLINIC_READER, CLOCK],
+      useFactory: (db: Database, reader: ClinicReader, clock: Clock): ClinicUsageReader => {
+        const seats = new PgSeatUsageReader(db);
+        return (clinicId) => readClinicUsage(reader, seats, clock, clinicId);
+      },
+    },
     {
       provide: BRANCH_CHANGES,
       inject: [DATABASE, CLOCK, EXCLUSIVE_MEMBER_READER],
