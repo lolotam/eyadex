@@ -38,6 +38,25 @@ export async function seedAudit(h: Harness, row: SeedRow): Promise<string> {
   return id;
 }
 
+/** Free text a person or the platform typed, carrying a civil ID, a credential and a phone number. */
+// The credential last: its redaction takes the rest of the text with it.
+export const LEAKY_TEXT = `Leaky ${LEAKS.phone} ${LEAKS.civilId} password=${LEAKS.password}`;
+
+/**
+ * A member whose full name is `LEAKY_TEXT`, written as the owner (exempt from the email hold).
+ *
+ * @param h the harness
+ * @param clinicId the clinic
+ * @param roleId an existing role of that clinic
+ * @returns the member's user id
+ */
+export async function seedLeakyMember(h: Harness, clinicId: string, roleId: string) {
+  const userId = randomUUID();
+  await h.owner`INSERT INTO memberships VALUES (${clinicId}, ${randomUUID()}, ${userId}, ${LEAKY_TEXT},
+    ${`leaky-${userId.slice(0, 8)}@example.test`}, ${roleId}, true, 'active', 'en', NULL, now(), now())`;
+  return userId;
+}
+
 /** A branch row whose stored details carry every kind of value the reader must never show. */
 export const leakyBranchDetails = {
   before: { nameAr: "قديم", nameEn: "Old", tokenHash: LEAKS.token, isActive: true },

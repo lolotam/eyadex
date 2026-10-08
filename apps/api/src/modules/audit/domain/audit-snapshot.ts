@@ -1,7 +1,9 @@
 import type { PlatformAuditEntity } from "@eyadex/contracts/audit";
 import type { clinicAuditEntitySchema } from "@eyadex/contracts/organization";
-import { maskPhone, maskPhonesInText, redactSecrets } from "@eyadex/observability";
+import { maskPhone } from "@eyadex/observability";
 import type { z } from "zod";
+
+import { shownValue } from "./audit-text.ts";
 
 /** كل كيان ممكن يظهر في أي من السجلين. */
 export type AuditEntity = z.infer<typeof clinicAuditEntitySchema> | PlatformAuditEntity;
@@ -63,21 +65,6 @@ const ALLOWED: Record<AuditEntity, readonly string[]> = {
   platform_settings: [],
 };
 
-// Free text a person typed can hold a phone number; the writers mask it, the reader masks again.
-const FREE_TEXT = new Set([
-  "nameAr",
-  "nameEn",
-  "address",
-  "fullName",
-  "roleNameAr",
-  "roleNameEn",
-  "fromName",
-  "fromEmail",
-  "replyTo",
-  "smtpHost",
-  "smtpUser",
-]);
-
 // Context a writer keeps beside before/after that the reader needs to make sense of the change
 // (a feature change records which module); copied into each non-null snapshot.
 const CONTEXT_KEYS = ["module"] as const;
@@ -85,21 +72,19 @@ const CONTEXT_KEYS = ["module"] as const;
 const isPlainObject = (value: unknown): value is Snapshot =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-function masked(key: string, value: unknown): unknown {
-  if (key === "phone") return value === null ? null : maskPhone(value);
-  return FREE_TEXT.has(key) && typeof value === "string" ? maskPhonesInText(value) : value;
-}
-
 function project(entity: AuditEntity, side: unknown, context: Snapshot): Snapshot | null {
   if (!isPlainObject(side)) return null;
   const allowed = new Set(ALLOWED[entity]);
   const out: Snapshot = {};
   for (const [key, value] of Object.entries({ ...side, ...context })) {
-    if (allowed.has(key)) out[key] = masked(key, value);
+    if (!allowed.has(key)) continue;
+    out[key] = key === "phone" && value !== null ? maskPhone(value) : value;
   }
   if (Object.keys(out).length === 0) return null;
-  // Defence in depth over the allowlist: a secret, PEM or civil ID typed into an allowed field.
-  return redactSecrets(out) as Snapshot;
+  // Defence in depth over the allowlist, at every depth (`firstAdmin.email` is nested): a secret, PEM
+  // or civil ID typed into an allowed field, and a phone number written anywhere — an email's local
+  // part included.
+  return shownValue(out) as Snapshot;
 }
 
 /**

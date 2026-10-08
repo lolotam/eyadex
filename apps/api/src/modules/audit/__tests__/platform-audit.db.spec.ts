@@ -17,6 +17,8 @@ import {
   getList,
   leakyBranchDetails,
   LEAKS,
+  LEAKY_TEXT,
+  seedLeakyMember,
   seedAudit,
   type ListBody,
 } from "./audit-fixtures.ts";
@@ -38,6 +40,8 @@ let staff: Awaited<ReturnType<typeof platformStaff>>;
 let A: Awaited<ReturnType<typeof clinicWithMembers>>;
 let B: Awaited<ReturnType<typeof clinicWithMembers>>;
 const ids: Record<string, string> = {};
+let leakyClinic = "";
+const SHOWN = "Leaky ***004 [REDACTED] password=[REDACTED]";
 
 const list = (cookie: string | undefined, query = "", host = PLATFORM) =>
   getList(h, host, URL, cookie, query);
@@ -82,6 +86,21 @@ beforeAll(async () => {
     createdAt: "2031-02-02T00:00:01Z",
     details: { after: { slug: LEAKS.civilId } },
   });
+  ids["leakyActor"] = await seedAudit(h, {
+    ...admin,
+    actorUserId: await seedLeakyMember(h, A.admin.clinicId, A.doctor.roleId),
+    action: "role.updated",
+    entityType: "role",
+    createdAt: "2031-01-20T12:00:00Z",
+  });
+  // A clinic whose names were typed with the same values: shown in the list and in the options.
+  leakyClinic = randomUUID();
+  await h.owner`INSERT INTO clinics VALUES (${leakyClinic}, ${`leaky-${leakyClinic.slice(0, 8)}`},
+    ${LEAKY_TEXT}, ${LEAKY_TEXT}, 'general', 'ar', 'Asia/Kuwait', 'active', now() + interval '30 days',
+    5, 2, now(), now())`;
+  ids["leakyClinicEvent"] = randomUUID();
+  await h.owner`INSERT INTO platform_audit_log VALUES (${ids["leakyClinicEvent"]}, ${staff.actorId},
+    'clinic.limits_changed', ${leakyClinic}, ${h.owner.json({})}, '2031-01-20T12:00:00Z')`;
   ids["feature"] = randomUUID();
   await h.owner`INSERT INTO platform_audit_log VALUES (${ids["feature"]}, ${staff.actorId},
     'clinic.feature_changed', ${A.admin.clinicId},
@@ -233,10 +252,27 @@ describe("the platform log", () => {
     ["an unknown parameter", "category=patient_access"],
     ["a malformed clinic id", "clinicId=nope"],
     ["the patient entity", "entity=patient"],
+    ["an unparseable day", "from=bad"],
+    ["a thirteenth month", "from=2026-13-01"],
     ["a malformed cursor", `cursor=${Buffer.from(randomUUID()).toString("base64url")}`],
   ])("refuses %s with 400 validation", async (_label, query) => {
     const res = await list(staff.cookie, query);
     expect(res.statusCode).toBe(400);
+  });
+
+  it("names keep no civil ID, credential or full phone: actor, clinic and option", async () => {
+    const actor = (await inA()).find((i) => i.id === ids["leakyActor"]);
+    expect(actor?.["actorName"]).toBe(SHOWN);
+    const event = (await every(`&clinicId=${leakyClinic}`))[0];
+    expect(event).toMatchObject({
+      id: ids["leakyClinicEvent"],
+      clinicNameAr: SHOWN,
+      clinicNameEn: SHOWN,
+    });
+    const res = await getList(h, PLATFORM, `${URL}/clinics`, staff.cookie);
+    const option = (res.json() as { id: string }[]).find((o) => o.id === leakyClinic);
+    expect(option).toEqual({ id: leakyClinic, nameAr: SHOWN, nameEn: SHOWN });
+    expect(res.body).not.toContain(LEAKY_TEXT);
   });
 
   it("offers every clinic by name for the clinic filter", async () => {

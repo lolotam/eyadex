@@ -1,4 +1,3 @@
-import { maskPhonesInText } from "@eyadex/observability";
 import { sql, type SQL } from "drizzle-orm";
 
 import { decodeAuditCursor, encodeAuditCursor, type AuditCursor } from "../domain/audit-cursor.ts";
@@ -88,9 +87,6 @@ export function pageOf<R>(rows: readonly R[], limit: number, cursorOf: (row: R) 
       rows.length > limit && last !== undefined ? encodeAuditCursor(cursorOf(last)) : null,
   };
 }
-
-/** A shown name: phone numbers typed into it keep their last 3 digits only. */
-export const shownName = (name: string) => maskPhonesInText(name);
 
 /** `details` selected as text, so its shape never depends on the driver's jsonb parsing. */
 export const parseDetails = (text: string): unknown => JSON.parse(text) as unknown;

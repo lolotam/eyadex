@@ -16,6 +16,8 @@ import {
   getList,
   leakyBranchDetails,
   LEAKS,
+  LEAKY_TEXT,
+  seedLeakyMember,
   seedAudit,
   type ListBody,
 } from "./audit-fixtures.ts";
@@ -92,6 +94,13 @@ beforeAll(async () => {
     entityType: "invitation",
     createdAt: "2030-01-01T00:00:00Z",
   });
+  ids["leakyActor"] = await seedAudit(h, {
+    clinicId: A.admin.clinicId,
+    actorUserId: await seedLeakyMember(h, A.admin.clinicId, A.doctor.roleId),
+    action: "user.profile_updated",
+    entityType: "user",
+    createdAt: "2030-01-02T00:00:00Z",
+  });
   ids["otherClinic"] = await seedAudit(h, {
     clinicId: B.admin.clinicId,
     actorUserId: B.admin.userId,
@@ -145,6 +154,14 @@ describe("the clinic's own log", () => {
     expect(items.find((i) => i.id === ids["leaky"])?.["actorName"]).toBe("Invited Admin");
   });
 
+  it("an actor name keeps no civil ID, credential or full phone", async () => {
+    const name = (await every(A.admin.cookie)).find((i) => i.id === ids["leakyActor"])?.[
+      "actorName"
+    ];
+    expect(name).toBe("Leaky ***004 [REDACTED] password=[REDACTED]");
+    expect(name).not.toBe(LEAKY_TEXT);
+  });
+
   it.each([
     ["entity=user", (i: ListBody["items"][number]) => i["entity"] === "user"],
     ["entity=branch", (i: ListBody["items"][number]) => i["entity"] === "branch"],
@@ -175,6 +192,9 @@ describe("the clinic's own log", () => {
     ["an unknown parameter", "clinicId=x"],
     ["an impossible day", "from=2026-02-31"],
     ["a zero limit", "limit=0"],
+    ["an unparseable day", "from=bad"],
+    ["a thirteenth month", "from=2026-13-01"],
+    ["year zero", "to=0000-01-01"],
     ["an unknown entity", "entity=patient_file"],
   ])("refuses %s with 400 validation", async (_label, query) => {
     const res = await list(A.admin.cookie, query);

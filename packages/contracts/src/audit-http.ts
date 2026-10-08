@@ -15,13 +15,21 @@ import { clinicAuditEntitySchema } from "./organization.ts";
  * query strings and the strict answers of `/v1/clinic/audit` and `/v1/platform/audit`.
  */
 
-// A real calendar day: "2026-02-31" would otherwise reach the database as an invalid date (a 500).
+// A real calendar day PostgreSQL can hold: "2026-02-31" or year 0 would otherwise reach the database
+// as an invalid date (a 500). An unparseable value is refused before toISOString() can throw.
+function isCalendarDay(value: string): boolean {
+  const date = new Date(`${value}T00:00:00Z`);
+  return (
+    Number.isFinite(date.getTime()) &&
+    date.getUTCFullYear() >= 1 &&
+    date.toISOString().startsWith(value)
+  );
+}
+
 const day = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/)
-  .refine((value) => new Date(`${value}T00:00:00Z`).toISOString().startsWith(value), {
-    message: "invalid_date",
-  });
+  .refine(isCalendarDay, { message: "invalid_date" });
 
 const filters = {
   cursor: z

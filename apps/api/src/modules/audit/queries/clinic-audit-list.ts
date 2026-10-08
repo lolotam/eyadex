@@ -9,6 +9,7 @@ import type { Database } from "@eyadex/db";
 import { sql } from "drizzle-orm";
 
 import { auditSnapshots } from "../domain/audit-snapshot.ts";
+import { shownText } from "../domain/audit-text.ts";
 import type { ClinicAuditScope } from "../ports/audit-readers.ts";
 import {
   afterCursor,
@@ -18,7 +19,6 @@ import {
   pageOf,
   parseDetails,
   sharedConditions,
-  shownName,
   UNNAMED_ACTOR,
   where,
 } from "./audit-sql.ts";
@@ -90,7 +90,7 @@ export async function listClinicAudit(
       return {
         id: row.id,
         at: new Date(row.at_key).toISOString(),
-        actorName: shownName(row.actor_name),
+        actorName: shownText(row.actor_name),
         action: row.action,
         entity,
         category: auditCategorySchema.parse(row.category),
