@@ -44,7 +44,10 @@ module that already decides the rule, and `platform` only wires HTTP (the ADR-00
   timestamps. Global, no RLS; grants `eyadex_platform` SELECT, INSERT, UPDATE only (app, auth and
   dispatcher get nothing). **Backfill:** every existing `auth_users` row with `area = 'platform'` gets
   an `active` row (`joined_at = created_at`) in the same file, so the new gate never locks out the
-  accounts that exist today. The orchestrator verifies the owner's row after applying.
+  accounts that exist today. The orchestrator verifies the owner's row after applying. ADR-0021's
+  bootstrap (on `eyadex_auth`, no grant on the table) writes the first account's row through
+  `link_first_platform_account` (SECURITY DEFINER, owned by NOLOGIN `eyadex_platform_team_owner`,
+  executable by `eyadex_auth` only, refuses once the team has an active member) in its own transaction.
 - **0038** `clinic_expiry_reminders` (clinic table): `(clinic_id, id)` PK, `expires_at`,
   `created_at`, `UNIQUE (clinic_id, expires_at)`, RLS enabled and forced with the standard policy,
   `eyadex_app` SELECT, INSERT; in `db/tests/rls-isolation.sql` (list + seed) and mirrored in Drizzle.
@@ -130,21 +133,27 @@ UPDATE`, the clock after the locks. Deactivating the last `active` account →
 
 - **Scan** — the worker runs it on start and then every `EXPIRY_SCAN_INTERVAL_MS` (default one hour):
   on a new `PLATFORM_DATABASE_URL` pool (`eyadex_platform`: `clinics` and `platform_settings`, never
-  patients) it lists clinics not suspended with `now < expires_at <= now + alert days`. For each, on
+  patients) it lists clinics not suspended with `now < expires_at <= now + alert days`, paged by
+  `(expires_at, id)` to the end. For each, on
   the `eyadex_app` pool under `withTenant(clinic)`, one transaction re-reads the clinic, re-checks the
-  window, inserts `clinic_expiry_reminders (clinic_id, expires_at)` `ON CONFLICT DO NOTHING` and only
-  when a row was inserted appends `clinic.expiry_reminder` (`{ clinicId, reminderId, expiresAt }`).
+  window, reads the active members holding the system `clinic_admin` role (none → nothing is recorded,
+  so the clinic is reminded once it has an admin), inserts `clinic_expiry_reminders (clinic_id,
+expires_at)` `ON CONFLICT DO NOTHING` and only when a row was inserted appends one
+  `clinic.expiry_reminder` per admin (`{ clinicId, reminderId, expiresAt, membershipId, daysLeft }`).
   The unique key makes it once per clinic per expiry date whatever the tick rate or replica count;
   a renewal is a new date and earns one new reminder. Access never depends on this job (SUB-02).
 - **Send** — the dispatcher handler re-reads under `withTenant`: skip (no email) when the clinic is
-  suspended, its `expires_at` differs from the event's (renewed or changed), or it has already
-  expired. Recipients: active members holding the system `clinic_admin` role, from `memberships`.
-  Always platform mail (owner decision 2026-10-07: billing mail is platform-sent), in the clinic's
-  default language (story 82), the date in the clinic's time zone, one message per admin with
-  idempotency key `<event id>:<membership id>`. Retries follow ADR-0013's schedule.
+  suspended, its `expires_at` differs from the event's (renewed or changed), it has already expired,
+  or the event's member is no longer an active clinic admin. Always platform mail (owner decision
+  2026-10-07: billing mail is platform-sent), in the clinic's default language (story 82), the date in
+  the clinic's time zone. The days left and the date come from the event, so a retry sends the same
+  body under the same idempotency key (the event id), and one failing admin never holds up another.
+  Retries follow ADR-0013's schedule.
 - **Sender name** (story 26): every message the platform sends under its own name (no explicit
   `from`) gets `platform_settings.email_sender_name` as the display name on the `MAIL_FROM` address;
-  on-behalf and clinic-provider messages keep their own name (ADR-0014).
+  on-behalf and clinic-provider messages keep their own name (ADR-0014). The name is read on a
+  one-connection pool of its own: a send runs inside the invitation's or the team row's transaction,
+  and a pool refuses a nested one.
 - **Platform invitation mail** — `platform.team_invited`: open the sealed token, then on the platform
   pool hold the account row `FOR SHARE` through the send and mail only when it is still `invited`,
   unexpired and the hash matches; link `${PLATFORM_URL}/invite/<token>`; Arabic and English in one
@@ -165,8 +174,9 @@ filters the clinic list by effective status and counts "expired" with the same b
 2. Platform invitation email is bilingual (no language on a platform account).
 3. Default user/branch limits for new clinics stay `10` / `3` in the web (story 26 lists trial days,
    alert days and sender name only).
-4. A reminder to several admins is one message each; an SMTP fallback retry may repeat one (no
-   idempotency on SMTP, ADR-0014).
+4. A reminder to several admins is one event (and message) each; an SMTP fallback retry may repeat
+   one (no idempotency on SMTP, ADR-0014). Recipients are fixed at the scan: an admin added later in
+   the same window gets no reminder for that expiry date.
 5. Platform account names are not editable (no story); `auth_users.name` is set at acceptance.
 6. Scan interval one hour; the PRD's "daily" is satisfied by the ledger, not by the tick.
 
