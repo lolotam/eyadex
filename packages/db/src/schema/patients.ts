@@ -16,7 +16,7 @@ import {
 import { branches } from "./branches.ts";
 import { clinics } from "./clinics.ts";
 
-// Mirror of db/sql/0010, 0019, 0021. civil_id is sensitive: never logged or audited.
+// Mirror of db/sql/0010, 0019, 0021 (+ 0035's index). civil_id is sensitive: never logged or audited.
 const tz = { withTimezone: true, mode: "date" } as const;
 
 export const patients = pgTable(
@@ -51,6 +51,7 @@ export const patients = pgTable(
     }),
     index("patients_clinic_name_idx").on(t.clinicId, t.fullName),
     index("patients_clinic_branch_status_idx").on(t.clinicId, t.registrationBranchId, t.status),
+    index("patients_clinic_file_number_num_idx").on(t.clinicId, sql`((file_number)::bigint)`),
     uniqueIndex("patients_clinic_civil_id_unique")
       .on(t.clinicId, t.civilId)
       .where(sql`${t.civilId} IS NOT NULL`),

@@ -187,14 +187,7 @@ describe("unserved methods throw not_implemented", () => {
       ],
     ),
     ...(
-      [
-        "patients",
-        "clinicSettings",
-        "account",
-        "platformOverview",
-        "platformTeam",
-        "platformSettings",
-      ] as const
+      ["clinicSettings", "account", "platformOverview", "platformTeam", "platformSettings"] as const
     ).flatMap((ns) =>
       Object.entries(a[ns]).map(([m, fn]): [string, () => Promise<unknown>] => [
         `${ns}.${m}`,
