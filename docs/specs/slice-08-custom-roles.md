@@ -114,6 +114,24 @@ stays.
    `roles:`. Row locks (role row, membership row, invitation row) come after the advisory locks
    in every path that takes `roles:`.
 
+   **The route's own permission is rechecked too (Codex round 3).** `AccessGuard` decides the
+   route key before the request waits on `roles:`, so every write behind that lock passes its
+   `@Require` key into the transaction and, after the locks, the reloaded actor must still hold
+   it (stored keys; a `clinic` key covers `branch`) — `decideActorPermission`, which is also the
+   first step of `decideRoleDefinition` and `decideRoleGrant`, so no path can skip it. It runs
+   before any row is written, the idempotency claim included. The writes behind `roles:` are:
+   role create, update, deactivate, reactivate (`create`/`update`/`deactivate:roles:clinic`);
+   change role, change branches (`update:users:clinic`); member deactivate, reactivate and
+   invitation cancel (`deactivate:users:clinic`); invite, resend, copy link
+   (`create:users:clinic`).
+
+   Writes that do not take `roles:` and why: branch create/update/deactivate/reactivate
+   (tenancy use cases; they grant no role and no key, and keep ADR-0011's `branches:` order);
+   invitation acceptance (public, decided by the token, not by an actor's permissions); the auth
+   routes (Better Auth, ADR-0004); the clinic mail provider (`settings`, ADR-0014); platform
+   writes (another area, `@PlatformStaff`). For those, the guard's decision stands, as ADR-0009
+   describes.
+
 9. **Pending invitations on a deactivated role.** TODO(spec): not counted by the deactivation rule
    (mock parity, story 51 speaks of users). Such an invitation cannot be accepted while the role is
    inactive (`invitationGrants` → `invitation_invalid`) and works again after reactivation.
@@ -182,6 +200,9 @@ API `test:db` (`identity/__tests__/roles-admin.db.spec.ts`, `role-options.db.spe
   no role definition write and cannot add a branch key to a role an all-branch member holds; a
   branch-scoped grantor cannot reach an all-branch member or invitee; a PATCH queued behind a
   committed revocation (two connections, `pg_locks`) is refused; the Clinic Admin passes all.
+- route key rechecked (`role-revocation.db.spec.ts`): a role create queued behind the
+  revocation of `create:roles:clinic`, and a change role queued behind the revocation of
+  `update:users:clinic`, answer 403 and write no role, membership change, audit or idempotency row.
 - audit row content (allowlisted keys, masked phone in a name).
 - RBAC-03: a member's `/v1/me` permissions change on the next request after a role update.
 - option reads: a role holding `view:users` but not `view:roles`/`view:branches` gets both lists;
