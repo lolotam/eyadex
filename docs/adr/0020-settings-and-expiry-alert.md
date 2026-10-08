@@ -44,7 +44,10 @@ module that already decides the rule, and `platform` only wires HTTP (the ADR-00
   timestamps. Global, no RLS; grants `eyadex_platform` SELECT, INSERT, UPDATE only (app, auth and
   dispatcher get nothing). **Backfill:** every existing `auth_users` row with `area = 'platform'` gets
   an `active` row (`joined_at = created_at`) in the same file, so the new gate never locks out the
-  accounts that exist today. The orchestrator verifies the owner's row after applying. ADR-0021's
+  accounts that exist today. Each backfilled account also takes its email's `platform` reservation
+  through `reserve_platform_email` (0015's one-email rule); a live clinic invitation or membership on
+  that email fails the whole file, to be resolved by hand (`db/tests/platform-backfill.sh`, Codex PR
+  #55). The orchestrator verifies the owner's row after applying. ADR-0021's
   bootstrap (on `eyadex_auth`, no grant on the table) writes the first account's row through
   `link_first_platform_account` (SECURITY DEFINER, owned by NOLOGIN `eyadex_platform_team_owner`,
   executable by `eyadex_auth` only, refuses once the team has an active member) in its own transaction.

@@ -38,6 +38,24 @@ INSERT INTO platform_accounts (id, user_id, email, full_name, status, token_hash
   WHERE u.area = 'platform'
   ON CONFLICT DO NOTHING;
 
+-- Every platform account holds its email as a 'platform' reservation (0015: one email, one area), or a
+-- clinic could invite the same address and its acceptance would fail with account_other_area. The
+-- registry's own function takes the hold (it takes over an expired invitation hold, nothing else). A
+-- live clinic invitation or membership on a platform email must be resolved by hand: the file fails,
+-- and its transaction takes everything above back with it.
+SELECT reserve_platform_email(a.email)
+  FROM platform_accounts a
+  WHERE NOT EXISTS (
+    SELECT 1 FROM email_reservations r WHERE r.email = a.email AND r.kind = 'platform');
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM platform_accounts a
+    WHERE NOT EXISTS (
+      SELECT 1 FROM email_reservations r WHERE r.email = a.email AND r.kind = 'platform')) THEN
+    RAISE EXCEPTION '0037: a platform account email is held by a clinic invitation or membership';
+  END IF;
+END $$;
+
 -- ADR-0021's bootstrap creates the first platform account on eyadex_auth, which has no grant on this
 -- table. This function is its one way in: it links that new user as the team's first active member,
 -- and only while the team has no active member, so it can never add a second account behind the
