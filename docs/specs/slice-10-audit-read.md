@@ -78,10 +78,18 @@ caller's effective permissions hold `view:patients:clinic`. A locked patients mo
 
 ## Cursor
 
-Opaque base64url of `<created_at with microseconds, UTC>|<id>`. Order `created_at DESC, id DESC`;
-next page `WHERE (created_at, id) < (cursor)`. Both parts are validated (malformed → 400
-`validation`). `total` is counted on its own statement with the same filters. A tie on `created_at`
-is broken by `id`, so no row is skipped or repeated.
+Opaque base64url of the full sort key, the instant at microsecond precision (UTC):
+
+- **Clinic list:** `created_at|id`, order `created_at DESC, id DESC`, next page
+  `WHERE (created_at, id) < (cursor)`. `(clinic_id, id)` is the primary key, so the pair is unique
+  inside the clinic.
+- **Platform list:** `created_at|id|source|clinic_key`, order
+  `created_at DESC, id DESC, source DESC, clinic_key DESC` (`clinic_key` = `clinic_id`, the nil UUID
+  for a platform event without one). The list merges two tables and every clinic, and an audit id is
+  unique only per `(clinic_id, id)`, so `(created_at, id)` alone could skip a row.
+
+Every part is validated (malformed, or the other list's shape → 400 `validation`). `total` is counted
+on its own statement with the same filters. No row is skipped or repeated across a tie.
 
 ## Retention
 
@@ -100,13 +108,17 @@ The PRD is silent. `TODO(spec)`: nothing is deleted; no runtime role can delete 
 - **SQL** `db/tests/audit-read.sql`: the platform reads `platform_audit_actors` (platform account +
   member names), never a clinic-area account; cannot read `auth_users`; `eyadex_app` cannot read the
   view; the platform still cannot read `audit_log` and the admin view never shows a patient row.
-- **API unit:** cursor encode/decode; snapshot allowlist (drops unknown keys, civil IDs, tokens,
-  masks phones); entity mapping.
+- **API unit:** cursor encode/decode for both shapes; snapshot allowlist (drops unknown keys, civil
+  IDs, tokens, masks phones); the patient-access permission rule. The `membership` → `user` mapping
+  is SQL and is covered by `test:db` (invitation acceptance rows).
 - **API `test:db`:** clinic list happy path, newest-first, cursor stability with a `created_at` tie,
   each filter, time-zone day bounds; 403 without the permission; cross-clinic rows never returned;
   patient rows hidden without `view:patients:clinic`; platform list with a clinic session / on the
-  clinic host refused; a patient-access row never in the platform list and `eyadex_platform` gets
-  `42501` reading `audit_log`; no secret / civil-ID / token in any response; clinic options.
+  clinic host refused; a patient-access row never in the platform list — including one filed under a
+  non-patient entity, which only the grant boundary (not the API's entity list) keeps out — and
+  `eyadex_platform` gets `42501` reading `audit_log`; the platform cursor across a tie between a
+  platform event and a clinic entry, and across one id held by two clinics at one instant; no
+  secret / civil-ID / token in any response; clinic options.
 - **Web vitest:** each method's method, path, query and `credentials`, with a stubbed `fetch`.
 
 ## Implementation plan
