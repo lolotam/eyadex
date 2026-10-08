@@ -44,6 +44,7 @@
 - [x] Slice 7c-2a routes: `/v1/clinic/mail-provider` (settings → identity through index.ts, owner decision 2026-10-07)
 - [x] Slice 7c-2b: route clinic mail through the clinic provider, failure count, degrade after 3
 - [x] Worker production image (ADR-0015; Dokploy service: orchestrator)
+- [x] Slice 9: patients API — search (POST body), branch options, audited opens, idempotent create, update, archive/restore under branch scope and the `patients` flag; web HTTP adapter wired (ADR-0018, no SQL)
 - [ ] Retention of dispatched and failed outbox rows (TODO(spec))
 - [ ] Slice 8: role CRUD (call `AuthorizationInvalidator`)
 - [ ] Reverse-proxy routes `app.`/`platform.` `/api/*` → api with `/api` stripped (orchestrator)
