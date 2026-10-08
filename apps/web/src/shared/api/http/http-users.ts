@@ -1,5 +1,9 @@
-import { roleListResponseSchema, type RoleSummary } from "@eyadex/contracts/access";
-import { branchListResponseSchema, type BranchDetail } from "@eyadex/contracts/branches";
+import {
+  branchOptionListResponseSchema,
+  roleOptionListResponseSchema,
+  type BranchOptionListResponse,
+  type RoleOptionListResponse,
+} from "@eyadex/contracts/role-admin";
 import { userListResponseSchema, type UserListHttpQuery } from "@eyadex/contracts/user-admin";
 import {
   membershipUserViewSchema,
@@ -17,11 +21,11 @@ export function toUserView(user: MembershipUserView): MembershipUserView {
   return { ...user, branchIds: [...user.branchIds] };
 }
 
-export function toRoleOption(role: RoleSummary): RoleOption {
+export function toRoleOption(role: RoleOptionListResponse["items"][number]): RoleOption {
   return { id: role.id, nameAr: role.nameAr, nameEn: role.nameEn, isActive: role.isActive };
 }
 
-export function toBranchOption(branch: BranchDetail): BranchOption {
+export function toBranchOption(branch: BranchOptionListResponse["items"][number]): BranchOption {
   return { id: branch.id, nameAr: branch.nameAr, nameEn: branch.nameEn, isActive: branch.isActive };
 }
 
@@ -53,20 +57,21 @@ export function createHttpUsers(ctx: HttpContext): ApiClient["users"] {
     },
     // TODO(spec): a clinic-side limits read; until then the counter hides and the API's 409 decides.
     usage: () => Promise.resolve(null),
+    // Under view:users only (ADR-0017): the editor never needs view:roles or view:branches.
     async listRoleOptions() {
       const roles = await collectPages((cursor) =>
-        transport.send("GET", "/v1/roles", {
-          schema: roleListResponseSchema,
+        transport.send("GET", "/v1/users/role-options", {
+          schema: roleOptionListResponseSchema,
           query: { cursor, limit: LIMIT },
         }),
       );
       return roles.map(toRoleOption);
     },
     async listBranchOptions() {
+      // The API lists inactive branches too, like the mock: past scopes and the user filter need them.
       const branches = await collectPages((cursor) =>
-        transport.send("GET", "/v1/branches", {
-          schema: branchListResponseSchema,
-          // Inactive ones too, like the mock: names of past scopes and the user filter need them.
+        transport.send("GET", "/v1/users/branch-options", {
+          schema: branchOptionListResponseSchema,
           query: { cursor, limit: LIMIT },
         }),
       );

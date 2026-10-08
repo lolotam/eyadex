@@ -52,6 +52,13 @@ describe("granting bound (TODO(spec), rule 8)", () => {
     ).toEqual(["view:patients:clinic"]);
   });
 
+  it("a clinic-scope key covers granting the same action at branch scope, never the reverse", () => {
+    expect(keysBeyondActor(["create:patients:branch"], [], ["create:patients:clinic"])).toEqual([]);
+    expect(keysBeyondActor(["create:patients:clinic"], [], ["create:patients:branch"])).toEqual([
+      "create:patients:clinic",
+    ]);
+  });
+
   it("keeping or removing keys is never restricted", () => {
     expect(keysBeyondActor(["view:patients:clinic"], ["view:patients:clinic"], [])).toEqual([]);
     expect(keysBeyondActor([], ["view:patients:clinic"], [])).toEqual([]);

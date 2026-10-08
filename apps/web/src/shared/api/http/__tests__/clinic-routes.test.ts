@@ -17,6 +17,8 @@ import {
 } from "./fetch-stub";
 
 const P: Persona = { kind: "custom", clinicId: CLINIC, memberId: USER };
+const option = { id: ROLE, nameAr: "ر", nameEn: "R", isActive: false };
+const roleInput = { nameAr: "ر", nameEn: "R", permissionKeys: ["view:branches:clinic"] };
 const TOKEN = "tok_abc-DEF_123";
 
 /** Answers every wired clinic route with a valid API body. */
@@ -30,8 +32,15 @@ function answer(call: Call) {
       status: call.method === "POST" && path === "/api/v1/branches" ? 201 : 200,
     };
   if (path === "/api/v1/users") return { body: page([userView]) };
+  if (path === "/api/v1/users/role-options" || path === "/api/v1/users/branch-options")
+    return { body: page([option]) };
   if (path.startsWith("/api/v1/users/")) return { body: userView };
-  if (path === "/api/v1/roles") return { body: page([roleSummary]) };
+  if (path === "/api/v1/roles" && call.method === "GET") return { body: page([roleSummary]) };
+  if (path.startsWith("/api/v1/roles"))
+    return {
+      body: roleSummary,
+      status: call.method === "POST" && path === "/api/v1/roles" ? 201 : 200,
+    };
   if (path === "/api/v1/permissions/catalogue")
     return {
       body: {
@@ -112,6 +121,14 @@ const KEYED = [
     },
     "key-i",
   ],
+  [
+    "roles.create",
+    "POST",
+    "/api/v1/roles",
+    () => h.api.roles.create(P, roleInput, "key-r"),
+    roleInput,
+    "key-r",
+  ],
 ] as const;
 
 const PLAIN = [
@@ -168,14 +185,14 @@ const PLAIN = [
   [
     "users.listRoleOptions",
     "GET",
-    "/api/v1/roles?limit=100",
+    "/api/v1/users/role-options?limit=100",
     () => h.api.users.listRoleOptions(P),
     undefined,
   ],
   [
     "users.listBranchOptions",
     "GET",
-    "/api/v1/branches?limit=100",
+    "/api/v1/users/branch-options?limit=100",
     () => h.api.users.listBranchOptions(P),
     undefined,
   ],
@@ -261,6 +278,27 @@ const PLAIN = [
     () => h.api.roles.catalog(P),
     undefined,
   ],
+  [
+    "roles.update",
+    "PATCH",
+    `/api/v1/roles/${ROLE}`,
+    () => h.api.roles.update(P, ROLE, roleInput),
+    roleInput,
+  ],
+  [
+    "roles.deactivate",
+    "POST",
+    `/api/v1/roles/${ROLE}/deactivate`,
+    () => h.api.roles.deactivate(P, ROLE),
+    undefined,
+  ],
+  [
+    "roles.reactivate",
+    "POST",
+    `/api/v1/roles/${ROLE}/reactivate`,
+    () => h.api.roles.reactivate(P, ROLE),
+    undefined,
+  ],
 ] as const;
 
 describe("wired clinic methods", () => {
@@ -291,9 +329,23 @@ describe("wired clinic methods", () => {
     ).toBeNull();
     expect(await h.api.users.usage(P)).toBeNull();
   });
-  it("maps role counts and the catalogue module", async () => {
-    expect((await h.api.roles.list(P))[0]?.memberCount).toBe(2);
+  it("maps role counts (any status) and the catalogue module", async () => {
+    expect((await h.api.roles.list(P))[0]?.memberCount).toBe(3);
+    expect((await h.api.roles.deactivate(P, ROLE)).memberCount).toBe(3);
     expect((await h.api.roles.catalog(P))[0]?.module).toBeNull();
+  });
+  it("option reads keep inactive rows, with the minimal fields", async () => {
+    expect(await h.api.users.listRoleOptions(P)).toEqual([option]);
+    expect(await h.api.users.listBranchOptions(P)).toEqual([option]);
+  });
+  it("a role write whose answer does not match the API schema is refused", async () => {
+    const bad = clientWith((call) =>
+      call.url.startsWith("/api/v1/me")
+        ? { body: me }
+        : { body: { ...roleSummary, memberCount: "3" } },
+    );
+    await bad.api.session.getContext(P);
+    await expect(bad.api.roles.reactivate(P, ROLE)).rejects.toBeInstanceOf(Error);
   });
   it("accept opens no session: the member id stays null", async () => {
     const done = await h.api.invitations.accept(TOKEN, {

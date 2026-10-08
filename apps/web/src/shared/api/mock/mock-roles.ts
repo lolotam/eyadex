@@ -2,7 +2,7 @@ import type { Role } from "@eyadex/contracts/organization";
 import { roleInputSchema, type RoleInput } from "@eyadex/contracts/roles";
 import type { ApiClient } from "../api-client";
 import { ApiError } from "../api-error";
-import { authorize } from "./mock-actor";
+import { authorize, effectivePermissions, type Actor } from "./mock-actor";
 import { writeClinicAudit } from "./mock-audit";
 import {
   enforceNotLocked,
@@ -21,6 +21,26 @@ function parseInput(raw: RoleInput) {
   if (!result.success) throw new ApiError("validation");
   return result.data;
 }
+
+/**
+ * TODO(spec) (ADR-0017 rule 8): a write may only ADD keys the actor holds itself, as the API does;
+ * a clinic-scope key covers the same action at branch scope. Keeping or removing keys is not
+ * restricted. The clinic admin holds every key at clinic scope.
+ */
+function enforceGrantable(db: MockState, actor: Actor, saved: string[], existing: string[]): void {
+  const held = new Set(effectivePermissions(db, actor));
+  const covered = (key: string) => {
+    const [action, resource] = key.split(":");
+    return held.has(key) || held.has(`${action}:${resource}:clinic`);
+  };
+  if (saved.some((key) => !existing.includes(key) && !covered(key))) {
+    throw new ApiError("forbidden");
+  }
+}
+
+/** The same key must carry the same request; a key set is a set, so its order does not count. */
+const fingerprintOf = (input: RoleInput) =>
+  JSON.stringify({ ...input, permissionKeys: [...input.permissionKeys].sort() });
 
 function audit(
   db: MockState,
@@ -83,12 +103,23 @@ export function createMockRoles(): ApiClient["roles"] {
       return visibleCatalog(db, clinic.id);
     },
 
-    async create(persona, rawInput) {
+    async create(persona, rawInput, idempotencyKey) {
       await delay();
       const db = getState();
-      const { clinic, actorName } = authorize(db, persona, "create", "roles");
+      const actor = authorize(db, persona, "create", "roles");
+      const { clinic, actorName } = actor;
       const input = parseInput(rawInput);
+      const replayKey = `${clinic.id}:${idempotencyKey}`;
+      const previous = db.idempotentRoles?.[replayKey];
+      if (previous) {
+        if (previous.fingerprint !== fingerprintOf(input))
+          throw new ApiError("idempotency_conflict");
+        const replayed = db.roles.find((r) => r.id === previous.roleId);
+        if (replayed) return toRoleListItem(db, replayed);
+      }
       enforceUniqueNames(db, clinic.id, input);
+      const permissions = mergeHiddenKeys(db, clinic.id, input.permissionKeys, []);
+      enforceGrantable(db, actor, permissions, []);
       const role: Role = {
         id: newId(),
         clinicId: clinic.id,
@@ -97,9 +128,13 @@ export function createMockRoles(): ApiClient["roles"] {
         nameEn: input.nameEn,
         isLocked: false,
         isActive: true,
-        permissions: mergeHiddenKeys(db, clinic.id, input.permissionKeys, []),
+        permissions,
       };
       db.roles.push(role);
+      db.idempotentRoles = {
+        ...db.idempotentRoles,
+        [replayKey]: { roleId: role.id, fingerprint: fingerprintOf(input) },
+      };
       audit(db, clinic.id, actorName, "role.created", null, role);
       persist();
       return toRoleListItem(db, role);
@@ -108,15 +143,18 @@ export function createMockRoles(): ApiClient["roles"] {
     async update(persona, roleId, rawInput) {
       await delay();
       const db = getState();
-      const { clinic, actorName } = authorize(db, persona, "update", "roles");
+      const actor = authorize(db, persona, "update", "roles");
+      const { clinic, actorName } = actor;
       const role = findRole(db, clinic.id, roleId);
       enforceNotLocked(role);
       const input = parseInput(rawInput);
       enforceUniqueNames(db, clinic.id, input, role.id);
+      const permissions = mergeHiddenKeys(db, clinic.id, input.permissionKeys, role.permissions);
+      enforceGrantable(db, actor, permissions, role.permissions);
       const before = structuredClone(role);
       role.nameAr = input.nameAr;
       role.nameEn = input.nameEn;
-      role.permissions = mergeHiddenKeys(db, clinic.id, input.permissionKeys, role.permissions);
+      role.permissions = permissions;
       audit(db, clinic.id, actorName, "role.updated", before, role);
       persist();
       return toRoleListItem(db, role);

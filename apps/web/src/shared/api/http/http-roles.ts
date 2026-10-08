@@ -1,19 +1,18 @@
 import {
   permissionCatalogueResponseSchema,
   roleListResponseSchema,
+  roleSummarySchema,
   type PermissionCatalogueResponse,
   type RoleSummary,
 } from "@eyadex/contracts/access";
 import type { PermissionDefinition } from "@eyadex/contracts/permissions";
-import type { RoleListItem } from "@eyadex/contracts/roles";
+import type { CreateRoleRequest } from "@eyadex/contracts/role-admin";
+import type { RoleInput, RoleListItem } from "@eyadex/contracts/roles";
 import type { ApiClient } from "../api-client";
-import { ApiError } from "../api-error";
 import type { HttpContext } from "./http-context";
 import { collectPages } from "./http-transport";
 
-const notImplemented = () => Promise.reject(new ApiError("not_implemented"));
-
-/** The API counts active holders; the web column has no other count to show. */
+/** The web column counts holders in any status, like the API's deactivation rule (`role_in_use`). */
 export function toRoleListItem(role: RoleSummary): RoleListItem {
   return {
     id: role.id,
@@ -22,7 +21,7 @@ export function toRoleListItem(role: RoleSummary): RoleListItem {
     nameEn: role.nameEn,
     isLocked: role.isLocked,
     isActive: role.isActive,
-    memberCount: role.activeUserCount,
+    memberCount: role.memberCount,
     permissionKeys: [...role.permissionKeys],
   };
 }
@@ -33,6 +32,13 @@ export function toCatalog(answer: PermissionCatalogueResponse): PermissionDefini
     group.permissions.map((p) => ({ ...p, module: group.module })),
   );
 }
+
+/** Create and update send the whole editable role (ADR-0017). */
+function toRoleBody(input: RoleInput): CreateRoleRequest {
+  return { nameAr: input.nameAr, nameEn: input.nameEn, permissionKeys: [...input.permissionKeys] };
+}
+
+const path = (id: string) => `/v1/roles/${encodeURIComponent(id)}`;
 
 export function createHttpRoles(ctx: HttpContext): ApiClient["roles"] {
   const { transport } = ctx;
@@ -52,10 +58,30 @@ export function createHttpRoles(ctx: HttpContext): ApiClient["roles"] {
           schema: permissionCatalogueResponseSchema,
         }),
       ),
-    // Slice 8 (custom roles) brings the write routes.
-    create: notImplemented,
-    update: notImplemented,
-    deactivate: notImplemented,
-    reactivate: notImplemented,
+    async create(_persona, input, idempotencyKey) {
+      const role = await transport.send("POST", "/v1/roles", {
+        schema: roleSummarySchema,
+        body: toRoleBody(input),
+        idempotencyKey,
+      });
+      return toRoleListItem(role);
+    },
+    async update(_persona, roleId, input) {
+      const role = await transport.send("PATCH", path(roleId), {
+        schema: roleSummarySchema,
+        body: toRoleBody(input),
+      });
+      return toRoleListItem(role);
+    },
+    async deactivate(_persona, roleId) {
+      return toRoleListItem(
+        await transport.send("POST", `${path(roleId)}/deactivate`, { schema: roleSummarySchema }),
+      );
+    },
+    async reactivate(_persona, roleId) {
+      return toRoleListItem(
+        await transport.send("POST", `${path(roleId)}/reactivate`, { schema: roleSummarySchema }),
+      );
+    },
   };
 }

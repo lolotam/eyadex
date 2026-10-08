@@ -2,18 +2,19 @@ import { describe, expect, it } from "vitest";
 import { roleWriteAccess } from "./role-write-access";
 
 const ALL = ["create:roles:clinic", "update:roles:clinic", "deactivate:roles:clinic"];
-const NONE = { mayCreate: false, mayUpdate: false, mayDeactivate: false };
 
 describe("roleWriteAccess", () => {
-  it("follows the permissions against the mock", () => {
-    expect(roleWriteAccess(ALL, "mock")).toEqual({
-      mayCreate: true,
+  it("follows the permissions, in every API mode (slice 8 serves the writes)", () => {
+    expect(roleWriteAccess(ALL)).toEqual({ mayCreate: true, mayUpdate: true, mayDeactivate: true });
+    expect(roleWriteAccess(["view:roles:clinic", "update:roles:clinic"])).toEqual({
+      mayCreate: false,
       mayUpdate: true,
-      mayDeactivate: true,
+      mayDeactivate: false,
     });
-    expect(roleWriteAccess([], "mock")).toEqual(NONE);
-  });
-  it("offers no role write against the API until slice 8 serves it", () => {
-    expect(roleWriteAccess(ALL, "http")).toEqual(NONE);
+    expect(roleWriteAccess([])).toEqual({
+      mayCreate: false,
+      mayUpdate: false,
+      mayDeactivate: false,
+    });
   });
 });

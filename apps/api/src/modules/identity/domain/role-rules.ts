@@ -1,5 +1,7 @@
 import type { ClinicModule } from "@eyadex/contracts/clinics";
-import { PERMISSION_CATALOG } from "@eyadex/contracts/permissions";
+import { PERMISSION_CATALOG, type PermissionKey } from "@eyadex/contracts/permissions";
+
+import { grantFor } from "./permission-check.ts";
 
 const MODULE_OF: ReadonlyMap<string, ClinicModule | null> = new Map(
   PERMISSION_CATALOG.map((p) => [p.key, p.module]),
@@ -51,7 +53,8 @@ export function mergeHiddenKeys(
 /**
  * المفاتيح اللي الكتابة دي بتضيفها والفاعل نفسه مايملكهاش. TODO(spec): الـ PRD والـ mock
  * ماحددوش مين يمنح إيه؛ القراءة المتحفظة: الفاعل يضيف بس مفاتيح هو شايلها فعلًا (بعد فلترة
- * الموديولات). الحذف والإبقاء مش مقيّدين. أدمن العيادة شايل الكتالوج كله فمش متأثر.
+ * الموديولات)، ومفتاح `clinic` بيغطي نفس الفعل والمورد بنطاق `branch` زي `grantFor`. الحذف
+ * والإبقاء مش مقيّدين. أدمن العيادة شايل الكتالوج كله بنطاق `clinic` فمش متأثر.
  *
  * @param saved المفاتيح النهائية بعد `mergeHiddenKeys`
  * @param existing مفاتيح الدور قبل الكتابة
@@ -64,8 +67,9 @@ export function keysBeyondActor(
   actorKeys: readonly string[],
 ): string[] {
   const before = new Set(existing);
-  const held = new Set(actorKeys);
-  return saved.filter((key) => !before.has(key) && !held.has(key)).sort();
+  // Saved keys passed the catalogue contract, so each one is a PermissionKey.
+  const covered = (key: string) => grantFor(actorKeys, key as PermissionKey) !== null;
+  return saved.filter((key) => !before.has(key) && !covered(key)).sort();
 }
 
 /**

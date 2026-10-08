@@ -98,6 +98,14 @@ describe("granting bound (TODO(spec): only keys the actor holds)", () => {
     expect(own.statusCode).toBe(201);
   });
 
+  it("the Clinic Admin may grant branch-scope keys it holds at clinic scope", async () => {
+    const res = await createRole(h, A.admin.cookie, {
+      ...names(),
+      permissionKeys: ["view:patients:branch", "create:patients:branch"],
+    });
+    expect(res.statusCode).toBe(201);
+  });
+
   it("NEGATIVE: update may keep a key the actor lacks, never add one", async () => {
     const id = await customRole(h, A.admin.clinicId, ["view:users:clinic"]);
     const keep = await patchRole(h, editor.cookie, id, {

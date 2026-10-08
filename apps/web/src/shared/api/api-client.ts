@@ -179,7 +179,7 @@ export interface ApiClient {
     list(persona: Persona): Promise<RoleListItem[]>;
     /** Catalog keys the editor may show; keys of switched-off modules are left out. */
     catalog(persona: Persona): Promise<PermissionDefinition[]>;
-    create(persona: Persona, input: RoleInput): Promise<RoleListItem>;
+    create(persona: Persona, input: RoleInput, idempotencyKey: string): Promise<RoleListItem>;
     /** Keys of switched-off modules are kept as they are, whatever the input says. */
     update(persona: Persona, roleId: string, input: RoleInput): Promise<RoleListItem>;
     deactivate(persona: Persona, roleId: string): Promise<RoleListItem>;

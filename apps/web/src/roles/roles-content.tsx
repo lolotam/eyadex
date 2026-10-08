@@ -4,7 +4,6 @@ import type { RoleListItem } from "@eyadex/contracts/roles";
 import { Button } from "@/components/ui/button";
 import { errorCodeOf } from "@/shared/api/api-error";
 import { useI18n } from "@/shared/i18n/i18n-provider";
-import { API_MODE } from "@/shared/api/api-mode";
 import { useSession } from "@/shared/persona/persona-provider";
 import { PageHeader } from "@/shared/shell/page-header";
 import { StatusPanel } from "@/shared/shell/status-panel";
@@ -23,7 +22,7 @@ export function RolesContent() {
   const [editing, setEditing] = useState<RoleListItem | null>(null);
   const [statusTarget, setStatusTarget] = useState<RoleListItem | null>(null);
   const permissions = session?.permissions ?? [];
-  const { mayCreate, mayUpdate, mayDeactivate } = roleWriteAccess(permissions, API_MODE);
+  const { mayCreate, mayUpdate, mayDeactivate } = roleWriteAccess(permissions);
   const onOpen = useCallback((role: RoleListItem) => {
     setEditing(role);
     setFormOpen(true);
