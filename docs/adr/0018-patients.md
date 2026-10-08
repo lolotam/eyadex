@@ -82,6 +82,11 @@ fileNumber }`) only when the caller's view scope covers the existing file; other
     Cost: a ZWNJ some Persian spellings use inside a word is dropped, which changes nothing a reader
     sees in Arabic or English names.
 11. **The platform** has no route here and no grant change; the existing PLAT-01 negatives hold.
+12. **List order index (`db/sql/0035`).** The list pages newest file first with a
+    `file_number::bigint` cursor. The unique `(clinic_id, file_number)` index orders text, so
+    0035 adds `(clinic_id, (file_number::bigint))`, read backwards for `DESC`, mirrored in
+    `packages/db`. It is 0035, not the reserved 0033, because 0034 was already applied in
+    production and the runner refuses an out-of-order file.
 
 ## Consequences
 
