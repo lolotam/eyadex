@@ -1,5 +1,27 @@
+import type { IdGenerator } from "@eyadex/ids";
+
 /** المنطقتين اللي ليهم جلسات منفصلة (PRD §4.15). */
 export type AuthArea = "platform" | "clinic";
+
+/** خيارات الـ factory. كل قيمة سرية جاية من الـ env، ومفيش default ليها. */
+export interface CreateAuthOptions {
+  /** منطقة الجلسة: `platform` أو `clinic` — كل واحدة ليها اسم cookie مختلف. */
+  readonly area: AuthArea;
+  /** رابط الداتابيز على الدور `eyadex_auth` بس (PRD §4.5). */
+  readonly databaseUrl: string;
+  /** `BETTER_AUTH_SECRET`: بيوقّع الـ cookies وبيشفّر سر الـ TOTP. 32 حرف على الأقل. */
+  readonly secret: string;
+  /** الـ origin بتاع المنطقة (مثلاً `https://app.eyadex.com`). */
+  readonly baseUrl: string;
+  /** مولّد UUID v7 من `@eyadex/ids`. */
+  readonly ids: IdGenerator;
+  /** المسار اللي المتصفح شايفه للـ auth (افتراضياً `/api/auth`، same-origin — ADR-0004). */
+  readonly basePath?: string;
+  /** حجم الـ pool، افتراضياً 5. */
+  readonly maxConnections?: number;
+  /** بادئة cookies البيئة (`AUTH_COOKIE_PREFIX`)، افتراضياً `eyadex` — ADR-0021. */
+  readonly cookiePrefix?: string;
+}
 
 /**
  * حدود طول كلمة المرور. TODO(spec): الـ PRD مابيحددش سياسة كلمة المرور؛ دي قيم Better Auth
@@ -11,6 +33,30 @@ export const PASSWORD_LIMITS = { min: 8, max: 128 } as const;
 export const MIN_SECRET_LENGTH = 32;
 
 const AREAS: readonly string[] = ["platform", "clinic"];
+
+/** بادئة الـ cookies لو البيئة ماحددتش غيرها: أسماء الإنتاج تفضل `eyadex-<area>` (ADR-0021). */
+const DEFAULT_COOKIE_PREFIX = "eyadex";
+
+// Lowercase words joined by single hyphens: Better Auth appends `.<cookie>` and https adds
+// `__Secure-` in front, so a dot, a space or an uppercase letter would not read back the same way.
+const COOKIE_PREFIX = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
+const MAX_COOKIE_PREFIX = 32;
+
+/**
+ * بادئة الـ cookies لمنطقة في بيئة: `eyadex-clinic` في الإنتاج، و`eyadex-staging-clinic` لو بادئة
+ * البيئة `eyadex-staging`. كل بيئة ليها أسماء cookies مختلفة، فجلسة بيئة مابتتقريش في التانية.
+ *
+ * @param prefix بادئة البيئة (`AUTH_COOKIE_PREFIX`)، أو `undefined` للافتراضي
+ * @param area المنطقة
+ * @returns البادئة اللي Better Auth بيحطها قبل `.session_token`
+ */
+export function areaCookiePrefix(prefix: string | undefined, area: AuthArea): string {
+  const base = prefix ?? DEFAULT_COOKIE_PREFIX;
+  if (base.length > MAX_COOKIE_PREFIX || !COOKIE_PREFIX.test(base)) {
+    throw new TypeError("cookiePrefix must be lowercase words joined by hyphens");
+  }
+  return `${base}-${area}`;
+}
 
 /**
  * The only query parameters a database URL may carry. postgres.js copies every parameter it does not
@@ -27,6 +73,7 @@ const ALLOWED_URL_PARAMS: readonly string[] = ["sslmode"];
  * @param options.databaseUrl رابط `eyadex_auth`
  * @param options.secret `BETTER_AUTH_SECRET`
  * @param options.baseUrl الـ origin بتاع المنطقة
+ * @param options.cookiePrefix بادئة cookies البيئة (اختياري)
  * @returns مفيش — بيرمي `TypeError` لو حاجة غلط
  */
 export function assertOptions(options: {
@@ -34,8 +81,10 @@ export function assertOptions(options: {
   databaseUrl: string;
   secret: string;
   baseUrl: string;
+  cookiePrefix?: string;
 }): void {
   if (!AREAS.includes(options.area)) throw new TypeError("area must be platform or clinic");
+  areaCookiePrefix(options.cookiePrefix, options.area as AuthArea);
   if (options.secret.length < MIN_SECRET_LENGTH) {
     throw new TypeError(`secret must be at least ${MIN_SECRET_LENGTH} characters`);
   }

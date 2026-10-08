@@ -49,7 +49,7 @@
 - [x] Slice 8: custom roles — create/update/deactivate/reactivate with the locked admin role, hidden module keys kept, unique names, idempotent create, `role_in_use`, delegation model (stored keys + branch scope under a `roles:` lock) on every path that defines or grants a role, audit + cache bump; user editor options under `view:users` (`/v1/users/role-options`, `/branch-options`, deferred from PR #46) (ADR-0017, no SQL)
 - [x] Slice 10: audit log read — `GET /v1/clinic/audit`, `/v1/platform/audit` (+ `/clinics`); patient rows kept from the platform by grants; actor names via `platform_audit_actors` (ADR-0019, SQL 0034)
 - [x] Slice 11: clinic settings, my account (Better Auth password change), platform overview with computed "expired" + effective status filter, platform settings (new clinics take the default trial), platform team (invite/accept/deactivate/reactivate, last active account, gate on every platform request), expiry banner and the worker's pre-expiry reminder email (ADR-0020, SQL 0036–0038)
-- [ ] Reverse-proxy routes `app.`/`platform.` `/api/*` → api with `/api` stripped (orchestrator)
+- [x] Reverse-proxy routes `app.`/`platform.` `/api/*` → api with `/api` stripped (live in production; the staging hosts get the same routes, `docs/specs/staging-runbook.md` §5)
 
 ## Slice W1 — web wired to the real API
 
@@ -66,4 +66,15 @@
 - [x] `GET /v1/branches/usage`, `GET /v1/users/usage`; web counters no longer nullable
 - [x] New clinic `trialDays` computed on the API clock in the clinic zone; subscription saves end at the clinic's local midnight
 - [x] Slice 8 note: the user editor's option lists are `GET /v1/users/role-options` and `/branch-options` under `view:users:clinic` (done in slice 8)
-- [ ] Apply `db/sql/0031` to production (orchestrator), then switch production to `VITE_API_MODE=http`
+- [x] Apply `db/sql/0031` to production (orchestrator)
+- [ ] Switch production to `VITE_API_MODE=http` (orchestrator, owner OK) — after the same SHA has run on staging, which is built with `http` from day one (ADR-0021)
+
+## Slice 12 — staging (ADR-0021)
+
+- [x] Env-driven hosts and cookies: web `VITE_APP_HOST` / `VITE_PLATFORM_HOST` (unset = production rules), API `AUTH_COOKIE_PREFIX` (unset = production names); a staging host is never an area in production, and the reverse
+- [x] Security headers on every API answer and every web page (`X-Frame-Options` / `frame-ancestors` in http builds; `noindex` on area hosts)
+- [x] First platform account bootstrap (`dist/bootstrap-platform-account.js`, password on stdin, fresh database only)
+- [x] `docker/smoke-test.sh` and `docs/specs/staging-runbook.md`
+- [ ] Create the `-staging` Dokploy services, migrate, bootstrap and smoke-test (orchestrator, runbook; secrets: owner)
+- [ ] TODO(spec): reserve `staging-app` / `staging-platform` as clinic slugs before clinic subdomains ship
+- [ ] TODO(spec): a platform audit row for the bootstrap (`platform.account_bootstrapped`)

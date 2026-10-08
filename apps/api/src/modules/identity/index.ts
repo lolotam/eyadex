@@ -42,5 +42,9 @@ export {
   PLATFORM_SESSION_REVOKER,
   type PlatformSessionRevoker,
 } from "./ports/platform-session-revoker.ts";
+export {
+  readFirstPlatformAccountInput,
+  type FirstPlatformAccountInput,
+} from "./auth/first-platform-account-input.ts";
 export { PgMemberNames } from "./persistence/pg-member-names.ts";
 export { PgRoleNames } from "./persistence/pg-role-names.ts";

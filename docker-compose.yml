@@ -11,6 +11,9 @@ services:
       # Compiled into the bundle by Vite (see Dockerfile); "http" needs the api service on /api.
       args:
         VITE_API_MODE: ${VITE_API_MODE:-mock}
+        # ADR-0021: empty = the production host rules; a staging-like stack names both hosts.
+        VITE_APP_HOST: ${VITE_APP_HOST:-}
+        VITE_PLATFORM_HOST: ${VITE_PLATFORM_HOST:-}
     image: eyadex-web:local
     restart: unless-stopped
     environment:

@@ -108,3 +108,43 @@ describe("auth route allowlist", () => {
     }
   });
 });
+
+describe("production and staging hosts (ADR-0021)", () => {
+  // As deployed: one proxy (Traefik) in front, so the area comes from the X-Forwarded-Host it set.
+  const production = new AreaHosts({
+    appUrl: "https://app.eyadex.com",
+    platformUrl: "https://platform.eyadex.com",
+    trustProxyHops: 1,
+  });
+  const staging = new AreaHosts({
+    appUrl: "https://staging-app.eyadex.com",
+    platformUrl: "https://staging-platform.eyadex.com",
+    trustProxyHops: 1,
+  });
+  const via = (host: string) => ({ host: "api:3000", "x-forwarded-host": host });
+
+  it("maps each environment's own hosts to their areas", () => {
+    expect(production.resolve(via("app.eyadex.com"))).toBe("clinic");
+    expect(production.resolve(via("platform.eyadex.com"))).toBe("platform");
+    expect(staging.resolve(via("staging-app.eyadex.com"))).toBe("clinic");
+    expect(staging.resolve(via("staging-platform.eyadex.com"))).toBe("platform");
+  });
+
+  it("NEGATIVE: a staging API refuses every production host", () => {
+    for (const host of ["app.eyadex.com", "platform.eyadex.com", "eyadex.com", "www.eyadex.com"]) {
+      expect(staging.resolve(via(host))).toBeNull();
+    }
+  });
+
+  it("NEGATIVE: a production API refuses every staging host", () => {
+    for (const host of ["staging-app.eyadex.com", "staging-platform.eyadex.com"]) {
+      expect(production.resolve(via(host))).toBeNull();
+    }
+  });
+
+  it("gives each environment's auth its own origin", () => {
+    expect(staging.origin("clinic")).toBe("https://staging-app.eyadex.com");
+    expect(staging.origin("platform")).toBe("https://staging-platform.eyadex.com");
+    expect(production.origin("clinic")).toBe("https://app.eyadex.com");
+  });
+});

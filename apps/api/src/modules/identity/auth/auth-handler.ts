@@ -99,7 +99,7 @@ async function applyLimits(
   reply: FastifyReply,
 ): Promise<Limited> {
   const rules = rateRulesFor({
-    area,
+    cookiePrefix: areaAuth.cookiePrefix(area),
     path,
     ip: areaAuth.hosts.clientIp(request.headers, request.socket.remoteAddress),
     body: request.body,
