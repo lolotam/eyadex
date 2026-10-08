@@ -53,15 +53,25 @@ fileNumber }`) only when the caller's view scope covers the existing file; other
    and no birth date (the audit sanitiser removes birth dates anyway, ADR-0001). The Phase-A mock's
    snapshot mirrors the field allowlist and the phone mask (masking phones inside the name is
    API-only). Before the shared sanitiser, the writer runs a stricter patients-only pass over every
-   string but a UUID, at any depth (`shared/patient-audit-text.ts`): NFKC plus Arabic-Indic digits
-   folded to ASCII, then every run of 8+ digits masked wherever it sits — 12+ digits replaced whole,
+   string but a UUID, at any depth (`shared/patient-audit-text.ts`): invisible format/control
+   characters (`\p{Cf}`, and `\p{Cc}` except ordinary whitespace) removed, NFKC plus Arabic-Indic
+   digits folded to ASCII, then every run of 8+ digits masked wherever it sits — 12+ digits replaced whole,
    shorter runs keep their last 3 — so a civil ID or phone glued to a name, or typed in full-width or
    Arabic-Indic digits, never reaches the append-only row.
 8. **Branch tables.** Branch names and the target-branch check are read with a join / `FOR SHARE`
    inside the patients transaction, the same way identity reads `branches` (identity → tenancy):
    patients → tenancy is an allowed arrow, and the decision must be taken inside the writing
    transaction. The branch options use tenancy's `BranchReader` port.
-9. **The platform** has no route here and no grant change; the existing PLAT-01 negatives hold.
+9. **Invisible controls in free text.** The contract (`stripInvisibleControls` in
+   `patients.ts`) removes `\p{Cf}` (ZWJ, ZWNJ, bidi marks, overrides and isolates, soft hyphen, BOM)
+   and `\p{Cc}` except ordinary whitespace from a patient name and from the search term before they
+   are trimmed and validated. They render as nothing, so they could only split an identifier past a
+   check, reorder a name on screen (bidi spoofing) or make search miss; the conservative choice is to
+   store and search the visible text. The web form, the mock and the API share the schema, so all
+   three normalize the same way. The audit scrub strips them again on its own (defence in depth).
+   Cost: a ZWNJ some Persian spellings use inside a word is dropped, which changes nothing a reader
+   sees in Arabic or English names.
+10. **The platform** has no route here and no grant change; the existing PLAT-01 negatives hold.
 
 ## Consequences
 

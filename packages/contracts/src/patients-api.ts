@@ -4,6 +4,7 @@ import {
   patientBranchOptionSchema,
   patientListItemSchema,
   patientStatusSchema,
+  stripInvisibleControls,
 } from "./patients.ts";
 
 /**
@@ -22,7 +23,7 @@ export const patientSearchRequestSchema = z
       .regex(/^[A-Za-z0-9_-]{1,64}$/)
       .nullable(),
     limit: z.number().int().min(1).max(100),
-    q: z.string().trim().max(100),
+    q: z.string().transform(stripInvisibleControls).pipe(z.string().trim().max(100)),
     branchId: idSchema.nullable(),
     status: patientStatusSchema.nullable(),
   })

@@ -1,3 +1,4 @@
+import { stripInvisibleControls } from "@eyadex/contracts/patients";
 import { REDACTED } from "@eyadex/observability";
 
 // A patient audit row is append-only, so an identifier that reaches it can never be removed. The shared
@@ -13,13 +14,14 @@ const DIGIT_RUN = /\p{Nd}(?:[\s\-./()]*\p{Nd}){7,}/gu;
 const DIGIT = /\p{Nd}/gu;
 const PHONE_MAX_DIGITS = 11;
 
-// NFKC folds full-width digits to ASCII; Arabic-Indic and Eastern Arabic-Indic digits are digits of
-// their own script, so they are folded here explicitly.
+// Invisible format/control characters go first (a ZWJ, a bidi control or a soft hyphen between digits
+// would split a run), then NFKC folds full-width digits to ASCII; Arabic-Indic and Eastern
+// Arabic-Indic digits are digits of their own script, so they are folded here explicitly.
 const toAsciiDigits = (text: string): string =>
-  text
+  stripInvisibleControls(text)
     .normalize("NFKC")
-    .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660))
-    .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0));
+    .replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+    .replace(/[\u06f0-\u06f9]/g, (d) => String(d.charCodeAt(0) - 0x06f0));
 
 // 12+ digits (a civil ID, or anything as long) is replaced whole; a phone-length run keeps its last 3.
 function maskRun(run: string): string {
@@ -29,7 +31,8 @@ function maskRun(run: string): string {
 }
 
 /**
- * نص محفوظ في سجل وصول المراجعين: بيتطبّع (NFKC + الأرقام العربية الهندية لـ ASCII)، وبعدين أي
+ * نص محفوظ في سجل وصول المراجعين: بتتشال منه حروف التحكم والتنسيق المخفية، وبيتطبّع (NFKC + الأرقام
+ * العربية الهندية لـ ASCII)، وبعدين أي
  * سلسلة أرقام طولها 8 أو أكتر بتتغطّى مهما كان اللي جنبها: 12 رقم أو أكتر بتتشال كلها، وأقل من كده
  * بيفضل آخر 3 أرقام بس.
  *

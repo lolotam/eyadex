@@ -160,6 +160,8 @@ Every negative test is proven to fail with its guard removed (reported in the sl
 
 ## 10. Open items (`TODO(spec)`)
 
+- Patient names and search terms drop invisible format/control characters at the contract (ADR-0018
+  §9); a ZWNJ inside a Persian spelling is dropped with them.
 - Searching the list is not audited (PRD §4.11 lists opening and editing a file only).
 - The audit snapshot masks the phone and leaves out the birth date (API rule); the Phase-A mock
   mirrors the field allowlist and the phone mask. Masking phone numbers written inside the name is

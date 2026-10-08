@@ -33,6 +33,25 @@ describe("scrubPatientAuditText", () => {
     expect(out.replace(/\D/g, "")).toBe("234");
   });
 
+  // The scrub must hold on its own, whatever the contract already stripped (defence in depth).
+  const split = (digits: string, mark: string) => `${digits.slice(0, 6)}${mark}${digits.slice(6)}`;
+  const MARKS = [
+    ["a ZWJ", String.fromCharCode(0x200d)],
+    ["bidi controls", String.fromCharCode(0x202e, 0x2066, 0x2069)],
+    ["a soft hyphen", String.fromCharCode(0x00ad)],
+    ["a BOM", String.fromCharCode(0xfeff)],
+    ["a C0 control", String.fromCharCode(0x0007)],
+  ] as const;
+
+  it.each(MARKS)("a civil ID split by %s is removed whole", (_label, mark) => {
+    const out = scrubPatientAuditText(`Test${split(CIVIL_ID, mark)}`);
+    expect(out).toBe("Test[REDACTED]");
+  });
+
+  it.each(MARKS)("a phone split by %s keeps its last 3 digits only", (_label, mark) => {
+    expect(scrubPatientAuditText(`Test${split(PHONE, mark)}`)).toBe("Test***234");
+  });
+
   it("leaves a name without long digit runs as it is", () => {
     expect(scrubPatientAuditText("Noura Al-Ali 3")).toBe("Noura Al-Ali 3");
   });
