@@ -4,6 +4,7 @@ import type { ApiClient } from "../api-client";
 import { ApiError } from "../api-error";
 import { authorize } from "./mock-actor";
 import { writeClinicAudit } from "./mock-audit";
+import { actorReplayKey } from "./mock-idempotency";
 import { delay, getState, newId, persist, type MockState } from "./mock-store";
 
 function validateInput(raw: BranchInput): BranchInput {
@@ -96,14 +97,14 @@ export function createMockBranches(): ApiClient["branches"] {
       await delay();
       const input = validateInput(rawInput);
       const db = getState();
-      const { clinic, actorName } = authorize(db, persona, "create", "branches");
-      const replayKey = `${clinic.id}:${idempotencyKey}`;
+      const { clinic, member, actorName } = authorize(db, persona, "create", "branches");
+      const replayKey = actorReplayKey(clinic.id, member.id, idempotencyKey);
       const fingerprint = JSON.stringify(input);
       const previous = db.idempotentBranches?.[replayKey];
       if (previous) {
         if (previous.fingerprint !== fingerprint) throw new ApiError("idempotency_conflict");
-        const replayed = db.branches.find((b) => b.id === previous.branchId);
-        if (replayed) return replayed;
+        // The branch as it is now; a claimed key never creates a second one.
+        return findBranch(db, clinic.id, previous.branchId);
       }
       enforceLimit(db, clinic.id);
       const branch: Branch = {
