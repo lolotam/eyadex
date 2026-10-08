@@ -181,15 +181,7 @@ describe("unserved methods throw not_implemented", () => {
     ["session.listLoginPlatformAccounts", () => a.session.listLoginPlatformAccounts()],
     ["session.acceptPlatformInvitation", () => a.session.acceptPlatformInvitation(CLINIC)],
     ...(
-      [
-        "patients",
-        "audit",
-        "clinicSettings",
-        "account",
-        "platformOverview",
-        "platformTeam",
-        "platformSettings",
-      ] as const
+      ["clinicSettings", "account", "platformOverview", "platformTeam", "platformSettings"] as const
     ).flatMap((ns) =>
       Object.entries(a[ns]).map(([m, fn]): [string, () => Promise<unknown>] => [
         `${ns}.${m}`,

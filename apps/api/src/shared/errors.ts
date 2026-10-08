@@ -33,6 +33,8 @@ const STATUS: Partial<Record<ApiErrorCode, number>> = {
   role_name_taken: 409,
   invitation_used: 409,
   invitation_cancelled: 409,
+  patient_phone_taken: 409,
+  patient_civil_id_taken: 409,
   role_inactive: 400,
   branch_inactive: 400,
   rate_limited: 429,

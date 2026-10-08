@@ -31,7 +31,7 @@ export const clinicAuditItemSchema = z.object({
   action: z.string(),
   entity: clinicAuditEntitySchema,
   category: auditCategorySchema,
-  entityId: idSchema,
+  entityId: idSchema.nullable(),
   before: snapshotSchema,
   after: snapshotSchema,
 });
@@ -131,6 +131,9 @@ export const PLATFORM_ONLY_AUDIT_ACTIONS = [
   "clinic.details_updated",
   "clinic.subscription_updated",
   "clinic.feature_toggled",
+  "clinic.feature_changed",
+  "clinic.subscription_changed",
+  "clinic.limits_changed",
   "platform_account.invited",
   "platform_account.deactivated",
   "platform_account.reactivated",

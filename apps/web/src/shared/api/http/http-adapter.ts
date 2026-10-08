@@ -1,7 +1,9 @@
 import type { ApiClient } from "../api-client";
+import { createHttpAudit } from "./http-audit";
 import { createHttpBranches } from "./http-branches";
 import type { HttpContext } from "./http-context";
 import { createHttpInvitations } from "./http-invitations";
+import { createHttpPatients } from "./http-patients";
 import { createHttpPlatform } from "./http-platform";
 import { createHttpRoles } from "./http-roles";
 import { createHttpSession } from "./http-session";
@@ -25,6 +27,8 @@ export function createHttpApiClient(
     users: createHttpUsers(ctx),
     invitations: createHttpInvitations(ctx),
     roles: createHttpRoles(ctx),
+    patients: createHttpPatients(ctx),
+    audit: createHttpAudit(ctx),
     ...createUnservedNamespaces(),
   };
 }

@@ -33,6 +33,8 @@ import {
   type AreaAuth,
   type AuthRateLimit,
 } from "./modules/identity/index.ts";
+import { PatientsModule } from "./modules/patients/index.ts";
+import { ClinicAuditModule, PlatformAuditModule } from "./modules/audit/index.ts";
 import { PlatformModule } from "./modules/platform/index.ts";
 import { SettingsModule } from "./modules/settings/index.ts";
 import { EnvelopeExceptionFilter } from "./shared/exception.filter.ts";
@@ -61,7 +63,7 @@ export interface AppDependencies {
    */
   readonly mountAuth?: boolean;
   /**
-   * Mounts the platform area (`POST /v1/platform/clinics`, ADR-0006). Needs auth mounted too, plus
+   * Mounts the platform area (`POST /v1/platform/clinics`, ADR-0006; `GET /v1/platform/audit`, ADR-0019). Needs auth mounted too, plus
    * DATABASE_URL, PLATFORM_DATABASE_URL and OUTBOX_SEAL_KEY.
    */
   readonly mountPlatform?: boolean;
@@ -69,8 +71,9 @@ export interface AppDependencies {
   readonly mountInvitations?: boolean;
   /**
    * Mounts the clinic request context behind the global access guard and `GET /v1/me`, `/v1/roles`,
-   * `/v1/permissions/catalogue`, `/v1/branches`, `/v1/users`, `/v1/invitations`, `/v1/clinic/mail-provider`
-   * (ADR-0009, 0011, 0012, 0014). Needs auth mounted, DATABASE_URL, REDIS_URL, OUTBOX_SEAL_KEY and
+   * `/v1/permissions/catalogue`, `/v1/branches`, `/v1/users`, `/v1/invitations`, `/v1/clinic/mail-provider`,
+   * `/v1/patients`, `/v1/clinic/audit` (ADR-0009, 0011, 0012, 0014, 0018, 0019). Needs auth mounted,
+   * DATABASE_URL, REDIS_URL, OUTBOX_SEAL_KEY and
    * MAIL_PROVIDER_SEAL_KEY.
    */
   readonly mountClinic?: boolean;
@@ -123,9 +126,11 @@ export function apiModule(
     module: ApiModule,
     imports: [
       ...(deps.mountAuth === true ? [AuthModule] : []),
-      ...(deps.mountPlatform === true ? [PlatformModule] : []),
+      ...(deps.mountPlatform === true ? [PlatformModule, PlatformAuditModule] : []),
       ...(deps.mountInvitations === true ? [InvitationsModule] : []),
-      ...(deps.mountClinic === true ? [ClinicAccessModule, SettingsModule, RolesModule] : []),
+      ...(deps.mountClinic === true
+        ? [ClinicAccessModule, SettingsModule, RolesModule, PatientsModule, ClinicAuditModule]
+        : []),
     ],
     controllers: [HealthController, ...controllers],
     providers: [

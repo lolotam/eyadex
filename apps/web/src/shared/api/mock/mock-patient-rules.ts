@@ -2,6 +2,7 @@ import type { Branch } from "@eyadex/contracts/organization";
 import type { PermissionAction } from "@eyadex/contracts/permissions";
 import {
   isBirthDateValid,
+  searchDigits,
   todayInTimeZone,
   type Patient,
   type PatientDetail,
@@ -157,14 +158,22 @@ export function enforceBirthDate(access: PatientAccess, birthDate: string): void
   if (!isBirthDateValid(birthDate, today)) throw new ApiError("validation");
 }
 
-/** Audit snapshot: an explicit allowlist, so civilId can never reach before/after values. */
+/** A stored phone in the audit keeps its last 3 digits only, like the API's snapshot (ADR-0018). */
+export function maskAuditPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  return digits.length > 3 ? `***${digits.slice(-3)}` : "***";
+}
+
+/**
+ * Audit snapshot: an explicit allowlist, so civilId can never reach before/after values. It mirrors
+ * the API's (ADR-0018): the phone masked to its last 3 digits, and no birth date.
+ */
 export function patientSnapshot(p: Patient) {
   return {
     id: p.id,
     fileNumber: p.fileNumber,
     fullName: p.fullName,
-    phone: p.phone,
-    birthDate: p.birthDate,
+    phone: maskAuditPhone(p.phone),
     gender: p.gender,
     registrationBranchId: p.registrationBranchId,
     status: p.status,
@@ -218,7 +227,7 @@ export function writeResult(db: MockState, persona: Persona, p: Patient): Patien
 export function matchesSearch(p: Patient, term: string): boolean {
   if (!term) return true;
   const lower = term.toLocaleLowerCase();
-  const digits = term.replace(/\D/g, "");
+  const digits = searchDigits(term);
   if (p.fullName.toLocaleLowerCase().includes(lower)) return true;
   if (!digits) return false;
   return (

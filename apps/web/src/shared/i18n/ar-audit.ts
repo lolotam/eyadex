@@ -1,3 +1,5 @@
+import { arAuditApiClinicActions } from "./ar-audit-api";
+
 // نصوص سجل التدقيق، مفصولة لإبقاء ملفات القاموس صغيرة.
 export const arAudit = {
   audit: {
@@ -77,6 +79,7 @@ export const arAudit = {
       },
       clinic: {
         created: "إنشاء عيادة",
+        ...arAuditApiClinicActions,
         details_updated: "تعديل بيانات العيادة",
         subscription_updated: "تعديل الاشتراك",
         feature_toggled: "تشغيل أو إيقاف قسم",

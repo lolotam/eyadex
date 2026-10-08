@@ -40,6 +40,7 @@ export { CLINIC_LIMITS, type ClinicLimits } from "./ports/clinic-limits.ts";
 export { ReaderClinicLimits } from "./queries/clinic-limits.ts";
 export { getPlatformClinicDetail } from "./queries/platform-clinic-detail.ts";
 export { PgClinicReader } from "./persistence/pg-clinic-reader.ts";
+export { PgFilingBranches } from "./persistence/pg-filing-branches.ts";
 export {
   PlatformClinicChanges,
   type PlatformClinicChangesDeps,

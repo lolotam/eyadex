@@ -17,6 +17,19 @@ export function normalizeKuwaitPhone(raw: string): string | null {
   return match ? `+965${match[1]}` : null;
 }
 
+/**
+ * Drops invisible format and control characters (ZWJ, ZWNJ, bidi marks and overrides, isolates,
+ * soft hyphen, BOM, C0/C1 controls) and keeps ordinary whitespace. They render as nothing, so in a
+ * name or a search term they can only hide or split what a reader sees: a civil ID or a phone split
+ * by a ZWJ slips past digit-run checks, and a bidi override reorders the name on screen.
+ */
+export function stripInvisibleControls(text: string): string {
+  return text.replace(/[\p{Cf}\p{Cc}]/gu, (c) => (/[\t\n\v\f\r]/.test(c) ? c : ""));
+}
+
+/** Free text a person types (a name, a search term): invisible controls dropped first, then trimmed. */
+const visibleText = () => z.string().transform(stripInvisibleControls);
+
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Today's calendar date (YYYY-MM-DD) in an IANA time zone. */
@@ -60,6 +73,15 @@ export function normalizeCivilId(raw: string): string {
     .replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660))
     .replace(/[\u06f0-\u06f9]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
     .replace(/[\s-]/g, "");
+}
+
+/**
+ * The digits of a search term, as ASCII: full-width digits are folded by NFKC and Arabic-Indic /
+ * Eastern Arabic-Indic digits by `normalizeCivilId`, so a phone, file number or civil ID typed on an
+ * Arabic or Persian keyboard still finds the file.
+ */
+export function searchDigits(term: string): string {
+  return normalizeCivilId(term.normalize("NFKC")).replace(/\D/g, "");
 }
 
 /** A real calendar day, so 30 February and 29 February in a common year are both refused. */
@@ -129,7 +151,9 @@ const civilIdInput = z
 /** Create and update share one input; the system assigns fileNumber. */
 export const patientInputSchema = z
   .object({
-    fullName: z.string().trim().min(1, "validation.required").max(120, "validation.tooLong"),
+    fullName: visibleText().pipe(
+      z.string().trim().min(1, "validation.required").max(120, "validation.tooLong"),
+    ),
     phone: z
       .string()
       .trim()
@@ -154,7 +178,7 @@ export const patientInputSchema = z
 export type PatientInput = z.infer<typeof patientInputSchema>;
 
 export const patientListQuerySchema = pageQuerySchema.extend({
-  q: z.string().trim().max(100),
+  q: visibleText().pipe(z.string().trim().max(100)),
   branchId: idSchema.nullable(),
   status: patientStatusSchema.nullable(),
 });
