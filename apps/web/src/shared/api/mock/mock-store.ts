@@ -16,15 +16,19 @@ export type MockState = {
   invitations: InvitationRecord[];
   /** Mock stand-in for the invitation email: invitation id -> latest plain link token. */
   inviteOutbox: Record<string, string>;
-  /** Idempotency-Key replay: "clinicId:key" -> invitation id (optional for older saved state). */
+  /**
+   * Idempotency-Key replay ledgers (optional for older saved state). Clinic writes are keyed
+   * "clinicId:actorMemberId:key" (`actorReplayKey`), clinic creates "platformAccountId:key".
+   * Invitations: key -> invitation id + request fingerprint.
+   */
   idempotentInvites?: Record<string, { invitationId: string; fingerprint: string }>;
-  /** Idempotency-Key replay for branch creates: "clinicId:key" -> branch id + request fingerprint. */
+  /** Idempotency-Key replay for branch creates, as above: key -> branch id + request fingerprint. */
   idempotentBranches?: Record<string, { branchId: string; fingerprint: string }>;
   idempotentRoles?: Record<string, { roleId: string; fingerprint: string }>; // role creates, as above
-  /** Idempotency-Key replay for clinic creates: key -> the first answer + request fingerprint. */
+  /** Idempotency-Key replay for clinic creates, as above: key -> the first answer + fingerprint. */
   idempotentClinics?: Record<string, { created: CreatedClinic; fingerprint: string }>;
   patients: Patient[];
-  /** Idempotency-Key replay for patient creates: "clinicId:key" -> patient id + request fingerprint. */
+  /** Idempotency-Key replay for patient creates, as above: key -> patient id + request fingerprint. */
   idempotentPatients?: Record<string, { patientId: string; fingerprint: string }>;
   /** Per-clinic file-number counter: last number issued, never reused. */
   patientCounters: Record<string, number>;

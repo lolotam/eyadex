@@ -7,26 +7,39 @@ function fingerprintOf(input: CreateClinicInput): string {
   return JSON.stringify({ ...input, adminEmail: input.adminEmail.trim().toLowerCase() });
 }
 
-/** The first answer for this key, or null when the key is new. */
+/**
+ * Scoped by the platform account like the API (`platform:create-clinic:<userId>`): two accounts
+ * never share a key. Entries saved before this scope (the bare key) never match it.
+ */
+const ledgerKey = (accountId: string, key: string) => `${accountId}:${key}`;
+
+/**
+ * The first answer for this key, or null when the key is new. The clinic comes back as it is now,
+ * as the HTTP adapter reads it back after the API replays the stored ids.
+ */
 export function replayClinicCreate(
   db: MockState,
+  accountId: string,
   key: string,
   input: CreateClinicInput,
 ): CreatedClinic | null {
-  const previous = db.idempotentClinics?.[key];
+  const previous = db.idempotentClinics?.[ledgerKey(accountId, key)];
   if (!previous) return null;
   if (previous.fingerprint !== fingerprintOf(input)) throw new ApiError("idempotency_conflict");
-  return previous.created;
+  const clinic = db.clinics.find((c) => c.id === previous.created.clinic.id);
+  if (!clinic) throw new ApiError("not_found");
+  return { clinic, firstAdminInvite: previous.created.firstAdminInvite };
 }
 
 export function rememberClinicCreate(
   db: MockState,
+  accountId: string,
   key: string,
   input: CreateClinicInput,
   created: CreatedClinic,
 ): void {
   db.idempotentClinics = {
     ...db.idempotentClinics,
-    [key]: { created, fingerprint: fingerprintOf(input) },
+    [ledgerKey(accountId, key)]: { created, fingerprint: fingerprintOf(input) },
   };
 }

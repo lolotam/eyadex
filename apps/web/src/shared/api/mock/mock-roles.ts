@@ -4,6 +4,7 @@ import type { ApiClient } from "../api-client";
 import { ApiError } from "../api-error";
 import { authorize } from "./mock-actor";
 import { writeClinicAudit } from "./mock-audit";
+import { actorReplayKey } from "./mock-idempotency";
 import {
   enforceMayDefineRole,
   enforceNotLocked,
@@ -97,8 +98,7 @@ export function createMockRoles(): ApiClient["roles"] {
       const actor = authorize(db, persona, "create", "roles");
       const { clinic, actorName } = actor;
       const input = parseInput(rawInput);
-      // Scoped by the actor like the API (`role:create:<userId>`): two users never share a key.
-      const replayKey = `${clinic.id}:${actor.member.id}:${idempotencyKey}`;
+      const replayKey = actorReplayKey(clinic.id, actor.member.id, idempotencyKey);
       const previous = db.idempotentRoles?.[replayKey];
       if (previous) {
         if (previous.fingerprint !== fingerprintOf(input))
