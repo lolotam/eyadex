@@ -89,8 +89,8 @@ beforeEach(() => {
   }
 });
 
-// Same-user replay and conflict are already covered per area (branches-mock, invitation-safety,
-// patients-records); these add the scope the API keys on.
+// Same-user replay and conflict are already covered per area (branches-mock, invitations-mock +
+// invitation-safety, patients-records); these add the scope the API keys on.
 describe.each(ledgers)("$name idempotency is scoped by the acting user", ({ create }) => {
   it("another user of the same clinic with the same key creates their own row", async () => {
     const admin = as("clinic_admin", 0);
