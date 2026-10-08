@@ -1,6 +1,8 @@
 import {
   timezoneOptions,
   type ClinicDetail,
+  type ClinicListItem,
+  type ClinicListQuery,
   type CreatedClinic,
   type CreateClinicInput,
 } from "@eyadex/contracts/clinics";
@@ -13,6 +15,7 @@ import {
 import { DEFAULT_PLATFORM_SETTINGS } from "@eyadex/contracts/platform";
 import {
   platformClinicDetailSchema,
+  platformClinicListResponseSchema,
   type PlatformClinicDetail,
   type UpdateLimitsRequest,
   type UpdateSubscriptionRequest,
@@ -22,37 +25,49 @@ import { ApiError } from "../api-error";
 import { toBranch } from "./http-branches";
 import type { HttpContext } from "./http-context";
 import { collectPages } from "./http-transport";
-import { explicitExpiry, trialExpiry } from "./subscription-expiry";
+import { explicitExpiry } from "./subscription-expiry";
 
 const notImplemented = () => Promise.reject(new ApiError("not_implemented"));
 
 // TODO(spec): the API requires the subscription of a new clinic; until the platform settings read
 // exists these mirror the mock's defaults (trial, default trial days, 10 users, 3 branches, patients on).
 const NEW_CLINIC = { maxUsers: 10, maxBranches: 3, modules: { patients: true } } as const;
-// TODO(spec): the platform clinic read has no time zone yet; durations count calendar days in UTC.
-const FALLBACK_TIMEZONE = "UTC";
-
-export function toClinicDetail(detail: PlatformClinicDetail): ClinicDetail {
+export function toClinicListItem(detail: PlatformClinicDetail): ClinicListItem {
   return {
     id: detail.id,
     slug: detail.slug,
     nameAr: detail.nameAr,
     nameEn: detail.nameEn,
     specialty: detail.specialty,
-    defaultLanguage: null,
-    timezone: null,
+    defaultLanguage: detail.defaultLanguage,
+    timezone: detail.timezone,
     status: detail.status,
     expiresAt: detail.expiresAt,
     maxUsers: detail.usage.users.max,
     maxBranches: detail.usage.branches.max,
-    createdAt: null,
+    createdAt: detail.createdAt,
     usersCount: detail.usage.users.used,
     branchesCount: detail.usage.branches.used,
-    features: { patients: detail.modules.patients },
   };
 }
 
-export function toCreateClinicRequest(input: CreateClinicInput, now: Date): CreateClinicRequest {
+export function toClinicDetail(detail: PlatformClinicDetail): ClinicDetail {
+  return { ...toClinicListItem(detail), features: { patients: detail.modules.patients } };
+}
+
+export function platformListQuery(query: ClinicListQuery) {
+  const search = query.search.trim();
+  return {
+    cursor: query.cursor,
+    limit: query.limit,
+    search: search === "" ? null : search,
+    status: query.status,
+    specialty: query.specialty,
+  };
+}
+
+/** No expiry is sent: the server derives the trial on its own clock (ADR-0016), so the body never depends on the device. */
+export function toCreateClinicRequest(input: CreateClinicInput): CreateClinicRequest {
   const timezone = timezoneOptions.find((tz) => tz === input.timezone);
   if (!timezone) throw new ApiError("validation", undefined, { timezone: "invalid" });
   return {
@@ -63,33 +78,19 @@ export function toCreateClinicRequest(input: CreateClinicInput, now: Date): Crea
     defaultLanguage: input.defaultLanguage,
     timezone,
     status: "trial",
-    expiresAt: trialExpiry(DEFAULT_PLATFORM_SETTINGS.defaultTrialDays, timezone, now),
+    trialDays: DEFAULT_PLATFORM_SETTINGS.defaultTrialDays,
     ...NEW_CLINIC,
     admin: { fullName: input.adminName, email: input.adminEmail },
   };
 }
 
-/** The API returns identifiers only; the clinic is rebuilt from what was sent. No link: it is emailed. */
-export function toCreatedClinic(
-  answer: CreateClinicResponse,
-  request: CreateClinicRequest,
-  now: Date,
-): CreatedClinic {
+/** The API returns identifiers only; the clinic is read back (its expiry is the server's). No link: it is emailed. */
+export function toCreatedClinic(answer: CreateClinicResponse, detail: PlatformClinicDetail): CreatedClinic {
+  const { usersCount: _u, branchesCount: _b, ...clinic } = toClinicListItem(detail);
+  void _u;
+  void _b;
   return {
-    clinic: {
-      id: answer.clinicId,
-      slug: answer.slug,
-      nameAr: request.nameAr,
-      nameEn: request.nameEn,
-      specialty: request.specialty,
-      defaultLanguage: request.defaultLanguage,
-      timezone: request.timezone,
-      status: request.status,
-      expiresAt: request.expiresAt,
-      maxUsers: request.maxUsers,
-      maxBranches: request.maxBranches,
-      createdAt: now.toISOString(),
-    },
+    clinic,
     firstAdminInvite: {
       email: answer.invitation.email,
       token: null,
@@ -104,22 +105,22 @@ export function createHttpPlatform(ctx: HttpContext): ApiClient["platform"] {
   const { transport } = ctx;
   const detail = (id: string) =>
     transport.send("GET", path(id), { schema: platformClinicDetailSchema });
-  // A retry under the same key must send the same body, or the API answers idempotency_conflict;
-  // the expiry is derived from "today", so a retry after midnight would otherwise differ.
-  const firstAttempts = new Map<string, { input: string; now: Date }>();
   return {
+    // The body holds no clock-derived value, so a retry under the same key always sends the same body.
     async createClinic(_persona, input, idempotencyKey) {
-      const sameInput = JSON.stringify(input);
-      const first = firstAttempts.get(idempotencyKey);
-      const now = first?.input === sameInput ? first.now : ctx.now();
-      firstAttempts.set(idempotencyKey, { input: sameInput, now });
-      const request = toCreateClinicRequest(input, now);
       const answer = await transport.send("POST", "/v1/platform/clinics", {
         schema: createClinicResponseSchema,
-        body: request,
+        body: toCreateClinicRequest(input),
         idempotencyKey,
       });
-      return toCreatedClinic(answer, request, now);
+      return toCreatedClinic(answer, await detail(answer.clinicId));
+    },
+    async listClinics(_persona, query) {
+      const page = await transport.send("GET", "/v1/platform/clinics", {
+        schema: platformClinicListResponseSchema,
+        query: platformListQuery(query),
+      });
+      return { items: page.items.map(toClinicListItem), nextCursor: page.nextCursor, total: page.total };
     },
     getClinic: async (_persona, clinicId) => toClinicDetail(await detail(clinicId)),
     async listClinicBranches(_persona, clinicId) {
@@ -141,7 +142,7 @@ export function createHttpPlatform(ctx: HttpContext): ApiClient["platform"] {
       const current = await detail(clinicId);
       const subscription: UpdateSubscriptionRequest = {
         status: input.status,
-        expiresAt: explicitExpiry(input, FALLBACK_TIMEZONE, ctx.now()),
+        expiresAt: explicitExpiry(input, current.timezone, ctx.now()),
       };
       await transport.send("PATCH", `${path(clinicId)}/subscription`, {
         schema: platformClinicDetailSchema,
@@ -156,7 +157,6 @@ export function createHttpPlatform(ctx: HttpContext): ApiClient["platform"] {
         body: limits,
       });
     },
-    listClinics: notImplemented,
     getFirstAdminInvitation: notImplemented,
     resendFirstAdminInvitation: notImplemented,
     updateClinicDetails: notImplemented,

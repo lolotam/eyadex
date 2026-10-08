@@ -23,7 +23,7 @@ export function addCalendarMonths(date: string, months: number): string {
 
 /**
  * Always an explicit instant, never `durationDays`: the same input on the same day gives the same
- * body, so a retried PATCH is idempotent without a key. The end of the day matches the date mode.
+ * body, so a retried PATCH is idempotent without a key. Both modes end 23:59:59 in the clinic's zone.
  */
 export function explicitExpiry(
   input: Pick<SubscriptionInput, "expiryMode" | "expiresOn" | "durationMonths">,
@@ -34,7 +34,7 @@ export function explicitExpiry(
     input.expiryMode === "date"
       ? input.expiresOn
       : addCalendarMonths(todayIn(timeZone, now), input.durationMonths);
-  return `${date}T23:59:59Z`;
+  return endOfLocalDay(date, timeZone);
 }
 
 /** Minutes the zone is ahead of UTC at that instant (Cairo moves with daylight saving). */
