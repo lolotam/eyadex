@@ -41,15 +41,15 @@ session never reaches a platform route.
 
 ## Filters
 
-| Filter     | Clinic                                                       | Platform                       |
-| ---------- | ------------------------------------------------------------ | ------------------------------ |
-| `actor`    | case-insensitive substring of the shown actor name (SQL)     | same                           |
-| `action`   | exact                                                        | exact                          |
-| `from/to`  | calendar days in the clinic's time zone (`clinics.timezone`) | calendar days in `Asia/Kuwait` |
-| `entity`   | `clinicAuditEntitySchema`                                    | `platformAuditEntitySchema`    |
-| `category` | `administrative` / `patient_access`                          | —                              |
-| `source`   | —                                                            | `platform` / `clinic`          |
-| `clinicId` | —                                                            | one clinic's events            |
+| Filter     | Clinic                                                                               | Platform                       |
+| ---------- | ------------------------------------------------------------------------------------ | ------------------------------ |
+| `actor`    | case-insensitive substring of the **shown** name, matched in TS, filtered by user id | same                           |
+| `action`   | exact                                                                                | exact                          |
+| `from/to`  | calendar days in the clinic's time zone (`clinics.timezone`)                         | calendar days in `Asia/Kuwait` |
+| `entity`   | `clinicAuditEntitySchema`                                                            | `platformAuditEntitySchema`    |
+| `category` | `administrative` / `patient_access`                                                  | —                              |
+| `source`   | —                                                                                    | `platform` / `clinic`          |
+| `clinicId` | —                                                                                    | one clinic's events            |
 
 ## Mapping stored rows to the contract
 
@@ -58,12 +58,14 @@ session never reaches a platform route.
   break the strict response. Platform rows derive the entity from the action, as the Phase-A mock did
   (`invitation.*`, `platform_account.*`, `platform.*`, otherwise `clinic`).
 - **Snapshots:** `before` / `after` come only from `details.before` / `details.after`, filtered through
-  a per-entity key allowlist (`audit/domain/audit-snapshot.ts`), then `redactSecrets` (no credential,
-  PEM, civil ID or URL token) and phone masking on free-text keys and `phone` (last 3 digits). A
+  a per-entity key allowlist (`audit/domain/audit-snapshot.ts`), then every string at any depth goes
+  through `shownText`: NFKC, invisible characters removed, Arabic-Indic digits made ASCII,
+  `redactSecrets`, and any digit run withheld (12+ digits) or cut to its last 3 (7–11). Role and branch
+  ids become `{ id, nameAr, nameEn }` (null names when the reader cannot read them). A
   top-level `details.module` (feature changes) is copied into both snapshots. Patient snapshots expose
   no field (`TODO(spec)` until the patients slice defines its allowlist). Anything else in `details`
   (`reason`, `eventId`, `lastError`…) is not exposed.
-- **Actor name:** a clinic member's `full_name` (phones masked); any other actor (a platform account
+- **Actor name:** a clinic member's `full_name` through `shownText`; any other actor (a platform account
   acting on the clinic's behalf at onboarding, a system actor) is shown as `Eyadex` in the clinic list.
   The platform list uses `platform_audit_actors`; unknown actors are shown as `Eyadex`.
 - **entityId:** `audit_log.entity_id` is nullable, so `clinicAuditItemSchema.entityId` becomes nullable

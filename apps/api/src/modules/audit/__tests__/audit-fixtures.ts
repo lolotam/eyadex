@@ -43,16 +43,23 @@ export async function seedAudit(h: Harness, row: SeedRow): Promise<string> {
 export const LEAKY_TEXT = `Leaky ${LEAKS.phone} ${LEAKS.civilId} password=${LEAKS.password}`;
 
 /**
- * A member whose full name is `LEAKY_TEXT`, written as the owner (exempt from the email hold).
+ * A member with the given full name (`LEAKY_TEXT` by default), written as the owner (exempt from the
+ * email hold).
  *
  * @param h the harness
  * @param clinicId the clinic
  * @param roleId an existing role of that clinic
+ * @param fullName the stored name
  * @returns the member's user id
  */
-export async function seedLeakyMember(h: Harness, clinicId: string, roleId: string) {
+export async function seedLeakyMember(
+  h: Harness,
+  clinicId: string,
+  roleId: string,
+  fullName: string = LEAKY_TEXT,
+) {
   const userId = randomUUID();
-  await h.owner`INSERT INTO memberships VALUES (${clinicId}, ${randomUUID()}, ${userId}, ${LEAKY_TEXT},
+  await h.owner`INSERT INTO memberships VALUES (${clinicId}, ${randomUUID()}, ${userId}, ${fullName},
     ${`leaky-${userId.slice(0, 8)}@example.test`}, ${roleId}, true, 'active', 'en', NULL, now(), now())`;
   return userId;
 }
@@ -103,3 +110,22 @@ export async function allPages(page: (cursor: string | null) => Promise<ListBody
   }
   throw new Error("pagination did not end");
 }
+
+/** Two names that differ only in what the reader can never see, and Unicode-hidden numbers. */
+export const HIDDEN = {
+  alpha: "Twin password=alpha-hidden-value-1",
+  beta: "Twin password=beta-hidden-value-2",
+  // A phone split by a zero-width joiner, a full-width civil ID, and Arabic-Indic phone digits.
+  zwj: "Zed 5000‍0006",
+  fullWidth: "Wide ３０００００００００００",
+  arabic: "عربي ٥٠٠٠٠٠٠٧",
+} as const;
+
+/** What the reader is shown for each `HIDDEN` name. */
+export const HIDDEN_SHOWN = {
+  alpha: "Twin password=[REDACTED]",
+  beta: "Twin password=[REDACTED]",
+  zwj: "Zed ***006",
+  fullWidth: "Wide [REDACTED]",
+  arabic: "عربي ***007",
+} as const;

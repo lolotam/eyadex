@@ -99,6 +99,19 @@ describe("wired audit methods", () => {
     expect((await code(p.api.audit.platformList(P, platformQuery))).code).toBe("unknown");
   });
 
+  it("keeps the API's named references as the detail dialog reads them, null names included", async () => {
+    const after = {
+      roleId: { id: USER, nameAr: "ر", nameEn: "R" },
+      branchIds: [
+        { id: CLINIC, nameAr: "ف", nameEn: "B" },
+        { id: USER, nameAr: null, nameEn: null },
+      ],
+    };
+    const h = clientWith(() => ({ body: page([{ ...clinicItem, before: null, after }]) }));
+    const result = await h.api.audit.clinicList(ADMIN, clinicQuery);
+    expect(result.items[0]?.after).toEqual(after);
+  });
+
   it("an API error keeps its code", async () => {
     const h = clientWith(() => ({
       status: 403,

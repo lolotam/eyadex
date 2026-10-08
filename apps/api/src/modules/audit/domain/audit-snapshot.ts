@@ -3,7 +3,7 @@ import type { clinicAuditEntitySchema } from "@eyadex/contracts/organization";
 import { maskPhone } from "@eyadex/observability";
 import type { z } from "zod";
 
-import { shownValue } from "./audit-text.ts";
+import { normalizedText, shownValue } from "./audit-text.ts";
 
 /** كل كيان ممكن يظهر في أي من السجلين. */
 export type AuditEntity = z.infer<typeof clinicAuditEntitySchema> | PlatformAuditEntity;
@@ -78,7 +78,11 @@ function project(entity: AuditEntity, side: unknown, context: Snapshot): Snapsho
   const out: Snapshot = {};
   for (const [key, value] of Object.entries({ ...side, ...context })) {
     if (!allowed.has(key)) continue;
-    out[key] = key === "phone" && value !== null ? maskPhone(value) : value;
+    // A phone field keeps 3 digits even when it is shorter than a phone-looking run.
+    out[key] =
+      key === "phone" && value !== null
+        ? maskPhone(typeof value === "string" ? normalizedText(value) : value)
+        : value;
   }
   if (Object.keys(out).length === 0) return null;
   // Defence in depth over the allowlist, at every depth (`firstAdmin.email` is nested): a secret, PEM

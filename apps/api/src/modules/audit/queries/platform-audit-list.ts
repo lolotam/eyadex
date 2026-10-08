@@ -13,9 +13,12 @@ import {
 import type { Database } from "@eyadex/db";
 import { sql } from "drizzle-orm";
 
+import { matchActors } from "../domain/audit-actors.ts";
+import { refIdsOf, withRefNames, type RefNames } from "../domain/audit-refs.ts";
 import { auditSnapshots } from "../domain/audit-snapshot.ts";
 import { shownText } from "../domain/audit-text.ts";
 import {
+  actorCondition,
   afterCursor,
   ENTITY_OF_TYPE,
   inList,
@@ -26,6 +29,7 @@ import {
   UNNAMED_ACTOR,
   where,
 } from "./audit-sql.ts";
+import { readRefNames } from "./ref-names.ts";
 
 interface Row {
   id: string;
@@ -67,6 +71,7 @@ const ENTRIES = sql`(
 
 const NAMED = sql`(
   SELECT e.*, COALESCE(e.clinic_id, ${NO_CLINIC}::uuid) AS clinic_key,
+         n.user_id IS NOT NULL AS actor_named,
          COALESCE(n.full_name, ${UNNAMED_ACTOR}) AS actor_name, c.name_ar, c.name_en
   FROM ${ENTRIES} e
   LEFT JOIN platform_audit_actors n ON n.user_id = e.actor_user_id
@@ -93,19 +98,29 @@ export async function listPlatformAudit(
   if (query.source !== undefined) conditions.push(sql`source = ${query.source}`);
   if (query.clinicId !== undefined) conditions.push(sql`clinic_id = ${query.clinicId}::uuid`);
   const cursor = afterCursor(query.cursor, "platform");
-  const { rows, total } = await db.withNoTenant(async (tx) => ({
-    rows: await tx.execute<Row>(
-      sql`SELECT id, ${INSTANT_TEXT} AS at_key, source, actor_name, action, entity, entity_id,
-                 clinic_id, clinic_key, name_ar, name_en, details::text AS details
-          FROM ${NAMED}
-          WHERE ${where(cursor === null ? conditions : [...conditions, cursor])}
-          ORDER BY created_at DESC, id DESC, source DESC, clinic_key DESC
-          LIMIT ${query.limit + 1}`,
-    ),
-    total: await tx.execute<{ total: number }>(
-      sql`SELECT count(*)::int AS total FROM ${NAMED} WHERE ${where(conditions)}`,
-    ),
-  }));
+  const { rows, total } = await db.withNoTenant(async (tx) => {
+    if (query.actor !== undefined) {
+      // Every name the platform may see; matched as shown, so the filter never reads a hidden value.
+      const known = await tx.execute<{ user_id: string; full_name: string }>(
+        sql`SELECT user_id, full_name FROM platform_audit_actors`,
+      );
+      const actors = known.map((a) => ({ userId: a.user_id, name: a.full_name }));
+      conditions.push(actorCondition(matchActors(query.actor, actors, UNNAMED_ACTOR)));
+    }
+    return {
+      rows: await tx.execute<Row>(
+        sql`SELECT id, ${INSTANT_TEXT} AS at_key, source, actor_name, action, entity, entity_id,
+                   clinic_id, clinic_key, name_ar, name_en, details::text AS details
+            FROM ${NAMED}
+            WHERE ${where(cursor === null ? conditions : [...conditions, cursor])}
+            ORDER BY created_at DESC, id DESC, source DESC, clinic_key DESC
+            LIMIT ${query.limit + 1}`,
+      ),
+      total: await tx.execute<{ total: number }>(
+        sql`SELECT count(*)::int AS total FROM ${NAMED} WHERE ${where(conditions)}`,
+      ),
+    };
+  });
   const { page, nextCursor } = pageOf(rows, query.limit, (row) => ({
     kind: "platform",
     at: row.at_key,
@@ -113,28 +128,59 @@ export async function listPlatformAudit(
     source: row.source,
     clinicKey: row.clinic_key,
   }));
+  const items = page.map((row) => {
+    const entity = platformAuditEntitySchema.parse(row.entity);
+    return {
+      id: row.id,
+      at: new Date(row.at_key).toISOString(),
+      actorName: shownText(row.actor_name),
+      action: row.action,
+      source: platformAuditSourceSchema.parse(row.source),
+      entity,
+      category: "administrative" as const,
+      entityId: row.entity_id,
+      clinicId: row.clinic_id,
+      clinicNameAr: row.name_ar === null ? null : shownText(row.name_ar),
+      clinicNameEn: row.name_en === null ? null : shownText(row.name_en),
+      ...auditSnapshots(entity, parseDetails(row.details)),
+    };
+  });
   return platformAuditListResponseSchema.parse({
-    items: page.map((row) => {
-      const entity = platformAuditEntitySchema.parse(row.entity);
-      return {
-        id: row.id,
-        at: new Date(row.at_key).toISOString(),
-        actorName: shownText(row.actor_name),
-        action: row.action,
-        source: platformAuditSourceSchema.parse(row.source),
-        entity,
-        category: "administrative",
-        entityId: row.entity_id,
-        clinicId: row.clinic_id,
-        clinicNameAr: row.name_ar === null ? null : shownText(row.name_ar),
-        clinicNameEn: row.name_en === null ? null : shownText(row.name_en),
-        ...auditSnapshots(entity, parseDetails(row.details)),
-      };
-    }),
+    items: await withClinicRefNames(db, items),
     nextCursor,
     total: Number(total[0]?.total ?? 0),
   });
 }
+
+type Item = {
+  clinicId: string | null;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+};
+
+// Role and branch names are clinic rows: the platform reads them one clinic at a time inside that
+// clinic's context, with the SELECT it already holds (0013) — never a cross-clinic window for this.
+async function withClinicRefNames<T extends Item>(db: Database, items: readonly T[]): Promise<T[]> {
+  const byClinic = new Map<string, RefNames>();
+  for (const clinicId of new Set(items.map((item) => item.clinicId))) {
+    if (clinicId === null) continue;
+    const ids = refIdsOf(
+      items.filter((i) => i.clinicId === clinicId).flatMap((i) => [i.before, i.after]),
+    );
+    if (ids.roles.length + ids.branches.length === 0) continue;
+    byClinic.set(clinicId, await db.withTenant(clinicId, (tx) => readRefNames(tx, clinicId, ids)));
+  }
+  return items.map((item) => {
+    const names = (item.clinicId !== null && byClinic.get(item.clinicId)) || NO_NAMES;
+    return {
+      ...item,
+      before: withRefNames(item.before, names),
+      after: withRefNames(item.after, names),
+    };
+  });
+}
+
+const NO_NAMES: RefNames = { roles: new Map(), branches: new Map() };
 
 /**
  * كل العيادات بالاسمين لفلتر العيادة في سجل المنصة (من غير حد للصفحات).

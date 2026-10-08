@@ -15,14 +15,30 @@ import { clinicAuditEntitySchema } from "./organization.ts";
  * query strings and the strict answers of `/v1/clinic/audit` and `/v1/platform/audit`.
  */
 
-// A real calendar day PostgreSQL can hold: "2026-02-31" or year 0 would otherwise reach the database
-// as an invalid date (a 500). An unparseable value is refused before toISOString() can throw.
-function isCalendarDay(value: string): boolean {
-  const date = new Date(`${value}T00:00:00Z`);
+const DAY = /^(\d{4})-(\d{2})-(\d{2})$/;
+const daysIn = (year: number, month: number) =>
+  month === 2
+    ? (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0
+      ? 29
+      : 28
+    : [4, 6, 9, 11].includes(month)
+      ? 30
+      : 31;
+
+/**
+ * A real calendar day PostgreSQL can hold (years 1–9999), checked on the text itself: "2026-02-31",
+ * "2026-13-01" or year 0 would otherwise reach the database as an invalid date (a 500). No `Date` is
+ * built, so nothing can throw.
+ *
+ * @param value the text, `YYYY-MM-DD`
+ * @returns whether it names one real day
+ */
+export function isCalendarDay(value: string): boolean {
+  const match = DAY.exec(value);
+  if (match === null) return false;
+  const [year, month, dayOfMonth] = match.slice(1).map(Number) as [number, number, number];
   return (
-    Number.isFinite(date.getTime()) &&
-    date.getUTCFullYear() >= 1 &&
-    date.toISOString().startsWith(value)
+    year >= 1 && month >= 1 && month <= 12 && dayOfMonth >= 1 && dayOfMonth <= daysIn(year, month)
   );
 }
 

@@ -1,5 +1,6 @@
 import { sql, type SQL } from "drizzle-orm";
 
+import type { ActorMatch } from "../domain/audit-actors.ts";
 import { decodeAuditCursor, encodeAuditCursor, type AuditCursor } from "../domain/audit-cursor.ts";
 
 /** The name shown for an actor the reader has no name for (a platform account, a system actor). */
@@ -11,9 +12,8 @@ export const ENTITY_OF_TYPE = sql`CASE entity_type WHEN 'membership' THEN 'user'
 /** The instant at full precision, the cursor's first half. */
 export const INSTANT_TEXT = sql`to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`;
 
-/** The filters both lists share, applied to a relation with `created_at`, `actor_name`, `action`. */
+/** The filters both lists share, applied to a relation with `created_at` and `action`. */
 export interface SharedFilters {
-  readonly actor?: string | undefined;
   readonly action?: string | undefined;
   readonly from?: string | undefined;
   readonly to?: string | undefined;
@@ -25,12 +25,25 @@ export function inList(column: SQL, values: readonly string[]): SQL {
   return sql`${column} IN (${sql.join(params, sql`, `)})`;
 }
 
-// LIKE metacharacters in the search are literal text, not wildcards.
-const likePattern = (search: string) => `%${search.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+/** Any number of ids as one parameter (no per-id placeholder, so no parameter limit). */
+export const uuidArray = (ids: readonly string[]): SQL =>
+  sql`string_to_array(${ids.join(",")}, ',')::uuid[]`;
 
 /**
- * The conditions for actor, action and the day range. Days are calendar days in `timeZone`, turned
- * into instants in SQL so the index on `created_at` still serves the range.
+ * The actor filter, over ids only. Which actors match was decided on the names as the reader sees
+ * them (`matchActors`), so a hidden credential, civil ID or phone digit never decides a row or `total`.
+ *
+ * @param match the matching named actors, and whether the unnamed label matches
+ * @returns the condition, on a relation with `actor_user_id` and `actor_named`
+ */
+export function actorCondition(match: ActorMatch): SQL {
+  return sql`((actor_named AND actor_user_id = ANY(${uuidArray(match.userIds)}))
+              OR (${match.unnamed}::boolean AND NOT actor_named))`;
+}
+
+/**
+ * The conditions for action and the day range. Days are calendar days in `timeZone`, turned into
+ * instants in SQL so the index on `created_at` still serves the range.
  *
  * @param filters the parsed query
  * @param timeZone an SQL expression for the IANA zone
@@ -38,7 +51,6 @@ const likePattern = (search: string) => `%${search.replace(/[\\%_]/g, (c) => `\\
  */
 export function sharedConditions(filters: SharedFilters, timeZone: SQL): SQL[] {
   const out: SQL[] = [];
-  if (filters.actor !== undefined) out.push(sql`actor_name ILIKE ${likePattern(filters.actor)}`);
   if (filters.action !== undefined) out.push(sql`action = ${filters.action}`);
   if (filters.from !== undefined) {
     out.push(sql`created_at >= (${filters.from}::date::timestamp AT TIME ZONE ${timeZone})`);
