@@ -53,4 +53,14 @@
 - [x] HTTP `ApiClient` adapter next to the mock, chosen by `VITE_API_MODE` (default `mock`)
 - [x] Real sign-in (email + password, platform TOTP enrolment with QR), area-host guard, coming-soon states
 - [ ] `build:all` with Node 24 / `NITRO_PRESET=node-server` (orchestrator)
-- [ ] TODO(spec): clinic-side limits read; platform clinic read with time zone / language / created date; platform defaults read for new clinics
+- [x] Clinic-side limits read and platform clinic read with time zone / language / created date (W2)
+- [ ] TODO(spec): platform defaults read for new clinics (users/branches limits, trial days)
+
+## Slice W2 — platform clinic list, usage reads, clinic time zone, server-side trial
+
+- [x] `GET /v1/platform/clinics` (platform staff, cursor, filters, total) + web list wired (ADR-0016)
+- [x] Platform detail gains `timezone`, `defaultLanguage`, `createdAt`
+- [x] `GET /v1/branches/usage`, `GET /v1/users/usage`; web counters no longer nullable
+- [x] New clinic `trialDays` computed on the API clock in the clinic zone; subscription saves end at the clinic's local midnight
+- [ ] Slice 8 note: option lists (branch/role pickers) are read through `view:*` permissions today; decide a dedicated options permission when roles are writable (deferred)
+- [ ] Apply `db/sql/0031` to production (orchestrator), then switch production to `VITE_API_MODE=http`

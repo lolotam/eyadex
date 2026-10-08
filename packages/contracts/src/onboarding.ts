@@ -54,7 +54,10 @@ export const createClinicRequestSchema = z
     timezone: z.enum(timezoneOptions),
     // TODO(spec): may a clinic be created already suspended? Not allowed until the PRD says so.
     status: z.enum(["trial", "active"]),
-    expiresAt: z.string().datetime({ offset: true }),
+    /** EITHER an explicit instant OR `trialDays`, never both, never neither (ADR-0016). */
+    expiresAt: z.string().datetime({ offset: true }).optional(),
+    /** Days after the clinic's local today, ending 23:59:59 there; counted on the server clock. */
+    trialDays: z.number().int().min(1).max(365).optional(),
     maxUsers: z.number().int().min(1).max(1000),
     maxBranches: z.number().int().min(1).max(100),
     // TODO(spec): PRD §4.8 opens default modules "by specialty" without a table, so it is an input.
@@ -66,7 +69,12 @@ export const createClinicRequestSchema = z
       })
       .strict(),
   })
-  .strict();
+  .strict()
+  .superRefine((value, ctx) => {
+    if ((value.expiresAt === undefined) === (value.trialDays === undefined)) {
+      ctx.addIssue({ code: "custom", path: ["expiresAt"], message: "validation.oneExpiry" });
+    }
+  });
 export type CreateClinicRequest = z.infer<typeof createClinicRequestSchema>;
 
 /** The `Idempotency-Key` header: required on this route, printable ASCII, at most 200 characters. */

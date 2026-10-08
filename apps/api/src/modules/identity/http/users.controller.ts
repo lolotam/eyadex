@@ -15,6 +15,7 @@ import {
   userListHttpQuerySchema,
   type UserListHttpQuery,
   type UserListResponse,
+  type UserUsageResponse,
 } from "@eyadex/contracts/user-admin";
 import {
   changeBranchesInputSchema,
@@ -41,6 +42,7 @@ import {
 import { listUsers } from "../queries/user-views.ts";
 import type { UserChange, UserChanges } from "../use-cases/user-changes/user-changes.ts";
 import { afterUserCommit } from "./after-commit.ts";
+import { CLINIC_USAGE, usageOf, type ClinicUsageReader } from "./branches.controller.ts";
 
 export const USER_CHANGES = Symbol("identity.UserChanges");
 
@@ -65,7 +67,16 @@ export class UsersController {
     @Inject(USER_CHANGES) private readonly changes: UserChanges,
     @Inject(AUTHORIZATION_INVALIDATOR) private readonly invalidator: AuthorizationInvalidator,
     @Inject(MEMBER_SESSION_REVOKER) private readonly revoker: MemberSessionRevoker,
+    @Inject(CLINIC_USAGE) private readonly usage: ClinicUsageReader,
   ) {}
+
+  // ADR-0016: active members + live pending invitations, the same rule as the seat check.
+  @Get("usage")
+  @Require("view:users:clinic")
+  async usageRead(@Req() request: ClinicRequest): Promise<UserUsageResponse> {
+    const { users } = await usageOf(this.usage, request.clinicContext.clinicId);
+    return { used: users.used, limit: users.max };
+  }
 
   @Get()
   @Require("view:users:clinic")
