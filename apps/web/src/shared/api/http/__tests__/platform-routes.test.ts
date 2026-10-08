@@ -74,7 +74,10 @@ describe("wired platform methods", () => {
     expect(body["trialDays"]).toBe(14);
     expect(body).not.toHaveProperty("expiresAt");
     expect(h.calls[1]).toMatchObject({ method: "GET", url: base });
-    expect(result.clinic).toMatchObject({ timezone: "Asia/Kuwait", expiresAt: platformDetail.expiresAt });
+    expect(result.clinic).toMatchObject({
+      timezone: "Asia/Kuwait",
+      expiresAt: platformDetail.expiresAt,
+    });
   });
   it("a createClinic retry under the same key resends the same body whatever the clock says", async () => {
     let failFirst = true;

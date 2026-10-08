@@ -8,483 +8,483 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as ClinicRouteImport } from './routes/clinic'
-import { Route as EnRouteImport } from './routes/en'
-import { Route as ForbiddenRouteImport } from './routes/forbidden'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as PlatformRouteImport } from './routes/platform'
-import { Route as ClinicIndexRouteImport } from './routes/clinic.index'
-import { Route as ClinicAccountRouteImport } from './routes/clinic.account'
-import { Route as ClinicAuditRouteImport } from './routes/clinic.audit'
-import { Route as ClinicBranchesRouteImport } from './routes/clinic.branches'
-import { Route as ClinicRolesRouteImport } from './routes/clinic.roles'
-import { Route as ClinicSettingsRouteImport } from './routes/clinic.settings'
-import { Route as ClinicUsersRouteImport } from './routes/clinic.users'
-import { Route as InviteTokenRouteImport } from './routes/invite.$token'
-import { Route as PlatformIndexRouteImport } from './routes/platform.index'
-import { Route as PlatformAuditRouteImport } from './routes/platform.audit'
-import { Route as PlatformSettingsRouteImport } from './routes/platform.settings'
-import { Route as PlatformTeamRouteImport } from './routes/platform.team'
-import { Route as ClinicPatientsIndexRouteImport } from './routes/clinic.patients.index'
-import { Route as ClinicPatientsPatientIdRouteImport } from './routes/clinic.patients.$patientId'
-import { Route as PlatformClinicsIndexRouteImport } from './routes/platform.clinics.index'
-import { Route as PlatformClinicsClinicIdRouteImport } from './routes/platform.clinics.$clinicId'
-import { Route as PlatformClinicsNewRouteImport } from './routes/platform.clinics.new'
+import { Route as rootRouteImport } from "./routes/__root";
+import { Route as IndexRouteImport } from "./routes/index";
+import { Route as ClinicRouteImport } from "./routes/clinic";
+import { Route as EnRouteImport } from "./routes/en";
+import { Route as ForbiddenRouteImport } from "./routes/forbidden";
+import { Route as LoginRouteImport } from "./routes/login";
+import { Route as PlatformRouteImport } from "./routes/platform";
+import { Route as ClinicIndexRouteImport } from "./routes/clinic.index";
+import { Route as ClinicAccountRouteImport } from "./routes/clinic.account";
+import { Route as ClinicAuditRouteImport } from "./routes/clinic.audit";
+import { Route as ClinicBranchesRouteImport } from "./routes/clinic.branches";
+import { Route as ClinicRolesRouteImport } from "./routes/clinic.roles";
+import { Route as ClinicSettingsRouteImport } from "./routes/clinic.settings";
+import { Route as ClinicUsersRouteImport } from "./routes/clinic.users";
+import { Route as InviteTokenRouteImport } from "./routes/invite.$token";
+import { Route as PlatformIndexRouteImport } from "./routes/platform.index";
+import { Route as PlatformAuditRouteImport } from "./routes/platform.audit";
+import { Route as PlatformSettingsRouteImport } from "./routes/platform.settings";
+import { Route as PlatformTeamRouteImport } from "./routes/platform.team";
+import { Route as ClinicPatientsIndexRouteImport } from "./routes/clinic.patients.index";
+import { Route as ClinicPatientsPatientIdRouteImport } from "./routes/clinic.patients.$patientId";
+import { Route as PlatformClinicsIndexRouteImport } from "./routes/platform.clinics.index";
+import { Route as PlatformClinicsClinicIdRouteImport } from "./routes/platform.clinics.$clinicId";
+import { Route as PlatformClinicsNewRouteImport } from "./routes/platform.clinics.new";
 
 const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+  id: "/",
+  path: "/",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ClinicRoute = ClinicRouteImport.update({
-  id: '/clinic',
-  path: '/clinic',
+  id: "/clinic",
+  path: "/clinic",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const EnRoute = EnRouteImport.update({
-  id: '/en',
-  path: '/en',
+  id: "/en",
+  path: "/en",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ForbiddenRoute = ForbiddenRouteImport.update({
-  id: '/forbidden',
-  path: '/forbidden',
+  id: "/forbidden",
+  path: "/forbidden",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
+  id: "/login",
+  path: "/login",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const PlatformRoute = PlatformRouteImport.update({
-  id: '/platform',
-  path: '/platform',
+  id: "/platform",
+  path: "/platform",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ClinicIndexRoute = ClinicIndexRouteImport.update({
-  id: '/',
-  path: '/',
+  id: "/",
+  path: "/",
   getParentRoute: () => ClinicRoute,
-} as any)
+} as any);
 const ClinicAccountRoute = ClinicAccountRouteImport.update({
-  id: '/account',
-  path: '/account',
+  id: "/account",
+  path: "/account",
   getParentRoute: () => ClinicRoute,
-} as any)
+} as any);
 const ClinicAuditRoute = ClinicAuditRouteImport.update({
-  id: '/audit',
-  path: '/audit',
+  id: "/audit",
+  path: "/audit",
   getParentRoute: () => ClinicRoute,
-} as any)
+} as any);
 const ClinicBranchesRoute = ClinicBranchesRouteImport.update({
-  id: '/branches',
-  path: '/branches',
+  id: "/branches",
+  path: "/branches",
   getParentRoute: () => ClinicRoute,
-} as any)
+} as any);
 const ClinicRolesRoute = ClinicRolesRouteImport.update({
-  id: '/roles',
-  path: '/roles',
+  id: "/roles",
+  path: "/roles",
   getParentRoute: () => ClinicRoute,
-} as any)
+} as any);
 const ClinicSettingsRoute = ClinicSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
+  id: "/settings",
+  path: "/settings",
   getParentRoute: () => ClinicRoute,
-} as any)
+} as any);
 const ClinicUsersRoute = ClinicUsersRouteImport.update({
-  id: '/users',
-  path: '/users',
+  id: "/users",
+  path: "/users",
   getParentRoute: () => ClinicRoute,
-} as any)
+} as any);
 const InviteTokenRoute = InviteTokenRouteImport.update({
-  id: '/invite/$token',
-  path: '/invite/$token',
+  id: "/invite/$token",
+  path: "/invite/$token",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const PlatformIndexRoute = PlatformIndexRouteImport.update({
-  id: '/',
-  path: '/',
+  id: "/",
+  path: "/",
   getParentRoute: () => PlatformRoute,
-} as any)
+} as any);
 const PlatformAuditRoute = PlatformAuditRouteImport.update({
-  id: '/audit',
-  path: '/audit',
+  id: "/audit",
+  path: "/audit",
   getParentRoute: () => PlatformRoute,
-} as any)
+} as any);
 const PlatformSettingsRoute = PlatformSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
+  id: "/settings",
+  path: "/settings",
   getParentRoute: () => PlatformRoute,
-} as any)
+} as any);
 const PlatformTeamRoute = PlatformTeamRouteImport.update({
-  id: '/team',
-  path: '/team',
+  id: "/team",
+  path: "/team",
   getParentRoute: () => PlatformRoute,
-} as any)
+} as any);
 const ClinicPatientsIndexRoute = ClinicPatientsIndexRouteImport.update({
-  id: '/patients/',
-  path: '/patients/',
+  id: "/patients/",
+  path: "/patients/",
   getParentRoute: () => ClinicRoute,
-} as any)
+} as any);
 const ClinicPatientsPatientIdRoute = ClinicPatientsPatientIdRouteImport.update({
-  id: '/patients/$patientId',
-  path: '/patients/$patientId',
+  id: "/patients/$patientId",
+  path: "/patients/$patientId",
   getParentRoute: () => ClinicRoute,
-} as any)
+} as any);
 const PlatformClinicsIndexRoute = PlatformClinicsIndexRouteImport.update({
-  id: '/clinics/',
-  path: '/clinics/',
+  id: "/clinics/",
+  path: "/clinics/",
   getParentRoute: () => PlatformRoute,
-} as any)
+} as any);
 const PlatformClinicsClinicIdRoute = PlatformClinicsClinicIdRouteImport.update({
-  id: '/clinics/$clinicId',
-  path: '/clinics/$clinicId',
+  id: "/clinics/$clinicId",
+  path: "/clinics/$clinicId",
   getParentRoute: () => PlatformRoute,
-} as any)
+} as any);
 const PlatformClinicsNewRoute = PlatformClinicsNewRouteImport.update({
-  id: '/clinics/new',
-  path: '/clinics/new',
+  id: "/clinics/new",
+  path: "/clinics/new",
   getParentRoute: () => PlatformRoute,
-} as any)
+} as any);
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/clinic': typeof ClinicRouteWithChildren
-  '/en': typeof EnRoute
-  '/forbidden': typeof ForbiddenRoute
-  '/login': typeof LoginRoute
-  '/platform': typeof PlatformRouteWithChildren
-  '/clinic/account': typeof ClinicAccountRoute
-  '/clinic/audit': typeof ClinicAuditRoute
-  '/clinic/branches': typeof ClinicBranchesRoute
-  '/clinic/roles': typeof ClinicRolesRoute
-  '/clinic/settings': typeof ClinicSettingsRoute
-  '/clinic/users': typeof ClinicUsersRoute
-  '/invite/$token': typeof InviteTokenRoute
-  '/platform/audit': typeof PlatformAuditRoute
-  '/platform/settings': typeof PlatformSettingsRoute
-  '/platform/team': typeof PlatformTeamRoute
-  '/clinic/': typeof ClinicIndexRoute
-  '/platform/': typeof PlatformIndexRoute
-  '/clinic/patients/$patientId': typeof ClinicPatientsPatientIdRoute
-  '/platform/clinics/$clinicId': typeof PlatformClinicsClinicIdRoute
-  '/platform/clinics/new': typeof PlatformClinicsNewRoute
-  '/clinic/patients/': typeof ClinicPatientsIndexRoute
-  '/platform/clinics/': typeof PlatformClinicsIndexRoute
+  "/": typeof IndexRoute;
+  "/clinic": typeof ClinicRouteWithChildren;
+  "/en": typeof EnRoute;
+  "/forbidden": typeof ForbiddenRoute;
+  "/login": typeof LoginRoute;
+  "/platform": typeof PlatformRouteWithChildren;
+  "/clinic/account": typeof ClinicAccountRoute;
+  "/clinic/audit": typeof ClinicAuditRoute;
+  "/clinic/branches": typeof ClinicBranchesRoute;
+  "/clinic/roles": typeof ClinicRolesRoute;
+  "/clinic/settings": typeof ClinicSettingsRoute;
+  "/clinic/users": typeof ClinicUsersRoute;
+  "/invite/$token": typeof InviteTokenRoute;
+  "/platform/audit": typeof PlatformAuditRoute;
+  "/platform/settings": typeof PlatformSettingsRoute;
+  "/platform/team": typeof PlatformTeamRoute;
+  "/clinic/": typeof ClinicIndexRoute;
+  "/platform/": typeof PlatformIndexRoute;
+  "/clinic/patients/$patientId": typeof ClinicPatientsPatientIdRoute;
+  "/platform/clinics/$clinicId": typeof PlatformClinicsClinicIdRoute;
+  "/platform/clinics/new": typeof PlatformClinicsNewRoute;
+  "/clinic/patients/": typeof ClinicPatientsIndexRoute;
+  "/platform/clinics/": typeof PlatformClinicsIndexRoute;
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/en': typeof EnRoute
-  '/forbidden': typeof ForbiddenRoute
-  '/login': typeof LoginRoute
-  '/clinic/account': typeof ClinicAccountRoute
-  '/clinic/audit': typeof ClinicAuditRoute
-  '/clinic/branches': typeof ClinicBranchesRoute
-  '/clinic/roles': typeof ClinicRolesRoute
-  '/clinic/settings': typeof ClinicSettingsRoute
-  '/clinic/users': typeof ClinicUsersRoute
-  '/invite/$token': typeof InviteTokenRoute
-  '/platform/audit': typeof PlatformAuditRoute
-  '/platform/settings': typeof PlatformSettingsRoute
-  '/platform/team': typeof PlatformTeamRoute
-  '/clinic': typeof ClinicIndexRoute
-  '/platform': typeof PlatformIndexRoute
-  '/clinic/patients/$patientId': typeof ClinicPatientsPatientIdRoute
-  '/platform/clinics/$clinicId': typeof PlatformClinicsClinicIdRoute
-  '/platform/clinics/new': typeof PlatformClinicsNewRoute
-  '/clinic/patients': typeof ClinicPatientsIndexRoute
-  '/platform/clinics': typeof PlatformClinicsIndexRoute
+  "/": typeof IndexRoute;
+  "/en": typeof EnRoute;
+  "/forbidden": typeof ForbiddenRoute;
+  "/login": typeof LoginRoute;
+  "/clinic/account": typeof ClinicAccountRoute;
+  "/clinic/audit": typeof ClinicAuditRoute;
+  "/clinic/branches": typeof ClinicBranchesRoute;
+  "/clinic/roles": typeof ClinicRolesRoute;
+  "/clinic/settings": typeof ClinicSettingsRoute;
+  "/clinic/users": typeof ClinicUsersRoute;
+  "/invite/$token": typeof InviteTokenRoute;
+  "/platform/audit": typeof PlatformAuditRoute;
+  "/platform/settings": typeof PlatformSettingsRoute;
+  "/platform/team": typeof PlatformTeamRoute;
+  "/clinic": typeof ClinicIndexRoute;
+  "/platform": typeof PlatformIndexRoute;
+  "/clinic/patients/$patientId": typeof ClinicPatientsPatientIdRoute;
+  "/platform/clinics/$clinicId": typeof PlatformClinicsClinicIdRoute;
+  "/platform/clinics/new": typeof PlatformClinicsNewRoute;
+  "/clinic/patients": typeof ClinicPatientsIndexRoute;
+  "/platform/clinics": typeof PlatformClinicsIndexRoute;
 }
 export interface FileRoutesById {
-  __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/clinic': typeof ClinicRouteWithChildren
-  '/en': typeof EnRoute
-  '/forbidden': typeof ForbiddenRoute
-  '/login': typeof LoginRoute
-  '/platform': typeof PlatformRouteWithChildren
-  '/clinic/account': typeof ClinicAccountRoute
-  '/clinic/audit': typeof ClinicAuditRoute
-  '/clinic/branches': typeof ClinicBranchesRoute
-  '/clinic/roles': typeof ClinicRolesRoute
-  '/clinic/settings': typeof ClinicSettingsRoute
-  '/clinic/users': typeof ClinicUsersRoute
-  '/invite/$token': typeof InviteTokenRoute
-  '/platform/audit': typeof PlatformAuditRoute
-  '/platform/settings': typeof PlatformSettingsRoute
-  '/platform/team': typeof PlatformTeamRoute
-  '/clinic/': typeof ClinicIndexRoute
-  '/platform/': typeof PlatformIndexRoute
-  '/clinic/patients/$patientId': typeof ClinicPatientsPatientIdRoute
-  '/platform/clinics/$clinicId': typeof PlatformClinicsClinicIdRoute
-  '/platform/clinics/new': typeof PlatformClinicsNewRoute
-  '/clinic/patients/': typeof ClinicPatientsIndexRoute
-  '/platform/clinics/': typeof PlatformClinicsIndexRoute
+  __root__: typeof rootRouteImport;
+  "/": typeof IndexRoute;
+  "/clinic": typeof ClinicRouteWithChildren;
+  "/en": typeof EnRoute;
+  "/forbidden": typeof ForbiddenRoute;
+  "/login": typeof LoginRoute;
+  "/platform": typeof PlatformRouteWithChildren;
+  "/clinic/account": typeof ClinicAccountRoute;
+  "/clinic/audit": typeof ClinicAuditRoute;
+  "/clinic/branches": typeof ClinicBranchesRoute;
+  "/clinic/roles": typeof ClinicRolesRoute;
+  "/clinic/settings": typeof ClinicSettingsRoute;
+  "/clinic/users": typeof ClinicUsersRoute;
+  "/invite/$token": typeof InviteTokenRoute;
+  "/platform/audit": typeof PlatformAuditRoute;
+  "/platform/settings": typeof PlatformSettingsRoute;
+  "/platform/team": typeof PlatformTeamRoute;
+  "/clinic/": typeof ClinicIndexRoute;
+  "/platform/": typeof PlatformIndexRoute;
+  "/clinic/patients/$patientId": typeof ClinicPatientsPatientIdRoute;
+  "/platform/clinics/$clinicId": typeof PlatformClinicsClinicIdRoute;
+  "/platform/clinics/new": typeof PlatformClinicsNewRoute;
+  "/clinic/patients/": typeof ClinicPatientsIndexRoute;
+  "/platform/clinics/": typeof PlatformClinicsIndexRoute;
 }
 export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath
+  fileRoutesByFullPath: FileRoutesByFullPath;
   fullPaths:
-    | '/'
-    | '/clinic'
-    | '/en'
-    | '/forbidden'
-    | '/login'
-    | '/platform'
-    | '/clinic/account'
-    | '/clinic/audit'
-    | '/clinic/branches'
-    | '/clinic/roles'
-    | '/clinic/settings'
-    | '/clinic/users'
-    | '/invite/$token'
-    | '/platform/audit'
-    | '/platform/settings'
-    | '/platform/team'
-    | '/clinic/'
-    | '/platform/'
-    | '/clinic/patients/$patientId'
-    | '/platform/clinics/$clinicId'
-    | '/platform/clinics/new'
-    | '/clinic/patients/'
-    | '/platform/clinics/'
-  fileRoutesByTo: FileRoutesByTo
+    | "/"
+    | "/clinic"
+    | "/en"
+    | "/forbidden"
+    | "/login"
+    | "/platform"
+    | "/clinic/account"
+    | "/clinic/audit"
+    | "/clinic/branches"
+    | "/clinic/roles"
+    | "/clinic/settings"
+    | "/clinic/users"
+    | "/invite/$token"
+    | "/platform/audit"
+    | "/platform/settings"
+    | "/platform/team"
+    | "/clinic/"
+    | "/platform/"
+    | "/clinic/patients/$patientId"
+    | "/platform/clinics/$clinicId"
+    | "/platform/clinics/new"
+    | "/clinic/patients/"
+    | "/platform/clinics/";
+  fileRoutesByTo: FileRoutesByTo;
   to:
-    | '/'
-    | '/en'
-    | '/forbidden'
-    | '/login'
-    | '/clinic/account'
-    | '/clinic/audit'
-    | '/clinic/branches'
-    | '/clinic/roles'
-    | '/clinic/settings'
-    | '/clinic/users'
-    | '/invite/$token'
-    | '/platform/audit'
-    | '/platform/settings'
-    | '/platform/team'
-    | '/clinic'
-    | '/platform'
-    | '/clinic/patients/$patientId'
-    | '/platform/clinics/$clinicId'
-    | '/platform/clinics/new'
-    | '/clinic/patients'
-    | '/platform/clinics'
+    | "/"
+    | "/en"
+    | "/forbidden"
+    | "/login"
+    | "/clinic/account"
+    | "/clinic/audit"
+    | "/clinic/branches"
+    | "/clinic/roles"
+    | "/clinic/settings"
+    | "/clinic/users"
+    | "/invite/$token"
+    | "/platform/audit"
+    | "/platform/settings"
+    | "/platform/team"
+    | "/clinic"
+    | "/platform"
+    | "/clinic/patients/$patientId"
+    | "/platform/clinics/$clinicId"
+    | "/platform/clinics/new"
+    | "/clinic/patients"
+    | "/platform/clinics";
   id:
-    | '__root__'
-    | '/'
-    | '/clinic'
-    | '/en'
-    | '/forbidden'
-    | '/login'
-    | '/platform'
-    | '/clinic/account'
-    | '/clinic/audit'
-    | '/clinic/branches'
-    | '/clinic/roles'
-    | '/clinic/settings'
-    | '/clinic/users'
-    | '/invite/$token'
-    | '/platform/audit'
-    | '/platform/settings'
-    | '/platform/team'
-    | '/clinic/'
-    | '/platform/'
-    | '/clinic/patients/$patientId'
-    | '/platform/clinics/$clinicId'
-    | '/platform/clinics/new'
-    | '/clinic/patients/'
-    | '/platform/clinics/'
-  fileRoutesById: FileRoutesById
+    | "__root__"
+    | "/"
+    | "/clinic"
+    | "/en"
+    | "/forbidden"
+    | "/login"
+    | "/platform"
+    | "/clinic/account"
+    | "/clinic/audit"
+    | "/clinic/branches"
+    | "/clinic/roles"
+    | "/clinic/settings"
+    | "/clinic/users"
+    | "/invite/$token"
+    | "/platform/audit"
+    | "/platform/settings"
+    | "/platform/team"
+    | "/clinic/"
+    | "/platform/"
+    | "/clinic/patients/$patientId"
+    | "/platform/clinics/$clinicId"
+    | "/platform/clinics/new"
+    | "/clinic/patients/"
+    | "/platform/clinics/";
+  fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  ClinicRoute: typeof ClinicRouteWithChildren
-  EnRoute: typeof EnRoute
-  ForbiddenRoute: typeof ForbiddenRoute
-  LoginRoute: typeof LoginRoute
-  PlatformRoute: typeof PlatformRouteWithChildren
-  InviteTokenRoute: typeof InviteTokenRoute
+  IndexRoute: typeof IndexRoute;
+  ClinicRoute: typeof ClinicRouteWithChildren;
+  EnRoute: typeof EnRoute;
+  ForbiddenRoute: typeof ForbiddenRoute;
+  LoginRoute: typeof LoginRoute;
+  PlatformRoute: typeof PlatformRouteWithChildren;
+  InviteTokenRoute: typeof InviteTokenRoute;
 }
 
-declare module '@tanstack/react-router' {
+declare module "@tanstack/react-router" {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/clinic': {
-      id: '/clinic'
-      path: '/clinic'
-      fullPath: '/clinic'
-      preLoaderRoute: typeof ClinicRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/en': {
-      id: '/en'
-      path: '/en'
-      fullPath: '/en'
-      preLoaderRoute: typeof EnRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/forbidden': {
-      id: '/forbidden'
-      path: '/forbidden'
-      fullPath: '/forbidden'
-      preLoaderRoute: typeof ForbiddenRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/platform': {
-      id: '/platform'
-      path: '/platform'
-      fullPath: '/platform'
-      preLoaderRoute: typeof PlatformRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/clinic/': {
-      id: '/clinic/'
-      path: '/'
-      fullPath: '/clinic/'
-      preLoaderRoute: typeof ClinicIndexRouteImport
-      parentRoute: typeof ClinicRoute
-    }
-    '/clinic/account': {
-      id: '/clinic/account'
-      path: '/account'
-      fullPath: '/clinic/account'
-      preLoaderRoute: typeof ClinicAccountRouteImport
-      parentRoute: typeof ClinicRoute
-    }
-    '/clinic/audit': {
-      id: '/clinic/audit'
-      path: '/audit'
-      fullPath: '/clinic/audit'
-      preLoaderRoute: typeof ClinicAuditRouteImport
-      parentRoute: typeof ClinicRoute
-    }
-    '/clinic/branches': {
-      id: '/clinic/branches'
-      path: '/branches'
-      fullPath: '/clinic/branches'
-      preLoaderRoute: typeof ClinicBranchesRouteImport
-      parentRoute: typeof ClinicRoute
-    }
-    '/clinic/roles': {
-      id: '/clinic/roles'
-      path: '/roles'
-      fullPath: '/clinic/roles'
-      preLoaderRoute: typeof ClinicRolesRouteImport
-      parentRoute: typeof ClinicRoute
-    }
-    '/clinic/settings': {
-      id: '/clinic/settings'
-      path: '/settings'
-      fullPath: '/clinic/settings'
-      preLoaderRoute: typeof ClinicSettingsRouteImport
-      parentRoute: typeof ClinicRoute
-    }
-    '/clinic/users': {
-      id: '/clinic/users'
-      path: '/users'
-      fullPath: '/clinic/users'
-      preLoaderRoute: typeof ClinicUsersRouteImport
-      parentRoute: typeof ClinicRoute
-    }
-    '/invite/$token': {
-      id: '/invite/$token'
-      path: '/invite/$token'
-      fullPath: '/invite/$token'
-      preLoaderRoute: typeof InviteTokenRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/platform/': {
-      id: '/platform/'
-      path: '/'
-      fullPath: '/platform/'
-      preLoaderRoute: typeof PlatformIndexRouteImport
-      parentRoute: typeof PlatformRoute
-    }
-    '/platform/audit': {
-      id: '/platform/audit'
-      path: '/audit'
-      fullPath: '/platform/audit'
-      preLoaderRoute: typeof PlatformAuditRouteImport
-      parentRoute: typeof PlatformRoute
-    }
-    '/platform/settings': {
-      id: '/platform/settings'
-      path: '/settings'
-      fullPath: '/platform/settings'
-      preLoaderRoute: typeof PlatformSettingsRouteImport
-      parentRoute: typeof PlatformRoute
-    }
-    '/platform/team': {
-      id: '/platform/team'
-      path: '/team'
-      fullPath: '/platform/team'
-      preLoaderRoute: typeof PlatformTeamRouteImport
-      parentRoute: typeof PlatformRoute
-    }
-    '/clinic/patients/': {
-      id: '/clinic/patients/'
-      path: '/patients'
-      fullPath: '/clinic/patients/'
-      preLoaderRoute: typeof ClinicPatientsIndexRouteImport
-      parentRoute: typeof ClinicRoute
-    }
-    '/clinic/patients/$patientId': {
-      id: '/clinic/patients/$patientId'
-      path: '/patients/$patientId'
-      fullPath: '/clinic/patients/$patientId'
-      preLoaderRoute: typeof ClinicPatientsPatientIdRouteImport
-      parentRoute: typeof ClinicRoute
-    }
-    '/platform/clinics/': {
-      id: '/platform/clinics/'
-      path: '/clinics'
-      fullPath: '/platform/clinics/'
-      preLoaderRoute: typeof PlatformClinicsIndexRouteImport
-      parentRoute: typeof PlatformRoute
-    }
-    '/platform/clinics/$clinicId': {
-      id: '/platform/clinics/$clinicId'
-      path: '/clinics/$clinicId'
-      fullPath: '/platform/clinics/$clinicId'
-      preLoaderRoute: typeof PlatformClinicsClinicIdRouteImport
-      parentRoute: typeof PlatformRoute
-    }
-    '/platform/clinics/new': {
-      id: '/platform/clinics/new'
-      path: '/clinics/new'
-      fullPath: '/platform/clinics/new'
-      preLoaderRoute: typeof PlatformClinicsNewRouteImport
-      parentRoute: typeof PlatformRoute
-    }
+    "/": {
+      id: "/";
+      path: "/";
+      fullPath: "/";
+      preLoaderRoute: typeof IndexRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/clinic": {
+      id: "/clinic";
+      path: "/clinic";
+      fullPath: "/clinic";
+      preLoaderRoute: typeof ClinicRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/en": {
+      id: "/en";
+      path: "/en";
+      fullPath: "/en";
+      preLoaderRoute: typeof EnRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/forbidden": {
+      id: "/forbidden";
+      path: "/forbidden";
+      fullPath: "/forbidden";
+      preLoaderRoute: typeof ForbiddenRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/login": {
+      id: "/login";
+      path: "/login";
+      fullPath: "/login";
+      preLoaderRoute: typeof LoginRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/platform": {
+      id: "/platform";
+      path: "/platform";
+      fullPath: "/platform";
+      preLoaderRoute: typeof PlatformRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/clinic/": {
+      id: "/clinic/";
+      path: "/";
+      fullPath: "/clinic/";
+      preLoaderRoute: typeof ClinicIndexRouteImport;
+      parentRoute: typeof ClinicRoute;
+    };
+    "/clinic/account": {
+      id: "/clinic/account";
+      path: "/account";
+      fullPath: "/clinic/account";
+      preLoaderRoute: typeof ClinicAccountRouteImport;
+      parentRoute: typeof ClinicRoute;
+    };
+    "/clinic/audit": {
+      id: "/clinic/audit";
+      path: "/audit";
+      fullPath: "/clinic/audit";
+      preLoaderRoute: typeof ClinicAuditRouteImport;
+      parentRoute: typeof ClinicRoute;
+    };
+    "/clinic/branches": {
+      id: "/clinic/branches";
+      path: "/branches";
+      fullPath: "/clinic/branches";
+      preLoaderRoute: typeof ClinicBranchesRouteImport;
+      parentRoute: typeof ClinicRoute;
+    };
+    "/clinic/roles": {
+      id: "/clinic/roles";
+      path: "/roles";
+      fullPath: "/clinic/roles";
+      preLoaderRoute: typeof ClinicRolesRouteImport;
+      parentRoute: typeof ClinicRoute;
+    };
+    "/clinic/settings": {
+      id: "/clinic/settings";
+      path: "/settings";
+      fullPath: "/clinic/settings";
+      preLoaderRoute: typeof ClinicSettingsRouteImport;
+      parentRoute: typeof ClinicRoute;
+    };
+    "/clinic/users": {
+      id: "/clinic/users";
+      path: "/users";
+      fullPath: "/clinic/users";
+      preLoaderRoute: typeof ClinicUsersRouteImport;
+      parentRoute: typeof ClinicRoute;
+    };
+    "/invite/$token": {
+      id: "/invite/$token";
+      path: "/invite/$token";
+      fullPath: "/invite/$token";
+      preLoaderRoute: typeof InviteTokenRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/platform/": {
+      id: "/platform/";
+      path: "/";
+      fullPath: "/platform/";
+      preLoaderRoute: typeof PlatformIndexRouteImport;
+      parentRoute: typeof PlatformRoute;
+    };
+    "/platform/audit": {
+      id: "/platform/audit";
+      path: "/audit";
+      fullPath: "/platform/audit";
+      preLoaderRoute: typeof PlatformAuditRouteImport;
+      parentRoute: typeof PlatformRoute;
+    };
+    "/platform/settings": {
+      id: "/platform/settings";
+      path: "/settings";
+      fullPath: "/platform/settings";
+      preLoaderRoute: typeof PlatformSettingsRouteImport;
+      parentRoute: typeof PlatformRoute;
+    };
+    "/platform/team": {
+      id: "/platform/team";
+      path: "/team";
+      fullPath: "/platform/team";
+      preLoaderRoute: typeof PlatformTeamRouteImport;
+      parentRoute: typeof PlatformRoute;
+    };
+    "/clinic/patients/": {
+      id: "/clinic/patients/";
+      path: "/patients";
+      fullPath: "/clinic/patients/";
+      preLoaderRoute: typeof ClinicPatientsIndexRouteImport;
+      parentRoute: typeof ClinicRoute;
+    };
+    "/clinic/patients/$patientId": {
+      id: "/clinic/patients/$patientId";
+      path: "/patients/$patientId";
+      fullPath: "/clinic/patients/$patientId";
+      preLoaderRoute: typeof ClinicPatientsPatientIdRouteImport;
+      parentRoute: typeof ClinicRoute;
+    };
+    "/platform/clinics/": {
+      id: "/platform/clinics/";
+      path: "/clinics";
+      fullPath: "/platform/clinics/";
+      preLoaderRoute: typeof PlatformClinicsIndexRouteImport;
+      parentRoute: typeof PlatformRoute;
+    };
+    "/platform/clinics/$clinicId": {
+      id: "/platform/clinics/$clinicId";
+      path: "/clinics/$clinicId";
+      fullPath: "/platform/clinics/$clinicId";
+      preLoaderRoute: typeof PlatformClinicsClinicIdRouteImport;
+      parentRoute: typeof PlatformRoute;
+    };
+    "/platform/clinics/new": {
+      id: "/platform/clinics/new";
+      path: "/clinics/new";
+      fullPath: "/platform/clinics/new";
+      preLoaderRoute: typeof PlatformClinicsNewRouteImport;
+      parentRoute: typeof PlatformRoute;
+    };
   }
 }
 
 interface ClinicRouteChildren {
-  ClinicAccountRoute: typeof ClinicAccountRoute
-  ClinicAuditRoute: typeof ClinicAuditRoute
-  ClinicBranchesRoute: typeof ClinicBranchesRoute
-  ClinicRolesRoute: typeof ClinicRolesRoute
-  ClinicSettingsRoute: typeof ClinicSettingsRoute
-  ClinicUsersRoute: typeof ClinicUsersRoute
-  ClinicIndexRoute: typeof ClinicIndexRoute
-  ClinicPatientsPatientIdRoute: typeof ClinicPatientsPatientIdRoute
-  ClinicPatientsIndexRoute: typeof ClinicPatientsIndexRoute
+  ClinicAccountRoute: typeof ClinicAccountRoute;
+  ClinicAuditRoute: typeof ClinicAuditRoute;
+  ClinicBranchesRoute: typeof ClinicBranchesRoute;
+  ClinicRolesRoute: typeof ClinicRolesRoute;
+  ClinicSettingsRoute: typeof ClinicSettingsRoute;
+  ClinicUsersRoute: typeof ClinicUsersRoute;
+  ClinicIndexRoute: typeof ClinicIndexRoute;
+  ClinicPatientsPatientIdRoute: typeof ClinicPatientsPatientIdRoute;
+  ClinicPatientsIndexRoute: typeof ClinicPatientsIndexRoute;
 }
 
 const ClinicRouteChildren: ClinicRouteChildren = {
@@ -497,19 +497,18 @@ const ClinicRouteChildren: ClinicRouteChildren = {
   ClinicIndexRoute: ClinicIndexRoute,
   ClinicPatientsPatientIdRoute: ClinicPatientsPatientIdRoute,
   ClinicPatientsIndexRoute: ClinicPatientsIndexRoute,
-}
+};
 
-const ClinicRouteWithChildren =
-  ClinicRoute._addFileChildren(ClinicRouteChildren)
+const ClinicRouteWithChildren = ClinicRoute._addFileChildren(ClinicRouteChildren);
 
 interface PlatformRouteChildren {
-  PlatformAuditRoute: typeof PlatformAuditRoute
-  PlatformSettingsRoute: typeof PlatformSettingsRoute
-  PlatformTeamRoute: typeof PlatformTeamRoute
-  PlatformIndexRoute: typeof PlatformIndexRoute
-  PlatformClinicsClinicIdRoute: typeof PlatformClinicsClinicIdRoute
-  PlatformClinicsNewRoute: typeof PlatformClinicsNewRoute
-  PlatformClinicsIndexRoute: typeof PlatformClinicsIndexRoute
+  PlatformAuditRoute: typeof PlatformAuditRoute;
+  PlatformSettingsRoute: typeof PlatformSettingsRoute;
+  PlatformTeamRoute: typeof PlatformTeamRoute;
+  PlatformIndexRoute: typeof PlatformIndexRoute;
+  PlatformClinicsClinicIdRoute: typeof PlatformClinicsClinicIdRoute;
+  PlatformClinicsNewRoute: typeof PlatformClinicsNewRoute;
+  PlatformClinicsIndexRoute: typeof PlatformClinicsIndexRoute;
 }
 
 const PlatformRouteChildren: PlatformRouteChildren = {
@@ -520,11 +519,9 @@ const PlatformRouteChildren: PlatformRouteChildren = {
   PlatformClinicsClinicIdRoute: PlatformClinicsClinicIdRoute,
   PlatformClinicsNewRoute: PlatformClinicsNewRoute,
   PlatformClinicsIndexRoute: PlatformClinicsIndexRoute,
-}
+};
 
-const PlatformRouteWithChildren = PlatformRoute._addFileChildren(
-  PlatformRouteChildren,
-)
+const PlatformRouteWithChildren = PlatformRoute._addFileChildren(PlatformRouteChildren);
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -534,17 +531,17 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   PlatformRoute: PlatformRouteWithChildren,
   InviteTokenRoute: InviteTokenRoute,
-}
+};
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>()
+  ._addFileTypes<FileRouteTypes>();
 
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
+import type { getRouter } from "./router.tsx";
+import type { startInstance } from "./start.ts";
+declare module "@tanstack/react-start" {
   interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+    ssr: true;
+    router: Awaited<ReturnType<typeof getRouter>>;
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>;
   }
 }

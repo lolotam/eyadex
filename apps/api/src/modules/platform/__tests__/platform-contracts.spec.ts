@@ -43,7 +43,9 @@ describe("platform clinic detail contract", () => {
     expect(platformClinicListResponseSchema.safeParse(page).success).toBe(true);
     const leaky = { ...page, items: [{ ...base, patientCount: 3 }] };
     expect(platformClinicListResponseSchema.safeParse(leaky).success).toBe(false);
-    expect(platformClinicListResponseSchema.safeParse({ ...page, patients: 3 }).success).toBe(false);
+    expect(platformClinicListResponseSchema.safeParse({ ...page, patients: 3 }).success).toBe(
+      false,
+    );
   });
 });
 

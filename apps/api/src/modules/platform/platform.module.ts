@@ -87,8 +87,10 @@ import {
     {
       provide: PLATFORM_CLINIC_LIST,
       inject: [PLATFORM_DATABASE, PLATFORM_CLINIC_DETAIL],
-      useFactory: (db: Database, detail: ClinicDetailReader): ClinicListReader => (query) =>
-        listPlatformClinics(db, detail, query),
+      useFactory:
+        (db: Database, detail: ClinicDetailReader): ClinicListReader =>
+        (query) =>
+          listPlatformClinics(db, detail, query),
     },
     // tenancy's port, implemented by identity, bound here like the seat reader above.
     { provide: PLATFORM_EXCLUSIVE_MEMBERS, useValue: new PgExclusiveMembers() },

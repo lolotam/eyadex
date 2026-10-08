@@ -20,7 +20,9 @@ export const CREATE_CLINIC = Symbol("platform.CreateClinicWithAdmin");
 export const PLATFORM_CLINIC_LIST = Symbol("platform.ClinicList");
 
 /** يقرا صفحة من قايمة العيادات على pool المنصة. */
-export type ClinicListReader = (query: PlatformClinicListQuery) => Promise<PlatformClinicListResponse>;
+export type ClinicListReader = (
+  query: PlatformClinicListQuery,
+) => Promise<PlatformClinicListResponse>;
 
 // Platform host first (anything else → 404), then a platform session with a verified second factor —
 // all in the global AccessGuard. No roles inside the platform team in the MVP (PRD §7).

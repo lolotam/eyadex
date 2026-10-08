@@ -85,7 +85,10 @@ export function toCreateClinicRequest(input: CreateClinicInput): CreateClinicReq
 }
 
 /** The API returns identifiers only; the clinic is read back (its expiry is the server's). No link: it is emailed. */
-export function toCreatedClinic(answer: CreateClinicResponse, detail: PlatformClinicDetail): CreatedClinic {
+export function toCreatedClinic(
+  answer: CreateClinicResponse,
+  detail: PlatformClinicDetail,
+): CreatedClinic {
   const { usersCount: _u, branchesCount: _b, ...clinic } = toClinicListItem(detail);
   void _u;
   void _b;
@@ -120,7 +123,11 @@ export function createHttpPlatform(ctx: HttpContext): ApiClient["platform"] {
         schema: platformClinicListResponseSchema,
         query: platformListQuery(query),
       });
-      return { items: page.items.map(toClinicListItem), nextCursor: page.nextCursor, total: page.total };
+      return {
+        items: page.items.map(toClinicListItem),
+        nextCursor: page.nextCursor,
+        total: page.total,
+      };
     },
     getClinic: async (_persona, clinicId) => toClinicDetail(await detail(clinicId)),
     async listClinicBranches(_persona, clinicId) {

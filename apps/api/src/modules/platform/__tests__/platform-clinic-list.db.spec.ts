@@ -78,8 +78,7 @@ describe("GET /v1/platform/clinics", () => {
   });
 
   it("filters by status, specialty, Arabic name and slug", async () => {
-    const ids_ = async (q: string) =>
-      (await list(q)).json().items.map((c: { id: string }) => c.id);
+    const ids_ = async (q: string) => (await list(q)).json().items.map((c: { id: string }) => c.id);
     expect(await ids_(`?search=${tag}&status=suspended`)).toEqual([ids.tieLow]);
     expect(await ids_(`?search=${tag}&specialty=dental`)).toEqual([ids.old]);
     expect(await ids_(`?search=${encodeURIComponent(`عيادة tie-b`)}&limit=100`)).toContain(

@@ -53,12 +53,12 @@ export function createHttpBranches(ctx: HttpContext): ApiClient["branches"] {
   return {
     async list(_persona, query) {
       const clinicId = await clinicIdOf(ctx);
-      const [page, usage] = await Promise.all([
+      const [usage, page] = await Promise.all([
+        transport.send("GET", "/v1/branches/usage", { schema: branchUsageResponseSchema }),
         transport.send("GET", "/v1/branches", {
           schema: branchListResponseSchema,
           query: branchListQuery(query),
         }),
-        transport.send("GET", "/v1/branches/usage", { schema: branchUsageResponseSchema }),
       ]);
       return {
         items: page.items.map((b) => toBranch(b, clinicId)),

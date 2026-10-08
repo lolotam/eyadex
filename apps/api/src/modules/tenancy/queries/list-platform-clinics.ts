@@ -17,9 +17,7 @@ const encodeCursor = (createdAt: string, id: string) =>
 
 function decodeCursor(cursor: string | undefined): { createdAt: string; id: string } | null {
   if (cursor === undefined) return null;
-  const [createdAt = "", id = "", ...rest] = Buffer.from(cursor, "base64url")
-    .toString()
-    .split("|");
+  const [createdAt = "", id = "", ...rest] = Buffer.from(cursor, "base64url").toString().split("|");
   if (rest.length > 0 || !UUID.test(id) || Number.isNaN(Date.parse(createdAt))) {
     throw new ApiError("validation", [{ path: ["cursor"], code: "invalid" }]);
   }

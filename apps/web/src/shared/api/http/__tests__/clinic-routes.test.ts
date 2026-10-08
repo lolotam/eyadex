@@ -288,12 +288,21 @@ describe("wired clinic methods", () => {
     expect(ctx.expiresInDays).toBeNull();
   });
   it("usage counters read their own routes", async () => {
-    const branches = await h.api.branches.list(P, { cursor: null, limit: 10, search: "", status: null });
+    const branches = await h.api.branches.list(P, {
+      cursor: null,
+      limit: 10,
+      search: "",
+      status: null,
+    });
     expect(branches.usage).toEqual({ active: 2, limit: 3 });
     expect(h.calls.map((c) => `${c.method} ${c.url}`)).toContain("GET /api/v1/branches/usage");
     h.calls.length = 0;
     expect(await h.api.users.usage(P)).toEqual({ used: 4, limit: 10 });
-    expect(last()).toMatchObject({ method: "GET", url: "/api/v1/users/usage", credentials: "same-origin" });
+    expect(last()).toMatchObject({
+      method: "GET",
+      url: "/api/v1/users/usage",
+      credentials: "same-origin",
+    });
     expect(last().body).toBeUndefined();
   });
   it("maps role counts and the catalogue module", async () => {

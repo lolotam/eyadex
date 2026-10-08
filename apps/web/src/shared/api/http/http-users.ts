@@ -1,6 +1,10 @@
 import { roleListResponseSchema, type RoleSummary } from "@eyadex/contracts/access";
 import { branchListResponseSchema, type BranchDetail } from "@eyadex/contracts/branches";
-import { userListResponseSchema, userUsageResponseSchema, type UserListHttpQuery } from "@eyadex/contracts/user-admin";
+import {
+  userListResponseSchema,
+  userUsageResponseSchema,
+  type UserListHttpQuery,
+} from "@eyadex/contracts/user-admin";
 import {
   membershipUserViewSchema,
   type BranchOption,
