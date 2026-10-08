@@ -68,14 +68,3 @@ export function endOfLocalDay(date: string, timeZone: string): string {
   const instant = new Date(asUtc.getTime() - zoneOffsetMinutes(asUtc, timeZone) * 60_000);
   return instant.toISOString().replace(".000Z", "Z");
 }
-
-/** N calendar days after a date. */
-export function addCalendarDays(date: string, days: number): string {
-  const [y, m, d] = date.split("-").map(Number) as [number, number, number];
-  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
-}
-
-/** A new clinic's trial: N days after the clinic's own today, to the end of that local day. */
-export function trialExpiry(days: number, timeZone: string, now: Date): string {
-  return endOfLocalDay(addCalendarDays(todayIn(timeZone, now), days), timeZone);
-}
