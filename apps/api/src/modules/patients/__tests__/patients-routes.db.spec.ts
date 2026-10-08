@@ -145,8 +145,15 @@ describe("happy paths (clinic admin)", () => {
     const numbers = page.items.map((p) => p.fileNumber);
     expect(numbers).toEqual([...numbers].sort((a, b) => b - a));
     expect(page.total).toBe(page.items.length);
-    expect(JSON.stringify(page)).not.toMatch(/\d{12}/);
-    expect(page.items[0]?.civilIdLast4).toMatch(/^\d{4}$/);
+    // Compared with the stored numbers themselves: a pattern like \d{12} also matches inside a UUID.
+    const stored = await h.owner`SELECT civil_id FROM patients
+                                 WHERE clinic_id = ${C.clinicId} AND civil_id IS NOT NULL`;
+    expect(stored.length).toBeGreaterThan(0);
+    for (const row of stored) {
+      const civilId = row["civil_id"] as string;
+      expect(res.body).not.toContain(civilId);
+      expect(page.items.map((p) => p.civilIdLast4)).toContain(civilId.slice(-4));
+    }
   });
 
   it("search pages with an opaque cursor and filters by branch, status and search term", async () => {
