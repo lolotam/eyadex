@@ -127,8 +127,9 @@ this slice adds a one-off bootstrap. `createFirstPlatformAccount` (`@eyadex/auth
 
 - it refuses when any platform account exists, so it can never become a second door into the platform;
 - it takes an advisory lock, so two runs at once create one account;
-- it holds the email for the platform (`reserve_platform_email`, 0015) inside a transaction that stays
-  open while Better Auth writes the user; a failed write rolls the hold back, and a rerun works;
+- it holds the email for the platform (`reserve_platform_email`, 0015) and has Better Auth write the user
+  and its credential in the same transaction, on one connection: all of it commits or none of it does
+  (a commit that fails leaves no account without its hold), and a rerun works;
 - it refuses an email that has an account or a hold anywhere.
 
 The API image runs it as `dist/bootstrap-platform-account.js`, with the container's own auth settings,

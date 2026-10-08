@@ -57,6 +57,32 @@ describe("createFirstPlatformAccount (ADR-0021)", () => {
     expect(await holdOf(address)).toBeUndefined();
   });
 
+  it("NEGATIVE: a commit that fails after the user is written leaves no user and no hold", async () => {
+    const address = email("boom");
+    // A deferred trigger fails the bootstrap's COMMIT itself, after every row has been written: the
+    // user, its credential and the email hold must all go or all stay.
+    await owner.unsafe(`
+      CREATE OR REPLACE FUNCTION public.test_fail_bootstrap_commit() RETURNS trigger
+        LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'injected commit failure'; END $$;
+      CREATE CONSTRAINT TRIGGER test_fail_bootstrap_commit AFTER INSERT ON email_reservations
+        DEFERRABLE INITIALLY DEFERRED FOR EACH ROW
+        WHEN (NEW.email LIKE 'boom-%') EXECUTE FUNCTION public.test_fail_bootstrap_commit();`);
+    try {
+      await expect(
+        createFirstPlatformAccount(options, { email: address, name: "Ops", password }),
+      ).rejects.toThrow();
+    } finally {
+      await owner.unsafe(`
+        DROP TRIGGER test_fail_bootstrap_commit ON email_reservations;
+        DROP FUNCTION public.test_fail_bootstrap_commit();`);
+    }
+    expect(await platformAccounts()).toBe(0);
+    expect(await holdOf(address)).toBeUndefined();
+    const [user] = await owner`SELECT 1 FROM auth_users WHERE email = ${address}`;
+    expect(user).toBeUndefined();
+    // Nothing is left behind, so a rerun starts from a clean database (the race below is that rerun).
+  });
+
   it("NEGATIVE: an email somebody already holds is refused, and nothing is created", async () => {
     const held = email("held");
     await owner`INSERT INTO email_reservations (email, kind, reserved_at) VALUES (${held}, 'platform', now())`;

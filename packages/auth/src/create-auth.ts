@@ -5,7 +5,6 @@ import {
   authUsers,
   authVerifications,
 } from "@eyadex/db/schema";
-import { runWithTransaction } from "@better-auth/core/context";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { twoFactor } from "better-auth/plugins/two-factor";
@@ -14,6 +13,7 @@ import postgres from "postgres";
 
 import { CLIENT_IP_HEADER, sessionAreaHook } from "./area-binding.ts";
 import { createEnrollmentLock, type LockedResult } from "./enrollment-lock.ts";
+import { createAccountOn } from "./user-account.ts";
 import {
   areaCookiePrefix,
   assertOptions,
@@ -37,10 +37,15 @@ const schema = {
  * بيبني إعدادات Better Auth لمنطقة واحدة فوق client واحد.
  *
  * @param options خيارات الـ factory بعد التحقق
- * @param client الـ postgres.js pool على `eyadex_auth`
+ * @param client الـ postgres.js pool على `eyadex_auth`، أو transaction مفتوحة (`ownTransactions: false`)
+ * @param ownTransactions `false` لما الـ client نفسه transaction بيملكها اللي بينادي (ADR-0021)
  * @returns instance بتاع Better Auth
  */
-function buildAuth(options: CreateAuthOptions, client: postgres.Sql) {
+export function buildAuth(
+  options: CreateAuthOptions,
+  client: postgres.Sql,
+  ownTransactions = true,
+) {
   // Parsed once: `HTTPS://Host` or surrounding spaces pass assertOptions, so every setting below
   // reads the normalized origin and protocol, never the raw spelling.
   const base = new URL(options.baseUrl);
@@ -52,8 +57,9 @@ function buildAuth(options: CreateAuthOptions, client: postgres.Sql) {
     secret: options.secret,
     trustedOrigins: [base.origin],
     // The adapter's default is `transaction: false`, which runs Better Auth's multi-row writes
-    // (and runWithTransaction below) as separate statements.
-    database: drizzleAdapter(db, { provider: "pg", schema, transaction: true }),
+    // (and runWithTransaction in user-account.ts) as separate statements. Off only when the caller's own
+    // transaction already holds every write (the first platform account, ADR-0021).
+    database: drizzleAdapter(db, { provider: "pg", schema, transaction: ownTransactions }),
     // One account, one area (0024): no session is minted for a user of the other area, whatever the path.
     databaseHooks: { session: { create: { before: sessionAreaHook(db, options.area) } } },
     emailAndPassword: {
@@ -213,33 +219,8 @@ export function createAuth(options: CreateAuthOptions): EyadexAuth {
 
   return {
     auth,
-    createUserAccount: async ({ email, name, password }) => {
-      assertPassword(password);
-      const context = await auth.$context;
-      const hash = await context.password.hash(password);
-      // User and credential row commit together: a failed linkAccount must not leave a user that can
-      // never sign in while holding the email. TODO(spec): the global email hold (0015) belongs to
-      // the identity use case that calls this (invitation acceptance, slice 2b+).
-      return runWithTransaction(context.adapter, async () => {
-        const user = await context.internalAdapter.createUser(
-          {
-            email: email.trim().toLowerCase(),
-            name,
-            emailVerified: true,
-            // The instance's own area: a clinic instance creates clinic accounts only (0024).
-            area: options.area,
-          },
-          { method: "admin" },
-        );
-        await context.internalAdapter.linkAccount({
-          userId: user.id,
-          providerId: "credential",
-          accountId: user.id,
-          password: hash,
-        });
-        return { userId: user.id };
-      });
-    },
+    // The instance's own area: a clinic instance creates clinic accounts only (0024).
+    createUserAccount: (account) => createAccountOn(auth, options.area, account),
     findAccountByEmail: async (email) => {
       const rows = await client<{ id: string; area: AuthArea }[]>`
         SELECT id, area FROM auth_users WHERE email = ${email.trim().toLowerCase()}`;

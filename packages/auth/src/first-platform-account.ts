@@ -1,7 +1,8 @@
 import postgres from "postgres";
 
-import { createAuth } from "./create-auth.ts";
-import { assertPassword, type CreateAuthOptions } from "./options.ts";
+import { buildAuth } from "./create-auth.ts";
+import { assertOptions, assertPassword, type CreateAuthOptions } from "./options.ts";
+import { createAccountOn } from "./user-account.ts";
 
 /** بيانات أول حساب منصة على داتابيز جديدة. كلمة المرور جاية من stdin، أبداً من الـ args. */
 export interface FirstPlatformAccount {
@@ -40,8 +41,9 @@ function normalizedAccount(account: FirstPlatformAccount): FirstPlatformAccount 
 
 /**
  * بينشئ أول حساب منصة على داتابيز فاضية (ADR-0021) — مرة واحدة بس: لو فيه أي حساب منصة، أو الإيميل
- * محجوز لأي حد، بيرفض ومابيكتبش حاجة. الحجز (0015) بيفضل جوه transaction مفتوحة لحد ما Better Auth
- * يكتب المستخدم، فلو الإنشاء فشل الحجز بيترجع والتشغيل التاني يقدر يكمل. أول دخول بيطلب تسجيل TOTP.
+ * محجوز لأي حد، بيرفض ومابيكتبش حاجة. القفل والحجز (0015) والمستخدم والـ credential كلهم في
+ * transaction واحدة على اتصال واحد: يا يتكتبوا كلهم يا مفيش حاجة، والتشغيل التاني يقدر يكمل.
+ * أول دخول بيطلب تسجيل TOTP.
  *
  * @param options خيارات `createAuth` من غير المنطقة (دايماً `platform`)
  * @param account الإيميل والاسم وكلمة المرور
@@ -52,8 +54,9 @@ export async function createFirstPlatformAccount(
   account: FirstPlatformAccount,
 ): Promise<FirstPlatformAccountResult> {
   const { email, name, password } = normalizedAccount(account);
-  // Validates the options (eyadex_auth only, the secret, the cookie prefix) before any connection.
-  const auth = createAuth({ ...options, area: "platform", maxConnections: 1 });
+  const platform: CreateAuthOptions = { ...options, area: "platform" };
+  // eyadex_auth only, the secret, the cookie prefix: all checked before any connection opens.
+  assertOptions(platform);
   const client = postgres(options.databaseUrl, {
     max: 1,
     fetch_types: false,
@@ -69,10 +72,16 @@ export async function createFirstPlatformAccount(
       if (taken.length > 0) return { created: false, reason: "email_taken" };
       const [hold] = await tx<{ held: boolean }[]>`SELECT reserve_platform_email(${email}) AS held`;
       if (hold?.held !== true) return { created: false, reason: "email_taken" };
-      const { userId } = await auth.createUserAccount({ email, name, password });
+      // Better Auth writes through this same transaction: a commit that fails takes the user, its
+      // credential and the hold with it, so no account is ever left without its email hold.
+      // drizzle reads the type parsers from `client.options`, which only the pool carries; every
+      // query still goes through `tx.unsafe`, on the transaction's connection.
+      const inTransaction = Object.assign(tx, { options: client.options });
+      const auth = buildAuth(platform, inTransaction as unknown as postgres.Sql, false);
+      const { userId } = await createAccountOn(auth, "platform", { email, name, password });
       return { created: true, userId };
     });
   } finally {
-    await Promise.all([client.end({ timeout: 5 }), auth.close()]);
+    await client.end({ timeout: 5 });
   }
 }
