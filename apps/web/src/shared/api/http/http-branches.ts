@@ -1,6 +1,7 @@
 import {
   branchDetailSchema,
   branchListResponseSchema,
+  branchUsageResponseSchema,
   type BranchDetail,
   type CreateBranchRequest,
   type UpdateBranchRequest,
@@ -52,16 +53,18 @@ export function createHttpBranches(ctx: HttpContext): ApiClient["branches"] {
   return {
     async list(_persona, query) {
       const clinicId = await clinicIdOf(ctx);
-      const page = await transport.send("GET", "/v1/branches", {
-        schema: branchListResponseSchema,
-        query: branchListQuery(query),
-      });
+      const [page, usage] = await Promise.all([
+        transport.send("GET", "/v1/branches", {
+          schema: branchListResponseSchema,
+          query: branchListQuery(query),
+        }),
+        transport.send("GET", "/v1/branches/usage", { schema: branchUsageResponseSchema }),
+      ]);
       return {
         items: page.items.map((b) => toBranch(b, clinicId)),
         nextCursor: page.nextCursor,
         total: page.total,
-        // TODO(spec): a clinic-side limits read; the API still refuses a create past the limit (409).
-        usage: null,
+        usage: { active: usage.active, limit: usage.limit },
       };
     },
     async create(_persona, input, idempotencyKey) {
