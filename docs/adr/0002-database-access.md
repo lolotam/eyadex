@@ -268,9 +268,9 @@ baseline has none — ids are app-generated), primary keys (in column order), fo
 ON DELETE / ON UPDATE actions), **full index definitions** (as `pg_indexes.indexdef` prints them: uniqueness, method, column order and direction, expressions, partial predicate) and **CHECK
 constraints** (by name and full definition — each is written in the mirror exactly as
 `pg_get_constraintdef` prints it) with the applied baseline, and the platform audit view by column name,
-type and order. RLS policies and grants stay covered by `db/tests`. Still open: the
-drizzle-kit bridge (needs a pinned dependency that passes the 24h supply-chain guard), and query
-builders on `Tx` only if every value they hand out is guarded. Two drift-test refinements raised in the
+type and order. RLS policies and grants stay covered by `db/tests`. The drizzle-kit
+bridge is done, inspection only (ADR-0024: `db:pull`, every other drizzle-kit command refused). Still
+open: query builders on `Tx` only if every value they hand out is guarded. Two drift-test refinements raised in the
 last review round of PR #24, recorded rather than fixed under the 5-round rule (neither is an isolation
 or leak issue): compare the full identity / generated metadata (`identity_generation`, sequence options,
 `generation_expression`) instead of presence only — the baseline has no such column today, and adding

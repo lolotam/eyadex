@@ -9,7 +9,7 @@ import {
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { AuditCategoryBadge } from "./audit-category-badge";
 import { auditDiff } from "./audit-diff";
-import { translateAuditValue } from "./audit-format";
+import { enabledFlags, translateAuditValue } from "./audit-format";
 import { formatAuditTime } from "./audit-time";
 
 export type AuditDetailEntry = {
@@ -43,6 +43,9 @@ export function AuditDetailDialog({ entry, timeZone, onClose }: Props) {
   const show = (value: unknown): string => {
     if (value === undefined || value === null || value === "") return "—";
     if (typeof value === "boolean") return t(value ? "audit.yes" : "audit.no");
+    // A module map reads as the modules switched on.
+    const flags = enabledFlags(value);
+    if (flags) return show(flags);
     if (Array.isArray(value))
       return value.length
         ? new Intl.ListFormat(lang === "ar" ? "ar" : "en", { type: "unit" }).format(value.map(one))

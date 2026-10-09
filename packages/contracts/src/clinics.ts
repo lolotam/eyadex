@@ -1,8 +1,26 @@
 import { z } from "zod";
 import { idSchema, languageSchema, pageQuerySchema } from "./common.ts";
-import { RESERVED_CLINIC_SLUGS, timezoneOptions } from "./onboarding.ts";
+import {
+  CLINIC_LIMIT_BOUNDS,
+  CLINIC_MODULES,
+  RESERVED_CLINIC_SLUGS,
+  moduleFlagsSchema,
+  timezoneOptions,
+} from "./onboarding.ts";
 
-export { RESERVED_CLINIC_SLUGS, timezoneOptions };
+export { CLINIC_LIMIT_BOUNDS, RESERVED_CLINIC_SLUGS, timezoneOptions };
+
+const limitSchema = ({ min, max }: { min: number; max: number }) =>
+  z
+    .number({ invalid_type_error: "validation.number" })
+    .int("validation.number")
+    .min(min, "validation.min")
+    .max(max, "validation.outOfRange");
+
+/** A clinic's user limit as a form value: the API's bounds, with the form's messages. */
+export const maxUsersSchema = limitSchema(CLINIC_LIMIT_BOUNDS.maxUsers);
+/** A clinic's branch limit as a form value: the API's bounds, with the form's messages. */
+export const maxBranchesSchema = limitSchema(CLINIC_LIMIT_BOUNDS.maxBranches);
 
 export const clinicStatusSchema = z.enum(["trial", "active", "suspended"]);
 export type ClinicStatus = z.infer<typeof clinicStatusSchema>;
@@ -33,10 +51,10 @@ export const specialtySchema = z.enum([
 ]);
 export type Specialty = z.infer<typeof specialtySchema>;
 
-export const moduleSchema = z.enum(["patients"]);
+export const moduleSchema = z.enum(CLINIC_MODULES);
 export type ClinicModule = z.infer<typeof moduleSchema>;
 
-export const featuresSchema = z.object({ patients: z.boolean() });
+export const featuresSchema = moduleFlagsSchema;
 export type ClinicFeatures = z.infer<typeof featuresSchema>;
 
 export const slugSchema = z
@@ -103,6 +121,10 @@ export const createClinicInputSchema = clinicDetailsInputSchema.extend({
   slug: slugSchema,
   adminName: z.string().trim().min(2, "validation.tooShort").max(120, "validation.tooLong"),
   adminEmail: z.string().trim().toLowerCase().email("validation.email"),
+  // Pre-filled from the platform settings; whatever the super admin leaves here is what is sent.
+  maxUsers: maxUsersSchema,
+  maxBranches: maxBranchesSchema,
+  modules: featuresSchema,
 });
 export type CreateClinicInput = z.infer<typeof createClinicInputSchema>;
 
@@ -116,16 +138,8 @@ export const subscriptionInputSchema = z
       .min(1, "validation.min")
       .max(60),
     expiresOn: z.string(),
-    maxUsers: z
-      .number({ invalid_type_error: "validation.number" })
-      .int()
-      .min(1, "validation.min")
-      .max(1000),
-    maxBranches: z
-      .number({ invalid_type_error: "validation.number" })
-      .int()
-      .min(1, "validation.min")
-      .max(100),
+    maxUsers: maxUsersSchema,
+    maxBranches: maxBranchesSchema,
   })
   .superRefine((value, ctx) => {
     if (value.expiryMode === "date" && !/^\d{4}-\d{2}-\d{2}$/.test(value.expiresOn)) {

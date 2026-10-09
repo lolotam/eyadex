@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
-import { check, integer, pgTable, smallint, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, check, integer, pgTable, smallint, text, timestamp } from "drizzle-orm/pg-core";
 
-// Mirror of db/sql/0036 (ADR-0020). Global configuration: one row, no clinic data, no RLS.
+// Mirror of db/sql/0036 and 0041 (ADR-0020). Global configuration: one row, no clinic data, no RLS.
 const tz = { withTimezone: true, mode: "date" } as const;
 
 export const platformSettings = pgTable(
@@ -12,6 +12,9 @@ export const platformSettings = pgTable(
     alertDaysBeforeExpiry: integer("alert_days_before_expiry").notNull(),
     emailSenderName: text("email_sender_name").notNull(),
     updatedAt: timestamp("updated_at", tz).notNull(),
+    defaultMaxUsers: integer("default_max_users").notNull(),
+    defaultMaxBranches: integer("default_max_branches").notNull(),
+    defaultModulePatients: boolean("default_module_patients").notNull(),
   },
   () => [
     check("platform_settings_id_check", sql.raw("(id = 1)")),
@@ -22,6 +25,14 @@ export const platformSettings = pgTable(
     check(
       "platform_settings_alert_days_before_expiry_check",
       sql.raw("((alert_days_before_expiry >= 1) AND (alert_days_before_expiry <= 60))"),
+    ),
+    check(
+      "platform_settings_default_max_users_check",
+      sql.raw("((default_max_users >= 1) AND (default_max_users <= 1000))"),
+    ),
+    check(
+      "platform_settings_default_max_branches_check",
+      sql.raw("((default_max_branches >= 1) AND (default_max_branches <= 100))"),
     ),
     check(
       "platform_settings_email_sender_name_check",

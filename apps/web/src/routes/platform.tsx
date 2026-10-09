@@ -3,6 +3,6 @@ import { PlatformLayout } from "@/shared/shell/platform-layout";
 import { pageHead } from "@/shared/seo/page-head";
 
 export const Route = createFileRoute("/platform")({
-  head: () => pageHead("Platform", "Platform administration for Eyadex."),
+  ...pageHead("platform"),
   component: PlatformLayout,
 });

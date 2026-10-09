@@ -23,3 +23,14 @@ export function translateAuditValue(text: string, tr: Lookup): string | null {
   const translated = tr(key);
   return translated === key ? null : translated;
 }
+
+/**
+ * The keys switched on in an on/off map (a clinic's modules, the platform's default modules);
+ * null when the value is not such a map, so the caller shows it another way.
+ */
+export function enabledFlags(value: unknown): string[] | null {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
+  const entries = Object.entries(value);
+  if (entries.length === 0 || entries.some(([, on]) => typeof on !== "boolean")) return null;
+  return entries.filter(([, on]) => on).map(([key]) => key);
+}

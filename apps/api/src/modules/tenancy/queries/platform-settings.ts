@@ -6,6 +6,9 @@ interface SettingsRow {
   default_trial_days: number;
   alert_days_before_expiry: number;
   email_sender_name: string;
+  default_max_users: number;
+  default_max_branches: number;
+  default_module_patients: boolean;
 }
 
 /**
@@ -18,9 +21,11 @@ interface SettingsRow {
 export async function readPlatformSettingsIn(tx: Tx, lock = false): Promise<PlatformSettings> {
   const rows = await tx.execute<SettingsRow>(
     lock
-      ? sql`SELECT default_trial_days, alert_days_before_expiry, email_sender_name
+      ? sql`SELECT default_trial_days, alert_days_before_expiry, email_sender_name,
+              default_max_users, default_max_branches, default_module_patients
             FROM platform_settings WHERE id = 1 FOR UPDATE`
-      : sql`SELECT default_trial_days, alert_days_before_expiry, email_sender_name
+      : sql`SELECT default_trial_days, alert_days_before_expiry, email_sender_name,
+              default_max_users, default_max_branches, default_module_patients
             FROM platform_settings WHERE id = 1`,
   );
   const row = rows[0];
@@ -30,6 +35,10 @@ export async function readPlatformSettingsIn(tx: Tx, lock = false): Promise<Plat
     defaultTrialDays: Number(row.default_trial_days),
     alertDaysBeforeExpiry: Number(row.alert_days_before_expiry),
     emailSenderName: row.email_sender_name,
+    defaultMaxUsers: Number(row.default_max_users),
+    defaultMaxBranches: Number(row.default_max_branches),
+    // One column per module (0041): a module joining the list fails this literal until it is mapped.
+    defaultModules: { patients: row.default_module_patients },
   };
 }
 

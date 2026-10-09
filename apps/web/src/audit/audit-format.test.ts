@@ -14,7 +14,7 @@ import { PERMISSION_CATALOG } from "@eyadex/contracts/permissions";
 import { membershipUserStatusSchema } from "@eyadex/contracts/users";
 import { ar } from "@/shared/i18n/ar";
 import { en } from "@/shared/i18n/en";
-import { translateAuditValue } from "./audit-format";
+import { enabledFlags, translateAuditValue } from "./audit-format";
 
 function lookup(dict: unknown) {
   return (key: string): string => {
@@ -87,5 +87,17 @@ describe("audit value translations", () => {
     // Written by the worker, not the API (ADR-0013 §12): both screens must still offer and label it.
     expect(clinic).toContain("invitation.auto_cancelled");
     expect(platform).toContain("invitation.auto_cancelled");
+  });
+});
+
+describe("module maps in audit snapshots", () => {
+  it("lists the modules switched on, and nothing for an all-off map", () => {
+    expect(enabledFlags({ patients: true })).toEqual(["patients"]);
+    expect(enabledFlags({ patients: false })).toEqual([]);
+  });
+  it("leaves any other value to the caller", () => {
+    for (const value of [null, true, "patients", ["patients"], {}, { nameAr: "x", nameEn: "y" }])
+      expect(enabledFlags(value)).toBeNull();
+    expect(enabledFlags({ patients: true, note: "x" })).toBeNull();
   });
 });

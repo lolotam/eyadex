@@ -22,3 +22,8 @@ minimumReleaseAgeExclude:
   - "@lovable.dev/mcp-js"
   - "@lovable.dev/email-js"
   - "@lovable.dev/webhooks-js"
+
+# Packages whose install scripts may run. esbuild (pulled in by drizzle-kit) stays off: its platform
+# binary arrives as an optional dependency, so the postinstall adds nothing we need.
+allowBuilds:
+  esbuild: false

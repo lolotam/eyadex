@@ -1,9 +1,12 @@
 import { z } from "zod";
 import { idSchema } from "./common.ts";
 import {
+  CLINIC_LIMIT_BOUNDS,
   clinicStatusSchema,
   effectiveClinicStatus,
   effectiveClinicStatusSchema,
+  featuresSchema,
+  type ClinicFeatures,
   type EffectiveClinicStatus,
 } from "./clinics.ts";
 
@@ -29,6 +32,15 @@ export const platformSettingsSchema = z.object({
     .min(2, "validation.tooShort")
     .max(60, "validation.tooLong")
     .regex(/^\P{Cc}*$/u, "validation.controlChars"),
+  // What the create-clinic form starts from (owner decision 2026-10-09). The same bounds as a
+  // clinic's own limits, so every default is a valid create. The modules are the clinic module map
+  // itself, so a new module joins the setting when it joins the module list.
+  defaultMaxUsers: intIn(CLINIC_LIMIT_BOUNDS.maxUsers.min, CLINIC_LIMIT_BOUNDS.maxUsers.max),
+  defaultMaxBranches: intIn(
+    CLINIC_LIMIT_BOUNDS.maxBranches.min,
+    CLINIC_LIMIT_BOUNDS.maxBranches.max,
+  ),
+  defaultModules: featuresSchema.strict(),
 });
 export type PlatformSettings = z.infer<typeof platformSettingsSchema>;
 
@@ -36,7 +48,26 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
   defaultTrialDays: 14,
   alertDaysBeforeExpiry: 7,
   emailSenderName: "Eyadex",
+  defaultMaxUsers: 10,
+  defaultMaxBranches: 3,
+  defaultModules: { patients: true },
 };
+
+/**
+ * The limits and modules a new clinic's form starts with: the platform defaults, which the super
+ * admin may change for that clinic before creating it.
+ */
+export function newClinicDefaults(settings: PlatformSettings): {
+  maxUsers: number;
+  maxBranches: number;
+  modules: ClinicFeatures;
+} {
+  return {
+    maxUsers: settings.defaultMaxUsers,
+    maxBranches: settings.defaultMaxBranches,
+    modules: { ...settings.defaultModules },
+  };
+}
 
 export const platformAccountStatusSchema = z.enum(["active", "invited", "deactivated"]);
 export type PlatformAccountStatus = z.infer<typeof platformAccountStatusSchema>;

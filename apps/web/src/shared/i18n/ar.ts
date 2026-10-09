@@ -1,9 +1,11 @@
+import { arClinicCreate } from "./ar-clinic-create";
 import { arRoles } from "./ar-roles";
 import { arPatients } from "./ar-patients";
 import { arAudit } from "./ar-audit";
 import { arUsers } from "./ar-users";
 import { arSettings } from "./ar-settings";
 import { arAccess, arAccessErrors } from "./ar-access";
+import { arRoutes } from "./ar-routes";
 
 import type { Dictionary } from "./dictionary";
 
@@ -54,21 +56,7 @@ export const ar: Dictionary = {
     disabledNotice: "تم تعطيل حسابك وتسجيل خروجك. تواصل مع مدير العيادة.",
     signOut: "تسجيل الخروج",
   },
-  nav: {
-    platformArea: "المنصة",
-    clinicArea: "العيادة",
-    overview: "نظرة عامة",
-    clinics: "العيادات",
-    team: "فريق المنصة",
-    audit: "سجل التدقيق",
-    settings: "الإعدادات",
-    branches: "الفروع",
-    users: "المستخدمون",
-    roles: "الأدوار والصلاحيات",
-    patients: "المراجعون",
-    account: "حسابي",
-    menu: "القائمة",
-  },
+  ...arRoutes,
   ...arAccess,
   blocked: {
     suspendedTitle: "هذه العيادة موقوفة",
@@ -122,22 +110,7 @@ export const ar: Dictionary = {
       users: "المستخدمون",
       branches: "الفروع",
     },
-    createTitle: "إنشاء عيادة",
-    createSubtitle: "تبدأ العيادة بفترة تجريبية 30 يومًا، ويصل لمديرها الأول دعوة.",
-    sectionClinic: "العيادة",
-    sectionAdmin: "مدير العيادة الأول",
-    fields: {
-      nameAr: "الاسم (عربي)",
-      nameEn: "الاسم (إنجليزي)",
-      slug: "المعرّف",
-      slugHint: "حروف إنجليزية صغيرة وأرقام وشرطات.",
-      slugPreview: "العنوان المستقبلي: {address}",
-      specialty: "التخصص",
-      defaultLanguage: "اللغة الافتراضية",
-      timezone: "المنطقة الزمنية",
-      adminName: "اسم المدير الكامل",
-      adminEmail: "بريد المدير",
-    },
+    ...arClinicCreate,
     created: "تم إنشاء العيادة",
     notFound: "العيادة غير موجودة",
     tabs: {

@@ -144,12 +144,13 @@ export function createMockPlatform(): Omit<
         expiresAt: new Date(
           now.getTime() + db.platformSettings.defaultTrialDays * DAY,
         ).toISOString(),
-        maxUsers: 10,
-        maxBranches: 3,
+        // The form's values (pre-filled from the platform settings), never a default: as the API.
+        maxUsers: input.maxUsers,
+        maxBranches: input.maxBranches,
         createdAt: now.toISOString(),
       };
       db.clinics.push(clinic);
-      db.features[clinic.id] = { patients: true };
+      db.features[clinic.id] = { ...input.modules };
       const roles = buildSystemRoles(clinic.id, newId);
       let firstAdminInvite: FirstAdminInviteLink | null = null;
       db.roles.push(...roles);

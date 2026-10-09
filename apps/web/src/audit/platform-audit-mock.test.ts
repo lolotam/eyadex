@@ -124,6 +124,9 @@ describe("platform audit log", () => {
         timezone: "Asia/Kuwait",
         adminName: "Admin Person",
         adminEmail: "resend.admin@example.com",
+        maxUsers: 10,
+        maxBranches: 3,
+        modules: { patients: true },
       },
       crypto.randomUUID(),
     );

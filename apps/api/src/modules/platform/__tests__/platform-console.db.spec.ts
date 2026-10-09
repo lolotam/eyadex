@@ -49,7 +49,8 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await h.owner`UPDATE platform_settings SET default_trial_days = 14, alert_days_before_expiry = 7,
-    email_sender_name = 'Eyadex'`;
+    email_sender_name = 'Eyadex', default_max_users = 10, default_max_branches = 3,
+    default_module_patients = true`;
   await closeHarness(h);
 });
 
@@ -118,11 +119,17 @@ describe("platform settings (story 26)", () => {
       defaultTrialDays: 14,
       alertDaysBeforeExpiry: 7,
       emailSenderName: "Eyadex",
+      defaultMaxUsers: 10,
+      defaultMaxBranches: 3,
+      defaultModules: { patients: true },
     });
     const next = {
       defaultTrialDays: 30,
       alertDaysBeforeExpiry: 10,
       emailSenderName: "Eyadex Team",
+      defaultMaxUsers: 25,
+      defaultMaxBranches: 5,
+      defaultModules: { patients: false },
     };
     const saved = await send("PUT", "/v1/platform/settings", { body: next });
     expect(saved.statusCode).toBe(200);
@@ -133,24 +140,45 @@ describe("platform settings (story 26)", () => {
       SELECT actor_user_id, clinic_id, details FROM platform_audit_log
       WHERE action = 'platform.settings_updated' AND actor_user_id = ${staff.actorId}`;
     expect(audit).toMatchObject({ actor_user_id: staff.actorId, clinic_id: null });
-    expect(audit!.details).toMatchObject({
-      before: { defaultTrialDays: 14 },
-      after: { defaultTrialDays: 30, emailSenderName: "Eyadex Team" },
+    expect(audit!.details).toEqual({
+      before: {
+        defaultTrialDays: 14,
+        alertDaysBeforeExpiry: 7,
+        emailSenderName: "Eyadex",
+        defaultMaxUsers: 10,
+        defaultMaxBranches: 3,
+        defaultModules: { patients: true },
+      },
+      after: next,
     });
+    expect((await send("GET", "/v1/platform/settings")).json()).toEqual(next);
     expect((await send("GET", "/v1/platform/overview")).json().alertDaysBeforeExpiry).toBe(10);
   });
 
-  it("NEGATIVE: out-of-range days, a header line break or an extra field are 400; nothing changes", async () => {
+  it("NEGATIVE: out-of-range values, a header line break, a missing or an extra field are 400; nothing changes", async () => {
     const good = {
       defaultTrialDays: 30,
       alertDaysBeforeExpiry: 10,
       emailSenderName: "Eyadex Team",
+      defaultMaxUsers: 25,
+      defaultMaxBranches: 5,
+      defaultModules: { patients: false },
     };
+    const { defaultModules: _drop, ...noModule } = good;
+    void _drop;
     for (const body of [
       { ...good, defaultTrialDays: 0 },
       { ...good, alertDaysBeforeExpiry: 61 },
       { ...good, emailSenderName: "Eyadex\r\nBcc: someone@example.test" },
       { ...good, id: 2 },
+      { ...good, defaultMaxUsers: 0 },
+      { ...good, defaultMaxUsers: 1001 },
+      { ...good, defaultMaxBranches: 101 },
+      { ...good, defaultMaxBranches: 2.5 },
+      { ...good, defaultModules: { patients: "yes" } },
+      { ...good, defaultModules: {} },
+      { ...good, defaultModules: { patients: true, billing: true } },
+      noModule,
     ]) {
       expect((await send("PUT", "/v1/platform/settings", { body })).statusCode).toBe(400);
     }

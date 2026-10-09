@@ -14,7 +14,7 @@
 - [x] Phase B: api + worker skeletons, ids, observability (NestJS on Fastify with `/v1/health`, the bilingual error envelope and one request id per request; `packages/ids`, `packages/observability`)
 - [x] Phase B: `packages/db` runtime wrappers (`withTenant` / `withNewTenant` / `withNoTenant`, `ping`, `close`)
 - [x] Phase B: Drizzle schema mirror (`@eyadex/db/schema`) + drift test against `db/sql`
-- [ ] Phase B: drizzle-kit bridge (needs a pinned `drizzle-kit` added with the repo's pnpm; the preview sandbox can't update the lockfile)
+- [x] Phase B: drizzle-kit bridge, inspection only (2026-10-09): pinned `drizzle-kit` 0.31.11, `pnpm --filter @eyadex/db db:pull`, every other command refused (ADR-0024)
 - [ ] Agent integrations (MCP) — deferred until the NestJS backend exists (user decision)
 
 ## Phase B — tenancy module (apps/api)
@@ -57,7 +57,7 @@
 - [x] Real sign-in (email + password, platform TOTP enrolment with QR), area-host guard, coming-soon states
 - [x] `build:all` with Node 24 / `NITRO_PRESET=node-server` (orchestrator; CI `verify` job)
 - [x] Clinic-side limits read and platform clinic read with time zone / language / created date (W2)
-- [x] Platform default trial days for new clinics (slice 11); TODO(spec): default user/branch limits and modules (not in story 26)
+- [x] Platform default trial days for new clinics (slice 11); default user/branch limits and modules are platform settings the create form pre-fills (owner decision 2026-10-09, ADR-0020 amendment, SQL 0041)
 
 ## Slice W2 — platform clinic list, usage reads, clinic time zone, server-side trial
 

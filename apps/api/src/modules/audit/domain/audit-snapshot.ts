@@ -63,7 +63,14 @@ const ALLOWED: Record<AuditEntity, readonly string[]> = {
   patient: [],
   // ADR-0020: the platform team and settings writers. No link, hash or user id is ever recorded.
   platform_account: ["fullName", "email", "status"],
-  platform_settings: ["defaultTrialDays", "alertDaysBeforeExpiry", "emailSenderName"],
+  platform_settings: [
+    "defaultTrialDays",
+    "alertDaysBeforeExpiry",
+    "emailSenderName",
+    "defaultMaxUsers",
+    "defaultMaxBranches",
+    "defaultModules",
+  ],
 };
 
 // Context a writer keeps beside before/after that the reader needs to make sense of the change

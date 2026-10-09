@@ -8,6 +8,7 @@ import {
   useFormField,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -133,6 +134,40 @@ export function SelectField<T extends FieldValues>({
             </SelectContent>
           </Select>
           <FieldError />
+        </FormItem>
+      )}
+    />
+  );
+}
+
+/** An on/off value as a bordered row: label and hint at the start, the switch at the end. */
+export function SwitchField<T extends FieldValues>({
+  control,
+  name,
+  label,
+  hint,
+  disabled,
+}: BaseProps<T>) {
+  return (
+    <FormField
+      control={control}
+      name={name}
+      render={({ field }) => (
+        <FormItem className="flex items-center justify-between gap-4 space-y-0 rounded-lg border p-4">
+          <div className="flex flex-col gap-1">
+            <FormLabel>{label}</FormLabel>
+            {hint && <FormDescription>{hint}</FormDescription>}
+          </div>
+          <FormControl>
+            <Switch
+              checked={field.value === true}
+              onCheckedChange={field.onChange}
+              onBlur={field.onBlur}
+              name={field.name}
+              ref={field.ref}
+              disabled={disabled ?? false}
+            />
+          </FormControl>
         </FormItem>
       )}
     />

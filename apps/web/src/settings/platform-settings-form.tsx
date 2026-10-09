@@ -2,19 +2,20 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { moduleSchema } from "@eyadex/contracts/clinics";
 import { platformSettingsSchema, type PlatformSettings } from "@eyadex/contracts/platform";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Form } from "@/components/ui/form";
 import { useApi } from "@/shared/api/api-provider";
 import { errorCodeOf } from "@/shared/api/api-error";
-import { NumberField, TextField } from "@/shared/forms/form-fields";
+import { NumberField, SwitchField, TextField } from "@/shared/forms/form-fields";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { usePersona } from "@/shared/persona/persona-provider";
 import { useRefreshAfterSettings } from "./settings-queries";
 
 export function PlatformSettingsForm({ settings }: { settings: PlatformSettings }) {
-  const { t } = useI18n();
+  const { t, tDynamic } = useI18n();
   const api = useApi();
   const { persona } = usePersona();
   const refresh = useRefreshAfterSettings();
@@ -57,6 +58,36 @@ export function PlatformSettingsForm({ settings }: { settings: PlatformSettings 
               label={t("platformSettings.emailSenderName")}
               hint={t("platformSettings.emailSenderNameHint")}
             />
+            <section className="flex flex-col gap-4 border-t pt-4">
+              <div className="flex flex-col gap-1">
+                <h2 className="font-medium">{t("platformSettings.newClinics")}</h2>
+                <p className="text-sm text-muted-foreground">
+                  {t("platformSettings.newClinicsHint")}
+                </p>
+              </div>
+              <NumberField
+                control={form.control}
+                name="defaultMaxUsers"
+                label={t("platformSettings.defaultMaxUsers")}
+                hint={t("platformSettings.defaultMaxUsersHint")}
+              />
+              <NumberField
+                control={form.control}
+                name="defaultMaxBranches"
+                label={t("platformSettings.defaultMaxBranches")}
+                hint={t("platformSettings.defaultMaxBranchesHint")}
+              />
+              <p className="text-sm font-medium">{t("platformSettings.defaultModules")}</p>
+              {moduleSchema.options.map((m) => (
+                <SwitchField
+                  key={m}
+                  control={form.control}
+                  name={`defaultModules.${m}`}
+                  label={tDynamic(`clinics.modules.${m}`)}
+                  hint={tDynamic(`clinics.modules.${m}Body`)}
+                />
+              ))}
+            </section>
             <div>
               <Button type="submit" disabled={mutation.isPending}>
                 {t("common.save")}

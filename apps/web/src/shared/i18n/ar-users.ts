@@ -85,8 +85,6 @@ export const arUsers = {
     validation: { branchesRequired: "اختر كل الفروع أو فرعًا واحدًا على الأقل" },
   },
   invite: {
-    metaTitle: "قبول الدعوة",
-    metaDescription: "انضم إلى عيادتك على Eyadex.",
     title: "الانضمام إلى {clinic}",
     body: "تمت دعوتك بدور {role}. عيّن كلمة مرور لإكمال الانضمام.",
     invitedAs: "مدعو بدور",

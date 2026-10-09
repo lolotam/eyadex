@@ -3,6 +3,7 @@ import { idSchema } from "./common.ts";
 import {
   clinicStatusSchema,
   effectiveClinicStatusSchema,
+  featuresSchema,
   moduleSchema,
   specialtySchema,
 } from "./clinics.ts";
@@ -74,7 +75,7 @@ export const platformClinicDetailSchema = z
     /** IANA zone the clinic's dates are shown and counted in. */
     timezone: z.string(),
     createdAt: z.string().datetime(),
-    modules: z.object({ patients: z.boolean() }).strict(),
+    modules: featuresSchema.strict(),
     usage: z.object({ users: usageSchema, branches: usageSchema }).strict(),
   })
   .strict();
