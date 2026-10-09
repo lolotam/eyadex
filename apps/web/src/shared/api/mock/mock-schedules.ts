@@ -25,12 +25,16 @@ type SchedulesApi = Pick<
   "listProviders" | "getProviderSchedule" | "replaceBranchSchedule" | "addTimeOff" | "cancelTimeOff"
 >;
 
-const summary = (db: MockState, a: SchedulingAccess, m: MembershipUser) => ({
-  membershipId: m.id,
-  fullName: m.fullName,
-  defaultDurationMinutes: profileOf(db, m.id).defaultDurationMinutes,
-  ...branchesWithin(a.reach, m),
-});
+const summary = (db: MockState, a: SchedulingAccess, m: MembershipUser) => {
+  const { allBranches, branchIds } = branchesWithin(a.reach, m);
+  return {
+    membershipId: m.id,
+    fullName: m.fullName,
+    defaultDurationMinutes: profileOf(db, m.id).defaultDurationMinutes,
+    allBranches,
+    branchIds: [...branchIds],
+  };
+};
 
 /** A member outside the action's reach is not_found, never forbidden: members can't be probed. */
 function visible(db: MockState, a: SchedulingAccess, id: string): MembershipUser {

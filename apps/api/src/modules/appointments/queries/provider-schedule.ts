@@ -32,12 +32,16 @@ export interface ScheduleViewer {
 }
 
 // Branch assignments outside the caller's reach stay hidden (Codex PR #63).
-const summaryOf = (p: ProviderRecord, reach: Reach): ProviderSummary => ({
-  membershipId: p.membershipId,
-  fullName: p.fullName,
-  defaultDurationMinutes: p.defaultDurationMinutes,
-  ...branchesWithin(reach, p),
-});
+const summaryOf = (p: ProviderRecord, reach: Reach): ProviderSummary => {
+  const { allBranches, branchIds } = branchesWithin(reach, p);
+  return {
+    membershipId: p.membershipId,
+    fullName: p.fullName,
+    defaultDurationMinutes: p.defaultDurationMinutes,
+    allBranches,
+    branchIds: [...branchIds],
+  };
+};
 
 /**
  * The bookable members working in at least one branch inside the caller's reach (spec §5).
