@@ -32,6 +32,9 @@ export function createHttpPlatformSettings(ctx: HttpContext): ApiClient["platfor
           defaultTrialDays: input.defaultTrialDays,
           alertDaysBeforeExpiry: input.alertDaysBeforeExpiry,
           emailSenderName: input.emailSenderName,
+          defaultMaxUsers: input.defaultMaxUsers,
+          defaultMaxBranches: input.defaultMaxBranches,
+          defaultModules: { ...input.defaultModules },
         },
       }),
   };

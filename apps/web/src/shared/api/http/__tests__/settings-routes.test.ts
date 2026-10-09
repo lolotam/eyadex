@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { meResponseSchema } from "@eyadex/contracts/access";
+import { platformSettingsRequestSchema } from "@eyadex/contracts/platform-console";
 import type { Persona } from "@eyadex/contracts/session";
 import { contextFromMe } from "../http-session";
 import { CLINIC, clientWith, code, me, TS, USER } from "./fetch-stub";
@@ -34,9 +35,9 @@ const platformSettings = {
   defaultTrialDays: 14,
   alertDaysBeforeExpiry: 7,
   emailSenderName: "Eyadex",
-  defaultMaxUsers: 10,
-  defaultMaxBranches: 3,
-  defaultModules: { patients: true },
+  defaultMaxUsers: 25,
+  defaultMaxBranches: 5,
+  defaultModules: { patients: false },
 };
 
 afterEach(() => {
@@ -108,6 +109,10 @@ describe("platform console", () => {
       "GET /api/v1/platform/overview",
       "PUT /api/v1/platform/settings",
     ]);
+    // The whole strict body the API validates, new-clinic defaults included (ADR-0020 amendment).
+    const body = h.calls[1]!.body;
+    expect(platformSettingsRequestSchema.safeParse(body).success).toBe(true);
+    expect(body).toEqual(platformSettings);
   });
 
   it("refuses an overview carrying a field the contract does not name", async () => {
