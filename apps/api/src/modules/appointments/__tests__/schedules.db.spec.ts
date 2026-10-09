@@ -250,3 +250,18 @@ describe("the module flag (rule 10)", () => {
     }
   });
 });
+
+describe("an inactive branch (Codex r3)", () => {
+  it("is hidden with its hours, as the dormant rows it holds", async () => {
+    await h.owner`INSERT INTO provider_schedules VALUES (${C.clinicId}, ${randomUUID()},
+      ${C.admin.memberId}, ${C.branchX}, 0, '06:00', '07:00', now())`;
+    await h.owner`UPDATE branches SET is_active = false WHERE id = ${C.branchX}`;
+    try {
+      const seen = (await send(h, C.admin.cookie, "GET", path(C.admin.memberId))).json();
+      expect(seen.branches.map((b: { id: string }) => b.id)).not.toContain(C.branchX);
+      expect(seen.shifts.some((s: { branchId: string }) => s.branchId === C.branchX)).toBe(false);
+    } finally {
+      await h.owner`UPDATE branches SET is_active = true WHERE id = ${C.branchX}`;
+    }
+  });
+});

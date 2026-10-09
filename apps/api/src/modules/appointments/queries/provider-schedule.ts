@@ -77,7 +77,7 @@ export async function readProviderSchedule(
   const provider = await providers.find(tx, viewer.clinicId, membershipId);
   if (provider === null || !providerWithin(viewer.reach, provider)) throw new ApiError("not_found");
   const visible = (await branches.listForOptions(tx, viewer.clinicId, viewer.language)).filter(
-    (b) => providerWorksIn(provider, b.id) && reachCovers(viewer.reach, b.id),
+    (b) => b.isActive && providerWorksIn(provider, b.id) && reachCovers(viewer.reach, b.id),
   );
   const ids = new Set(visible.map((b) => b.id));
   const rows = await readScheduleRows(tx, viewer.clinicId, membershipId);

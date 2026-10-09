@@ -38,7 +38,11 @@ export function SchedulesContent() {
         icon={AlertCircle}
         title={t("schedules.loadError")}
         body={t(`errors.${errorCodeOf(failed)}`)}
-        action={<Button onClick={() => void providers.refetch()}>{t("common.tryAgain")}</Button>}
+        action={
+          <Button onClick={() => void (providers.error ? providers.refetch() : schedule.refetch())}>
+            {t("common.tryAgain")}
+          </Button>
+        }
       />
     );
   }

@@ -68,3 +68,10 @@ describe("coversWallInterval (D-6, D-14)", () => {
     expect(coversWallInterval(split, at(MON, "09:00"), 15)).toBe(false);
   });
 });
+
+describe("a week open around the clock (Codex r3)", () => {
+  it("Saturday 23:45 for 30 minutes runs into Sunday", () => {
+    const always = [0, 1, 2, 3, 4, 5, 6].map((day) => shift(day, "00:00", "24:00"));
+    expect(coversWallInterval(always, at(SAT, "23:45"), 30)).toBe(true);
+  });
+});

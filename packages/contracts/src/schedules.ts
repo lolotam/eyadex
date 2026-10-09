@@ -148,7 +148,7 @@ function continuousSpans(shifts: readonly WallShift[]): Span[] {
   }
   const first = out[0];
   const last = out.at(-1);
-  if (first !== undefined && last !== undefined && out.length > 1 && first.start === 0) {
+  if (first !== undefined && last !== undefined && first.start === 0) {
     if (last.end === WEEK_MINUTES) out.push({ start: last.start, end: WEEK_MINUTES + first.end });
   }
   return out;

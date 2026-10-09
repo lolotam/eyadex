@@ -49,7 +49,11 @@ function bookable(db: MockState, a: SchedulingAccess, id: string): MembershipUse
 
 function scheduleOf(db: MockState, a: SchedulingAccess, member: MembershipUser): ProviderSchedule {
   const branches = db.branches.filter(
-    (b) => b.clinicId === a.clinic.id && worksIn(member, b.id) && reachCovers(a.reach, b.id),
+    (b) =>
+      b.clinicId === a.clinic.id &&
+      b.isActive &&
+      worksIn(member, b.id) &&
+      reachCovers(a.reach, b.id),
   );
   const ids = new Set(branches.map((b) => b.id));
   const now = Date.now();
