@@ -5,6 +5,7 @@ import { arAudit } from "./ar-audit";
 import { arUsers } from "./ar-users";
 import { arSettings } from "./ar-settings";
 import { arAccess, arAccessErrors } from "./ar-access";
+import { arBranches } from "./ar-branches";
 import { arRoutes } from "./ar-routes";
 
 import type { Dictionary } from "./dictionary";
@@ -155,46 +156,7 @@ export const ar: Dictionary = {
     branchColumns: { name: "الفرع", address: "العنوان", phone: "الهاتف", status: "الحالة" },
     privacyNote: "بيانات المراجعين لا تظهر أبدًا في منطقة المنصة.",
   },
-  branches: {
-    title: "الفروع",
-    subtitle: "إدارة المواقع التي تعمل فيها العيادة.",
-    new: "فرع جديد",
-    usage: "{active} من {limit} فروع نشطة",
-    searchPlaceholder: "ابحث باسم الفرع",
-    anyStatus: "كل الحالات",
-    columns: {
-      name: "الفرع",
-      address: "العنوان",
-      phone: "الهاتف",
-      status: "الحالة",
-      actions: "الإجراءات",
-    },
-    createTitle: "إنشاء فرع",
-    createSubtitle: "أضف موقعًا جديدًا لهذه العيادة.",
-    editTitle: "تعديل الفرع",
-    editSubtitle: "حدّث بيانات التواصل لهذا الموقع.",
-    fields: {
-      nameAr: "الاسم (عربي)",
-      nameEn: "الاسم (إنجليزي)",
-      address: "العنوان (اختياري)",
-      phone: "الهاتف (اختياري)",
-    },
-    created: "تم إنشاء الفرع",
-    updated: "تم تحديث الفرع",
-    deactivated: "تم إيقاف الفرع",
-    reactivated: "تم تفعيل الفرع",
-    deactivate: "إيقاف",
-    reactivate: "إعادة تفعيل",
-    deactivateTitle: "إيقاف الفرع؟",
-    deactivateBody: "لن يُحتسب هذا الفرع ضمن حد الفروع النشطة، وستبقى سجلاته الحالية محفوظة.",
-    reactivateTitle: "إعادة تفعيل الفرع؟",
-    reactivateBody: "سيصبح هذا الفرع متاحًا مجددًا ويُحتسب ضمن حد الفروع النشطة.",
-    emptyTitle: "لا توجد فروع",
-    emptyBody: "جرّب تغيير البحث أو فلتر الحالة.",
-    loadError: "تعذّر تحميل الفروع.",
-    limitReached: "تم بلوغ حد الفروع النشطة ({active} من {limit}). تواصل مع المنصة لزيادته.",
-    lastActive: "لا يمكن إيقاف آخر فرع نشط للعيادة.",
-  },
+  ...arBranches,
   ...arUsers,
   ...arRoles,
   ...arPatients,
