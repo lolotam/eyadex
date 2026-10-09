@@ -218,7 +218,8 @@ Banned folder names anywhere: `utils/` · `helpers/` · `common/` · `misc/` · 
 - Use `left/right` CSS, hardcoded strings, role-name checks, hard deletes, or the word "كاشير".
 - Show patient data to the platform area, or put a token/secret in audit, logs or code.
 - Create a tenant table without RLS + its negative test in the same PR.
-- Force-push, rebase or squash pushed history on `lovable` or `main`.
+- Force-push, rebase or squash pushed history on `lovable` or `main`. (Only the `staging` deploy branch
+  may move back, with `--force-with-lease`, for a rollback — ADR-0021, owner decision 2026-10-09.)
 - "Refactor everything" or reformat unrelated files in a slice PR.
 - Guess a business rule — ask, or mark `TODO(spec)` and stop.
 

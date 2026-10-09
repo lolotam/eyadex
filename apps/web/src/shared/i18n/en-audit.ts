@@ -94,6 +94,7 @@ export const enAudit = {
         deactivated: "Platform member deactivated",
         reactivated: "Platform member reactivated",
         joined: "Platform member joined",
+        bootstrapped: "First platform account created",
       },
       platform: {
         settings_updated: "Platform settings updated",

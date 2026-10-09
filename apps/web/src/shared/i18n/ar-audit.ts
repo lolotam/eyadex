@@ -94,6 +94,7 @@ export const arAudit = {
         deactivated: "تعطيل عضو منصة",
         reactivated: "إعادة تفعيل عضو منصة",
         joined: "انضمام عضو منصة",
+        bootstrapped: "إنشاء أول حساب منصة",
       },
       platform: {
         settings_updated: "تحديث إعدادات المنصة",

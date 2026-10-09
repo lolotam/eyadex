@@ -11,6 +11,8 @@ export const RESERVED_CLINIC_SLUGS = [
   "www",
   "admin",
   "staging",
+  "staging-app",
+  "staging-platform",
   "cdn",
   "mail",
   "status",

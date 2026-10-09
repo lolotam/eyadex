@@ -72,9 +72,9 @@ HSTS is left to Cloudflare. CORS stays absent: every call is same-origin (ADR-00
 - The clinic slug preview `<slug>.eyadex.com` describes production addresses.
 - Invitation links are built from `APP_URL` in the worker (env) and from the current origin on the clinic
   host in the web; the platform's first-admin link has no token in HTTP mode. No change needed.
-- Reserved slugs: `staging` is already reserved (PRD §4.15). TODO(spec): reserve `staging-app` and
-  `staging-platform` before clinic subdomains (`{slug}.eyadex.com`) ship, or a clinic could claim a
-  staging host name. Not done here: the PRD list is a product rule.
+- Reserved slugs: `staging`, `staging-app` and `staging-platform` are reserved (PRD §4.15; the last two
+  by owner decision 2026-10-09), so no clinic can claim a staging host name once clinic subdomains
+  (`{slug}.eyadex.com`) ship.
 
 ### Environment matrix (names only; values in `.env.example` and the runbook)
 
@@ -135,15 +135,20 @@ this slice adds a one-off bootstrap. `createFirstPlatformAccount` (`@eyadex/auth
 The API image runs it as `dist/bootstrap-platform-account.js`, with the container's own auth settings,
 `BOOTSTRAP_EMAIL` / `BOOTSTRAP_NAME` from `docker exec -e`, and the password on stdin only (never an
 argument or a variable). The first sign-in on the platform host must enrol TOTP (ADR-0004).
-TODO(spec): the bootstrap writes no platform audit row (it is an operator action outside the app, run
-once per database); a `platform.account_bootstrapped` action would need the audit catalogue and labels.
+The bootstrap writes a `platform_account.bootstrapped` platform audit row in the same transaction
+(owner decision 2026-10-09, SQL 0039): `link_first_platform_account` now takes the row's id from the
+app (UUID v7) and inserts it itself, so no first account can be linked without its audit row. The
+row holds the account id and status only: no email or name, which are typed text the function cannot
+scrub (Codex review). Databases bootstrapped before 0039 (staging, production) get the row once from
+0039 itself, for every active member nobody invited, marked `backfilled: true` and dated when the
+account joined (Codex review).
 
 ### Rollback
 
 - **Code:** redeploy the previous deployment of the affected service in Dokploy, or move `staging` back
   to the previous SHA and redeploy. Moving the branch back is a non-fast-forward push. It is allowed on
-  `staging` only, because the branch is a deploy pointer that Lovable never syncs; `main` and `lovable`
-  are never force-pushed (CLAUDE.md §11).
+  `staging` only, with `git push --force-with-lease` (owner decision 2026-10-09), because the branch is a
+  deploy pointer that Lovable never syncs; `main` and `lovable` are never force-pushed (CLAUDE.md §11).
 - **Schema:** migrations are forward-only. A bad migration is fixed by a new file; if staging data is
   damaged, restore the pre-migration dump or recreate the database (it holds synthetic data only).
 - **Secrets:** rotating `BETTER_AUTH_SECRET` signs everyone out; `OUTBOX_SEAL_KEY` and

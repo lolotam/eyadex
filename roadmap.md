@@ -21,7 +21,7 @@
 
 - [x] Domain rules (clinic access, user/branch limits, OD-7 last branch, feature flag) + unit tests
 - [x] ClinicReader / BranchReader ports, `@eyadex/db` persistence, read queries, TenancyModule (not mounted)
-- [ ] Run `test:db` in CI on PostgreSQL 18; regenerate `pnpm-lock.yaml` for the new apps/api deps
+- [x] Run `test:db` in CI on PostgreSQL 18; regenerate `pnpm-lock.yaml` for the new apps/api deps
 
 ## Phase B — identity foundation
 
@@ -55,7 +55,7 @@
 
 - [x] HTTP `ApiClient` adapter next to the mock, chosen by `VITE_API_MODE` (default `mock`)
 - [x] Real sign-in (email + password, platform TOTP enrolment with QR), area-host guard, coming-soon states
-- [ ] `build:all` with Node 24 / `NITRO_PRESET=node-server` (orchestrator)
+- [x] `build:all` with Node 24 / `NITRO_PRESET=node-server` (orchestrator; CI `verify` job)
 - [x] Clinic-side limits read and platform clinic read with time zone / language / created date (W2)
 - [x] Platform default trial days for new clinics (slice 11); TODO(spec): default user/branch limits and modules (not in story 26)
 
@@ -67,7 +67,7 @@
 - [x] New clinic `trialDays` computed on the API clock in the clinic zone; subscription saves end at the clinic's local midnight
 - [x] Slice 8 note: the user editor's option lists are `GET /v1/users/role-options` and `/branch-options` under `view:users:clinic` (done in slice 8)
 - [x] Apply `db/sql/0031` to production (orchestrator)
-- [ ] Switch production to `VITE_API_MODE=http` (orchestrator, owner OK) — after the same SHA has run on staging, which is built with `http` from day one (ADR-0021)
+- [x] Switch production to `VITE_API_MODE=http` (owner, 2026-10-09; prod smoke test green) — after the same SHA has run on staging, which is built with `http` from day one (ADR-0021)
 
 ## Slice 12 — staging (ADR-0021)
 
@@ -75,6 +75,6 @@
 - [x] Security headers on every API answer and every web page (`X-Frame-Options` / `frame-ancestors` in http builds; `noindex` on area hosts)
 - [x] First platform account bootstrap (`dist/bootstrap-platform-account.js`, password on stdin, fresh database only)
 - [x] `docker/smoke-test.sh` and `docs/specs/staging-runbook.md`
-- [ ] Create the `-staging` Dokploy services, migrate, bootstrap and smoke-test (orchestrator, runbook; secrets: owner)
-- [ ] TODO(spec): reserve `staging-app` / `staging-platform` as clinic slugs before clinic subdomains ship
-- [ ] TODO(spec): a platform audit row for the bootstrap (`platform.account_bootstrapped`)
+- [x] Create the `-staging` Dokploy services, migrate, bootstrap and smoke-test (2026-10-08/09; smoke 31/31, db/tests 17/17)
+- [x] Reserve `staging-app` / `staging-platform` as clinic slugs (owner decision 2026-10-09)
+- [x] The bootstrap writes a `platform_account.bootstrapped` platform audit row (owner decision 2026-10-09, SQL 0039)
