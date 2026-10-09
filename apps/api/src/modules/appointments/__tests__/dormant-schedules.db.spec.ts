@@ -81,7 +81,7 @@ describe("rows left in a branch the provider no longer works in", () => {
 
     const cleared = await put(C.admin.cookie, C.doctor.memberId, C.branchR, week());
     expect(cleared.statusCode).toBe(200);
-    expect(cleared.json().dormantBranches).toEqual([]);
+    expect(cleared.json().schedule.dormantBranches).toEqual([]);
     const audit = (await auditOf(h, C.clinicId, C.doctor.memberId)).filter(
       (r) => r["action"] === "schedule.replaced",
     );
@@ -181,7 +181,7 @@ describe("the schedule a write answers with (Codex PR #63)", () => {
         week([4, "15:00", "16:00"]),
       );
       expect(res.statusCode).toBe(200);
-      const seen = res.json();
+      const seen = res.json().schedule;
       expect({
         allBranches: seen.provider.allBranches,
         branchIds: seen.provider.branchIds,
@@ -206,13 +206,14 @@ describe("the schedule a write answers with (Codex PR #63)", () => {
     }
   });
 
-  it("NEGATIVE: hides the time off of a provider the view keys do not reach (Codex r2)", async () => {
+  it("NEGATIVE: answers with no schedule for a provider the view keys do not see (Codex PR #63)", async () => {
     const off = { startsAt: inDays(5), endsAt: inDays(6), note: "private reason" };
+    const { fullName } = (await send(h, C.admin.cookie, "GET", path(C.doctor.memberId))).json()
+      .provider;
     // The doctor works in D only, outside the editor's view: its GET is not_found.
     expect((await send(h, editor.cookie, "GET", path(C.doctor.memberId))).statusCode).toBe(404);
     const added = await send(h, editor.cookie, "POST", `${path(C.doctor.memberId)}/time-off`, off);
     expect(added.statusCode).toBe(201);
-    expect(added.json().timeOff).toEqual([]);
     const saved = await put(
       editor.cookie,
       C.doctor.memberId,
@@ -220,8 +221,19 @@ describe("the schedule a write answers with (Codex PR #63)", () => {
       week([5, "08:00", "09:00"]),
     );
     expect(saved.statusCode).toBe(200);
-    expect(saved.json()).toMatchObject({ timeOff: [], branches: [], shifts: [] });
-    expect(saved.body).not.toContain("private reason");
+    const offId = (
+      await h.owner`SELECT id FROM provider_time_off
+      WHERE clinic_id = ${C.clinicId} AND membership_id = ${C.doctor.memberId}
+        AND note = 'private reason' AND cancelled_at IS NULL`
+    )[0]!["id"];
+    const cancel = `${path(C.doctor.memberId)}/time-off/${offId}/cancel`;
+    const cancelled = await send(h, editor.cookie, "POST", cancel);
+    expect(cancelled.statusCode).toBe(200);
+    for (const res of [added, saved, cancelled]) {
+      expect(res.json()).toEqual({ schedule: null });
+      expect(res.body).not.toContain(fullName);
+      expect(res.body).not.toContain("private reason");
+    }
   });
 });
 
@@ -250,7 +262,8 @@ describe("a provider seen only through its dormant rows (Codex PR #63)", () => {
     const before = await replaced();
     const cleared = await put(C.desk.cookie, C.doctor.memberId, C.branchR, week());
     expect(cleared.statusCode).toBe(200);
-    expect(cleared.json()).toMatchObject({ dormantBranches: [], shifts: [] });
+    // The doctor is now outside the desk's view: the answer carries no schedule (Codex PR #63).
+    expect(cleared.json()).toEqual({ schedule: null });
     expect(await replaced()).toBe(before + 1);
 
     // No row left in R: the doctor is outside the desk's reach again (no probing).

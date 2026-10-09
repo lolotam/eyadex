@@ -1,7 +1,12 @@
 import type { ApiClient } from "../api-client";
 import { NO_FEATURES } from "@eyadex/contracts/clinics";
 import { ApiError } from "../api-error";
-import { clinicBlockReason, effectivePermissions, resolveActor } from "./mock-actor";
+import {
+  clinicBlockReason,
+  effectivePermissions,
+  memberBranchScope,
+  resolveActor,
+} from "./mock-actor";
 import { delay, getState, persist } from "./mock-store";
 import {
   platformAccountSnapshot,
@@ -74,6 +79,8 @@ export function createMockSession(): ApiClient["session"] {
           user: { fullName: account.fullName, email: account.email, preferredLanguage: null },
           clinic: null,
           permissions: [],
+          allBranches: false,
+          branchIds: [],
           features: { ...NO_FEATURES },
           blocked: null,
           expiresInDays: null,
@@ -104,6 +111,7 @@ export function createMockSession(): ApiClient["session"] {
           timezone: clinic.timezone,
         },
         permissions: blocked ? [] : effectivePermissions(db, actor),
+        ...memberBranchScope(db, member),
         features: db.features[clinic.id] ?? NO_FEATURES,
         blocked,
         expiresInDays: blocked

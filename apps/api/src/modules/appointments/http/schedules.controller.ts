@@ -6,6 +6,7 @@ import {
   type BranchScheduleInput,
   type ProviderListResponse,
   type ProviderSchedule,
+  type ScheduleWriteResponse,
   type TimeOffInput,
 } from "@eyadex/contracts/schedules";
 import type { Database } from "@eyadex/db";
@@ -94,7 +95,7 @@ export class SchedulesController {
     @Param("membershipId") membershipId: string,
     @Param("branchId") branchId: string,
     @Body(new ZodValidationPipe(branchScheduleInputSchema)) body: BranchScheduleInput,
-  ): Promise<ProviderSchedule> {
+  ): Promise<ScheduleWriteResponse> {
     return this.changes.replaceBranch(
       actorOf(request),
       idOf(membershipId),
@@ -111,7 +112,7 @@ export class SchedulesController {
     @Req() request: ClinicRequest,
     @Param("membershipId") membershipId: string,
     @Body(new ZodValidationPipe(timeOffInputSchema)) body: TimeOffInput,
-  ): Promise<ProviderSchedule> {
+  ): Promise<ScheduleWriteResponse> {
     return this.changes.addTimeOff(actorOf(request), idOf(membershipId), body);
   }
 
@@ -123,7 +124,7 @@ export class SchedulesController {
     @Req() request: ClinicRequest,
     @Param("membershipId") membershipId: string,
     @Param("timeOffId") timeOffId: string,
-  ): Promise<ProviderSchedule> {
+  ): Promise<ScheduleWriteResponse> {
     return this.changes.cancelTimeOff(actorOf(request), idOf(membershipId), idOf(timeOffId));
   }
 }

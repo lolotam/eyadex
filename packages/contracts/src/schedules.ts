@@ -117,6 +117,16 @@ export const providerScheduleSchema = z
   .strict();
 export type ProviderSchedule = z.infer<typeof providerScheduleSchema>;
 
+/**
+ * The answer of a schedules write (`PUT …/branches/:branchId`, time off add and cancel): the schedule as
+ * the caller's view keys show it, or `null` when those keys cannot see the provider at all (its `GET`
+ * is `not_found`), so a write never reveals a provider the caller cannot read (ADR-0026 §4).
+ */
+export const scheduleWriteResponseSchema = z
+  .object({ schedule: providerScheduleSchema.nullable() })
+  .strict();
+export type ScheduleWriteResponse = z.infer<typeof scheduleWriteResponseSchema>;
+
 type Span = { start: number; end: number };
 
 const spanOf = (s: WallShift): Span => ({

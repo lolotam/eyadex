@@ -3,7 +3,7 @@ import type { Role } from "@eyadex/contracts/organization";
 import { PERMISSION_CATALOG, type PermissionDefinition } from "@eyadex/contracts/permissions";
 import type { RoleListItem } from "@eyadex/contracts/roles";
 import { ApiError } from "../api-error";
-import type { Actor } from "./mock-actor";
+import { memberBranchScope, type Actor } from "./mock-actor";
 import type { MockState } from "./mock-store";
 
 export function findRole(db: MockState, clinicId: string, roleId: string): Role {
@@ -109,9 +109,7 @@ function covers(held: readonly string[], key: string): boolean {
 
 /** The actor's reach: every branch, or its active branches only. */
 function actorReach(db: MockState, actor: Actor): Reach {
-  if (actor.member.allBranches) return { allBranches: true, branchIds: [] };
-  const active = new Set(db.branches.filter((b) => b.isActive).map((b) => b.id));
-  return { allBranches: false, branchIds: actor.member.branchIds.filter((id) => active.has(id)) };
+  return memberBranchScope(db, actor.member);
 }
 
 function within(target: Reach, actor: Reach): boolean {

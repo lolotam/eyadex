@@ -12,13 +12,14 @@ import { ConfirmActionDialog } from "@/shared/shell/confirm-action-dialog";
 import { WEEKDAY_KEYS, rowsForBranch } from "./schedule-forms";
 import { useRefreshSchedules } from "./schedule-queries";
 
-type Props = { schedule: ProviderSchedule; mayEdit: boolean };
+/** `mayClear` answers per branch: an update key may reach only some of the shown branches. */
+type Props = { schedule: ProviderSchedule; mayClear: (branchId: string) => boolean };
 
 /**
  * Hours kept in an inactive branch or one the provider left (ADR-0026 §4). They still block
  * overlapping hours elsewhere, so they are shown read-only and can only be cleared (an empty week).
  */
-export function DormantHoursPanel({ schedule, mayEdit }: Props) {
+export function DormantHoursPanel({ schedule, mayClear }: Props) {
   const api = useApi();
   const { persona } = usePersona();
   const { t, pick } = useI18n();
@@ -65,7 +66,7 @@ export function DormantHoursPanel({ schedule, mayEdit }: Props) {
                 ))}
               </ul>
             </div>
-            {mayEdit && (
+            {mayClear(branch.id) && (
               <Button variant="outline" size="sm" onClick={() => setTarget(branch)}>
                 <Trash2 className="size-4" />
                 {t("schedules.dormant.clear")}

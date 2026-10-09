@@ -43,7 +43,7 @@ describe("dormant hours panel", () => {
         <I18nProvider>
           <ApiProvider>
             <PersonaContext.Provider value={{ persona, ready: true, setPersona: () => undefined }}>
-              <DormantHoursPanel schedule={schedule} mayEdit />
+              <DormantHoursPanel schedule={schedule} mayClear={() => true} />
             </PersonaContext.Provider>
           </ApiProvider>
         </I18nProvider>
@@ -73,7 +73,7 @@ describe("dormant hours panel", () => {
         <I18nProvider>
           <ApiProvider>
             <PersonaContext.Provider value={{ persona, ready: true, setPersona: () => undefined }}>
-              <DormantHoursPanel schedule={schedule} mayEdit={false} />
+              <DormantHoursPanel schedule={schedule} mayClear={() => false} />
             </PersonaContext.Provider>
           </ApiProvider>
         </I18nProvider>
@@ -86,7 +86,10 @@ describe("dormant hours panel", () => {
         <I18nProvider>
           <ApiProvider>
             <PersonaContext.Provider value={{ persona, ready: true, setPersona: () => undefined }}>
-              <DormantHoursPanel schedule={{ ...schedule, dormantBranches: [] }} mayEdit />
+              <DormantHoursPanel
+                schedule={{ ...schedule, dormantBranches: [] }}
+                mayClear={() => true}
+              />
             </PersonaContext.Provider>
           </ApiProvider>
         </I18nProvider>

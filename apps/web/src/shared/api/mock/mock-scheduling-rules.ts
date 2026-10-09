@@ -1,7 +1,13 @@
 import { NO_FEATURES } from "@eyadex/contracts/clinics";
 import type { Persona } from "@eyadex/contracts/session";
 import { ApiError } from "../api-error";
-import { clinicBlockReason, effectivePermissions, resolveActor, type Actor } from "./mock-actor";
+import {
+  clinicBlockReason,
+  effectivePermissions,
+  memberBranchScope,
+  resolveActor,
+  type Actor,
+} from "./mock-actor";
 import type { MockState, StoredShift } from "./mock-store";
 
 /** Every branch, or a branch list: the reach of one action (as the API's `Reach`). */
@@ -20,7 +26,10 @@ export function guardAppointments(db: MockState, persona: Persona): Actor {
   return actor;
 }
 
-/** A schedules action at its scope: the clinic key reaches every branch, the branch key the member's. */
+/**
+ * A schedules action at its scope: the clinic key reaches every branch, the branch key the member's
+ * active branches only (as the API's branch scope: a deactivated branch drops out of it).
+ */
 export function authorizeSchedules(
   db: MockState,
   persona: Persona,
@@ -29,7 +38,7 @@ export function authorizeSchedules(
 ): SchedulingAccess {
   const actor = guardAppointments(db, persona);
   const keys = effectivePermissions(db, actor);
-  const { allBranches, branchIds } = actor.member;
+  const { allBranches, branchIds } = memberBranchScope(db, actor.member);
   const own: Reach = allBranches ? { all: true } : { all: false, branchIds };
   const viewReach: Reach = keys.includes("view:schedules:clinic")
     ? { all: true }

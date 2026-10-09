@@ -25,6 +25,8 @@ export function contextFromMe(me: MeResponse): SessionContext {
     },
     clinic: { ...me.clinic },
     permissions: [...me.permissions],
+    allBranches: me.allBranches,
+    branchIds: [...me.branchIds],
     features: Object.fromEntries(
       moduleSchema.options.map((module) => [module, me.modules.includes(module)]),
     ) as ClinicFeatures,
@@ -42,6 +44,8 @@ export function contextFromPlatformMe(account: PlatformMeResponse): SessionConte
     user: { fullName: account.fullName, email: account.email, preferredLanguage: null },
     clinic: null,
     permissions: [],
+    allBranches: false,
+    branchIds: [],
     features: { ...NO_FEATURES },
     blocked: null,
     expiresInDays: null,

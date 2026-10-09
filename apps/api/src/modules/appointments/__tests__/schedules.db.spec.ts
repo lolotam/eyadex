@@ -52,7 +52,7 @@ describe("a provider's weekly schedule", () => {
     const body = week([0, "16:00", "20:00"], [0, "08:00", "12:00"]);
     const res = await put(C.admin.cookie, C.doctor.memberId, C.branchD, body);
     expect(res.statusCode).toBe(200);
-    expect(res.json().shifts).toEqual([
+    expect(res.json().schedule.shifts).toEqual([
       { branchId: C.branchD, weekday: 0, startsAt: "08:00", endsAt: "12:00" },
       { branchId: C.branchD, weekday: 0, startsAt: "16:00", endsAt: "20:00" },
     ]);
@@ -72,7 +72,10 @@ describe("a provider's weekly schedule", () => {
       week([0, "20:00", "24:00"], [1, "00:00", "01:00"]),
     );
     expect(res.statusCode).toBe(200);
-    expect(res.json().shifts.map((s: { endsAt: string }) => s.endsAt)).toEqual(["24:00", "01:00"]);
+    expect(res.json().schedule.shifts.map((s: { endsAt: string }) => s.endsAt)).toEqual([
+      "24:00",
+      "01:00",
+    ]);
   });
 
   it("refuses overlapping rows, also against the provider's rows in another branch", async () => {
@@ -207,12 +210,14 @@ describe("time off (D-6)", () => {
     expect(added.statusCode).toBe(201);
     const off = added
       .json()
-      .timeOff.find((t: { note: string | null }) => t.note === "private reason");
+      .schedule.timeOff.find((t: { note: string | null }) => t.note === "private reason");
     expect(off).toBeDefined();
     const cancel = `${path(C.doctor.memberId)}/time-off/${off.id}/cancel`;
     const cancelled = await send(h, C.admin.cookie, "POST", cancel);
     expect(cancelled.statusCode).toBe(200);
-    expect(cancelled.json().timeOff.map((t: { id: string }) => t.id)).not.toContain(off.id);
+    expect(cancelled.json().schedule.timeOff.map((t: { id: string }) => t.id)).not.toContain(
+      off.id,
+    );
     expect((await send(h, C.admin.cookie, "POST", cancel)).statusCode).toBe(200);
     const rows = await auditOf(h, C.clinicId, off.id);
     expect(rows.map((r) => r["action"])).toEqual(["time_off.added", "time_off.cancelled"]);

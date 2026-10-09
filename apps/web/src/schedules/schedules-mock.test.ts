@@ -34,7 +34,7 @@ describe("weekly schedules (D-6, D-14) in the mock, as the API", () => {
       branchId,
       week([0, "20:00", "24:00"], [1, "00:00", "01:00"]),
     );
-    expect(saved.shifts.filter((s) => s.branchId === branchId)).toHaveLength(2);
+    expect(saved.schedule!.shifts.filter((s) => s.branchId === branchId)).toHaveLength(2);
     const rows = getState().clinicAudit.filter((e) => e.action === "schedule.replaced");
     expect(rows).toHaveLength(1);
   });
@@ -71,9 +71,9 @@ describe("weekly schedules (D-6, D-14) in the mock, as the API", () => {
       endsAt: end,
       note: "x",
     });
-    const off = added.timeOff.at(-1)!;
+    const off = added.schedule!.timeOff.at(-1)!;
     const after = await api.scheduling.cancelTimeOff(admin(), d.id, off.id);
-    expect(after.timeOff.map((t) => t.id)).not.toContain(off.id);
+    expect(after.schedule!.timeOff.map((t) => t.id)).not.toContain(off.id);
     expect(getState().timeOff.find((t) => t.id === off.id)?.cancelledAt).not.toBeNull();
     const audit = getState().clinicAudit.filter((e) => e.entityId === off.id);
     expect(JSON.stringify(audit)).not.toContain('"note"');

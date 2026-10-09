@@ -3,6 +3,7 @@ import type {
   BranchScheduleInput,
   ProviderSchedule,
   ProviderSummary,
+  ScheduleWriteResponse,
   TimeOffInput,
 } from "@eyadex/contracts/schedules";
 import type {
@@ -44,22 +45,24 @@ export interface SchedulingApi {
    * Replaces the provider's whole week in one branch (update:schedules at that branch). A dormant
    * branch (inactive, or the provider left it) takes only an empty week, which clears its rows.
    * schedule_overlap names the conflicting branch in details.branchId when it is inside the reach.
+   * Every write answers with the schedule as the caller's view keys show it, or `schedule: null`
+   * when those keys cannot see the provider (refetch instead of reading the answer).
    */
   replaceBranchSchedule(
     persona: Persona,
     membershipId: string,
     branchId: string,
     input: BranchScheduleInput,
-  ): Promise<ProviderSchedule>;
+  ): Promise<ScheduleWriteResponse>;
   /** update:schedules:clinic. */
   addTimeOff(
     persona: Persona,
     membershipId: string,
     input: TimeOffInput,
-  ): Promise<ProviderSchedule>;
+  ): Promise<ScheduleWriteResponse>;
   cancelTimeOff(
     persona: Persona,
     membershipId: string,
     timeOffId: string,
-  ): Promise<ProviderSchedule>;
+  ): Promise<ScheduleWriteResponse>;
 }

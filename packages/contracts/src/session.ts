@@ -48,6 +48,12 @@ export const sessionContextSchema = z.object({
     })
     .nullable(),
   permissions: z.array(z.string()),
+  /**
+   * The account's branch scope, as `GET /v1/me` answers it: true = every branch; otherwise
+   * `branchIds` lists its active branches (a branch-scope key reaches only these). UX only.
+   */
+  allBranches: z.boolean(),
+  branchIds: z.array(idSchema),
   features: featuresSchema,
   blocked: z.enum(["suspended", "expired"]).nullable(),
   /** Days left when the expiry is within the platform alert window; null = no banner. */

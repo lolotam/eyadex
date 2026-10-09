@@ -3,7 +3,7 @@ import { AlertCircle, CalendarClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { errorCodeOf } from "@/shared/api/api-error";
 import { useI18n } from "@/shared/i18n/i18n-provider";
-import { can } from "@/shared/permissions/can";
+import { canAtBranch } from "@/shared/permissions/can-at-branch";
 import { useSession } from "@/shared/persona/persona-provider";
 import { LoadingBlock } from "@/shared/shell/loading-block";
 import { SectionHeader } from "@/shared/shell/section-header";
@@ -18,6 +18,9 @@ export function SchedulesContent() {
   const { t, pick } = useI18n();
   const { session } = useSession();
   const permissions = session?.permissions ?? [];
+  // Per branch: a branch-scope update key reaches only the user's own branches (UX; the API refuses too).
+  const mayEditAt = (id: string) =>
+    session !== undefined && canAtBranch(session, "update", "schedules", id);
   const timeZone = session?.clinic?.timezone ?? "Asia/Kuwait";
   const providers = useProviders();
   const [membershipId, setMembershipId] = useState<string | null>(null);
@@ -99,7 +102,7 @@ export function SchedulesContent() {
             <WeeklyScheduleEditor
               schedule={schedule.data}
               branchId={branchId}
-              mayEdit={can(permissions, "update", "schedules")}
+              mayEdit={mayEditAt(branchId)}
             />
           )}
           <TimeOffPanel
@@ -109,12 +112,7 @@ export function SchedulesContent() {
           />
         </div>
       )}
-      {schedule.data && (
-        <DormantHoursPanel
-          schedule={schedule.data}
-          mayEdit={can(permissions, "update", "schedules")}
-        />
-      )}
+      {schedule.data && <DormantHoursPanel schedule={schedule.data} mayClear={mayEditAt} />}
     </div>
   );
 }

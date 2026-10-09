@@ -77,11 +77,16 @@ locks takes them first (the booking profile does). No PostgreSQL extension (no `
   clash inside the week) only when the caller's **view** keys reach that branch; otherwise the error is unnamed, as
   the PR #63 rule hides other branches. A branch-scope editor blocked by such a row needs a clinic-scope editor
   to clear it.
-- Every schedules write (week, time off) answers with the schedule clipped to the caller's view keys
+- Every schedules write (week, time off) answers `{ schedule }`: the schedule clipped to the caller's view keys
   (`view:schedules:clinic` = every branch, `view:schedules:branch` = its own, none = no branch), never to the
   write key's reach: a role may hold `update:schedules:clinic` with only `view:schedules:branch`, and a `PUT` must
   not show what a `GET` hides. Time off is not per branch, so it is returned only when those view keys reach the
-  provider at all.
+  provider at all. When the view keys cannot see the provider (the same rule as `GET`, dormant rows included),
+  the answer is `{ schedule: null }`: not even its name or default duration. The web refetches after a write.
+- The branch-scope keys reach the member's **active** branches only (`ClinicRequestContext.branchScope`); the
+  mock builds the same reach. The web enables the weekly editor and the dormant-hours "clear" per branch: an
+  `update:schedules:clinic` key everywhere, an `update:schedules:branch` key only in the session's branches
+  (`/v1/me` `allBranches` / `branchIds`). UX only: the API refuses too.
 - D-14 lives in `coversWallInterval` (`@eyadex/contracts/schedules`): back-to-back rows of one branch join, also
   across midnight and from Saturday 24:00 into Sunday 00:00. A2's booking check calls it.
 - The drift test maps Drizzle's `time` to `time without time zone` (information_schema's spelling).

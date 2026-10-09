@@ -1,4 +1,8 @@
-import { providerListResponseSchema, providerScheduleSchema } from "@eyadex/contracts/schedules";
+import {
+  providerListResponseSchema,
+  providerScheduleSchema,
+  scheduleWriteResponseSchema,
+} from "@eyadex/contracts/schedules";
 import {
   bookingProfileSchema,
   clinicServiceSchema,
@@ -64,7 +68,7 @@ export function createHttpScheduling(ctx: HttpContext): SchedulingApi {
       transport.send("GET", schedule(membershipId), { schema: providerScheduleSchema }),
     replaceBranchSchedule: (_persona, membershipId, branchId, input) =>
       transport.send("PUT", `${schedule(membershipId)}/branches/${encodeURIComponent(branchId)}`, {
-        schema: providerScheduleSchema,
+        schema: scheduleWriteResponseSchema,
         body: {
           shifts: input.shifts.map((s) => ({
             weekday: s.weekday,
@@ -75,14 +79,14 @@ export function createHttpScheduling(ctx: HttpContext): SchedulingApi {
       }),
     addTimeOff: (_persona, membershipId, input) =>
       transport.send("POST", `${schedule(membershipId)}/time-off`, {
-        schema: providerScheduleSchema,
+        schema: scheduleWriteResponseSchema,
         body: { startsAt: input.startsAt, endsAt: input.endsAt, note: input.note },
       }),
     cancelTimeOff: (_persona, membershipId, timeOffId) =>
       transport.send(
         "POST",
         `${schedule(membershipId)}/time-off/${encodeURIComponent(timeOffId)}/cancel`,
-        { schema: providerScheduleSchema },
+        { schema: scheduleWriteResponseSchema },
       ),
   };
 }

@@ -1,4 +1,4 @@
-import type { ProviderSchedule, TimeOffInput, WallShift } from "@eyadex/contracts/schedules";
+import type { ScheduleWriteResponse, TimeOffInput, WallShift } from "@eyadex/contracts/schedules";
 import type { Database, Tx } from "@eyadex/db";
 import type { IdGenerator } from "@eyadex/ids";
 
@@ -62,14 +62,14 @@ export class ScheduleChanges {
    * @param membershipId مقدّم الخدمة
    * @param branchId الفرع
    * @param shifts الأسبوع بعد `branchScheduleInputSchema` (فاضي = مسح صفوف الفرع)
-   * @returns الجدول بعد الحفظ
+   * @returns الجدول بعد الحفظ زي ما مفاتيح العرض بتشوفه، أو `null` لو مش شايفة مقدّم الخدمة
    */
   replaceBranch(
     actor: ScheduleActor,
     membershipId: string,
     branchId: string,
     shifts: readonly WallShift[],
-  ): Promise<ProviderSchedule> {
+  ): Promise<ScheduleWriteResponse> {
     const { db, clock, ids, branches } = this.deps;
     return db.withTenant(actor.clinicId, async (tx) => {
       await lockProvider(tx, actor.clinicId, membershipId);
@@ -108,7 +108,7 @@ export class ScheduleChanges {
           after: scheduleAuditSnapshot(provider.fullName, branchId, decision.shifts),
         });
       }
-      return this.read(tx, actor, provider);
+      return this.answer(tx, actor, provider);
     });
   }
 
@@ -118,13 +118,13 @@ export class ScheduleChanges {
    * @param actor الفاعل (`update:schedules:clinic`)
    * @param membershipId مقدّم الخدمة
    * @param input البداية والنهاية والملاحظة بعد `timeOffInputSchema`
-   * @returns الجدول بعد الإضافة
+   * @returns الجدول بعد الإضافة زي ما مفاتيح العرض بتشوفه، أو `null` لو مش شايفة مقدّم الخدمة
    */
   addTimeOff(
     actor: ScheduleActor,
     membershipId: string,
     input: TimeOffInput,
-  ): Promise<ProviderSchedule> {
+  ): Promise<ScheduleWriteResponse> {
     const { db, ids } = this.deps;
     return db.withTenant(actor.clinicId, async (tx) => {
       await lockProvider(tx, actor.clinicId, membershipId);
@@ -141,7 +141,7 @@ export class ScheduleChanges {
         before: null,
         after: timeOffAuditSnapshot(provider.fullName, record),
       });
-      return this.read(tx, actor, provider);
+      return this.answer(tx, actor, provider);
     });
   }
 
@@ -151,13 +151,13 @@ export class ScheduleChanges {
    * @param actor الفاعل (`update:schedules:clinic`)
    * @param membershipId مقدّم الخدمة
    * @param timeOffId الإجازة
-   * @returns الجدول بعد الإلغاء
+   * @returns الجدول بعد الإلغاء زي ما مفاتيح العرض بتشوفه، أو `null` لو مش شايفة مقدّم الخدمة
    */
   cancelTimeOff(
     actor: ScheduleActor,
     membershipId: string,
     timeOffId: string,
-  ): Promise<ProviderSchedule> {
+  ): Promise<ScheduleWriteResponse> {
     const { db, clock } = this.deps;
     return db.withTenant(actor.clinicId, async (tx) => {
       await lockProvider(tx, actor.clinicId, membershipId);
@@ -172,7 +172,7 @@ export class ScheduleChanges {
           after: timeOffAuditSnapshot(provider.fullName, { ...record, cancelledAt: now }),
         });
       }
-      return this.read(tx, actor, provider);
+      return this.answer(tx, actor, provider);
     });
   }
 
@@ -202,11 +202,25 @@ export class ScheduleChanges {
     return provider;
   }
 
-  // The answer shows only what the caller's view keys reach, never the write's wider reach (Codex PR #63).
-  private read(tx: Tx, actor: ScheduleActor, provider: ProviderRecord): Promise<ProviderSchedule> {
+  // The answer shows only what the caller's view keys reach, never the write's wider reach; a provider
+  // those keys cannot see at all (its GET is not_found) gets no schedule, not even its name (Codex PR #63).
+  private async answer(
+    tx: Tx,
+    actor: ScheduleActor,
+    provider: ProviderRecord,
+  ): Promise<ScheduleWriteResponse> {
     const { providers, branches, clock } = this.deps;
+    if (!(await providerVisible(tx, actor.clinicId, actor.viewReach, provider))) {
+      return { schedule: null };
+    }
     const viewer = { ...actor, reach: actor.viewReach };
-    return projectSchedule({ tx, providers, branches }, viewer, provider, clock.now());
+    const schedule = await projectSchedule(
+      { tx, providers, branches },
+      viewer,
+      provider,
+      clock.now(),
+    );
+    return { schedule };
   }
 
   private async audit(

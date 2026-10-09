@@ -40,7 +40,10 @@ function answer(call: Call) {
   if (path.startsWith("/api/v1/services/")) return { body: service };
   if (path.endsWith("/booking-profile")) return { body: profile };
   if (path === "/api/v1/schedules/providers") return { body: { items: [provider] } };
-  return { body: schedule, status: path.endsWith("/time-off") ? 201 : 200 };
+  if (call.method === "GET") return { body: schedule };
+  // A write answers with the schedule, or with none when the view keys cannot see the provider.
+  const body = path.endsWith("/cancel") ? { schedule: null } : { schedule };
+  return { body, status: path.endsWith("/time-off") ? 201 : 200 };
 }
 
 let h: ReturnType<typeof clientWith>;
@@ -89,7 +92,9 @@ describe("scheduling over HTTP", () => {
     expect(await h.api.scheduling.listProviders(P)).toEqual([provider]);
     expect(await h.api.scheduling.getProviderSchedule(P, USER)).toEqual(schedule);
     const week = { shifts: [{ weekday: 0, startsAt: "20:00", endsAt: "24:00" }] };
-    await h.api.scheduling.replaceBranchSchedule(P, USER, BRANCH, week);
+    expect(await h.api.scheduling.replaceBranchSchedule(P, USER, BRANCH, week)).toEqual({
+      schedule,
+    });
     expect(last()).toMatchObject({
       method: "PUT",
       url: `/api/v1/schedules/${USER}/branches/${BRANCH}`,
@@ -102,7 +107,7 @@ describe("scheduling over HTTP", () => {
       url: `/api/v1/schedules/${USER}/time-off`,
       body: off,
     });
-    await h.api.scheduling.cancelTimeOff(P, USER, OFF);
+    expect(await h.api.scheduling.cancelTimeOff(P, USER, OFF)).toEqual({ schedule: null });
     expect(last().url).toBe(`/api/v1/schedules/${USER}/time-off/${OFF}/cancel`);
   });
 });

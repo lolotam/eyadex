@@ -4,7 +4,12 @@ import {
   findShiftOverlap,
   timeOffInputSchema,
 } from "@eyadex/contracts/schedules";
-import type { ProviderSchedule, ScheduleBranch, WallShift } from "@eyadex/contracts/schedules";
+import type {
+  ProviderSchedule,
+  ScheduleBranch,
+  ScheduleWriteResponse,
+  WallShift,
+} from "@eyadex/contracts/schedules";
 import type { MembershipUser } from "@eyadex/contracts/users";
 import { ApiError } from "../api-error";
 import type { SchedulingApi } from "../scheduling-client";
@@ -133,6 +138,16 @@ function scheduleOf(
   };
 }
 
+// A write never reveals a provider the view keys cannot see: no schedule, not even its name (as the API).
+const answerOf = (
+  db: MockState,
+  a: SchedulingAccess,
+  member: MembershipUser,
+): ScheduleWriteResponse =>
+  providerSeen(a.viewReach, member, heldBy(db, a, member.id))
+    ? { schedule: scheduleOf(db, a, member) }
+    : { schedule: null };
+
 // The note is free text about a person's absence: it never reaches an audit snapshot (ADR-0026 §7).
 const offSnapshot = (t: StoredTimeOff, name: string) => ({
   id: t.id,
@@ -208,7 +223,7 @@ export function createMockSchedules(): SchedulesApi {
         });
         persist();
       }
-      return scheduleOf(db, a, member);
+      return answerOf(db, a, member);
     },
     async addTimeOff(persona, id, rawInput) {
       await delay();
@@ -237,7 +252,7 @@ export function createMockSchedules(): SchedulesApi {
         after: offSnapshot(off, member.fullName),
       });
       persist();
-      return scheduleOf(db, a, member);
+      return answerOf(db, a, member);
     },
     async cancelTimeOff(persona, id, timeOffId) {
       await delay();
@@ -261,7 +276,7 @@ export function createMockSchedules(): SchedulesApi {
         });
         persist();
       }
-      return scheduleOf(db, a, member);
+      return answerOf(db, a, member);
     },
   };
 }
