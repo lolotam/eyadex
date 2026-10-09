@@ -14,7 +14,7 @@ import {
 
 import { clinics } from "./clinics.ts";
 
-// Mirror of db/sql/0025 + 0029. Writers append only; the dispatcher reads and marks (ADR-0006).
+// Mirror of db/sql/0025 + 0029 + 0040. Writers append only; the dispatcher reads and marks (ADR-0006).
 const tz = { withTimezone: true, mode: "date" } as const;
 
 export const outboxEvents = pgTable(
@@ -41,6 +41,13 @@ export const outboxEvents = pgTable(
     index("outbox_events_pending_idx")
       .on(t.createdAt)
       .where(sql`(dispatched_at IS NULL) AND (failed_at IS NULL)`),
+    // 0040: the retention purge reads each terminal timestamp in order (ADR-0022).
+    index("outbox_events_dispatched_idx")
+      .on(t.dispatchedAt)
+      .where(sql`dispatched_at IS NOT NULL`),
+    index("outbox_events_failed_idx")
+      .on(t.failedAt)
+      .where(sql`failed_at IS NOT NULL`),
     check("outbox_events_attempts_check", sql.raw("(attempts >= 0)")),
     check("outbox_events_last_error_check", sql.raw("(length(last_error) <= 500)")),
     check(
@@ -61,6 +68,7 @@ export const idempotencyKeys = pgTable(
   },
   (t) => [
     primaryKey({ name: "idempotency_keys_pkey", columns: [t.scope, t.key] }),
+    index("idempotency_keys_created_idx").on(t.createdAt),
     check("idempotency_keys_scope_check", sql.raw("(scope <> ''::text)")),
     check("idempotency_keys_key_check", sql.raw("((length(key) >= 1) AND (length(key) <= 200))")),
     check(

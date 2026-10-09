@@ -14,6 +14,7 @@ import {
   PgReminderStateReader,
 } from "./expiry-reminder/persistence/pg-reminder-store.ts";
 import { ExpiryReminderScanner } from "./expiry-reminder/scan-expiry-reminders.ts";
+import { RetentionPurgeJob } from "./retention/purge-expired-rows.ts";
 import { invitationDispatcher } from "./invitation-mail/dispatch-invitation.ts";
 import { addressOf } from "./invitation-mail/domain/mail-address.ts";
 import { ADMIN_INVITED, USER_INVITED } from "./invitation-mail/domain/invitation-event.ts";
@@ -129,10 +130,16 @@ try {
     logger,
     intervalMs: config.EXPIRY_SCAN_INTERVAL_MS,
   });
+  // ADR-0022: the retention purge, on the dispatcher pool — the only role the API never signs in as.
+  const retention = new RetentionPurgeJob({
+    purger: outbox,
+    logger,
+    intervalMs: config.RETENTION_PURGE_INTERVAL_MS,
+  });
   const worker = await createWorker(
     {
       stop: async () => {
-        await Promise.all([poller.stop(), scanner.stop()]);
+        await Promise.all([poller.stop(), scanner.stop(), retention.stop()]);
       },
       readiness: {
         app: () => app.ping(),
@@ -156,6 +163,7 @@ try {
   await worker.listen({ host: config.WORKER_HOST, port: config.WORKER_PORT });
   poller.start();
   scanner.start();
+  retention.start();
   logger.info({ capability: { name: "WORKER", state: "LISTENING" } }, "worker started");
 } catch (error) {
   // Only the sanitised diagnostic is logged — the error's message can carry an environment value.

@@ -28,7 +28,8 @@ Swarm + Traefik) next to the API (ADR-0007), PostgreSQL 18 and Redis 8.
   - secrets: `DATABASE_URL` (as `eyadex_app`), `DISPATCHER_DATABASE_URL` (as `eyadex_dispatcher`),
     `OUTBOX_SEAL_KEY`, `MAIL_PROVIDER_SEAL_KEY`, `RESEND_API_KEY`, optional `SMTP_PASSWORD`;
   - non-secret: `APP_URL`, `MAIL_FROM`, optional `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` (all four SMTP
-    keys or none), `OUTBOX_POLL_INTERVAL_MS`, `LOG_LEVEL`.
+    keys or none), `OUTBOX_POLL_INTERVAL_MS`, `LOG_LEVEL`, optional `RETENTION_PURGE_INTERVAL_MS`
+    (ADR-0022).
   - `OUTBOX_SEAL_KEY` and `MAIL_PROVIDER_SEAL_KEY` must equal the API's: the API seals, the worker opens.
 - **Order.** Migrations 0029 and 0030 must be applied (CLAUDE.md §5.1, by hand) before the worker starts.
 - **Replicas.** One is enough. More are safe — claims use `FOR UPDATE SKIP LOCKED` — but not needed.

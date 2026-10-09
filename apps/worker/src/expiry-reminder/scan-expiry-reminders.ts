@@ -1,5 +1,6 @@
 import type { Logger } from "@eyadex/observability";
 
+import { PeriodicJob } from "../shared/periodic-job.ts";
 import type { DueClinicFinder, ReminderLedger } from "./ports/reminder-store.ts";
 
 export interface ScannerDeps {
@@ -18,12 +19,12 @@ export interface ScannerDeps {
  */
 export class ExpiryReminderScanner {
   readonly #deps: ScannerDeps;
+  readonly #job: PeriodicJob;
   #stopped = false;
-  #timer: NodeJS.Timeout | undefined;
-  #running: Promise<void> | undefined;
 
   constructor(deps: ScannerDeps) {
     this.#deps = deps;
+    this.#job = new PeriodicJob(() => this.#tick(), deps.intervalMs);
   }
 
   /**
@@ -48,21 +49,12 @@ export class ExpiryReminderScanner {
   }
 
   start(): void {
-    if (this.#timer !== undefined || this.#stopped) return;
-    const tick = () => {
-      this.#running = this.#tick().finally(() => {
-        this.#running = undefined;
-        if (!this.#stopped) this.#timer = setTimeout(tick, this.#deps.intervalMs);
-      });
-    };
-    // The first scan runs at start, so a restart never waits a whole interval.
-    this.#timer = setTimeout(tick, 0);
+    this.#job.start();
   }
 
   async stop(): Promise<void> {
     this.#stopped = true;
-    clearTimeout(this.#timer);
-    await this.#running;
+    await this.#job.stop();
   }
 
   async #tick(): Promise<void> {

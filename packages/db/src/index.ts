@@ -11,6 +11,7 @@ export {
   type DispatcherOptions,
   type DispatcherOutbox,
   type DispatcherRole,
+  type RetentionTarget,
 } from "./dispatcher.ts";
 // The tag alone, so a caller can write `tx.execute(sql\`…\`)` without its own drizzle-orm copy. It builds a
 // query object; it opens nothing and reaches no client.

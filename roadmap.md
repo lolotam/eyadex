@@ -35,7 +35,7 @@
 - [x] Slice 5: `@RequiresFeature` module gate, platform feature/subscription/limits/detail endpoints, `ClinicLimits` port (ADR-0010)
 - [x] Slice 6: branches API (list/create/update/deactivate/reactivate), in-transaction branch limit + OD-7 under a clinic lock, idempotent create in `clinic_idempotency_keys`, SQL 0028 (ADR-0011)
 - [x] Slice 6 open: stranded members resolved in slice 7 (ADR-0012)
-- [ ] Retention of idempotency keys (platform ledger and `clinic_idempotency_keys`)
+- [x] Retention of idempotency keys (platform ledger and `clinic_idempotency_keys`): 30 days, worker purge (ADR-0022, SQL 0040)
 - [x] Slice 7: users + invitations API — invite/resend/cancel (outbox `clinic.user_invited`, sealed token, rotation), lists, role/branches, deactivate/reactivate with session revoke, last admin and user limit under the users lock, stranded-member confirmation on branch deactivation (ADR-0012, no SQL)
 - [x] Slice 7b-1: worker dispatches `clinic.admin_invited` and `clinic.user_invited` through Resend with the send-time check (ADR-0013)
 - [x] Slice 7b-2: the worker auto-cancels pending invitations left with no active branch (ADR-0013 §12)
@@ -45,7 +45,7 @@
 - [x] Slice 7c-2b: route clinic mail through the clinic provider, failure count, degrade after 3
 - [x] Worker production image (ADR-0015; Dokploy service: orchestrator)
 - [x] Slice 9: patients API — search (POST body), branch options, audited opens, idempotent create, update, archive/restore under branch scope and the `patients` flag; web HTTP adapter wired (ADR-0018, no SQL)
-- [ ] Retention of dispatched and failed outbox rows (TODO(spec))
+- [x] Retention of dispatched and failed outbox rows: dispatched 30 days, failed 90 days, pending never (ADR-0022, SQL 0040)
 - [x] Slice 8: custom roles — create/update/deactivate/reactivate with the locked admin role, hidden module keys kept, unique names, idempotent create, `role_in_use`, delegation model (stored keys + branch scope under a `roles:` lock) on every path that defines or grants a role, audit + cache bump; user editor options under `view:users` (`/v1/users/role-options`, `/branch-options`, deferred from PR #46) (ADR-0017, no SQL)
 - [x] Slice 10: audit log read — `GET /v1/clinic/audit`, `/v1/platform/audit` (+ `/clinics`); patient rows kept from the platform by grants; actor names via `platform_audit_actors` (ADR-0019, SQL 0034)
 - [x] Slice 11: clinic settings, my account (Better Auth password change), platform overview with computed "expired" + effective status filter, platform settings (new clinics take the default trial), platform team (invite/accept/deactivate/reactivate, last active account, gate on every platform request), expiry banner and the worker's pre-expiry reminder email (ADR-0020, SQL 0036–0038)

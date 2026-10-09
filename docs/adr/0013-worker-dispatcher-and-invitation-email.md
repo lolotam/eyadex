@@ -114,4 +114,4 @@ AND event_type IN (…) ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1`. The
 - An email can arrive late (backoff) but never with a dead link, and never twice for one event.
 - A clinic that is suspended still gets its pending invitation mailed; acceptance refuses it (ADR-0008).
 - Auto-cancel shipped in 7b-2 (§12); SMTP and per-clinic providers are 7c.
-- TODO(spec): retention of dispatched and failed outbox rows.
+- Retention of dispatched (30 days) and failed (90 days) outbox rows: ADR-0022.
