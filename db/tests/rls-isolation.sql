@@ -30,6 +30,9 @@ BEGIN
     INSERT INTO clinic_mail_providers (clinic_id, id, kind, from_name, from_email, sealed_credentials, created_at, updated_at)
       VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'d')::uuid, 'resend', 'n', s||'@example.com', 'v1.x.y.z', now(), now());
     INSERT INTO clinic_expiry_reminders VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'e')::uuid, now()+interval '30 days', now());
+    INSERT INTO clinic_services VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'f')::uuid, 'ليزر', 'Laser '||s, 30, 'active', now(), now());
+    INSERT INTO provider_schedules VALUES (c, ('00000000-0000-7000-8000-0000000003'||s||'1')::uuid, ('00000000-0000-7000-8000-0000000001'||s||'5')::uuid, ('00000000-0000-7000-8000-0000000001'||s||'2')::uuid, 0, '08:00', '12:00', now());
+    INSERT INTO provider_time_off VALUES (c, ('00000000-0000-7000-8000-0000000003'||s||'2')::uuid, ('00000000-0000-7000-8000-0000000001'||s||'5')::uuid, now() + interval '1 day', now() + interval '2 days', null, null, now(), now());
     INSERT INTO audit_log VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'a')::uuid, ('00000000-0000-7000-8000-0000000002'||s||'5')::uuid, 'user.invited', 'administrative', 'user', null, null, '{}', now());
     INSERT INTO audit_log VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'b')::uuid, ('00000000-0000-7000-8000-0000000002'||s||'5')::uuid, 'patient.opened', 'patient_access', 'patient', null, null, '{}', now());
   END LOOP;
@@ -56,7 +59,8 @@ BEGIN
   -- Every clinic table: clinic A sees zero rows of clinic B.
   FOREACH t IN ARRAY ARRAY['clinic_features','branches','roles','role_permissions','memberships',
       'membership_branches','invitations','invitation_branches','patients','audit_log','clinic_counters',
-      'clinic_idempotency_keys','clinic_mail_providers','clinic_expiry_reminders'] LOOP
+      'clinic_idempotency_keys','clinic_mail_providers','clinic_expiry_reminders','clinic_services',
+      'provider_schedules','provider_time_off'] LOOP
     EXECUTE format('SELECT count(*) FROM %I WHERE clinic_id = $1', t) INTO n USING other;
     IF n <> 0 THEN RAISE EXCEPTION 'ISO-01 read leak: % shows % rows of another clinic', t, n; END IF;
     EXECUTE format('SELECT count(*) FROM %I', t) INTO n;
@@ -123,6 +127,18 @@ BEGIN
     RAISE EXCEPTION 'ISO-01 write leak: clinic_expiry_reminders';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   BEGIN
+    INSERT INTO clinic_services VALUES (b, gen_random_uuid(), 'x', 'x', 30, 'active', now(), now());
+    RAISE EXCEPTION 'ISO-01 write leak: clinic_services';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    INSERT INTO provider_schedules VALUES (b, gen_random_uuid(), '00000000-0000-7000-8000-0000000001b5', '00000000-0000-7000-8000-0000000001b2', 1, '08:00', '09:00', now());
+    RAISE EXCEPTION 'ISO-01 write leak: provider_schedules';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    INSERT INTO provider_time_off VALUES (b, gen_random_uuid(), '00000000-0000-7000-8000-0000000001b5', now(), now() + interval '1 hour', null, null, now(), now());
+    RAISE EXCEPTION 'ISO-01 write leak: provider_time_off';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
     INSERT INTO audit_log VALUES (b, gen_random_uuid(), gen_random_uuid(), 'user.invited', 'administrative', 'user', null, null, '{}', now());
     RAISE EXCEPTION 'ISO-01 write leak: audit_log';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
@@ -130,7 +146,8 @@ BEGIN
   DECLARE t text;
   BEGIN
     FOREACH t IN ARRAY ARRAY['branches','roles','role_permissions','memberships','membership_branches',
-        'invitations','invitation_branches','patients','clinic_counters','clinic_mail_providers'] LOOP
+        'invitations','invitation_branches','patients','clinic_counters','clinic_mail_providers',
+        'clinic_services','provider_schedules','provider_time_off'] LOOP
       BEGIN
         EXECUTE format('UPDATE %I SET clinic_id = $1', t) USING b;
         RAISE EXCEPTION 'ISO-01 write leak: % rows can be moved to another clinic', t;
@@ -148,6 +165,20 @@ BEGIN
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   BEGIN DELETE FROM patients; RAISE EXCEPTION 'patients are hard-deletable';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  -- Appointments configuration (ADR-0026): services and time off are never deleted; a schedule row is
+  -- replaced, and replacing never reaches another clinic's rows.
+  BEGIN DELETE FROM clinic_services; RAISE EXCEPTION 'clinic_services are hard-deletable';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN DELETE FROM provider_time_off; RAISE EXCEPTION 'provider_time_off is hard-deletable';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN UPDATE provider_schedules SET weekday = 1; RAISE EXCEPTION 'provider_schedules are updatable';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  DELETE FROM provider_schedules WHERE clinic_id = b;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 0 THEN RAISE EXCEPTION 'ISO-01 write leak: deleted % schedule rows of another clinic', n; END IF;
+  -- The booking columns are clinic data like the rest of the membership (D-1, D-15).
+  BEGIN UPDATE memberships SET default_duration_minutes = 4; RAISE EXCEPTION 'a 4-minute default was accepted';
+  EXCEPTION WHEN check_violation THEN NULL; END;
   -- Feature flags are platform-controlled (PRD 4.8): the clinic can read but not write them.
   BEGIN UPDATE clinic_features SET enabled = false; RAISE EXCEPTION 'clinic_features writable by eyadex_app';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
@@ -173,6 +204,12 @@ BEGIN
   BEGIN PERFORM 1 FROM clinic_mail_providers LIMIT 1; RAISE EXCEPTION 'PLAT: platform can read clinic_mail_providers';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   BEGIN PERFORM 1 FROM clinic_expiry_reminders LIMIT 1; RAISE EXCEPTION 'PLAT: platform can read clinic_expiry_reminders';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN PERFORM 1 FROM clinic_services LIMIT 1; RAISE EXCEPTION 'PLAT: platform can read clinic_services';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN PERFORM 1 FROM provider_schedules LIMIT 1; RAISE EXCEPTION 'PLAT: platform can read provider_schedules';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN PERFORM 1 FROM provider_time_off LIMIT 1; RAISE EXCEPTION 'PLAT: platform can read provider_time_off';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   BEGIN PERFORM 1 FROM audit_log LIMIT 1; RAISE EXCEPTION 'PLAT-01: platform can read audit_log';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
