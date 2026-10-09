@@ -70,13 +70,16 @@ export function WeeklyScheduleEditor({ schedule, branchId, mayEdit }: Props) {
         <p className="text-sm text-muted-foreground">{t("schedules.noShifts")}</p>
       )}
       {rows.map((row) => (
-        <div key={row.key} className="grid grid-cols-[1fr_auto_auto_auto] items-end gap-2">
+        <div
+          key={row.key}
+          className="grid grid-cols-[1fr_1fr_auto] items-end gap-2 sm:grid-cols-[1fr_auto_auto_auto]"
+        >
           <Select
             value={String(row.weekday)}
             disabled={!mayEdit}
             onValueChange={(v) => edit(row.key, { weekday: Number(v) })}
           >
-            <SelectTrigger aria-label={t("schedules.weekday")}>
+            <SelectTrigger aria-label={t("schedules.weekday")} className="col-span-3 sm:col-span-1">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -88,7 +91,7 @@ export function WeeklyScheduleEditor({ schedule, branchId, mayEdit }: Props) {
             </SelectContent>
           </Select>
           <Input
-            className="w-24"
+            className="sm:w-24"
             dir="ltr"
             inputMode="numeric"
             placeholder="09:00"
@@ -98,7 +101,7 @@ export function WeeklyScheduleEditor({ schedule, branchId, mayEdit }: Props) {
             onChange={(e) => edit(row.key, { startsAt: e.target.value })}
           />
           <Input
-            className="w-24"
+            className="sm:w-24"
             dir="ltr"
             inputMode="numeric"
             placeholder="13:00"
