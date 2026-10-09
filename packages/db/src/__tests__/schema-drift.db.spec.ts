@@ -53,6 +53,9 @@ function isTable(value: unknown): value is PgTable {
   }
 }
 
+// information_schema spells `time` in full; Drizzle's PgTime prints the short form (0042, ADR-0026).
+const sqlTypeOf = (type: string): string => (type === "time" ? "time without time zone" : type);
+
 function mirrorShape(table: PgTable): [string, Shape] {
   const config = getTableConfig(table);
   const inlinePk = config.columns.filter((c) => c.primary).map((c) => c.name);
@@ -73,7 +76,7 @@ function mirrorShape(table: PgTable): [string, Shape] {
             : String(c.default);
       return [
         c.name,
-        c.getSQLType(),
+        sqlTypeOf(c.getSQLType()),
         c.notNull ? "not null" : "null",
         `default=${dbDefault}`,
         `identity=${column.generatedIdentity === undefined ? "NO" : "YES"}`,

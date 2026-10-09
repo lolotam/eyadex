@@ -66,7 +66,7 @@ export const clinicFeatures = pgTable(
   {
     clinicId: uuid("clinic_id").notNull(),
     id: uuid("id").notNull(),
-    module: text("module", { enum: ["patients"] }).notNull(),
+    module: text("module", { enum: ["patients", "appointments"] }).notNull(),
     enabled: boolean("enabled").notNull(),
     updatedAt: timestamp("updated_at", tz).notNull(),
   },
@@ -78,7 +78,10 @@ export const clinicFeatures = pgTable(
       columns: [t.clinicId],
       foreignColumns: [clinics.id],
     }),
-    check("clinic_features_module_check", sql.raw("(module = 'patients'::text)")),
+    check(
+      "clinic_features_module_check",
+      sql.raw("(module = ANY (ARRAY['patients'::text, 'appointments'::text]))"),
+    ),
   ],
 );
 
