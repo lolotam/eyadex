@@ -7,6 +7,7 @@ import { arSettings } from "./ar-settings";
 import { arAccess, arAccessErrors } from "./ar-access";
 import { arBranches } from "./ar-branches";
 import { arRoutes } from "./ar-routes";
+import { arSchedulingErrors } from "./ar-scheduling";
 
 import type { Dictionary } from "./dictionary";
 
@@ -188,6 +189,7 @@ export const ar: Dictionary = {
   },
   errors: {
     ...arAccessErrors,
+    ...arSchedulingErrors,
     patient_phone_taken: "هذا الهاتف مسجّل لمراجع آخر في هذه العيادة",
     patient_civil_id_taken: "هذا الرقم المدني مسجّل لمراجع آخر في هذه العيادة",
     email_taken: "هذا البريد مستخدم لدى مستخدم آخر أو في دعوة معلّقة",

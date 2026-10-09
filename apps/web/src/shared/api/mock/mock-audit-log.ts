@@ -2,6 +2,7 @@ import {
   clinicAuditListQuerySchema,
   dayInTimeZone,
   PLATFORM_AUDIT_TIME_ZONE,
+  platformAuditEntitySchema,
   platformAuditListQuerySchema,
   type PlatformAuditItem,
 } from "@eyadex/contracts/audit";
@@ -108,10 +109,12 @@ export function createMockAuditLog(): ApiClient["audit"] {
           after: e.after,
         };
       });
-      // Filtered at the source: patient entities and patient-access entries never leave here.
+      // Filtered at the source, as the API: only entities the platform may read (no patient, and none
+      // of the appointments module's configuration, ADR-0026 §8) and administrative entries only.
       const clinicSide: PlatformAuditItem[] = [];
       for (const e of db.clinicAudit) {
-        if (e.category !== "administrative" || e.entity === "patient") continue;
+        const entity = platformAuditEntitySchema.safeParse(e.entity);
+        if (e.category !== "administrative" || !entity.success) continue;
         const c = clinicName(e.clinicId);
         clinicSide.push({
           id: e.id,
@@ -119,7 +122,7 @@ export function createMockAuditLog(): ApiClient["audit"] {
           actorName: e.actorName,
           action: e.action,
           source: "clinic",
-          entity: e.entity,
+          entity: entity.data,
           category: "administrative",
           entityId: e.entityId,
           clinicId: e.clinicId,
