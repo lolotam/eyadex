@@ -86,4 +86,14 @@ export const enScheduling = {
     },
     loadError: "The schedule could not be loaded",
   },
+  bookingProfile: {
+    action: "Booking settings",
+    title: "Booking settings",
+    subtitle: "Whether {name} can be booked, and how long a booking without a service lasts.",
+    accepts: "Accepts appointments",
+    acceptsHint: "Shown in the booking dialog and on the work schedules screen.",
+    duration: "Default duration (minutes)",
+    durationHint: "5 to 480 minutes",
+    saved: "Booking settings saved",
+  },
 };

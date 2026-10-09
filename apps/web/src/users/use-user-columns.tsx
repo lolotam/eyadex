@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { GitBranch, Power, RotateCcw, ShieldCheck } from "lucide-react";
+import { CalendarClock, GitBranch, Power, RotateCcw, ShieldCheck } from "lucide-react";
 import type { BranchOption, MembershipUserView } from "@eyadex/contracts/users";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { BranchChips } from "./branch-chips";
@@ -10,15 +10,19 @@ import { UserStatusBadge } from "./user-status-badge";
 type Handlers = {
   mayUpdate: boolean;
   mayDeactivate: boolean;
+  /** Booking settings (D-1, D-15): update:users and the appointments module on. */
+  mayBook: boolean;
   branches: BranchOption[];
   onRole: (u: MembershipUserView) => void;
   onBranches: (u: MembershipUserView) => void;
   onStatus: (u: MembershipUserView) => void;
+  onBooking: (u: MembershipUserView) => void;
 };
 
 export function useUserColumns(h: Handlers): ColumnDef<MembershipUserView, unknown>[] {
   const { t, pick, formatDate } = useI18n();
-  const { mayUpdate, mayDeactivate, branches, onRole, onBranches, onStatus } = h;
+  const { mayUpdate, mayDeactivate, mayBook, branches, onRole, onBranches, onStatus, onBooking } =
+    h;
   return useMemo(() => {
     const cols: ColumnDef<MembershipUserView, unknown>[] = [
       {
@@ -87,6 +91,13 @@ export function useUserColumns(h: Handlers): ColumnDef<MembershipUserView, unkno
                 onSelect: () => onBranches(u),
               },
             );
+            if (mayBook) {
+              actions.push({
+                label: t("bookingProfile.action"),
+                icon: CalendarClock,
+                onSelect: () => onBooking(u),
+              });
+            }
           }
           if (mayDeactivate) {
             const active = u.status === "active";
@@ -101,5 +112,17 @@ export function useUserColumns(h: Handlers): ColumnDef<MembershipUserView, unkno
       });
     }
     return cols;
-  }, [t, pick, formatDate, mayUpdate, mayDeactivate, branches, onRole, onBranches, onStatus]);
+  }, [
+    t,
+    pick,
+    formatDate,
+    mayUpdate,
+    mayDeactivate,
+    mayBook,
+    branches,
+    onRole,
+    onBranches,
+    onStatus,
+    onBooking,
+  ]);
 }
