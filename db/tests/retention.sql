@@ -115,6 +115,8 @@ BEGIN
 END $$;
 RESET ROLE;
 
+-- app.clinic_id still names clinic A here (SET LOCAL outlives RESET ROLE): the purge must reach clinic B's
+-- keys anyway, because the owner's policy, not the session's clinic, decides what it sees.
 SET LOCAL ROLE eyadex_dispatcher;
 DO $$
 DECLARE
