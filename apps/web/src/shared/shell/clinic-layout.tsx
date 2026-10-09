@@ -3,14 +3,13 @@ import { Button } from "@/components/ui/button";
 import { Lock } from "lucide-react";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { usePersona, useSession } from "@/shared/persona/persona-provider";
-import { can } from "@/shared/permissions/can";
 import { useAccountDisabledGuard } from "@/shared/persona/use-account-guard";
 import { isSessionLoadFailure } from "@/shared/persona/session-readiness";
 import { AppShell } from "./app-shell";
 import { blockedReasonOf } from "./blocked-reason";
 import { ForbiddenPage } from "./forbidden-page";
 import { LoadingBlock } from "./loading-block";
-import { CLINIC_NAV } from "./nav-items";
+import { CLINIC_NAV, navItemsFor } from "./nav-items";
 import { StatusPanel } from "./status-panel";
 import { ExpiryBanner } from "./expiry-banner";
 import { HttpAreaGate } from "./http-area-gate";
@@ -33,9 +32,7 @@ export function ClinicLayout() {
   }
 
   const permissions = session?.permissions ?? [];
-  const items = session?.blocked
-    ? []
-    : CLINIC_NAV.filter((i) => !i.resource || can(permissions, "view", i.resource));
+  const items = session?.blocked ? [] : navItemsFor(CLINIC_NAV, permissions);
   const subtitle = session?.clinic ? pick(session.clinic.nameAr, session.clinic.nameEn) : undefined;
 
   const signInLink = (

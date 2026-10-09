@@ -1,5 +1,11 @@
 // Settings, account, platform overview and team strings.
 export const enSettings = {
+  // D-17: the clinic Settings page and its tabs.
+  settings: {
+    title: "Settings",
+    subtitle: "Your clinic's preferences, services and work schedules.",
+    tabs: { general: "General", services: "Services", schedules: "Work schedules" },
+  },
   clinicSettings: {
     title: "Clinic settings",
     subtitle: "Your clinic's names, default language and time zone.",

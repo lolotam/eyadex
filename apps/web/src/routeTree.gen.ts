@@ -20,7 +20,6 @@ import { Route as ClinicAccountRouteImport } from './routes/clinic.account'
 import { Route as ClinicAuditRouteImport } from './routes/clinic.audit'
 import { Route as ClinicBranchesRouteImport } from './routes/clinic.branches'
 import { Route as ClinicRolesRouteImport } from './routes/clinic.roles'
-import { Route as ClinicSettingsRouteImport } from './routes/clinic.settings'
 import { Route as ClinicUsersRouteImport } from './routes/clinic.users'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as PlatformIndexRouteImport } from './routes/platform.index'
@@ -29,6 +28,9 @@ import { Route as PlatformSettingsRouteImport } from './routes/platform.settings
 import { Route as PlatformTeamRouteImport } from './routes/platform.team'
 import { Route as ClinicPatientsIndexRouteImport } from './routes/clinic.patients.index'
 import { Route as ClinicPatientsPatientIdRouteImport } from './routes/clinic.patients.$patientId'
+import { Route as ClinicSettingsIndexRouteImport } from './routes/clinic.settings.index'
+import { Route as ClinicSettingsSchedulesRouteImport } from './routes/clinic.settings.schedules'
+import { Route as ClinicSettingsServicesRouteImport } from './routes/clinic.settings.services'
 import { Route as PlatformClinicsIndexRouteImport } from './routes/platform.clinics.index'
 import { Route as PlatformClinicsClinicIdRouteImport } from './routes/platform.clinics.$clinicId'
 import { Route as PlatformClinicsNewRouteImport } from './routes/platform.clinics.new'
@@ -88,11 +90,6 @@ const ClinicRolesRoute = ClinicRolesRouteImport.update({
   path: '/roles',
   getParentRoute: () => ClinicRoute,
 } as any)
-const ClinicSettingsRoute = ClinicSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => ClinicRoute,
-} as any)
 const ClinicUsersRoute = ClinicUsersRouteImport.update({
   id: '/users',
   path: '/users',
@@ -133,6 +130,21 @@ const ClinicPatientsPatientIdRoute = ClinicPatientsPatientIdRouteImport.update({
   path: '/patients/$patientId',
   getParentRoute: () => ClinicRoute,
 } as any)
+const ClinicSettingsIndexRoute = ClinicSettingsIndexRouteImport.update({
+  id: '/settings/',
+  path: '/settings/',
+  getParentRoute: () => ClinicRoute,
+} as any)
+const ClinicSettingsSchedulesRoute = ClinicSettingsSchedulesRouteImport.update({
+  id: '/settings/schedules',
+  path: '/settings/schedules',
+  getParentRoute: () => ClinicRoute,
+} as any)
+const ClinicSettingsServicesRoute = ClinicSettingsServicesRouteImport.update({
+  id: '/settings/services',
+  path: '/settings/services',
+  getParentRoute: () => ClinicRoute,
+} as any)
 const PlatformClinicsIndexRoute = PlatformClinicsIndexRouteImport.update({
   id: '/clinics/',
   path: '/clinics/',
@@ -160,7 +172,6 @@ export interface FileRoutesByFullPath {
   '/clinic/audit': typeof ClinicAuditRoute
   '/clinic/branches': typeof ClinicBranchesRoute
   '/clinic/roles': typeof ClinicRolesRoute
-  '/clinic/settings': typeof ClinicSettingsRoute
   '/clinic/users': typeof ClinicUsersRoute
   '/invite/$token': typeof InviteTokenRoute
   '/platform/audit': typeof PlatformAuditRoute
@@ -169,9 +180,12 @@ export interface FileRoutesByFullPath {
   '/clinic/': typeof ClinicIndexRoute
   '/platform/': typeof PlatformIndexRoute
   '/clinic/patients/$patientId': typeof ClinicPatientsPatientIdRoute
+  '/clinic/settings/schedules': typeof ClinicSettingsSchedulesRoute
+  '/clinic/settings/services': typeof ClinicSettingsServicesRoute
   '/platform/clinics/$clinicId': typeof PlatformClinicsClinicIdRoute
   '/platform/clinics/new': typeof PlatformClinicsNewRoute
   '/clinic/patients/': typeof ClinicPatientsIndexRoute
+  '/clinic/settings/': typeof ClinicSettingsIndexRoute
   '/platform/clinics/': typeof PlatformClinicsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -183,7 +197,6 @@ export interface FileRoutesByTo {
   '/clinic/audit': typeof ClinicAuditRoute
   '/clinic/branches': typeof ClinicBranchesRoute
   '/clinic/roles': typeof ClinicRolesRoute
-  '/clinic/settings': typeof ClinicSettingsRoute
   '/clinic/users': typeof ClinicUsersRoute
   '/invite/$token': typeof InviteTokenRoute
   '/platform/audit': typeof PlatformAuditRoute
@@ -192,9 +205,12 @@ export interface FileRoutesByTo {
   '/clinic': typeof ClinicIndexRoute
   '/platform': typeof PlatformIndexRoute
   '/clinic/patients/$patientId': typeof ClinicPatientsPatientIdRoute
+  '/clinic/settings/schedules': typeof ClinicSettingsSchedulesRoute
+  '/clinic/settings/services': typeof ClinicSettingsServicesRoute
   '/platform/clinics/$clinicId': typeof PlatformClinicsClinicIdRoute
   '/platform/clinics/new': typeof PlatformClinicsNewRoute
   '/clinic/patients': typeof ClinicPatientsIndexRoute
+  '/clinic/settings': typeof ClinicSettingsIndexRoute
   '/platform/clinics': typeof PlatformClinicsIndexRoute
 }
 export interface FileRoutesById {
@@ -209,7 +225,6 @@ export interface FileRoutesById {
   '/clinic/audit': typeof ClinicAuditRoute
   '/clinic/branches': typeof ClinicBranchesRoute
   '/clinic/roles': typeof ClinicRolesRoute
-  '/clinic/settings': typeof ClinicSettingsRoute
   '/clinic/users': typeof ClinicUsersRoute
   '/invite/$token': typeof InviteTokenRoute
   '/platform/audit': typeof PlatformAuditRoute
@@ -218,9 +233,12 @@ export interface FileRoutesById {
   '/clinic/': typeof ClinicIndexRoute
   '/platform/': typeof PlatformIndexRoute
   '/clinic/patients/$patientId': typeof ClinicPatientsPatientIdRoute
+  '/clinic/settings/schedules': typeof ClinicSettingsSchedulesRoute
+  '/clinic/settings/services': typeof ClinicSettingsServicesRoute
   '/platform/clinics/$clinicId': typeof PlatformClinicsClinicIdRoute
   '/platform/clinics/new': typeof PlatformClinicsNewRoute
   '/clinic/patients/': typeof ClinicPatientsIndexRoute
+  '/clinic/settings/': typeof ClinicSettingsIndexRoute
   '/platform/clinics/': typeof PlatformClinicsIndexRoute
 }
 export interface FileRouteTypes {
@@ -236,7 +254,6 @@ export interface FileRouteTypes {
     | '/clinic/audit'
     | '/clinic/branches'
     | '/clinic/roles'
-    | '/clinic/settings'
     | '/clinic/users'
     | '/invite/$token'
     | '/platform/audit'
@@ -245,9 +262,12 @@ export interface FileRouteTypes {
     | '/clinic/'
     | '/platform/'
     | '/clinic/patients/$patientId'
+    | '/clinic/settings/schedules'
+    | '/clinic/settings/services'
     | '/platform/clinics/$clinicId'
     | '/platform/clinics/new'
     | '/clinic/patients/'
+    | '/clinic/settings/'
     | '/platform/clinics/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -259,7 +279,6 @@ export interface FileRouteTypes {
     | '/clinic/audit'
     | '/clinic/branches'
     | '/clinic/roles'
-    | '/clinic/settings'
     | '/clinic/users'
     | '/invite/$token'
     | '/platform/audit'
@@ -268,9 +287,12 @@ export interface FileRouteTypes {
     | '/clinic'
     | '/platform'
     | '/clinic/patients/$patientId'
+    | '/clinic/settings/schedules'
+    | '/clinic/settings/services'
     | '/platform/clinics/$clinicId'
     | '/platform/clinics/new'
     | '/clinic/patients'
+    | '/clinic/settings'
     | '/platform/clinics'
   id:
     | '__root__'
@@ -284,7 +306,6 @@ export interface FileRouteTypes {
     | '/clinic/audit'
     | '/clinic/branches'
     | '/clinic/roles'
-    | '/clinic/settings'
     | '/clinic/users'
     | '/invite/$token'
     | '/platform/audit'
@@ -293,9 +314,12 @@ export interface FileRouteTypes {
     | '/clinic/'
     | '/platform/'
     | '/clinic/patients/$patientId'
+    | '/clinic/settings/schedules'
+    | '/clinic/settings/services'
     | '/platform/clinics/$clinicId'
     | '/platform/clinics/new'
     | '/clinic/patients/'
+    | '/clinic/settings/'
     | '/platform/clinics/'
   fileRoutesById: FileRoutesById
 }
@@ -388,13 +412,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ClinicRolesRouteImport
       parentRoute: typeof ClinicRoute
     }
-    '/clinic/settings': {
-      id: '/clinic/settings'
-      path: '/settings'
-      fullPath: '/clinic/settings'
-      preLoaderRoute: typeof ClinicSettingsRouteImport
-      parentRoute: typeof ClinicRoute
-    }
     '/clinic/users': {
       id: '/clinic/users'
       path: '/users'
@@ -451,6 +468,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ClinicPatientsPatientIdRouteImport
       parentRoute: typeof ClinicRoute
     }
+    '/clinic/settings/': {
+      id: '/clinic/settings/'
+      path: '/settings'
+      fullPath: '/clinic/settings/'
+      preLoaderRoute: typeof ClinicSettingsIndexRouteImport
+      parentRoute: typeof ClinicRoute
+    }
+    '/clinic/settings/schedules': {
+      id: '/clinic/settings/schedules'
+      path: '/settings/schedules'
+      fullPath: '/clinic/settings/schedules'
+      preLoaderRoute: typeof ClinicSettingsSchedulesRouteImport
+      parentRoute: typeof ClinicRoute
+    }
+    '/clinic/settings/services': {
+      id: '/clinic/settings/services'
+      path: '/settings/services'
+      fullPath: '/clinic/settings/services'
+      preLoaderRoute: typeof ClinicSettingsServicesRouteImport
+      parentRoute: typeof ClinicRoute
+    }
     '/platform/clinics/': {
       id: '/platform/clinics/'
       path: '/clinics'
@@ -480,11 +518,13 @@ interface ClinicRouteChildren {
   ClinicAuditRoute: typeof ClinicAuditRoute
   ClinicBranchesRoute: typeof ClinicBranchesRoute
   ClinicRolesRoute: typeof ClinicRolesRoute
-  ClinicSettingsRoute: typeof ClinicSettingsRoute
   ClinicUsersRoute: typeof ClinicUsersRoute
   ClinicIndexRoute: typeof ClinicIndexRoute
   ClinicPatientsPatientIdRoute: typeof ClinicPatientsPatientIdRoute
+  ClinicSettingsSchedulesRoute: typeof ClinicSettingsSchedulesRoute
+  ClinicSettingsServicesRoute: typeof ClinicSettingsServicesRoute
   ClinicPatientsIndexRoute: typeof ClinicPatientsIndexRoute
+  ClinicSettingsIndexRoute: typeof ClinicSettingsIndexRoute
 }
 
 const ClinicRouteChildren: ClinicRouteChildren = {
@@ -492,11 +532,13 @@ const ClinicRouteChildren: ClinicRouteChildren = {
   ClinicAuditRoute: ClinicAuditRoute,
   ClinicBranchesRoute: ClinicBranchesRoute,
   ClinicRolesRoute: ClinicRolesRoute,
-  ClinicSettingsRoute: ClinicSettingsRoute,
   ClinicUsersRoute: ClinicUsersRoute,
   ClinicIndexRoute: ClinicIndexRoute,
   ClinicPatientsPatientIdRoute: ClinicPatientsPatientIdRoute,
+  ClinicSettingsSchedulesRoute: ClinicSettingsSchedulesRoute,
+  ClinicSettingsServicesRoute: ClinicSettingsServicesRoute,
   ClinicPatientsIndexRoute: ClinicPatientsIndexRoute,
+  ClinicSettingsIndexRoute: ClinicSettingsIndexRoute,
 }
 
 const ClinicRouteWithChildren =

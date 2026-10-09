@@ -7,7 +7,7 @@ import { arSettings } from "./ar-settings";
 import { arAccess, arAccessErrors } from "./ar-access";
 import { arBranches } from "./ar-branches";
 import { arRoutes } from "./ar-routes";
-import { arSchedulingErrors } from "./ar-scheduling";
+import { arScheduling, arSchedulingErrors } from "./ar-scheduling";
 
 import type { Dictionary } from "./dictionary";
 
@@ -165,12 +165,15 @@ export const ar: Dictionary = {
   ...arPatients,
   ...arAudit,
   ...arSettings,
+  ...arScheduling,
   validation: {
     needsView: "أي صلاحية إضافة أو تعديل أو تعطيل تحتاج صلاحية العرض في نفس القسم",
     timezone: "اختر منطقة زمنية مدعومة",
     required: "مطلوب",
     tooShort: "قصير جدًا",
     tooLong: "طويل جدًا",
+    time: "اكتب الوقت بصيغة HH:MM (24:00 كنهاية فقط)",
+    timeOrder: "يجب أن تكون النهاية بعد البداية",
     email: "أدخل بريدًا صحيحًا",
     slug: "استخدم حروفًا إنجليزية صغيرة وأرقامًا وشرطات",
     slugReserved: "هذا العنوان محجوز لمنصة Eyadex",

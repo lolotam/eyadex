@@ -7,7 +7,7 @@ import { enSettings } from "./en-settings";
 import { enAccess, enAccessErrors } from "./en-access";
 import { enBranches } from "./en-branches";
 import { enRoutes } from "./en-routes";
-import { enSchedulingErrors } from "./en-scheduling";
+import { enScheduling, enSchedulingErrors } from "./en-scheduling";
 
 export const en = {
   app: { name: "Eyadex", tagline: "One place for every clinic" },
@@ -166,12 +166,15 @@ export const en = {
   ...enPatients,
   ...enAudit,
   ...enSettings,
+  ...enScheduling,
   validation: {
     needsView: "Any create, edit or deactivate permission needs view on the same area",
     timezone: "Choose a supported time zone",
     required: "Required",
     tooShort: "Too short",
     tooLong: "Too long",
+    time: "Enter a time as HH:MM (24:00 only as an end)",
+    timeOrder: "The end must be after the start",
     email: "Enter a valid email",
     slug: "Use lowercase letters, numbers and dashes",
     slugReserved: "This address is reserved by Eyadex",
