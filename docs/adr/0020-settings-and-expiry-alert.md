@@ -1,6 +1,7 @@
 # ADR-0020 — Clinic and platform settings, platform team, expiry alert
 
-Status: accepted (2026-10-08, Phase B slice 11 — PRD §5.5 item 11)
+Status: accepted (2026-10-08, Phase B slice 11 — PRD §5.5 item 11); amended 2026-10-09 (default
+limits and modules for new clinics, SQL 0041 — see the amendment at the end)
 
 ## Context
 
@@ -183,8 +184,8 @@ filters the clinic list by effective status and counts "expired" with the same b
 1. A never-accepted platform invitation holds its email forever (`reserve_platform_email` has no
    release); re-inviting the same email re-issues the link instead.
 2. Platform invitation email is bilingual (no language on a platform account).
-3. Default user/branch limits for new clinics stay `10` / `3` in the web (story 26 lists trial days,
-   alert days and sender name only).
+3. ~~Default user/branch limits for new clinics stay `10` / `3` in the web (story 26 lists trial
+   days, alert days and sender name only).~~ Resolved by the 2026-10-09 amendment below.
 4. A reminder to several admins is one event (and message) each; an SMTP fallback retry may repeat
    one (no idempotency on SMTP, ADR-0014). Recipients are fixed at the scan: an admin added later in
    the same window gets no reminder for that expiry date.
@@ -200,3 +201,46 @@ filters the clinic list by effective status and counts "expired" with the same b
 - CI's worker `test:db` step now also gets `EYADEX_TEST_PLATFORM_URL` (the scan and the team-link check).
 - The web has no "coming soon" page left in HTTP mode; the clinic-detail tabs ADR-0016 kept
   coming-soon (first-admin card, details write, members) are unchanged.
+
+## Amendment (2026-10-09) — default limits and modules for new clinics
+
+Owner decision 2026-10-09 (option ج), closing TODO(spec) 3: the default max users, default max
+branches and default modules for a new clinic become platform settings, edited on the platform
+settings page beside the default trial days. Seed = today's web values: 10 users, 3 branches,
+`patients` on.
+
+- **Contract.** `platformSettingsSchema` (GET/PUT `/v1/platform/settings`, both strict) gains
+  `defaultMaxUsers`, `defaultMaxBranches` (the same bounds as a clinic's own limits,
+  `CLINIC_LIMIT_BOUNDS`: 1–1000, 1–100, so every default is a valid create) and
+  `defaultModules` — the clinic module map itself (`featuresSchema.strict()`).
+- **The create request keeps requiring the values.** `POST /v1/platform/clinics` already required
+  `maxUsers`, `maxBranches` and `modules`; it stays that way. The create form is pre-filled from the
+  settings (`newClinicDefaults`) and sends what the super admin kept or changed, so the server never
+  silently picks a limit or a module, and a settings change never alters a request in flight. The
+  web's hardcoded `NEW_CLINIC` and its TODO(spec) are gone; the mock does the same.
+- **Modules: one map typed from one list.** `CLINIC_MODULES` (`onboarding.ts`) is the only list of
+  modules; `moduleSchema`, `featuresSchema` (a clinic's features), a create request's `modules`, the
+  platform detail's `modules` and `defaultModules` are all derived from it. The next module
+  (`appointments`) joins by adding its name there; these maps, the module switches of the create
+  form and of the settings page (`moduleSchema.options`) and the audit rows follow without
+  reshaping the setting.
+- **SQL 0041: one boolean column per module, not jsonb.** `default_max_users`, `default_max_branches`
+  (CHECKs equal to the contract's bounds) and `default_module_patients`, all `NOT NULL`, the existing
+  row seeded by a temporary DEFAULT dropped in the same file (so a later write always names its
+  values). A column per module keeps NOT NULL and a type the database enforces, and matches
+  `clinic_features`, whose `CHECK (module IN ('patients'))` already makes any new module a migration;
+  a jsonb map would need a hand-written shape CHECK and still a migration to seed the new key. The
+  API maps the columns to `defaultModules` in one place (`readPlatformSettingsIn`), where a module
+  added to the list fails typecheck until mapped. **Adding a module:** the name in `CLINIC_MODULES`
+  → a `default_module_<name>` column (NOT NULL, seeded) + its column grant in a new SQL file, the
+  Drizzle mirror and `db/tests/settings-and-team.sql` → the map line in `readPlatformSettingsIn`
+  and the `UPDATE` in `PlatformSettingsChanges` → i18n `clinics.modules.<name>` / `<name>Body`.
+- **Grants unchanged in kind.** `eyadex_platform` gets `UPDATE` on the three new columns (0036 grants
+  a column list); `eyadex_app` keeps its table-level `SELECT` and gets no write. No other role reads
+  the table (`db/tests/settings-and-team.sql`).
+- **Audit.** A settings save records before/after as before; the `platform_settings` allowlist adds
+  the three fields (no secret among them). The audit dialog shows a module map as the modules
+  switched on.
+
+TODO(spec): PRD §4.8 opens default modules "by specialty"; this amendment keeps one platform-wide
+default (the owner's decision), and a per-specialty table stays open.

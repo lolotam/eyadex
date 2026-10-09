@@ -3,10 +3,10 @@ import {
   daysUntil,
   effectiveClinicStatus,
   invitePlatformAccountInputSchema,
-  platformSettingsSchema,
   type EffectiveClinicStatus,
   type PlatformAccount,
 } from "@eyadex/contracts/platform";
+import { platformSettingsRequestSchema } from "@eyadex/contracts/platform-console";
 import type { ApiClient } from "../api-client";
 import { ApiError } from "../api-error";
 import {
@@ -172,7 +172,8 @@ export function createMockPlatformSettings(): ApiClient["platformSettings"] {
       await delay();
       const db = getState();
       const actor = resolvePlatformActor(db, persona);
-      const parsed = platformSettingsSchema.safeParse(raw);
+      // The API's strict body: an unknown field or module is refused, never dropped.
+      const parsed = platformSettingsRequestSchema.safeParse(raw);
       if (!parsed.success) throw new ApiError("validation");
       const before = { ...db.platformSettings };
       db.platformSettings = { ...parsed.data };

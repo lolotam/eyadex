@@ -164,19 +164,19 @@ describe("platform settings (story 26)", () => {
         code: "validation",
       });
     const ok = {
+      ...base,
       defaultTrialDays: 90,
       alertDaysBeforeExpiry: 60,
-      emailSenderName: "  Eyadex Team ",
+      emailSenderName: "  XY ",
     };
-    expect((await api.platformSettings.update(PLATFORM, ok)).emailSenderName).toBe("Eyadex Team");
+    expect((await api.platformSettings.update(PLATFORM, ok)).emailSenderName).toBe("XY");
   });
 
   it("rejects non-platform callers before validating", async () => {
     await expect(
       api.platformSettings.update(as("clinic_admin"), {
+        ...getState().platformSettings,
         defaultTrialDays: 0,
-        alertDaysBeforeExpiry: 0,
-        emailSenderName: "",
       }),
     ).rejects.toMatchObject({ code: "forbidden" });
   });
@@ -198,6 +198,9 @@ describe("platform settings (story 26)", () => {
         slug: "trial-clinic",
         adminName: "Admin Person",
         adminEmail: "admin-trial@example.com",
+        maxUsers: 10,
+        maxBranches: 3,
+        modules: { patients: true },
       },
       crypto.randomUUID(),
     );

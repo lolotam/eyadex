@@ -149,6 +149,9 @@ describe("clinic create idempotency is scoped by the platform account", () => {
     slug: `scope-clinic-${v}`,
     adminName: `Admin ${v}`,
     adminEmail: `scope-admin-${v}@example.com`,
+    maxUsers: 10,
+    maxBranches: 3,
+    modules: { patients: true },
   });
 
   it("the same account, key and body replays the first clinic", async () => {

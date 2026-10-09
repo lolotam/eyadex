@@ -37,8 +37,33 @@ export const timezoneOptions = [
 const name = z.string().trim().min(2).max(120);
 
 /**
- * `POST /v1/platform/clinics` (PRD stories 6–7). Every subscription value is a required input: the PRD
- * fixes no default status, expiry, limits or modules for a new clinic. The reserved-slug rule is NOT
+ * The modules a clinic can have switched on (PRD §4.8). A new module joins this list only: every
+ * module map (a clinic's features, a new clinic's modules, the platform's default) follows it.
+ */
+export const CLINIC_MODULES = ["patients"] as const;
+export type ClinicModuleKey = (typeof CLINIC_MODULES)[number];
+
+/** One on/off flag per module, keyed by the module. */
+export const moduleFlagsSchema = z.object(
+  Object.fromEntries(CLINIC_MODULES.map((m) => [m, z.boolean()])) as Record<
+    ClinicModuleKey,
+    z.ZodBoolean
+  >,
+);
+
+/**
+ * A clinic's user and branch limits: the same bounds when it is created, when the platform changes
+ * them, and as the platform's default for new clinics (ADR-0020 amendment, 2026-10-09).
+ */
+export const CLINIC_LIMIT_BOUNDS = {
+  maxUsers: { min: 1, max: 1000 },
+  maxBranches: { min: 1, max: 100 },
+} as const;
+
+/**
+ * `POST /v1/platform/clinics` (PRD stories 6–7). Status, limits and modules are required inputs: the
+ * create form pre-fills limits and modules from the platform settings and sends what the super admin
+ * kept or changed, so the server never picks them (ADR-0020 amendment). The reserved-slug rule is NOT
  * here: the API answers it with its own code (`reserved_slug`), not a generic `validation`.
  */
 export const createClinicRequestSchema = z
@@ -63,10 +88,19 @@ export const createClinicRequestSchema = z
     expiresAt: z.string().datetime({ offset: true }).optional(),
     /** Days after the clinic's local today, ending 23:59:59 there; counted on the server clock. */
     trialDays: z.number().int().min(1).max(365).optional(),
-    maxUsers: z.number().int().min(1).max(1000),
-    maxBranches: z.number().int().min(1).max(100),
-    // TODO(spec): PRD §4.8 opens default modules "by specialty" without a table, so it is an input.
-    modules: z.object({ patients: z.boolean() }).strict(),
+    maxUsers: z
+      .number()
+      .int()
+      .min(CLINIC_LIMIT_BOUNDS.maxUsers.min)
+      .max(CLINIC_LIMIT_BOUNDS.maxUsers.max),
+    maxBranches: z
+      .number()
+      .int()
+      .min(CLINIC_LIMIT_BOUNDS.maxBranches.min)
+      .max(CLINIC_LIMIT_BOUNDS.maxBranches.max),
+    // One platform-wide default the form pre-fills (owner decision 2026-10-09), not PRD §4.8's
+    // "by specialty" table: the value sent is always the super admin's.
+    modules: moduleFlagsSchema.strict(),
     admin: z
       .object({
         fullName: name,

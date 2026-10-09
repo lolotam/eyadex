@@ -134,6 +134,10 @@ export const arAudit = {
       defaultTrialDays: "أيام التجربة الافتراضية",
       alertDaysBeforeExpiry: "أيام التنبيه قبل الانتهاء",
       emailSenderName: "اسم مرسل البريد",
+      defaultMaxUsers: "الحد الافتراضي للمستخدمين",
+      defaultMaxBranches: "الحد الافتراضي للفروع",
+      defaultModules: "الموديولات الافتراضية",
+      modules: "الموديولات",
     },
     values: {
       trial: "تجريبي",

@@ -3,10 +3,12 @@ import {
   platformClinicDetailSchema,
   platformClinicListResponseSchema,
 } from "@eyadex/contracts/platform-clinics";
+import { DEFAULT_PLATFORM_SETTINGS } from "@eyadex/contracts/platform";
 import {
   platformAccountResponseSchema,
   platformMeResponseSchema,
   platformOverviewResponseSchema,
+  platformSettingsRequestSchema,
   platformSettingsResponseSchema,
   platformTeamListResponseSchema,
 } from "@eyadex/contracts/platform-console";
@@ -56,20 +58,21 @@ describe("platform clinic detail contract", () => {
   });
 });
 
+const request = {
+  nameAr: "عيادة",
+  nameEn: "Clinic",
+  slug: "contract-clinic",
+  specialty: "general",
+  defaultLanguage: "ar",
+  timezone: "Asia/Kuwait",
+  status: "trial",
+  maxUsers: 5,
+  maxBranches: 2,
+  modules: { patients: true },
+  admin: { fullName: "Test Admin", email: "admin@example.test" },
+};
+
 describe("create clinic: at most one expiry input (neither = the platform default, ADR-0020)", () => {
-  const request = {
-    nameAr: "عيادة",
-    nameEn: "Clinic",
-    slug: "contract-clinic",
-    specialty: "general",
-    defaultLanguage: "ar",
-    timezone: "Asia/Kuwait",
-    status: "trial",
-    maxUsers: 5,
-    maxBranches: 2,
-    modules: { patients: true },
-    admin: { fullName: "Test Admin", email: "admin@example.test" },
-  };
   it("accepts trialDays alone, expiresAt alone, or neither", () => {
     expect(createClinicRequestSchema.safeParse({ ...request, trialDays: 14 }).success).toBe(true);
     expect(createClinicRequestSchema.safeParse(request).success).toBe(true);
@@ -114,7 +117,14 @@ describe("platform console contracts (PLAT-02)", () => {
     [platformTeamListResponseSchema, { items: [account], nextCursor: null, total: 1 }],
     [
       platformSettingsResponseSchema,
-      { defaultTrialDays: 14, alertDaysBeforeExpiry: 7, emailSenderName: "Eyadex" },
+      {
+        defaultTrialDays: 14,
+        alertDaysBeforeExpiry: 7,
+        emailSenderName: "Eyadex",
+        defaultMaxUsers: 10,
+        defaultMaxBranches: 3,
+        defaultModules: { patients: true },
+      },
     ],
   ] as const;
 
@@ -134,5 +144,33 @@ describe("platform console contracts (PLAT-02)", () => {
     ).toBe(false);
     const leakyTeam = { items: [{ ...account, civilId: "x" }], nextCursor: null, total: 1 };
     expect(platformTeamListResponseSchema.safeParse(leakyTeam).success).toBe(false);
+  });
+});
+
+// ADR-0020 amendment (2026-10-09): a platform default is always a create the API accepts.
+describe("new-clinic defaults share the create request's bounds", () => {
+  const settings = (over: object) =>
+    platformSettingsRequestSchema.safeParse({ ...DEFAULT_PLATFORM_SETTINGS, ...over }).success;
+  const create = (over: object) =>
+    createClinicRequestSchema.safeParse({ ...request, ...over }).success;
+
+  it.each([0, 1, 1000, 1001])("users %i: the setting and the create agree", (n) => {
+    expect(settings({ defaultMaxUsers: n })).toBe(create({ maxUsers: n }));
+  });
+  it.each([0, 1, 100, 101])("branches %i: the setting and the create agree", (n) => {
+    expect(settings({ defaultMaxBranches: n })).toBe(create({ maxBranches: n }));
+  });
+  it("NEGATIVE: a missing default, a module flag that is not a boolean, a missing or an unknown module is refused", () => {
+    const { defaultModules: _drop, ...missing } = DEFAULT_PLATFORM_SETTINGS;
+    void _drop;
+    expect(platformSettingsRequestSchema.safeParse(missing).success).toBe(false);
+    expect(settings({ defaultModules: { patients: "true" } })).toBe(false);
+    expect(settings({ defaultModules: {} })).toBe(false);
+    expect(settings({ defaultModules: { patients: true, billing: true } })).toBe(false);
+  });
+  it("the default modules and a create request's modules have the same keys", () => {
+    for (const modules of [{}, { patients: true }, { patients: true, billing: false }]) {
+      expect(settings({ defaultModules: modules })).toBe(create({ modules }));
+    }
   });
 });

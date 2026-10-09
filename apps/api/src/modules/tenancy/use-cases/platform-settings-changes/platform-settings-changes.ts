@@ -45,6 +45,9 @@ export class PlatformSettingsChanges {
         sql`UPDATE platform_settings SET default_trial_days = ${input.defaultTrialDays},
               alert_days_before_expiry = ${input.alertDaysBeforeExpiry},
               email_sender_name = ${input.emailSenderName},
+              default_max_users = ${input.defaultMaxUsers},
+              default_max_branches = ${input.defaultMaxBranches},
+              default_module_patients = ${input.defaultModules.patients}::boolean,
               updated_at = ${now.toISOString()}::timestamptz
             WHERE id = 1`,
       );

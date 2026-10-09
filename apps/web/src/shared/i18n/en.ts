@@ -1,3 +1,4 @@
+import { enClinicCreate } from "./en-clinic-create";
 import { enRoles } from "./en-roles";
 import { enPatients } from "./en-patients";
 import { enAudit } from "./en-audit";
@@ -110,22 +111,7 @@ export const en = {
       users: "Users",
       branches: "Branches",
     },
-    createTitle: "Create clinic",
-    createSubtitle: "The clinic starts on a 30-day trial. Its first admin receives an invitation.",
-    sectionClinic: "Clinic",
-    sectionAdmin: "First clinic admin",
-    fields: {
-      nameAr: "Name (Arabic)",
-      nameEn: "Name (English)",
-      slug: "Slug",
-      slugHint: "Lowercase letters, numbers and dashes.",
-      slugPreview: "Future address: {address}",
-      specialty: "Specialty",
-      defaultLanguage: "Default language",
-      timezone: "Timezone",
-      adminName: "Admin full name",
-      adminEmail: "Admin email",
-    },
+    ...enClinicCreate,
     created: "Clinic created",
     notFound: "Clinic not found",
     tabs: {

@@ -57,7 +57,7 @@
 - [x] Real sign-in (email + password, platform TOTP enrolment with QR), area-host guard, coming-soon states
 - [x] `build:all` with Node 24 / `NITRO_PRESET=node-server` (orchestrator; CI `verify` job)
 - [x] Clinic-side limits read and platform clinic read with time zone / language / created date (W2)
-- [x] Platform default trial days for new clinics (slice 11); TODO(spec): default user/branch limits and modules (not in story 26)
+- [x] Platform default trial days for new clinics (slice 11); default user/branch limits and modules are platform settings the create form pre-fills (owner decision 2026-10-09, ADR-0020 amendment, SQL 0041)
 
 ## Slice W2 — platform clinic list, usage reads, clinic time zone, server-side trial
 
