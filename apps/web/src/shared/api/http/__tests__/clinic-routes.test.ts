@@ -313,7 +313,7 @@ describe("wired clinic methods", () => {
     const ctx = await h.api.session.getContext(P);
     expect(last().url).toBe("/api/v1/me");
     expect(ctx.persona).toEqual({ kind: "custom", clinicId: CLINIC, memberId: USER });
-    expect(ctx.features).toEqual({ patients: true });
+    expect(ctx.features).toEqual({ patients: true, appointments: false });
     expect(ctx.blocked).toBeNull();
     expect(ctx.expiresInDays).toBeNull();
   });

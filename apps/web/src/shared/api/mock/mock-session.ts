@@ -1,4 +1,5 @@
 import type { ApiClient } from "../api-client";
+import { NO_FEATURES } from "@eyadex/contracts/clinics";
 import { ApiError } from "../api-error";
 import { clinicBlockReason, effectivePermissions, resolveActor } from "./mock-actor";
 import { delay, getState, persist } from "./mock-store";
@@ -73,7 +74,7 @@ export function createMockSession(): ApiClient["session"] {
           user: { fullName: account.fullName, email: account.email, preferredLanguage: null },
           clinic: null,
           permissions: [],
-          features: { patients: false },
+          features: { ...NO_FEATURES },
           blocked: null,
           expiresInDays: null,
         };
@@ -103,7 +104,7 @@ export function createMockSession(): ApiClient["session"] {
           timezone: clinic.timezone,
         },
         permissions: blocked ? [] : effectivePermissions(db, actor),
-        features: db.features[clinic.id] ?? { patients: false },
+        features: db.features[clinic.id] ?? NO_FEATURES,
         blocked,
         expiresInDays: blocked
           ? null

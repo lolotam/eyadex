@@ -48,6 +48,7 @@ export class PlatformSettingsChanges {
               default_max_users = ${input.defaultMaxUsers},
               default_max_branches = ${input.defaultMaxBranches},
               default_module_patients = ${input.defaultModules.patients}::boolean,
+              default_module_appointments = ${input.defaultModules.appointments}::boolean,
               updated_at = ${now.toISOString()}::timestamptz
             WHERE id = 1`,
       );

@@ -121,7 +121,7 @@ describe("platform settings (story 26)", () => {
       emailSenderName: "Eyadex",
       defaultMaxUsers: 10,
       defaultMaxBranches: 3,
-      defaultModules: { patients: true },
+      defaultModules: { patients: true, appointments: true },
     });
     const next = {
       defaultTrialDays: 30,
@@ -129,7 +129,7 @@ describe("platform settings (story 26)", () => {
       emailSenderName: "Eyadex Team",
       defaultMaxUsers: 25,
       defaultMaxBranches: 5,
-      defaultModules: { patients: false },
+      defaultModules: { patients: false, appointments: false },
     };
     const saved = await send("PUT", "/v1/platform/settings", { body: next });
     expect(saved.statusCode).toBe(200);
@@ -147,7 +147,7 @@ describe("platform settings (story 26)", () => {
         emailSenderName: "Eyadex",
         defaultMaxUsers: 10,
         defaultMaxBranches: 3,
-        defaultModules: { patients: true },
+        defaultModules: { patients: true, appointments: true },
       },
       after: next,
     });
@@ -162,7 +162,7 @@ describe("platform settings (story 26)", () => {
       emailSenderName: "Eyadex Team",
       defaultMaxUsers: 25,
       defaultMaxBranches: 5,
-      defaultModules: { patients: false },
+      defaultModules: { patients: false, appointments: false },
     };
     const { defaultModules: _drop, ...noModule } = good;
     void _drop;

@@ -1,4 +1,5 @@
 import { meResponseSchema, type MeResponse } from "@eyadex/contracts/access";
+import { NO_FEATURES, moduleSchema, type ClinicFeatures } from "@eyadex/contracts/clinics";
 import type { SessionContext } from "@eyadex/contracts/session";
 import type { ApiClient } from "../api-client";
 import { ApiError } from "../api-error";
@@ -24,7 +25,9 @@ export function contextFromMe(me: MeResponse): SessionContext {
     },
     clinic: { ...me.clinic },
     permissions: [...me.permissions],
-    features: { patients: me.modules.includes("patients") },
+    features: Object.fromEntries(
+      moduleSchema.options.map((module) => [module, me.modules.includes(module)]),
+    ) as ClinicFeatures,
     // A /v1/me answer has passed the API's subscription guard on the server clock; a blocked clinic
     // gets subscription_blocked instead, so the device clock never decides access.
     blocked: null,
@@ -39,7 +42,7 @@ export function contextFromPlatformMe(account: PlatformMeResponse): SessionConte
     user: { fullName: account.fullName, email: account.email, preferredLanguage: null },
     clinic: null,
     permissions: [],
-    features: { patients: false },
+    features: { ...NO_FEATURES },
     blocked: null,
     expiresInDays: null,
   };

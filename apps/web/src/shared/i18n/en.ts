@@ -143,6 +143,8 @@ export const en = {
       body: "Turning a module off hides it from the clinic's menu and role editor.",
       patients: "Patients",
       patientsBody: "Patient files, search and registration.",
+      appointments: "Appointments",
+      appointmentsBody: "Services, work schedules and time off; booking arrives next.",
       saved: "Module updated",
     },
     members: {

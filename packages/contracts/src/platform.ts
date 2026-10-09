@@ -50,7 +50,7 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
   emailSenderName: "Eyadex",
   defaultMaxUsers: 10,
   defaultMaxBranches: 3,
-  defaultModules: { patients: true },
+  defaultModules: { patients: true, appointments: true },
 };
 
 /**

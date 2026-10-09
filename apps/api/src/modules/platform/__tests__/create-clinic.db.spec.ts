@@ -70,7 +70,7 @@ const body = (t = tag()) => ({
   expiresAt: "2099-01-01T00:00:00Z",
   maxUsers: 5,
   maxBranches: 2,
-  modules: { patients: true },
+  modules: { patients: true, appointments: true },
   admin: { fullName: "Test Admin", email: `admin-${t}@example.test` },
 });
 const create = (b: unknown, key: string | null = randomUUID(), host = PLATFORM, c = cookie) =>
@@ -202,7 +202,12 @@ describe("POST /v1/platform/clinics (ONB-01)", () => {
     await h.owner`UPDATE platform_settings SET default_max_users = 50, default_max_branches = 9,
       default_module_patients = false`;
     try {
-      const b = { ...body(), maxUsers: 7, maxBranches: 4, modules: { patients: true } };
+      const b = {
+        ...body(),
+        maxUsers: 7,
+        maxBranches: 4,
+        modules: { patients: true, appointments: true },
+      };
       const res = await create(b);
       expect(res.statusCode).toBe(201);
       const { clinicId } = res.json();

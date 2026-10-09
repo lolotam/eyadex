@@ -57,6 +57,11 @@ export type ClinicModule = z.infer<typeof moduleSchema>;
 export const featuresSchema = moduleFlagsSchema;
 export type ClinicFeatures = z.infer<typeof featuresSchema>;
 
+/** A clinic with no flag rows: every module off (ADR-0010, default deny). */
+export const NO_FEATURES: Readonly<ClinicFeatures> = Object.freeze(
+  Object.fromEntries(CLINIC_MODULES.map((m) => [m, false])) as ClinicFeatures,
+);
+
 export const slugSchema = z
   .string()
   .trim()

@@ -90,7 +90,7 @@ describe("roles mock", () => {
 
   it("keeps hidden patients keys when saving while the module is off", async () => {
     const id = clinicId();
-    getState().features[id] = { patients: false };
+    getState().features[id] = { patients: false, appointments: false };
     const receptionist = role("receptionist");
     const before = receptionist.permissions.filter((k) => k.includes(":patients:"));
     expect(before.length).toBeGreaterThan(0);

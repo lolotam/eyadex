@@ -145,6 +145,7 @@ export const arAudit = {
       suspended: "موقوف",
       archived: "مؤرشف",
       patients: "المراجعون",
+      appointments: "المواعيد",
       ar: "العربية",
       en: "الإنجليزية",
       male: "ذكر",

@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { createClinicInputSchema, type CreateClinicInput } from "@eyadex/contracts/clinics";
 import { DEFAULT_PLATFORM_SETTINGS } from "@eyadex/contracts/platform";
 import { Form } from "@/components/ui/form";
+import { ar } from "@/shared/i18n/ar";
 import { I18nProvider } from "@/shared/i18n/i18n-provider";
 import { newClinicFormValues } from "./new-clinic-form-values";
 import { NewClinicLimitsCard } from "./new-clinic-limits-card";
@@ -13,7 +14,7 @@ const settings = {
   ...DEFAULT_PLATFORM_SETTINGS,
   defaultMaxUsers: 25,
   defaultMaxBranches: 5,
-  defaultModules: { patients: false },
+  defaultModules: { patients: false, appointments: false },
 };
 
 // A complete form, so only the limits decide whether it submits.
@@ -59,7 +60,7 @@ describe("the create-clinic form starts from the platform settings (ADR-0020 ame
       adminEmail: "",
       maxUsers: 25,
       maxBranches: 5,
-      modules: { patients: false },
+      modules: { patients: false, appointments: false },
     });
   });
 
@@ -72,12 +73,16 @@ describe("the create-clinic form starts from the platform settings (ADR-0020 ame
     const [users, branches] = screen.getAllByRole("spinbutton") as HTMLInputElement[];
     expect(users?.value).toBe("25");
     expect(branches?.value).toBe("5");
-    const patients = screen.getByRole("switch");
+    const patients = screen.getByRole("switch", { name: ar.clinics.modules.patients });
     expect(patients).toHaveAttribute("aria-checked", "false");
     await act(async () => patients.click());
     expect(patients).toHaveAttribute("aria-checked", "true");
     await act(async () => screen.getByRole("button", { name: "submit" }).click());
-    expect(submitted).toMatchObject({ maxUsers: 25, maxBranches: 5, modules: { patients: true } });
+    expect(submitted).toMatchObject({
+      maxUsers: 25,
+      maxBranches: 5,
+      modules: { patients: true, appointments: false },
+    });
   });
 
   it("NEGATIVE: a limit outside the API's bounds is not submitted", async () => {

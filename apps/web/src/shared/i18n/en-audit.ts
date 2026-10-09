@@ -145,6 +145,7 @@ export const enAudit = {
       suspended: "Suspended",
       archived: "Archived",
       patients: "Patients",
+      appointments: "Appointments",
       ar: "Arabic",
       en: "English",
       male: "Male",

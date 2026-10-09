@@ -2,7 +2,7 @@ import type { PlatformClinicDetail } from "@eyadex/contracts/platform-clinics";
 import type { Specialty } from "@eyadex/contracts/clinics";
 
 import { decideClinicAccess } from "../domain/clinic-access.ts";
-import { isModuleEnabled } from "../domain/feature-flags.ts";
+import { moduleMap } from "../domain/feature-flags.ts";
 import { branchesUsage, usersUsage } from "../domain/limits.ts";
 import type { ClinicReader } from "../ports/clinic-reader.ts";
 import type { Clock } from "../ports/clock.ts";
@@ -40,7 +40,7 @@ export async function getPlatformClinicDetail(
     defaultLanguage: snapshot.defaultLanguage,
     timezone: snapshot.timezone,
     createdAt: snapshot.createdAt.toISOString(),
-    modules: { patients: isModuleEnabled(snapshot.features, "patients") },
+    modules: moduleMap(snapshot.features),
     usage: {
       users: usersUsage(usage.activeMemberships, usage.livePendingInvitations, snapshot.maxUsers),
       branches: branchesUsage(snapshot.activeBranches, snapshot.maxBranches),

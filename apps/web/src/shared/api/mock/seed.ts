@@ -163,7 +163,7 @@ export function buildSeed(): MockState {
       createdAt,
     };
     state.clinics.push(clinic);
-    const features: ClinicFeatures = { patients: true };
+    const features: ClinicFeatures = { patients: true, appointments: true };
     state.features[clinicId] = features;
 
     const branches: Branch[] = [0, 1].map((bi) => {
