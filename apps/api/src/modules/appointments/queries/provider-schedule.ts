@@ -15,7 +15,10 @@ import {
 } from "../domain/scheduling-scope.ts";
 import { readScheduleRows, readUpcomingTimeOff } from "../persistence/pg-schedule-store.ts";
 import type { ProviderDirectory, ProviderRecord } from "../ports/provider-directory.ts";
-import type { SchedulingBranchReader } from "../ports/scheduling-branch-reader.ts";
+import type {
+  SchedulingBranch,
+  SchedulingBranchReader,
+} from "../ports/scheduling-branch-reader.ts";
 
 /** What a schedules read needs: the transaction and the module's two ports. */
 export interface ScheduleReads {
@@ -67,8 +70,9 @@ export async function listProviders(
 }
 
 /**
- * One provider's schedule as the caller may see it: its branches inside the reach, its rows there and
- * its time off that has not ended. A member outside the reach is `not_found` (no probing).
+ * One provider's schedule as the caller may see it: its live branches inside the reach, the dormant
+ * branches inside the reach that still hold its rows, its rows in both, and its time off that has not
+ * ended. A member outside the reach is `not_found` (no probing).
  *
  * @param reads the transaction and ports
  * @param viewer the caller
@@ -85,15 +89,27 @@ export async function readProviderSchedule(
   const { tx, providers, branches } = reads;
   const provider = await providers.find(tx, viewer.clinicId, membershipId);
   if (provider === null || !providerWithin(viewer.reach, provider)) throw new ApiError("not_found");
-  const visible = (await branches.listForOptions(tx, viewer.clinicId, viewer.language)).filter(
-    (b) => b.isActive && providerWorksIn(provider, b.id) && reachCovers(viewer.reach, b.id),
-  );
-  const ids = new Set(visible.map((b) => b.id));
   const rows = await readScheduleRows(tx, viewer.clinicId, membershipId);
+  const held = new Set(rows.map((r) => r.branchId));
+  const reached = (await branches.listForOptions(tx, viewer.clinicId, viewer.language)).filter(
+    (b) => reachCovers(viewer.reach, b.id),
+  );
+  const live = (b: SchedulingBranch) => b.isActive && providerWorksIn(provider, b.id);
+  const visible = reached.filter(live);
+  // Rows kept in an inactive branch or one the provider left: shown so they can be cleared (ADR-0026 §4).
+  const dormant = reached.filter((b) => !live(b) && held.has(b.id));
+  const ids = new Set([...visible, ...dormant].map((b) => b.id));
   const timeOff = await readUpcomingTimeOff(tx, viewer.clinicId, membershipId, now);
+  const branchOf = ({ id, nameAr, nameEn, isActive }: SchedulingBranch) => ({
+    id,
+    nameAr,
+    nameEn,
+    isActive,
+  });
   return {
     provider: summaryOf(provider, viewer.reach),
-    branches: visible.map(({ id, nameAr, nameEn, isActive }) => ({ id, nameAr, nameEn, isActive })),
+    branches: visible.map(branchOf),
+    dormantBranches: dormant.map(branchOf),
     shifts: rows
       .filter((r) => ids.has(r.branchId))
       .map(({ branchId, weekday, startsAt, endsAt }) => ({ branchId, weekday, startsAt, endsAt })),

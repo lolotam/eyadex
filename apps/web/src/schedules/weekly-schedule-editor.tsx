@@ -16,7 +16,13 @@ import { errorCodeOf } from "@/shared/api/api-error";
 import { useApi } from "@/shared/api/api-provider";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { usePersona } from "@/shared/persona/persona-provider";
-import { WEEKDAY_KEYS, rowsForBranch, toWeekInput, type WeekRow } from "./schedule-forms";
+import {
+  WEEKDAY_KEYS,
+  clashBranch,
+  rowsForBranch,
+  toWeekInput,
+  type WeekRow,
+} from "./schedule-forms";
 import { useRefreshSchedules } from "./schedule-queries";
 
 type Props = { schedule: ProviderSchedule; branchId: string; mayEdit: boolean };
@@ -24,7 +30,7 @@ type Props = { schedule: ProviderSchedule; branchId: string; mayEdit: boolean };
 export function WeeklyScheduleEditor({ schedule, branchId, mayEdit }: Props) {
   const api = useApi();
   const { persona } = usePersona();
-  const { t, tDynamic } = useI18n();
+  const { t, tDynamic, pick } = useI18n();
   const refresh = useRefreshSchedules();
   const [rows, setRows] = useState<WeekRow[]>(() => rowsForBranch(schedule, branchId));
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +51,14 @@ export function WeeklyScheduleEditor({ schedule, branchId, mayEdit }: Props) {
       refresh();
       toast.success(t("schedules.saved"));
     },
-    onError: (e) => setError(t(`errors.${errorCodeOf(e)}`)),
+    onError: (e) => {
+      const other = clashBranch(schedule, branchId, e);
+      setError(
+        other
+          ? t("schedules.overlapIn", { branch: pick(other.nameAr, other.nameEn) })
+          : t(`errors.${errorCodeOf(e)}`),
+      );
+    },
   });
 
   const edit = (key: string, patch: Partial<WeekRow>) =>

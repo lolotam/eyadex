@@ -4,8 +4,10 @@ import {
   wallMinutes,
   type BranchScheduleInput,
   type ProviderSchedule,
+  type ScheduleBranch,
   type TimeOffInput,
 } from "@eyadex/contracts/schedules";
+import { ApiError } from "@/shared/api/api-error";
 
 /** i18n keys of the weekdays, index = the contract's weekday (0 = Sunday). */
 export const WEEKDAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
@@ -23,6 +25,21 @@ export function rowsForBranch(schedule: ProviderSchedule, branchId: string): Wee
       startsAt: s.startsAt,
       endsAt: s.endsAt,
     }));
+}
+
+/**
+ * The other branch a refused week overlaps, when the API named it (only inside the caller's reach)
+ * and this schedule shows it; null means the generic overlap message.
+ */
+export function clashBranch(
+  schedule: ProviderSchedule,
+  branchId: string,
+  error: unknown,
+): ScheduleBranch | null {
+  if (!(error instanceof ApiError) || error.code !== "schedule_overlap") return null;
+  const named = error.details["branchId"];
+  if (named === undefined || named === branchId) return null;
+  return [...schedule.branches, ...schedule.dormantBranches].find((b) => b.id === named) ?? null;
 }
 
 export function toWeekInput(rows: WeekRow[]): BranchScheduleInput {

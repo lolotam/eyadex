@@ -1,4 +1,5 @@
 import {
+  findShiftClash,
   findShiftOverlap,
   minutesToWall,
   wallMinutes,
@@ -20,7 +21,7 @@ type WallShift = Pick<Shift, "weekday" | "startsAt" | "endsAt">;
 /** نتيجة حفظ أسبوع فرع. */
 export type ScheduleDecision =
   | { readonly kind: "same" }
-  | { readonly kind: "overlap" }
+  | { readonly kind: "overlap"; readonly branchId: string }
   | { readonly kind: "replace"; readonly shifts: readonly WallShift[] };
 
 /**
@@ -51,28 +52,30 @@ const sorted = (shifts: readonly WallShift[]) =>
 /**
  * يقرر حفظ أسبوع مقدّم خدمة في فرع (D-6، D-13): نفس الصفوف = مفيش تغيير؛ أي تداخل مع صفوفه في أي فرع
  * تاني أو بين الصفوف المطلوبة نفسها = رفض؛ غير كده الصفوف الجديدة بتحل محل صفوف الفرع ده. الصفوف
- * المتلاصقة مش تداخل، حتى عبر نص الليل (D-14). صفوف فرع مقدّم الخدمة مابقاش بيشتغل فيه أو فرع متعطّل
- * نايمة: مش ظاهرة ومابتمنعش ساعات في فروعه الشغّالة.
+ * المتلاصقة مش تداخل، حتى عبر نص الليل (D-14). كل صف بيعدّ، حتى الصفوف النايمة (فرع متعطّل أو فرع
+ * مقدّم الخدمة مابقاش بيشتغل فيه): لو رجعت شغّالة بعدين ماينفعش تتداخل مع حاجة (ADR-0026 §4).
  *
  * @param current كل صفوف مقدّم الخدمة في كل الفروع، مقروءة تحت قفله
  * @param branchId الفرع اللي بيتحفظ
  * @param wanted الأسبوع المطلوب في الفرع ده
- * @param isLiveBranch هل فرع تاني لسه بيعدّ (مقدّم الخدمة بيشتغل فيه والفرع نشط)
- * @returns القرار
+ * @returns القرار؛ في التداخل `branchId` هو فرع الصف اللي اتعارض (الفرع نفسه لو التداخل بين المطلوب)
  */
 export function decideBranchSchedule(
   current: readonly ScheduleRow[],
   branchId: string,
   wanted: readonly WallShift[],
-  isLiveBranch: (branchId: string) => boolean,
 ): ScheduleDecision {
   const mine = sorted(current.filter((r) => r.branchId === branchId)).map(shiftLabel);
   const next = sorted(wanted);
   if (mine.length === next.length && next.every((s, i) => shiftLabel(s) === mine[i])) {
     return { kind: "same" };
   }
-  const others = current.filter((r) => r.branchId !== branchId && isLiveBranch(r.branchId));
-  if (findShiftOverlap([...others, ...next]) !== null) return { kind: "overlap" };
+  if (findShiftOverlap(next) !== null) return { kind: "overlap", branchId };
+  const clash = findShiftClash(
+    current.filter((r) => r.branchId !== branchId),
+    next,
+  );
+  if (clash !== null) return { kind: "overlap", branchId: clash.branchId };
   return { kind: "replace", shifts: next };
 }
 

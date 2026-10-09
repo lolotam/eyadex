@@ -56,11 +56,23 @@ locks takes them first (the booking profile does). No PostgreSQL extension (no `
   configuration, not history; every save writes one `schedule.replaced` audit row with the old and new rows.
   It has no `UPDATE` grant.
 - The replace unit is (provider, branch), so `update:schedules:branch` can never touch a branch outside the
-  editor's reach. Overlaps are refused across all the provider's live branches (one person, one place):
-  rows of a branch the provider no longer works in, or of an inactive branch, are dormant — hidden from the
-  schedule and never blocking (configuration is never deleted behind the admin's back; they count again if
-  the provider returns to that branch or it is reactivated). TODO(spec): whether a branch change should
-  clear those rows instead is open.
+  editor's reach.
+- One invariant, no exceptions (one person, one place): a provider's rows never overlap, across **all**
+  branches. Rows of an inactive branch or of a branch the provider no longer works in are _dormant_: they are
+  never working hours (coverage reads one live branch only), but the save-time overlap check, under the provider
+  lock, counts them like any other row. Neither reactivating a branch nor reassigning the provider re-checks
+  schedules (those writes belong to tenancy and identity and stay as they are), so this is what keeps a dormant
+  row from ever coming back as a double booking. Only pairs involving the wanted week count, so an old clash
+  between two stored rows never blocks an unrelated branch.
+- A blocked save always has a way out. The schedule read returns `dormantBranches` — dormant branches inside the
+  caller's reach that still hold rows — and their rows in `shifts`; the Work schedules tab lists them read-only
+  with "Remove these hours". Removing is the ordinary replace with an **empty** week, which the route accepts for
+  an inactive branch or one the provider left (same `update:schedules` reach check, module on, one
+  `schedule.replaced` row); a non-empty week there is still `branch_inactive` / `provider_not_in_branch`.
+- `schedule_overlap` carries `details.branchId` (the branch of the conflicting row, or the saved branch for a
+  clash inside the week) only when that branch is inside the caller's reach; outside it the error is unnamed, as
+  the PR #63 rule hides other branches. A branch-scope editor blocked by such a row needs a clinic-scope editor
+  to clear it.
 - D-14 lives in `coversWallInterval` (`@eyadex/contracts/schedules`): back-to-back rows of one branch join, also
   across midnight and from Saturday 24:00 into Sunday 00:00. A2's booking check calls it.
 - The drift test maps Drizzle's `time` to `time without time zone` (information_schema's spelling).

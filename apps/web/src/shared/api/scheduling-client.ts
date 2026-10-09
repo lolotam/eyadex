@@ -40,7 +40,11 @@ export interface SchedulingApi {
   /** Bookable members working in at least one branch the caller's schedules view reaches. */
   listProviders(persona: Persona): Promise<ProviderSummary[]>;
   getProviderSchedule(persona: Persona, membershipId: string): Promise<ProviderSchedule>;
-  /** Replaces the provider's whole week in one branch (update:schedules at that branch). */
+  /**
+   * Replaces the provider's whole week in one branch (update:schedules at that branch). A dormant
+   * branch (inactive, or the provider left it) takes only an empty week, which clears its rows.
+   * schedule_overlap names the conflicting branch in details.branchId when it is inside the reach.
+   */
   replaceBranchSchedule(
     persona: Persona,
     membershipId: string,

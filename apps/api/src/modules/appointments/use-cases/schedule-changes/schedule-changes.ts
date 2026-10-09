@@ -41,18 +41,19 @@ export interface ScheduleActor extends ScheduleViewer {
 /**
  * جداول العمل والإجازات (D-6، D-13، D-14، ADR-0026 §3–§4). كل كتابة transaction واحدة تحت قفل مقدّم
  * الخدمة (نفس قفل الحجز في A2)، فيها صف سجل إداري واحد؛ الأسبوع بيتحفظ لكل فرع لوحده، والتداخل بيتقرر
- * على صفوف مقدّم الخدمة في كل فروعه. مفيش حذف إلا استبدال صفوف أسبوع الفرع.
+ * على كل صفوف مقدّم الخدمة في كل الفروع، النايمة كمان. مفيش حذف إلا استبدال صفوف أسبوع الفرع.
  */
 export class ScheduleChanges {
   constructor(private readonly deps: ScheduleChangesDeps) {}
 
   /**
-   * يستبدل أسبوع مقدّم خدمة في فرع؛ نفس الصفوف = نفس الرد من غير صف سجل.
+   * يستبدل أسبوع مقدّم خدمة في فرع؛ نفس الصفوف = نفس الرد من غير صف سجل. فرع نايم (متعطّل أو مقدّم
+   * الخدمة سابه) بيقبل أسبوع فاضي بس، يعني مسح صفوفه.
    *
    * @param actor الفاعل بوصول `update:schedules`
    * @param membershipId مقدّم الخدمة
    * @param branchId الفرع
-   * @param shifts الأسبوع بعد `branchScheduleInputSchema`
+   * @param shifts الأسبوع بعد `branchScheduleInputSchema` (فاضي = مسح صفوف الفرع)
    * @returns الجدول بعد الحفظ
    */
   replaceBranch(
@@ -68,17 +69,19 @@ export class ScheduleChanges {
       const branch = await branches.lockForFiling(tx, actor.clinicId, branchId);
       if (branch === null) throw new ApiError("not_found");
       if (!reachCovers(actor.reach, branchId)) throw new ApiError("forbidden");
-      if (!branch.isActive) throw new ApiError("branch_inactive");
-      if (!providerWorksIn(provider, branchId)) throw new ApiError("provider_not_in_branch");
+      // A dormant branch (inactive, or the provider left it) takes only an empty week: clearing its
+      // rows is the way out when they block hours elsewhere (ADR-0026 §4).
+      if (shifts.length > 0) {
+        if (!branch.isActive) throw new ApiError("branch_inactive");
+        if (!providerWorksIn(provider, branchId)) throw new ApiError("provider_not_in_branch");
+      }
       const current = await readScheduleRows(tx, actor.clinicId, membershipId);
-      // Rows of a branch the provider left, or that is inactive, are dormant (hidden, never blocking).
-      const live = new Set(
-        (await branches.listForOptions(tx, actor.clinicId, actor.language))
-          .filter((b) => b.isActive && providerWorksIn(provider, b.id))
-          .map((b) => b.id),
-      );
-      const decision = decideBranchSchedule(current, branchId, shifts, (id) => live.has(id));
-      if (decision.kind === "overlap") throw new ApiError("schedule_overlap");
+      const decision = decideBranchSchedule(current, branchId, shifts);
+      if (decision.kind === "overlap") {
+        // A branch outside the caller's reach stays unnamed (Codex PR #63).
+        const named = reachCovers(actor.reach, decision.branchId);
+        throw new ApiError("schedule_overlap", named ? { branchId: decision.branchId } : undefined);
+      }
       if (decision.kind === "replace") {
         const now = clock.now();
         const newId = () => ids.newId();

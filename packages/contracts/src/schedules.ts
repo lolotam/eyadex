@@ -100,13 +100,17 @@ export const timeOffInputSchema = z
 export type TimeOffInput = z.input<typeof timeOffInputSchema>;
 
 /**
- * One provider's schedule as the caller may see it: the branches it works in inside the caller's
- * reach, its weekly rows in those branches, and its time off that has not ended.
+ * One provider's schedule as the caller may see it: the active branches it works in inside the
+ * caller's reach (`branches`, editable), the branches inside the reach that still hold its rows
+ * although it no longer works there or they are inactive (`dormantBranches`: read-only, can only be
+ * cleared), its weekly rows in both (`shifts`), and its time off that has not ended. Dormant rows are
+ * never working hours; they count only for the no-overlap rule (ADR-0026 §4).
  */
 export const providerScheduleSchema = z
   .object({
     provider: providerSummarySchema,
     branches: z.array(scheduleBranchSchema),
+    dormantBranches: z.array(scheduleBranchSchema),
     shifts: z.array(scheduleShiftSchema),
     timeOff: z.array(timeOffSchema),
   })
@@ -133,6 +137,21 @@ export function findShiftOverlap<S extends WallShift>(
     if (reach === undefined) break;
     if (spanOf(next).start < spanOf(reach).end) return [reach, next];
     if (spanOf(next).end > spanOf(reach).end) reach = next;
+  }
+  return null;
+}
+
+/**
+ * The first existing row that shares a minute with one of the wanted rows, or null. Only pairs with a
+ * wanted row count, so an old clash between two existing rows never blocks an unrelated save; the
+ * caller checks the wanted rows against each other with `findShiftOverlap`.
+ */
+export function findShiftClash<S extends WallShift>(
+  existing: readonly S[],
+  wanted: readonly WallShift[],
+): S | null {
+  for (const row of existing) {
+    if (wanted.some((next) => findShiftOverlap<WallShift>([row, next]) !== null)) return row;
   }
   return null;
 }

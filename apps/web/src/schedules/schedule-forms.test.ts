@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { ProviderSchedule } from "@eyadex/contracts/schedules";
+import { ApiError } from "@/shared/api/api-error";
 import {
+  clashBranch,
   rowsForBranch,
   skippedTimeField,
   toTimeOffInput,
@@ -16,7 +18,8 @@ const schedule: ProviderSchedule = {
     allBranches: true,
     branchIds: [],
   },
-  branches: [],
+  branches: [{ id: "a", nameAr: "أ", nameEn: "A", isActive: true }],
+  dormantBranches: [{ id: "b", nameAr: "ب", nameEn: "B", isActive: false }],
   shifts: [
     { branchId: "b", weekday: 1, startsAt: "00:00", endsAt: "01:00" },
     { branchId: "a", weekday: 0, startsAt: "09:00", endsAt: "13:00" },
@@ -69,5 +72,17 @@ describe("time off on a clock change (Codex r2)", () => {
     };
     expect(skippedTimeField(form, "Africa/Cairo")).toBe("startTime");
     expect(skippedTimeField({ ...form, startTime: "02:00" }, "Africa/Cairo")).toBeNull();
+  });
+
+  it("names the other branch a refused week overlaps, live or dormant, when the API named it", () => {
+    const overlap = (details: Record<string, string>) =>
+      new ApiError("schedule_overlap", undefined, details);
+    expect(clashBranch(schedule, "a", overlap({ branchId: "b" }))?.nameEn).toBe("B");
+    expect(clashBranch(schedule, "b", overlap({ branchId: "a" }))?.nameEn).toBe("A");
+    // Unnamed (outside the caller's reach), the branch itself, unknown or another error: generic.
+    expect(clashBranch(schedule, "a", overlap({}))).toBeNull();
+    expect(clashBranch(schedule, "a", overlap({ branchId: "a" }))).toBeNull();
+    expect(clashBranch(schedule, "a", overlap({ branchId: "zz" }))).toBeNull();
+    expect(clashBranch(schedule, "a", new ApiError("forbidden"))).toBeNull();
   });
 });

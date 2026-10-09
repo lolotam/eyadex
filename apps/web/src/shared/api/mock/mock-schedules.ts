@@ -1,9 +1,10 @@
 import {
   branchScheduleInputSchema,
+  findShiftClash,
   findShiftOverlap,
   timeOffInputSchema,
 } from "@eyadex/contracts/schedules";
-import type { ProviderSchedule } from "@eyadex/contracts/schedules";
+import type { ProviderSchedule, ScheduleBranch, WallShift } from "@eyadex/contracts/schedules";
 import type { MembershipUser } from "@eyadex/contracts/users";
 import { ApiError } from "../api-error";
 import type { SchedulingApi } from "../scheduling-client";
@@ -18,7 +19,15 @@ import {
   worksIn,
   type SchedulingAccess,
 } from "./mock-scheduling-rules";
-import { delay, getState, newId, persist, type MockState, type StoredTimeOff } from "./mock-store";
+import {
+  delay,
+  getState,
+  newId,
+  persist,
+  type MockState,
+  type StoredShift,
+  type StoredTimeOff,
+} from "./mock-store";
 
 type SchedulesApi = Pick<
   SchedulingApi,
@@ -51,28 +60,53 @@ function bookable(db: MockState, a: SchedulingAccess, id: string): MembershipUse
   return member;
 }
 
+/**
+ * As the API: every row of the provider counts, dormant ones too (ADR-0026 §4); the conflicting
+ * branch is named only inside the caller's reach.
+ */
+function overlapCheck(
+  a: SchedulingAccess,
+  branchId: string,
+  current: readonly StoredShift[],
+  wanted: readonly WallShift[],
+): void {
+  const clash = findShiftOverlap(wanted)
+    ? branchId
+    : findShiftClash(
+        current.filter((r) => r.branchId !== branchId),
+        wanted,
+      )?.branchId;
+  if (clash === undefined) return;
+  const details: Record<string, string> = reachCovers(a.reach, clash) ? { branchId: clash } : {};
+  throw new ApiError("schedule_overlap", undefined, details);
+}
+
+const branchOf = ({ id, nameAr, nameEn, isActive }: ScheduleBranch) => ({
+  id,
+  nameAr,
+  nameEn,
+  isActive,
+});
+
 function scheduleOf(db: MockState, a: SchedulingAccess, member: MembershipUser): ProviderSchedule {
-  const branches = db.branches.filter(
-    (b) =>
-      b.clinicId === a.clinic.id &&
-      b.isActive &&
-      worksIn(member, b.id) &&
-      reachCovers(a.reach, b.id),
+  const rows = db.scheduleRows.filter(
+    (r) => r.clinicId === a.clinic.id && r.membershipId === member.id,
   );
-  const ids = new Set(branches.map((b) => b.id));
+  const reached = db.branches.filter(
+    (b) => b.clinicId === a.clinic.id && reachCovers(a.reach, b.id),
+  );
+  const live = (b: ScheduleBranch) => b.isActive && worksIn(member, b.id);
+  const branches = reached.filter(live);
+  // Rows kept in an inactive branch or one the provider left: shown so they can be cleared.
+  const dormant = reached.filter((b) => !live(b) && rows.some((r) => r.branchId === b.id));
+  const ids = new Set([...branches, ...dormant].map((b) => b.id));
   const now = Date.now();
   return {
     provider: summary(db, a, member),
-    branches: branches.map(({ id, nameAr, nameEn, isActive }) => ({
-      id,
-      nameAr,
-      nameEn,
-      isActive,
-    })),
-    shifts: db.scheduleRows
-      .filter(
-        (r) => r.clinicId === a.clinic.id && r.membershipId === member.id && ids.has(r.branchId),
-      )
+    branches: branches.map(branchOf),
+    dormantBranches: dormant.map(branchOf),
+    shifts: rows
+      .filter((r) => ids.has(r.branchId))
       .sort((x, y) => x.weekday - y.weekday || x.startsAt.localeCompare(y.startsAt))
       .map(({ branchId, weekday, startsAt, endsAt }) => ({ branchId, weekday, startsAt, endsAt })),
     timeOff: db.timeOff
@@ -120,23 +154,21 @@ export function createMockSchedules(): SchedulesApi {
       const branch = db.branches.find((b) => b.clinicId === a.clinic.id && b.id === branchId);
       if (!branch) throw new ApiError("not_found");
       if (!reachCovers(a.reach, branchId)) throw new ApiError("forbidden");
-      if (!branch.isActive) throw new ApiError("branch_inactive");
-      if (!worksIn(member, branchId)) throw new ApiError("provider_not_in_branch");
+      // As the API: a dormant branch (inactive, or the provider left it) takes only an empty week.
+      if (parsed.data.shifts.length > 0) {
+        if (!branch.isActive) throw new ApiError("branch_inactive");
+        if (!worksIn(member, branchId)) throw new ApiError("provider_not_in_branch");
+      }
       const mineOf = (r: (typeof db.scheduleRows)[number]) =>
         r.clinicId === a.clinic.id && r.membershipId === id;
       const current = db.scheduleRows.filter(mineOf);
-      // As the API: rows of a branch the provider left, or that is inactive, never block.
-      const live = (id: string) =>
-        worksIn(member, id) && db.branches.some((b) => b.id === id && b.isActive);
-      const others = current.filter((r) => r.branchId !== branchId && live(r.branchId));
-      if (findShiftOverlap([...others, ...parsed.data.shifts]))
-        throw new ApiError("schedule_overlap");
       const before = current
         .filter((r) => r.branchId === branchId)
         .map(shiftLabel)
         .sort();
       const after = parsed.data.shifts.map(shiftLabel).sort();
       if (before.join("|") !== after.join("|")) {
+        overlapCheck(a, branchId, current, parsed.data.shifts);
         db.scheduleRows = db.scheduleRows
           .filter((r) => !(mineOf(r) && r.branchId === branchId))
           .concat(

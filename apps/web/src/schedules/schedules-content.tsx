@@ -9,6 +9,7 @@ import { LoadingBlock } from "@/shared/shell/loading-block";
 import { SectionHeader } from "@/shared/shell/section-header";
 import { StatusPanel } from "@/shared/shell/status-panel";
 import { FilterSelect } from "@/shared/table/filter-select";
+import { DormantHoursPanel } from "./dormant-hours-panel";
 import { useProviderSchedule, useProviders } from "./schedule-queries";
 import { TimeOffPanel } from "./time-off-panel";
 import { WeeklyScheduleEditor } from "./weekly-schedule-editor";
@@ -106,6 +107,12 @@ export function SchedulesContent() {
             mayEdit={permissions.includes("update:schedules:clinic")}
           />
         </div>
+      )}
+      {schedule.data && (
+        <DormantHoursPanel
+          schedule={schedule.data}
+          mayEdit={can(permissions, "update", "schedules")}
+        />
       )}
     </div>
   );

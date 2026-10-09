@@ -23,7 +23,6 @@ import {
 } from "../time-off-rules.ts";
 
 const MINE: Reach = { all: false, branchIds: ["r"] };
-const LIVE = () => true;
 const row = (branchId: string, weekday: number, startsAt: string, endsAt: string): ScheduleRow => ({
   id: `${branchId}${weekday}${startsAt}`,
   branchId,
@@ -70,28 +69,35 @@ describe("decideBranchSchedule (D-6, D-13)", () => {
 
   it("the same week in the same branch changes nothing, in any order", () => {
     const same = [{ weekday: 0, startsAt: "08:00", endsAt: "12:00" }];
-    expect(decideBranchSchedule(current, "d", same, LIVE)).toEqual({ kind: "same" });
+    expect(decideBranchSchedule(current, "d", same)).toEqual({ kind: "same" });
   });
 
   it("refuses a week that overlaps the provider's rows in another branch", () => {
     const clash = [{ weekday: 1, startsAt: "11:00", endsAt: "13:00" }];
-    expect(decideBranchSchedule(current, "d", clash, LIVE)).toEqual({ kind: "overlap" });
+    expect(decideBranchSchedule(current, "d", clash)).toEqual({ kind: "overlap", branchId: "r" });
   });
 
-  it("rows of a branch the provider left, or of an inactive branch, are dormant (Codex r1)", () => {
+  it("every row counts, dormant ones too, until its branch is cleared (Codex PR #63 P2)", () => {
+    // Branch r may be inactive or left by the provider: its row still blocks, and names r.
     const clash = [{ weekday: 1, startsAt: "11:00", endsAt: "13:00" }];
-    expect(decideBranchSchedule(current, "d", clash, (id) => id !== "r")).toEqual({
-      kind: "replace",
-      shifts: clash,
-    });
+    expect(decideBranchSchedule(current, "d", clash)).toEqual({ kind: "overlap", branchId: "r" });
+    expect(decideBranchSchedule(current, "r", [])).toEqual({ kind: "replace", shifts: [] });
+    const cleared = current.filter((r) => r.branchId !== "r");
+    expect(decideBranchSchedule(cleared, "d", clash)).toEqual({ kind: "replace", shifts: clash });
   });
 
-  it("refuses two wanted rows that overlap each other", () => {
+  it("an old clash between two other branches never blocks an unrelated week", () => {
+    const old = [row("r", 4, "08:00", "12:00"), row("x", 4, "10:00", "14:00")];
+    const week = [{ weekday: 5, startsAt: "08:00", endsAt: "09:00" }];
+    expect(decideBranchSchedule(old, "d", week)).toEqual({ kind: "replace", shifts: week });
+  });
+
+  it("refuses two wanted rows that overlap each other, naming the branch itself", () => {
     const self = [
       { weekday: 3, startsAt: "08:00", endsAt: "10:00" },
       { weekday: 3, startsAt: "09:30", endsAt: "11:00" },
     ];
-    expect(decideBranchSchedule([], "d", self, LIVE)).toEqual({ kind: "overlap" });
+    expect(decideBranchSchedule([], "d", self)).toEqual({ kind: "overlap", branchId: "d" });
   });
 
   it("replaces with back-to-back rows across midnight (D-14) and drops the branch's old rows", () => {
@@ -99,11 +105,11 @@ describe("decideBranchSchedule (D-6, D-13)", () => {
       { weekday: 1, startsAt: "00:00", endsAt: "01:00" },
       { weekday: 0, startsAt: "20:00", endsAt: "24:00" },
     ];
-    expect(decideBranchSchedule(current, "d", night, LIVE)).toEqual({
+    expect(decideBranchSchedule(current, "d", night)).toEqual({
       kind: "replace",
       shifts: [night[1], night[0]],
     });
-    expect(decideBranchSchedule(current, "d", [], LIVE)).toEqual({ kind: "replace", shifts: [] });
+    expect(decideBranchSchedule(current, "d", [])).toEqual({ kind: "replace", shifts: [] });
   });
 
   it("reads PostgreSQL time text as HH:MM, 24:00 included", () => {

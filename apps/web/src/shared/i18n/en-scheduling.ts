@@ -85,6 +85,17 @@ export const enScheduling = {
       note: "Note (optional)",
     },
     loadError: "The schedule could not be loaded",
+    overlapIn: "These working hours overlap this person's hours in {branch}",
+    dormant: {
+      title: "Hours kept in other branches",
+      hint: "Hours saved in a branch that is now inactive, or that this person no longer works in. They are not working hours, but they still block overlapping hours elsewhere.",
+      inactive: "This branch is inactive",
+      left: "This person no longer works in this branch",
+      clear: "Remove these hours",
+      clearTitle: "Remove these hours?",
+      clearBody: "All of this person's weekly hours in this branch will be removed.",
+      cleared: "Hours removed",
+    },
   },
   bookingProfile: {
     action: "Booking settings",

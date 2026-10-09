@@ -24,6 +24,7 @@ const provider = {
 const schedule = {
   provider,
   branches: [{ id: BRANCH, nameAr: "ف", nameEn: "B", isActive: true }],
+  dormantBranches: [],
   shifts: [{ branchId: BRANCH, weekday: 0, startsAt: "20:00", endsAt: "24:00" }],
   timeOff: [{ id: OFF, startsAt: TS, endsAt: "2026-01-02T00:00:00.000Z", note: null }],
 };

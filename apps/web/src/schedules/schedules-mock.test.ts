@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { api, as, clinicIdAt, getState, resetMockData } from "@/shared/api/mock/mock-test-kit";
-import { errorCodeOf } from "@/shared/api/api-error";
+import { errorCodeOf, type ApiError } from "@/shared/api/api-error";
 
 const admin = () => as("clinic_admin");
 const fails = async (p: Promise<unknown>) =>
@@ -128,26 +128,99 @@ describe("weekly schedules (D-6, D-14) in the mock, as the API", () => {
   });
 });
 
-describe("dormant rows (Codex r1, as the API)", () => {
-  it("rows of a branch the provider left never block hours in its own branches", async () => {
-    const d = doctor();
-    const own = d.branchIds[0]!;
-    const left = getState().branches.find((b) => b.clinicId === clinicIdAt(0) && b.id !== own)!;
+describe("dormant rows (Codex PR #63 P2, as the API)", () => {
+  const keepRow = (memberId: string, branchId: string, weekday: number, from: string, to: string) =>
     getState().scheduleRows.push({
       id: crypto.randomUUID(),
       clinicId: clinicIdAt(0),
-      membershipId: d.id,
-      branchId: left.id,
-      weekday: 6,
-      startsAt: "08:00",
-      endsAt: "12:00",
+      membershipId: memberId,
+      branchId,
+      weekday,
+      startsAt: from,
+      endsAt: to,
     });
-    const saved = await api.scheduling.replaceBranchSchedule(
-      admin(),
-      d.id,
-      own,
-      week([6, "10:00", "14:00"]),
+  const detailsOf = async (p: Promise<unknown>) =>
+    p.then(
+      () => null,
+      (e: ApiError) => ({ code: e.code, details: e.details }),
     );
+
+  it("rows of a branch the provider left: shown, block naming it, clear with an empty week", async () => {
+    const d = doctor();
+    const own = d.branchIds[0]!;
+    const left = getState().branches.find((b) => b.clinicId === clinicIdAt(0) && b.id !== own)!;
+    keepRow(d.id, left.id, 6, "08:00", "12:00");
+    const seen = await api.scheduling.getProviderSchedule(admin(), d.id);
+    expect(seen.dormantBranches.map((b) => b.id)).toEqual([left.id]);
+    expect(seen.shifts.some((s) => s.branchId === left.id)).toBe(true);
+    const wanted = week([6, "10:00", "14:00"]);
+    expect(
+      await detailsOf(api.scheduling.replaceBranchSchedule(admin(), d.id, own, wanted)),
+    ).toEqual({ code: "schedule_overlap", details: { branchId: left.id } });
+    expect(
+      await fails(
+        api.scheduling.replaceBranchSchedule(admin(), d.id, left.id, week([6, "08:00", "09:00"])),
+      ),
+    ).toBe("provider_not_in_branch");
+    const cleared = await api.scheduling.replaceBranchSchedule(admin(), d.id, left.id, week());
+    expect(cleared.dormantBranches).toEqual([]);
+    const audit = getState().clinicAudit.filter((e) => e.action === "schedule.replaced");
+    expect(audit.at(-1)?.after).toMatchObject({
+      branchId: expect.objectContaining({ id: left.id }),
+      shifts: [],
+    });
+    const saved = await api.scheduling.replaceBranchSchedule(admin(), d.id, own, wanted);
     expect(saved.shifts.some((s) => s.weekday === 6 && s.branchId === own)).toBe(true);
+  });
+
+  it("rows of an inactive branch: shown, block, refuse new hours, clear with an empty week", async () => {
+    const d = doctor();
+    const own = d.branchIds[0]!;
+    keepRow(d.id, own, 1, "08:00", "12:00");
+    const branch = getState().branches.find((b) => b.id === own)!;
+    branch.isActive = false;
+    const seen = await api.scheduling.getProviderSchedule(admin(), d.id);
+    expect(seen.branches.map((b) => b.id)).not.toContain(own);
+    expect(seen.dormantBranches).toEqual([expect.objectContaining({ id: own, isActive: false })]);
+    expect(
+      await fails(
+        api.scheduling.replaceBranchSchedule(admin(), d.id, own, week([1, "08:00", "09:00"])),
+      ),
+    ).toBe("branch_inactive");
+    expect((await api.scheduling.replaceBranchSchedule(admin(), d.id, own, week())).shifts).toEqual(
+      [],
+    );
+  });
+
+  it("NEGATIVE: a branch-scope editor neither sees, clears nor learns of dormant rows outside its reach", async () => {
+    const receptionist = getState().roles.find(
+      (r) => r.clinicId === clinicIdAt(0) && r.systemKey === "receptionist",
+    )!;
+    receptionist.permissions.push("view:schedules:branch", "update:schedules:branch");
+    const desk = getState().members.find(
+      (m) => m.clinicId === clinicIdAt(0) && m.roleId === receptionist.id && m.status === "active",
+    )!;
+    const boss = getState().members.find(
+      (m) => m.clinicId === clinicIdAt(0) && m.allBranches && m.status === "active",
+    )!;
+    getState().bookingProfiles[boss.id] = { acceptsAppointments: true, defaultDurationMinutes: 20 };
+    const outside = getState().branches.find(
+      (b) => b.clinicId === clinicIdAt(0) && !desk.branchIds.includes(b.id),
+    )!;
+    keepRow(boss.id, outside.id, 3, "06:00", "07:00");
+    outside.isActive = false;
+    const seen = await api.scheduling.getProviderSchedule(as("receptionist"), boss.id);
+    expect(seen.dormantBranches).toEqual([]);
+    expect(seen.shifts.some((s) => s.branchId === outside.id)).toBe(false);
+    const desks = as("receptionist");
+    expect(
+      await fails(api.scheduling.replaceBranchSchedule(desks, boss.id, outside.id, week())),
+    ).toBe("forbidden");
+    const wanted = week([3, "06:30", "08:00"]);
+    expect(
+      await detailsOf(
+        api.scheduling.replaceBranchSchedule(desks, boss.id, desk.branchIds[0]!, wanted),
+      ),
+    ).toEqual({ code: "schedule_overlap", details: {} });
   });
 });
