@@ -47,18 +47,3 @@ export function useClinicBranches(id: string) {
     queryFn: () => api.platform.listClinicBranches(persona, id),
   });
 }
-
-/**
- * The platform settings a new clinic's form starts from. Same key as the settings page, so saving
- * the settings refreshes it.
- */
-export function useNewClinicSettings() {
-  const api = useApi();
-  const { persona, ready } = usePersona();
-  return useQuery({
-    queryKey: ["platform", "settings", persona.kind, persona.memberId],
-    queryFn: () => api.platformSettings.get(persona),
-    enabled: ready,
-    retry: false,
-  });
-}
