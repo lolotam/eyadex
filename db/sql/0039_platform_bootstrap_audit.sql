@@ -37,3 +37,18 @@ $$;
 ALTER FUNCTION link_first_platform_account(uuid, text, text, uuid) OWNER TO eyadex_platform_team_owner;
 REVOKE ALL ON FUNCTION link_first_platform_account(uuid, text, text, uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION link_first_platform_account(uuid, text, text, uuid) TO eyadex_auth;
+
+-- Databases bootstrapped before this file (staging and production, 2026-10-08/09) already have their
+-- first account, and the bootstrap can never run again there, so the row is backfilled once here: every
+-- active member nobody invited (the bootstrap's own, or 0037's hand-made backfill) without one. The id
+-- is PostgreSQL 18's uuidv7(), as the app would make it; the time is when the account joined, and
+-- `backfilled` says the row was written after the fact.
+INSERT INTO platform_audit_log (id, actor_user_id, action, clinic_id, details, created_at)
+  SELECT uuidv7(), a.user_id, 'platform_account.bootstrapped', NULL,
+         jsonb_build_object('accountId', a.user_id, 'after', jsonb_build_object('status', 'active'),
+                            'backfilled', true),
+         a.joined_at
+  FROM platform_accounts a
+  WHERE a.invited_by IS NULL AND a.user_id IS NOT NULL AND a.joined_at IS NOT NULL
+    AND NOT EXISTS (SELECT 1 FROM platform_audit_log l
+                    WHERE l.action = 'platform_account.bootstrapped' AND l.actor_user_id = a.user_id);

@@ -139,7 +139,9 @@ The bootstrap writes a `platform_account.bootstrapped` platform audit row in the
 (owner decision 2026-10-09, SQL 0039): `link_first_platform_account` now takes the row's id from the
 app (UUID v7) and inserts it itself, so no first account can be linked without its audit row. The
 row holds the account id and status only: no email or name, which are typed text the function cannot
-scrub (Codex review).
+scrub (Codex review). Databases bootstrapped before 0039 (staging, production) get the row once from
+0039 itself, for every active member nobody invited, marked `backfilled: true` and dated when the
+account joined (Codex review).
 
 ### Rollback
 
