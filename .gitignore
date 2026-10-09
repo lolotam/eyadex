@@ -43,3 +43,6 @@ dump.rdb
 # Lovable's sandbox writes a Bun lockfile; this repo is pnpm-only (pnpm-lock.yaml)
 bun.lock
 bun.lockb
+
+# drizzle-kit pull output (pnpm --filter @eyadex/db db:pull): a scratch rendering, never committed
+packages/db/.drizzle-pull

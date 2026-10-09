@@ -1,0 +1,66 @@
+// Navigation labels and each page's head (browser tab title and description, ADR-0025).
+// The people a clinic serves are "المراجعون" here, never "المرضى"; the brand stays `Eyadex`.
+export const arRoutes = {
+  nav: {
+    platformArea: "المنصة",
+    clinicArea: "العيادة",
+    overview: "نظرة عامة",
+    clinics: "العيادات",
+    team: "فريق المنصة",
+    audit: "سجل التدقيق",
+    settings: "الإعدادات",
+    branches: "الفروع",
+    users: "المستخدمون",
+    roles: "الأدوار والصلاحيات",
+    patients: "المراجعون",
+    account: "حسابي",
+    menu: "القائمة",
+  },
+  routes: {
+    login: { title: "تسجيل الدخول", description: "سجّل الدخول إلى Eyadex." },
+    forbidden: { title: "غير مسموح", description: "ليست لديك صلاحية الوصول إلى هذه الصفحة." },
+    invite: { title: "قبول الدعوة", description: "انضم إلى عيادتك على Eyadex." },
+    clinic: { title: "العيادة", description: "مساحة عمل العيادة." },
+    clinicOverview: {
+      title: "نظرة عامة على العيادة",
+      description: "الأعداد والاشتراك والاستخدام في عيادتك.",
+    },
+    clinicAccount: { title: "حسابي", description: "ملفك الشخصي ولغتك." },
+    clinicAudit: { title: "سجل التدقيق", description: "كل تغيير داخل العيادة." },
+    clinicBranches: {
+      title: "فروع العيادة",
+      description: "إدارة مواقع العيادة وبيانات التواصل وحالة التشغيل.",
+    },
+    clinicPatients: { title: "المراجعون", description: "ملفات المراجعين وتسجيلهم." },
+    clinicPatientFile: {
+      title: "ملف المراجع",
+      description: "ملف مراجع؛ كل فتح له يُسجَّل في سجل التدقيق.",
+    },
+    clinicRoles: {
+      title: "الأدوار والصلاحيات",
+      description: "حدّد من يستطيع فعل ماذا في العيادة.",
+    },
+    clinicSettings: { title: "إعدادات العيادة", description: "تفضيلات العيادة." },
+    clinicUsers: { title: "المستخدمون", description: "ادعُ مستخدمي العيادة وأدِرهم." },
+    platform: { title: "المنصة", description: "إدارة منصة Eyadex." },
+    platformOverview: {
+      title: "نظرة عامة على المنصة",
+      description: "العيادات حسب الحالة والاشتراكات التي تقترب من الانتهاء.",
+    },
+    platformAudit: { title: "سجل تدقيق المنصة", description: "كل تغيير على مستوى المنصة." },
+    platformClinics: {
+      title: "العيادات",
+      description: "ابحث عن أي عيادة على المنصة وأدِرها.",
+    },
+    platformClinic: {
+      title: "العيادة",
+      description: "تفاصيل العيادة واشتراكها ووحداتها ومستخدموها وفروعها.",
+    },
+    platformNewClinic: {
+      title: "عيادة جديدة",
+      description: "أنشئ عيادة مع أول مدير لها.",
+    },
+    platformSettings: { title: "إعدادات المنصة", description: "إعدادات على مستوى المنصة كلها." },
+    platformTeam: { title: "فريق المنصة", description: "حسابات فريق المنصة." },
+  },
+};

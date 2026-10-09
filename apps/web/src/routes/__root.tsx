@@ -16,6 +16,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
 import { ApiProvider } from "@/shared/api/api-provider";
 import { I18nProvider } from "@/shared/i18n/i18n-provider";
+import { LocalizedPageHead } from "@/shared/seo/localized-page-head";
 import { PersonaProvider } from "@/shared/persona/persona-provider";
 import { marketingLang } from "@/marketing/i18n";
 
@@ -136,6 +137,7 @@ function RootComponent() {
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <ApiProvider>
         <I18nProvider manageDocument={marketingLang(pathname) === null}>
+          <LocalizedPageHead />
           <PersonaProvider>
             <Outlet />
             <Toaster />

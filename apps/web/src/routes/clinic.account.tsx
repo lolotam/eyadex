@@ -3,6 +3,6 @@ import { AccountPage } from "@/settings/account-page";
 import { pageHead } from "@/shared/seo/page-head";
 
 export const Route = createFileRoute("/clinic/account")({
-  head: () => pageHead("My account", "Your profile and language."),
+  ...pageHead("clinicAccount"),
   component: AccountPage,
 });
