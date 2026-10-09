@@ -23,16 +23,18 @@
 | D-11 | Cancel and reschedule                     | Cancel needs a reason from a short list (patient cancelled, provider cancelled, other) and an optional note. Reschedule moves the same appointment; the old time is kept in the audit log.                |
 | D-12 | Who manages the services list             | The clinic admin; one clinic-level list (name ar/en, duration, active). No prices — prices come with the finance phase.                                                                                   |
 | D-13 | How overlap is prevented                  | A per-provider transaction lock (`pg_advisory_xact_lock`) and the check in the use case, like branches and users today. No new PostgreSQL extension.                                                      |
+| D-14 | A shift that runs past midnight           | Back-to-back schedule rows in the same branch count as one continuous shift, also across midnight (Sunday 20:00–24:00 + Monday 00:00–01:00 covers an appointment 23:45–00:15).                            |
+| D-15 | Duration bounds                           | Provider default duration 20 minutes until the admin changes it; any appointment and any service lasts 5 minutes to 8 hours.                                                                              |
 
 ## 2. Data model (all clinic tables: `clinic_id`, PK `(clinic_id, id)`, RLS enabled + forced, CLAUDE.md §5)
 
-| Table / change              | Columns (besides `clinic_id`, `id`, timestamps)                                                                                                                                                                                |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `clinic_services` (new)     | `name_ar`, `name_en`, `duration_minutes` (5–480), `status` (`active`/`inactive`). Unique names per clinic like roles.                                                                                                          |
-| `memberships` (new columns) | `accepts_appointments boolean NOT NULL DEFAULT false`, `default_duration_minutes` (5–480, default 20).                                                                                                                         |
-| `provider_schedules` (new)  | `membership_id`, `branch_id`, `weekday` (0–6), `starts_at time`, `ends_at time` (`starts_at < ends_at`). Wall-clock time in the clinic time zone. Several rows per day allowed (split shifts), never overlapping per provider. |
-| `provider_time_off` (new)   | `membership_id`, `starts_at timestamptz`, `ends_at timestamptz`, `note` (optional, short).                                                                                                                                     |
-| `appointments` (new)        | `branch_id`, `patient_id`, `provider_membership_id`, `service_id` (nullable), `starts_at`, `ends_at` (timestamptz, UTC), `status`, `overbooked`, `cancel_reason`, `cancel_note`, `created_by`.                                 |
+| Table / change              | Columns (besides `clinic_id`, `id`, timestamps)                                                                                                                                                                                                          |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `clinic_services` (new)     | `name_ar`, `name_en`, `duration_minutes` (5–480), `status` (`active`/`inactive`). Unique names per clinic like roles.                                                                                                                                    |
+| `memberships` (new columns) | `accepts_appointments boolean NOT NULL DEFAULT false`, `default_duration_minutes` (5–480, default 20).                                                                                                                                                   |
+| `provider_schedules` (new)  | `membership_id`, `branch_id`, `weekday` (0–6), `starts_at time`, `ends_at time` (`starts_at < ends_at`; `ends_at` may be `24:00`). Wall-clock time in the clinic time zone. Several rows per day allowed (split shifts), never overlapping per provider. |
+| `provider_time_off` (new)   | `membership_id`, `starts_at timestamptz`, `ends_at timestamptz`, `note` (optional, short).                                                                                                                                                               |
+| `appointments` (new)        | `branch_id`, `patient_id`, `provider_membership_id`, `service_id` (nullable), `starts_at`, `ends_at` (timestamptz, UTC), `status`, `overbooked`, `cancel_reason`, `cancel_note`, `created_by`.                                                           |
 
 - Indexes start with `clinic_id`: `(clinic_id, provider_membership_id, starts_at)`, `(clinic_id, branch_id, starts_at)`,
   `(clinic_id, patient_id)`, and `(clinic_id, provider_membership_id, patient_id) WHERE status <> 'cancelled'` for the
@@ -66,11 +68,11 @@
 
 1. A provider is bookable only while their membership is active and `accepts_appointments` is on.
 2. Booking: the branch is in the user's create scope; the provider has a schedule row in that branch covering the
-   whole interval (clinic wall time); no time off overlaps it; no other non-cancelled appointment of that provider
+   whole interval (clinic wall time) — back-to-back rows, also across midnight, count as one shift (D-14); no time off overlaps it; no other non-cancelled appointment of that provider
    overlaps it. Any failure → a specific error code, unless the user holds `overbook` (then `overbooked = true`).
 3. The overlap check and the insert/update run in one transaction holding
    `pg_advisory_xact_lock(hashtextextended('appointments:' || clinic_id || ':' || provider_membership_id, 0))`.
-4. Duration: service duration, else the provider default; the client may send any `ends_at > starts_at` (max 8 h).
+4. Duration: service duration, else the provider default; the client may send any `ends_at > starts_at` (5 minutes to 8 hours, D-15).
 5. Status transitions exactly as D-5; anything else → `invalid_transition`. Cancel requires `cancel_reason`.
 6. Reschedule = update of `starts_at`/`ends_at` (and optionally provider/branch) through rule 2; the audit row keeps
    the old and new times.
@@ -112,7 +114,7 @@ recurring appointments, waiting lists, resources/rooms, video visits.
 
 ## 8. Tests that must exist
 
-- Domain: overlap, schedule coverage (incl. split shifts and an interval crossing midnight → rejected), time off,
+- Domain: overlap, schedule coverage (incl. split shifts and a shift continued across midnight → accepted, a gap at midnight → rejected), time off,
   transitions table, duration resolution, overbook lifting only rule 2's checks.
 - `test:db` as `eyadex_app`: RLS negatives for every new table (cross-clinic read 0 rows, write error); two
   concurrent bookings for one provider → exactly one succeeds; `own` returns only the caller's appointments and
