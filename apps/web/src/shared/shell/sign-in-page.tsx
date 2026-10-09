@@ -6,6 +6,7 @@ import { PersonaPicker } from "@/shared/persona/persona-picker";
 import { usePersona } from "@/shared/persona/persona-provider";
 import { HttpSignIn } from "@/shared/auth/http-sign-in";
 import { LoadingBlock } from "./loading-block";
+import { signInCopy } from "./sign-in-copy";
 import { WrongHostPage } from "./wrong-host-page";
 
 export function SignInPage() {
@@ -14,9 +15,7 @@ export function SignInPage() {
   const disabled = (search as { reason?: string }).reason === "disabled";
   const { http } = usePersona();
   if (http && http.area === null) return <WrongHostPage area="clinic" />;
-  const title = !http
-    ? t("app.name")
-    : t(http.area === "platform" ? "auth.platformTitle" : "auth.clinicTitle");
+  const copy = signInCopy(http);
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <div className="flex justify-end p-4">
@@ -28,8 +27,8 @@ export function SignInPage() {
             <div className="mb-2 flex size-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
               <img src="/brand/eyadex-mark-white.svg" alt="" width={18} height={24} />
             </div>
-            <CardTitle className="text-2xl">{title}</CardTitle>
-            <CardDescription>{t("landing.body")}</CardDescription>
+            <CardTitle className="text-2xl">{t(copy.title)}</CardTitle>
+            <CardDescription>{t(copy.body)}</CardDescription>
           </CardHeader>
           <CardContent>
             {disabled && (
