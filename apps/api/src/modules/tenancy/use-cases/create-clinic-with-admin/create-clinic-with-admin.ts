@@ -76,7 +76,13 @@ export class CreateClinicWithAdmin {
         const check = checkNewClinic(input.slug, expiry, now);
         if (!check.ok) throw new ApiError(check.code);
 
-        await insertNewClinic(tx, clinicId, { ...input, expiresAt: expiry }, ids.newId(), now);
+        await insertNewClinic(
+          tx,
+          clinicId,
+          { ...input, expiresAt: expiry },
+          () => ids.newId(),
+          now,
+        );
         const invited = await provisioner.provision(tx, {
           clinicId,
           actorUserId,

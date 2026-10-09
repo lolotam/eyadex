@@ -89,6 +89,21 @@ const count = async (table: string, where: string, value: string) =>
   );
 
 describe("POST /v1/platform/clinics (ONB-01)", () => {
+  it("D-9: writes one flag per module, each as the request sent it", async () => {
+    const flags = async (clinicId: string) =>
+      Object.fromEntries(
+        (
+          await h.owner`SELECT module, enabled FROM clinic_features WHERE clinic_id = ${clinicId}`
+        ).map((r) => [r["module"], r["enabled"]]),
+      );
+    const off = await create({ ...body(), modules: { patients: true, appointments: false } });
+    expect(off.statusCode).toBe(201);
+    expect(await flags(off.json().clinicId)).toEqual({ patients: true, appointments: false });
+    const on = await create({ ...body(), modules: { patients: false, appointments: true } });
+    expect(on.statusCode).toBe(201);
+    expect(await flags(on.json().clinicId)).toEqual({ patients: false, appointments: true });
+  });
+
   it("writes clinic, roles, invitation (hash only), hold, audit and outbox together", async () => {
     const b = body();
     const res = await create(b);
@@ -96,7 +111,7 @@ describe("POST /v1/platform/clinics (ONB-01)", () => {
     const { clinicId, invitation } = res.json();
     expect(await count("clinics", "id::text", clinicId)).toBe(1);
     expect(await count("roles", "clinic_id::text", clinicId)).toBe(4);
-    expect(await count("clinic_features", "clinic_id::text", clinicId)).toBe(1);
+    expect(await count("clinic_features", "clinic_id::text", clinicId)).toBe(2);
     const [inv] = await h.owner`SELECT * FROM invitations WHERE id = ${invitation.id}`;
     expect(inv?.["token_hash"]).toMatch(/^[0-9a-f]{64}$/);
     expect(inv?.["status"]).toBe("pending");
@@ -200,7 +215,7 @@ describe("POST /v1/platform/clinics (ONB-01)", () => {
 
   it("limits and modules are the request's, never the platform defaults (ADR-0020 amendment)", async () => {
     await h.owner`UPDATE platform_settings SET default_max_users = 50, default_max_branches = 9,
-      default_module_patients = false`;
+      default_module_patients = false, default_module_appointments = false`;
     try {
       const b = {
         ...body(),
@@ -225,7 +240,7 @@ describe("POST /v1/platform/clinics (ONB-01)", () => {
       }
     } finally {
       await h.owner`UPDATE platform_settings SET default_max_users = 10, default_max_branches = 3,
-        default_module_patients = true`;
+        default_module_patients = true, default_module_appointments = true`;
     }
   });
 
