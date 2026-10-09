@@ -68,6 +68,7 @@ import type {
   PlatformOverview,
   PlatformSettings,
 } from "@eyadex/contracts/platform";
+import type { SchedulingApi } from "./scheduling-client";
 
 /**
  * The single data boundary of the app. Screens only talk to this interface.
@@ -197,6 +198,8 @@ export interface ApiClient {
     archive(persona: Persona, patientId: string): Promise<PatientWriteResult>;
     restore(persona: Persona, patientId: string): Promise<PatientWriteResult>;
   };
+  /** Services, booking profiles, weekly schedules and time off (appointments module, ADR-0026). */
+  scheduling: SchedulingApi;
   audit: {
     /** Needs view:audit_log:clinic; the caller's clinic only, newest first. */
     clinicList(persona: Persona, query: ClinicAuditListQuery): Promise<Page<ClinicAuditItem>>;

@@ -11,6 +11,7 @@ import {
   createHttpPlatformTeam,
 } from "./http-platform-console";
 import { createHttpRoles } from "./http-roles";
+import { createHttpScheduling } from "./http-scheduling";
 import { createHttpSession } from "./http-session";
 import { createHttpAccount, createHttpClinicSettings } from "./http-settings";
 import { createTransport } from "./http-transport";
@@ -33,6 +34,7 @@ export function createHttpApiClient(
     invitations: createHttpInvitations(ctx),
     roles: createHttpRoles(ctx),
     patients: createHttpPatients(ctx),
+    scheduling: createHttpScheduling(ctx),
     audit: createHttpAudit(ctx),
     clinicSettings: createHttpClinicSettings(ctx),
     account: createHttpAccount(ctx),
