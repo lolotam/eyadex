@@ -4,7 +4,9 @@ import { defineConfig } from "drizzle-kit";
 
 // drizzle-kit is an inspection tool here (ADR-0024): db/sql + db/migrate.sh stay the only way to change
 // a database. `push` with this schema would drop every RLS policy, so anything but `pull` is refused
-// before drizzle-kit opens a connection or writes a file.
+// before drizzle-kit opens a connection or writes a file. A guard rail, not a boundary: `drizzle-kit <cmd>`
+// run directly with CLI flags never loads this file, so packages/db/AGENTS.md forbids that; the real
+// boundary is that writable production/staging URLs never leave Dokploy.
 const ALLOWED_COMMANDS = new Set(["pull", "introspect"]);
 const command = process.argv.slice(2).find((arg) => !arg.startsWith("-"));
 if (command === undefined || !ALLOWED_COMMANDS.has(command)) {

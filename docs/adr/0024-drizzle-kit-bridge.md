@@ -55,7 +55,14 @@ differences". **No diff-report script is offered**: the exact comparator is `sch
 3. **`packages/db/drizzle.config.ts` refuses every other command** (`push`, `generate`, `migrate`,
    `check`, `studio`, `drop`, `up`, `export`) before drizzle-kit connects or writes, and refuses `pull`
    when `DRIZZLE_DATABASE_URL` is unset — there is no default URL. `drizzle-config.spec.ts` runs the
-   real binary for each refused command.
+   real binary for each refused command. **This is a guard rail against accidents, not a security
+   boundary:** drizzle-kit only reads this file when it is invoked through it, so
+   `drizzle-kit push --dialect=… --schema=… --url=…` run directly skips every refusal (Codex review of
+   PR #61). Anyone holding a writable URL can change that database with any client (`psql` included);
+   the boundary is the credentials — production and staging URLs live only in Dokploy (CLAUDE.md §8),
+   and the URLs on a developer machine point at throwaway local containers. Hence the rule in
+   `packages/db/AGENTS.md`: run drizzle-kit only through `pnpm --filter @eyadex/db db:pull`, never
+   `exec drizzle-kit …`, and never with a production or staging URL.
 4. **The session is read-only.** The config adds `default_transaction_read_only=on` (and an
    `application_name`) to the URL; postgres.js, the only driver `@eyadex/db` installs, sends them as
    startup parameters, so a write fails with "cannot execute … in a read-only transaction". Checked on
