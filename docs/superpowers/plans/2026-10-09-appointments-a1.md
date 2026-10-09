@@ -1988,7 +1988,7 @@ In `schema-surface.spec.ts`, add to the `clinicOwned` array:
 
 - [ ] **Step 2: Run the tests to see them fail**
 
-Run: `pnpm --filter @eyadex/db exec vitest run src/__tests__/schema-surface.spec.ts` (export the `test:db` env of the Global Constraints first for the second command) and `pnpm --filter @eyadex/db test:db -- src/__tests__/schema-drift.db.spec.ts`
+Run: `pnpm --filter @eyadex/db exec vitest run src/__tests__/schema-surface.spec.ts` (export the `test:db` env of the Global Constraints first for the second command) and `pnpm --filter @eyadex/db exec vitest run --config vitest.db.config.ts src/__tests__/schema-drift.db.spec.ts`
 Expected: surface FAILS (`getTableConfig` of `undefined`); drift FAILS on `mirrors exactly the tables the baseline creates` (three tables missing) and on `memberships` columns.
 
 - [ ] **Step 3: Write `packages/db/src/schema/scheduling.ts`**
@@ -2183,7 +2183,7 @@ const sqlTypeOf = (type: string): string => (type === "time" ? "time without tim
 
 - [ ] **Step 5: Run the tests**
 
-Run: `pnpm --filter @eyadex/db exec vitest run src/__tests__/schema-surface.spec.ts && pnpm --filter @eyadex/db test:db -- src/__tests__/schema-drift.db.spec.ts && pnpm --filter @eyadex/db typecheck`
+Run: `pnpm --filter @eyadex/db exec vitest run src/__tests__/schema-surface.spec.ts && pnpm --filter @eyadex/db exec vitest run --config vitest.db.config.ts src/__tests__/schema-drift.db.spec.ts && pnpm --filter @eyadex/db typecheck`
 Expected: PASS (if a check string differs, copy PostgreSQL's text from Task 5 Step 4 exactly).
 
 - [ ] **Step 6: Commit**
@@ -2350,7 +2350,7 @@ it("D-9: writes one flag per module; appointments is off unless the request turn
 
 - [ ] **Step 2: Run it to see it fail**
 
-Run (with the `test:db` env exported): `pnpm --filter @eyadex/api test:db -- src/modules/platform/__tests__/create-clinic.db.spec.ts`
+Run (with the `test:db` env exported): `pnpm --filter @eyadex/api exec vitest run --config vitest.db.config.ts src/modules/platform/__tests__/create-clinic.db.spec.ts`
 Expected: FAIL — `expected 1 to be 2` and `expected { patients: true } to deeply equal { patients: true, appointments: false }`.
 
 - [ ] **Step 3: Write one row per module**
@@ -2407,7 +2407,7 @@ await insertNewClinic(tx, clinicId, { ...input, expiresAt: expiry }, () => ids.n
 
 - [ ] **Step 4: Run the tests**
 
-Run: `pnpm --filter @eyadex/api test:db -- src/modules/platform src/modules/tenancy`
+Run: `pnpm --filter @eyadex/api exec vitest run --config vitest.db.config.ts src/modules/platform src/modules/tenancy`
 Expected: PASS (incl. the Task 1 expectations in `platform-clinic-admin.db.spec.ts` and `tenancy.db.spec.ts`).
 
 - [ ] **Step 5: Commit**
@@ -3095,7 +3095,7 @@ describe("booking profile", () => {
 
 - [ ] **Step 3: Run it to see it fail**
 
-Run (with the `test:db` env exported): `pnpm --filter @eyadex/api test:db -- src/modules/appointments/__tests__/booking-profile.db.spec.ts`
+Run (with the `test:db` env exported): `pnpm --filter @eyadex/api exec vitest run --config vitest.db.config.ts src/modules/appointments/__tests__/booking-profile.db.spec.ts`
 Expected: FAIL — `expected 404 to be 200` (no route yet).
 
 - [ ] **Step 4: Write `apps/api/src/shared/provider-lock.ts`**
@@ -3412,7 +3412,7 @@ export { PgProviderDirectory, type ProviderRow } from "./persistence/pg-provider
 
 - [ ] **Step 10: Run the tests**
 
-Run: `pnpm --filter @eyadex/api test:db -- src/modules/appointments/__tests__/booking-profile.db.spec.ts src/modules/identity && pnpm --filter @eyadex/api exec vitest run src/shared && pnpm --filter @eyadex/api typecheck`
+Run: `pnpm --filter @eyadex/api exec vitest run --config vitest.db.config.ts src/modules/appointments/__tests__/booking-profile.db.spec.ts src/modules/identity && pnpm --filter @eyadex/api exec vitest run src/shared && pnpm --filter @eyadex/api typecheck`
 Expected: PASS (the route-access check counts the new routes; each has exactly one access declaration); typecheck exits 0.
 
 - [ ] **Step 11: Commit**
@@ -3622,7 +3622,7 @@ it("the appointments module's SQL names only its own tables; the rest comes thro
 
 - [ ] **Step 2: Run them to see them fail**
 
-Run: `pnpm --filter @eyadex/api exec vitest run src/shared/__tests__/module-boundaries.spec.ts && pnpm --filter @eyadex/api test:db -- src/modules/appointments/__tests__/services.db.spec.ts`
+Run: `pnpm --filter @eyadex/api exec vitest run src/shared/__tests__/module-boundaries.spec.ts && pnpm --filter @eyadex/api exec vitest run --config vitest.db.config.ts src/modules/appointments/__tests__/services.db.spec.ts`
 Expected: FAIL — `expected false to be true` (no module file) and `expected 404 to be 201`.
 
 - [ ] **Step 3: Ports and tokens**
@@ -4236,7 +4236,7 @@ and add `/v1/services`, `/v1/schedules` and `ADR-0026` to the `mountClinic` doc 
 
 - [ ] **Step 9: Run the tests**
 
-Run: `pnpm exec prettier --write apps/api/src/modules/appointments apps/api/src/app.ts && pnpm --filter @eyadex/api exec vitest run src/shared && pnpm --filter @eyadex/api test:db -- src/modules/appointments && pnpm --filter @eyadex/api typecheck && pnpm --filter @eyadex/api lint`
+Run: `pnpm exec prettier --write apps/api/src/modules/appointments apps/api/src/app.ts && pnpm --filter @eyadex/api exec vitest run src/shared && pnpm --filter @eyadex/api exec vitest run --config vitest.db.config.ts src/modules/appointments && pnpm --filter @eyadex/api typecheck && pnpm --filter @eyadex/api lint`
 Expected: PASS; typecheck and lint exit 0.
 
 - [ ] **Step 10: Commit**
@@ -4498,7 +4498,7 @@ describe("the module flag (rule 10)", () => {
 
 - [ ] **Step 2: Run them to see them fail**
 
-Run (with the `test:db` env exported): `pnpm --filter @eyadex/api test:db -- src/modules/appointments/__tests__/schedules.db.spec.ts`
+Run (with the `test:db` env exported): `pnpm --filter @eyadex/api exec vitest run --config vitest.db.config.ts src/modules/appointments/__tests__/schedules.db.spec.ts`
 Expected: FAIL — `expected 404 to be 200` on the first PUT (no route yet).
 
 - [ ] **Step 3: `persistence/pg-schedule-store.ts`**
@@ -5138,7 +5138,7 @@ extend the tokens import with `SCHEDULE_CHANGES`, set `controllers: [ServicesCon
 
 - [ ] **Step 8: Run the tests**
 
-Run: `pnpm exec prettier --write apps/api/src/modules/appointments && pnpm --filter @eyadex/api test:db -- src/modules/appointments && pnpm --filter @eyadex/api exec vitest run src/shared src/modules/appointments && pnpm --filter @eyadex/api typecheck && pnpm --filter @eyadex/api lint`
+Run: `pnpm exec prettier --write apps/api/src/modules/appointments && pnpm --filter @eyadex/api exec vitest run --config vitest.db.config.ts src/modules/appointments && pnpm --filter @eyadex/api exec vitest run src/shared src/modules/appointments && pnpm --filter @eyadex/api typecheck && pnpm --filter @eyadex/api lint`
 Expected: PASS (`prettier` wraps the long test lines); typecheck and lint exit 0; `wc -l` of every new file ≤ 300.
 
 - [ ] **Step 9: Commit**
