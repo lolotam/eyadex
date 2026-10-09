@@ -42,6 +42,6 @@ dispatched_at)`. Not a clinic-owned table (platform events have no clinic), so t
 ## Consequences
 
 - `OUTBOX_SEAL_KEY` rotation needs a drain of pending events first. TODO(spec): key rotation.
-- TODO(spec): retention of `idempotency_keys`; default limits/expiry/modules for a new clinic are
+- Retention of `idempotency_keys`: 30 days (ADR-0022). TODO(spec): default limits/expiry/modules for a new clinic are
   required inputs until the PRD fixes them; the `@Require` platform permission lands in slice 4.
 - The worker slice implements the dispatcher (read pending, open, send, scrub, mark) — done in ADR-0013.

@@ -61,4 +61,4 @@ a phone to the branch; the table had neither.
 ## Consequences
 
 - Slice 7 (users) reuses the same pattern for the seat limit: an in-transaction lock + count.
-- `clinic_idempotency_keys` retention is open, like `idempotency_keys` (0025).
+- `clinic_idempotency_keys` retention: 30 days, like `idempotency_keys` (ADR-0022).

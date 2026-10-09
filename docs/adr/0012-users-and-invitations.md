@@ -108,4 +108,4 @@ expiresAt, reason: "invited" | "resent", sealedToken }`, sealed with the event i
 
 - No new SQL: existing grants (0013, 0016) and the 0015 functions cover every write.
 - The clinic area now needs `OUTBOX_SEAL_KEY` too (same key as onboarding).
-- Retention of `clinic_idempotency_keys` remains open, as for the platform ledger.
+- Retention of `clinic_idempotency_keys`: 30 days, as for the platform ledger (ADR-0022).

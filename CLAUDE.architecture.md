@@ -128,7 +128,10 @@ Three named pre-tenant / onboarding paths (`db/sql/0014`, `0027`), and no others
   it may insert the clinic, its system roles and the first-admin invitation; RLS still pins every
   row to that clinic and the platform still has no grant on patients.
 - **Link rows** (`membership_branches`, `role_permissions`, `invitation_branches`) are the only
-  deletable tables (`0016`); every entity is deactivated or archived instead.
+  deletable tables (`0016`); every entity is deactivated or archived instead. The technical ledgers
+  (`idempotency_keys`, `clinic_idempotency_keys`, `outbox_events`) lose rows only through the three
+  retention functions of `0040` (ADR-0022): SECURITY DEFINER, owned by a NOLOGIN role, executable by
+  `eyadex_dispatcher` only, deleting only rows past their period.
 - **Accepting an invitation** starts with no clinic: `invitation_clinic_for_token(token_hash)`
   (SECURITY DEFINER, owned by a NOLOGIN role, executable by `eyadex_app` only) returns just the
   clinic id of a pending, unexpired invitation; the API then continues inside `withTenant()`.

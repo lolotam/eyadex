@@ -100,6 +100,7 @@ HSTS is left to Cloudflare. CORS stays absent: every call is same-origin (ADR-00
 | `SMTP_HOST` / `_PORT` / `_USER`         |                 |     |   ✓    |        |
 | `SMTP_PASSWORD`                         |                 |     |   ✓    |   ✓    |
 | `OUTBOX_POLL_INTERVAL_MS`               |                 |     |   ✓    |        |
+| `RETENTION_PURGE_INTERVAL_MS` (opt.)    |                 |     |   ✓    |        |
 
 The PostgreSQL service also holds the owner password and the four runtime role passwords; the Redis
 service holds its password.

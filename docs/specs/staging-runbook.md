@@ -164,6 +164,9 @@ Expected for all four: `rolsuper = f`, `rolbypassrls = f`, `rolcanlogin = t`, `t
   OUTBOX_POLL_INTERVAL_MS=2000
   ```
 
+  Optional (defaults when unset): `EXPIRY_SCAN_INTERVAL_MS` and `RETENTION_PURGE_INTERVAL_MS`, both one
+  hour (ADR-0020, ADR-0022).
+
   Secrets, pasted by the owner: `DATABASE_URL` (`eyadex_app`), `DISPATCHER_DATABASE_URL`
   (`eyadex_dispatcher`), `PLATFORM_DATABASE_URL` (`eyadex_platform`: the expiry scan and platform-team
   links, ADR-0020), `OUTBOX_SEAL_KEY` and `MAIL_PROVIDER_SEAL_KEY` (the **same** values as the
