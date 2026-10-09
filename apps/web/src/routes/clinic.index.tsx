@@ -3,6 +3,6 @@ import { ClinicOverviewPage } from "@/shared/shell/clinic-overview-page";
 import { pageHead } from "@/shared/seo/page-head";
 
 export const Route = createFileRoute("/clinic/")({
-  head: () => pageHead("Clinic overview", "Counts, subscription and usage for your clinic."),
+  ...pageHead("clinicOverview"),
   component: ClinicOverviewPage,
 });

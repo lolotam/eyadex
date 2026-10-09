@@ -4,6 +4,7 @@ import { arAudit } from "./ar-audit";
 import { arUsers } from "./ar-users";
 import { arSettings } from "./ar-settings";
 import { arAccess, arAccessErrors } from "./ar-access";
+import { arRoutes } from "./ar-routes";
 
 import type { Dictionary } from "./dictionary";
 
@@ -54,21 +55,7 @@ export const ar: Dictionary = {
     disabledNotice: "تم تعطيل حسابك وتسجيل خروجك. تواصل مع مدير العيادة.",
     signOut: "تسجيل الخروج",
   },
-  nav: {
-    platformArea: "المنصة",
-    clinicArea: "العيادة",
-    overview: "نظرة عامة",
-    clinics: "العيادات",
-    team: "فريق المنصة",
-    audit: "سجل التدقيق",
-    settings: "الإعدادات",
-    branches: "الفروع",
-    users: "المستخدمون",
-    roles: "الأدوار والصلاحيات",
-    patients: "المراجعون",
-    account: "حسابي",
-    menu: "القائمة",
-  },
+  ...arRoutes,
   ...arAccess,
   blocked: {
     suspendedTitle: "هذه العيادة موقوفة",
