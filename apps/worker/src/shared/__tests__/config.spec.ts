@@ -40,6 +40,17 @@ describe("readConfig", () => {
     );
   });
 
+  it("runs the retention purge hourly unless told otherwise, between a minute and a day (ADR-0022)", () => {
+    expect(readConfig(required).RETENTION_PURGE_INTERVAL_MS).toBe(3_600_000);
+    const daily = readConfig({ ...required, RETENTION_PURGE_INTERVAL_MS: "86400000" });
+    expect(daily.RETENTION_PURGE_INTERVAL_MS).toBe(86_400_000);
+    for (const bad of ["59999", "86400001", "1.5", "hourly"]) {
+      expect(() => readConfig({ ...required, RETENTION_PURGE_INTERVAL_MS: bad })).toThrow(
+        /RETENTION_PURGE_INTERVAL_MS/,
+      );
+    }
+  });
+
   it("reads the interface, the port and the level from the environment", () => {
     expect(
       readConfig({ ...required, WORKER_HOST: "127.0.0.1", WORKER_PORT: "3009", LOG_LEVEL: "warn" }),

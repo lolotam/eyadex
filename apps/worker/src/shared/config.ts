@@ -14,7 +14,8 @@ const schema = z
     WORKER_PORT: z.coerce.number().int().min(1).max(65_535).default(3002),
     // Validated here so an invalid value never reaches pino, whose error message would print it.
     LOG_LEVEL: z.enum(LOG_LEVELS).default("info"),
-    // ADR-0013: eyadex_app reads the invitation under its clinic; eyadex_dispatcher touches the outbox only.
+    // ADR-0013: eyadex_app reads the invitation under its clinic; eyadex_dispatcher touches the outbox only
+    // (and runs the retention purge functions, ADR-0022).
     DATABASE_URL: z.string().url(),
     DISPATCHER_DATABASE_URL: z.string().url(),
     // ADR-0020: the expiry scan (clinics + platform_settings) and the platform-team invitation check.
@@ -34,6 +35,13 @@ const schema = z
       .transform((v) => v.replace(/\/+$/, "")),
     // How often the expiry reminder scan runs; the ledger makes a reminder once per expiry date anyway.
     EXPIRY_SCAN_INTERVAL_MS: z.coerce.number().int().min(60_000).max(86_400_000).default(3_600_000),
+    // How often the retention purge runs (ADR-0022); the database decides what is old enough to go.
+    RETENTION_PURGE_INTERVAL_MS: z.coerce
+      .number()
+      .int()
+      .min(60_000)
+      .max(86_400_000)
+      .default(3_600_000),
     // ADR-0014 (7c-2): opens clinic mail credentials, bound to the provider row id. Not OUTBOX_SEAL_KEY.
     MAIL_PROVIDER_SEAL_KEY: z
       .string()
