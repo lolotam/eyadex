@@ -1,5 +1,7 @@
+import { PERMISSION_CATALOG } from "@eyadex/contracts/permissions";
 import { describe, expect, it } from "vitest";
 
+import { grantFor } from "../permission-check.ts";
 import { SYSTEM_ROLES } from "../system-roles.ts";
 import {
   decideActorPermission,
@@ -115,5 +117,41 @@ describe("decideRoleGrant (change role, branches, invite, resend, link, member r
     expect(decideRoleGrant(member(adminKeys), U, ["view:patients:branch"], branchA)).toBe(
       "allowed",
     );
+  });
+});
+
+describe("the own scope (spec §3: the narrowest; a wider scope on the same action wins)", () => {
+  it("own is granted by own, branch or clinic, and grants nothing wider", () => {
+    expect(grantFor(["view:appointments:own"], "view:appointments:own")).toBe("own");
+    expect(grantFor(["view:appointments:branch"], "view:appointments:own")).toBe("branch");
+    expect(grantFor(["view:appointments:clinic"], "view:appointments:own")).toBe("clinic");
+    expect(grantFor(["view:appointments:own"], "view:appointments:branch")).toBeNull();
+    expect(grantFor(["view:appointments:own"], "view:appointments:clinic")).toBeNull();
+  });
+
+  it("a branch-scope actor covers an own key when defining or granting a role", () => {
+    expect(uncoveredKeys(["view:appointments:branch"], ["view:appointments:own"])).toEqual([]);
+    expect(uncoveredKeys(["view:appointments:own"], ["view:appointments:branch"])).toEqual([
+      "view:appointments:branch",
+    ]);
+  });
+});
+
+describe("new-clinic system roles (ADR-0026 §6)", () => {
+  it("the locked admin holds every clinic-scope key of the catalogue, appointments included", () => {
+    const clinicKeys = PERMISSION_CATALOG.filter((p) => p.scope === "clinic").map((p) => p.key);
+    expect([...adminKeys].sort()).toEqual([...clinicKeys].sort());
+    expect(adminKeys).toContain("update:schedules:clinic");
+  });
+
+  it("doctor, receptionist and technician keep their keys until slice A3", () => {
+    const keysOf = (key: string) => SYSTEM_ROLES.find((r) => r.key === key)!.permissions;
+    expect(keysOf("doctor")).toEqual(["view:patients:branch"]);
+    expect(keysOf("receptionist")).toEqual([
+      "view:patients:branch",
+      "create:patients:branch",
+      "update:patients:branch",
+    ]);
+    expect(keysOf("technician")).toEqual(["view:patients:branch"]);
   });
 });
