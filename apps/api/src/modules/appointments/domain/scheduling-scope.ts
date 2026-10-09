@@ -76,3 +76,18 @@ export function branchesWithin(reach: Reach, provider: ProviderReach): ProviderR
 export function providerWorksIn(provider: ProviderReach, branchId: string): boolean {
   return provider.allBranches || provider.branchIds.includes(branchId);
 }
+
+/**
+ * وصول القراءة من مفاتيح الفاعل الفعلية: `view:schedules:clinic` = كل الفروع، `view:schedules:branch` =
+ * فروع العضو، غير كده مفيش فروع. رد أي كتابة بيتقصّ على ده، مش على وصول الكتابة، فمحدش يشوف من رد
+ * `PUT` فروع مايقدرش يقراها بـ `GET`.
+ *
+ * @param permissions مفاتيح الفاعل الفعلية
+ * @param member فروع العضو من سياق الطلب
+ * @returns وصول القراءة (فاضي لو مفيش مفتاح عرض)
+ */
+export function viewReachOf(permissions: readonly string[], member: Reach): Reach {
+  if (permissions.includes("view:schedules:clinic")) return { all: true };
+  if (permissions.includes("view:schedules:branch")) return member;
+  return { all: false, branchIds: [] };
+}

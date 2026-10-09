@@ -223,4 +223,30 @@ describe("dormant rows (Codex PR #63 P2, as the API)", () => {
       ),
     ).toEqual({ code: "schedule_overlap", details: {} });
   });
+
+  it("NEGATIVE: a write answers with the schedule clipped to the view keys (Codex PR #63)", async () => {
+    const receptionist = getState().roles.find(
+      (r) => r.clinicId === clinicIdAt(0) && r.systemKey === "receptionist",
+    )!;
+    receptionist.permissions.push("view:schedules:branch", "update:schedules:clinic");
+    const desk = getState().members.find(
+      (m) => m.clinicId === clinicIdAt(0) && m.roleId === receptionist.id && m.status === "active",
+    )!;
+    const boss = getState().members.find(
+      (m) => m.clinicId === clinicIdAt(0) && m.allBranches && m.status === "active",
+    )!;
+    getState().bookingProfiles[boss.id] = { acceptsAppointments: true, defaultDurationMinutes: 20 };
+    const outside = getState().branches.find(
+      (b) => b.clinicId === clinicIdAt(0) && b.isActive && !desk.branchIds.includes(b.id),
+    )!;
+    const saved = await api.scheduling.replaceBranchSchedule(
+      as("receptionist"),
+      boss.id,
+      outside.id,
+      week([4, "15:00", "16:00"]),
+    );
+    expect(saved.provider.allBranches).toBe(false);
+    expect(saved.branches.every((b) => desk.branchIds.includes(b.id))).toBe(true);
+    expect(saved.shifts.some((s) => s.branchId === outside.id)).toBe(false);
+  });
 });

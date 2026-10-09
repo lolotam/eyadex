@@ -7,7 +7,12 @@ import { ApiError } from "../../../../shared/errors.ts";
 import { lockProvider } from "../../../../shared/provider-lock.ts";
 import type { Clock } from "../../../tenancy/index.ts";
 import { decideBranchSchedule, scheduleAuditSnapshot } from "../../domain/schedule-rules.ts";
-import { providerWithin, providerWorksIn, reachCovers } from "../../domain/scheduling-scope.ts";
+import {
+  providerWithin,
+  providerWorksIn,
+  reachCovers,
+  type Reach,
+} from "../../domain/scheduling-scope.ts";
 import {
   decideTimeOffCancel,
   normalizeNote,
@@ -23,7 +28,7 @@ import {
 } from "../../persistence/pg-schedule-store.ts";
 import type { ProviderDirectory, ProviderRecord } from "../../ports/provider-directory.ts";
 import type { SchedulingBranchReader } from "../../ports/scheduling-branch-reader.ts";
-import { readProviderSchedule, type ScheduleViewer } from "../../queries/provider-schedule.ts";
+import { projectSchedule, type ScheduleViewer } from "../../queries/provider-schedule.ts";
 
 export interface ScheduleChangesDeps {
   readonly db: Database;
@@ -33,9 +38,13 @@ export interface ScheduleChangesDeps {
   readonly branches: SchedulingBranchReader;
 }
 
-/** The caller of a schedules write: a viewer plus who is acting (for the audit row). */
+/**
+ * The caller of a schedules write: a viewer whose `reach` is the write route's, who is acting (for the
+ * audit row), and the reach of its view keys, which clips the schedule the write answers with.
+ */
 export interface ScheduleActor extends ScheduleViewer {
   readonly userId: string;
+  readonly viewReach: Reach;
 }
 
 /**
@@ -78,8 +87,8 @@ export class ScheduleChanges {
       const current = await readScheduleRows(tx, actor.clinicId, membershipId);
       const decision = decideBranchSchedule(current, branchId, shifts);
       if (decision.kind === "overlap") {
-        // A branch outside the caller's reach stays unnamed (Codex PR #63).
-        const named = reachCovers(actor.reach, decision.branchId);
+        // A branch the caller cannot view stays unnamed (Codex PR #63).
+        const named = reachCovers(actor.viewReach, decision.branchId);
         throw new ApiError("schedule_overlap", named ? { branchId: decision.branchId } : undefined);
       }
       if (decision.kind === "replace") {
@@ -100,7 +109,7 @@ export class ScheduleChanges {
           after: scheduleAuditSnapshot(provider.fullName, branchId, decision.shifts),
         });
       }
-      return this.read(tx, actor, membershipId);
+      return this.read(tx, actor, provider);
     });
   }
 
@@ -133,7 +142,7 @@ export class ScheduleChanges {
         before: null,
         after: timeOffAuditSnapshot(provider.fullName, record),
       });
-      return this.read(tx, actor, membershipId);
+      return this.read(tx, actor, provider);
     });
   }
 
@@ -164,7 +173,7 @@ export class ScheduleChanges {
           after: timeOffAuditSnapshot(provider.fullName, { ...record, cancelledAt: now }),
         });
       }
-      return this.read(tx, actor, membershipId);
+      return this.read(tx, actor, provider);
     });
   }
 
@@ -192,9 +201,11 @@ export class ScheduleChanges {
     return provider;
   }
 
-  private read(tx: Tx, actor: ScheduleActor, membershipId: string): Promise<ProviderSchedule> {
+  // The answer shows only what the caller's view keys reach, never the write's wider reach (Codex PR #63).
+  private read(tx: Tx, actor: ScheduleActor, provider: ProviderRecord): Promise<ProviderSchedule> {
     const { providers, branches, clock } = this.deps;
-    return readProviderSchedule({ tx, providers, branches }, actor, membershipId, clock.now());
+    const viewer = { ...actor, reach: actor.viewReach };
+    return projectSchedule({ tx, providers, branches }, viewer, provider, clock.now());
   }
 
   private async audit(

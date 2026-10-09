@@ -8,6 +8,7 @@ import {
   type Harness,
 } from "../../identity/auth/__tests__/auth-http-harness.ts";
 import { AUTHORIZATION_INVALIDATOR, type AuthorizationInvalidator } from "../../identity/index.ts";
+import { customRole, memberOn } from "../../identity/__tests__/user-fixtures.ts";
 import { auditOf, code, schedulingClinic, send } from "./scheduling-fixtures.ts";
 
 // Dormant rows: rows kept in an inactive branch or one the provider left. They still count for the
@@ -153,6 +154,50 @@ describe("branch scope (spec §3) and dormant rows", () => {
       // The clinic-scope admin still sees the row and can clear it.
       const admin = (await send(h, C.admin.cookie, "GET", path(C.admin.memberId))).json();
       expect(ids(admin.dormantBranches)).toEqual([C.branchX]);
+    } finally {
+      await setActive(C.branchX, true);
+    }
+  });
+});
+
+describe("the schedule a write answers with (Codex PR #63)", () => {
+  it("NEGATIVE: is clipped to the caller's view keys, not the wider write key", async () => {
+    // Views branch R only, edits every branch: a combination the role editor accepts.
+    const role = await customRole(h, C.clinicId, [
+      "view:schedules:branch",
+      "update:schedules:clinic",
+    ]);
+    const editor = await memberOn(h, C.admin, role, { allBranches: false, branchIds: [C.branchR] });
+    await keepRow(C.admin.memberId, C.branchX, 4, "06:00", "07:00");
+    await setActive(C.branchX, false);
+    try {
+      const res = await put(
+        editor.cookie,
+        C.admin.memberId,
+        C.branchD,
+        week([4, "15:00", "16:00"]),
+      );
+      expect(res.statusCode).toBe(200);
+      const seen = res.json();
+      expect({
+        allBranches: seen.provider.allBranches,
+        branchIds: seen.provider.branchIds,
+      }).toEqual({
+        allBranches: false,
+        branchIds: [C.branchR],
+      });
+      expect(ids(seen.branches)).toEqual([C.branchR]);
+      expect(seen.dormantBranches).toEqual([]);
+      expect(seen.shifts.every((s: { branchId: string }) => s.branchId === C.branchR)).toBe(true);
+      // A clash with a branch it cannot view is not named either.
+      const blocked = await put(
+        editor.cookie,
+        C.admin.memberId,
+        C.branchD,
+        week([4, "06:30", "08:00"]),
+      );
+      expect(code(blocked)).toBe("schedule_overlap");
+      expect(blocked.json().details).toBeUndefined();
     } finally {
       await setActive(C.branchX, true);
     }

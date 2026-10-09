@@ -16,7 +16,7 @@ import { ZodValidationPipe } from "../../../shared/zod-validation.pipe.ts";
 // The one identity import a module may make: guards and request types (CLAUDE.architecture.md §2.2).
 import { Require, RequiresFeature, type ClinicRequest } from "../../identity/index.ts";
 import { CLOCK, type Clock } from "../../tenancy/index.ts";
-import { reachOf } from "../domain/scheduling-scope.ts";
+import { reachOf, viewReachOf } from "../domain/scheduling-scope.ts";
 import type { ProviderDirectory } from "../ports/provider-directory.ts";
 import type { SchedulingBranchReader } from "../ports/scheduling-branch-reader.ts";
 import { PROVIDER_DIRECTORY, SCHEDULE_CHANGES, SCHEDULING_BRANCH_READER } from "../ports/tokens.ts";
@@ -47,6 +47,7 @@ const viewerOf = (request: ClinicRequest): ScheduleViewer => {
 const actorOf = (request: ClinicRequest): ScheduleActor => ({
   ...viewerOf(request),
   userId: request.clinicContext.userId,
+  viewReach: viewReachOf(request.clinicContext.permissions, request.clinicContext.branchScope),
 });
 
 // D-6, D-13, D-14 (ADR-0026 §3–§4). Thin: validate → call → map.

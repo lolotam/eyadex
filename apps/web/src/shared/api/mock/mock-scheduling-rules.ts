@@ -6,7 +6,8 @@ import type { MockState, StoredShift } from "./mock-store";
 
 /** Every branch, or a branch list: the reach of one action (as the API's `Reach`). */
 export type Reach = { all: true } | { all: false; branchIds: readonly string[] };
-export type SchedulingAccess = Actor & { actorName: string; reach: Reach };
+/** `reach` is the action's; `viewReach` (the view keys') clips every schedule the mock answers with. */
+export type SchedulingAccess = Actor & { actorName: string; reach: Reach; viewReach: Reach };
 type MemberReach = { allBranches: boolean; branchIds: readonly string[] };
 
 /** The action-independent guards, in the API's order: active user, clinic access, module. */
@@ -28,12 +29,16 @@ export function authorizeSchedules(
 ): SchedulingAccess {
   const actor = guardAppointments(db, persona);
   const keys = effectivePermissions(db, actor);
-  const base = { ...actor, actorName: actor.member.fullName };
+  const { allBranches, branchIds } = actor.member;
+  const own: Reach = allBranches ? { all: true } : { all: false, branchIds };
+  const viewReach: Reach = keys.includes("view:schedules:clinic")
+    ? { all: true }
+    : keys.includes("view:schedules:branch")
+      ? own
+      : { all: false, branchIds: [] };
+  const base = { ...actor, actorName: actor.member.fullName, viewReach };
   if (keys.includes(`${action}:schedules:clinic`)) return { ...base, reach: { all: true } };
-  if (!clinicOnly && keys.includes(`${action}:schedules:branch`)) {
-    const { allBranches, branchIds } = actor.member;
-    return { ...base, reach: allBranches ? { all: true } : { all: false, branchIds } };
-  }
+  if (!clinicOnly && keys.includes(`${action}:schedules:branch`)) return { ...base, reach: own };
   throw new ApiError("forbidden");
 }
 

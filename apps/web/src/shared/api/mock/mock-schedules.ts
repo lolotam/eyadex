@@ -62,7 +62,7 @@ function bookable(db: MockState, a: SchedulingAccess, id: string): MembershipUse
 
 /**
  * As the API: every row of the provider counts, dormant ones too (ADR-0026 §4); the conflicting
- * branch is named only inside the caller's reach.
+ * branch is named only inside the caller's view reach.
  */
 function overlapCheck(
   a: SchedulingAccess,
@@ -77,7 +77,9 @@ function overlapCheck(
         wanted,
       )?.branchId;
   if (clash === undefined) return;
-  const details: Record<string, string> = reachCovers(a.reach, clash) ? { branchId: clash } : {};
+  const details: Record<string, string> = reachCovers(a.viewReach, clash)
+    ? { branchId: clash }
+    : {};
   throw new ApiError("schedule_overlap", undefined, details);
 }
 
@@ -88,7 +90,13 @@ const branchOf = ({ id, nameAr, nameEn, isActive }: ScheduleBranch) => ({
   isActive,
 });
 
-function scheduleOf(db: MockState, a: SchedulingAccess, member: MembershipUser): ProviderSchedule {
+// Clipped to the caller's view keys, also when answering a write (as the API, Codex PR #63).
+function scheduleOf(
+  db: MockState,
+  access: SchedulingAccess,
+  member: MembershipUser,
+): ProviderSchedule {
+  const a = { ...access, reach: access.viewReach };
   const rows = db.scheduleRows.filter(
     (r) => r.clinicId === a.clinic.id && r.membershipId === member.id,
   );

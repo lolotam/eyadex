@@ -86,9 +86,29 @@ export async function readProviderSchedule(
   membershipId: string,
   now: Date,
 ): Promise<ProviderSchedule> {
-  const { tx, providers, branches } = reads;
-  const provider = await providers.find(tx, viewer.clinicId, membershipId);
+  const provider = await reads.providers.find(reads.tx, viewer.clinicId, membershipId);
   if (provider === null || !providerWithin(viewer.reach, provider)) throw new ApiError("not_found");
+  return projectSchedule(reads, viewer, provider, now);
+}
+
+/**
+ * An already authorised provider's schedule clipped to `viewer.reach`, never throwing: a write answers
+ * with it under the caller's view reach, which may cover less than the write's reach (Codex PR #63).
+ *
+ * @param reads the transaction and ports
+ * @param viewer the caller, with the reach to clip to
+ * @param provider the provider
+ * @param now the clock's now
+ * @returns the schedule
+ */
+export async function projectSchedule(
+  reads: ScheduleReads,
+  viewer: ScheduleViewer,
+  provider: ProviderRecord,
+  now: Date,
+): Promise<ProviderSchedule> {
+  const { tx, branches } = reads;
+  const { membershipId } = provider;
   const rows = await readScheduleRows(tx, viewer.clinicId, membershipId);
   const held = new Set(rows.map((r) => r.branchId));
   const reached = (await branches.listForOptions(tx, viewer.clinicId, viewer.language)).filter(

@@ -70,9 +70,13 @@ locks takes them first (the booking profile does). No PostgreSQL extension (no `
   an inactive branch or one the provider left (same `update:schedules` reach check, module on, one
   `schedule.replaced` row); a non-empty week there is still `branch_inactive` / `provider_not_in_branch`.
 - `schedule_overlap` carries `details.branchId` (the branch of the conflicting row, or the saved branch for a
-  clash inside the week) only when that branch is inside the caller's reach; outside it the error is unnamed, as
+  clash inside the week) only when the caller's **view** keys reach that branch; otherwise the error is unnamed, as
   the PR #63 rule hides other branches. A branch-scope editor blocked by such a row needs a clinic-scope editor
   to clear it.
+- Every schedules write (week, time off) answers with the schedule clipped to the caller's view keys
+  (`view:schedules:clinic` = every branch, `view:schedules:branch` = its own, none = no branch), never to the
+  write key's reach: a role may hold `update:schedules:clinic` with only `view:schedules:branch`, and a `PUT` must
+  not show what a `GET` hides.
 - D-14 lives in `coversWallInterval` (`@eyadex/contracts/schedules`): back-to-back rows of one branch join, also
   across midnight and from Saturday 24:00 into Sunday 00:00. A2's booking check calls it.
 - The drift test maps Drizzle's `time` to `time without time zone` (information_schema's spelling).
