@@ -7,10 +7,17 @@ import { DATABASE } from "../../shared/database.provider.ts";
 // A module.ts may bind an identity adapter to a port it owns (CLAUDE.architecture.md §2.2, ADR-0026).
 import { PgProviderDirectory } from "../identity/index.ts";
 import { CLOCK, PgFilingBranches, TenancyModule, type Clock } from "../tenancy/index.ts";
+import { SchedulesController } from "./http/schedules.controller.ts";
 import { ServicesController } from "./http/services.controller.ts";
 import type { ProviderDirectory } from "./ports/provider-directory.ts";
 import type { SchedulingBranchReader } from "./ports/scheduling-branch-reader.ts";
-import { PROVIDER_DIRECTORY, SCHEDULING_BRANCH_READER, SERVICE_CHANGES } from "./ports/tokens.ts";
+import {
+  PROVIDER_DIRECTORY,
+  SCHEDULE_CHANGES,
+  SCHEDULING_BRANCH_READER,
+  SERVICE_CHANGES,
+} from "./ports/tokens.ts";
+import { ScheduleChanges } from "./use-cases/schedule-changes/schedule-changes.ts";
 import { ServiceChanges } from "./use-cases/service-changes/service-changes.ts";
 
 // Typed against the module's own ports, so neither adapter can drift from what the module needs.
@@ -23,7 +30,7 @@ const branches: SchedulingBranchReader = new PgFilingBranches();
  */
 @Module({
   imports: [DatabaseModule, TenancyModule],
-  controllers: [ServicesController],
+  controllers: [ServicesController, SchedulesController],
   providers: [
     { provide: PROVIDER_DIRECTORY, useValue: providers },
     { provide: SCHEDULING_BRANCH_READER, useValue: branches },
@@ -32,6 +39,23 @@ const branches: SchedulingBranchReader = new PgFilingBranches();
       inject: [DATABASE, CLOCK],
       useFactory: (db: Database, clock: Clock) =>
         new ServiceChanges({ db, clock, ids: systemUuidV7() }),
+    },
+    {
+      provide: SCHEDULE_CHANGES,
+      inject: [DATABASE, CLOCK, PROVIDER_DIRECTORY, SCHEDULING_BRANCH_READER],
+      useFactory: (
+        db: Database,
+        clock: Clock,
+        providerDirectory: ProviderDirectory,
+        branchReader: SchedulingBranchReader,
+      ) =>
+        new ScheduleChanges({
+          db,
+          clock,
+          ids: systemUuidV7(),
+          providers: providerDirectory,
+          branches: branchReader,
+        }),
     },
   ],
 })
