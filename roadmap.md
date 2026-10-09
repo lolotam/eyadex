@@ -78,3 +78,11 @@
 - [x] Create the `-staging` Dokploy services, migrate, bootstrap and smoke-test (2026-10-08/09; smoke 31/31, db/tests 17/17)
 - [x] Reserve `staging-app` / `staging-platform` as clinic slugs (owner decision 2026-10-09)
 - [x] The bootstrap writes a `platform_account.bootstrapped` platform audit row (owner decision 2026-10-09, SQL 0039)
+
+## Appointments (post-MVP phase 1, `docs/specs/appointments-design.md`)
+
+- [x] Slice A1: `appointments` module flag (a new-clinic default module), catalogue keys (`overbook`, `own`), services, booking profile on the user editor, weekly schedules per branch (D-14 midnight continuity), time off — as tabs of the clinic Settings page (D-17); admin keys backfilled for existing clinics (ADR-0026, SQL 0042)
+- [ ] Apply `db/sql/0042` to staging, then production, right before the A1 deploy (orchestrator)
+- [ ] Slice A2: appointments — book, reschedule, status, cancel, quick file, overbook; branch day view + booking dialog
+- [ ] Slice A3: the `own` scope on appointments and patients; new-clinic doctor and receptionist defaults
+- [ ] Slice A4: provider week, month, today's queue
