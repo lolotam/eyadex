@@ -7,12 +7,7 @@ import { ApiError } from "../../../../shared/errors.ts";
 import { lockProvider } from "../../../../shared/provider-lock.ts";
 import type { Clock } from "../../../tenancy/index.ts";
 import { decideBranchSchedule, scheduleAuditSnapshot } from "../../domain/schedule-rules.ts";
-import {
-  providerWithin,
-  providerWorksIn,
-  reachCovers,
-  type Reach,
-} from "../../domain/scheduling-scope.ts";
+import { providerWorksIn, reachCovers, type Reach } from "../../domain/scheduling-scope.ts";
 import {
   decideTimeOffCancel,
   normalizeNote,
@@ -28,7 +23,11 @@ import {
 } from "../../persistence/pg-schedule-store.ts";
 import type { ProviderDirectory, ProviderRecord } from "../../ports/provider-directory.ts";
 import type { SchedulingBranchReader } from "../../ports/scheduling-branch-reader.ts";
-import { projectSchedule, type ScheduleViewer } from "../../queries/provider-schedule.ts";
+import {
+  projectSchedule,
+  providerVisible,
+  type ScheduleViewer,
+} from "../../queries/provider-schedule.ts";
 
 export interface ScheduleChangesDeps {
   readonly db: Database;
@@ -177,13 +176,15 @@ export class ScheduleChanges {
     });
   }
 
+  // Also a provider seen only through its rows in the caller's reach: the replace route can then clear
+  // them, while a non-empty week stays `provider_not_in_branch` (ADR-0026 §4).
   private async visible(
     tx: Tx,
     actor: ScheduleActor,
     membershipId: string,
   ): Promise<ProviderRecord> {
     const provider = await this.deps.providers.find(tx, actor.clinicId, membershipId);
-    if (provider === null || !providerWithin(actor.reach, provider))
+    if (provider === null || !(await providerVisible(tx, actor.clinicId, actor.reach, provider)))
       throw new ApiError("not_found");
     return provider;
   }

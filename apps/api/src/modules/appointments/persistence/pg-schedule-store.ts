@@ -33,6 +33,33 @@ export async function readScheduleRows(
   }));
 }
 
+/** The branches still holding this provider's rows, live or dormant. */
+export async function readHeldBranchIds(
+  tx: Tx,
+  clinicId: string,
+  membershipId: string,
+): Promise<string[]> {
+  const rows = await tx.execute<{ branch_id: string }>(
+    sql`SELECT DISTINCT branch_id FROM provider_schedules
+        WHERE clinic_id = ${clinicId} AND membership_id = ${membershipId}`,
+  );
+  return rows.map((r) => r.branch_id);
+}
+
+/** Every provider of the clinic with the branches holding its rows (one query for the list). */
+export async function readHeldBranchesByProvider(
+  tx: Tx,
+  clinicId: string,
+): Promise<Map<string, string[]>> {
+  const rows = await tx.execute<{ membership_id: string; branch_id: string }>(
+    sql`SELECT DISTINCT membership_id, branch_id FROM provider_schedules WHERE clinic_id = ${clinicId}`,
+  );
+  const held = new Map<string, string[]>();
+  for (const r of rows)
+    held.set(r.membership_id, [...(held.get(r.membership_id) ?? []), r.branch_id]);
+  return held;
+}
+
 /** The branch's week is configuration: its rows are replaced, never edited (ADR-0026 §4). */
 export async function replaceBranchRows(
   tx: Tx,

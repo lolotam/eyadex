@@ -224,3 +224,38 @@ describe("the schedule a write answers with (Codex PR #63)", () => {
     expect(saved.body).not.toContain("private reason");
   });
 });
+
+describe("a provider seen only through its dormant rows (Codex PR #63)", () => {
+  it("is listed and cleared by a branch-scope editor, then not_found again", async () => {
+    // The desk (branch keys on R) and the doctor (works in D only, has time off) with a row left in R.
+    await keepRow(C.doctor.memberId, C.branchR, 1, "08:00", "09:00");
+    const listed = async () =>
+      (await send(h, C.desk.cookie, "GET", "/v1/schedules/providers")).json().items;
+    const mine = (items: { membershipId: string }[]) =>
+      items.find((p) => p.membershipId === C.doctor.memberId);
+    expect(mine(await listed())).toMatchObject({ allBranches: false, branchIds: [] });
+    const seen = (await send(h, C.desk.cookie, "GET", path(C.doctor.memberId))).json();
+    expect(seen).toMatchObject({ branches: [], timeOff: [] });
+    expect(ids(seen.dormantBranches)).toEqual([C.branchR]);
+    expect(seen.shifts).toEqual([
+      { branchId: C.branchR, weekday: 1, startsAt: "08:00", endsAt: "09:00" },
+    ]);
+    const refill = put(C.desk.cookie, C.doctor.memberId, C.branchR, week([1, "08:00", "09:00"]));
+    expect(code(await refill)).toBe("provider_not_in_branch");
+
+    const replaced = async () =>
+      (await auditOf(h, C.clinicId, C.doctor.memberId)).filter(
+        (r) => r["action"] === "schedule.replaced",
+      ).length;
+    const before = await replaced();
+    const cleared = await put(C.desk.cookie, C.doctor.memberId, C.branchR, week());
+    expect(cleared.statusCode).toBe(200);
+    expect(cleared.json()).toMatchObject({ dormantBranches: [], shifts: [] });
+    expect(await replaced()).toBe(before + 1);
+
+    // No row left in R: the doctor is outside the desk's reach again (no probing).
+    expect(mine(await listed())).toBeUndefined();
+    expect((await send(h, C.desk.cookie, "GET", path(C.doctor.memberId))).statusCode).toBe(404);
+    expect((await put(C.desk.cookie, C.doctor.memberId, C.branchR, week())).statusCode).toBe(404);
+  });
+});

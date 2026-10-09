@@ -51,6 +51,24 @@ export function providerWithin(reach: Reach, provider: ProviderReach): boolean {
 }
 
 /**
+ * هل مقدّم الخدمة ظاهر للفاعل؟ ظاهر لو شغّال في فرع جوه الوصول، أو لسه ليه صفوف جدول (نايمة) في فرع جوه
+ * الوصول: من غير كده محرّر بنطاق الفروع مايقدرش يمسح صفوف فضلت في فرعه بعد ما مقدّم الخدمة ساب الفرع
+ * (ADR-0026 §4). غير كده `not_found`، فمحدش يستكشف أعضاء فروع تانية.
+ *
+ * @param reach وصول الفاعل
+ * @param provider فروع مقدّم الخدمة
+ * @param heldBranchIds الفروع اللي فيها صفوف جدول لمقدّم الخدمة
+ * @returns `true` لو ظاهر للفاعل
+ */
+export function providerSeen(
+  reach: Reach,
+  provider: ProviderReach,
+  heldBranchIds: readonly string[],
+): boolean {
+  return providerWithin(reach, provider) || heldBranchIds.some((id) => reachCovers(reach, id));
+}
+
+/**
  * فروع مقدّم الخدمة زي ما الفاعل يقدر يشوفها: الفاعل بنطاق الفروع مايعرفش فروع برّه نطاقه، ولا إن
  * العضو شغّال في "كل الفروع"؛ بيشوف بس الفروع المشتركة.
  *

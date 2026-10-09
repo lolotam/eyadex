@@ -13,6 +13,7 @@ import {
   authorizeSchedules,
   branchesWithin,
   profileOf,
+  providerSeen,
   providerWithin,
   reachCovers,
   shiftLabel,
@@ -45,10 +46,15 @@ const summary = (db: MockState, a: SchedulingAccess, m: MembershipUser) => {
   };
 };
 
-/** A member outside the action's reach is not_found, never forbidden: members can't be probed. */
+const heldBy = (db: MockState, a: SchedulingAccess, id: string) =>
+  db.scheduleRows
+    .filter((r) => r.clinicId === a.clinic.id && r.membershipId === id)
+    .map((r) => r.branchId);
+
+/** A member outside the action's reach (no branch, no rows in it) is not_found: members can't be probed. */
 function visible(db: MockState, a: SchedulingAccess, id: string): MembershipUser {
   const member = db.members.find((m) => m.clinicId === a.clinic.id && m.id === id);
-  if (!member || !providerWithin(a.reach, member)) throw new ApiError("not_found");
+  if (!member || !providerSeen(a.reach, member, heldBy(db, a, id))) throw new ApiError("not_found");
   return member;
 }
 
@@ -144,7 +150,8 @@ export function createMockSchedules(): SchedulesApi {
       const a = authorizeSchedules(db, persona, "view");
       return db.members
         .filter((m) => m.clinicId === a.clinic.id && m.status === "active")
-        .filter((m) => profileOf(db, m.id).acceptsAppointments && providerWithin(a.reach, m))
+        .filter((m) => profileOf(db, m.id).acceptsAppointments)
+        .filter((m) => providerSeen(a.reach, m, heldBy(db, a, m.id)))
         .sort((x, y) => x.fullName.localeCompare(y.fullName))
         .map((m) => summary(db, a, m));
     },

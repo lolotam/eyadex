@@ -8,12 +8,18 @@ import type { Database, Tx } from "@eyadex/db";
 import { ApiError } from "../../../shared/errors.ts";
 import {
   branchesWithin,
+  providerSeen,
   providerWithin,
   providerWorksIn,
   reachCovers,
   type Reach,
 } from "../domain/scheduling-scope.ts";
-import { readScheduleRows, readUpcomingTimeOff } from "../persistence/pg-schedule-store.ts";
+import {
+  readHeldBranchesByProvider,
+  readHeldBranchIds,
+  readScheduleRows,
+  readUpcomingTimeOff,
+} from "../persistence/pg-schedule-store.ts";
 import type { ProviderDirectory, ProviderRecord } from "../ports/provider-directory.ts";
 import type {
   SchedulingBranch,
@@ -47,7 +53,32 @@ const summaryOf = (p: ProviderRecord, reach: Reach): ProviderSummary => {
 };
 
 /**
- * The bookable members working in at least one branch inside the caller's reach (spec §5).
+ * Whether the caller sees this provider: it works in a branch inside `reach`, or still holds rows in
+ * one (ADR-0026 §4). Its rows are read only when its assignments alone do not answer.
+ *
+ * @param tx the transaction, inside `withTenant(clinicId)`
+ * @param clinicId the clinic
+ * @param reach the caller's reach for the route
+ * @param provider the provider
+ * @returns `true` when visible
+ */
+export async function providerVisible(
+  tx: Tx,
+  clinicId: string,
+  reach: Reach,
+  provider: ProviderRecord,
+): Promise<boolean> {
+  if (providerWithin(reach, provider)) return true;
+  return providerSeen(
+    reach,
+    provider,
+    await readHeldBranchIds(tx, clinicId, provider.membershipId),
+  );
+}
+
+/**
+ * The bookable members working in at least one branch inside the caller's reach, or holding rows in
+ * one (spec §5, ADR-0026 §4).
  *
  * @param db the `eyadex_app` pool
  * @param providers the module's ProviderDirectory
@@ -59,20 +90,22 @@ export async function listProviders(
   providers: ProviderDirectory,
   viewer: ScheduleViewer,
 ): Promise<ProviderListResponse> {
-  const rows = await db.withTenant(viewer.clinicId, (tx) =>
-    providers.listBookable(tx, viewer.clinicId),
-  );
-  return {
-    items: rows
-      .filter((p) => providerWithin(viewer.reach, p))
-      .map((p) => summaryOf(p, viewer.reach)),
-  };
+  const { clinicId, reach } = viewer;
+  const rows = await db.withTenant(clinicId, async (tx) => {
+    const bookable = await providers.listBookable(tx, clinicId);
+    // Every provider is within a clinic-wide reach: the rows are read for a branch reach only.
+    const held = reach.all
+      ? new Map<string, string[]>()
+      : await readHeldBranchesByProvider(tx, clinicId);
+    return bookable.filter((p) => providerSeen(reach, p, held.get(p.membershipId) ?? []));
+  });
+  return { items: rows.map((p) => summaryOf(p, reach)) };
 }
 
 /**
  * One provider's schedule as the caller may see it: its live branches inside the reach, the dormant
  * branches inside the reach that still hold its rows, its rows in both, and its time off that has not
- * ended. A member outside the reach is `not_found` (no probing).
+ * ended. A member neither working nor holding rows inside the reach is `not_found` (no probing).
  *
  * @param reads the transaction and ports
  * @param viewer the caller
@@ -87,7 +120,11 @@ export async function readProviderSchedule(
   now: Date,
 ): Promise<ProviderSchedule> {
   const provider = await reads.providers.find(reads.tx, viewer.clinicId, membershipId);
-  if (provider === null || !providerWithin(viewer.reach, provider)) throw new ApiError("not_found");
+  if (
+    provider === null ||
+    !(await providerVisible(reads.tx, viewer.clinicId, viewer.reach, provider))
+  )
+    throw new ApiError("not_found");
   return projectSchedule(reads, viewer, provider, now);
 }
 

@@ -51,6 +51,10 @@ export function providerWithin(reach: Reach, member: MemberReach): boolean {
   return member.branchIds.some((id) => reach.branchIds.includes(id));
 }
 
+/** As the API: within the reach, or still holding (dormant) rows in a branch inside it (ADR-0026 §4). */
+export const providerSeen = (reach: Reach, member: MemberReach, heldBranchIds: readonly string[]) =>
+  providerWithin(reach, member) || heldBranchIds.some((id) => reachCovers(reach, id));
+
 /** A provider's branches as the caller may see them: never outside a branch-scope reach (as the API). */
 export function branchesWithin(reach: Reach, member: MemberReach): MemberReach {
   if (reach.all) return { allBranches: member.allBranches, branchIds: [...member.branchIds] };
