@@ -4,6 +4,7 @@ import { enAudit } from "./en-audit";
 import { enUsers } from "./en-users";
 import { enSettings } from "./en-settings";
 import { enAccess, enAccessErrors } from "./en-access";
+import { enRoutes } from "./en-routes";
 
 export const en = {
   app: { name: "Eyadex", tagline: "One place for every clinic" },
@@ -53,21 +54,7 @@ export const en = {
       "Your account was deactivated. You have been signed out. Contact your clinic admin.",
     signOut: "Sign out",
   },
-  nav: {
-    platformArea: "Platform",
-    clinicArea: "Clinic",
-    overview: "Overview",
-    clinics: "Clinics",
-    team: "Platform team",
-    audit: "Audit log",
-    settings: "Settings",
-    branches: "Branches",
-    users: "Users",
-    roles: "Roles & permissions",
-    patients: "Patients",
-    account: "My account",
-    menu: "Menu",
-  },
+  ...enRoutes,
   ...enAccess,
   blocked: {
     suspendedTitle: "This clinic is suspended",
