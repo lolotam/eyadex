@@ -14,11 +14,11 @@ describe("@eyadex/db public surface", () => {
     ]);
   });
 
-  it("gives the dispatcher a claim, ping and close only — no general transaction", () => {
+  it("gives the dispatcher a claim, a fixed purge, ping and close only — no general transaction", () => {
     const outbox = db.createDispatcherOutbox({
       url: "postgres://eyadex_dispatcher:unused@127.0.0.1:1/eyadex",
     });
-    expect(Object.keys(outbox).sort()).toEqual(["claimNext", "close", "ping"]);
+    expect(Object.keys(outbox).sort()).toEqual(["claimNext", "close", "ping", "purgeExpired"]);
   });
 
   it("refuses dispatcher options out of range before connecting", () => {

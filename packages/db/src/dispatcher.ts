@@ -40,7 +40,10 @@ export type DispatchOutcome =
   | { readonly kind: "retry"; readonly error: string; readonly nextAttemptAt: Date }
   | { readonly kind: "failed"; readonly error: string };
 
-/** اللي الـ worker بياخده من الـ outbox: claim واحد في كل transaction، ping، close. مفيش SQL حر. */
+/** الدفاتر التقنية اللي ليها مدة احتفاظ (ADR-0022). */
+export type RetentionTarget = "outbox" | "platformLedger" | "clinicLedger";
+
+/** اللي الـ worker بياخده من الـ outbox: claim واحد في كل transaction، purge، ping، close. مفيش SQL حر. */
 export interface DispatcherOutbox {
   /**
    * بيمسك أقدم حدث جاهز من الأنواع دي (`FOR UPDATE SKIP LOCKED`، فـ worker تاني ما بيشوفوش)، بينفّذ
@@ -57,11 +60,32 @@ export interface DispatcherOutbox {
     now: Date,
     handle: (event: ClaimedEvent) => Promise<DispatchOutcome>,
   ): Promise<{ readonly event: ClaimedEvent; readonly outcome: DispatchOutcome } | null>;
+  /**
+   * دفعة واحدة من الحذف بعد مدة الاحتفاظ (0040، ADR-0022) في transaction خاصة بيها. المدة والحد
+   * الأقصى للدفعة جوه الـ function نفسها، فالـ caller مايقدرش يوصل لصف جديد ولا لحدث لسه ماخلصش.
+   *
+   * @param target الدفتر: الـ outbox، أو مفاتيح المنصة، أو مفاتيح العيادات
+   * @param limit أقصى عدد صفوف في الدفعة (1..1000، الـ function بترفض غير كده)
+   * @returns عدد الصفوف اللي اتمسحت
+   */
+  purgeExpired(target: RetentionTarget, limit: number): Promise<number>;
   /** للـ readiness: نفس فحص الدور جوه transaction قصير. */
   ping(): Promise<void>;
   /** قفل محدود للـ pool. */
   close(): Promise<void>;
 }
+
+// One fixed statement per ledger: the function names are the whole SQL surface of a purge (0040).
+const PURGES: Record<
+  RetentionTarget,
+  (tx: postgres.TransactionSql, limit: number) => Promise<{ deleted: number }[]>
+> = {
+  outbox: (tx, limit) => tx`SELECT purge_expired_outbox_events(${limit}::integer) AS deleted`,
+  platformLedger: (tx, limit) =>
+    tx`SELECT purge_expired_idempotency_keys(${limit}::integer) AS deleted`,
+  clinicLedger: (tx, limit) =>
+    tx`SELECT purge_expired_clinic_idempotency_keys(${limit}::integer) AS deleted`,
+};
 
 const LAST_ERROR_MAX = 500;
 const between = (value: number, min: number, max: number) =>
@@ -169,6 +193,19 @@ export function createDispatcherOutbox(options: DispatcherOptions): DispatcherOu
           const outcome = await handle(event);
           await write(tx, event.id, outcome, now);
           return { event, outcome };
+        });
+      } catch (error) {
+        throw asDatabaseError(error);
+      }
+    },
+    purgeExpired: async (target, limit) => {
+      const purge = Object.hasOwn(PURGES, target) ? PURGES[target] : undefined;
+      if (purge === undefined) throw new TypeError("unknown retention target");
+      try {
+        return await client.begin(async (tx) => {
+          await open(tx);
+          const [row] = await purge(tx, limit);
+          return row?.deleted ?? 0;
         });
       } catch (error) {
         throw asDatabaseError(error);

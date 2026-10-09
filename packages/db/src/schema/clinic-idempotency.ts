@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   check,
   foreignKey,
+  index,
   jsonb,
   pgTable,
   primaryKey,
@@ -13,7 +14,7 @@ import {
 
 import { clinics } from "./clinics.ts";
 
-// Mirror of db/sql/0028. A clinic table: forced RLS on clinic_id, like every other (ADR-0011).
+// Mirror of db/sql/0028 + 0040. A clinic table: forced RLS on clinic_id, like every other (ADR-0011).
 const tz = { withTimezone: true, mode: "date" } as const;
 
 export const clinicIdempotencyKeys = pgTable(
@@ -35,6 +36,8 @@ export const clinicIdempotencyKeys = pgTable(
       foreignColumns: [clinics.id],
     }),
     unique("clinic_idempotency_keys_scope_key").on(t.clinicId, t.scope, t.key),
+    // 0040: the cross-clinic retention purge only (ADR-0022), so it does not start with clinic_id.
+    index("clinic_idempotency_keys_created_idx").on(t.createdAt),
     check("clinic_idempotency_keys_scope_check", sql.raw("(scope <> ''::text)")),
     check(
       "clinic_idempotency_keys_key_check",
