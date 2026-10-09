@@ -13,6 +13,9 @@ export const enAccess = {
   auth: {
     clinicTitle: "Sign in to your clinic",
     platformTitle: "Sign in to the Eyadex platform",
+    clinicBody: "Sign in with your clinic account's email and password.",
+    platformBody:
+      "The Eyadex team area. Sign in with your email and password, then your two-step code.",
     email: "Email",
     password: "Password",
     signIn: "Sign in",
