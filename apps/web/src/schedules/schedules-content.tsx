@@ -22,11 +22,12 @@ export function SchedulesContent() {
   const providers = useProviders();
   const [membershipId, setMembershipId] = useState<string | null>(null);
   const [branchId, setBranchId] = useState<string | null>(null);
-  const schedule = useProviderSchedule(membershipId);
-  useEffect(() => {
-    if (membershipId === null && providers.data?.[0])
-      setMembershipId(providers.data[0].membershipId);
-  }, [providers.data, membershipId]);
+  const list = providers.data ?? [];
+  // Only a listed provider is read: one seen only through left rows drops out once they are cleared.
+  const selected = list.some((p) => p.membershipId === membershipId)
+    ? membershipId
+    : (list[0]?.membershipId ?? null);
+  const schedule = useProviderSchedule(selected);
   useEffect(() => {
     const branches = schedule.data?.branches ?? [];
     if (!branches.some((b) => b.id === branchId)) setBranchId(branches[0]?.id ?? null);
@@ -54,7 +55,7 @@ export function SchedulesContent() {
     />
   );
   if (providers.isLoading) return <LoadingBlock />;
-  if ((providers.data ?? []).length === 0) {
+  if (list.length === 0) {
     return (
       <div>
         {header}
@@ -72,9 +73,9 @@ export function SchedulesContent() {
       <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border bg-card p-3">
         <FilterSelect
           label={t("schedules.provider")}
-          value={membershipId}
+          value={selected}
           anyLabel={t("schedules.pickProvider")}
-          options={(providers.data ?? []).map((p) => ({
+          options={list.map((p) => ({
             value: p.membershipId,
             label: p.fullName,
           }))}
