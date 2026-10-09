@@ -134,6 +134,10 @@ export const enAudit = {
       defaultTrialDays: "Default trial days",
       alertDaysBeforeExpiry: "Expiry alert days",
       emailSenderName: "Email sender name",
+      defaultMaxUsers: "Default max users",
+      defaultMaxBranches: "Default max branches",
+      defaultModules: "Default modules",
+      modules: "Modules",
     },
     values: {
       trial: "Trial",

@@ -34,6 +34,9 @@ const platformSettings = {
   defaultTrialDays: 14,
   alertDaysBeforeExpiry: 7,
   emailSenderName: "Eyadex",
+  defaultMaxUsers: 10,
+  defaultMaxBranches: 3,
+  defaultModules: { patients: true },
 };
 
 afterEach(() => {

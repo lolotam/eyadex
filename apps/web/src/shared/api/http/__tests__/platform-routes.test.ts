@@ -36,6 +36,9 @@ const input = {
   timezone: "Asia/Kuwait",
   adminName: "Admin Person",
   adminEmail: "admin@example.test",
+  maxUsers: 7,
+  maxBranches: 4,
+  modules: { patients: false },
 };
 const base = `/api/v1/platform/clinics/${CLINIC}`;
 const sub = (over: Partial<SubscriptionInput>): SubscriptionInput => ({
@@ -65,6 +68,8 @@ describe("wired platform methods", () => {
       status: "trial",
       admin: { fullName: "Admin Person", email: "admin@example.test" },
     });
+    // The form's limits and modules, never a value the adapter picks (ADR-0020 amendment).
+    expect(call.body).toMatchObject({ maxUsers: 7, maxBranches: 4, modules: { patients: false } });
     expect(result.firstAdminInvite.token).toBeNull();
   });
   it("createClinic sends no trial length and no expiresAt (the server's default), then reads it back", async () => {

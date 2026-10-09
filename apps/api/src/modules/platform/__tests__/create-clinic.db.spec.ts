@@ -198,6 +198,32 @@ describe("POST /v1/platform/clinics (ONB-01)", () => {
     }
   });
 
+  it("limits and modules are the request's, never the platform defaults (ADR-0020 amendment)", async () => {
+    await h.owner`UPDATE platform_settings SET default_max_users = 50, default_max_branches = 9,
+      default_module_patients = false`;
+    try {
+      const b = { ...body(), maxUsers: 7, maxBranches: 4, modules: { patients: true } };
+      const res = await create(b);
+      expect(res.statusCode).toBe(201);
+      const { clinicId } = res.json();
+      const [row] =
+        await h.owner`SELECT max_users, max_branches FROM clinics WHERE id = ${clinicId}`;
+      expect(row).toEqual({ max_users: 7, max_branches: 4 });
+      const [feature] = await h.owner`SELECT enabled FROM clinic_features
+        WHERE clinic_id = ${clinicId} AND module = 'patients'`;
+      expect(feature?.["enabled"]).toBe(true);
+      for (const field of ["maxUsers", "maxBranches", "modules"] as const) {
+        const { [field]: _drop, ...missing } = body();
+        void _drop;
+        expect((await create(missing)).statusCode).toBe(400);
+        expect(await count("clinics", "slug", missing.slug)).toBe(0);
+      }
+    } finally {
+      await h.owner`UPDATE platform_settings SET default_max_users = 10, default_max_branches = 3,
+        default_module_patients = true`;
+    }
+  });
+
   it("NEGATIVE: a missing Idempotency-Key is rejected", async () => {
     const b = body();
     const res = await create(b, null);

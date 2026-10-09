@@ -1,5 +1,6 @@
--- Platform settings, the clinic's own settings write, the platform team and the reminder ledger
--- (0036–0038, ADR-0020): grants, CHECKs and isolation. Rolls back.
+-- Platform settings (with 0041's defaults for new clinics), the clinic's own settings write, the
+-- platform team and the reminder ledger (0036–0038, 0041, ADR-0020): grants, CHECKs and isolation.
+-- Rolls back.
 -- Usage: psql -v ON_ERROR_STOP=1 -f db/tests/settings-and-team.sql
 
 BEGIN;
@@ -21,8 +22,17 @@ BEGIN
   IF has_table_privilege('eyadex_platform', 'platform_settings', 'INSERT')
      OR has_table_privilege('eyadex_platform', 'platform_settings', 'DELETE')
      OR has_column_privilege('eyadex_platform', 'platform_settings', 'id', 'UPDATE')
-     OR NOT has_column_privilege('eyadex_platform', 'platform_settings', 'alert_days_before_expiry', 'UPDATE') THEN
+     OR NOT has_column_privilege('eyadex_platform', 'platform_settings', 'alert_days_before_expiry', 'UPDATE')
+     OR NOT has_column_privilege('eyadex_platform', 'platform_settings', 'default_max_users', 'UPDATE')
+     OR NOT has_column_privilege('eyadex_platform', 'platform_settings', 'default_max_branches', 'UPDATE')
+     OR NOT has_column_privilege('eyadex_platform', 'platform_settings', 'default_module_patients', 'UPDATE') THEN
     RAISE EXCEPTION 'SETTINGS: eyadex_platform may update the values only';
+  END IF;
+  -- 0041 keeps no DEFAULT: every later write names its values. (The seeded values are not checked
+  -- here: this file also runs on production, where the platform may have changed them.)
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'platform_settings'
+             AND column_name LIKE 'default\_m%' AND column_default IS NOT NULL) THEN
+    RAISE EXCEPTION 'SETTINGS: a new-clinic default column kept a DEFAULT';
   END IF;
   IF has_table_privilege('eyadex_auth', 'platform_settings', 'SELECT')
      OR has_table_privilege('eyadex_dispatcher', 'platform_settings', 'SELECT') THEN
@@ -65,7 +75,7 @@ END $$;
 -- The singleton and its bounds.
 DO $$
 BEGIN
-  BEGIN INSERT INTO platform_settings VALUES (2, 14, 7, 'Eyadex', now());
+  BEGIN INSERT INTO platform_settings VALUES (2, 14, 7, 'Eyadex', now(), 10, 3, true);
     RAISE EXCEPTION 'SETTINGS: a second row was accepted';
   EXCEPTION WHEN check_violation THEN NULL; END;
   BEGIN UPDATE platform_settings SET email_sender_name = E'Eyadex\r\nBcc: x';
@@ -74,6 +84,21 @@ BEGIN
   BEGIN UPDATE platform_settings SET alert_days_before_expiry = 61;
     RAISE EXCEPTION 'SETTINGS: alert days above 60 were accepted';
   EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN UPDATE platform_settings SET default_max_users = 1001;
+    RAISE EXCEPTION 'SETTINGS: a default above 1000 users was accepted';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN UPDATE platform_settings SET default_max_users = 0;
+    RAISE EXCEPTION 'SETTINGS: a default of 0 users was accepted';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN UPDATE platform_settings SET default_max_branches = 101;
+    RAISE EXCEPTION 'SETTINGS: a default above 100 branches was accepted';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN UPDATE platform_settings SET default_max_branches = 0;
+    RAISE EXCEPTION 'SETTINGS: a default of 0 branches was accepted';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN UPDATE platform_settings SET default_module_patients = NULL;
+    RAISE EXCEPTION 'SETTINGS: a missing patients-module default was accepted';
+  EXCEPTION WHEN not_null_violation THEN NULL; END;
 END $$;
 
 -- Platform accounts: an active account must have joined; a link is a hash and its expiry together.
@@ -158,7 +183,8 @@ INSERT INTO platform_accounts VALUES ('00000000-0000-7000-8000-0000000011c1', NU
   'Invited', 'invited', repeat('b', 64), now() + interval '7 days', NULL, NULL, now(), now());
 DO $$
 BEGIN
-  UPDATE platform_settings SET alert_days_before_expiry = 9, updated_at = now();
+  UPDATE platform_settings SET alert_days_before_expiry = 9, default_max_users = 25,
+    default_max_branches = 5, default_module_patients = false, updated_at = now();
   BEGIN DELETE FROM platform_accounts; RAISE EXCEPTION 'TEAM: platform accounts are deletable';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   BEGIN PERFORM 1 FROM patients LIMIT 1; RAISE EXCEPTION 'PLAT-01: platform can read patients';
@@ -189,6 +215,9 @@ BEGIN
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   BEGIN UPDATE platform_settings SET default_trial_days = 90;
     RAISE EXCEPTION 'SETTINGS: eyadex_app changed platform settings';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN UPDATE platform_settings SET default_max_users = 1000;
+    RAISE EXCEPTION 'SETTINGS: eyadex_app changed the new-clinic defaults';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   BEGIN PERFORM 1 FROM platform_accounts LIMIT 1; RAISE EXCEPTION 'TEAM: eyadex_app reads the team';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;

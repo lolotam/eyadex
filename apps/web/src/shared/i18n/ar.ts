@@ -1,3 +1,4 @@
+import { arClinicCreate } from "./ar-clinic-create";
 import { arRoles } from "./ar-roles";
 import { arPatients } from "./ar-patients";
 import { arAudit } from "./ar-audit";
@@ -122,22 +123,7 @@ export const ar: Dictionary = {
       users: "المستخدمون",
       branches: "الفروع",
     },
-    createTitle: "إنشاء عيادة",
-    createSubtitle: "تبدأ العيادة بفترة تجريبية 30 يومًا، ويصل لمديرها الأول دعوة.",
-    sectionClinic: "العيادة",
-    sectionAdmin: "مدير العيادة الأول",
-    fields: {
-      nameAr: "الاسم (عربي)",
-      nameEn: "الاسم (إنجليزي)",
-      slug: "المعرّف",
-      slugHint: "حروف إنجليزية صغيرة وأرقام وشرطات.",
-      slugPreview: "العنوان المستقبلي: {address}",
-      specialty: "التخصص",
-      defaultLanguage: "اللغة الافتراضية",
-      timezone: "المنطقة الزمنية",
-      adminName: "اسم المدير الكامل",
-      adminEmail: "بريد المدير",
-    },
+    ...arClinicCreate,
     created: "تم إنشاء العيادة",
     notFound: "العيادة غير موجودة",
     tabs: {

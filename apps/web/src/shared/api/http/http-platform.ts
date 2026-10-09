@@ -28,9 +28,6 @@ import { explicitExpiry } from "./subscription-expiry";
 
 const notImplemented = () => Promise.reject(new ApiError("not_implemented"));
 
-// TODO(spec): story 26 sets no default limits or modules, so these mirror the mock (10 users,
-// 3 branches, patients on). The trial length is the platform setting, read by the server (ADR-0020).
-const NEW_CLINIC = { maxUsers: 10, maxBranches: 3, modules: { patients: true } } as const;
 export function toClinicListItem(detail: PlatformClinicDetail): ClinicListItem {
   return {
     id: detail.id,
@@ -51,7 +48,7 @@ export function toClinicListItem(detail: PlatformClinicDetail): ClinicListItem {
 }
 
 export function toClinicDetail(detail: PlatformClinicDetail): ClinicDetail {
-  return { ...toClinicListItem(detail), features: { patients: detail.modules.patients } };
+  return { ...toClinicListItem(detail), features: { ...detail.modules } };
 }
 
 export function platformListQuery(query: ClinicListQuery) {
@@ -67,7 +64,8 @@ export function platformListQuery(query: ClinicListQuery) {
 
 /**
  * No expiry and no trial length are sent: the server applies the platform default trial on its own
- * clock (ADR-0016, ADR-0020), so the body never depends on the device.
+ * clock (ADR-0016, ADR-0020), so the body never depends on the device. Limits and modules are the
+ * form's (pre-filled from the platform settings): the server never picks them (ADR-0020 amendment).
  */
 export function toCreateClinicRequest(input: CreateClinicInput): CreateClinicRequest {
   const timezone = timezoneOptions.find((tz) => tz === input.timezone);
@@ -80,7 +78,9 @@ export function toCreateClinicRequest(input: CreateClinicInput): CreateClinicReq
     defaultLanguage: input.defaultLanguage,
     timezone,
     status: "trial",
-    ...NEW_CLINIC,
+    maxUsers: input.maxUsers,
+    maxBranches: input.maxBranches,
+    modules: { ...input.modules },
     admin: { fullName: input.adminName, email: input.adminEmail },
   };
 }

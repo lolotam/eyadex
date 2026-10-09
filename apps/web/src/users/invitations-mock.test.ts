@@ -200,6 +200,9 @@ describe("invitations mock", () => {
         timezone: "Asia/Kuwait",
         adminName: "First Admin",
         adminEmail: "first.admin@example.com",
+        maxUsers: 10,
+        maxBranches: 3,
+        modules: { patients: true },
       },
       crypto.randomUUID(),
     );
@@ -297,6 +300,9 @@ describe("invitations mock", () => {
         timezone: "Asia/Kuwait",
         adminName: "First Admin",
         adminEmail: "  First-Admin@Example.com ",
+        maxUsers: 10,
+        maxBranches: 3,
+        modules: { patients: true },
       },
       crypto.randomUUID(),
     );
