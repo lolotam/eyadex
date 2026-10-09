@@ -119,6 +119,8 @@ function scheduleOf(
       .map(({ branchId, weekday, startsAt, endsAt }) => ({ branchId, weekday, startsAt, endsAt })),
     timeOff: db.timeOff
       .filter((t) => t.clinicId === a.clinic.id && t.membershipId === member.id)
+      // Not per branch: shown only when the view keys reach the provider at all (as the API).
+      .filter(() => providerWithin(a.reach, member))
       .filter((t) => t.cancelledAt === null && new Date(t.endsAt).getTime() > now)
       .sort((x, y) => x.startsAt.localeCompare(y.startsAt))
       .map(({ id, startsAt, endsAt, note }) => ({ id, startsAt, endsAt, note })),

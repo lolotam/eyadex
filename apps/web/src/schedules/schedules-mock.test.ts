@@ -249,4 +249,34 @@ describe("dormant rows (Codex PR #63 P2, as the API)", () => {
     expect(saved.branches.every((b) => desk.branchIds.includes(b.id))).toBe(true);
     expect(saved.shifts.some((s) => s.branchId === outside.id)).toBe(false);
   });
+
+  it("NEGATIVE: hides the time off of a provider the view keys do not reach (Codex r2)", async () => {
+    const receptionist = getState().roles.find(
+      (r) => r.clinicId === clinicIdAt(0) && r.systemKey === "receptionist",
+    )!;
+    receptionist.permissions.push("view:schedules:branch", "update:schedules:clinic");
+    const desk = getState().members.find(
+      (m) => m.clinicId === clinicIdAt(0) && m.roleId === receptionist.id && m.status === "active",
+    )!;
+    const other = getState().members.find(
+      (m) =>
+        m.clinicId === clinicIdAt(0) &&
+        m.status === "active" &&
+        !m.allBranches &&
+        !m.branchIds.some((id) => desk.branchIds.includes(id)),
+    )!;
+    getState().bookingProfiles[other.id] = {
+      acceptsAppointments: true,
+      defaultDurationMinutes: 20,
+    };
+    const start = new Date(Date.now() + 86_400_000).toISOString();
+    const end = new Date(Date.now() + 2 * 86_400_000).toISOString();
+    const added = await api.scheduling.addTimeOff(as("receptionist"), other.id, {
+      startsAt: start,
+      endsAt: end,
+      note: "private reason",
+    });
+    expect(added.timeOff).toEqual([]);
+    expect(getState().timeOff.some((t) => t.membershipId === other.id)).toBe(true);
+  });
 });

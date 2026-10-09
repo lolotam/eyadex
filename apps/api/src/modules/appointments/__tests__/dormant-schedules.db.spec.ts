@@ -23,6 +23,7 @@ const week = (...rows: [number, string, string][]) => ({
 const put = (cookie: string, memberId: string, branchId: string, body: unknown) =>
   send(h, cookie, "PUT", `${path(memberId)}/branches/${branchId}`, body);
 const ids = (list: { id: string }[]) => list.map((b) => b.id);
+const inDays = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString();
 const keepRow = (memberId: string, branchId: string, weekday: number, from: string, to: string) =>
   h.owner`INSERT INTO provider_schedules VALUES (${C.clinicId}, ${randomUUID()},
     ${memberId}, ${branchId}, ${weekday}, ${from}, ${to}, now())`;
@@ -161,13 +162,15 @@ describe("branch scope (spec §3) and dormant rows", () => {
 });
 
 describe("the schedule a write answers with (Codex PR #63)", () => {
+  // Views branch R only, edits every branch: a combination the role editor accepts.
+  let editor: Awaited<ReturnType<typeof memberOn>>;
+  beforeAll(async () => {
+    const keys = ["view:schedules:branch", "update:schedules:clinic"];
+    const role = await customRole(h, C.clinicId, keys);
+    editor = await memberOn(h, C.admin, role, { allBranches: false, branchIds: [C.branchR] });
+  });
+
   it("NEGATIVE: is clipped to the caller's view keys, not the wider write key", async () => {
-    // Views branch R only, edits every branch: a combination the role editor accepts.
-    const role = await customRole(h, C.clinicId, [
-      "view:schedules:branch",
-      "update:schedules:clinic",
-    ]);
-    const editor = await memberOn(h, C.admin, role, { allBranches: false, branchIds: [C.branchR] });
     await keepRow(C.admin.memberId, C.branchX, 4, "06:00", "07:00");
     await setActive(C.branchX, false);
     try {
@@ -201,5 +204,23 @@ describe("the schedule a write answers with (Codex PR #63)", () => {
     } finally {
       await setActive(C.branchX, true);
     }
+  });
+
+  it("NEGATIVE: hides the time off of a provider the view keys do not reach (Codex r2)", async () => {
+    const off = { startsAt: inDays(5), endsAt: inDays(6), note: "private reason" };
+    // The doctor works in D only, outside the editor's view: its GET is not_found.
+    expect((await send(h, editor.cookie, "GET", path(C.doctor.memberId))).statusCode).toBe(404);
+    const added = await send(h, editor.cookie, "POST", `${path(C.doctor.memberId)}/time-off`, off);
+    expect(added.statusCode).toBe(201);
+    expect(added.json().timeOff).toEqual([]);
+    const saved = await put(
+      editor.cookie,
+      C.doctor.memberId,
+      C.branchD,
+      week([5, "08:00", "09:00"]),
+    );
+    expect(saved.statusCode).toBe(200);
+    expect(saved.json()).toMatchObject({ timeOff: [], branches: [], shifts: [] });
+    expect(saved.body).not.toContain("private reason");
   });
 });

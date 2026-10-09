@@ -119,7 +119,10 @@ export async function projectSchedule(
   // Rows kept in an inactive branch or one the provider left: shown so they can be cleared (ADR-0026 §4).
   const dormant = reached.filter((b) => !live(b) && held.has(b.id));
   const ids = new Set([...visible, ...dormant].map((b) => b.id));
-  const timeOff = await readUpcomingTimeOff(tx, viewer.clinicId, membershipId, now);
+  // Time off is not per branch: it shows only when the view keys reach the provider at all (Codex r2).
+  const timeOff = providerWithin(viewer.reach, provider)
+    ? await readUpcomingTimeOff(tx, viewer.clinicId, membershipId, now)
+    : [];
   const branchOf = ({ id, nameAr, nameEn, isActive }: SchedulingBranch) => ({
     id,
     nameAr,

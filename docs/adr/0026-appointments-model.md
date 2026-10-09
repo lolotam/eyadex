@@ -76,7 +76,8 @@ locks takes them first (the booking profile does). No PostgreSQL extension (no `
 - Every schedules write (week, time off) answers with the schedule clipped to the caller's view keys
   (`view:schedules:clinic` = every branch, `view:schedules:branch` = its own, none = no branch), never to the
   write key's reach: a role may hold `update:schedules:clinic` with only `view:schedules:branch`, and a `PUT` must
-  not show what a `GET` hides.
+  not show what a `GET` hides. Time off is not per branch, so it is returned only when those view keys reach the
+  provider at all.
 - D-14 lives in `coversWallInterval` (`@eyadex/contracts/schedules`): back-to-back rows of one branch join, also
   across midnight and from Saturday 24:00 into Sunday 00:00. A2's booking check calls it.
 - The drift test maps Drizzle's `time` to `time without time zone` (information_schema's spelling).
