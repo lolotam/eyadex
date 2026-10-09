@@ -148,6 +148,20 @@ describe("a provider's weekly schedule", () => {
   });
 });
 
+describe("rows left in a branch the provider no longer works in (Codex r1)", () => {
+  it("are hidden and dormant: they never block hours in the provider's own branches", async () => {
+    await bookable(C.desk.memberId);
+    // The desk once worked in X: its old row stays (configuration is never silently deleted).
+    await h.owner`INSERT INTO provider_schedules VALUES (${C.clinicId}, ${randomUUID()},
+      ${C.desk.memberId}, ${C.branchX}, 2, '08:00', '12:00', now())`;
+    const res = await put(C.admin.cookie, C.desk.memberId, C.branchR, week([2, "10:00", "14:00"]));
+    expect(res.statusCode).toBe(200);
+    expect(res.json().shifts).toEqual([
+      { branchId: C.branchR, weekday: 2, startsAt: "10:00", endsAt: "14:00" },
+    ]);
+  });
+});
+
 describe("branch scope (spec §3)", () => {
   it("a front desk on branch R edits a provider in R only and never sees providers outside R", async () => {
     expect(

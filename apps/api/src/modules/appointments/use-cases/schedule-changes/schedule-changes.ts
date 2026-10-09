@@ -71,7 +71,13 @@ export class ScheduleChanges {
       if (!branch.isActive) throw new ApiError("branch_inactive");
       if (!providerWorksIn(provider, branchId)) throw new ApiError("provider_not_in_branch");
       const current = await readScheduleRows(tx, actor.clinicId, membershipId);
-      const decision = decideBranchSchedule(current, branchId, shifts);
+      // Rows of a branch the provider left, or that is inactive, are dormant (hidden, never blocking).
+      const live = new Set(
+        (await branches.listForOptions(tx, actor.clinicId, actor.language))
+          .filter((b) => b.isActive && providerWorksIn(provider, b.id))
+          .map((b) => b.id),
+      );
+      const decision = decideBranchSchedule(current, branchId, shifts, (id) => live.has(id));
       if (decision.kind === "overlap") throw new ApiError("schedule_overlap");
       if (decision.kind === "replace") {
         const now = clock.now();

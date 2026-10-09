@@ -95,5 +95,6 @@ export const enScheduling = {
     duration: "Default duration (minutes)",
     durationHint: "5 to 480 minutes",
     saved: "Booking settings saved",
+    loadError: "The booking settings could not be loaded. Close and try again.",
   },
 };

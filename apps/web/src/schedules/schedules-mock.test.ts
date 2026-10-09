@@ -116,3 +116,27 @@ describe("weekly schedules (D-6, D-14) in the mock, as the API", () => {
     ).toBe("forbidden");
   });
 });
+
+describe("dormant rows (Codex r1, as the API)", () => {
+  it("rows of a branch the provider left never block hours in its own branches", async () => {
+    const d = doctor();
+    const own = d.branchIds[0]!;
+    const left = getState().branches.find((b) => b.clinicId === clinicIdAt(0) && b.id !== own)!;
+    getState().scheduleRows.push({
+      id: crypto.randomUUID(),
+      clinicId: clinicIdAt(0),
+      membershipId: d.id,
+      branchId: left.id,
+      weekday: 6,
+      startsAt: "08:00",
+      endsAt: "12:00",
+    });
+    const saved = await api.scheduling.replaceBranchSchedule(
+      admin(),
+      d.id,
+      own,
+      week([6, "10:00", "14:00"]),
+    );
+    expect(saved.shifts.some((s) => s.weekday === 6 && s.branchId === own)).toBe(true);
+  });
+});

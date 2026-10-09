@@ -25,7 +25,8 @@ export interface BookingProfileDeps {
 
 /**
  * إعدادات الحجز لعضو (D-1، D-15، ADR-0026 §5): بيستقبل مواعيد ولا لأ، ومدته الافتراضية. التغيير transaction
- * واحدة تحت أقفال الأدوار ثم المستخدمين (نفس ترتيب ADR-0012) ثم قفل مقدّم الخدمة (D-13)، فيها صف سجل واحد.
+ * واحدة تحت أقفال الأدوار ثم المستخدمين (نفس ترتيب ADR-0012) ثم قفل مقدّم الخدمة (D-13) قبل صف العضوية،
+ * فيها صف سجل واحد.
  * القرار من الصلاحيات بس، عمره ما بيبص على اسم الدور.
  */
 export class BookingProfileChanges {
@@ -62,10 +63,11 @@ export class BookingProfileChanges {
       await lockClinicUsers(tx, clinicId);
       // The route's own key, on the actor as it is after the locks (`@Require` ran before them).
       await assertActorMay(tx, actor, "update:users:clinic");
+      // Before the membership row: a schedule save holds this lock and then needs that row (its FK).
+      await lockProvider(tx, clinicId, memberId);
       const member = await findMemberForUpdate(tx, clinicId, memberId);
       if (member === null) throw new ApiError("not_found");
       await assertMayTouchAdmin(tx, actor, [member.roleSystemKey]);
-      await lockProvider(tx, clinicId, memberId);
       const before = await readBookingProfile(tx, clinicId, memberId);
       if (before === null) throw new ApiError("not_found");
       const same =

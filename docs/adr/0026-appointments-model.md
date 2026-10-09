@@ -56,7 +56,11 @@ locks takes them first (the booking profile does). No PostgreSQL extension (no `
   configuration, not history; every save writes one `schedule.replaced` audit row with the old and new rows.
   It has no `UPDATE` grant.
 - The replace unit is (provider, branch), so `update:schedules:branch` can never touch a branch outside the
-  editor's reach. Overlaps are refused across all the provider's branches (one person, one place).
+  editor's reach. Overlaps are refused across all the provider's live branches (one person, one place):
+  rows of a branch the provider no longer works in, or of an inactive branch, are dormant — hidden from the
+  schedule and never blocking (configuration is never deleted behind the admin's back; they count again if
+  the provider returns to that branch or it is reactivated). TODO(spec): whether a branch change should
+  clear those rows instead is open.
 - D-14 lives in `coversWallInterval` (`@eyadex/contracts/schedules`): back-to-back rows of one branch join, also
   across midnight and from Saturday 24:00 into Sunday 00:00. A2's booking check calls it.
 - The drift test maps Drizzle's `time` to `time without time zone` (information_schema's spelling).
@@ -64,7 +68,8 @@ locks takes them first (the booking profile does). No PostgreSQL extension (no `
 ### 5. Booking profile (D-1, D-15)
 
 `accepts_appointments` (default false) and `default_duration_minutes` (5–480, default 20) on the membership,
-changed under `update:users:clinic` with the users path's locks, then the provider lock; one `user.booking_changed`
+changed under `update:users:clinic` with the users path's locks, then the provider lock, then the membership row
+(a schedule save holds the provider lock and then needs that row through its foreign key); one `user.booking_changed`
 row (entity `user`). Only a clinic admin may change an admin's settings (ADR-0012 §15). Only an active member
 with the flag on has a schedule to edit (`provider_not_bookable`). The users keys are core keys, so the web shows
 the action only when the module is on as well (the API answers `module_disabled` otherwise).

@@ -30,7 +30,25 @@ describe("scheduling audit snapshots (PRD §4.11 allowlists)", () => {
     expect(
       auditSnapshots("provider_time_off", { before: null, after: off }).after,
     ).not.toHaveProperty("note");
+    const shown = auditSnapshots("provider_time_off", { before: null, after: off }).after;
+    expect(shown).toMatchObject({ startsAt: "s", endsAt: "e" });
     const user = { fullName: "A", acceptsAppointments: true, defaultDurationMinutes: 20 };
     expect(auditSnapshots("user", { before: null, after: user }).after).toEqual(user);
+  });
+});
+
+describe("time-off instants in the audit dialog (Codex r1)", () => {
+  it("keeps an ISO instant under startsAt / endsAt, and still scrubs digits typed there", () => {
+    const after = {
+      providerName: "Dr A",
+      startsAt: "2026-10-11T06:00:00.000Z",
+      endsAt: "2026-10-12T06:00:00.000Z",
+      cancelled: false,
+    };
+    const shown = auditSnapshots("provider_time_off", { before: null, after }).after;
+    expect(shown).toMatchObject({ startsAt: after.startsAt, endsAt: after.endsAt });
+    const typed = { ...after, startsAt: "call 99998888" };
+    const scrubbed = auditSnapshots("provider_time_off", { before: null, after: typed }).after;
+    expect(JSON.stringify(scrubbed)).not.toContain("99998888");
   });
 });

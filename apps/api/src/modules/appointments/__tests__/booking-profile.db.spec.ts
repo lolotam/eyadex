@@ -5,6 +5,7 @@ import {
   openHarness,
   type Harness,
 } from "../../identity/auth/__tests__/auth-http-harness.ts";
+import { settledOrBlocked } from "../../identity/__tests__/access-fixtures.ts";
 import { AUTHORIZATION_INVALIDATOR, type AuthorizationInvalidator } from "../../identity/index.ts";
 import {
   auditOf,
@@ -96,5 +97,24 @@ describe("booking profile", () => {
     } finally {
       await setAppointmentsModule(h, invalidate, C.clinicId, true);
     }
+  });
+});
+
+// Codex r1: a schedule save holds the provider lock and then needs the membership row (its FK), so a
+// booking-profile change must wait for the provider lock before it locks that row — never the reverse.
+describe("lock order (D-13)", () => {
+  it("waits for the provider lock without holding the membership row", async () => {
+    let saving: ReturnType<typeof send> | undefined;
+    const key = `appointments:${C.clinicId}:${C.doctor.memberId}`;
+    await h.owner.begin(async (tx) => {
+      await tx`SELECT pg_advisory_xact_lock(hashtextextended(${key}, 0))`;
+      const body = { acceptsAppointments: true, defaultDurationMinutes: 25 };
+      saving = send(h, C.admin.cookie, "PUT", url(C.doctor.memberId), body);
+      await settledOrBlocked(h, saving);
+      // What a schedule INSERT's foreign key takes; NOWAIT fails at once if the row is held.
+      await tx`SELECT 1 FROM memberships WHERE clinic_id = ${C.clinicId}
+                 AND id = ${C.doctor.memberId} FOR KEY SHARE NOWAIT`;
+    });
+    expect((await saving!).statusCode).toBe(200);
   });
 });

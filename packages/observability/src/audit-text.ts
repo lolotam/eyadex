@@ -36,6 +36,9 @@ const STRUCTURED_KEYS: ReadonlySet<string> = new Set([
   "expiresAt",
   "verifiedAt",
   "degradedAt",
+  // A time-off period (ADR-0026 §7): the instants the code stores, never a typed note.
+  "startsAt",
+  "endsAt",
 ]);
 
 function maskDigitRun(run: string): string {

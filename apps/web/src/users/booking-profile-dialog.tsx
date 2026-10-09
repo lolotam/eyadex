@@ -59,6 +59,8 @@ export function BookingProfileDialog({
     resolver: zodResolver(bookingProfileInputSchema),
     defaultValues: DEFAULTS,
   });
+  // A form left over from another member never shows, and never saves, as this member's values.
+  useEffect(() => form.reset(DEFAULTS), [user?.id, form]);
   useEffect(() => {
     if (profile.data) {
       const { acceptsAppointments, defaultDurationMinutes } = profile.data;
@@ -115,6 +117,11 @@ export function BookingProfileDialog({
             />
           </form>
         </Form>
+        {profile.isError && (
+          <p role="alert" className="text-sm text-destructive">
+            {t("bookingProfile.loadError")}
+          </p>
+        )}
         <DialogFooter className="gap-2 sm:space-x-0">
           <Button type="button" variant="outline" onClick={onClose}>
             {t("common.cancel")}
@@ -122,7 +129,7 @@ export function BookingProfileDialog({
           <Button
             type="submit"
             form="booking-profile-form"
-            disabled={mutation.isPending || profile.isLoading}
+            disabled={mutation.isPending || !profile.isSuccess}
           >
             {t("common.save")}
           </Button>

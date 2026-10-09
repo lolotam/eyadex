@@ -117,7 +117,10 @@ export function createMockSchedules(): SchedulesApi {
       const mineOf = (r: (typeof db.scheduleRows)[number]) =>
         r.clinicId === a.clinic.id && r.membershipId === id;
       const current = db.scheduleRows.filter(mineOf);
-      const others = current.filter((r) => r.branchId !== branchId);
+      // As the API: rows of a branch the provider left, or that is inactive, never block.
+      const live = (id: string) =>
+        worksIn(member, id) && db.branches.some((b) => b.id === id && b.isActive);
+      const others = current.filter((r) => r.branchId !== branchId && live(r.branchId));
       if (findShiftOverlap([...others, ...parsed.data.shifts]))
         throw new ApiError("schedule_overlap");
       const before = current
