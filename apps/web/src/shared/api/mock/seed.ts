@@ -6,6 +6,7 @@ import type { Patient } from "@eyadex/contracts/patients";
 import type { MockState } from "./mock-store";
 import { issueInviteToken } from "./mock-invite-tokens";
 import { seedCivilId } from "./seed-civil-id";
+import { seedScheduling } from "./seed-scheduling";
 import { buildSystemRoles } from "./seed-roles";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -114,6 +115,10 @@ export function buildSeed(): MockState {
     inviteOutbox: {},
     patients: [],
     patientCounters: {},
+    services: [],
+    bookingProfiles: {},
+    scheduleRows: [],
+    timeOff: [],
     platformAccounts: [
       {
         id: makeId(),
@@ -267,6 +272,7 @@ export function buildSeed(): MockState {
       state.patients.push(patient);
     }
     state.patientCounters[clinicId] = patientCount;
+    seedScheduling(state, clinicId, makeId, createdAt);
 
     state.platformAudit.push({
       id: makeId(),

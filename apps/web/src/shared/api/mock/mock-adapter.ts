@@ -1,6 +1,4 @@
 import type { ApiClient } from "../api-client";
-import { ApiError } from "../api-error";
-import type { SchedulingApi } from "../scheduling-client";
 import { createMockPlatform } from "./mock-platform";
 import { createMockPlatformInvites } from "./mock-platform-invites";
 import { createMockSession } from "./mock-session";
@@ -9,6 +7,8 @@ import { createMockUsers } from "./mock-users";
 import { createMockInvitations } from "./mock-invitations";
 import { createMockRoles } from "./mock-roles";
 import { createMockPatients } from "./mock-patients";
+import { createMockSchedules } from "./mock-schedules";
+import { createMockServices } from "./mock-services";
 import { createMockAuditLog } from "./mock-audit-log";
 import { createMockAccount, createMockClinicSettings } from "./mock-clinic-settings";
 import {
@@ -16,24 +16,6 @@ import {
   createMockPlatformSettings,
   createMockPlatformTeam,
 } from "./mock-platform-console";
-
-const notYet = () => Promise.reject(new ApiError("not_implemented"));
-const pendingScheduling = Object.fromEntries(
-  [
-    "listServices",
-    "createService",
-    "updateService",
-    "deactivateService",
-    "reactivateService",
-    "getBookingProfile",
-    "setBookingProfile",
-    "listProviders",
-    "getProviderSchedule",
-    "replaceBranchSchedule",
-    "addTimeOff",
-    "cancelTimeOff",
-  ].map((name) => [name, notYet]),
-) as unknown as SchedulingApi;
 
 export function createMockApiClient(): ApiClient {
   return {
@@ -44,7 +26,7 @@ export function createMockApiClient(): ApiClient {
     invitations: createMockInvitations(),
     roles: createMockRoles(),
     patients: createMockPatients(),
-    scheduling: pendingScheduling,
+    scheduling: { ...createMockServices(), ...createMockSchedules() },
     audit: createMockAuditLog(),
     clinicSettings: createMockClinicSettings(),
     account: createMockAccount(),
