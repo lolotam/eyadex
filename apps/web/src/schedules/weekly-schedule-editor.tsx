@@ -34,10 +34,15 @@ export function WeeklyScheduleEditor({ schedule, branchId, mayEdit }: Props) {
   const refresh = useRefreshSchedules();
   const [rows, setRows] = useState<WeekRow[]>(() => rowsForBranch(schedule, branchId));
   const [error, setError] = useState<string | null>(null);
+  // Reset only when this branch's saved hours change: a refetch after a time-off write returns a new
+  // schedule object with the same week and must not throw away unsaved edits (Codex, PR #63).
+  const savedWeek = JSON.stringify(toWeekInput(rowsForBranch(schedule, branchId)));
+  const providerId = schedule.provider.membershipId;
   useEffect(() => {
     setRows(rowsForBranch(schedule, branchId));
     setError(null);
-  }, [schedule, branchId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `schedule` is read through savedWeek
+  }, [savedWeek, branchId, providerId]);
 
   const mutation = useMutation({
     mutationFn: () =>
