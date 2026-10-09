@@ -17,7 +17,12 @@ import { useApi } from "@/shared/api/api-provider";
 import { TextField } from "@/shared/forms/form-fields";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { usePersona } from "@/shared/persona/persona-provider";
-import { timeOffFormSchema, toTimeOffInput, type TimeOffForm } from "./schedule-forms";
+import {
+  skippedTimeField,
+  timeOffFormSchema,
+  toTimeOffInput,
+  type TimeOffForm,
+} from "./schedule-forms";
 import { useRefreshSchedules } from "./schedule-queries";
 
 const EMPTY: TimeOffForm = {
@@ -60,7 +65,11 @@ export function TimeOffDialog({ membershipId, timeZone, onClose }: Props) {
           <form
             id="time-off-form"
             className="grid grid-cols-2 gap-4"
-            onSubmit={form.handleSubmit((values) => mutation.mutate(values))}
+            onSubmit={form.handleSubmit((values) => {
+              const skipped = skippedTimeField(values, timeZone);
+              if (skipped) form.setError(skipped, { message: "validation.timeMissing" });
+              else mutation.mutate(values);
+            })}
           >
             <TextField
               control={form.control}

@@ -175,6 +175,7 @@ export const en = {
     tooLong: "Too long",
     time: "Enter a time as HH:MM (24:00 only as an end)",
     timeOrder: "The end must be after the start",
+    timeMissing: "This time does not exist in the clinic's time zone (the clock changes)",
     email: "Enter a valid email",
     slug: "Use lowercase letters, numbers and dashes",
     slugReserved: "This address is reserved by Eyadex",

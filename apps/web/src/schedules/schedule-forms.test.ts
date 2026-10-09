@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { ProviderSchedule } from "@eyadex/contracts/schedules";
-import { rowsForBranch, toTimeOffInput, toWeekInput, wallLabel } from "./schedule-forms";
+import {
+  rowsForBranch,
+  skippedTimeField,
+  toTimeOffInput,
+  toWeekInput,
+  wallLabel,
+} from "./schedule-forms";
 
 const schedule: ProviderSchedule = {
   provider: {
@@ -49,5 +55,19 @@ describe("schedule form helpers", () => {
       note: null,
     });
     expect(wallLabel("2026-10-11T06:00:00.000Z", "Asia/Kuwait")).toBe("2026-10-11 09:00");
+  });
+});
+
+describe("time off on a clock change (Codex r2)", () => {
+  it("names the field whose wall time the clinic's zone skips", () => {
+    const form = {
+      startDate: "2026-04-24",
+      startTime: "00:30",
+      endDate: "2026-04-24",
+      endTime: "09:00",
+      note: "",
+    };
+    expect(skippedTimeField(form, "Africa/Cairo")).toBe("startTime");
+    expect(skippedTimeField({ ...form, startTime: "02:00" }, "Africa/Cairo")).toBeNull();
   });
 });

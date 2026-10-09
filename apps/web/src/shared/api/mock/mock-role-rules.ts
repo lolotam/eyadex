@@ -97,10 +97,14 @@ export function enforceNotLocked(role: Role): void {
 
 type Reach = { allBranches: boolean; branchIds: readonly string[] };
 
-/** The API's `uncoveredKeys`: stored keys of every module; a clinic key covers its branch scope. */
+/**
+ * The API's `uncoveredKeys` (`grantFor`): stored keys of every module; a clinic key covers the
+ * branch and own scopes, a branch key covers own (the narrowest).
+ */
 function covers(held: readonly string[], key: string): boolean {
-  const [action, resource] = key.split(":");
-  return held.includes(key) || held.includes(`${action}:${resource}:clinic`);
+  const [action, resource, scope] = key.split(":");
+  if (held.includes(key) || held.includes(`${action}:${resource}:clinic`)) return true;
+  return scope === "own" && held.includes(`${action}:${resource}:branch`);
 }
 
 /** The actor's reach: every branch, or its active branches only. */

@@ -51,3 +51,12 @@ export function instantToWall(iso: string, timeZone: string): { date: string; ti
     time: `${part("hour")}:${part("minute")}`,
   };
 }
+
+/**
+ * Does the wall-clock date and time exist in the zone? A clock moved forward skips an hour, and
+ * `wallToInstant` would quietly move such a time; a form refuses it instead.
+ */
+export function wallTimeExists(date: string, time: string, timeZone: string): boolean {
+  const back = instantToWall(wallToInstant(date, time, timeZone), timeZone);
+  return back.date === date && back.time === time;
+}

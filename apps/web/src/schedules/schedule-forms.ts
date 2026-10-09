@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { instantToWall, wallToInstant } from "@eyadex/contracts/clinic-time";
+import { instantToWall, wallTimeExists, wallToInstant } from "@eyadex/contracts/clinic-time";
 import {
   wallMinutes,
   type BranchScheduleInput,
@@ -48,6 +48,16 @@ export function toTimeOffInput(form: TimeOffForm, timeZone: string): TimeOffInpu
     endsAt: wallToInstant(form.endDate, form.endTime, timeZone),
     note: form.note.trim() === "" ? null : form.note.trim(),
   };
+}
+
+/** The field whose wall time the clinic's zone skips (a clock change), or null. */
+export function skippedTimeField(
+  form: TimeOffForm,
+  timeZone: string,
+): "startTime" | "endTime" | null {
+  if (!wallTimeExists(form.startDate, form.startTime, timeZone)) return "startTime";
+  if (!wallTimeExists(form.endDate, form.endTime, timeZone)) return "endTime";
+  return null;
 }
 
 /** `YYYY-MM-DD HH:MM` in the clinic's zone. */
