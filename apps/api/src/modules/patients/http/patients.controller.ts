@@ -24,7 +24,6 @@ import {
   type PatientListResponse,
   type PatientSearchRequest,
 } from "@eyadex/contracts/patients-api";
-import type { PermissionAction } from "@eyadex/contracts/permissions";
 import type { Database } from "@eyadex/db";
 
 import { DATABASE } from "../../../shared/database.provider.ts";
@@ -161,7 +160,7 @@ export class PatientsController {
 
   private options(
     request: ClinicRequest,
-    action: Exclude<PermissionAction, "deactivate">,
+    action: "view" | "create" | "update",
   ): Promise<PatientBranchOptionList> {
     const actor = actorOf(request);
     const scope = requireScope(actor.scopes[action]);

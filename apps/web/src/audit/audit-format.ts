@@ -1,4 +1,4 @@
-const PERMISSION = /^(view|create|update|deactivate):([a-z_]+):(clinic|branch)$/;
+const PERMISSION = /^(view|create|update|deactivate|overbook):([a-z_]+):(clinic|branch|own)$/;
 
 type Lookup = (key: string) => string;
 

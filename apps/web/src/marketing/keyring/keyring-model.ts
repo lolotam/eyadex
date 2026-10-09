@@ -7,11 +7,11 @@ import { ROLE_TEMPLATES } from "@/shared/api/mock/seed-roles";
 
 export type KeyId = "admin" | "doctor" | "receptionist" | "tech" | "team";
 export type BranchId = "salmiya" | "hawalli";
-export type SidebarItem = "overview" | PermissionResource;
 
 export const KEY_ORDER: readonly KeyId[] = ["admin", "doctor", "receptionist", "tech", "team"];
 export const BRANCHES: readonly BranchId[] = ["salmiya", "hawalli"];
-export const SIDEBAR_ORDER: readonly SidebarItem[] = [
+// The landing's sample clinic shows the MVP areas only, not every resource of the catalogue.
+export const SIDEBAR_ORDER = [
   "overview",
   "branches",
   "users",
@@ -19,7 +19,8 @@ export const SIDEBAR_ORDER: readonly SidebarItem[] = [
   "patients",
   "audit_log",
   "clinic_settings",
-];
+] as const satisfies readonly ("overview" | PermissionResource)[];
+export type SidebarItem = (typeof SIDEBAR_ORDER)[number];
 
 type SamplePersona = { permissions: readonly string[]; branches: readonly BranchId[] };
 

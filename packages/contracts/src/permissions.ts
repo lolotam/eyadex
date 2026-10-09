@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { ClinicModule } from "./clinics.ts";
 
-export const actionSchema = z.enum(["view", "create", "update", "deactivate"]);
+export const actionSchema = z.enum(["view", "create", "update", "deactivate", "overbook"]);
 export type PermissionAction = z.infer<typeof actionSchema>;
 
 export const resourceSchema = z.enum([
@@ -11,17 +11,21 @@ export const resourceSchema = z.enum([
   "patients",
   "audit_log",
   "clinic_settings",
+  "appointments",
+  "services",
+  "schedules",
 ]);
 export type PermissionResource = z.infer<typeof resourceSchema>;
 
-export const scopeSchema = z.enum(["clinic", "branch"]);
+/** `clinic` = every branch, `branch` = the member's branches, `own` = the member's own records (A3). */
+export const scopeSchema = z.enum(["clinic", "branch", "own"]);
 export type PermissionScope = z.infer<typeof scopeSchema>;
 
 /** Permission string: action:resource:scope */
 export const permissionSchema = z
   .string()
   .regex(
-    /^(view|create|update|deactivate):(branches|users|roles|patients|audit_log|clinic_settings):(clinic|branch)$/,
+    /^(view|create|update|deactivate|overbook):(branches|users|roles|patients|audit_log|clinic_settings|appointments|services|schedules):(clinic|branch|own)$/,
   );
 export type Permission = string;
 
@@ -41,24 +45,42 @@ const resourceModule: Record<PermissionResource, ClinicModule | null> = {
   patients: "patients",
   audit_log: null,
   clinic_settings: null,
+  appointments: "appointments",
+  services: "appointments",
+  schedules: "appointments",
 };
 
-/** The actions each resource defines (PRD 4.7); no other action exists for it. */
-const resourceActions: Record<PermissionResource, readonly PermissionAction[]> = {
-  branches: ["view", "create", "update", "deactivate"],
-  users: ["view", "create", "update", "deactivate"],
-  roles: ["view", "create", "update", "deactivate"],
-  patients: ["view", "create", "update", "deactivate"],
-  audit_log: ["view"],
-  clinic_settings: ["view", "update"],
+type Scopes = readonly PermissionScope[];
+const CLINIC: Scopes = ["clinic"];
+const BRANCHED: Scopes = ["clinic", "branch"];
+const MANAGED = { view: CLINIC, create: CLINIC, update: CLINIC, deactivate: CLINIC };
+
+/**
+ * Each resource's actions and the scopes each action takes (PRD 4.7, appointments spec §3); no other
+ * combination exists. `view:patients:own` joins in slice A3, together with the query that evaluates it.
+ */
+const resourceGrants: Record<PermissionResource, Partial<Record<PermissionAction, Scopes>>> = {
+  branches: MANAGED,
+  users: MANAGED,
+  roles: MANAGED,
+  patients: { view: BRANCHED, create: BRANCHED, update: BRANCHED, deactivate: BRANCHED },
+  audit_log: { view: CLINIC },
+  clinic_settings: { view: CLINIC, update: CLINIC },
+  appointments: {
+    view: ["clinic", "branch", "own"],
+    create: BRANCHED,
+    update: BRANCHED,
+    overbook: BRANCHED,
+  },
+  services: MANAGED,
+  schedules: { view: BRANCHED, update: BRANCHED },
 };
 
 function buildCatalog(): PermissionDefinition[] {
   const list: PermissionDefinition[] = [];
   for (const resource of resourceSchema.options) {
-    const scopes: PermissionScope[] = resource === "patients" ? ["clinic", "branch"] : ["clinic"];
-    for (const action of resourceActions[resource]) {
-      for (const scope of scopes) {
+    for (const action of actionSchema.options) {
+      for (const scope of resourceGrants[resource][action] ?? []) {
         list.push({
           key: `${action}:${resource}:${scope}`,
           action,
@@ -102,5 +124,22 @@ export const PERMISSION_KEYS = [
   "view:audit_log:clinic",
   "view:clinic_settings:clinic",
   "update:clinic_settings:clinic",
+  "view:appointments:clinic",
+  "view:appointments:branch",
+  "view:appointments:own",
+  "create:appointments:clinic",
+  "create:appointments:branch",
+  "update:appointments:clinic",
+  "update:appointments:branch",
+  "overbook:appointments:clinic",
+  "overbook:appointments:branch",
+  "view:services:clinic",
+  "create:services:clinic",
+  "update:services:clinic",
+  "deactivate:services:clinic",
+  "view:schedules:clinic",
+  "view:schedules:branch",
+  "update:schedules:clinic",
+  "update:schedules:branch",
 ] as const;
 export type PermissionKey = (typeof PERMISSION_KEYS)[number];

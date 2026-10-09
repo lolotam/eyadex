@@ -3,6 +3,7 @@ import {
   type PermissionDefinition,
   type PermissionResource,
 } from "@eyadex/contracts/permissions";
+import { moduleSchema, type ClinicModule } from "@eyadex/contracts/clinics";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
@@ -26,8 +27,11 @@ export function PermissionMatrix({ catalog, value, onChange, readOnly }: Props) 
   const { t } = useI18n();
   const resources = [...new Set(catalog.map((d) => d.resource))];
   const groups = [
-    { id: "core" as const, items: resources.filter((r) => !isModule(catalog, r)) },
-    { id: "patients" as const, items: resources.filter((r) => isModule(catalog, r)) },
+    { id: "core" as const, items: resources.filter((r) => moduleOf(catalog, r) === null) },
+    ...moduleSchema.options.map((module) => ({
+      id: module,
+      items: resources.filter((r) => moduleOf(catalog, r) === module),
+    })),
   ].filter((g) => g.items.length > 0);
 
   // Writes need view on the same resource: granting a write grants view, dropping view drops writes.
@@ -121,6 +125,9 @@ export function PermissionMatrix({ catalog, value, onChange, readOnly }: Props) 
   );
 }
 
-function isModule(catalog: PermissionDefinition[], resource: PermissionResource): boolean {
-  return catalog.some((d) => d.resource === resource && d.module !== null);
+function moduleOf(
+  catalog: PermissionDefinition[],
+  resource: PermissionResource,
+): ClinicModule | null {
+  return catalog.find((d) => d.resource === resource)?.module ?? null;
 }
