@@ -46,6 +46,15 @@ export function providerWithin(reach: Reach, member: MemberReach): boolean {
   return member.branchIds.some((id) => reach.branchIds.includes(id));
 }
 
+/** A provider's branches as the caller may see them: never outside a branch-scope reach (as the API). */
+export function branchesWithin(reach: Reach, member: MemberReach): MemberReach {
+  if (reach.all) return { allBranches: member.allBranches, branchIds: [...member.branchIds] };
+  const branchIds = member.allBranches
+    ? [...reach.branchIds]
+    : member.branchIds.filter((id) => reach.branchIds.includes(id));
+  return { allBranches: false, branchIds };
+}
+
 export const worksIn = (member: MemberReach, branchId: string) =>
   member.allBranches || member.branchIds.includes(branchId);
 

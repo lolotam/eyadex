@@ -103,6 +103,17 @@ describe("weekly schedules (D-6, D-14) in the mock, as the API", () => {
     );
     const d = doctor();
     expect(visible.includes(d.id)).toBe(d.branchIds.includes(deskBranch));
+    // An all-branches provider shows the desk only the desk's branches, never the rest (Codex PR #63).
+    const boss = getState().members.find(
+      (m) => m.clinicId === clinicIdAt(0) && m.allBranches && m.status === "active",
+    )!;
+    getState().bookingProfiles[boss.id] = { acceptsAppointments: true, defaultDurationMinutes: 20 };
+    const seen = await api.scheduling.listProviders(as("receptionist"));
+    expect(seen.map((p) => p.membershipId)).toContain(boss.id);
+    for (const p of seen) {
+      expect(p.allBranches).toBe(false);
+      expect(p.branchIds.every((id) => desk.branchIds.includes(id))).toBe(true);
+    }
     const start = new Date(Date.now() + 86_400_000).toISOString();
     const end = new Date(Date.now() + 2 * 86_400_000).toISOString();
     expect(

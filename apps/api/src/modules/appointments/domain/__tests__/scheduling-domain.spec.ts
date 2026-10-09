@@ -7,6 +7,7 @@ import {
   type ScheduleRow,
 } from "../schedule-rules.ts";
 import {
+  branchesWithin,
   providerWithin,
   providerWorksIn,
   reachCovers,
@@ -47,6 +48,20 @@ describe("reach of a route's grant", () => {
     expect(providerWithin(MINE, { allBranches: false, branchIds: ["d"] })).toBe(false);
     expect(providerWithin(MINE, { allBranches: true, branchIds: [] })).toBe(true);
     expect(providerWorksIn({ allBranches: false, branchIds: ["d"] }, "r")).toBe(false);
+  });
+
+  it("a provider's branches are shown only inside the caller's reach (Codex PR #63)", () => {
+    const everywhere = { allBranches: true, branchIds: [] };
+    expect(branchesWithin(MINE, { allBranches: false, branchIds: ["d", "r"] })).toEqual({
+      allBranches: false,
+      branchIds: ["r"],
+    });
+    expect(branchesWithin(MINE, everywhere)).toEqual({ allBranches: false, branchIds: ["r"] });
+    expect(branchesWithin({ all: true }, everywhere)).toEqual(everywhere);
+    expect(branchesWithin({ all: true }, { allBranches: false, branchIds: ["d"] })).toEqual({
+      allBranches: false,
+      branchIds: ["d"],
+    });
   });
 });
 

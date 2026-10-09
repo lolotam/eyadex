@@ -7,6 +7,7 @@ import type { Database, Tx } from "@eyadex/db";
 
 import { ApiError } from "../../../shared/errors.ts";
 import {
+  branchesWithin,
   providerWithin,
   providerWorksIn,
   reachCovers,
@@ -30,12 +31,12 @@ export interface ScheduleViewer {
   readonly language: "ar" | "en";
 }
 
-const summaryOf = (p: ProviderRecord): ProviderSummary => ({
+// Branch assignments outside the caller's reach stay hidden (Codex PR #63).
+const summaryOf = (p: ProviderRecord, reach: Reach): ProviderSummary => ({
   membershipId: p.membershipId,
   fullName: p.fullName,
   defaultDurationMinutes: p.defaultDurationMinutes,
-  allBranches: p.allBranches,
-  branchIds: [...p.branchIds],
+  ...branchesWithin(reach, p),
 });
 
 /**
@@ -54,7 +55,11 @@ export async function listProviders(
   const rows = await db.withTenant(viewer.clinicId, (tx) =>
     providers.listBookable(tx, viewer.clinicId),
   );
-  return { items: rows.filter((p) => providerWithin(viewer.reach, p)).map(summaryOf) };
+  return {
+    items: rows
+      .filter((p) => providerWithin(viewer.reach, p))
+      .map((p) => summaryOf(p, viewer.reach)),
+  };
 }
 
 /**
@@ -83,7 +88,7 @@ export async function readProviderSchedule(
   const rows = await readScheduleRows(tx, viewer.clinicId, membershipId);
   const timeOff = await readUpcomingTimeOff(tx, viewer.clinicId, membershipId, now);
   return {
-    provider: summaryOf(provider),
+    provider: summaryOf(provider, viewer.reach),
     branches: visible.map(({ id, nameAr, nameEn, isActive }) => ({ id, nameAr, nameEn, isActive })),
     shifts: rows
       .filter((r) => ids.has(r.branchId))

@@ -180,7 +180,19 @@ describe("branch scope (spec §3)", () => {
     const ids = providers.map((p: { membershipId: string }) => p.membershipId);
     expect(ids).toContain(C.admin.memberId);
     expect(ids).not.toContain(C.doctor.memberId);
+    // The admin works in every branch; a branch-scope caller learns only its own (Codex PR #63).
+    const listed = providers.find(
+      (p: { membershipId: string }) => p.membershipId === C.admin.memberId,
+    );
+    expect({ allBranches: listed.allBranches, branchIds: listed.branchIds }).toEqual({
+      allBranches: false,
+      branchIds: [C.branchR],
+    });
     const seen = (await send(h, C.desk.cookie, "GET", path(C.admin.memberId))).json();
+    expect({ allBranches: seen.provider.allBranches, branchIds: seen.provider.branchIds }).toEqual({
+      allBranches: false,
+      branchIds: [C.branchR],
+    });
     expect(seen.branches.map((b: { id: string }) => b.id)).toEqual([C.branchR]);
     expect(seen.shifts.every((s: { branchId: string }) => s.branchId === C.branchR)).toBe(true);
   });

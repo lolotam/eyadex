@@ -51,6 +51,22 @@ export function providerWithin(reach: Reach, provider: ProviderReach): boolean {
 }
 
 /**
+ * فروع مقدّم الخدمة زي ما الفاعل يقدر يشوفها: الفاعل بنطاق الفروع مايعرفش فروع برّه نطاقه، ولا إن
+ * العضو شغّال في "كل الفروع"؛ بيشوف بس الفروع المشتركة.
+ *
+ * @param reach وصول الفاعل
+ * @param provider فروع مقدّم الخدمة
+ * @returns الفروع اللي تظهر للفاعل
+ */
+export function branchesWithin(reach: Reach, provider: ProviderReach): ProviderReach {
+  if (reach.all) return { allBranches: provider.allBranches, branchIds: [...provider.branchIds] };
+  const branchIds = provider.allBranches
+    ? [...reach.branchIds]
+    : provider.branchIds.filter((id) => reach.branchIds.includes(id));
+  return { allBranches: false, branchIds };
+}
+
+/**
  * هل مقدّم الخدمة بيشتغل في الفرع ده (عضوية "كل الفروع" أو الفرع في فروعه)؟
  *
  * @param provider فروع مقدّم الخدمة

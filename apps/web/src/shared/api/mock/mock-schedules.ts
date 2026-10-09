@@ -10,6 +10,7 @@ import type { SchedulingApi } from "../scheduling-client";
 import { writeClinicAudit } from "./mock-audit";
 import {
   authorizeSchedules,
+  branchesWithin,
   profileOf,
   providerWithin,
   reachCovers,
@@ -24,12 +25,11 @@ type SchedulesApi = Pick<
   "listProviders" | "getProviderSchedule" | "replaceBranchSchedule" | "addTimeOff" | "cancelTimeOff"
 >;
 
-const summary = (db: MockState, m: MembershipUser) => ({
+const summary = (db: MockState, a: SchedulingAccess, m: MembershipUser) => ({
   membershipId: m.id,
   fullName: m.fullName,
   defaultDurationMinutes: profileOf(db, m.id).defaultDurationMinutes,
-  allBranches: m.allBranches,
-  branchIds: [...m.branchIds],
+  ...branchesWithin(a.reach, m),
 });
 
 /** A member outside the action's reach is not_found, never forbidden: members can't be probed. */
@@ -58,7 +58,7 @@ function scheduleOf(db: MockState, a: SchedulingAccess, member: MembershipUser):
   const ids = new Set(branches.map((b) => b.id));
   const now = Date.now();
   return {
-    provider: summary(db, member),
+    provider: summary(db, a, member),
     branches: branches.map(({ id, nameAr, nameEn, isActive }) => ({
       id,
       nameAr,
@@ -98,7 +98,7 @@ export function createMockSchedules(): SchedulesApi {
         .filter((m) => m.clinicId === a.clinic.id && m.status === "active")
         .filter((m) => profileOf(db, m.id).acceptsAppointments && providerWithin(a.reach, m))
         .sort((x, y) => x.fullName.localeCompare(y.fullName))
-        .map((m) => summary(db, m));
+        .map((m) => summary(db, a, m));
     },
     async getProviderSchedule(persona, id) {
       await delay();

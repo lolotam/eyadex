@@ -126,5 +126,6 @@ applies the API's check order (access before validation) and rules.
 - Deployment: 0042 is additive for the code before it (old code drops catalogue keys it does not know, names only the
   old `platform_settings` columns, and never inserts the new ones), so it is applied right before this code ships;
   the new code needs it (new columns, tables, the widened CHECK). A clinic created by the old code between the two
-  steps gets no appointments keys on its locked admin: the backfill `INSERT … ON CONFLICT DO NOTHING` is idempotent
-  and is re-run for such a clinic.
+  steps gets no appointments keys on its locked admin (Codex, PR #63). After every deploy of this code,
+  `db/tests/appointments-admin-keys.sql` is run on the live database (read-only, as the migration owner); it names
+  any such clinic, and 0042's final `INSERT … ON CONFLICT DO NOTHING` (idempotent) is then re-run.
