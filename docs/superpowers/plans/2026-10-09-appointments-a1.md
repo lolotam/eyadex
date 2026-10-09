@@ -33,6 +33,16 @@
 - Arabic JSDoc (description + `@param` + `@returns`) on every exported function in `domain/**` and every method in `ports/**`.
 - Conventional commits ending with the line `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
 
+## Owner amendments (2026-10-09) — these override the tasks below
+
+1. **D-16 confirmed:** 0042 adds the module's clinic-scope keys to every existing locked `clinic_admin` role, and to no other role (Task 5 as written). The production and staging migration role is superuser + BYPASSRLS (checked 2026-10-09).
+2. **D-17 — screens under Settings, not top-level nav (changes Tasks 15–16):**
+   - Routes are `/clinic/settings/services` and `/clinic/settings/schedules` (not `/clinic/services`, `/clinic/schedules`); `/clinic/settings` becomes the General tab.
+   - The clinic Settings page shows tabs General / Services / Work schedules; each tab renders only if the user can view its resource (`clinic_settings`, `services`, `schedules`).
+   - `CLINIC_NAV` gets **no** new entries. The Settings entry becomes visible when the user can view any of `clinic_settings`, `services`, `schedules` (extend `NavItem` with `anyOf?: PermissionResource[]` instead of `resource` for that entry) and links to the first tab the user can see.
+   - `nav-items.test.ts` asserts the Settings entry's `anyOf` list and that no `/clinic/services` or `/clinic/schedules` entry exists; a settings-tabs test asserts tab visibility per permission.
+   - i18n: `settings.tabs.general|services|schedules` (ar: «عام» / «الخدمات» / «جداول العمل») replace `nav.services` / `nav.schedules`.
+
 ---
 
 ## File Structure
