@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ar } from "@/shared/i18n/ar";
 import { en } from "@/shared/i18n/en";
+import { Route as LoginRoute } from "@/routes/login";
 import { signInCopy } from "./sign-in-copy";
 
 const text = (dict: unknown, key: string): string =>
@@ -29,5 +30,12 @@ describe("sign-in card copy", () => {
 
   it("the mock build keeps its demo wording", () => {
     expect(signInCopy(null)).toEqual({ title: "app.name", body: "landing.body" });
+  });
+
+  it("the login page's description never calls it a demo", () => {
+    const head = LoginRoute.options.head?.({} as never) as { meta?: { content?: string }[] };
+    const descriptions = (head.meta ?? []).map((m) => m.content ?? "").join(" ");
+    expect(descriptions).toContain("Sign in to Eyadex.");
+    expect(descriptions).not.toMatch(DEMO_WORDING);
   });
 });
