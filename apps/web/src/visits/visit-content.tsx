@@ -84,9 +84,7 @@ export function VisitContent({ visitId }: { visitId: string }) {
           <VisitDiagnoses visitId={visit.id} diagnoses={content.diagnoses} editable={editable} />
           <VisitPrescription visitId={visit.id} items={content.prescription} editable={editable} />
           <VisitAddenda visitId={visit.id} addenda={content.addenda} canAdd={d.can.addAddendum} />
-          <div className="rounded-lg border bg-card p-4">
-            <AttachmentsPanel patientId={visit.patientId} visitId={visit.id} canUpload={editable} />
-          </div>
+          <AttachmentsPanel patientId={visit.patientId} visitId={visit.id} canUpload={editable} />
         </div>
       )}
       <p className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
