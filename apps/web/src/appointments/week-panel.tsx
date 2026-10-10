@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AlertCircle, CalendarClock } from "lucide-react";
 import type { Appointment } from "@eyadex/contracts/appointments";
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,7 @@ export function WeekPanel({ branchId, date, today, ownOnly, onDateChange }: Prop
   const { t, formatDate } = useI18n();
   const weekStart = weekStartOf(date);
   const providers = useAppointmentDay(branchId, weekStart);
-  const listed = providers.data?.providers ?? [];
+  const listed = useMemo(() => providers.data?.providers ?? [], [providers.data]);
   const [providerId, setProviderId] = useState<string | null>(null);
   useEffect(() => {
     if (!listed.some((p) => p.membershipId === providerId)) {
