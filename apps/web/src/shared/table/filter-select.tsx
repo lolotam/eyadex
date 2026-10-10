@@ -24,7 +24,8 @@ export function FilterSelect({
 }) {
   return (
     <Select
-      value={value ?? (anyLabel === undefined ? undefined : ANY)}
+      // "" is Radix's "nothing chosen" for a required picker that has no value yet.
+      value={value ?? (anyLabel === undefined ? "" : ANY)}
       onValueChange={(v) => onChange(v === ANY ? null : v)}
     >
       <SelectTrigger className="w-full bg-card sm:w-44" aria-label={label}>
