@@ -6,7 +6,7 @@ import type {
   DayProvider,
 } from "@eyadex/contracts/appointments";
 import { clinicDayBounds } from "@eyadex/contracts/clinic-time";
-import type { Database } from "@eyadex/db";
+import type { Database, Tx } from "@eyadex/db";
 
 import { ApiError } from "../../../shared/errors.ts";
 import {
@@ -40,6 +40,60 @@ export interface DayDeps {
  */
 export function clinicDay(date: string, timezone: string): TimeSpan {
   return clinicDayBounds(date, timezone);
+}
+
+/** A branch as the scheduling reads return it. */
+type SchedulingBranch = AppointmentDay["branch"];
+
+/**
+ * The branch a calendar read opens: one the caller's view keys reach (under `own`, a branch of the
+ * caller's membership), else `not_found` — an unreachable branch and an unknown one answer alike.
+ *
+ * @param deps the pool and ports
+ * @param tx the tenant transaction
+ * @param actor the caller
+ * @param branchId the branch asked for
+ * @returns the branch
+ */
+export async function reachableBranch(
+  deps: DayDeps,
+  tx: Tx,
+  actor: AppointmentActor,
+  branchId: string,
+): Promise<SchedulingBranch> {
+  const branch = (await deps.branches.listForOptions(tx, actor.clinicId, actor.language)).find(
+    (b) => b.id === branchId,
+  );
+  if (
+    branch === undefined ||
+    !reachCovers(dayBranches(actorViewReach(actor), actor.member), branch.id)
+  ) {
+    throw new ApiError("not_found");
+  }
+  return branchOf(branch);
+}
+
+/** The contract's branch fields only, whatever else the reader returned. */
+function branchOf(branch: SchedulingBranch): SchedulingBranch {
+  return { id: branch.id, nameAr: branch.nameAr, nameEn: branch.nameEn, isActive: branch.isActive };
+}
+
+/**
+ * What the caller may do in this branch (UX only: the API refuses as well). Overbooking needs a booking
+ * or moving key there too.
+ *
+ * @param actor the caller
+ * @param branch the branch
+ * @returns the three switches
+ */
+export function branchCan(
+  actor: AppointmentActor,
+  branch: SchedulingBranch,
+): AppointmentDay["can"] {
+  const create = branch.isActive && reachCovers(actorReach(actor, "create"), branch.id);
+  const update = reachCovers(actorReach(actor, "update"), branch.id);
+  const overbook = (create || update) && reachCovers(actorReach(actor, "overbook"), branch.id);
+  return { create, update, overbook };
 }
 
 /**
@@ -80,13 +134,8 @@ export function readAppointmentDay(
 ): Promise<AppointmentDay> {
   const { clinicId, timezone } = actor;
   return deps.db.withTenant(clinicId, async (tx) => {
-    const branch = (await deps.branches.listForOptions(tx, clinicId, actor.language)).find(
-      (b) => b.id === query.branchId,
-    );
+    const branch = await reachableBranch(deps, tx, actor, query.branchId);
     const view = actorViewReach(actor);
-    if (branch === undefined || !reachCovers(dayBranches(view, actor.member), branch.id)) {
-      throw new ApiError("not_found");
-    }
     const only = "own" in view ? view.own : null;
     const shown = (membershipId: string) => only === null || membershipId === only;
     const day = clinicDay(query.date, timezone);
@@ -116,16 +165,8 @@ export function readAppointmentDay(
     providers.sort(
       (a, b) => a.fullName.localeCompare(b.fullName) || (a.membershipId < b.membershipId ? -1 : 1),
     );
-    const create = branch.isActive && reachCovers(actorReach(actor, "create"), branch.id);
-    const update = reachCovers(actorReach(actor, "update"), branch.id);
-    const overbook = (create || update) && reachCovers(actorReach(actor, "overbook"), branch.id);
     return {
-      branch: {
-        id: branch.id,
-        nameAr: branch.nameAr,
-        nameEn: branch.nameEn,
-        isActive: branch.isActive,
-      },
+      branch,
       date: query.date,
       timezone,
       providers,
@@ -134,7 +175,7 @@ export function readAppointmentDay(
         clinicId,
         rows,
       ),
-      can: { create, update, overbook },
+      can: branchCan(actor, branch),
     };
   });
 }
