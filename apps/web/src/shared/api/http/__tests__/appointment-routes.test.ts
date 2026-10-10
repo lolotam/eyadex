@@ -40,7 +40,7 @@ const week = {
   timezone: "Asia/Kuwait",
   provider: { membershipId: USER, fullName: "Dr A", defaultDurationMinutes: 20, bookable: true },
   days: Array.from({ length: 7 }, (_, i) => ({
-    date: `2026-01-0${4 + i}`.replace("0010", "10"),
+    date: `2026-01-${String(4 + i).padStart(2, "0")}`,
     shifts: [],
     timeOff: [],
   })),
