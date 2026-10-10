@@ -150,7 +150,7 @@ function day(db: MockState, a: AppointmentAccess, query: { branchId: string; dat
 }
 
 /** The mock of `/v1/appointments*`: the API's check order and rules (slice A2, ADR-0026 §11). */
-export function createMockAppointments(): AppointmentsApi {
+export function createMockAppointments(): Omit<AppointmentsApi, "week" | "month"> {
   return {
     async listBranches(persona) {
       await delay();

@@ -41,6 +41,46 @@ export function useAppointmentDay(branchId: string | null, date: string) {
   });
 }
 
+export function useAppointmentWeek(
+  branchId: string | null,
+  providerMembershipId: string | null,
+  weekStart: string,
+) {
+  const api = useApi();
+  const { persona, enabled, key } = usePersonaKey();
+  return useQuery({
+    queryKey: [...appointmentKeys.all, "week", branchId, providerMembershipId, weekStart, ...key],
+    queryFn: () =>
+      api.appointments.week(persona, {
+        branchId: branchId ?? "",
+        providerMembershipId: providerMembershipId ?? "",
+        weekStart,
+      }),
+    enabled: enabled && branchId !== null && providerMembershipId !== null,
+    retry,
+  });
+}
+
+export function useAppointmentMonth(
+  branchId: string | null,
+  month: string,
+  providerMembershipId: string | null,
+) {
+  const api = useApi();
+  const { persona, enabled, key } = usePersonaKey();
+  return useQuery({
+    queryKey: [...appointmentKeys.all, "month", branchId, month, providerMembershipId, ...key],
+    queryFn: () =>
+      api.appointments.month(persona, {
+        branchId: branchId ?? "",
+        month,
+        ...(providerMembershipId ? { providerMembershipId } : {}),
+      }),
+    enabled: enabled && branchId !== null,
+    retry,
+  });
+}
+
 /** Every active service, page after page (the list API caps a page at 100). */
 export async function allActiveServices(
   api: ApiClient,

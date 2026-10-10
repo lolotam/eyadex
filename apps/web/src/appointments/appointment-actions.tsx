@@ -20,7 +20,8 @@ const MOVES = ["arrived", "completed", "no_show"] as const;
 
 type Props = {
   appointment: Appointment;
-  onReschedule: (appointment: Appointment) => void;
+  /** Absent in today's queue, which offers only the status moves and cancel. */
+  onReschedule?: (appointment: Appointment) => void;
   onCancel: (appointment: Appointment) => void;
 };
 
@@ -41,7 +42,7 @@ export function AppointmentActions({ appointment, onReschedule, onCancel }: Prop
   });
   const moves = MOVES.filter((to) => canTransition(appointment.status, to));
   const cancellable = canTransition(appointment.status, "cancelled");
-  const movable = isReschedulable(appointment.status);
+  const movable = onReschedule !== undefined && isReschedulable(appointment.status);
   if (moves.length === 0 && !cancellable && !movable) return null;
   return (
     <DropdownMenu>
@@ -62,7 +63,7 @@ export function AppointmentActions({ appointment, onReschedule, onCancel }: Prop
           </DropdownMenuItem>
         ))}
         {movable && (
-          <DropdownMenuItem onSelect={() => onReschedule(appointment)}>
+          <DropdownMenuItem onSelect={() => onReschedule?.(appointment)}>
             {t("appointments.actions.reschedule")}
           </DropdownMenuItem>
         )}

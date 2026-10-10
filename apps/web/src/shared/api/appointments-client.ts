@@ -8,6 +8,12 @@ import type {
   AppointmentStatusInput,
   AppointmentWriteResponse,
 } from "@eyadex/contracts/appointments";
+import type {
+  AppointmentMonth,
+  AppointmentMonthQuery,
+  AppointmentWeek,
+  AppointmentWeekQuery,
+} from "@eyadex/contracts/appointment-calendar";
 import type { Persona } from "@eyadex/contracts/session";
 
 /**
@@ -20,6 +26,10 @@ export interface AppointmentsApi {
   listBranches(persona: Persona): Promise<AppointmentBranches>;
   /** One branch, one clinic-calendar date: provider columns, their hours, the live appointments. */
   day(persona: Persona, query: AppointmentDayQuery): Promise<AppointmentDay>;
+  /** One provider in one branch, seven days from `weekStart` (slice A4). Another provider under `own` is not_found. */
+  week(persona: Persona, query: AppointmentWeekQuery): Promise<AppointmentWeek>;
+  /** Live appointments per day of one branch's month, counted on the day each starts (slice A4). */
+  month(persona: Persona, query: AppointmentMonthQuery): Promise<AppointmentMonth>;
   /** A retry with the same key replays the first result; a changed request is a conflict. */
   create(
     persona: Persona,
