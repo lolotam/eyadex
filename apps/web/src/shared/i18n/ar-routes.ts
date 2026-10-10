@@ -14,6 +14,7 @@ export const arRoutes = {
     roles: "الأدوار والصلاحيات",
     patients: "المراجعون",
     appointments: "المواعيد",
+    visits: "الزيارات",
     account: "حسابي",
     menu: "القائمة",
   },
@@ -37,6 +38,18 @@ export const arRoutes = {
       description: "إدارة مواقع العيادة وبيانات التواصل وحالة التشغيل.",
     },
     clinicPatients: { title: "المراجعون", description: "ملفات المراجعين وتسجيلهم." },
+    clinicVisits: {
+      title: "الزيارات",
+      description: "ابدأ زيارة مباشرة لمراجع ليس لديه موعد.",
+    },
+    clinicVisit: {
+      title: "زيارة",
+      description: "ملاحظات الطبيب والتشخيص والروشتة والمرفقات لزيارة.",
+    },
+    clinicSettingsMedicines: {
+      title: "الأدوية",
+      description: "قائمة الأدوية المتكررة في العيادة.",
+    },
     clinicPatientFile: {
       title: "ملف المراجع",
       description: "ملف مراجع؛ كل فتح له يُسجَّل في سجل التدقيق.",

@@ -2,6 +2,7 @@ import { CalendarCheck, AlertTriangle } from "lucide-react";
 import type { Appointment, AppointmentDay } from "@eyadex/contracts/appointments";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { StatusPanel } from "@/shared/shell/status-panel";
+import { StartVisitButton } from "@/visits/start-visit-button";
 import { AppointmentActions } from "./appointment-actions";
 import { STATUS_LOOK } from "./appointment-status-look";
 import { wallTime } from "./day-grid";
@@ -61,6 +62,7 @@ export function QueueView({ day, onCancel }: Props) {
                 {t("appointments.overbooked")}
               </span>
             )}
+            <StartVisitButton appointment={a} />
             <div className="ms-auto w-6">
               {day.can.update && <AppointmentActions appointment={a} onCancel={onCancel} />}
             </div>

@@ -4,7 +4,12 @@ export const enSettings = {
   settings: {
     title: "Settings",
     subtitle: "Your clinic's preferences, services and work schedules.",
-    tabs: { general: "General", services: "Services", schedules: "Work schedules" },
+    tabs: {
+      general: "General",
+      services: "Services",
+      schedules: "Work schedules",
+      medicines: "Medicines",
+    },
   },
   clinicSettings: {
     title: "Clinic settings",

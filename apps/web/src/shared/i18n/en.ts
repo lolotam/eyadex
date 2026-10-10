@@ -10,6 +10,7 @@ import { enRoutes } from "./en-routes";
 import { enAppointmentErrors, enAppointments } from "./en-appointments";
 import { enScheduling, enSchedulingErrors } from "./en-scheduling";
 import { enMedicalErrors } from "./en-medical";
+import { enVisits } from "./en-visits";
 
 export const en = {
   app: { name: "Eyadex", tagline: "One place for every clinic" },
@@ -172,6 +173,7 @@ export const en = {
   ...enSettings,
   ...enScheduling,
   ...enAppointments,
+  ...enVisits,
   validation: {
     needsView: "Any create, edit or deactivate permission needs view on the same area",
     timezone: "Choose a supported time zone",

@@ -12,6 +12,8 @@ export type RequestOptions<S extends z.ZodTypeAny> = {
   /** The API's response schema; every answer is checked against it before it is mapped. */
   schema: S;
   body?: unknown;
+  /** A multipart body (attachments); sent as is, the browser sets its boundary. */
+  form?: FormData;
   query?: Record<string, QueryValue>;
   idempotencyKey?: string;
 };
@@ -28,6 +30,8 @@ export type Transport = {
     path: string,
     options?: Omit<RequestOptions<z.ZodTypeAny>, "schema">,
   ): Promise<void>;
+  /** A file answer (attachment download): the bytes as a Blob. */
+  download(path: string): Promise<Blob>;
 };
 
 type Listener = () => void;
@@ -89,6 +93,7 @@ export function createTransport(fetchImpl: typeof fetch = (...args) => fetch(...
         headers,
         credentials: "same-origin",
         ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
+        ...(options.form !== undefined ? { body: options.form } : {}),
       });
     } catch {
       throw new ApiError("unknown");
@@ -113,6 +118,19 @@ export function createTransport(fetchImpl: typeof fetch = (...args) => fetch(...
     },
     async sendEmpty(method, path, options = {}) {
       await raw(method, path, options);
+    },
+    async download(path) {
+      let response: Response;
+      try {
+        response = await fetchImpl(urlOf(path), { method: "GET", credentials: "same-origin" });
+      } catch {
+        throw new ApiError("unknown");
+      }
+      if (!response.ok) {
+        if (response.status === 401) notifyUnauthorized();
+        throw errorFromResponse(response.status, await readJson(response));
+      }
+      return response.blob();
     },
   };
 }
