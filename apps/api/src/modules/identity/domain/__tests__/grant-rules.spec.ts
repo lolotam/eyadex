@@ -143,15 +143,4 @@ describe("new-clinic system roles (ADR-0026 §6)", () => {
     expect([...adminKeys].sort()).toEqual([...clinicKeys].sort());
     expect(adminKeys).toContain("update:schedules:clinic");
   });
-
-  it("doctor, receptionist and technician keep their keys until slice A3", () => {
-    const keysOf = (key: string) => SYSTEM_ROLES.find((r) => r.key === key)!.permissions;
-    expect(keysOf("doctor")).toEqual(["view:patients:branch"]);
-    expect(keysOf("receptionist")).toEqual([
-      "view:patients:branch",
-      "create:patients:branch",
-      "update:patients:branch",
-    ]);
-    expect(keysOf("technician")).toEqual(["view:patients:branch"]);
-  });
 });

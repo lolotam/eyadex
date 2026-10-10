@@ -41,7 +41,17 @@ export const SYSTEM_ROLES: readonly SystemRoleTemplate[] = [
     nameAr: "موظف استقبال",
     nameEn: "Receptionist",
     isLocked: false,
-    permissions: ["view:patients:branch", "create:patients:branch", "update:patients:branch"],
+    permissions: [
+      "view:patients:branch",
+      "create:patients:branch",
+      "update:patients:branch",
+      // Owner decision 2026-10-10 (A2, spec §3): the front desk books in its branches.
+      "view:appointments:branch",
+      "create:appointments:branch",
+      "update:appointments:branch",
+      "view:schedules:branch",
+      "view:services:clinic",
+    ],
   },
   {
     key: "technician",
