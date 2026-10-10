@@ -96,26 +96,14 @@ describe("POST /v1/platform/clinics (ONB-01)", () => {
           await h.owner`SELECT module, enabled FROM clinic_features WHERE clinic_id = ${clinicId}`
         ).map((r) => [r["module"], r["enabled"]]),
       );
-    const off = await create({
-      ...body(),
-      modules: { patients: true, appointments: false, medical: false },
-    });
+    const offModules = { patients: true, appointments: false, medical: false };
+    const onModules = { patients: false, appointments: true, medical: false };
+    const off = await create({ ...body(), modules: offModules });
     expect(off.statusCode).toBe(201);
-    expect(await flags(off.json().clinicId)).toEqual({
-      patients: true,
-      appointments: false,
-      medical: false,
-    });
-    const on = await create({
-      ...body(),
-      modules: { patients: false, appointments: true, medical: false },
-    });
+    expect(await flags(off.json().clinicId)).toEqual(offModules);
+    const on = await create({ ...body(), modules: onModules });
     expect(on.statusCode).toBe(201);
-    expect(await flags(on.json().clinicId)).toEqual({
-      patients: false,
-      appointments: true,
-      medical: false,
-    });
+    expect(await flags(on.json().clinicId)).toEqual(onModules);
   });
 
   it("writes clinic, roles, invitation (hash only), hold, audit and outbox together", async () => {
