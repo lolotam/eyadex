@@ -1,4 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { ClinicService } from "@eyadex/contracts/services";
+import type { Persona } from "@eyadex/contracts/session";
+import type { ApiClient } from "@/shared/api/api-client";
 import { ApiError } from "@/shared/api/api-error";
 import { useApi } from "@/shared/api/api-provider";
 import { usePersona } from "@/shared/persona/persona-provider";
@@ -38,15 +41,32 @@ export function useAppointmentDay(branchId: string | null, date: string) {
   });
 }
 
+/** Every active service, page after page (the list API caps a page at 100). */
+export async function allActiveServices(
+  api: ApiClient,
+  persona: Persona,
+): Promise<ClinicService[]> {
+  const out: ClinicService[] = [];
+  let cursor: string | null = null;
+  do {
+    const page = await api.scheduling.listServices(persona, {
+      cursor,
+      limit: 100,
+      status: "active",
+    });
+    out.push(...page.items);
+    cursor = page.nextCursor;
+  } while (cursor !== null);
+  return out;
+}
+
 /** The active services for the booking dialog; none when the caller cannot view them. */
 export function useBookingServices(allowed: boolean) {
   const api = useApi();
   const { persona, enabled, key } = usePersonaKey();
   return useQuery({
     queryKey: [...appointmentKeys.all, "services", ...key],
-    queryFn: async () =>
-      (await api.scheduling.listServices(persona, { cursor: null, limit: 100, status: "active" }))
-        .items,
+    queryFn: () => allActiveServices(api, persona),
     enabled: enabled && allowed,
     retry,
   });
