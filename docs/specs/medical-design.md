@@ -89,18 +89,18 @@ its time and status, never its content.
 
 ## 4. Data model (clinic tables: `clinic_id`, PK `(clinic_id, id)`, RLS enabled + forced, FKs indexed)
 
-| Table                          | Columns (besides `clinic_id`, `id`, timestamps)                                                                                                                                                     |
-| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `visits`                       | `branch_id`, `patient_id`, `provider_membership_id`, `appointment_id` (nullable, unique when set), `status` (`draft`/`signed`/`cancelled`), `started_at`, `signed_at`, `signed_by`, `cancel_reason` |
-| `visit_notes`                  | `visit_id` (unique), `complaint_enc`, `examination_enc`, `assessment_enc`, `plan_enc` (each nullable), `updated_by`                                                                                 |
-| `visit_addenda`                | `visit_id`, `author_membership_id`, `body_enc`                                                                                                                                                      |
-| `visit_diagnoses`              | `visit_id`, `position`, `kind` (`icd10`/`text`), `code_enc` (nullable), `text_enc`                                                                                                                  |
-| `visit_prescription_items`     | `visit_id`, `position`, `medicine_enc`, `dose_enc`, `frequency_enc`, `duration_enc`, `note_enc` (nullable)                                                                                          |
-| `patient_medical_profiles`     | `patient_id` (unique), `allergies_enc`, `chronic_conditions_enc`, `current_medications_enc`, `surgical_history_enc`, `family_history_enc`, `updated_by`                                             |
-| `patient_attachments`          | `patient_id`, `visit_id` (nullable), `storage_key`, `content_type`, `size_bytes`, `sha256`, `name_enc`, `status` (`active`/`archived`), `uploaded_by`                                               |
-| `clinic_medicines`             | `name`, `default_dose`, `default_frequency`, `status` (`active`/`inactive`), unique name per clinic                                                                                                 |
-| `patients` (new columns)       | `civil_id_enc`, `civil_id_hmac`, `civil_id_last4` (then `civil_id` dropped, §3)                                                                                                                     |
-| `icd10_codes` (global, no RLS) | `code` (PK), `title_en`, `release` — readable by `eyadex_app` only; loaded from the CDC FY2027 file by a loader command, not by a migration row-by-row                                              |
+| Table                          | Columns (besides `clinic_id`, `id`, timestamps)                                                                                                                                                                        |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `visits`                       | `branch_id`, `patient_id`, `provider_membership_id`, `appointment_id` (nullable, unique when set), `status` (`draft`/`signed`/`cancelled`), `started_at`, `signed_at`, `signed_by`, `cancel_reason`, `cancel_note_enc` |
+| `visit_notes`                  | `visit_id` (unique), `complaint_enc`, `examination_enc`, `assessment_enc`, `plan_enc` (each nullable), `updated_by`                                                                                                    |
+| `visit_addenda`                | `visit_id`, `author_membership_id`, `body_enc`                                                                                                                                                                         |
+| `visit_diagnoses`              | `visit_id`, `position`, `kind` (`icd10`/`text`), `code_enc` (nullable), `text_enc`                                                                                                                                     |
+| `visit_prescription_items`     | `visit_id`, `position`, `medicine_enc`, `dose_enc`, `frequency_enc`, `duration_enc`, `note_enc` (nullable)                                                                                                             |
+| `patient_medical_profiles`     | `patient_id` (unique), `allergies_enc`, `chronic_conditions_enc`, `current_medications_enc`, `surgical_history_enc`, `family_history_enc`, `updated_by`                                                                |
+| `patient_attachments`          | `patient_id`, `visit_id` (nullable), `storage_key`, `content_type`, `size_bytes`, `sha256`, `name_enc`, `status` (`active`/`archived`), `uploaded_by`                                                                  |
+| `clinic_medicines`             | `name`, `default_dose`, `default_frequency`, `status` (`active`/`inactive`), unique name per clinic                                                                                                                    |
+| `patients` (new columns)       | `civil_id_enc`, `civil_id_hmac`, `civil_id_last4` (then `civil_id` dropped, §3)                                                                                                                                        |
+| `icd10_codes` (global, no RLS) | `code` (PK), `title_en`, `release` — readable by `eyadex_app` only; loaded from the CDC FY2027 file by a loader command, not by a migration row-by-row                                                                 |
 
 - No hard deletes: a draft visit is **cancelled** (reason), an attachment is **archived**. A signed visit
   can only gain addenda.
