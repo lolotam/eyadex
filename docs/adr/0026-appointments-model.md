@@ -274,6 +274,30 @@ AND a.provider_membership_id = $m AND a.status <> 'cancelled')`, on 0043's parti
      existing file is the caller's own: disclosure would need a database read inside the duplicate check, and the
      plain error leaks nothing.
 
+### 13. Slice A4 — provider week, month, today's queue (2026-10-10)
+
+No SQL. Two reads, both per branch like the day, because every appointments key is branch-scoped
+(`packages/contracts/src/appointment-calendar.ts`, `apps/api/src/modules/appointments/queries/appointment-calendar.ts`):
+
+- `GET /v1/appointments/week?branchId&providerMembershipId&weekStart`: one provider, seven clinic days from
+  `weekStart` — that weekday's rows of this branch, time off touching each day, and the live appointments touching
+  the week. A provider unknown to the clinic is `not_found`; a provider with no rows in the branch is an empty week
+  with `bookable` computed exactly as a day column.
+- `GET /v1/appointments/month?branchId&month=YYYY-MM[&providerMembershipId]`: every day of the month with the live
+  (not `cancelled`) appointments of the branch counted on the clinic day they **start** (one `GROUP BY`).
+- Both follow the day's branch rule (`reachableBranch`, now shared with the day). Under `view:appointments:own`
+  only the caller's own provider is readable: another provider is `not_found`, and the month always counts the
+  caller's own. A wider key held beside `own` wins.
+- Today's queue has no read of its own: it is the branch day for the clinic's today with the A2 status and cancel
+  routes, actions only when `can.update` (UX only).
+- The web (Lovable, `.lovable/plan/appointments-a4-web-2026-10-10.md`) shows Day / Week / Month / Today tabs kept in
+  the URL as `view=`; weeks and month grids start on Sunday (Kuwait).
+
+Conservative picks recorded on the owner's decisions page (batch 5, A4-1…A4-4), open to change: the week is one
+branch, the week starts on Sunday, the queue is per branch, the month counts live appointments on their start day.
+TODO(spec): a clinic-level first weekday setting if a non-Sunday market needs it; Arabic plural forms for the
+month's count badge.
+
 ## Consequences
 
 - A2 books against these tables under the same lock and calls `coversWallInterval` for D-6/D-14.

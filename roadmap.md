@@ -88,4 +88,4 @@
 - [x] Apply `db/sql/0043` to staging, then production, before the A2 deploy (orchestrator)
 - [x] Slice A3: the clinic day starts at its first real instant (a skipped midnight west of UTC); the `own` scope on appointments and patients (D-4); new clinics' doctor sees its own appointments and patients (ADR-0026 §12, SQL 0044)
 - [x] Apply `db/sql/0044` to staging, then production, before the A3 deploy (orchestrator)
-- [ ] Slice A4: provider week, month, today's queue
+- [x] Slice A4: provider week, month (`GET /v1/appointments/week`, `/month`) and today's queue (the branch day) as Day / Week / Month / Today views; no SQL (ADR-0026 §13)
