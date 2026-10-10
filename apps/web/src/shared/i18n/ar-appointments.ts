@@ -22,6 +22,8 @@ export const arAppointments = {
     noProviders: "لا أحد يستقبل مواعيد في هذا الفرع",
     noProvidersBody:
       "فعّل استقبال المواعيد لمستخدم، ثم حدّد ساعات عمله من الإعدادات ← جداول العمل.",
+    noOwnAppointments: "لا توجد مواعيد لك في هذا اليوم",
+    noOwnAppointmentsBody: "تظهر هنا مواعيدك في هذا الفرع فقط.",
     loadError: "تعذّر تحميل المواعيد",
     notBookable: "غير متاح للحجز",
     timeOff: "إجازة",

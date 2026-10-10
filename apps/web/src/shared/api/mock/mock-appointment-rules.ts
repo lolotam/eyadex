@@ -25,11 +25,16 @@ export type AppointmentAccess = Actor & {
   keys: readonly string[];
   memberReach: Reach;
   reach: (action: Action) => Reach;
+  /** A3: the caller's membership when its widest view key is `own`, else null (a wider key wins). */
+  own: string | null;
+  /** The branches whose day it may open: the view reach, or under `own` its own branches. */
+  dayReach: Reach;
 };
 
 /**
  * The route's guards in the API's order: active user → clinic access → module → the route's key
- * (`view|create|update:appointments` at clinic or branch scope), then the action's reach.
+ * (`view|create|update:appointments` at clinic or branch scope, and `view` also at `own`, A3), then
+ * the action's reach.
  */
 export function authorizeAppointments(
   db: MockState,
@@ -48,10 +53,17 @@ export function authorizeAppointments(
     return { all: false, branchIds: [] };
   };
   const route = reach(action);
-  if (!route.all && !keys.includes(`${action}:appointments:branch`))
-    throw new ApiError("forbidden");
-  return { ...actor, actorName: actor.member.fullName, keys, memberReach, reach };
+  const wide = route.all || keys.includes(`${action}:appointments:branch`);
+  const viewWide = reach("view").all || keys.includes("view:appointments:branch");
+  const own = !viewWide && keys.includes("view:appointments:own") ? actor.member.id : null;
+  if (!wide && !(action === "view" && own !== null)) throw new ApiError("forbidden");
+  const dayReach = own === null ? reach("view") : memberReach;
+  return { ...actor, actorName: actor.member.fullName, keys, memberReach, reach, own, dayReach };
 }
+
+/** Does the caller's view see this appointment: by branch, or under `own` when it is the provider. */
+export const sees = (a: AppointmentAccess, s: StoredAppointment): boolean =>
+  a.own === null ? reachCovers(a.reach("view"), s.branchId) : s.providerMembershipId === a.own;
 
 /** The branch inside the action's reach, and the overbook key there when asked (before any rule). */
 export function assertMay(
@@ -155,9 +167,9 @@ export function project(db: MockState, s: StoredAppointment): Appointment {
   };
 }
 
-/** The write answer clipped to the view keys (ADR-0026 §11). */
+/** The write answer clipped to the view keys (ADR-0026 §11; under `own` the caller's own, A3). */
 export const answer = (db: MockState, a: AppointmentAccess, s: StoredAppointment) => ({
-  appointment: reachCovers(a.reach("view"), s.branchId) ? project(db, s) : null,
+  appointment: sees(a, s) ? project(db, s) : null,
 });
 
 /** Rule 9: the API's allowlisted snapshot — no patient, no note. */

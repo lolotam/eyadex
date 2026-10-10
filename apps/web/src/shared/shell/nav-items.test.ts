@@ -37,11 +37,15 @@ describe("clinic navigation", () => {
     expect(shows(["view:patients:branch", "view:schedules:branch"])).toBe(false);
   });
 
-  it("Codex PR #64: an own-only appointments key shows no branch-day entry", () => {
-    const shows = (keys: string[]) =>
-      navItemsFor(CLINIC_NAV, keys).some((item) => item.to === "/clinic/appointments");
-    expect(shows(["view:appointments:own"])).toBe(false);
-    expect(shows(["view:appointments:own", "create:appointments:own"])).toBe(false);
-    expect(shows(["view:appointments:own", "view:appointments:branch"])).toBe(true);
+  // A3 inverts Codex PR #64: the own key now has reads that answer it with the caller's own column.
+  it("A3: an own-only appointments key shows the branch-day entry; own patients show Patients", () => {
+    const shows = (keys: string[], to: string) =>
+      navItemsFor(CLINIC_NAV, keys).some((item) => item.to === to);
+    expect(shows(["view:appointments:own"], "/clinic/appointments")).toBe(true);
+    expect(
+      shows(["view:appointments:own", "view:appointments:branch"], "/clinic/appointments"),
+    ).toBe(true);
+    expect(shows(["view:patients:own"], "/clinic/patients")).toBe(true);
+    expect(shows(["view:patients:own"], "/clinic/appointments")).toBe(false);
   });
 });

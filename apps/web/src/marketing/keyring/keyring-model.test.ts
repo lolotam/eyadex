@@ -14,11 +14,18 @@ describe("keyring model", () => {
     expect(v.buttons).toEqual({ create: false, update: false, deactivate: false });
   });
 
-  it("doctor sees only Salmiya rows and opens 1042", () => {
+  it("doctor sees only its own Salmiya patients (D-8, own scope) and opens 1042", () => {
     const v = computeView("doctor");
+    expect(v.scope).toBe("own");
     expect(v.rows.filter((r) => r.visible).every((r) => r.patient.branch === "salmiya")).toBe(true);
-    expect(v.rows.filter((r) => r.visible)).toHaveLength(3);
+    expect(v.rows.filter((r) => r.visible).map((r) => r.patient.file)).toEqual([1041, 1042]);
     expect(v.openFile).toBe(1042);
+    expect(buildCaption(v, en.keyring.caption, (b) => en.keyring.branches[b])).toBe(
+      "Sees their own patients only, view only.",
+    );
+    expect(buildCaption(v, ar.keyring.caption, (b) => ar.keyring.branches[b])).toBe(
+      "يرى مراجعيه هو فقط، للعرض فقط.",
+    );
   });
 
   it("technician opens the first Hawalli file", () => {

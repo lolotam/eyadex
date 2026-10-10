@@ -39,6 +39,8 @@ export function PatientsContent() {
   const permissions = session?.permissions ?? [];
   const mayCreate = can(permissions, "create", "patients");
   const mayArchive = can(permissions, "deactivate", "patients");
+  // A3: with only the own key the list holds the caller's own files; the empty state says so.
+  const ownOnly = !can(permissions, "view", "patients", ["clinic", "branch"]);
 
   const onOpen = useCallback(
     (p: PatientListItem) =>
@@ -64,7 +66,13 @@ export function PatientsContent() {
       />
     );
   } else if (!list.isLoading && items.length === 0 && !filtered) {
-    body = <StatusPanel icon={Users} title={t("patients.empty")} body={t("patients.emptyBody")} />;
+    body = (
+      <StatusPanel
+        icon={Users}
+        title={t(ownOnly ? "patients.emptyOwn" : "patients.empty")}
+        body={t(ownOnly ? "patients.emptyOwnBody" : "patients.emptyBody")}
+      />
+    );
   } else {
     body = (
       <>

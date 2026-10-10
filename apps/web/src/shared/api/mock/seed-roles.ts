@@ -14,7 +14,8 @@ export const ROLE_TEMPLATES: Record<SystemRoleKey, RoleTemplate> = {
     nameAr: "طبيب",
     nameEn: "Doctor",
     isLocked: false,
-    permissions: ["view:patients:branch"],
+    // D-8 (spec §3, slice A3): its own appointments and its own patients only, as the API's SYSTEM_ROLES.
+    permissions: ["view:appointments:own", "view:patients:own"],
   },
   receptionist: {
     nameAr: "موظف استقبال",

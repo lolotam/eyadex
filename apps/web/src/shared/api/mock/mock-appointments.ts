@@ -80,7 +80,9 @@ function move(
 function day(db: MockState, a: AppointmentAccess, query: { branchId: string; date: string }) {
   const clinicId = a.clinic.id;
   const branch = db.branches.find((b) => b.clinicId === clinicId && b.id === query.branchId);
-  if (!branch || !reachCovers(a.reach("view"), branch.id)) throw new ApiError("not_found");
+  if (!branch || !reachCovers(a.dayReach, branch.id)) throw new ApiError("not_found");
+  // A3: under `own` only the caller's column and appointments, naming no other provider.
+  const shown = (membershipId: string) => a.own === null || membershipId === a.own;
   const tz = a.clinic.timezone;
   const span = clinicDayBounds(query.date, tz);
   const inDay = (x: { startsAt: string; endsAt: string }) =>
@@ -89,13 +91,18 @@ function day(db: MockState, a: AppointmentAccess, query: { branchId: string; dat
   const rows = db.appointments
     .filter(
       (x) =>
-        x.clinicId === clinicId && x.branchId === branch.id && x.status !== "cancelled" && inDay(x),
+        x.clinicId === clinicId &&
+        x.branchId === branch.id &&
+        x.status !== "cancelled" &&
+        inDay(x) &&
+        shown(x.providerMembershipId),
     )
     .sort((x, y) => x.startsAt.localeCompare(y.startsAt) || x.id.localeCompare(y.id));
   const weekday = new Date(`${query.date}T00:00:00Z`).getUTCDay();
   const members = db.members.filter(
     (m) =>
       m.clinicId === clinicId &&
+      shown(m.id) &&
       ((m.status === "active" &&
         profileOf(db, m.id).acceptsAppointments &&
         worksIn(m, branch.id)) ||
@@ -150,9 +157,7 @@ export function createMockAppointments(): AppointmentsApi {
       const db = getState();
       const a = authorizeAppointments(db, persona, "view");
       const items = db.branches
-        .filter(
-          (b) => b.clinicId === a.clinic.id && b.isActive && reachCovers(a.reach("view"), b.id),
-        )
+        .filter((b) => b.clinicId === a.clinic.id && b.isActive && reachCovers(a.dayReach, b.id))
         .map((b) => ({ id: b.id, nameAr: b.nameAr, nameEn: b.nameEn, isActive: b.isActive }));
       return { items };
     },
