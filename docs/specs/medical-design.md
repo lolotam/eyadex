@@ -55,9 +55,10 @@ its time and status, never its content.
   **and** the caller is the visit's provider (P2-3, a rule in the domain, not a key).
 - The medical file (P2-7) is written with `update:medical:clinic` (any patient) or `update:medical:own` (own
   patients).
-- Grant rule: the clinic admin grants `medical` keys to roles on the roles screen like any key, but the locked
-  admin role itself never holds them (P2-5), and a member can never be given a role by themselves (existing
-  user-editor rule; the plan verifies it and adds it if missing). The platform can never hold any of them.
+- Grant rule: the locked clinic admin may grant `visits` and `medical` keys to **other** roles without
+  holding them (a bounded delegation); nobody else grants a key they do not hold; `own` keys are
+  clinic-bound like A3's patients key; no member can change their own role. The platform can never hold
+  any of them.
 - New clinics' default roles: **doctor** gets `view:visits:own`, `create:visits:own`, `view:medical:own`,
   `update:medical:own`, `view:medicines:clinic`; **receptionist** gets `view:visits:branch`; the locked
   **clinic admin** gets the `visits` and `medicines` keys but **not** the `medical` keys (P2-5). Existing
@@ -75,8 +76,7 @@ its time and status, never its content.
   the key in P2. Missing or malformed keys fail the API at start, never silently.
 - **Encrypted columns** (stored as `text` envelopes): note sections, addenda, diagnosis text and
   code, prescription items, medical-file sections, attachment metadata name, and the civil ID.
-- **Civil ID.** Columns `civil_id_enc` (envelope), `civil_id_hmac` (HMAC-SHA256 of the 12 digits under an
-  HKDF key with info "eyadex-civil-id"), `civil_id_last4`. Uniqueness moves to `(clinic_id, civil_id_hmac)`.
+- **Civil ID.** Columns `civil_id_enc` (envelope), `civil_id_hmac` (HMAC-SHA256 of the 12 digits under a per-clinic HKDF key from a separate, never-rotated `MEDICAL_INDEX_KEY`, info "eyadex-civil-id"), `civil_id_last4`. Uniqueness moves to `(clinic_id, civil_id_hmac)`.
   Search: a 12-digit query matches `civil_id_hmac` exactly (P2-F5); partial digits search phones only.
   Migration (forward-only): add the columns (SQL) → a one-off backfill command in the API image run by the
   orchestrator (it needs the key) → switch reads and writes → a later SQL file drops `civil_id` after the
@@ -124,10 +124,12 @@ its time and status, never its content.
 | `GET /icd10?q=`                                             | `view:medical:*`                      | Code prefix or title words, 20 results                                 |
 | `GET/POST/PUT /medicines`, `POST /medicines/:id/deactivate` | `view/update:medicines:clinic`        |                                                                        |
 | `POST /patients/:id/attachments` (multipart)                | `update:medical:*`                    | jpeg, png, webp, pdf; at most 20 MB; optional `visitId`                |
+| `GET /patients/:id/attachments?visitId=`                    | `view:medical:*`                      | List                                                                   |
 | `GET /attachments/:id`, `POST /attachments/:id/archive`     | `view:medical:*` / `update:medical:*` | Download streams the decrypted file; audited                           |
 | `GET /visits/:id/prescription/print`                        | `view:medical:*`                      | Print-ready data; audited                                              |
 
-- Audit (PRD §4.11): every read of clinical content is a `patient_access` row (visit open, medical file
+- Audit (PRD §4.11): the medical audit entity types are always `patient_access` and are excluded from the
+  platform's admin-audit view, like `patient` and `appointment`. every read of clinical content is a `patient_access` row (visit open, medical file
   open, attachment download, prescription print, note search). Writes are `administrative` rows that name
   the fields changed — **never** their content, a code, a medicine or a civil ID.
 
