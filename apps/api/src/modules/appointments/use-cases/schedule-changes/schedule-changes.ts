@@ -177,13 +177,15 @@ export class ScheduleChanges {
   }
 
   // Also a provider seen only through its rows in the caller's reach: the replace route can then clear
-  // them, while a non-empty week stays `provider_not_in_branch` (ADR-0026 §4).
+  // them, while a non-empty week stays `provider_not_in_branch` (ADR-0026 §4). The membership row is
+  // locked here, before any branch row: the insert's foreign key needs it, and taking it after the
+  // branch closed a cycle with a user's branch change and a branch deactivation (ADR-0027).
   private async visible(
     tx: Tx,
     actor: ScheduleActor,
     membershipId: string,
   ): Promise<ProviderRecord> {
-    const provider = await this.deps.providers.find(tx, actor.clinicId, membershipId);
+    const provider = await this.deps.providers.lockForWrite(tx, actor.clinicId, membershipId);
     if (provider === null || !(await providerVisible(tx, actor.clinicId, actor.reach, provider)))
       throw new ApiError("not_found");
     return provider;

@@ -27,6 +27,18 @@ export interface ProviderDirectory {
   find(tx: Tx, clinicId: string, membershipId: string): Promise<ProviderRecord | null>;
 
   /**
+   * نفس العضو، وصفّه مقفول `FOR SHARE` لحد آخر الـ transaction. أي كتابة عن مقدّم خدمة بتقفل صف
+   * العضوية قبل صف الفرع (ترتيب الأقفال ADR-0027)، فتعطيل العضو أو تغيير فروعه في نفس اللحظة بيستنى
+   * من غير دايرة انتظار.
+   *
+   * @param tx transaction المواعيد جوه `withTenant(clinicId)` وماسكة قفل مقدّم الخدمة
+   * @param clinicId العيادة
+   * @param membershipId العضوية
+   * @returns العضو، أو `null` لو مش عضو في العيادة دي
+   */
+  lockForWrite(tx: Tx, clinicId: string, membershipId: string): Promise<ProviderRecord | null>;
+
+  /**
    * الأعضاء القابلين للحجز (نشطين و"يستقبل مواعيد")، مرتبين بالاسم.
    *
    * @param tx transaction المواعيد جوه `withTenant(clinicId)`

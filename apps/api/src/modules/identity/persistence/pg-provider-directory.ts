@@ -50,6 +50,15 @@ export class PgProviderDirectory {
     return rows[0] === undefined ? null : toRow(rows[0]);
   }
 
+  // ADR-0027: the membership row before any branch row, so no write about a provider waits on it while
+  // holding a branch.
+  async lockForWrite(tx: Tx, clinicId: string, membershipId: string): Promise<ProviderRow | null> {
+    const rows = await tx.execute<Raw>(
+      sql`${SELECT} WHERE m.clinic_id = ${clinicId} AND m.id = ${membershipId} FOR SHARE OF m`,
+    );
+    return rows[0] === undefined ? null : toRow(rows[0]);
+  }
+
   async listBookable(tx: Tx, clinicId: string): Promise<readonly ProviderRow[]> {
     const rows = await tx.execute<Raw>(
       sql`${SELECT} WHERE m.clinic_id = ${clinicId} AND m.status = 'active'
