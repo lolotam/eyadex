@@ -40,7 +40,8 @@ export function StartVisitButton({
   if (appointment.status !== "arrived") return null;
   if (!can(permissions, "create", "visits", ["own"])) return null;
   // The session names the caller's clinic membership: only the provider starts the visit.
-  if (!session?.membershipId || session.membershipId !== appointment.providerMembershipId) return null;
+  if (!session?.membershipId || session.membershipId !== appointment.providerMembershipId)
+    return null;
   return (
     <Button
       size="sm"
