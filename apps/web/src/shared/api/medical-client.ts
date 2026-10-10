@@ -1,4 +1,4 @@
-import type { Attachment } from "@eyadex/contracts/attachments";
+import type { Attachment, AttachmentWriteResponse } from "@eyadex/contracts/attachments";
 import type { Icd10Result } from "@eyadex/contracts/icd10";
 import type { MedicalProfile, MedicalProfileInput } from "@eyadex/contracts/medical-profile";
 import type { Medicine, MedicineInput } from "@eyadex/contracts/medicines";
@@ -23,7 +23,7 @@ export type VisitCancelInput = {
 /**
  * The medical module (P2, spec §5). Every call is rejected with module_disabled while the clinic's
  * medical module is off. Clinical text, names, codes and search text travel in request bodies only,
- * never in a URL (ICD-10 lookup is the contract's one GET query: a code or title word, no patient).
+ * never in a URL.
  */
 export interface MedicalApi {
   listVisits(persona: Persona, patientId: string, query: { cursor?: string }): Promise<VisitList>;
@@ -77,16 +77,16 @@ export interface MedicalApi {
     patientId: string,
     query: { visitId?: string },
   ): Promise<{ items: Attachment[] }>;
-  /** Multipart `file` + optional `visitId`. TODO(spec): the contract has no upload answer schema. */
+  /** Multipart `file` + optional `visitId`; answers the attachment as saved. */
   uploadAttachment(
     persona: Persona,
     patientId: string,
     file: File,
     visitId: string | null,
-  ): Promise<void>;
+  ): Promise<AttachmentWriteResponse>;
   /** Audited. */
   downloadAttachment(persona: Persona, attachmentId: string): Promise<Blob>;
-  archiveAttachment(persona: Persona, attachmentId: string): Promise<void>;
+  archiveAttachment(persona: Persona, attachmentId: string): Promise<AttachmentWriteResponse>;
   /** Audited. */
   getPrescriptionPrint(persona: Persona, visitId: string): Promise<PrescriptionPrint>;
 }
