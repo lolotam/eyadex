@@ -239,8 +239,14 @@ AND a.provider_membership_id = $m AND a.status <> 'cancelled')`, on 0043's parti
   not get it (D-16 covers clinic-scope keys; `view:patients:clinic` is wider); no existing role changes.
 - **New clinics' doctor** (D-8): `view:appointments:own` + `view:patients:own` (`SYSTEM_ROLES`, the web
   `ROLE_TEMPLATES`, the landing's keyring sample). Existing clinics' doctor roles are not changed by a migration.
-  Consequence of the granting bound (ADR-0017 §6): to invite a member into, or move a member of, the new doctor
-  role an actor must hold a `view:appointments` key as well as a `view:patients` key; the clinic admin holds both.
+- **Granting `view:patients:own` (Codex A3 r1).** A file is own by its appointments, in any branch, so a branch
+  key does not bound it: a branch-scoped user manager could otherwise give a member of its branches the doctor
+  role and reach files registered in every branch. When granting or defining a role (`uncoveredKeys`, ADR-0017
+  §6), only `view:patients:clinic` covers `view:patients:own` (not a branch key, not the own key itself); the
+  route guard's `grantFor` is unchanged. `view:appointments:own` stays covered by a branch key: its day is
+  bounded by the member's own branches, which the granting bound already keeps inside the actor's. So inviting
+  or moving a member into the new doctor role needs `view:patients:clinic` and a `view:appointments` key; the
+  clinic admin holds both.
 - **Web.** `view:appointments:own` shows the Appointments entry and the branch day (inverting the PR #64 rule that
   hid them while own reached nothing), read-only: the day's `can` is false, so no slot or status control shows.
   An own-only user's empty day and empty patients list say so in plain words. The roles editor offers
@@ -262,7 +268,9 @@ AND a.provider_membership_id = $m AND a.status <> 'cancelled')`, on 0043's parti
      `{ appointment }` only when its provider is the caller, otherwise `null`. A patients write answer under an
      own-only view carries `detail` only when the written file is own in the same transaction, so a file the caller
      just created (no appointment yet) answers `detail: null`.
-  6. A duplicate phone or civil ID is never disclosed under an own-only view (`validation`), even when the
+  6. Granting `view:patients:own` needs `view:patients:clinic`, even for an all-branch actor holding
+     `view:patients:branch` (which reaches every branch too): one rule, no reach arithmetic.
+  7. A duplicate phone or civil ID is never disclosed under an own-only view (`validation`), even when the
      existing file is the caller's own: disclosure would need a database read inside the duplicate check, and the
      plain error leaks nothing.
 

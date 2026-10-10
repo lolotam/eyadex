@@ -21,18 +21,31 @@ export interface GrantingMember {
   readonly reach: BranchReach;
 }
 
+// ADR-0026 §12 (Codex A3 r1): a file is "own" by its appointments, in any branch, so a branch key does not
+// bound view:patients:own (a branch manager could hand a member files of every branch). Only the clinic
+// key covers it when granting; the route guard's grantFor is unchanged (a wider key held still wins).
+const CLINIC_BOUND: ReadonlyMap<string, string> = new Map([
+  ["view:patients:own", "view:patients:clinic"],
+]);
+
 /**
  * المفاتيح المطلوبة اللي مفاتيح الفاعل المخزّنة ماتغطيهاش. مفتاح `clinic` بيغطي نفس الفعل والمورد
- * بنطاق `branch` (زي `grantFor`)، والعكس لأ. مفيش فلترة بالموديولات: مفتاح موديول مقفول بيرجع
- * أثره لما الموديول يتفتح، فبيتحسب.
+ * بنطاق `branch` (زي `grantFor`)، والعكس لأ. `view:patients:own` بيعدّي الفروع، فمفتاح
+ * `view:patients:clinic` بس اللي بيغطيه. مفيش فلترة بالموديولات: مفتاح موديول مقفول بيرجع أثره لما
+ * الموديول يتفتح، فبيتحسب.
  *
  * @param held مفاتيح دور الفاعل المخزّنة
  * @param wanted مفاتيح الدور المستهدف
  * @returns المفاتيح اللي مش متغطية، مترتبة؛ فاضية = متغطية كلها
  */
 export function uncoveredKeys(held: readonly string[], wanted: readonly string[]): string[] {
-  // Stored keys reference the catalogue (FK to permissions), so each one is a PermissionKey.
-  return [...new Set(wanted)].filter((key) => grantFor(held, key as PermissionKey) === null).sort();
+  const covered = (key: string) => {
+    const bound = CLINIC_BOUND.get(key);
+    if (bound !== undefined) return held.includes(bound);
+    // Stored keys reference the catalogue (FK to permissions), so each one is a PermissionKey.
+    return grantFor(held, key as PermissionKey) !== null;
+  };
+  return [...new Set(wanted)].filter((key) => !covered(key)).sort();
 }
 
 /**

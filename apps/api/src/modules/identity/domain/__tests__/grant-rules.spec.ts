@@ -144,3 +144,15 @@ describe("new-clinic system roles (ADR-0026 §6)", () => {
     expect(adminKeys).toContain("update:schedules:clinic");
   });
 });
+
+// Codex A3 r1: view:patients:own reaches files by their appointments in any branch, so a branch key
+// would let a branch manager grant files of every branch. Only view:patients:clinic covers it.
+describe("granting view:patients:own (ADR-0026 §12)", () => {
+  it("only the clinic key covers it; a branch key or the own key itself does not", () => {
+    const own = ["view:patients:own"];
+    expect(uncoveredKeys(["view:patients:clinic"], own)).toEqual([]);
+    expect(uncoveredKeys(["view:patients:branch"], own)).toEqual(own);
+    expect(uncoveredKeys(["view:patients:own"], own)).toEqual(own);
+    expect(uncoveredKeys(["view:appointments:branch"], ["view:appointments:own"])).toEqual([]);
+  });
+});

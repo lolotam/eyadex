@@ -17,7 +17,13 @@ import {
   openHarness,
   type Harness,
 } from "../../identity/auth/__tests__/auth-http-harness.ts";
-import { customRole, memberOn, setMaxUsers } from "../../identity/__tests__/user-fixtures.ts";
+import {
+  act,
+  customRole,
+  memberOn,
+  roleIdOf,
+  setMaxUsers,
+} from "../../identity/__tests__/user-fixtures.ts";
 import { AUTHORIZATION_INVALIDATOR, type AuthorizationInvalidator } from "../../identity/index.ts";
 import {
   branchOptions,
@@ -138,8 +144,11 @@ describe("view:patients:own (D-4, ADR-0026 A3)", () => {
   it("a search by name, phone or file number stays inside own", async () => {
     const mine = await nameOf(files.inD);
     const theirs = await nameOf(files.theirs);
-    expect(ids(await search(h, doctor.cookie, { q: mine["full_name"] }))).toEqual([files.inD]);
-    expect(ids(await search(h, doctor.cookie, { q: theirs["full_name"] }))).toEqual([]);
+    // A name holding hex digits also searches by digits, so other own files may match too.
+    expect(ids(await search(h, doctor.cookie, { q: mine["full_name"] }))).toContain(files.inD);
+    const byName = ids(await search(h, doctor.cookie, { q: theirs["full_name"] }));
+    expect(byName).not.toContain(files.theirs);
+    expect(byName.every((id) => [files.inD, files.inX].includes(id))).toBe(true);
     const digits = String(theirs["phone"]).slice(-8);
     expect(ids(await search(h, doctor.cookie, { q: digits }))).not.toContain(files.theirs);
     const byNumber = await search(h, doctor.cookie, { q: String(theirs["file_number"]) });
@@ -172,5 +181,32 @@ describe("view:patients:own (D-4, ADR-0026 A3)", () => {
     const inR = await addPatient(h, C.clinicId, C.branchR);
     expect(ids(await search(h, C.front.cookie))).toContain(inR);
     expect(ids(await search(h, C.front.cookie))).not.toContain(files.inD);
+  });
+});
+
+// Codex A3 r1: an own file may be registered in any branch, so a branch-scoped manager must not hand
+// out view:patients:own (the new clinics' doctor role) and reach files outside its branches.
+describe("granting the own-scope doctor role (ADR-0026 §12)", () => {
+  it("a manager holding view:patients:branch may not give a member the doctor role", async () => {
+    const managerRole = await customRole(h, C.clinicId, [
+      "view:users:clinic",
+      "update:users:clinic",
+      "view:patients:branch",
+      "view:appointments:branch",
+    ]);
+    const manager = await memberOn(h, C.admin, managerRole, {
+      allBranches: false,
+      branchIds: [C.branchD],
+    });
+    const target = await memberOn(h, C.admin, await customRole(h, C.clinicId, []), {
+      allBranches: false,
+      branchIds: [C.branchD],
+    });
+    const doctorRole = await roleIdOf(h, C.clinicId, "doctor");
+    const url = `/v1/users/${target.memberId}/role`;
+    const refused = await act(h, manager.cookie, url, { roleId: doctorRole }, "PATCH");
+    expect([refused.statusCode, code(refused)]).toEqual([403, "forbidden"]);
+    const allowed = await act(h, C.admin.cookie, url, { roleId: doctorRole }, "PATCH");
+    expect(allowed.statusCode).toBe(200);
   });
 });

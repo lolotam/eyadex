@@ -64,13 +64,14 @@ describe("only an admin touches the admin role", () => {
       await roleIdOf(h, D.admin.clinicId, "doctor"),
     ];
     // The doctor role's keys too: moving the doctor's branches grants the doctor role there, which the
-    // granting bound (ADR-0017 §6) lets only an actor holding its keys do (A3: the own keys).
+    // granting bound (ADR-0017 §6) lets only an actor holding its keys do (A3: view:patients:own needs the
+    // clinic key, ADR-0026 §12).
     const managerRole = await customRole(h, D.admin.clinicId, [
       "view:users:clinic",
       "create:users:clinic",
       "update:users:clinic",
       "deactivate:users:clinic",
-      "view:patients:branch",
+      "view:patients:clinic",
       "view:appointments:own",
     ]);
     const manager = await memberOn(h, D.admin, managerRole);

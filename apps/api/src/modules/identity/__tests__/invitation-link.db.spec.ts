@@ -88,11 +88,11 @@ describe("POST /v1/invitations/:id/link", () => {
       h,
       A.admin,
       // It holds the doctor role's keys too: copying a link grants that role (ADR-0017 granting bound);
-      // the branch key covers view:patients:own, and A3's doctor also holds view:appointments:own.
+      // view:patients:own is covered only by the clinic key (ADR-0026 §12), with view:appointments:own.
       await customRole(h, A.admin.clinicId, [
         "view:users:clinic",
         "create:users:clinic",
-        "view:patients:branch",
+        "view:patients:clinic",
         "view:appointments:own",
       ]),
     );
