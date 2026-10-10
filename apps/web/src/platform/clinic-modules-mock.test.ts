@@ -16,7 +16,8 @@ describe("the appointments module flag", () => {
     expect((await api.platform.getClinic(PLATFORM, clinicId)).features).toEqual({
       patients: true,
       appointments: false,
-      medical: false,
+      // The demo clinic shows the released medical module (P2 brief §3).
+      medical: true,
     });
     expect((await api.session.getContext(as("clinic_admin"))).features.appointments).toBe(false);
     await api.platform.setClinicFeature(PLATFORM, clinicId, "appointments", true);

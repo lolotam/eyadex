@@ -108,7 +108,12 @@ export function PermissionMatrix({ catalog, value, onChange, readOnly }: Props) 
                             checked={current !== null}
                             disabled={readOnly}
                             onCheckedChange={(checked) =>
-                              setScope(resource, action, checked === true ? "clinic" : null)
+                              setScope(
+                                resource,
+                                action,
+                                // A single-scope row saves its definition's scope (create:visits:own).
+                                checked === true ? (defs[0]?.scope ?? null) : null,
+                              )
                             }
                           />
                         )}

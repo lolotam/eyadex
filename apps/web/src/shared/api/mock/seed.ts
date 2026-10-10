@@ -7,6 +7,8 @@ import type { MockState } from "./mock-store";
 import { issueInviteToken } from "./mock-invite-tokens";
 import { seedCivilId } from "./seed-civil-id";
 import { seedAppointments } from "./seed-appointments";
+import { seedMedical } from "./seed-medical";
+import { EMPTY_MEDICAL } from "./mock-medical-state";
 import { seedScheduling } from "./seed-scheduling";
 import { buildSystemRoles } from "./seed-roles";
 
@@ -121,6 +123,7 @@ export function buildSeed(): MockState {
     scheduleRows: [],
     timeOff: [],
     appointments: [],
+    medical: EMPTY_MEDICAL(),
     platformAccounts: [
       {
         id: makeId(),
@@ -170,8 +173,8 @@ export function buildSeed(): MockState {
       createdAt,
     };
     state.clinics.push(clinic);
-    // P2: the medical module ships switched off; the release turns it on (R2-3).
-    const features: ClinicFeatures = { patients: true, appointments: true, medical: false };
+    // P2: the demo shows the released state, so the demo clinic has the medical module on.
+    const features: ClinicFeatures = { patients: true, appointments: true, medical: ci === 0 };
     state.features[clinicId] = features;
 
     const branches: Branch[] = [0, 1].map((bi) => {
@@ -277,6 +280,7 @@ export function buildSeed(): MockState {
     state.patientCounters[clinicId] = patientCount;
     seedScheduling(state, clinicId, makeId, createdAt);
     if (ci === 0) seedAppointments(state, clinicId, makeId, createdAt);
+    if (ci === 0) seedMedical(state, clinicId, makeId);
 
     state.platformAudit.push({
       id: makeId(),

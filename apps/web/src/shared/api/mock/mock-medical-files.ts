@@ -1,0 +1,225 @@
+import {
+  ATTACHMENT_MAX_BYTES,
+  attachmentListQuerySchema,
+  attachmentTypeSchema,
+  type Attachment,
+} from "@eyadex/contracts/attachments";
+import { icd10QuerySchema } from "@eyadex/contracts/icd10";
+import {
+  medicalProfileInputSchema,
+  type MedicalProfile,
+  type MedicalProfileInput,
+} from "@eyadex/contracts/medical-profile";
+import { ApiError } from "../api-error";
+import type { MedicalApi } from "../medical-client";
+import { ICD10_DEMO, ICD10_RELEASE } from "./mock-icd10-list";
+import {
+  parse,
+  patientOf,
+  reachesContent,
+  requireKey,
+  visibleVisit,
+  type MedicalAccess,
+} from "./mock-medical-access";
+import { auditMedical } from "./mock-medical-project";
+import { attachmentBytes, type StoredAttachment } from "./mock-medical-state";
+import { delay, getState, newId, persist, type MockState } from "./mock-store";
+
+const PROFILE_FIELDS = [
+  "allergies",
+  "chronicConditions",
+  "currentMedications",
+  "surgicalHistory",
+  "familyHistory",
+] as const;
+
+/** The medical file's reach: the key's scope, an out-of-scope file is not_found (cannot be probed). */
+function contentFile(
+  db: MockState,
+  a: MedicalAccess,
+  action: "view" | "update",
+  patientId: string,
+) {
+  patientOf(db, a, patientId);
+  if (!reachesContent(db, a, "view", patientId)) throw new ApiError("not_found");
+  if (!reachesContent(db, a, action, patientId)) throw new ApiError("forbidden");
+}
+
+function profileOf(db: MockState, a: MedicalAccess, patientId: string): MedicalProfile {
+  const row = db.medical.profiles.find(
+    (p) => p.clinicId === a.clinic.id && p.patientId === patientId,
+  );
+  const profile = Object.fromEntries(PROFILE_FIELDS.map((f) => [f, row?.[f] ?? null]));
+  return {
+    profile: profile as MedicalProfile["profile"],
+    updatedAt: row?.updatedAt ?? null,
+    updatedByName: row?.updatedByName ?? null,
+    can: { update: reachesContent(db, a, "update", patientId) },
+  };
+}
+
+const view = ({ clinicId: _clinic, ...rest }: StoredAttachment): Attachment => rest;
+
+function attachmentIn(db: MockState, a: MedicalAccess, id: string, action: "view" | "update") {
+  const row = db.medical.attachments.find((x) => x.clinicId === a.clinic.id && x.id === id);
+  if (!row || row.status !== "active") throw new ApiError("not_found");
+  contentFile(db, a, action, row.patientId);
+  return row;
+}
+
+export function createMockMedicalFiles(): Pick<
+  MedicalApi,
+  | "getMedicalProfile"
+  | "saveMedicalProfile"
+  | "searchIcd10"
+  | "listAttachments"
+  | "uploadAttachment"
+  | "downloadAttachment"
+  | "archiveAttachment"
+  | "getPrescriptionPrint"
+> {
+  return {
+    async getMedicalProfile(persona, patientId) {
+      await delay();
+      const db = getState();
+      const a = requireKey(db, persona, "view", "medical", ["clinic", "own"]);
+      contentFile(db, a, "view", patientId);
+      auditMedical(db, a, "medical_profile", "medical_profile.opened", patientId);
+      persist();
+      return profileOf(db, a, patientId);
+    },
+
+    async saveMedicalProfile(persona, patientId, rawInput: MedicalProfileInput) {
+      await delay();
+      const db = getState();
+      const input = parse(medicalProfileInputSchema, rawInput);
+      const a = requireKey(db, persona, "update", "medical", ["clinic", "own"]);
+      contentFile(db, a, "update", patientId);
+      const before = profileOf(db, a, patientId).profile;
+      const next = Object.fromEntries(
+        PROFILE_FIELDS.map((f) => [f, input[f] && input[f].length > 0 ? input[f] : null]),
+      ) as MedicalProfile["profile"];
+      const changed = PROFILE_FIELDS.filter((f) => before[f] !== next[f]);
+      db.medical.profiles = db.medical.profiles.filter(
+        (p) => !(p.clinicId === a.clinic.id && p.patientId === patientId),
+      );
+      db.medical.profiles.push({
+        clinicId: a.clinic.id,
+        patientId,
+        ...next,
+        updatedAt: new Date().toISOString(),
+        updatedByName: a.actorName,
+      });
+      auditMedical(db, a, "medical_profile", "medical_profile.saved", patientId, changed);
+      persist();
+      return profileOf(db, a, patientId);
+    },
+
+    async searchIcd10(persona, rawQ) {
+      await delay(80);
+      const db = getState();
+      const { q } = parse(icd10QuerySchema, { q: rawQ });
+      requireKey(db, persona, "view", "medical", ["clinic", "own"]);
+      const needle = q.toLocaleLowerCase();
+      const words = needle.split(/\s+/).filter(Boolean);
+      const items = ICD10_DEMO.filter(
+        (c) =>
+          c.code.toLocaleLowerCase().startsWith(needle) ||
+          words.every((w) => c.title.toLocaleLowerCase().includes(w)),
+      ).slice(0, 20);
+      return { items: [...items], release: ICD10_RELEASE };
+    },
+
+    async listAttachments(persona, patientId, rawQuery) {
+      await delay();
+      const db = getState();
+      const query = parse(attachmentListQuerySchema, rawQuery);
+      const a = requireKey(db, persona, "view", "medical", ["clinic", "own"]);
+      contentFile(db, a, "view", patientId);
+      const items = db.medical.attachments
+        .filter((x) => x.clinicId === a.clinic.id && x.patientId === patientId)
+        .filter((x) => x.status === "active")
+        .filter((x) => query.visitId === undefined || x.visitId === query.visitId)
+        .sort((x, y) => y.uploadedAt.localeCompare(x.uploadedAt))
+        .map(view);
+      return { items };
+    },
+
+    async uploadAttachment(persona, patientId, file, visitId) {
+      await delay();
+      const db = getState();
+      const a = requireKey(db, persona, "update", "medical", ["clinic", "own"]);
+      contentFile(db, a, "update", patientId);
+      const type = attachmentTypeSchema.safeParse(file.type);
+      if (!type.success) throw new ApiError("attachment_type");
+      if (file.size > ATTACHMENT_MAX_BYTES) throw new ApiError("attachment_too_large");
+      if (file.size === 0) throw new ApiError("validation");
+      if (visitId !== null) {
+        const visit = visibleVisit(db, a, visitId);
+        if (visit.patientId !== patientId) throw new ApiError("attachment_patient_mismatch");
+      }
+      const row: StoredAttachment = {
+        id: newId(),
+        clinicId: a.clinic.id,
+        patientId,
+        visitId,
+        name: file.name.slice(0, 200) || "file",
+        contentType: type.data,
+        sizeBytes: file.size,
+        status: "active",
+        uploadedAt: new Date().toISOString(),
+        uploadedByName: a.actorName,
+      };
+      db.medical.attachments.push(row);
+      attachmentBytes.set(row.id, file);
+      // The file name can carry clinical words: only the field names reach the row.
+      auditMedical(db, a, "attachment", "attachment.uploaded", row.id, ["file"]);
+      persist();
+    },
+
+    async downloadAttachment(persona, attachmentId) {
+      await delay();
+      const db = getState();
+      const a = requireKey(db, persona, "view", "medical", ["clinic", "own"]);
+      const row = attachmentIn(db, a, attachmentId, "view");
+      const bytes = attachmentBytes.get(row.id);
+      if (!bytes) throw new ApiError("not_found");
+      auditMedical(db, a, "attachment", "attachment.downloaded", row.id);
+      persist();
+      return bytes;
+    },
+
+    async archiveAttachment(persona, attachmentId) {
+      await delay();
+      const db = getState();
+      const a = requireKey(db, persona, "update", "medical", ["clinic", "own"]);
+      const row = attachmentIn(db, a, attachmentId, "update");
+      row.status = "archived";
+      auditMedical(db, a, "attachment", "attachment.archived", row.id, [], "archived");
+      persist();
+    },
+
+    async getPrescriptionPrint(persona, visitId) {
+      await delay();
+      const db = getState();
+      const a = requireKey(db, persona, "view", "medical", ["clinic", "own"]);
+      const v = visibleVisit(db, a, visitId);
+      if (!reachesContent(db, a, "view", v.patientId)) throw new ApiError("not_found");
+      const patient = db.patients.find((p) => p.id === v.patientId);
+      const branch = db.branches.find((b) => b.id === v.branchId);
+      auditMedical(db, a, "prescription", "visit.prescription_printed", v.id);
+      persist();
+      return {
+        clinic: { nameAr: a.clinic.nameAr, nameEn: a.clinic.nameEn },
+        branch: { nameAr: branch?.nameAr ?? "", nameEn: branch?.nameEn ?? "" },
+        patient: { fullName: patient?.fullName ?? "", fileNumber: patient?.fileNumber ?? 0 },
+        providerName: db.members.find((m) => m.id === v.providerMembershipId)?.fullName ?? "",
+        startedAt: v.startedAt,
+        signedAt: v.signedAt,
+        items: v.prescription
+          .filter((p) => !p.archived)
+          .map(({ archived: _archived, ...item }) => item),
+      };
+    },
+  };
+}

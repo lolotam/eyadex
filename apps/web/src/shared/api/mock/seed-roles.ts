@@ -3,8 +3,9 @@ import type { Role, SystemRoleKey } from "@eyadex/contracts/organization";
 
 type RoleTemplate = { nameAr: string; nameEn: string; isLocked: boolean; permissions: string[] };
 
-// P2 R1-4, as the API's SYSTEM_ROLES: the medical module's keys reach roles only at its release.
-const UNRELEASED: ReadonlySet<PermissionResource> = new Set(["visits", "medical", "medicines"]);
+// P2 (brief §3): the mock shows the released state. The locked admin holds every clinic key except
+// the clinical content (`medical`, P2-5); visits and medicines it holds.
+const NOT_FOR_ADMIN: ReadonlySet<PermissionResource> = new Set(["medical"]);
 
 export const ROLE_TEMPLATES: Record<SystemRoleKey, RoleTemplate> = {
   clinic_admin: {
@@ -12,7 +13,7 @@ export const ROLE_TEMPLATES: Record<SystemRoleKey, RoleTemplate> = {
     nameEn: "Clinic Admin",
     isLocked: true,
     permissions: PERMISSION_CATALOG.filter(
-      (p) => p.scope === "clinic" && !UNRELEASED.has(p.resource),
+      (p) => p.scope === "clinic" && !NOT_FOR_ADMIN.has(p.resource),
     ).map((p) => p.key),
   },
   doctor: {
@@ -20,7 +21,15 @@ export const ROLE_TEMPLATES: Record<SystemRoleKey, RoleTemplate> = {
     nameEn: "Doctor",
     isLocked: false,
     // D-8 (spec §3, slice A3): its own appointments and its own patients only, as the API's SYSTEM_ROLES.
-    permissions: ["view:appointments:own", "view:patients:own"],
+    permissions: [
+      "view:appointments:own",
+      "view:patients:own",
+      "view:visits:own",
+      "create:visits:own",
+      "view:medical:own",
+      "update:medical:own",
+      "view:medicines:clinic",
+    ],
   },
   receptionist: {
     nameAr: "موظف استقبال",
@@ -36,6 +45,8 @@ export const ROLE_TEMPLATES: Record<SystemRoleKey, RoleTemplate> = {
       "update:appointments:branch",
       "view:schedules:branch",
       "view:services:clinic",
+      // P2-K4: the front desk sees that a visit exists, never its content.
+      "view:visits:branch",
     ],
   },
   technician: {

@@ -69,6 +69,7 @@ import type {
   PlatformSettings,
 } from "@eyadex/contracts/platform";
 import type { AppointmentsApi } from "./appointments-client";
+import type { MedicalApi } from "./medical-client";
 import type { SchedulingApi } from "./scheduling-client";
 
 /**
@@ -202,6 +203,8 @@ export interface ApiClient {
   /** Services, booking profiles, weekly schedules and time off (appointments module, ADR-0026). */
   scheduling: SchedulingApi;
   appointments: AppointmentsApi;
+  /** Visits, the medical file, prescriptions, attachments and the medicines list (P2). */
+  medical: MedicalApi;
   audit: {
     /** Needs view:audit_log:clinic; the caller's clinic only, newest first. */
     clinicList(persona: Persona, query: ClinicAuditListQuery): Promise<Page<ClinicAuditItem>>;

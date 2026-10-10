@@ -30,8 +30,11 @@ import { Route as PlatformTeamRouteImport } from './routes/platform.team'
 import { Route as ClinicPatientsIndexRouteImport } from './routes/clinic.patients.index'
 import { Route as ClinicPatientsPatientIdRouteImport } from './routes/clinic.patients.$patientId'
 import { Route as ClinicSettingsIndexRouteImport } from './routes/clinic.settings.index'
+import { Route as ClinicSettingsMedicinesRouteImport } from './routes/clinic.settings.medicines'
 import { Route as ClinicSettingsSchedulesRouteImport } from './routes/clinic.settings.schedules'
 import { Route as ClinicSettingsServicesRouteImport } from './routes/clinic.settings.services'
+import { Route as ClinicVisitsIndexRouteImport } from './routes/clinic.visits.index'
+import { Route as ClinicVisitsVisitIdRouteImport } from './routes/clinic.visits.$visitId'
 import { Route as PlatformClinicsIndexRouteImport } from './routes/platform.clinics.index'
 import { Route as PlatformClinicsClinicIdRouteImport } from './routes/platform.clinics.$clinicId'
 import { Route as PlatformClinicsNewRouteImport } from './routes/platform.clinics.new'
@@ -141,6 +144,11 @@ const ClinicSettingsIndexRoute = ClinicSettingsIndexRouteImport.update({
   path: '/settings/',
   getParentRoute: () => ClinicRoute,
 } as any)
+const ClinicSettingsMedicinesRoute = ClinicSettingsMedicinesRouteImport.update({
+  id: '/settings/medicines',
+  path: '/settings/medicines',
+  getParentRoute: () => ClinicRoute,
+} as any)
 const ClinicSettingsSchedulesRoute = ClinicSettingsSchedulesRouteImport.update({
   id: '/settings/schedules',
   path: '/settings/schedules',
@@ -149,6 +157,16 @@ const ClinicSettingsSchedulesRoute = ClinicSettingsSchedulesRouteImport.update({
 const ClinicSettingsServicesRoute = ClinicSettingsServicesRouteImport.update({
   id: '/settings/services',
   path: '/settings/services',
+  getParentRoute: () => ClinicRoute,
+} as any)
+const ClinicVisitsIndexRoute = ClinicVisitsIndexRouteImport.update({
+  id: '/visits/',
+  path: '/visits/',
+  getParentRoute: () => ClinicRoute,
+} as any)
+const ClinicVisitsVisitIdRoute = ClinicVisitsVisitIdRouteImport.update({
+  id: '/visits/$visitId',
+  path: '/visits/$visitId',
   getParentRoute: () => ClinicRoute,
 } as any)
 const PlatformClinicsIndexRoute = PlatformClinicsIndexRouteImport.update({
@@ -187,12 +205,15 @@ export interface FileRoutesByFullPath {
   '/clinic/': typeof ClinicIndexRoute
   '/platform/': typeof PlatformIndexRoute
   '/clinic/patients/$patientId': typeof ClinicPatientsPatientIdRoute
+  '/clinic/settings/medicines': typeof ClinicSettingsMedicinesRoute
   '/clinic/settings/schedules': typeof ClinicSettingsSchedulesRoute
   '/clinic/settings/services': typeof ClinicSettingsServicesRoute
+  '/clinic/visits/$visitId': typeof ClinicVisitsVisitIdRoute
   '/platform/clinics/$clinicId': typeof PlatformClinicsClinicIdRoute
   '/platform/clinics/new': typeof PlatformClinicsNewRoute
   '/clinic/patients/': typeof ClinicPatientsIndexRoute
   '/clinic/settings/': typeof ClinicSettingsIndexRoute
+  '/clinic/visits/': typeof ClinicVisitsIndexRoute
   '/platform/clinics/': typeof PlatformClinicsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -213,12 +234,15 @@ export interface FileRoutesByTo {
   '/clinic': typeof ClinicIndexRoute
   '/platform': typeof PlatformIndexRoute
   '/clinic/patients/$patientId': typeof ClinicPatientsPatientIdRoute
+  '/clinic/settings/medicines': typeof ClinicSettingsMedicinesRoute
   '/clinic/settings/schedules': typeof ClinicSettingsSchedulesRoute
   '/clinic/settings/services': typeof ClinicSettingsServicesRoute
+  '/clinic/visits/$visitId': typeof ClinicVisitsVisitIdRoute
   '/platform/clinics/$clinicId': typeof PlatformClinicsClinicIdRoute
   '/platform/clinics/new': typeof PlatformClinicsNewRoute
   '/clinic/patients': typeof ClinicPatientsIndexRoute
   '/clinic/settings': typeof ClinicSettingsIndexRoute
+  '/clinic/visits': typeof ClinicVisitsIndexRoute
   '/platform/clinics': typeof PlatformClinicsIndexRoute
 }
 export interface FileRoutesById {
@@ -242,12 +266,15 @@ export interface FileRoutesById {
   '/clinic/': typeof ClinicIndexRoute
   '/platform/': typeof PlatformIndexRoute
   '/clinic/patients/$patientId': typeof ClinicPatientsPatientIdRoute
+  '/clinic/settings/medicines': typeof ClinicSettingsMedicinesRoute
   '/clinic/settings/schedules': typeof ClinicSettingsSchedulesRoute
   '/clinic/settings/services': typeof ClinicSettingsServicesRoute
+  '/clinic/visits/$visitId': typeof ClinicVisitsVisitIdRoute
   '/platform/clinics/$clinicId': typeof PlatformClinicsClinicIdRoute
   '/platform/clinics/new': typeof PlatformClinicsNewRoute
   '/clinic/patients/': typeof ClinicPatientsIndexRoute
   '/clinic/settings/': typeof ClinicSettingsIndexRoute
+  '/clinic/visits/': typeof ClinicVisitsIndexRoute
   '/platform/clinics/': typeof PlatformClinicsIndexRoute
 }
 export interface FileRouteTypes {
@@ -272,12 +299,15 @@ export interface FileRouteTypes {
     | '/clinic/'
     | '/platform/'
     | '/clinic/patients/$patientId'
+    | '/clinic/settings/medicines'
     | '/clinic/settings/schedules'
     | '/clinic/settings/services'
+    | '/clinic/visits/$visitId'
     | '/platform/clinics/$clinicId'
     | '/platform/clinics/new'
     | '/clinic/patients/'
     | '/clinic/settings/'
+    | '/clinic/visits/'
     | '/platform/clinics/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -298,12 +328,15 @@ export interface FileRouteTypes {
     | '/clinic'
     | '/platform'
     | '/clinic/patients/$patientId'
+    | '/clinic/settings/medicines'
     | '/clinic/settings/schedules'
     | '/clinic/settings/services'
+    | '/clinic/visits/$visitId'
     | '/platform/clinics/$clinicId'
     | '/platform/clinics/new'
     | '/clinic/patients'
     | '/clinic/settings'
+    | '/clinic/visits'
     | '/platform/clinics'
   id:
     | '__root__'
@@ -326,12 +359,15 @@ export interface FileRouteTypes {
     | '/clinic/'
     | '/platform/'
     | '/clinic/patients/$patientId'
+    | '/clinic/settings/medicines'
     | '/clinic/settings/schedules'
     | '/clinic/settings/services'
+    | '/clinic/visits/$visitId'
     | '/platform/clinics/$clinicId'
     | '/platform/clinics/new'
     | '/clinic/patients/'
     | '/clinic/settings/'
+    | '/clinic/visits/'
     | '/platform/clinics/'
   fileRoutesById: FileRoutesById
 }
@@ -494,6 +530,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ClinicSettingsIndexRouteImport
       parentRoute: typeof ClinicRoute
     }
+    '/clinic/settings/medicines': {
+      id: '/clinic/settings/medicines'
+      path: '/settings/medicines'
+      fullPath: '/clinic/settings/medicines'
+      preLoaderRoute: typeof ClinicSettingsMedicinesRouteImport
+      parentRoute: typeof ClinicRoute
+    }
     '/clinic/settings/schedules': {
       id: '/clinic/settings/schedules'
       path: '/settings/schedules'
@@ -506,6 +549,20 @@ declare module '@tanstack/react-router' {
       path: '/settings/services'
       fullPath: '/clinic/settings/services'
       preLoaderRoute: typeof ClinicSettingsServicesRouteImport
+      parentRoute: typeof ClinicRoute
+    }
+    '/clinic/visits/': {
+      id: '/clinic/visits/'
+      path: '/visits'
+      fullPath: '/clinic/visits/'
+      preLoaderRoute: typeof ClinicVisitsIndexRouteImport
+      parentRoute: typeof ClinicRoute
+    }
+    '/clinic/visits/$visitId': {
+      id: '/clinic/visits/$visitId'
+      path: '/visits/$visitId'
+      fullPath: '/clinic/visits/$visitId'
+      preLoaderRoute: typeof ClinicVisitsVisitIdRouteImport
       parentRoute: typeof ClinicRoute
     }
     '/platform/clinics/': {
@@ -541,10 +598,13 @@ interface ClinicRouteChildren {
   ClinicUsersRoute: typeof ClinicUsersRoute
   ClinicIndexRoute: typeof ClinicIndexRoute
   ClinicPatientsPatientIdRoute: typeof ClinicPatientsPatientIdRoute
+  ClinicSettingsMedicinesRoute: typeof ClinicSettingsMedicinesRoute
   ClinicSettingsSchedulesRoute: typeof ClinicSettingsSchedulesRoute
   ClinicSettingsServicesRoute: typeof ClinicSettingsServicesRoute
+  ClinicVisitsVisitIdRoute: typeof ClinicVisitsVisitIdRoute
   ClinicPatientsIndexRoute: typeof ClinicPatientsIndexRoute
   ClinicSettingsIndexRoute: typeof ClinicSettingsIndexRoute
+  ClinicVisitsIndexRoute: typeof ClinicVisitsIndexRoute
 }
 
 const ClinicRouteChildren: ClinicRouteChildren = {
@@ -556,10 +616,13 @@ const ClinicRouteChildren: ClinicRouteChildren = {
   ClinicUsersRoute: ClinicUsersRoute,
   ClinicIndexRoute: ClinicIndexRoute,
   ClinicPatientsPatientIdRoute: ClinicPatientsPatientIdRoute,
+  ClinicSettingsMedicinesRoute: ClinicSettingsMedicinesRoute,
   ClinicSettingsSchedulesRoute: ClinicSettingsSchedulesRoute,
   ClinicSettingsServicesRoute: ClinicSettingsServicesRoute,
+  ClinicVisitsVisitIdRoute: ClinicVisitsVisitIdRoute,
   ClinicPatientsIndexRoute: ClinicPatientsIndexRoute,
   ClinicSettingsIndexRoute: ClinicSettingsIndexRoute,
+  ClinicVisitsIndexRoute: ClinicVisitsIndexRoute,
 }
 
 const ClinicRouteWithChildren =

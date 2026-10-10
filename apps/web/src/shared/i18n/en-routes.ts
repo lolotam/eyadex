@@ -14,6 +14,7 @@ export const enRoutes = {
     roles: "Roles & permissions",
     patients: "Patients",
     appointments: "Appointments",
+    visits: "Visits",
     account: "My account",
     menu: "Menu",
   },
@@ -37,6 +38,18 @@ export const enRoutes = {
       description: "Manage clinic locations, contact details, and operating status.",
     },
     clinicPatients: { title: "Patients", description: "Patient files and registration." },
+    clinicVisits: {
+      title: "Visits",
+      description: "Start a walk-in visit for a patient without an appointment.",
+    },
+    clinicVisit: {
+      title: "Visit",
+      description: "A visit's doctor notes, diagnoses, prescription and attachments.",
+    },
+    clinicSettingsMedicines: {
+      title: "Medicines",
+      description: "The clinic's list of frequent medicines.",
+    },
     clinicPatientFile: {
       title: "Patient file",
       description: "A patient file; every opening is recorded in the audit log.",

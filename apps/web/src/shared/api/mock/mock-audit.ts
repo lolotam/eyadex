@@ -33,6 +33,18 @@ function withNames(db: MockState, clinicId: string, snap: Snapshot): Record<stri
 const scrubbed = (snap: Record<string, unknown>) =>
   scrubAuditValue(snap) as Record<string, unknown>;
 
+// P2 R3-4: every medical row is patient access, like the patient file itself; only the clinic
+// medicines list stays administrative.
+const PATIENT_ACCESS: ReadonlySet<string> = new Set([
+  "patient",
+  "visit",
+  "visit_addendum",
+  "diagnosis",
+  "prescription",
+  "medical_profile",
+  "attachment",
+]);
+
 /** Append-only clinic audit primitive shared by every clinic-area mock namespace. */
 export function writeClinicAudit(
   db: MockState,
@@ -53,7 +65,7 @@ export function writeClinicAudit(
     actorName: scrubAuditText(entry.actorName),
     action: entry.action,
     entity: entry.entity,
-    category: entry.entity === "patient" ? "patient_access" : "administrative",
+    category: PATIENT_ACCESS.has(entry.entity) ? "patient_access" : "administrative",
     entityId: subject.id,
     before: entry.before ? scrubbed(withNames(db, entry.clinicId, entry.before)) : null,
     after: entry.after ? scrubbed(withNames(db, entry.clinicId, entry.after)) : null,

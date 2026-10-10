@@ -8,6 +8,7 @@ import { arAccess, arAccessErrors } from "./ar-access";
 import { arBranches } from "./ar-branches";
 import { arRoutes } from "./ar-routes";
 import { arAppointmentErrors, arAppointments } from "./ar-appointments";
+import { arVisits } from "./ar-visits";
 import { arScheduling, arSchedulingErrors } from "./ar-scheduling";
 import { arMedicalErrors } from "./ar-medical";
 
@@ -171,6 +172,7 @@ export const ar: Dictionary = {
   ...arSettings,
   ...arScheduling,
   ...arAppointments,
+  ...arVisits,
   validation: {
     needsView: "أي صلاحية إضافة أو تعديل أو تعطيل تحتاج صلاحية العرض في نفس القسم",
     timezone: "اختر منطقة زمنية مدعومة",

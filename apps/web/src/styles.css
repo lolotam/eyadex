@@ -151,3 +151,21 @@
     color: var(--color-accent-foreground);
   }
 }
+
+/* P2: print only the prescription sheet when its dialog prints. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .prescription-print,
+  .prescription-print * {
+    visibility: visible;
+  }
+  .prescription-print {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-start: 0;
+    width: 100%;
+    padding: 1.5rem;
+  }
+}
