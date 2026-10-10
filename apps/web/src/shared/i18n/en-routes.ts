@@ -41,6 +41,14 @@ export const enRoutes = {
       description: "Define who can do what in the clinic.",
     },
     clinicSettings: { title: "Clinic settings", description: "Clinic preferences." },
+    clinicSettingsServices: {
+      title: "Services",
+      description: "The clinic's services and their durations.",
+    },
+    clinicSettingsSchedules: {
+      title: "Work schedules",
+      description: "Weekly working hours and time off per provider.",
+    },
     clinicUsers: { title: "Users", description: "Invite and manage clinic users." },
     platform: { title: "Platform", description: "Platform administration for Eyadex." },
     platformOverview: {

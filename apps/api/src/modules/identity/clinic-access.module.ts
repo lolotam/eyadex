@@ -32,10 +32,15 @@ import {
   ClinicInvitationsController,
   INVITATION_CHANGES,
 } from "./http/clinic-invitations.controller.ts";
+import {
+  BOOKING_PROFILE_CHANGES,
+  BookingProfileController,
+} from "./http/booking-profile.controller.ts";
 import { USER_CHANGES, UsersController } from "./http/users.controller.ts";
 import { PgExclusiveMembers } from "./persistence/pg-exclusive-members.ts";
 import { PgSeatUsageReader } from "./persistence/pg-seat-usage-reader.ts";
 import { InvitationChanges } from "./use-cases/invitation-changes/invitation-changes.ts";
+import { BookingProfileChanges } from "./use-cases/booking-profile/booking-profile-changes.ts";
 import { UserChanges } from "./use-cases/user-changes/user-changes.ts";
 import {
   EXPIRY_ALERT_WINDOW,
@@ -57,7 +62,8 @@ const logger = new NestLogger("authorization");
 
 /**
  * سياق العيادة للـ guard العام (ADR-0009) + `/v1/me`, `/v1/account` (ADR-0020), `/v1/permissions/catalogue`, `/v1/roles`,
- * و `/v1/branches` (ADR-0011)، و `/v1/users` + `/v1/invitations` (ADR-0012، محتاج OUTBOX_SEAL_KEY).
+ * و `/v1/branches` (ADR-0011)، و `/v1/users` + `/v1/invitations` (ADR-0012، محتاج OUTBOX_SEAL_KEY)،
+ * و `/v1/users/:id/booking-profile` (ADR-0026).
  * محتاج الـ auth والـ DATABASE_URL والـ REDIS_URL.
  */
 @Module({
@@ -68,6 +74,7 @@ const logger = new NestLogger("authorization");
     RolesController,
     BranchesController,
     UsersController,
+    BookingProfileController,
     ClinicInvitationsController,
     AccountController,
   ],
@@ -109,6 +116,12 @@ const logger = new NestLogger("authorization");
       inject: [DATABASE, CLOCK],
       useFactory: (db: Database, clock: Clock) =>
         new UserChanges({ db, clock, ids: systemUuidV7() }),
+    },
+    {
+      provide: BOOKING_PROFILE_CHANGES,
+      inject: [DATABASE, CLOCK],
+      useFactory: (db: Database, clock: Clock) =>
+        new BookingProfileChanges({ db, clock, ids: systemUuidV7() }),
     },
     {
       provide: INVITATION_CHANGES,

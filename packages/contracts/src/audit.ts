@@ -103,6 +103,7 @@ export const CLINIC_AUDIT_ACTIONS = [
   "user.deactivated",
   "user.reactivated",
   "user.profile_updated",
+  "user.booking_changed",
   "invitation.sent",
   "invitation.resent",
   "invitation.link_copied",
@@ -123,6 +124,13 @@ export const CLINIC_AUDIT_ACTIONS = [
   "clinic.mail_provider_removed",
   "clinic.mail_provider_test_requested",
   "clinic.mail_provider_degraded",
+  "service.created",
+  "service.updated",
+  "service.deactivated",
+  "service.reactivated",
+  "schedule.replaced",
+  "time_off.added",
+  "time_off.cancelled",
 ] as const;
 
 /** Actions only the platform writes (its own log). */
@@ -142,10 +150,16 @@ export const PLATFORM_ONLY_AUDIT_ACTIONS = [
   "platform.settings_updated",
 ] as const;
 
+/**
+ * Clinic-log actions the platform never reads: patient access, and the appointments module's
+ * configuration (services, schedules, staff time off) — ADR-0026 §8.
+ */
+const CLINIC_ONLY_ACTION = /^(patient|service|schedule|time_off)\./;
+
 /** What the platform audit screen can show: its own events plus clinic administrative ones. */
 export const PLATFORM_AUDIT_ACTIONS = [
   ...PLATFORM_ONLY_AUDIT_ACTIONS,
-  ...CLINIC_AUDIT_ACTIONS.filter((a) => !a.startsWith("patient.")),
+  ...CLINIC_AUDIT_ACTIONS.filter((a) => !CLINIC_ONLY_ACTION.test(a)),
 ].filter((a, i, all) => all.indexOf(a) === i);
 
 /** Every action the audit writers record, for labels. */

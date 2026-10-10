@@ -46,7 +46,7 @@ export async function clinicWithInvite(h: Harness) {
       expiresAt: "2099-01-01T00:00:00Z",
       maxUsers: 5,
       maxBranches: 3,
-      modules: { patients: true },
+      modules: { patients: true, appointments: false },
       admin: { fullName: "Invited Admin", email },
     },
   });

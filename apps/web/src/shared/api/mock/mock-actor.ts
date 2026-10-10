@@ -1,4 +1,4 @@
-import type { Clinic } from "@eyadex/contracts/clinics";
+import { NO_FEATURES, type Clinic } from "@eyadex/contracts/clinics";
 import type { Role } from "@eyadex/contracts/organization";
 import {
   PERMISSION_CATALOG,
@@ -38,10 +38,25 @@ export function resolveActor(db: MockState, persona: Persona): Actor {
   return { clinic, member, role };
 }
 
+/**
+ * The account's branch scope as the API resolves it (`ClinicRequestContext.branchScope`): every
+ * branch, or its assigned branches that are still active. A deactivated branch reaches nothing.
+ */
+export function memberBranchScope(
+  db: MockState,
+  member: MembershipUser,
+): { allBranches: boolean; branchIds: string[] } {
+  if (member.allBranches) return { allBranches: true, branchIds: [] };
+  const active = new Set(
+    db.branches.filter((b) => b.clinicId === member.clinicId && b.isActive).map((b) => b.id),
+  );
+  return { allBranches: false, branchIds: member.branchIds.filter((id) => active.has(id)) };
+}
+
 /** Effective permissions of the account: inactive roles grant nothing, disabled modules are removed. */
 export function effectivePermissions(db: MockState, actor: Actor): string[] {
   if (!actor.role.isActive) return [];
-  const features = db.features[actor.clinic.id] ?? { patients: false };
+  const features = db.features[actor.clinic.id] ?? NO_FEATURES;
   return actor.role.permissions.filter((key) => {
     const def = PERMISSION_CATALOG.find((p) => p.key === key);
     return def && (def.module === null || features[def.module]);
@@ -61,7 +76,7 @@ export function authorize(
   const actor = resolveActor(db, persona);
   if (clinicBlockReason(actor.clinic)) throw new ApiError("subscription_blocked");
   const def = PERMISSION_CATALOG.find((p) => p.resource === resource);
-  const features = db.features[actor.clinic.id] ?? { patients: false };
+  const features = db.features[actor.clinic.id] ?? NO_FEATURES;
   if (def?.module && !features[def.module]) throw new ApiError("module_disabled");
   if (!effectivePermissions(db, actor).includes(`${action}:${resource}:clinic`))
     throw new ApiError("forbidden");

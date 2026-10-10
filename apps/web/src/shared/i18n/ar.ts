@@ -5,7 +5,9 @@ import { arAudit } from "./ar-audit";
 import { arUsers } from "./ar-users";
 import { arSettings } from "./ar-settings";
 import { arAccess, arAccessErrors } from "./ar-access";
+import { arBranches } from "./ar-branches";
 import { arRoutes } from "./ar-routes";
+import { arScheduling, arSchedulingErrors } from "./ar-scheduling";
 
 import type { Dictionary } from "./dictionary";
 
@@ -141,6 +143,8 @@ export const ar: Dictionary = {
       body: "إيقاف الموديول يخفيه من قائمة العيادة ومن محرر الأدوار.",
       patients: "المراجعون",
       patientsBody: "ملفات المراجعين والبحث والتسجيل.",
+      appointments: "المواعيد",
+      appointmentsBody: "الخدمات وجداول العمل والإجازات؛ الحجز يأتي في المرحلة التالية.",
       saved: "تم تحديث الموديول",
     },
     members: {
@@ -155,57 +159,22 @@ export const ar: Dictionary = {
     branchColumns: { name: "الفرع", address: "العنوان", phone: "الهاتف", status: "الحالة" },
     privacyNote: "بيانات المراجعين لا تظهر أبدًا في منطقة المنصة.",
   },
-  branches: {
-    title: "الفروع",
-    subtitle: "إدارة المواقع التي تعمل فيها العيادة.",
-    new: "فرع جديد",
-    usage: "{active} من {limit} فروع نشطة",
-    searchPlaceholder: "ابحث باسم الفرع",
-    anyStatus: "كل الحالات",
-    columns: {
-      name: "الفرع",
-      address: "العنوان",
-      phone: "الهاتف",
-      status: "الحالة",
-      actions: "الإجراءات",
-    },
-    createTitle: "إنشاء فرع",
-    createSubtitle: "أضف موقعًا جديدًا لهذه العيادة.",
-    editTitle: "تعديل الفرع",
-    editSubtitle: "حدّث بيانات التواصل لهذا الموقع.",
-    fields: {
-      nameAr: "الاسم (عربي)",
-      nameEn: "الاسم (إنجليزي)",
-      address: "العنوان (اختياري)",
-      phone: "الهاتف (اختياري)",
-    },
-    created: "تم إنشاء الفرع",
-    updated: "تم تحديث الفرع",
-    deactivated: "تم إيقاف الفرع",
-    reactivated: "تم تفعيل الفرع",
-    deactivate: "إيقاف",
-    reactivate: "إعادة تفعيل",
-    deactivateTitle: "إيقاف الفرع؟",
-    deactivateBody: "لن يُحتسب هذا الفرع ضمن حد الفروع النشطة، وستبقى سجلاته الحالية محفوظة.",
-    reactivateTitle: "إعادة تفعيل الفرع؟",
-    reactivateBody: "سيصبح هذا الفرع متاحًا مجددًا ويُحتسب ضمن حد الفروع النشطة.",
-    emptyTitle: "لا توجد فروع",
-    emptyBody: "جرّب تغيير البحث أو فلتر الحالة.",
-    loadError: "تعذّر تحميل الفروع.",
-    limitReached: "تم بلوغ حد الفروع النشطة ({active} من {limit}). تواصل مع المنصة لزيادته.",
-    lastActive: "لا يمكن إيقاف آخر فرع نشط للعيادة.",
-  },
+  ...arBranches,
   ...arUsers,
   ...arRoles,
   ...arPatients,
   ...arAudit,
   ...arSettings,
+  ...arScheduling,
   validation: {
     needsView: "أي صلاحية إضافة أو تعديل أو تعطيل تحتاج صلاحية العرض في نفس القسم",
     timezone: "اختر منطقة زمنية مدعومة",
     required: "مطلوب",
     tooShort: "قصير جدًا",
     tooLong: "طويل جدًا",
+    time: "اكتب الوقت بصيغة HH:MM (24:00 كنهاية فقط)",
+    timeOrder: "يجب أن تكون النهاية بعد البداية",
+    timeMissing: "هذا الوقت غير موجود بتوقيت العيادة (تغيير الساعة)",
     email: "أدخل بريدًا صحيحًا",
     slug: "استخدم حروفًا إنجليزية صغيرة وأرقامًا وشرطات",
     slugReserved: "هذا العنوان محجوز لمنصة Eyadex",
@@ -224,6 +193,7 @@ export const ar: Dictionary = {
   },
   errors: {
     ...arAccessErrors,
+    ...arSchedulingErrors,
     patient_phone_taken: "هذا الهاتف مسجّل لمراجع آخر في هذه العيادة",
     patient_civil_id_taken: "هذا الرقم المدني مسجّل لمراجع آخر في هذه العيادة",
     email_taken: "هذا البريد مستخدم لدى مستخدم آخر أو في دعوة معلّقة",

@@ -141,5 +141,21 @@ export const API_ERROR_MESSAGES = {
     message_ar: "لا يمكن تعطيل آخر حساب نشط في المنصة",
     message_en: "The last active platform account cannot be deactivated",
   },
+  service_name_taken: {
+    message_ar: "توجد خدمة أخرى في العيادة بهذا الاسم",
+    message_en: "Another service in this clinic already uses this name",
+  },
+  schedule_overlap: {
+    message_ar: "فترات العمل تتداخل مع فترة أخرى لنفس الشخص",
+    message_en: "These working hours overlap another period of the same person",
+  },
+  provider_not_bookable: {
+    message_ar: "هذا المستخدم غير متاح للحجز؛ فعّل استقبال المواعيد له أولًا",
+    message_en: "This user cannot be booked; turn on accepting appointments for them first",
+  },
+  provider_not_in_branch: {
+    message_ar: "هذا المستخدم لا يعمل في هذا الفرع",
+    message_en: "This user does not work in this branch",
+  },
   unknown: { message_ar: "حدث خطأ ما", message_en: "Something went wrong" },
 } satisfies Record<ApiErrorCode, { message_ar: string; message_en: string }>;

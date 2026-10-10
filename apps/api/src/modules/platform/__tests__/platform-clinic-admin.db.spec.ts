@@ -118,7 +118,7 @@ describe("FLAG-01 / FLAG-02: locking a module hides it, re-enabling restores it 
 
     const locked = await platform("PUT", `${clinic()}/features/patients`, { enabled: false });
     expect(locked.statusCode).toBe(200);
-    expect(locked.json().modules).toEqual({ patients: false });
+    expect(locked.json().modules).toEqual({ patients: false, appointments: false });
 
     const probe = await get(h, "/v1/probe-patients", A.doctor.cookie);
     expect(probe.statusCode).toBe(403);
@@ -136,7 +136,7 @@ describe("FLAG-01 / FLAG-02: locking a module hides it, re-enabling restores it 
     expect(rowsLocked[0]!["n"]).toBe(rowsBefore[0]!["n"]);
 
     const restored = await platform("PUT", `${clinic()}/features/patients`, { enabled: true });
-    expect(restored.json().modules).toEqual({ patients: true });
+    expect(restored.json().modules).toEqual({ patients: true, appointments: false });
     expect(await permissionsOf(A.doctor.cookie)).toEqual(["view:patients:branch"]);
     expect(await permissionsOf(A.admin.cookie)).toEqual(adminBefore);
     expect((await get(h, "/v1/probe-patients", A.doctor.cookie)).statusCode).toBe(200);

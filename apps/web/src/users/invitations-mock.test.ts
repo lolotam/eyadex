@@ -202,7 +202,7 @@ describe("invitations mock", () => {
         adminEmail: "first.admin@example.com",
         maxUsers: 10,
         maxBranches: 3,
-        modules: { patients: true },
+        modules: { patients: true, appointments: true },
       },
       crypto.randomUUID(),
     );
@@ -302,7 +302,7 @@ describe("invitations mock", () => {
         adminEmail: "  First-Admin@Example.com ",
         maxUsers: 10,
         maxBranches: 3,
-        modules: { patients: true },
+        modules: { patients: true, appointments: true },
       },
       crypto.randomUUID(),
     );

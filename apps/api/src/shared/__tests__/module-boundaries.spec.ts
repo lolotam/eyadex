@@ -56,7 +56,23 @@ const auditSqlRelations = (): string[] =>
       .map((relation) => `${file.slice(modulesDir.length)}: ${relation}`),
   );
 
+// ADR-0026: the appointments module names only its own tables; members come through ProviderDirectory
+// (identity) and branches through SchedulingBranchReader (tenancy).
+const APPOINTMENTS_RELATIONS = ["clinic_services", "provider_schedules", "provider_time_off"];
+const appointmentsSqlRelations = (): string[] =>
+  sourceFiles(join(modulesDir, "appointments")).flatMap((file) =>
+    [...readFileSync(file, "utf8").matchAll(/\b(?:FROM|JOIN|UPDATE|INTO)\s+([a-z_]+)/g)]
+      .map(([, relation = ""]) => relation)
+      .filter((relation) => !APPOINTMENTS_RELATIONS.includes(relation))
+      .map((relation) => `${file.slice(modulesDir.length)}: ${relation}`),
+  );
+
 describe("module boundaries", () => {
+  it("the appointments module's SQL names only its own tables; the rest comes through its ports", () => {
+    expect(existsSync(join(modulesDir, "appointments", "appointments.module.ts"))).toBe(true);
+    expect(appointmentsSqlRelations()).toEqual([]);
+  });
+
   it("the audit module's SQL names only the audit relations; other tables come through its ports", () => {
     expect(auditSqlRelations()).toEqual([]);
   });

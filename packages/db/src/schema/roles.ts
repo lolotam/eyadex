@@ -61,17 +61,20 @@ export const permissions = pgTable(
     action: text("action").notNull(),
     resource: text("resource").notNull(),
     scope: text("scope").notNull(),
-    module: text("module", { enum: ["patients"] }),
+    module: text("module", { enum: ["patients", "appointments"] }),
   },
   (t) => [
     unique("permissions_key_key").on(t.key),
     check(
       "permissions_key_check",
       sql.raw(
-        "(key ~ '^(view|create|update|deactivate):(branches|users|roles|patients|audit_log|clinic_settings):(clinic|branch)$'::text)",
+        "(key ~ '^(view|create|update|deactivate|overbook):(branches|users|roles|patients|audit_log|clinic_settings|appointments|services|schedules):(clinic|branch|own)$'::text)",
       ),
     ),
-    check("permissions_module_check", sql.raw("(module = 'patients'::text)")),
+    check(
+      "permissions_module_check",
+      sql.raw("(module = ANY (ARRAY['patients'::text, 'appointments'::text]))"),
+    ),
   ],
 );
 

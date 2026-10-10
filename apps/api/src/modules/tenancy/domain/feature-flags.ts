@@ -1,5 +1,7 @@
-/** الموديولات اللي ليها flag (db/sql/0002) — المراجعون بس دلوقتي. */
-export type ClinicModule = "patients";
+import { moduleSchema, type ClinicModule } from "@eyadex/contracts/clinics";
+
+/** الموديولات اللي ليها flag (db/sql/0002، 0042): قايمة الـ contract الوحيدة. */
+export type { ClinicModule };
 
 /** صف flag واحد للعيادة. */
 export interface FeatureFlag {
@@ -17,4 +19,16 @@ export interface FeatureFlag {
  */
 export function isModuleEnabled(flags: readonly FeatureFlag[], module: ClinicModule): boolean {
   return flags.some((flag) => flag.module === module && flag.enabled);
+}
+
+/**
+ * خريطة الموديولات كلها (موديول → مفعّل؟) من صفوف الـ flags، بنفس قاعدة `isModuleEnabled`.
+ *
+ * @param flags صفوف `clinic_features` بتاعة العيادة
+ * @returns لكل موديول في `moduleSchema` هل هو مفعّل
+ */
+export function moduleMap(flags: readonly FeatureFlag[]): Record<ClinicModule, boolean> {
+  return Object.fromEntries(
+    moduleSchema.options.map((module) => [module, isModuleEnabled(flags, module)]),
+  ) as Record<ClinicModule, boolean>;
 }

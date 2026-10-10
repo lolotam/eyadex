@@ -5,7 +5,9 @@ import { enAudit } from "./en-audit";
 import { enUsers } from "./en-users";
 import { enSettings } from "./en-settings";
 import { enAccess, enAccessErrors } from "./en-access";
+import { enBranches } from "./en-branches";
 import { enRoutes } from "./en-routes";
+import { enScheduling, enSchedulingErrors } from "./en-scheduling";
 
 export const en = {
   app: { name: "Eyadex", tagline: "One place for every clinic" },
@@ -142,6 +144,8 @@ export const en = {
       body: "Turning a module off hides it from the clinic's menu and role editor.",
       patients: "Patients",
       patientsBody: "Patient files, search and registration.",
+      appointments: "Appointments",
+      appointmentsBody: "Services, work schedules and time off; booking arrives next.",
       saved: "Module updated",
     },
     members: {
@@ -156,60 +160,22 @@ export const en = {
     branchColumns: { name: "Branch", address: "Address", phone: "Phone", status: "Status" },
     privacyNote: "Patient data is never shown in the platform area.",
   },
-  branches: {
-    title: "Branches",
-    subtitle: "Manage the locations where your clinic operates.",
-    new: "New branch",
-    usage: "{active} of {limit} active branches",
-    searchPlaceholder: "Search branch names",
-    anyStatus: "Any status",
-    columns: {
-      name: "Branch",
-      address: "Address",
-      phone: "Phone",
-      status: "Status",
-      actions: "Actions",
-    },
-    createTitle: "Create branch",
-    createSubtitle: "Add another location to this clinic.",
-    editTitle: "Edit branch",
-    editSubtitle: "Update this location's contact details.",
-    fields: {
-      nameAr: "Name (Arabic)",
-      nameEn: "Name (English)",
-      address: "Address (optional)",
-      phone: "Phone (optional)",
-    },
-    created: "Branch created",
-    updated: "Branch updated",
-    deactivated: "Branch deactivated",
-    reactivated: "Branch reactivated",
-    deactivate: "Deactivate",
-    reactivate: "Reactivate",
-    deactivateTitle: "Deactivate branch?",
-    deactivateBody:
-      "This branch will no longer count toward the active branch limit. Existing records remain available.",
-    reactivateTitle: "Reactivate branch?",
-    reactivateBody:
-      "This branch will become available again and count toward the active branch limit.",
-    emptyTitle: "No branches found",
-    emptyBody: "Try changing the search or status filter.",
-    loadError: "Branches could not be loaded.",
-    limitReached:
-      "Active branch limit reached ({active} of {limit}). Contact the platform to increase it.",
-    lastActive: "The clinic's last active branch cannot be deactivated.",
-  },
+  ...enBranches,
   ...enUsers,
   ...enRoles,
   ...enPatients,
   ...enAudit,
   ...enSettings,
+  ...enScheduling,
   validation: {
     needsView: "Any create, edit or deactivate permission needs view on the same area",
     timezone: "Choose a supported time zone",
     required: "Required",
     tooShort: "Too short",
     tooLong: "Too long",
+    time: "Enter a time as HH:MM (24:00 only as an end)",
+    timeOrder: "The end must be after the start",
+    timeMissing: "This time does not exist in the clinic's time zone (the clock changes)",
     email: "Enter a valid email",
     slug: "Use lowercase letters, numbers and dashes",
     slugReserved: "This address is reserved by Eyadex",
@@ -228,6 +194,7 @@ export const en = {
   },
   errors: {
     ...enAccessErrors,
+    ...enSchedulingErrors,
     patient_phone_taken: "This phone already belongs to another patient in this clinic",
     patient_civil_id_taken: "This civil ID already belongs to another patient in this clinic",
     email_taken: "This email already belongs to a user or a pending invitation",

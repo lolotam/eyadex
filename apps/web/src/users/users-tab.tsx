@@ -9,6 +9,8 @@ import { ChangeRoleDialog } from "./change-role-dialog";
 import { FilterSelect } from "@/shared/table/filter-select";
 import { ListBody } from "./list-body";
 import { SearchBox } from "@/shared/table/search-box";
+import { mayEditBooking } from "./booking-access";
+import { BookingProfileDialog } from "./booking-profile-dialog";
 import { useUserColumns } from "./use-user-columns";
 import { useBranchOptions, useRoleOptions, useUserList } from "./user-queries";
 import { UserStatusDialog } from "./user-status-dialog";
@@ -26,6 +28,7 @@ export function UsersTab() {
   const [roleTarget, setRoleTarget] = useState<MembershipUserView | null>(null);
   const [branchTarget, setBranchTarget] = useState<MembershipUserView | null>(null);
   const [statusTarget, setStatusTarget] = useState<MembershipUserView | null>(null);
+  const [bookingTarget, setBookingTarget] = useState<MembershipUserView | null>(null);
   const roles = useRoleOptions();
   const branches = useBranchOptions();
   const list = useUserList({
@@ -40,10 +43,12 @@ export function UsersTab() {
   const columns = useUserColumns({
     mayUpdate: can(permissions, "update", "users"),
     mayDeactivate: can(permissions, "deactivate", "users"),
+    mayBook: session ? mayEditBooking(session) : false,
     branches: branches.data ?? [],
     onRole: useCallback((u: MembershipUserView) => setRoleTarget(u), []),
     onBranches: useCallback((u: MembershipUserView) => setBranchTarget(u), []),
     onStatus: useCallback((u: MembershipUserView) => setStatusTarget(u), []),
+    onBooking: useCallback((u: MembershipUserView) => setBookingTarget(u), []),
   });
   const withReset =
     <V,>(setter: (v: V) => void) =>
@@ -104,6 +109,7 @@ export function UsersTab() {
       <ChangeRoleDialog user={roleTarget} onClose={() => setRoleTarget(null)} />
       <ChangeBranchesDialog user={branchTarget} onClose={() => setBranchTarget(null)} />
       <UserStatusDialog user={statusTarget} onClose={() => setStatusTarget(null)} />
+      <BookingProfileDialog user={bookingTarget} onClose={() => setBookingTarget(null)} />
     </div>
   );
 }

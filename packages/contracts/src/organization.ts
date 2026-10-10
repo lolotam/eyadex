@@ -48,6 +48,9 @@ export const clinicAuditEntitySchema = z.enum([
   "role",
   "patient",
   "clinic_mail_provider",
+  "clinic_service",
+  "provider_schedule",
+  "provider_time_off",
 ]);
 
 export const clinicAuditEntrySchema = z.object({

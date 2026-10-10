@@ -3,6 +3,12 @@ import type { enSettings } from "./en-settings";
 type Shape<T> = { [K in keyof T]: T[K] extends string ? string : Shape<T[K]> };
 
 export const arSettings: Shape<typeof enSettings> = {
+  // D-17: صفحة إعدادات العيادة وتبويباتها.
+  settings: {
+    title: "الإعدادات",
+    subtitle: "تفضيلات العيادة وخدماتها وجداول العمل.",
+    tabs: { general: "عام", services: "الخدمات", schedules: "جداول العمل" },
+  },
   clinicSettings: {
     title: "إعدادات العيادة",
     subtitle: "اسم العيادة واللغة الافتراضية والمنطقة الزمنية.",

@@ -7,6 +7,8 @@ import { createMockUsers } from "./mock-users";
 import { createMockInvitations } from "./mock-invitations";
 import { createMockRoles } from "./mock-roles";
 import { createMockPatients } from "./mock-patients";
+import { createMockSchedules } from "./mock-schedules";
+import { createMockServices } from "./mock-services";
 import { createMockAuditLog } from "./mock-audit-log";
 import { createMockAccount, createMockClinicSettings } from "./mock-clinic-settings";
 import {
@@ -24,6 +26,7 @@ export function createMockApiClient(): ApiClient {
     invitations: createMockInvitations(),
     roles: createMockRoles(),
     patients: createMockPatients(),
+    scheduling: { ...createMockServices(), ...createMockSchedules() },
     audit: createMockAuditLog(),
     clinicSettings: createMockClinicSettings(),
     account: createMockAccount(),

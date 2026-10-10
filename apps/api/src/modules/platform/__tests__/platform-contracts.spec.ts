@@ -41,7 +41,7 @@ describe("platform clinic detail contract", () => {
       defaultLanguage: "ar",
       timezone: "Asia/Kuwait",
       createdAt: "2026-01-01T00:00:00.000Z",
-      modules: { patients: true },
+      modules: { patients: true, appointments: true },
       usage: { users: { used: 1, max: 2 }, branches: { used: 1, max: 1 } },
     };
     expect(platformClinicDetailSchema.safeParse(base).success).toBe(true);
@@ -68,7 +68,7 @@ const request = {
   status: "trial",
   maxUsers: 5,
   maxBranches: 2,
-  modules: { patients: true },
+  modules: { patients: true, appointments: true },
   admin: { fullName: "Test Admin", email: "admin@example.test" },
 };
 
@@ -123,7 +123,7 @@ describe("platform console contracts (PLAT-02)", () => {
         emailSenderName: "Eyadex",
         defaultMaxUsers: 10,
         defaultMaxBranches: 3,
-        defaultModules: { patients: true },
+        defaultModules: { patients: true, appointments: true },
       },
     ],
   ] as const;
@@ -169,7 +169,11 @@ describe("new-clinic defaults share the create request's bounds", () => {
     expect(settings({ defaultModules: { patients: true, billing: true } })).toBe(false);
   });
   it("the default modules and a create request's modules have the same keys", () => {
-    for (const modules of [{}, { patients: true }, { patients: true, billing: false }]) {
+    for (const modules of [
+      {},
+      { patients: true, appointments: true },
+      { patients: true, billing: false },
+    ]) {
       expect(settings({ defaultModules: modules })).toBe(create({ modules }));
     }
   });

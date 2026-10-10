@@ -4,6 +4,7 @@ import {
   check,
   foreignKey,
   index,
+  integer,
   pgTable,
   primaryKey,
   text,
@@ -17,7 +18,7 @@ import { branches } from "./branches.ts";
 import { clinics } from "./clinics.ts";
 import { roles } from "./roles.ts";
 
-// Mirror of db/sql/0005, 0006, 0015, 0017, 0027. user_id is a plain uuid: identity tables arrive later.
+// Mirror of db/sql/0005, 0006, 0015, 0017, 0027, 0042. user_id is a plain uuid: identity tables arrive later.
 const tz = { withTimezone: true, mode: "date" } as const;
 
 export const memberships = pgTable(
@@ -33,6 +34,8 @@ export const memberships = pgTable(
     status: text("status", { enum: ["active", "deactivated"] }).notNull(),
     preferredLanguage: text("preferred_language", { enum: ["ar", "en"] }).notNull(),
     lastLoginAt: timestamp("last_login_at", tz),
+    acceptsAppointments: boolean("accepts_appointments").notNull().default(false),
+    defaultDurationMinutes: integer("default_duration_minutes").notNull().default(20),
     createdAt: timestamp("created_at", tz).notNull(),
     updatedAt: timestamp("updated_at", tz).notNull(),
   },
@@ -61,6 +64,10 @@ export const memberships = pgTable(
     check(
       "memberships_status_check",
       sql.raw("(status = ANY (ARRAY['active'::text, 'deactivated'::text]))"),
+    ),
+    check(
+      "memberships_default_duration_minutes_check",
+      sql.raw("((default_duration_minutes >= 5) AND (default_duration_minutes <= 480))"),
     ),
   ],
 );

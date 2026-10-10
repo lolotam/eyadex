@@ -111,7 +111,7 @@ describe("role grants (ADR-0017 §6, mock)", () => {
   });
 
   it("counts a role's key of a switched-off module", async () => {
-    getState().features[clinicId()] = { patients: false };
+    getState().features[clinicId()] = { patients: false, appointments: false };
     const hidden = await roleWith([]);
     getState()
       .roles.find((r) => r.id === hidden)!
@@ -129,5 +129,24 @@ describe("role grants (ADR-0017 §6, mock)", () => {
     expect(moved.roleId).toBe(strong);
     const sent = await api.invitations.invite(admin(), inviteInput(strong), crypto.randomUUID());
     await expect(api.invitations.copyLink(admin(), sent.id)).resolves.toBeTruthy();
+  });
+});
+
+// Codex r2: `own` is the narrowest scope; a branch key covers it, as the API's grantFor.
+describe("the own scope when defining a role (mock, as the API)", () => {
+  beforeEach(() => resetMockData());
+
+  it("an all-branch actor holding view:appointments:branch may define a role with the own key", async () => {
+    const { persona } = await memberWith([
+      "view:roles:clinic",
+      "create:roles:clinic",
+      "view:appointments:branch",
+    ]);
+    const made = await api.roles.create(
+      persona,
+      { nameAr: "دور خاص", nameEn: "Own role", permissionKeys: ["view:appointments:own"] },
+      crypto.randomUUID(),
+    );
+    expect(made.permissionKeys).toEqual(["view:appointments:own"]);
   });
 });

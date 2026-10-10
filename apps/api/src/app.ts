@@ -34,6 +34,7 @@ import {
   type AuthRateLimit,
 } from "./modules/identity/index.ts";
 import { PatientsModule } from "./modules/patients/index.ts";
+import { AppointmentsModule } from "./modules/appointments/index.ts";
 import { ClinicAuditModule, PlatformAuditModule } from "./modules/audit/index.ts";
 import { PlatformModule } from "./modules/platform/index.ts";
 import { SettingsModule } from "./modules/settings/index.ts";
@@ -73,7 +74,8 @@ export interface AppDependencies {
   /**
    * Mounts the clinic request context behind the global access guard and `GET /v1/me`, `/v1/roles`,
    * `/v1/permissions/catalogue`, `/v1/branches`, `/v1/users`, `/v1/invitations`, `/v1/clinic/mail-provider`,
-   * `/v1/patients`, `/v1/clinic/audit` (ADR-0009, 0011, 0012, 0014, 0018, 0019). Needs auth mounted,
+   * `/v1/patients`, `/v1/clinic/audit`, `/v1/services`, `/v1/schedules` (ADR-0009, 0011, 0012, 0014,
+   * 0018, 0019, 0026). Needs auth mounted,
    * DATABASE_URL, REDIS_URL, OUTBOX_SEAL_KEY and
    * MAIL_PROVIDER_SEAL_KEY.
    */
@@ -130,7 +132,14 @@ export function apiModule(
       ...(deps.mountPlatform === true ? [PlatformModule, PlatformAuditModule] : []),
       ...(deps.mountInvitations === true ? [InvitationsModule] : []),
       ...(deps.mountClinic === true
-        ? [ClinicAccessModule, SettingsModule, RolesModule, PatientsModule, ClinicAuditModule]
+        ? [
+            ClinicAccessModule,
+            SettingsModule,
+            RolesModule,
+            PatientsModule,
+            AppointmentsModule,
+            ClinicAuditModule,
+          ]
         : []),
     ],
     controllers: [HealthController, ...controllers],

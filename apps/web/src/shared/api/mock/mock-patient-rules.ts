@@ -1,4 +1,5 @@
 import type { Branch } from "@eyadex/contracts/organization";
+import { NO_FEATURES } from "@eyadex/contracts/clinics";
 import type { PermissionAction } from "@eyadex/contracts/permissions";
 import {
   isBirthDateValid,
@@ -30,7 +31,7 @@ export type PatientAccess = Actor & {
 export function guardPatients(db: MockState, persona: Persona): Actor {
   const actor = resolveActor(db, persona);
   if (clinicBlockReason(actor.clinic)) throw new ApiError("subscription_blocked");
-  if (!(db.features[actor.clinic.id] ?? { patients: false }).patients)
+  if (!(db.features[actor.clinic.id] ?? NO_FEATURES).patients)
     throw new ApiError("module_disabled");
   return actor;
 }

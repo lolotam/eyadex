@@ -76,6 +76,8 @@ jobs:
         run: sh db/tests/migrate-runner.sh
       - name: Platform team backfill (0037) holds each email, fails on a clinic hold
         run: sh db/tests/platform-backfill.sh
+      - name: Admin key backfill (0042) reaches locked admin roles only
+        run: sh db/tests/admin-keys-backfill.sh
       # @eyadex/db runs against the same database this job just migrated. The passwords are the
       # ci-only-* ones the runtime roles were created with above; the owner URL is for the fixtures
       # and the assertions only — the owner role never reaches the application (CLAUDE.md §5).

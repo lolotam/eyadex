@@ -16,7 +16,7 @@ const clinic = (over: Partial<CreateClinicInput> = {}): CreateClinicInput => ({
   adminEmail: "defaults.admin@example.com",
   maxUsers: 7,
   maxBranches: 4,
-  modules: { patients: false },
+  modules: { patients: false, appointments: false },
   ...over,
 });
 
@@ -27,22 +27,25 @@ describe("new-clinic defaults in the platform settings", () => {
     expect(await api.platformSettings.get(PLATFORM)).toMatchObject({
       defaultMaxUsers: 10,
       defaultMaxBranches: 3,
-      defaultModules: { patients: true },
+      defaultModules: { patients: true, appointments: true },
     });
   });
 
   it("saves and audits them", async () => {
     const before = await api.platformSettings.get(PLATFORM);
     const next = { ...before, defaultMaxUsers: 25, defaultMaxBranches: 5 };
-    await api.platformSettings.update(PLATFORM, { ...next, defaultModules: { patients: false } });
+    await api.platformSettings.update(PLATFORM, {
+      ...next,
+      defaultModules: { patients: false, appointments: false },
+    });
     expect(await api.platformSettings.get(PLATFORM)).toMatchObject({
       defaultMaxUsers: 25,
       defaultMaxBranches: 5,
-      defaultModules: { patients: false },
+      defaultModules: { patients: false, appointments: false },
     });
     expect(getState().platformAudit[0]?.after).toMatchObject({
       defaultMaxUsers: 25,
-      defaultModules: { patients: false },
+      defaultModules: { patients: false, appointments: false },
     });
   });
 
@@ -75,7 +78,11 @@ describe("a new clinic keeps the form's limits and modules", () => {
       crypto.randomUUID(),
     );
     const detail = await api.platform.getClinic(PLATFORM, created.id);
-    expect(detail).toMatchObject({ maxUsers: 7, maxBranches: 4, features: { patients: false } });
+    expect(detail).toMatchObject({
+      maxUsers: 7,
+      maxBranches: 4,
+      features: { patients: false, appointments: false },
+    });
   });
 
   it("NEGATIVE: a create without limits or modules is refused and creates nothing", async () => {

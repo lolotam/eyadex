@@ -3,9 +3,19 @@ import type { InvitationRecord } from "@eyadex/contracts/invitations";
 import type { Branch, ClinicAuditEntry, Role } from "@eyadex/contracts/organization";
 import type { Patient } from "@eyadex/contracts/patients";
 import type { PlatformAccount, PlatformSettings } from "@eyadex/contracts/platform";
+import type { ScheduleShift, TimeOff } from "@eyadex/contracts/schedules";
+import type { BookingProfileInput, ClinicService } from "@eyadex/contracts/services";
 import type { PlatformAuditEntry } from "@eyadex/contracts/session";
 import type { MembershipUser } from "@eyadex/contracts/users";
 import { buildSeed } from "./seed";
+
+export type StoredService = ClinicService & { clinicId: string };
+export type StoredShift = ScheduleShift & { clinicId: string; id: string; membershipId: string };
+export type StoredTimeOff = TimeOff & {
+  clinicId: string;
+  membershipId: string;
+  cancelledAt: string | null;
+};
 
 export type MockState = {
   clinics: Clinic[];
@@ -32,13 +42,21 @@ export type MockState = {
   idempotentPatients?: Record<string, { patientId: string; fingerprint: string }>;
   /** Per-clinic file-number counter: last number issued, never reused. */
   patientCounters: Record<string, number>;
+  /** Appointments module (slice A1, ADR-0026). */
+  services: StoredService[];
+  /** Idempotency-Key replay for service creates, as above: key -> service id + request fingerprint. */
+  idempotentServices?: Record<string, { serviceId: string; fingerprint: string }>;
+  /** By member id; a member with no entry is not bookable, 20 minutes (D-15). */
+  bookingProfiles: Record<string, BookingProfileInput>;
+  scheduleRows: StoredShift[];
+  timeOff: StoredTimeOff[];
   platformAccounts: PlatformAccount[];
   platformSettings: PlatformSettings;
   platformAudit: PlatformAuditEntry[];
   clinicAudit: ClinicAuditEntry[];
 };
 
-const STORAGE_KEY = "eyadex:mock-db:v14";
+const STORAGE_KEY = "eyadex:mock-db:v15";
 /** Shared with the persona provider by name only (screens never import the mock). */
 const PERSONA_STORAGE_KEY = "eyadex:persona";
 const MOCK_RESET_EVENT = "eyadex:mock-reset";

@@ -20,3 +20,4 @@ export { clinicMailProviders } from "./clinic-mail-providers.ts";
 export { platformSettings } from "./platform-settings.ts";
 export { platformAccounts } from "./platform-accounts.ts";
 export { clinicExpiryReminders } from "./clinic-expiry-reminders.ts";
+export { clinicServices, providerSchedules, providerTimeOff } from "./scheduling.ts";

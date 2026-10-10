@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import type { PermissionResource } from "@eyadex/contracts/permissions";
 import type { TranslationKey } from "@/shared/i18n/dictionary";
+import { can } from "@/shared/permissions/can";
 
 export type NavPath =
   | "/platform"
@@ -35,6 +36,8 @@ export type NavItem = {
   exact?: boolean;
   /** When set, the item is shown only if the user can view this resource. */
   resource?: PermissionResource;
+  /** When set, the item is shown if the user can view any of these resources (a page with tabs). */
+  anyOf?: readonly PermissionResource[];
 };
 
 export const PLATFORM_NAV: NavItem[] = [
@@ -52,6 +55,20 @@ export const CLINIC_NAV: NavItem[] = [
   { to: "/clinic/roles", label: "nav.roles", icon: ShieldCheck, resource: "roles" },
   { to: "/clinic/patients", label: "nav.patients", icon: UsersRound, resource: "patients" },
   { to: "/clinic/audit", label: "nav.audit", icon: ClipboardList, resource: "audit_log" },
-  { to: "/clinic/settings", label: "nav.settings", icon: Settings, resource: "clinic_settings" },
+  // D-17: the Settings page holds the General, Services and Work schedules tabs.
+  {
+    to: "/clinic/settings",
+    label: "nav.settings",
+    icon: Settings,
+    anyOf: ["clinic_settings", "services", "schedules"],
+  },
   { to: "/clinic/account", label: "nav.account", icon: UserCircle },
 ];
+
+/** The entries a user may see: by view permission on the entry's resource(s), never by role. */
+export function navItemsFor(items: readonly NavItem[], permissions: readonly string[]): NavItem[] {
+  return items.filter((item) => {
+    if (item.anyOf) return item.anyOf.some((resource) => can(permissions, "view", resource));
+    return !item.resource || can(permissions, "view", item.resource);
+  });
+}

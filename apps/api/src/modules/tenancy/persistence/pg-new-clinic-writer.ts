@@ -1,15 +1,16 @@
-import type { Tx } from "@eyadex/db";
+import { moduleSchema } from "@eyadex/contracts/clinics";
 import type { CreateClinicRequest } from "@eyadex/contracts/onboarding";
+import type { Tx } from "@eyadex/db";
 import { sql } from "drizzle-orm";
 
 /**
- * بيكتب صف العيادة ومفاتيح موديولاتها جوه transaction الـ onboarding (0001، 0002). الـ slug المكرر
- * بيطلع `DatabaseError` بالقيد `clinics_slug_key`.
+ * بيكتب صف العيادة وصف لكل موديول (0001، 0002، 0042) جوه transaction الـ onboarding. الـ slug المكرر
+ * بيطلع `DatabaseError` بالقيد `clinics_slug_key`. موديول جديد في `moduleSchema` بياخد صفه من غير تعديل هنا.
  *
  * @param tx transaction العيادة الجديدة
  * @param clinicId الـ id اللي `withNewTenant` ولّده
  * @param input الطلب بعد الـ contract
- * @param featureId id صف `clinic_features`
+ * @param newId مولّد ids صفوف `clinic_features` (UUID v7)
  * @param now الوقت
  * @returns بيخلص لما الصفوف تتكتب
  */
@@ -17,7 +18,7 @@ export async function insertNewClinic(
   tx: Tx,
   clinicId: string,
   input: Omit<CreateClinicRequest, "expiresAt" | "trialDays"> & { readonly expiresAt: Date },
-  featureId: string,
+  newId: () => string,
   now: Date,
 ): Promise<void> {
   const at = now.toISOString();
@@ -29,8 +30,10 @@ export async function insertNewClinic(
           ${input.expiresAt.toISOString()}::timestamptz, ${input.maxUsers},
           ${input.maxBranches}, ${at}::timestamptz, ${at}::timestamptz)`,
   );
-  await tx.execute(
-    sql`INSERT INTO clinic_features (clinic_id, id, module, enabled, updated_at)
-        VALUES (${clinicId}, ${featureId}, 'patients', ${input.modules.patients}, ${at}::timestamptz)`,
-  );
+  for (const module of moduleSchema.options) {
+    await tx.execute(
+      sql`INSERT INTO clinic_features (clinic_id, id, module, enabled, updated_at)
+          VALUES (${clinicId}, ${newId()}, ${module}, ${input.modules[module]}, ${at}::timestamptz)`,
+    );
+  }
 }

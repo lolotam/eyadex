@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { idSchema, stripInvisibleControls } from "./common.ts";
 import { systemRoleKeySchema } from "./organization.ts";
-import { PERMISSION_CATALOG, actionSchema } from "./permissions.ts";
+import { PERMISSION_CATALOG, actionSchema, resourceSchema } from "./permissions.ts";
 
 // Invisible format/control characters render as nothing; they could only split a number past the audit
 // scrub or spoof a name, so they are dropped before the usual checks (as patient names, ADR-0018).
@@ -25,7 +25,7 @@ export type RoleListItem = z.infer<typeof roleListItemSchema>;
 
 const CATALOG_KEYS = new Set(PERMISSION_CATALOG.map((p) => p.key));
 
-/** Each key must come from the fixed catalog; a scoped resource takes one scope per action. */
+/** Each key must come from the fixed catalog; a role holds one scope per action on every resource. */
 export const permissionKeysSchema = z
   .array(z.string())
   .max(PERMISSION_CATALOG.length)
@@ -36,11 +36,13 @@ export const permissionKeysSchema = z
         return;
       }
     }
-    for (const action of actionSchema.options) {
-      const scopes = keys.filter((k) => k.startsWith(`${action}:patients:`));
-      if (scopes.length > 1) {
-        ctx.addIssue({ code: "custom", message: "validation.oneScope" });
-        return;
+    for (const resource of resourceSchema.options) {
+      for (const action of actionSchema.options) {
+        const scopes = keys.filter((k) => k.startsWith(`${action}:${resource}:`));
+        if (scopes.length > 1) {
+          ctx.addIssue({ code: "custom", message: "validation.oneScope" });
+          return;
+        }
       }
     }
     // Any write on a resource needs view on it too, so every granted action is reachable.

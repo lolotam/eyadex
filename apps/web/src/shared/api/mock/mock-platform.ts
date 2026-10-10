@@ -1,4 +1,5 @@
 import {
+  NO_FEATURES,
   effectiveClinicStatus,
   type Clinic,
   type ClinicDetail,
@@ -112,7 +113,7 @@ export function createMockPlatform(): Omit<
       resolvePlatformActor(getState(), persona);
       const db = getState();
       const clinic = findClinic(db, clinicId);
-      const features = db.features[clinicId] ?? { patients: false };
+      const features = db.features[clinicId] ?? NO_FEATURES;
       return { ...clinic, ...usage(db, clinicId), features } satisfies ClinicDetail;
     },
 
@@ -261,9 +262,9 @@ export function createMockPlatform(): Omit<
       const actor = resolvePlatformActor(getState(), persona);
       const db = getState();
       const clinic = findClinic(db, clinicId);
-      const was = Boolean((db.features[clinicId] ?? { patients: false })[module]);
+      const was = Boolean((db.features[clinicId] ?? NO_FEATURES)[module]);
       db.features[clinicId] = {
-        ...(db.features[clinicId] ?? { patients: false }),
+        ...(db.features[clinicId] ?? NO_FEATURES),
         [module]: enabled,
       };
       audit(

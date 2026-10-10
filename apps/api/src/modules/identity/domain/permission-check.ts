@@ -1,12 +1,15 @@
 import type { PermissionKey } from "@eyadex/contracts/permissions";
 
-/** النطاق اللي الصلاحية اتمنحت بيه: `clinic` = كل الفروع، `branch` = فروع المستخدم بس. */
-export type PermissionGrant = "clinic" | "branch";
+/**
+ * النطاق اللي الصلاحية اتمنحت بيه: `clinic` = كل الفروع، `branch` = فروع المستخدم، `own` = سجلاته بس
+ * (spec المواعيد §3؛ تقييمه في الاستعلامات بييجي في A3).
+ */
+export type PermissionGrant = "clinic" | "branch" | "own";
 
 /**
- * هل المفاتيح دي بتدي الصلاحية المطلوبة؟ المفتاح نفسه بيكفي. مطلوب `branch` بيعدّي كمان بنفس
- * الفعل والمورد بنطاق `clinic` (أوسع). مطلوب `clinic` ما بيعدّيش أبدًا بمفتاح `branch`. مفيش أي فحص
- * على اسم الدور أو مفتاحه.
+ * هل المفاتيح دي بتدي الصلاحية المطلوبة؟ الأوسع على نفس الفعل والمورد بيكسب دايمًا: `clinic` ثم
+ * `branch` ثم `own`. مطلوب `clinic` ما بيعدّيش إلا بمفتاح `clinic`؛ مطلوب `branch` بيعدّي بـ `clinic` أو
+ * `branch`؛ مطلوب `own` بيعدّي بأي واحد من التلاتة. مفيش أي فحص على اسم الدور أو مفتاحه.
  *
  * @param permissions مفاتيح الدور الفعلية
  * @param required المفتاح اللي الـ route طالبه
@@ -17,8 +20,9 @@ export function grantFor(
   required: PermissionKey,
 ): PermissionGrant | null {
   const [action, resource, scope] = required.split(":");
-  const clinicKey = `${action}:${resource}:clinic`;
-  if (permissions.includes(clinicKey)) return "clinic";
-  if (scope === "branch" && permissions.includes(required)) return "branch";
+  if (permissions.includes(`${action}:${resource}:clinic`)) return "clinic";
+  if (scope === "clinic") return null;
+  if (permissions.includes(`${action}:${resource}:branch`)) return "branch";
+  if (scope === "own" && permissions.includes(required)) return "own";
   return null;
 }

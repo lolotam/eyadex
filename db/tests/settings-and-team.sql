@@ -25,7 +25,8 @@ BEGIN
      OR NOT has_column_privilege('eyadex_platform', 'platform_settings', 'alert_days_before_expiry', 'UPDATE')
      OR NOT has_column_privilege('eyadex_platform', 'platform_settings', 'default_max_users', 'UPDATE')
      OR NOT has_column_privilege('eyadex_platform', 'platform_settings', 'default_max_branches', 'UPDATE')
-     OR NOT has_column_privilege('eyadex_platform', 'platform_settings', 'default_module_patients', 'UPDATE') THEN
+     OR NOT has_column_privilege('eyadex_platform', 'platform_settings', 'default_module_patients', 'UPDATE')
+     OR NOT has_column_privilege('eyadex_platform', 'platform_settings', 'default_module_appointments', 'UPDATE') THEN
     RAISE EXCEPTION 'SETTINGS: eyadex_platform may update the values only';
   END IF;
   -- 0041 keeps no DEFAULT: every later write names its values. (The seeded values are not checked
@@ -75,7 +76,7 @@ END $$;
 -- The singleton and its bounds.
 DO $$
 BEGIN
-  BEGIN INSERT INTO platform_settings VALUES (2, 14, 7, 'Eyadex', now(), 10, 3, true);
+  BEGIN INSERT INTO platform_settings VALUES (2, 14, 7, 'Eyadex', now(), 10, 3, true, true);
     RAISE EXCEPTION 'SETTINGS: a second row was accepted';
   EXCEPTION WHEN check_violation THEN NULL; END;
   BEGIN UPDATE platform_settings SET email_sender_name = E'Eyadex\r\nBcc: x';
@@ -98,6 +99,9 @@ BEGIN
   EXCEPTION WHEN check_violation THEN NULL; END;
   BEGIN UPDATE platform_settings SET default_module_patients = NULL;
     RAISE EXCEPTION 'SETTINGS: a missing patients-module default was accepted';
+  EXCEPTION WHEN not_null_violation THEN NULL; END;
+  BEGIN UPDATE platform_settings SET default_module_appointments = NULL;
+    RAISE EXCEPTION 'SETTINGS: a missing appointments-module default was accepted';
   EXCEPTION WHEN not_null_violation THEN NULL; END;
 END $$;
 
@@ -184,7 +188,8 @@ INSERT INTO platform_accounts VALUES ('00000000-0000-7000-8000-0000000011c1', NU
 DO $$
 BEGIN
   UPDATE platform_settings SET alert_days_before_expiry = 9, default_max_users = 25,
-    default_max_branches = 5, default_module_patients = false, updated_at = now();
+    default_max_branches = 5, default_module_patients = false, default_module_appointments = false,
+    updated_at = now();
   BEGIN DELETE FROM platform_accounts; RAISE EXCEPTION 'TEAM: platform accounts are deletable';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   BEGIN PERFORM 1 FROM patients LIMIT 1; RAISE EXCEPTION 'PLAT-01: platform can read patients';

@@ -41,6 +41,11 @@ export const arRoutes = {
       description: "حدّد من يستطيع فعل ماذا في العيادة.",
     },
     clinicSettings: { title: "إعدادات العيادة", description: "تفضيلات العيادة." },
+    clinicSettingsServices: { title: "الخدمات", description: "خدمات العيادة ومدة كل خدمة." },
+    clinicSettingsSchedules: {
+      title: "جداول العمل",
+      description: "ساعات العمل الأسبوعية والإجازات لكل مقدّم خدمة.",
+    },
     clinicUsers: { title: "المستخدمون", description: "ادعُ مستخدمي العيادة وأدِرهم." },
     platform: { title: "المنصة", description: "إدارة منصة Eyadex." },
     platformOverview: {

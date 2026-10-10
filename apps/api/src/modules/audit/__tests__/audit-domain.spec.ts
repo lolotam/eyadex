@@ -73,7 +73,11 @@ describe("audit snapshots", () => {
   });
 
   it("shows the new-clinic defaults of a platform settings change (ADR-0020 amendment)", () => {
-    const side = { defaultMaxUsers: 10, defaultMaxBranches: 3, defaultModules: { patients: true } };
+    const side = {
+      defaultMaxUsers: 10,
+      defaultMaxBranches: 3,
+      defaultModules: { patients: true, appointments: true },
+    };
     expect(auditSnapshots("platform_settings", { before: side, after: side })).toEqual({
       before: side,
       after: side,

@@ -1,3 +1,5 @@
+import { PERMISSION_CATALOG } from "@eyadex/contracts/permissions";
+
 /** مفتاح دور نظام (0004). */
 export type SystemRoleKey = "clinic_admin" | "doctor" | "receptionist" | "technician";
 
@@ -10,14 +12,10 @@ export interface SystemRoleTemplate {
   readonly permissions: readonly string[];
 }
 
-const clinicScope = [
-  ...["view", "create", "update", "deactivate"].flatMap((action) =>
-    ["branches", "users", "roles", "patients"].map((resource) => `${action}:${resource}:clinic`),
-  ),
-  "view:audit_log:clinic",
-  "view:clinic_settings:clinic",
-  "update:clinic_settings:clinic",
-];
+// PRD §5.3 "Clinic Admin (locked, everything)": every clinic-scope key of the catalogue, so a key the
+// catalogue gains reaches new clinics' admins with no second list (ADR-0026 §6). Same rule as the web
+// mock's ROLE_TEMPLATES.
+const clinicScope = PERMISSION_CATALOG.filter((p) => p.scope === "clinic").map((p) => p.key);
 
 /**
  * الأدوار الجاهزة: أدمن العيادة (كل الكتالوج بنطاق clinic، مقفول) والتلاتة القابلين للتعديل

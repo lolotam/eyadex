@@ -20,6 +20,8 @@ const PERSON = [
   "expiresAt",
   "invitationId",
   "preferredLanguage",
+  "acceptsAppointments",
+  "defaultDurationMinutes",
 ] as const;
 
 // PRD §4.11: before/after is an allowlist. These are the fields the writers record today (branch,
@@ -43,6 +45,11 @@ const ALLOWED: Record<AuditEntity, readonly string[]> = {
     "lastError",
     "degradedAt",
   ],
+  // ADR-0026: the appointments module's configuration. A time-off note is free text about a person's
+  // absence: it is never recorded, so it can never be shown.
+  clinic_service: ["nameAr", "nameEn", "durationMinutes", "status"],
+  provider_schedule: ["providerName", "branchId", "shifts"],
+  provider_time_off: ["providerName", "startsAt", "endsAt", "cancelled"],
   clinic: [
     "slug",
     "nameAr",

@@ -84,17 +84,18 @@ apps/api/src/modules/<module>/
 
 ### 2.2 Modules and the allowed arrows (PRD §4.3)
 
-| Module          | Owns                                                                                                         | May import                                                      |
-| --------------- | ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------- |
-| `tenancy`       | clinics, branches, subscription & limits, feature flags, platform settings (ADR-0020)                        | —                                                               |
-| `identity`      | users (Better Auth), memberships, roles, permissions, invitations, guards, platform team accounts (ADR-0020) | `tenancy`                                                       |
-| `platform`      | super-admin HTTP: wires tenancy/identity use cases (clinics, overview, platform team, platform settings)     | `tenancy`, `identity` (index.ts only)                           |
-| `patients`      | patient (المراجع) files — identity data only                                                                 | `tenancy`                                                       |
-| `settings`      | clinic settings                                                                                              | `tenancy`, `identity` (index.ts: guards and request types only) |
-| `audit`         | reading the audit log (writes go through the shared primitive)                                               | `tenancy`, `identity` (index.ts; adapters in audit.module.ts)   |
-| `notifications` | system emails (invite, password reset, expiry reminder)                                                      | —                                                               |
+| Module          | Owns                                                                                                         | May import                                                                              |
+| --------------- | ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
+| `tenancy`       | clinics, branches, subscription & limits, feature flags, platform settings (ADR-0020)                        | —                                                                                       |
+| `identity`      | users (Better Auth), memberships, roles, permissions, invitations, guards, platform team accounts (ADR-0020) | `tenancy`                                                                               |
+| `platform`      | super-admin HTTP: wires tenancy/identity use cases (clinics, overview, platform team, platform settings)     | `tenancy`, `identity` (index.ts only)                                                   |
+| `patients`      | patient (المراجع) files — identity data only                                                                 | `tenancy`                                                                               |
+| `settings`      | clinic settings                                                                                              | `tenancy`, `identity` (index.ts: guards and request types only)                         |
+| `audit`         | reading the audit log (writes go through the shared primitive)                                               | `tenancy`, `identity` (index.ts; adapters in audit.module.ts)                           |
+| `appointments`  | services, weekly schedules, time off (A1); appointments (A2) — ADR-0026                                      | `tenancy`, `identity` (index.ts; `PgProviderDirectory` bound in appointments.module.ts) |
+| `notifications` | system emails (invite, password reset, expiry reminder)                                                      | —                                                                                       |
 
-Any module may use identity's access guards and request types through `identity/index.ts`; that is the only import of identity a module other than identity may make, except that a `<module>.module.ts` may bind an identity adapter (exported by `identity/index.ts`) to a port the module owns (platform, audit — ADR-0019 §10).
+Any module may use identity's access guards and request types through `identity/index.ts`; that is the only import of identity a module other than identity may make, except that a `<module>.module.ts` may bind an identity adapter (exported by `identity/index.ts`) to a port the module owns (platform, audit — ADR-0019 §10; appointments — ADR-0026).
 
 - Cross-module **reads**: a port defined by the consumer, implemented by an adapter on the owner
   (e.g. `platform` reads clinic users through a port backed by `identity`).
@@ -127,8 +128,10 @@ Three named pre-tenant / onboarding paths (`db/sql/0014`, `0027`), and no others
 - **Onboarding** runs as `eyadex_platform` inside `withNewTenant()` (app.clinic_id = the new clinic):
   it may insert the clinic, its system roles and the first-admin invitation; RLS still pins every
   row to that clinic and the platform still has no grant on patients.
-- **Link rows** (`membership_branches`, `role_permissions`, `invitation_branches`) are the only
-  deletable tables (`0016`); every entity is deactivated or archived instead. The technical ledgers
+- **Link rows** (`membership_branches`, `role_permissions`, `invitation_branches`) and
+  **`provider_schedules`** (0042, ADR-0026: a provider's week in one branch is configuration, replaced
+  whole under the provider lock and audited) are the only deletable tables (`0016`, `0042`); every
+  entity is deactivated or archived instead. The technical ledgers
   (`idempotency_keys`, `clinic_idempotency_keys`, `outbox_events`) lose rows only through the three
   retention functions of `0040` (ADR-0022): SECURITY DEFINER, owned by a NOLOGIN role, executable by
   `eyadex_dispatcher` only, deleting only rows past their period.

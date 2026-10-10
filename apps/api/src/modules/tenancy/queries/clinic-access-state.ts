@@ -3,7 +3,7 @@ import {
   type ClinicAccess,
   type ClinicStatus,
 } from "../domain/clinic-access.ts";
-import { isModuleEnabled } from "../domain/feature-flags.ts";
+import { moduleMap, type ClinicModule } from "../domain/feature-flags.ts";
 import { branchesUsage, usersUsage, type LimitUsage } from "../domain/limits.ts";
 import type { ClinicReader } from "../ports/clinic-reader.ts";
 import type { Clock } from "../ports/clock.ts";
@@ -17,7 +17,7 @@ export interface ClinicAccessState {
   readonly access: ClinicAccess;
   readonly users: LimitUsage;
   readonly branches: LimitUsage;
-  readonly modules: { readonly patients: boolean };
+  readonly modules: Readonly<Record<ClinicModule, boolean>>;
 }
 
 /**
@@ -46,6 +46,6 @@ export async function getClinicAccessState(
     access: decideClinicAccess(snapshot, now),
     users: usersUsage(usage.activeMemberships, usage.livePendingInvitations, snapshot.maxUsers),
     branches: branchesUsage(snapshot.activeBranches, snapshot.maxBranches),
-    modules: { patients: isModuleEnabled(snapshot.features, "patients") },
+    modules: moduleMap(snapshot.features),
   };
 }

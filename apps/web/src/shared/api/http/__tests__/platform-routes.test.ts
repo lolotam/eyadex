@@ -38,7 +38,7 @@ const input = {
   adminEmail: "admin@example.test",
   maxUsers: 7,
   maxBranches: 4,
-  modules: { patients: false },
+  modules: { patients: false, appointments: false },
 };
 const base = `/api/v1/platform/clinics/${CLINIC}`;
 const sub = (over: Partial<SubscriptionInput>): SubscriptionInput => ({
@@ -69,7 +69,11 @@ describe("wired platform methods", () => {
       admin: { fullName: "Admin Person", email: "admin@example.test" },
     });
     // The form's limits and modules, never a value the adapter picks (ADR-0020 amendment).
-    expect(call.body).toMatchObject({ maxUsers: 7, maxBranches: 4, modules: { patients: false } });
+    expect(call.body).toMatchObject({
+      maxUsers: 7,
+      maxBranches: 4,
+      modules: { patients: false, appointments: false },
+    });
     expect(result.firstAdminInvite.token).toBeNull();
   });
   it("createClinic sends no trial length and no expiresAt (the server's default), then reads it back", async () => {
@@ -134,17 +138,20 @@ describe("wired platform methods", () => {
       timezone: "Asia/Kuwait",
       defaultLanguage: "en",
       createdAt: platformDetail.createdAt,
-      features: { patients: true },
+      features: { patients: true, appointments: false },
     });
     const branches = await h.api.platform.listClinicBranches(P, CLINIC);
     expect(branches[0]?.clinicId).toBe(CLINIC);
     await h.api.platform.setClinicFeature(P, CLINIC, "patients", false);
+    await h.api.platform.setClinicFeature(P, CLINIC, "appointments", true);
     expect(h.calls.map((c) => `${c.method} ${c.url}`)).toEqual([
       `GET ${base}`,
       `GET ${base}/branches?limit=100`,
       `PUT ${base}/features/patients`,
+      `PUT ${base}/features/appointments`,
     ]);
     expect(h.calls[2]?.body).toEqual({ enabled: false });
+    expect(h.calls[3]?.body).toEqual({ enabled: true });
   });
   it("duration mode sends an explicit expiresAt, never durationDays, and no limits PATCH when unchanged", async () => {
     const h = clientWith(answer);
