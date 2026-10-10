@@ -142,8 +142,17 @@ export const appointmentWriteResponseSchema = z
   .strict();
 export type AppointmentWriteResponse = z.infer<typeof appointmentWriteResponseSchema>;
 
+/** A real calendar day as `YYYY-MM-DD` (2027-02-29 and 2027-99-99 are refused). */
+const calendarDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .refine((value) => {
+    const date = new Date(`${value}T00:00:00Z`);
+    return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+  }, "validation.dateRequired");
+
 export const appointmentDayQuerySchema = z
-  .object({ branchId: idSchema, date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) })
+  .object({ branchId: idSchema, date: calendarDate })
   .strict();
 export type AppointmentDayQuery = z.infer<typeof appointmentDayQuerySchema>;
 
@@ -212,23 +221,41 @@ export function resolveAppointmentEnd(
   return new Date(Date.parse(startsAt) + minutes * 60_000).toISOString();
 }
 
+const WEEK = 7 * 24 * 60;
+
+/** A wall instant as its weekday and minute after midnight. */
+function wallPoint(iso: string, timezone: string): { weekday: number; minute: number } {
+  const wall = instantToWall(iso, timezone);
+  return {
+    weekday: new Date(`${wall.date}T00:00:00Z`).getUTCDay(),
+    minute: wallMinutes(wall.time),
+  };
+}
+
+/** `minutes` before a wall point, wrapped round the week. */
+function before(point: { weekday: number; minute: number }, minutes: number) {
+  const at = (((point.weekday * 1440 + point.minute - minutes) % WEEK) + WEEK) % WEEK;
+  return { weekday: Math.floor(at / 1440), minute: at % 1440 };
+}
+
 /**
- * The slot in clinic wall time: its weekday and minute after midnight, and its wall length (a daylight
- * saving change inside it moves the wall end, not the instant).
+ * D-6, D-14: is the slot inside one continuous shift? Both the wall interval that starts where the slot
+ * starts and the one that ends where it ends, each as long as the slot really lasts, must be covered: on a
+ * normal day they are the same interval, and across a daylight-saving change (the wall clock jumps or
+ * repeats an hour) a slot is accepted only when every wall minute it touches is working time.
  */
-export function wallSlot(
+export function slotCovered(
   slot: TimeSpan,
   timezone: string,
-): { weekday: number; minute: number; minutes: number } {
-  const start = instantToWall(slot.startsAt, timezone);
-  const end = instantToWall(slot.endsAt, timezone);
-  const startWall = Date.parse(`${start.date}T${start.time}:00Z`);
-  const endWall = Date.parse(`${end.date}T${end.time}:00Z`);
-  return {
-    weekday: new Date(startWall).getUTCDay(),
-    minute: wallMinutes(start.time),
-    minutes: (endWall - startWall) / 60_000,
-  };
+  branchShifts: readonly WallShift[],
+): boolean {
+  const minutes = Math.round(minutesBetween(slot.startsAt, slot.endsAt));
+  const start = wallPoint(slot.startsAt, timezone);
+  const end = wallPoint(slot.endsAt, timezone);
+  return (
+    coversWallInterval(branchShifts, start, minutes) &&
+    coversWallInterval(branchShifts, before(end, minutes), minutes)
+  );
 }
 
 /**
@@ -250,8 +277,7 @@ export function appointmentSlotProblems(
   others: readonly TimeSpan[],
 ): SlotProblem[] {
   const problems: SlotProblem[] = [];
-  const wall = wallSlot(slot, timezone);
-  if (!coversWallInterval(branchShifts, wall, wall.minutes)) problems.push("outside_schedule");
+  if (!slotCovered(slot, timezone, branchShifts)) problems.push("outside_schedule");
   if (timeOff.some((t) => spansOverlap(slot, t))) problems.push("provider_time_off");
   if (others.some((o) => spansOverlap(slot, o))) problems.push("appointment_overlap");
   return problems;

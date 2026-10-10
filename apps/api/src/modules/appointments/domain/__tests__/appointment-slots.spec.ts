@@ -1,6 +1,7 @@
 import {
   APPOINTMENT_STATUSES,
   appointmentCancelSchema,
+  appointmentDayQuerySchema,
   appointmentInputSchema,
   appointmentRescheduleSchema,
   appointmentSlotProblems,
@@ -154,5 +155,31 @@ describe("rule 2 — coverage, time off, overlap (D-6, D-14)", () => {
       "provider_time_off",
       "appointment_overlap",
     ]);
+  });
+});
+
+describe("Codex A2 r1", () => {
+  it("P2: a fall-back hour never lets a slot leave the shift unchecked (Cairo, 2027-10-28)", () => {
+    // Thursday 23:50 → 23:10 on the wall: 20 real minutes that run past 24:00 and back into 23:00.
+    const slot = { startsAt: "2027-10-28T20:50:00.000Z", endsAt: "2027-10-28T21:10:00.000Z" };
+    const thursdayNight = [row(4, "23:30", "24:00")];
+    expect(appointmentSlotProblems(slot, "Africa/Cairo", thursdayNight, [], [])).toEqual([
+      "outside_schedule",
+    ]);
+    const wholeEvening = [row(4, "22:00", "24:00"), row(5, "00:00", "01:00")];
+    expect(appointmentSlotProblems(slot, "Africa/Cairo", wholeEvening, [], [])).toEqual([]);
+  });
+
+  it("P3: the day query refuses a date that is not on the calendar", () => {
+    const branchId = ids.branchId;
+    expect(appointmentDayQuerySchema.safeParse({ branchId, date: "2027-99-99" }).success).toBe(
+      false,
+    );
+    expect(appointmentDayQuerySchema.safeParse({ branchId, date: "2027-02-29" }).success).toBe(
+      false,
+    );
+    expect(appointmentDayQuerySchema.safeParse({ branchId, date: "2028-02-29" }).success).toBe(
+      true,
+    );
   });
 });
