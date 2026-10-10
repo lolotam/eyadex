@@ -4,7 +4,7 @@ import type {
   AppointmentInput,
   AppointmentRescheduleInput,
 } from "@eyadex/contracts/appointments";
-import { instantToWall, wallToInstant } from "@eyadex/contracts/clinic-time";
+import { instantToWall, wallTimeExists, wallToInstant } from "@eyadex/contracts/clinic-time";
 import { minutesToWall, wallMinutes } from "@eyadex/contracts/schedules";
 import { errorCodeOf } from "@/shared/api/api-error";
 
@@ -30,13 +30,27 @@ export function endFor(time: string, minutes: number): string {
   return minutesToWall((wallMinutes(time) + minutes) % (24 * 60));
 }
 
-function interval(values: BookingForm, timeZone: string) {
-  const startsAt = wallToInstant(values.date, values.startTime, timeZone);
-  const nextDay = wallMinutes(values.endTime) <= wallMinutes(values.startTime);
-  const endDate = nextDay
+const endDateOf = (values: BookingForm) =>
+  wallMinutes(values.endTime) <= wallMinutes(values.startTime)
     ? new Date(Date.parse(`${values.date}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10)
     : values.date;
-  return { startsAt, endsAt: wallToInstant(endDate, values.endTime, timeZone) };
+
+function interval(values: BookingForm, timeZone: string) {
+  const startsAt = wallToInstant(values.date, values.startTime, timeZone);
+  return { startsAt, endsAt: wallToInstant(endDateOf(values), values.endTime, timeZone) };
+}
+
+/**
+ * The time field the clinic's clock skips on that date (a daylight-saving jump), or null: converting it
+ * would silently book another hour than the one typed (Codex A2 r1).
+ */
+export function skippedTimeField(
+  values: BookingForm,
+  timeZone: string,
+): "startTime" | "endTime" | null {
+  if (!wallTimeExists(values.date, values.startTime, timeZone)) return "startTime";
+  if (!wallTimeExists(endDateOf(values), values.endTime, timeZone)) return "endTime";
+  return null;
 }
 
 export function toAppointmentInput(
@@ -77,7 +91,8 @@ export function formOf(appointment: Appointment, timeZone: string): BookingForm 
     date: start.date,
     startTime: start.time,
     endTime: instantToWall(appointment.endsAt, timeZone).time,
-    overbook: appointment.overbooked,
+    // A move asks for overbook only when the mover switches it on (it needs the key; Codex A2 r1).
+    overbook: false,
   };
 }
 

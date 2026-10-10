@@ -27,6 +27,7 @@ import {
   endFor,
   formOf,
   NO_SERVICE,
+  skippedTimeField,
   slotRefusal,
   toAppointmentInput,
   toRescheduleInput,
@@ -68,13 +69,17 @@ export function BookingDialog({ request, day, onClose }: Props) {
   const [refusal, setRefusal] = useState<SlotCode | null>(null);
   const creating = request?.kind === "create";
   const form = useForm<BookingForm>({ resolver: zodResolver(bookingFormSchema) });
+  // A new request starts a new form and key; a refetch of the day (focus, another booking) keeps both,
+  // so typed values survive and a retry replays the same key (Codex A2 r1).
+  const dayRef = useRef(day);
+  dayRef.current = day;
   useEffect(() => {
     if (request === null) return;
     key.current = crypto.randomUUID();
     setPatient(null);
     setRefusal(null);
-    form.reset(initial(request, day));
-  }, [request, day, form]);
+    form.reset(initial(request, dayRef.current));
+  }, [request, form]);
   const [providerId, serviceId, startTime] = useWatch({
     control: form.control,
     name: ["providerMembershipId", "serviceId", "startTime"],
@@ -149,7 +154,9 @@ export function BookingDialog({ request, day, onClose }: Props) {
             className="grid gap-4 sm:grid-cols-2"
             onSubmit={form.handleSubmit((values) => {
               setRefusal(null);
-              mutation.mutate(values);
+              const skipped = skippedTimeField(values, day.timezone);
+              if (skipped) form.setError(skipped, { message: "validation.timeMissing" });
+              else mutation.mutate(values);
             })}
           >
             <SelectField

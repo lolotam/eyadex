@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Persona } from "@eyadex/contracts/session";
 import { ApiProvider } from "@/shared/api/api-provider";
@@ -106,5 +106,32 @@ describe("the booking dialog", () => {
       expect(screen.getByText(ar.appointments.dialog.createTitle)).toBeInTheDocument(),
     );
     expect(screen.queryByText(ar.appointments.dialog.overbook)).toBeNull();
+  });
+
+  it("Codex A2 r1: a refetched day keeps what the user typed", async () => {
+    const persona = as("clinic_admin");
+    const { day, d } = await dayFor(persona);
+    const request = { kind: "create" as const, providerId: d.id, date: SUNDAY, startTime: "10:00" };
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const tree = (current: typeof day) => (
+      <QueryClientProvider client={client}>
+        <I18nProvider>
+          <ApiProvider>
+            <PersonaContext.Provider value={{ persona, ready: true, setPersona: () => undefined }}>
+              <BookingDialog request={request} day={current} onClose={noop} />
+            </PersonaContext.Provider>
+          </ApiProvider>
+        </I18nProvider>
+      </QueryClientProvider>
+    );
+    const view = render(tree(day));
+    const start = await screen.findByLabelText(ar.appointments.dialog.start);
+    fireEvent.change(start, { target: { value: "11:30" } });
+    view.rerender(tree({ ...day, appointments: [...day.appointments] }));
+    await waitFor(() =>
+      expect(screen.getByLabelText<HTMLInputElement>(ar.appointments.dialog.start).value).toBe(
+        "11:30",
+      ),
+    );
   });
 });
