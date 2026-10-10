@@ -84,7 +84,17 @@ export function PatientPicker({ value, branchId, error, onChange }: Props) {
           {t("appointments.patientPicker.searchHint")}
         </p>
       )}
-      {q.length >= 2 && !results.isLoading && items.length === 0 && (
+      {q.length >= 2 && results.isError && (
+        <div className="flex items-center gap-2 text-xs">
+          <span role="alert" className="text-destructive">
+            {t("appointments.patientPicker.searchFailed")}
+          </span>
+          <Button type="button" variant="outline" size="sm" onClick={() => results.refetch()}>
+            {t("common.retry")}
+          </Button>
+        </div>
+      )}
+      {q.length >= 2 && !results.isLoading && !results.isError && items.length === 0 && (
         <p className="text-xs text-muted-foreground">{t("appointments.patientPicker.noResults")}</p>
       )}
       {items.length > 0 && (

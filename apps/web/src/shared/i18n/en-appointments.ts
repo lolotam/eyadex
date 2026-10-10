@@ -52,6 +52,8 @@ export const enAppointments = {
       provider: "Provider",
       service: "Service",
       noService: "No service (provider's default length)",
+      servicesLoading: "Loading services…",
+      servicesFailed: "The services list could not be loaded.",
       start: "Start",
       end: "End",
       endHint: "Pre-filled from the service, else the provider's default length",
@@ -72,6 +74,7 @@ export const enAppointments = {
       selected: "File {fileNumber}",
       change: "Change",
       cannotSearch: "You cannot search patient files",
+      searchFailed: "The search failed. Try again.",
     },
     quickFile: {
       title: "Quick file",

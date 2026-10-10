@@ -51,6 +51,8 @@ export const arAppointments = {
       provider: "مقدّم الخدمة",
       service: "الخدمة",
       noService: "بدون خدمة (المدة الافتراضية لمقدّم الخدمة)",
+      servicesLoading: "جارٍ تحميل الخدمات…",
+      servicesFailed: "تعذّر تحميل قائمة الخدمات.",
       start: "البداية",
       end: "النهاية",
       endHint: "تُملأ من مدة الخدمة، وإلا من المدة الافتراضية لمقدّم الخدمة",
@@ -71,6 +73,7 @@ export const arAppointments = {
       selected: "ملف رقم {fileNumber}",
       change: "تغيير",
       cannotSearch: "لا تملك صلاحية البحث في ملفات المراجعين",
+      searchFailed: "تعذّر البحث. حاول مرة أخرى.",
     },
     quickFile: {
       title: "ملف سريع",

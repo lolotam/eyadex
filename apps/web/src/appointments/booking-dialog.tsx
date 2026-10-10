@@ -71,11 +71,15 @@ export function BookingDialog({ request, day, onClose }: Props) {
   const { session } = useSession();
   const { t, pick } = useI18n();
   const refresh = useRefreshAppointments();
-  const services = useBookingServices(can(session?.permissions ?? [], "view", "services"));
+  const mayViewServices = can(session?.permissions ?? [], "view", "services");
+  const services = useBookingServices(mayViewServices);
   const key = useRef(crypto.randomUUID());
   const [patient, setPatient] = useState<PickedPatient | null>(null);
   const [refusal, setRefusal] = useState<SlotCode | null>(null);
   const creating = request?.kind === "create";
+  // A user who can see services must not book while the list is missing: the form would fall back
+  // to "no service" silently (Codex, PR #64).
+  const servicesPending = creating && mayViewServices && services.data === undefined;
   const form = useForm<BookingForm>({ resolver: zodResolver(bookingFormSchema) });
   // A new request starts a new form and key; a refetch of the day (focus, another booking) keeps both,
   // so typed values survive and a retry replays the same key (Codex A2 r1).
@@ -184,6 +188,27 @@ export function BookingDialog({ request, day, onClose }: Props) {
               label={t("appointments.dialog.provider")}
               options={providers.map((p) => ({ value: p.membershipId, label: p.fullName }))}
             />
+            {servicesPending && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground sm:col-span-2">
+                {services.isError ? (
+                  <>
+                    <span role="alert" className="text-destructive">
+                      {t("appointments.dialog.servicesFailed")}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => services.refetch()}
+                    >
+                      {t("common.retry")}
+                    </Button>
+                  </>
+                ) : (
+                  t("appointments.dialog.servicesLoading")
+                )}
+              </div>
+            )}
             {creating && services.data !== undefined && (
               <SelectField
                 control={form.control}
@@ -242,7 +267,11 @@ export function BookingDialog({ request, day, onClose }: Props) {
           <Button type="button" variant="outline" onClick={onClose}>
             {t("appointments.dialog.cancel")}
           </Button>
-          <Button type="submit" form="booking-form" disabled={mutation.isPending}>
+          <Button
+            type="submit"
+            form="booking-form"
+            disabled={mutation.isPending || servicesPending}
+          >
             {t(creating ? "appointments.dialog.save" : "appointments.dialog.saveReschedule")}
           </Button>
         </DialogFooter>
