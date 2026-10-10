@@ -47,7 +47,7 @@ function wrap(node: ReactNode) {
   );
 }
 
-async function fallBackDay(): Promise<AppointmentDay> {
+async function fallBackDay(minutes: number): Promise<AppointmentDay> {
   const doctor = getState().members.find(
     (m) => m.clinicId === clinicIdAt(0) && m.status === "active" && m.branchIds.length > 0,
   )!;
@@ -60,14 +60,21 @@ async function fallBackDay(): Promise<AppointmentDay> {
     ...day,
     date: FALL_BACK,
     timezone: LONDON,
-    providers: [{ ...provider, shifts: [{ startsAt: "00:00", endsAt: "04:00" }], timeOff: [] }],
+    providers: [
+      {
+        ...provider,
+        defaultDurationMinutes: minutes,
+        shifts: [{ startsAt: "00:00", endsAt: "04:00" }],
+        timeOff: [],
+      },
+    ],
     appointments: [],
   };
 }
 
 /** Clicks the nth slot labelled 01:30, then books it untouched through the dialog. */
-async function bookSlot(nth: number) {
-  const day = await fallBackDay();
+async function bookSlot(nth: number, minutes = 20) {
+  const day = await fallBackDay(minutes);
   const provider = day.providers[0]!;
   const onBook = vi.fn();
   const grid = wrap(
@@ -86,6 +93,7 @@ async function bookSlot(nth: number) {
   wrap(<BookingDialog request={request} day={day} onClose={vi.fn()} />);
   const start = await screen.findByLabelText<HTMLInputElement>(ar.appointments.dialog.start);
   expect(start.value).toBe("01:30");
+  const end = screen.getByLabelText<HTMLInputElement>(ar.appointments.dialog.end).value;
   const patient = getState().patients.find(
     (p) => p.clinicId === clinicIdAt(0) && p.status === "active",
   )!;
@@ -95,7 +103,7 @@ async function bookSlot(nth: number) {
   fireEvent.click(await screen.findByRole("button", { name: new RegExp(patient.fullName) }));
   fireEvent.click(screen.getByRole("button", { name: ar.appointments.dialog.save }));
   await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
-  return { input: create.mock.calls[0]![1] as { startsAt: string; endsAt: string }, provider };
+  return { input: create.mock.calls[0]![1] as { startsAt: string; endsAt: string }, end };
 }
 
 const plus = (iso: string, minutes: number) =>
@@ -103,14 +111,22 @@ const plus = (iso: string, minutes: number) =>
 
 describe("Codex PR #64: a slot inside the repeated hour books its own instant", () => {
   it("the first 01:30 books 00:30Z, its end on the same reading", async () => {
-    const { input, provider } = await bookSlot(0);
+    const { input } = await bookSlot(0);
     expect(input.startsAt).toBe("2027-10-31T00:30:00.000Z");
-    expect(input.endsAt).toBe(plus(input.startsAt, provider.defaultDurationMinutes ?? 20));
+    expect(input.endsAt).toBe(plus(input.startsAt, 20));
   });
 
   it("the second 01:30 books 01:30Z, an hour later than the first", async () => {
-    const { input, provider } = await bookSlot(1);
+    const { input } = await bookSlot(1);
     expect(input.startsAt).toBe("2027-10-31T01:30:00.000Z");
-    expect(input.endsAt).toBe(plus(input.startsAt, provider.defaultDurationMinutes ?? 20));
+    expect(input.endsAt).toBe(plus(input.startsAt, 20));
+  });
+
+  it("a length that crosses the clock change keeps its real minutes (Codex gh1fix)", async () => {
+    // 40 minutes after the first 01:30 is 01:10 on the fallen-back clock, not 02:10.
+    const { input, end } = await bookSlot(0, 40);
+    expect(end).toBe("01:10");
+    expect(input.startsAt).toBe("2027-10-31T00:30:00.000Z");
+    expect(input.endsAt).toBe("2027-10-31T01:10:00.000Z");
   });
 });

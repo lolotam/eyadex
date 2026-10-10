@@ -25,9 +25,9 @@ import { usePersona, useSession } from "@/shared/persona/persona-provider";
 import { useBookingServices, useRefreshAppointments } from "./appointment-queries";
 import {
   bookingFormSchema,
-  endFor,
   formOf,
   NO_SERVICE,
+  prefilledEnd,
   skippedTimeField,
   slotRefusal,
   toAppointmentInput,
@@ -54,7 +54,12 @@ function initial(request: BookingRequest, day: AppointmentDay): BookingForm {
     serviceId: NO_SERVICE,
     date: start.date,
     startTime: start.time,
-    endTime: endFor(start.time, provider?.defaultDurationMinutes ?? 20),
+    endTime: prefilledEnd(
+      { date: start.date, startTime: start.time },
+      provider?.defaultDurationMinutes ?? 20,
+      day.timezone,
+      request.startsAt,
+    ),
     overbook: false,
   };
 }
@@ -87,9 +92,10 @@ export function BookingDialog({ request, day, onClose }: Props) {
     lastPick.current = null;
     form.reset(initial(request, dayRef.current));
   }, [request, form]);
-  const [providerId, serviceId, startTime] = useWatch({
+  const slotStartsAt = request?.kind === "create" ? request.startsAt : undefined;
+  const [providerId, serviceId, date, startTime] = useWatch({
     control: form.control,
-    name: ["providerMembershipId", "serviceId", "startTime"],
+    name: ["providerMembershipId", "serviceId", "date", "startTime"],
   });
   // Rule 4's pre-fill: the service's length, else the provider's default. Only the user's own change of
   // start, provider or service moves the end; a refetch never overwrites an end typed by hand (Codex A2 r2).
@@ -101,8 +107,10 @@ export function BookingDialog({ request, day, onClose }: Props) {
     const service = servicesRef.current?.find((s) => s.id === serviceId);
     const provider = dayRef.current.providers.find((p) => p.membershipId === providerId);
     const minutes = service?.durationMinutes ?? provider?.defaultDurationMinutes ?? 20;
-    if (/^\d{2}:\d{2}$/.test(startTime ?? "")) form.setValue("endTime", endFor(startTime, minutes));
-  }, [creating, providerId, serviceId, startTime, form]);
+    if (!/^\d{2}:\d{2}$/.test(startTime ?? "")) return;
+    const zone = dayRef.current.timezone;
+    form.setValue("endTime", prefilledEnd({ date, startTime }, minutes, zone, slotStartsAt));
+  }, [creating, providerId, serviceId, date, startTime, slotStartsAt, form]);
 
   const mutation = useMutation({
     mutationFn: (values: BookingForm) =>
@@ -114,12 +122,7 @@ export function BookingDialog({ request, day, onClose }: Props) {
           )
         : api.appointments.create(
             persona,
-            toAppointmentInput(
-              values,
-              day.branch.id,
-              day.timezone,
-              request?.kind === "create" ? request.startsAt : undefined,
-            ),
+            toAppointmentInput(values, day.branch.id, day.timezone, slotStartsAt),
             key.current,
           ),
     onSuccess: () => {

@@ -43,22 +43,47 @@ function interval(values: BookingForm, timeZone: string) {
 const MINUTE = 60_000;
 
 /**
- * The end field after a start kept as an instant: the first instant after the start that reads the end's
- * wall time. Inside a repeated hour `wallToInstant` picks one reading, which could put the end an hour off
- * (or before) a start kept on the other reading. Clock changes move by 30 or 60 minutes.
+ * The end after a start kept as an instant: the first instant after the start that reads the end's wall
+ * time, on the start's date or the next. Inside a repeated hour `wallToInstant` picks one reading, which
+ * could put the end an hour off (or before) a start kept on the other reading, and an end that reads
+ * earlier than the start can still be minutes later on the fallen-back clock. Clocks move by 30 or 60.
  */
 function endAfter(startsAt: string, values: BookingForm, timeZone: string): string {
-  const date = endDateOf(values);
-  const guess = Date.parse(wallToInstant(date, values.endTime, timeZone));
-  const after = [-60, -30, 0, 30, 60]
-    .map((shift) => guess + shift * MINUTE)
-    .filter((at) => at > Date.parse(startsAt))
-    .map((at) => new Date(at).toISOString())
-    .find((iso) => {
-      const wall = instantToWall(iso, timeZone);
-      return wall.date === date && wall.time === values.endTime;
-    });
-  return after ?? new Date(guess).toISOString();
+  const start = Date.parse(startsAt);
+  const nextDay = new Date(Date.parse(`${values.date}T00:00:00Z`) + 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+  const readings = [values.date, nextDay].flatMap((date) => {
+    const guess = Date.parse(wallToInstant(date, values.endTime, timeZone));
+    return [-60, -30, 0, 30, 60]
+      .map((shift) => guess + shift * MINUTE)
+      .filter((at) => {
+        const wall = instantToWall(new Date(at).toISOString(), timeZone);
+        return at > start && wall.date === date && wall.time === values.endTime;
+      });
+  });
+  return readings.length > 0
+    ? new Date(Math.min(...readings)).toISOString()
+    : interval(values, timeZone).endsAt;
+}
+
+/**
+ * Rule 4's pre-filled end: the start plus the length on the real clock when the start is still the
+ * clicked slot's instant (a fall-back hour is not 60 minutes of wall time), else on the wall clock.
+ */
+export function prefilledEnd(
+  values: Pick<BookingForm, "date" | "startTime">,
+  minutes: number,
+  timeZone: string,
+  slotStartsAt?: string,
+): string {
+  if (slotStartsAt === undefined) return endFor(values.startTime, minutes);
+  const slot = instantToWall(slotStartsAt, timeZone);
+  if (slot.date !== values.date || slot.time !== values.startTime) {
+    return endFor(values.startTime, minutes);
+  }
+  const end = new Date(Date.parse(slotStartsAt) + minutes * MINUTE).toISOString();
+  return instantToWall(end, timeZone).time;
 }
 
 /**
