@@ -181,5 +181,53 @@ export const API_ERROR_MESSAGES = {
     message_ar: "لا يمكن نقل الموعد إلى هذه الحالة من حالته الحالية",
     message_en: "The appointment cannot move to this status from its current one",
   },
+  appointment_not_arrived: {
+    message_ar: "لا تبدأ الزيارة إلا بعد تسجيل وصول المراجع للموعد",
+    message_en: "A visit starts only once the patient has arrived for the appointment",
+  },
+  visit_exists: {
+    message_ar: "توجد زيارة لهذا الموعد بالفعل",
+    message_en: "This appointment already has a visit",
+  },
+  visit_signed: {
+    message_ar: "الزيارة موقّعة ولا يمكن تعديلها؛ أضف ملحقًا بدلًا من ذلك",
+    message_en: "The visit is signed and cannot be changed; add an addendum instead",
+  },
+  visit_not_signed: {
+    message_ar: "لا يمكن إضافة ملحق قبل توقيع الزيارة",
+    message_en: "An addendum can be added only after the visit is signed",
+  },
+  visit_not_provider: {
+    message_ar: "مقدّم الخدمة في الزيارة فقط يمكنه تعديلها أو توقيعها",
+    message_en: "Only the visit's provider can change or sign it",
+  },
+  visit_empty: {
+    message_ar: "اكتب شيئًا في ملاحظة الزيارة قبل توقيعها",
+    message_en: "Write something in the visit note before signing it",
+  },
+  icd10_unknown: {
+    message_ar: "رمز ICD-10-CM غير موجود في القائمة",
+    message_en: "This ICD-10-CM code is not in the list",
+  },
+  medicine_name_taken: {
+    message_ar: "يوجد دواء آخر في قائمة العيادة بهذا الاسم",
+    message_en: "Another medicine in the clinic list already uses this name",
+  },
+  attachment_too_large: {
+    message_ar: "الملف أكبر من 20 ميجابايت",
+    message_en: "The file is larger than 20 MB",
+  },
+  attachment_type: {
+    message_ar: "نوع الملف غير مدعوم؛ ارفع صورة JPEG أو PNG أو WebP أو ملف PDF",
+    message_en: "This file type is not supported; upload a JPEG, PNG or WebP image or a PDF",
+  },
+  attachment_patient_mismatch: {
+    message_ar: "هذه الزيارة لا تخص ملف هذا المراجع",
+    message_en: "This visit does not belong to this patient's file",
+  },
+  role_self_change: {
+    message_ar: "لا يمكنك تغيير دورك بنفسك",
+    message_en: "You cannot change your own role",
+  },
   unknown: { message_ar: "حدث خطأ ما", message_en: "Something went wrong" },
 } satisfies Record<ApiErrorCode, { message_ar: string; message_en: string }>;

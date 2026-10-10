@@ -9,6 +9,7 @@ import { enBranches } from "./en-branches";
 import { enRoutes } from "./en-routes";
 import { enAppointmentErrors, enAppointments } from "./en-appointments";
 import { enScheduling, enSchedulingErrors } from "./en-scheduling";
+import { enMedicalErrors } from "./en-medical";
 
 export const en = {
   app: { name: "Eyadex", tagline: "One place for every clinic" },
@@ -199,6 +200,7 @@ export const en = {
     ...enAccessErrors,
     ...enSchedulingErrors,
     ...enAppointmentErrors,
+    ...enMedicalErrors,
     patient_phone_taken: "This phone already belongs to another patient in this clinic",
     patient_civil_id_taken: "This civil ID already belongs to another patient in this clinic",
     email_taken: "This email already belongs to a user or a pending invitation",
