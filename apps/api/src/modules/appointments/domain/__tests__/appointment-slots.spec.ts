@@ -212,3 +212,27 @@ describe("Codex A2 r2", () => {
     ).toBe(false);
   });
 });
+
+describe("Codex A2 r3", () => {
+  const fallBack = { startsAt: "2027-10-28T20:50:00.000Z", endsAt: "2027-10-28T21:10:00.000Z" };
+  it("P2: a slot across the repeated hour is checked on the wall minutes it really touches", () => {
+    // 23:50–24:00, then the clock goes back: 23:00–23:10. Both inside Thursday 23:00–24:00.
+    expect(
+      appointmentSlotProblems(fallBack, "Africa/Cairo", [row(4, "23:00", "24:00")], [], []),
+    ).toEqual([]);
+    // A slot across the spring-forward jump: 23:30–24:00 Thursday, then 01:00–01:30 Friday.
+    const jump = { startsAt: "2027-04-29T21:30:00.000Z", endsAt: "2027-04-29T22:30:00.000Z" };
+    expect(
+      appointmentSlotProblems(
+        jump,
+        "Africa/Cairo",
+        [row(4, "23:00", "24:00"), row(5, "01:00", "02:00")],
+        [],
+        [],
+      ),
+    ).toEqual([]);
+    expect(
+      appointmentSlotProblems(jump, "Africa/Cairo", [row(4, "23:00", "24:00")], [], []),
+    ).toEqual(["outside_schedule"]);
+  });
+});

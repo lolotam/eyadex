@@ -228,8 +228,6 @@ export function resolveAppointmentEnd(
   return new Date(Date.parse(startsAt) + minutes * 60_000).toISOString();
 }
 
-const WEEK = 7 * 24 * 60;
-
 /** A wall instant as its weekday and minute after midnight. */
 function wallPoint(iso: string, timezone: string): { weekday: number; minute: number } {
   const wall = instantToWall(iso, timezone);
@@ -239,29 +237,54 @@ function wallPoint(iso: string, timezone: string): { weekday: number; minute: nu
   };
 }
 
-/** `minutes` before a wall point, wrapped round the week. */
-function before(point: { weekday: number; minute: number }, minutes: number) {
-  const at = (((point.weekday * 1440 + point.minute - minutes) % WEEK) + WEEK) % WEEK;
-  return { weekday: Math.floor(at / 1440), minute: at % 1440 };
+/** Minutes the clinic's wall clock is ahead of UTC at an instant. */
+function offsetAt(ms: number, timezone: string): number {
+  const wall = instantToWall(new Date(ms).toISOString(), timezone);
+  return Math.round(
+    (Date.parse(`${wall.date}T${wall.time}:00Z`) - Math.floor(ms / 60_000) * 60_000) / 60_000,
+  );
 }
 
 /**
- * D-6, D-14: is the slot inside one continuous shift? Both the wall interval that starts where the slot
- * starts and the one that ends where it ends, each as long as the slot really lasts, must be covered: on a
- * normal day they are the same interval, and across a daylight-saving change (the wall clock jumps or
- * repeats an hour) a slot is accepted only when every wall minute it touches is working time.
+ * The slot cut where the clinic's UTC offset changes (a daylight-saving jump or repeated hour; at most one
+ * inside 8 hours), so each piece runs on the wall clock without a break.
+ */
+function wallPieces(slot: TimeSpan, timezone: string): TimeSpan[] {
+  const from = Date.parse(slot.startsAt);
+  const to = Date.parse(slot.endsAt);
+  const offset = offsetAt(from, timezone);
+  if (offsetAt(to - 60_000, timezone) === offset) return [slot];
+  // The first minute on the new offset, by halving whole minutes.
+  let lo = from;
+  let hi = to - 60_000;
+  while (hi - lo > 60_000) {
+    const mid = lo + Math.floor((hi - lo) / 120_000) * 60_000;
+    if (offsetAt(mid, timezone) === offset) lo = mid;
+    else hi = mid;
+  }
+  const cut = new Date(hi).toISOString();
+  return [
+    { startsAt: slot.startsAt, endsAt: cut },
+    { startsAt: cut, endsAt: slot.endsAt },
+  ];
+}
+
+/**
+ * D-6, D-14: is the slot inside the provider's continuous working time? Each piece the wall clock runs
+ * through without a break must lie in one continuous shift; on a normal day that is the whole slot, and
+ * across a daylight-saving change it is exactly the wall minutes the slot touches (Codex A2 r1, r3).
  */
 export function slotCovered(
   slot: TimeSpan,
   timezone: string,
   branchShifts: readonly WallShift[],
 ): boolean {
-  const minutes = Math.round(minutesBetween(slot.startsAt, slot.endsAt));
-  const start = wallPoint(slot.startsAt, timezone);
-  const end = wallPoint(slot.endsAt, timezone);
-  return (
-    coversWallInterval(branchShifts, start, minutes) &&
-    coversWallInterval(branchShifts, before(end, minutes), minutes)
+  return wallPieces(slot, timezone).every((piece) =>
+    coversWallInterval(
+      branchShifts,
+      wallPoint(piece.startsAt, timezone),
+      Math.round(minutesBetween(piece.startsAt, piece.endsAt)),
+    ),
   );
 }
 
