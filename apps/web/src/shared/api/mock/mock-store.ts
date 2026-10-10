@@ -1,3 +1,4 @@
+import type { AppointmentStatus, CancelReason } from "@eyadex/contracts/appointments";
 import type { Clinic, ClinicFeatures, CreatedClinic } from "@eyadex/contracts/clinics";
 import type { InvitationRecord } from "@eyadex/contracts/invitations";
 import type { Branch, ClinicAuditEntry, Role } from "@eyadex/contracts/organization";
@@ -15,6 +16,23 @@ export type StoredTimeOff = TimeOff & {
   clinicId: string;
   membershipId: string;
   cancelledAt: string | null;
+};
+
+/** An appointment as the mock stores it (slice A2): ids only, names are read at projection time. */
+export type StoredAppointment = {
+  id: string;
+  clinicId: string;
+  branchId: string;
+  patientId: string;
+  providerMembershipId: string;
+  serviceId: string | null;
+  startsAt: string;
+  endsAt: string;
+  status: AppointmentStatus;
+  overbooked: boolean;
+  cancelReason: CancelReason | null;
+  cancelNote: string | null;
+  createdAt: string;
 };
 
 export type MockState = {
@@ -50,13 +68,17 @@ export type MockState = {
   bookingProfiles: Record<string, BookingProfileInput>;
   scheduleRows: StoredShift[];
   timeOff: StoredTimeOff[];
+  /** Slice A2. */
+  appointments: StoredAppointment[];
+  /** Idempotency-Key replay for bookings, as above: key -> appointment id + request fingerprint. */
+  idempotentAppointments?: Record<string, { appointmentId: string; fingerprint: string }>;
   platformAccounts: PlatformAccount[];
   platformSettings: PlatformSettings;
   platformAudit: PlatformAuditEntry[];
   clinicAudit: ClinicAuditEntry[];
 };
 
-const STORAGE_KEY = "eyadex:mock-db:v15";
+const STORAGE_KEY = "eyadex:mock-db:v16";
 /** Shared with the persona provider by name only (screens never import the mock). */
 const PERSONA_STORAGE_KEY = "eyadex:persona";
 const MOCK_RESET_EVENT = "eyadex:mock-reset";

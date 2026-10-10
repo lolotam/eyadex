@@ -6,6 +6,7 @@ import type { Patient } from "@eyadex/contracts/patients";
 import type { MockState } from "./mock-store";
 import { issueInviteToken } from "./mock-invite-tokens";
 import { seedCivilId } from "./seed-civil-id";
+import { seedAppointments } from "./seed-appointments";
 import { seedScheduling } from "./seed-scheduling";
 import { buildSystemRoles } from "./seed-roles";
 
@@ -119,6 +120,7 @@ export function buildSeed(): MockState {
     bookingProfiles: {},
     scheduleRows: [],
     timeOff: [],
+    appointments: [],
     platformAccounts: [
       {
         id: makeId(),
@@ -273,6 +275,7 @@ export function buildSeed(): MockState {
     }
     state.patientCounters[clinicId] = patientCount;
     seedScheduling(state, clinicId, makeId, createdAt);
+    if (ci === 0) seedAppointments(state, clinicId, makeId, createdAt);
 
     state.platformAudit.push({
       id: makeId(),
