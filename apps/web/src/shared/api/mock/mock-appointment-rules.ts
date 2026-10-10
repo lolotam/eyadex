@@ -1,9 +1,9 @@
 import {
   appointmentSlotProblems,
-  type Appointment,
   type SlotProblem,
   type TimeSpan,
-} from "@eyadex/contracts/appointments";
+} from "@eyadex/contracts/appointment-slots";
+import type { Appointment } from "@eyadex/contracts/appointments";
 import type { Persona } from "@eyadex/contracts/session";
 import { ApiError } from "../api-error";
 import { effectivePermissions, memberBranchScope, type Actor } from "./mock-actor";

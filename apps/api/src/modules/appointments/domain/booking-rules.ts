@@ -1,4 +1,5 @@
-import type { AppointmentStatus, CancelReason, SlotProblem } from "@eyadex/contracts/appointments";
+import type { SlotProblem } from "@eyadex/contracts/appointment-slots";
+import type { AppointmentStatus, CancelReason } from "@eyadex/contracts/appointments";
 import { canTransition } from "@eyadex/contracts/appointments";
 import { scrubAuditText } from "@eyadex/observability";
 

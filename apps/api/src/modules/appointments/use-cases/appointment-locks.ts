@@ -2,7 +2,7 @@ import {
   appointmentSlotProblems,
   type SlotProblem,
   type TimeSpan,
-} from "@eyadex/contracts/appointments";
+} from "@eyadex/contracts/appointment-slots";
 import type { Database, Tx } from "@eyadex/db";
 import type { IdGenerator } from "@eyadex/ids";
 

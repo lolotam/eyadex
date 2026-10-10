@@ -1,7 +1,6 @@
+import { isAppointmentLength, resolveAppointmentEnd } from "@eyadex/contracts/appointment-slots";
 import {
-  isAppointmentLength,
   isReschedulable,
-  resolveAppointmentEnd,
   type AppointmentInput,
   type AppointmentRescheduleInput,
   type AppointmentWriteResponse,

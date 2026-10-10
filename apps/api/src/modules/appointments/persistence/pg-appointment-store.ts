@@ -1,4 +1,5 @@
-import type { AppointmentStatus, CancelReason, TimeSpan } from "@eyadex/contracts/appointments";
+import type { TimeSpan } from "@eyadex/contracts/appointment-slots";
+import type { AppointmentStatus, CancelReason } from "@eyadex/contracts/appointments";
 import type { Tx } from "@eyadex/db";
 import { sql } from "drizzle-orm";
 

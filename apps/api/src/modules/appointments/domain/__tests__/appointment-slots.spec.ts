@@ -1,13 +1,15 @@
 import {
+  appointmentSlotProblems,
+  resolveAppointmentEnd,
+} from "@eyadex/contracts/appointment-slots";
+import {
   APPOINTMENT_STATUSES,
   appointmentCancelSchema,
   appointmentDayQuerySchema,
   appointmentInputSchema,
   appointmentRescheduleSchema,
-  appointmentSlotProblems,
   canTransition,
   isReschedulable,
-  resolveAppointmentEnd,
   type AppointmentStatus,
 } from "@eyadex/contracts/appointments";
 import { wallToInstant } from "@eyadex/contracts/clinic-time";

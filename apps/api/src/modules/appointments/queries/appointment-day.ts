@@ -1,9 +1,9 @@
+import type { TimeSpan } from "@eyadex/contracts/appointment-slots";
 import type {
   AppointmentBranches,
   AppointmentDay,
   AppointmentDayQuery,
   DayProvider,
-  TimeSpan,
 } from "@eyadex/contracts/appointments";
 import { wallToInstant } from "@eyadex/contracts/clinic-time";
 import type { Database } from "@eyadex/db";

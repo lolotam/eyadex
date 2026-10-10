@@ -1,3 +1,4 @@
+import { isAppointmentLength, resolveAppointmentEnd } from "@eyadex/contracts/appointment-slots";
 import {
   appointmentCancelSchema,
   appointmentDaySchema,
@@ -6,9 +7,7 @@ import {
   appointmentRescheduleSchema,
   appointmentStatusInputSchema,
   canTransition,
-  isAppointmentLength,
   isReschedulable,
-  resolveAppointmentEnd,
   type AppointmentDay,
   type AppointmentStatus,
 } from "@eyadex/contracts/appointments";
