@@ -44,7 +44,14 @@ export const canTransition = (from: AppointmentStatus, to: AppointmentStatus): b
 /** Only a booked appointment moves in time; an arrived visit is already happening (ADR-0026 §11). */
 export const isReschedulable = (status: AppointmentStatus): boolean => status === "booked";
 
-const instant = z.string().datetime({ offset: true });
+/**
+ * An instant on a whole minute: schedules and the grid work in minutes, so seconds could slip a slot past
+ * the end of a shift unchecked (Codex A2 r2).
+ */
+const instant = z
+  .string()
+  .datetime({ offset: true })
+  .refine((value) => Date.parse(value) % 60_000 === 0, "validation.time");
 
 /** Whole minutes from one instant to another. */
 export const minutesBetween = (from: string, to: string): number =>

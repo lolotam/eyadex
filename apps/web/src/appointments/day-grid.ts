@@ -15,10 +15,12 @@ const DEFAULT_TO = 20 * 60;
 const dayStartMs = (date: string, timeZone: string) =>
   Date.parse(wallToInstant(date, "00:00", timeZone));
 
-/** Minutes from the clinic's midnight of `date` to the instant (negative before, > 1440 after). */
+/**
+ * Minutes from the clinic's midnight of `date` to the instant (negative before, > 1440 after), counted on
+ * the real clock: on a daylight-saving day a block keeps its order and length instead of folding into the
+ * repeated hour and vanishing (Codex A2 r2).
+ */
 export function minuteOfDay(iso: string, date: string, timeZone: string): number {
-  const wall = instantToWall(iso, timeZone);
-  if (wall.date === date) return wallMinutes(wall.time);
   return Math.round((Date.parse(iso) - dayStartMs(date, timeZone)) / 60_000);
 }
 

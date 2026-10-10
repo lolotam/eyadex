@@ -183,3 +183,32 @@ describe("Codex A2 r1", () => {
     );
   });
 });
+
+describe("Codex A2 r2", () => {
+  it("P2: an instant off the whole minute is refused (its seconds would escape the shift check)", () => {
+    const body = {
+      ...ids,
+      serviceId: null,
+      startsAt: "2027-03-07T06:00:30.000Z",
+      endsAt: "2027-03-07T06:05:30.000Z",
+      overbook: false,
+    };
+    expect(appointmentInputSchema.safeParse(body).success).toBe(false);
+    expect(
+      appointmentInputSchema.safeParse({
+        ...body,
+        startsAt: "2027-03-07T06:00:00.000Z",
+        endsAt: null,
+      }).success,
+    ).toBe(true);
+    expect(
+      appointmentRescheduleSchema.safeParse({
+        branchId: ids.branchId,
+        providerMembershipId: ids.providerMembershipId,
+        startsAt: "2027-03-07T06:00:00.000Z",
+        endsAt: "2027-03-07T06:20:00.500Z",
+        overbook: false,
+      }).success,
+    ).toBe(false);
+  });
+});

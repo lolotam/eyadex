@@ -78,4 +78,11 @@ describe("the branch day grid", () => {
     expect(placed.get("b")).toEqual({ lane: 1, of: 2 });
     expect(placed.get("c")).toEqual({ lane: 0, of: 1 });
   });
+
+  it("Codex A2 r2: a block across a repeated hour keeps its order and stays on the grid", () => {
+    const start = minuteOfDay("2027-10-28T20:50:00.000Z", "2027-10-28", "Africa/Cairo");
+    const end = minuteOfDay("2027-10-28T21:10:00.000Z", "2027-10-28", "Africa/Cairo");
+    expect(end - start).toBe(20);
+    expect(placement(start, end, { from: 0, to: 1500 })).not.toBeNull();
+  });
 });
