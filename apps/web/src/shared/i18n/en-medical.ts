@@ -1,5 +1,5 @@
-// Medical module strings (P2): the error codes frozen with the contracts (R1-11). The screens' own
-// strings arrive with the web plan (P2 Task 13).
+// Medical module strings (P2): the error codes frozen with the contracts (R1-11) and the clinic audit
+// log's labels (R3-4). The screens' own strings arrive with the web plan (P2 Task 13).
 export const enMedicalErrors = {
   appointment_not_arrived: "A visit starts only once the patient has arrived for the appointment",
   visit_exists: "This appointment already has a visit",
@@ -13,4 +13,43 @@ export const enMedicalErrors = {
   attachment_type: "This file type is not supported; upload a JPEG, PNG or WebP image or a PDF",
   attachment_patient_mismatch: "This visit does not belong to this patient's file",
   role_self_change: "You cannot change your own role",
+};
+
+export const enMedicalAuditEntities = {
+  visit: "Visit",
+  visit_addendum: "Visit addendum",
+  diagnosis: "Diagnosis",
+  prescription: "Prescription",
+  medical_profile: "Medical file",
+  attachment: "Attachment",
+  medicine: "Medicine",
+};
+
+export const enMedicalAuditActions = {
+  visit: {
+    started: "Visit started",
+    opened: "Visit opened",
+    note_saved: "Visit note saved",
+    signed: "Visit signed",
+    cancelled: "Visit cancelled",
+    addendum_added: "Addendum added",
+    diagnoses_saved: "Diagnoses saved",
+    prescription_saved: "Prescription saved",
+    prescription_printed: "Prescription printed",
+    searched: "Visit notes searched",
+    walk_in_searched: "Walk-in patient searched",
+    previews_listed: "Visit previews listed",
+  },
+  medical_profile: { opened: "Medical file opened", saved: "Medical file saved" },
+  attachment: {
+    uploaded: "Attachment uploaded",
+    downloaded: "Attachment downloaded",
+    archived: "Attachment archived",
+  },
+  medicine: {
+    created: "Medicine added",
+    updated: "Medicine updated",
+    deactivated: "Medicine deactivated",
+    reactivated: "Medicine reactivated",
+  },
 };

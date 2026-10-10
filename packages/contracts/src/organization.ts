@@ -52,6 +52,14 @@ export const clinicAuditEntitySchema = z.enum([
   "provider_schedule",
   "provider_time_off",
   "appointment",
+  // P2 (R1-17, R3-4): the clinic log only. The platform entity list never names them (patient data).
+  "visit",
+  "visit_addendum",
+  "diagnosis",
+  "prescription",
+  "medical_profile",
+  "attachment",
+  "medicine",
 ]);
 
 export const clinicAuditEntrySchema = z.object({
