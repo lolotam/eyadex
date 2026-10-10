@@ -34,9 +34,17 @@ export function shiftMinute(date: string, time: string, timeZone: string): numbe
   return minuteOfDay(wallToInstant(date, time, timeZone), date, timeZone);
 }
 
+/**
+ * The instant at a minute of the axis. On a day the clock falls back, two minutes of the axis read the
+ * same `HH:MM`; only the instant tells them apart (Codex PR #64).
+ */
+export function instantAt(minute: number, date: string, timeZone: string): string {
+  return new Date(dayStartMs(date, timeZone) + minute * 60_000).toISOString();
+}
+
 /** The clinic's `HH:MM` at a minute of the axis. */
 export function labelAt(minute: number, date: string, timeZone: string): string {
-  return wallTime(new Date(dayStartMs(date, timeZone) + minute * 60_000).toISOString(), timeZone);
+  return wallTime(instantAt(minute, date, timeZone), timeZone);
 }
 
 /** The hours the grid shows: 08:00–20:00 widened to every shift and appointment, whole hours. */

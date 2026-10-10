@@ -13,6 +13,7 @@ import { DayView } from "./day-view";
 
 // Spec §5: the branch day and the booking dialog show only what the caller may do (UX; the API refuses too).
 const SUNDAY = "2027-03-07";
+const TEN_AM = "2027-03-07T07:00:00.000Z"; // 10:00 in Kuwait
 
 beforeEach(() => resetMockData());
 afterEach(() => cleanup());
@@ -94,7 +95,7 @@ describe("the booking dialog", () => {
   it("shows the overbook switch only when the day says the caller holds it", async () => {
     const persona = as("clinic_admin");
     const { day, d } = await dayFor(persona);
-    const request = { kind: "create" as const, providerId: d.id, date: SUNDAY, startTime: "10:00" };
+    const request = { kind: "create" as const, providerId: d.id, startsAt: TEN_AM };
     const view = wrap(persona, <BookingDialog request={request} day={day} onClose={noop} />);
     await waitFor(() =>
       expect(screen.getByText(ar.appointments.dialog.overbook)).toBeInTheDocument(),
@@ -111,7 +112,7 @@ describe("the booking dialog", () => {
   it("Codex A2 r1: a refetched day keeps what the user typed", async () => {
     const persona = as("clinic_admin");
     const { day, d } = await dayFor(persona);
-    const request = { kind: "create" as const, providerId: d.id, date: SUNDAY, startTime: "10:00" };
+    const request = { kind: "create" as const, providerId: d.id, startsAt: TEN_AM };
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const tree = (current: typeof day) => (
       <QueryClientProvider client={client}>

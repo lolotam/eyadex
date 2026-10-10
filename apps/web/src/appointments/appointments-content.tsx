@@ -108,9 +108,7 @@ export function AppointmentsContent() {
       ) : (
         <DayView
           day={day.data}
-          onBook={(providerId, startTime) =>
-            setBooking({ kind: "create", providerId, date, startTime })
-          }
+          onBook={(providerId, startsAt) => setBooking({ kind: "create", providerId, startsAt })}
           onReschedule={(appointment) => setBooking({ kind: "reschedule", appointment })}
           onCancel={setCancelling}
         />

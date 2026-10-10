@@ -5,6 +5,7 @@ import { useMutation } from "@tanstack/react-query";
 import { AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import type { Appointment, AppointmentDay } from "@eyadex/contracts/appointments";
+import { instantToWall } from "@eyadex/contracts/clinic-time";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -36,8 +37,9 @@ import {
 } from "./booking-form";
 import { PatientPicker, type PickedPatient } from "./patient-picker";
 
+/** A create carries the clicked slot's instant: on a fall-back day its wall time names two slots. */
 export type BookingRequest =
-  | { kind: "create"; providerId: string; date: string; startTime: string }
+  | { kind: "create"; providerId: string; startsAt: string }
   | { kind: "reschedule"; appointment: Appointment };
 
 type Props = { request: BookingRequest | null; day: AppointmentDay; onClose: () => void };
@@ -45,13 +47,14 @@ type Props = { request: BookingRequest | null; day: AppointmentDay; onClose: () 
 function initial(request: BookingRequest, day: AppointmentDay): BookingForm {
   if (request.kind === "reschedule") return formOf(request.appointment, day.timezone);
   const provider = day.providers.find((p) => p.membershipId === request.providerId);
+  const start = instantToWall(request.startsAt, day.timezone);
   return {
     patientId: "",
     providerMembershipId: request.providerId,
     serviceId: NO_SERVICE,
-    date: request.date,
-    startTime: request.startTime,
-    endTime: endFor(request.startTime, provider?.defaultDurationMinutes ?? 20),
+    date: start.date,
+    startTime: start.time,
+    endTime: endFor(start.time, provider?.defaultDurationMinutes ?? 20),
     overbook: false,
   };
 }
@@ -111,7 +114,12 @@ export function BookingDialog({ request, day, onClose }: Props) {
           )
         : api.appointments.create(
             persona,
-            toAppointmentInput(values, day.branch.id, day.timezone),
+            toAppointmentInput(
+              values,
+              day.branch.id,
+              day.timezone,
+              request?.kind === "create" ? request.startsAt : undefined,
+            ),
             key.current,
           ),
     onSuccess: () => {

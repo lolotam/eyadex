@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { AppointmentBlock } from "./appointment-block";
 import {
+  instantAt,
   labelAt,
   lanes,
   minuteOfDay,
@@ -17,7 +18,8 @@ type Props = {
   day: AppointmentDay;
   provider: DayProvider;
   range: { from: number; to: number };
-  onBook: (providerId: string, startTime: string) => void;
+  /** The clicked slot's start instant (UTC ISO); its wall label is for display only. */
+  onBook: (providerId: string, startsAt: string) => void;
   onReschedule: (appointment: Appointment) => void;
   onCancel: (appointment: Appointment) => void;
 };
@@ -92,7 +94,7 @@ export function ProviderColumn({ day, provider, range, onBook, onReschedule, onC
                   time: labelAt(minute, day.date, day.timezone),
                 })}
                 onClick={() =>
-                  onBook(provider.membershipId, labelAt(minute, day.date, day.timezone))
+                  onBook(provider.membershipId, instantAt(minute, day.date, day.timezone))
                 }
               />
             )}

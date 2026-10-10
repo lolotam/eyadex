@@ -110,3 +110,15 @@ describe("Codex A2 r3", () => {
     });
   });
 });
+
+describe("Codex PR #64", () => {
+  it("P2: a start edited away from the clicked slot is read as typed", () => {
+    const LONDON = "Europe/London";
+    const slot = "2027-10-31T00:30:00.000Z"; // the first 01:30 of the fall-back day
+    const form = { ...values, date: "2027-10-31", startTime: "02:30", endTime: "02:50" };
+    expect(toAppointmentInput(form, "b", LONDON, slot)).toMatchObject({
+      startsAt: wallToInstant("2027-10-31", "02:30", LONDON),
+      endsAt: wallToInstant("2027-10-31", "02:50", LONDON),
+    });
+  });
+});

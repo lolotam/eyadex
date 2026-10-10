@@ -7,7 +7,7 @@ import { ProviderColumn } from "./provider-column";
 
 type Props = {
   day: AppointmentDay;
-  onBook: (providerId: string, startTime: string) => void;
+  onBook: (providerId: string, startsAt: string) => void;
   onReschedule: (appointment: Appointment) => void;
   onCancel: (appointment: Appointment) => void;
 };

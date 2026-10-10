@@ -40,6 +40,27 @@ function interval(values: BookingForm, timeZone: string) {
   return { startsAt, endsAt: wallToInstant(endDateOf(values), values.endTime, timeZone) };
 }
 
+const MINUTE = 60_000;
+
+/**
+ * The end field after a start kept as an instant: the first instant after the start that reads the end's
+ * wall time. Inside a repeated hour `wallToInstant` picks one reading, which could put the end an hour off
+ * (or before) a start kept on the other reading. Clock changes move by 30 or 60 minutes.
+ */
+function endAfter(startsAt: string, values: BookingForm, timeZone: string): string {
+  const date = endDateOf(values);
+  const guess = Date.parse(wallToInstant(date, values.endTime, timeZone));
+  const after = [-60, -30, 0, 30, 60]
+    .map((shift) => guess + shift * MINUTE)
+    .filter((at) => at > Date.parse(startsAt))
+    .map((at) => new Date(at).toISOString())
+    .find((iso) => {
+      const wall = instantToWall(iso, timeZone);
+      return wall.date === date && wall.time === values.endTime;
+    });
+  return after ?? new Date(guess).toISOString();
+}
+
 /**
  * The time field the clinic's clock skips on that date (a daylight-saving jump), or null: converting it
  * would silently book another hour than the one typed (Codex A2 r1).
@@ -53,17 +74,31 @@ export function skippedTimeField(
   return null;
 }
 
+/**
+ * A new booking. `slotStartsAt` is the clicked slot's instant: a start left as the slot showed it keeps
+ * that instant, since on a fall-back day its wall time names two slots and converting it back could pick
+ * the other one (Codex PR #64). A start the user edited is read as typed.
+ */
 export function toAppointmentInput(
   values: BookingForm,
   branchId: string,
   timeZone: string,
+  slotStartsAt?: string,
 ): AppointmentInput {
+  const slot = slotStartsAt === undefined ? null : instantToWall(slotStartsAt, timeZone);
+  const kept =
+    slotStartsAt !== undefined &&
+    slot !== null &&
+    slot.date === values.date &&
+    slot.time === values.startTime;
   return {
     branchId,
     providerMembershipId: values.providerMembershipId,
     patientId: values.patientId,
     serviceId: values.serviceId === NO_SERVICE ? null : values.serviceId,
-    ...interval(values, timeZone),
+    ...(kept
+      ? { startsAt: slotStartsAt, endsAt: endAfter(slotStartsAt, values, timeZone) }
+      : interval(values, timeZone)),
     overbook: values.overbook,
   };
 }
