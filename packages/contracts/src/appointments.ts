@@ -108,6 +108,7 @@ export const appointmentCancelSchema = z
   .object({ reason: cancelReasonSchema, note: cancelNote.nullable() })
   .strict();
 export type AppointmentCancelInput = z.input<typeof appointmentCancelSchema>;
+export type AppointmentCancel = z.infer<typeof appointmentCancelSchema>;
 
 /** One appointment as the caller sees it (times UTC; the screen shows them in the clinic's zone). */
 export const appointmentSchema = z

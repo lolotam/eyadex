@@ -159,3 +159,22 @@ export async function readUpcomingTimeOff(
   );
   return rows.map(toTimeOff);
 }
+
+/** Rule 2: the provider's time off that is not cancelled and shares a minute with the span. */
+export async function readTimeOffOverlapping(
+  tx: Tx,
+  clinicId: string,
+  membershipId: string,
+  span: { readonly startsAt: string; readonly endsAt: string },
+): Promise<{ startsAt: string; endsAt: string }[]> {
+  const rows = await tx.execute<TimeOffRow>(
+    sql`SELECT id, starts_at, ends_at, note, cancelled_at FROM provider_time_off
+        WHERE clinic_id = ${clinicId} AND membership_id = ${membershipId} AND cancelled_at IS NULL
+          AND starts_at < ${span.endsAt}::timestamptz AND ends_at > ${span.startsAt}::timestamptz
+        ORDER BY starts_at, id`,
+  );
+  return rows.map((r) => ({
+    startsAt: new Date(r.starts_at).toISOString(),
+    endsAt: new Date(r.ends_at).toISOString(),
+  }));
+}

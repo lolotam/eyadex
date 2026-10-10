@@ -23,6 +23,30 @@ export function appointmentReach(
   return { all: false, branchIds: [] };
 }
 
+/** فاعل على المواعيد: عيادته، مفاتيحه الفعلية، فروعه، منطقة العيادة الزمنية ولغته. */
+export interface AppointmentActor {
+  readonly clinicId: string;
+  readonly userId: string;
+  readonly timezone: string;
+  readonly language: "ar" | "en";
+  readonly permissions: readonly string[];
+  readonly member: Reach;
+}
+
+/**
+ * وصول الفاعل لفعل على المواعيد.
+ *
+ * @param actor الفاعل
+ * @param action الفعل
+ * @returns الوصول
+ */
+export function actorReach(
+  actor: AppointmentActor,
+  action: "view" | "create" | "update" | "overbook",
+): Reach {
+  return appointmentReach(actor.permissions, action, actor.member);
+}
+
 /** قرار قاعدة 2: مسموح (وعلامة الحجز الإضافي) أو أول مشكلة. */
 export type SlotDecision =
   | { readonly kind: "ok"; readonly overbooked: boolean }
