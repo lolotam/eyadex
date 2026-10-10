@@ -57,13 +57,19 @@ const MANAGED = { view: CLINIC, create: CLINIC, update: CLINIC, deactivate: CLIN
 
 /**
  * Each resource's actions and the scopes each action takes (PRD 4.7, appointments spec §3); no other
- * combination exists. `view:patients:own` joins in slice A3, together with the query that evaluates it.
+ * combination exists. `own` is a view scope only: on appointments the caller's own bookings, on
+ * patients the files with a live appointment with the caller (D-4, slice A3, ADR-0026 A3).
  */
 const resourceGrants: Record<PermissionResource, Partial<Record<PermissionAction, Scopes>>> = {
   branches: MANAGED,
   users: MANAGED,
   roles: MANAGED,
-  patients: { view: BRANCHED, create: BRANCHED, update: BRANCHED, deactivate: BRANCHED },
+  patients: {
+    view: ["clinic", "branch", "own"],
+    create: BRANCHED,
+    update: BRANCHED,
+    deactivate: BRANCHED,
+  },
   audit_log: { view: CLINIC },
   clinic_settings: { view: CLINIC, update: CLINIC },
   appointments: {
@@ -115,6 +121,7 @@ export const PERMISSION_KEYS = [
   "deactivate:roles:clinic",
   "view:patients:clinic",
   "view:patients:branch",
+  "view:patients:own",
   "create:patients:clinic",
   "create:patients:branch",
   "update:patients:clinic",

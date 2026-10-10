@@ -87,11 +87,13 @@ describe("POST /v1/invitations/:id/link", () => {
     const manager = await memberOn(
       h,
       A.admin,
-      // It holds the doctor role's key too: copying a link grants that role (ADR-0017 granting bound).
+      // It holds the doctor role's keys too: copying a link grants that role (ADR-0017 granting bound);
+      // the branch key covers view:patients:own, and A3's doctor also holds view:appointments:own.
       await customRole(h, A.admin.clinicId, [
         "view:users:clinic",
         "create:users:clinic",
         "view:patients:branch",
+        "view:appointments:own",
       ]),
     );
     const adminRole = await roleIdOf(h, A.admin.clinicId, "clinic_admin");

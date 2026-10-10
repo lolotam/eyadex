@@ -86,7 +86,39 @@ const appointmentsSqlRelations = (): string[] =>
       .map((relation) => `${file.slice(modulesDir.length)}: ${relation}`),
   );
 
+// ADR-0026 A3: the patients module names its own relations (the files, the file-number counter and the
+// jsonb set function its scope filter reads; idempotency and audit go through shared/), plus
+// `appointments` read-only in the one `own` predicate of queries/own-patients.ts. A port implemented by
+// appointments would close an import cycle (appointments already binds patients' PgBookingPatients).
+const PATIENTS_RELATIONS = ["patients", "clinic_counters", "jsonb_array_elements_text"];
+const OWN_PREDICATE_FILE = join("patients", "queries", "own-patients.ts");
+const patientsSqlRelations = (): string[] =>
+  sourceFiles(join(modulesDir, "patients")).flatMap((file) =>
+    [...readFileSync(file, "utf8").matchAll(/\b(?:FROM|JOIN|UPDATE|INTO)\s+([a-z_]+)/g)]
+      .map(([, relation = ""]) => relation)
+      .filter(
+        (relation) =>
+          !PATIENTS_RELATIONS.includes(relation) &&
+          !(relation === "appointments" && file.endsWith(OWN_PREDICATE_FILE)),
+      )
+      .map((relation) => `${file.slice(modulesDir.length)}: ${relation}`),
+  );
+
 describe("module boundaries", () => {
+  it("the patients module's SQL names its own relations, and appointments only in the own predicate", () => {
+    expect(existsSync(join(modulesDir, OWN_PREDICATE_FILE))).toBe(true);
+    expect(patientsSqlRelations()).toEqual([]);
+  });
+
+  it("the patients module imports nothing of appointments", () => {
+    const imports = sourceFiles(join(modulesDir, "patients")).flatMap((file) =>
+      [
+        ...readFileSync(file, "utf8").matchAll(/from\s+["']([^"']*\/appointments\/[^"']*)["']/g),
+      ].map(([, target = ""]) => `${file.slice(modulesDir.length)}: ${target}`),
+    );
+    expect(imports).toEqual([]);
+  });
+
   it("the appointments module's SQL names only its own tables; the rest comes through its ports", () => {
     expect(existsSync(join(modulesDir, "appointments", "appointments.module.ts"))).toBe(true);
     expect(appointmentsSqlRelations()).toEqual([]);

@@ -12,6 +12,7 @@ import {
 } from "../domain/patient-rules.ts";
 import { PATIENT_COLUMNS, toRecord } from "../persistence/pg-patient-store.ts";
 import type { BranchNames, PatientBranchReader } from "../ports/patient-branch-reader.ts";
+import { ownPatientSql } from "./own-patients.ts";
 
 // The cursor is the last file number seen, base64url-encoded so the client treats it as opaque.
 const FILE_NUMBER = /^[1-9][0-9]{0,17}$/;
@@ -26,8 +27,12 @@ function decodeCursor(cursor: string | null): string | null {
   return value;
 }
 
-/** "Every branch" or a JSON array of branch ids, both as bound parameters (never SQL text). */
+/**
+ * "Every branch" or a JSON array of branch ids, both as bound parameters (never SQL text); under `own`
+ * the files with a live appointment with the caller, in any branch (D-4, ADR-0026 A3).
+ */
 const inScopeSql = (scope: PatientScope) => {
+  if ("own" in scope) return ownPatientSql(scope.own);
   const ids = JSON.stringify(scope.all ? [] : scope.branchIds);
   return sql`(${scope.all}::boolean OR p.registration_branch_id IN
     (SELECT value::uuid FROM jsonb_array_elements_text(${ids}::jsonb)))`;
@@ -93,7 +98,8 @@ const toListItem = (
 });
 
 /**
- * قايمة الملفات (story P1، نفس قواعد الـ mock): جوه نطاق العرض بس، أحدث رقم ملف الأول، بـ cursor.
+ * قايمة الملفات (story P1، نفس قواعد الـ mock): جوه نطاق العرض بس (وتحت `own` ملفات الفاعل بس، في أي
+ * فرع، والإجمالي بنفس الشرط)، أحدث رقم ملف الأول، بـ cursor.
  * البحث بالاسم، أو بأرقام الموبايل / رقم الملف بستة أرقام / الرقم المدني. الرقم المدني الكامل
  * عمره ما بيتقري هنا: الصف بياخد آخر 4 أرقام بس. أسماء الفروع من port الفروع في نداء واحد للصفحة.
  *

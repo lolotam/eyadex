@@ -17,6 +17,7 @@ const B1 = "0190a000-0000-7000-8000-0000000000b1";
 const B2 = "0190a000-0000-7000-8000-0000000000b2";
 const ONE = { all: false, branchIds: [B1] } as const;
 const EVERY = { all: true } as const;
+const M = "0190a000-0000-7000-8000-0000000000c1";
 
 // Fictional, checksum-valid, encodes 1990-04-01 (the web mock's fixture); never a real person's number.
 const CIVIL_ID = "290040112347";
@@ -35,18 +36,40 @@ const record: PatientRecord = {
 
 describe("patientScopeFor (PRD §4.7)", () => {
   it("a clinic key covers every branch, whatever the member's branches", () => {
-    expect(patientScopeFor(["view:patients:clinic"], ONE, "view")).toEqual(EVERY);
+    expect(patientScopeFor(["view:patients:clinic"], ONE, "view", M)).toEqual(EVERY);
   });
 
   it("a branch key gives the member's branches; all-branches members get every branch", () => {
-    expect(patientScopeFor(["view:patients:branch"], ONE, "view")).toEqual(ONE);
-    expect(patientScopeFor(["view:patients:branch"], EVERY, "view")).toEqual(EVERY);
+    expect(patientScopeFor(["view:patients:branch"], ONE, "view", M)).toEqual(ONE);
+    expect(patientScopeFor(["view:patients:branch"], EVERY, "view", M)).toEqual(EVERY);
   });
 
   it("no key of THAT action is no scope: another action's key never stands in", () => {
-    expect(patientScopeFor(["view:patients:clinic"], EVERY, "update")).toBeNull();
-    expect(patientScopeFor(["view:branches:clinic"], EVERY, "view")).toBeNull();
-    expect(patientScopeFor([], EVERY, "view")).toBeNull();
+    expect(patientScopeFor(["view:patients:clinic"], EVERY, "update", M)).toBeNull();
+    expect(patientScopeFor(["view:branches:clinic"], EVERY, "view", M)).toBeNull();
+    expect(patientScopeFor([], EVERY, "view", M)).toBeNull();
+  });
+});
+
+describe("patientScopeFor — own (D-4, ADR-0026 A3)", () => {
+  it("an own view key is the caller's own files; the wider key held beside it wins", () => {
+    expect(patientScopeFor(["view:patients:own"], ONE, "view", M)).toEqual({ own: M });
+    expect(patientScopeFor(["view:patients:own", "view:patients:branch"], ONE, "view", M)).toEqual(
+      ONE,
+    );
+    expect(patientScopeFor(["view:patients:own", "view:patients:clinic"], ONE, "view", M)).toEqual(
+      EVERY,
+    );
+  });
+
+  it("own gives view only: no write scope, no branch covered, no record action, no disclosure", () => {
+    expect(patientScopeFor(["view:patients:own"], EVERY, "update", M)).toBeNull();
+    expect(coversBranch({ own: M }, B1)).toBe(false);
+    const scopes = patientScopes(["view:patients:own"], EVERY, M);
+    expect(scopes).toEqual({ view: { own: M }, create: null, update: null, deactivate: null });
+    expect(recordActions(scopes, B1)).toEqual({ update: false, deactivate: false });
+    const existing = { id: record.id, fileNumber: 7, registrationBranchId: B1 };
+    expect(duplicateDisclosure(existing, { own: M })).toEqual({ kind: "hidden" });
   });
 });
 
@@ -55,6 +78,7 @@ describe("record actions and coverage", () => {
     const scopes = patientScopes(
       ["view:patients:clinic", "update:patients:branch", "deactivate:patients:clinic"],
       ONE,
+      M,
     );
     expect(recordActions(scopes, B1)).toEqual({ update: true, deactivate: true });
     expect(recordActions(scopes, B2)).toEqual({ update: false, deactivate: true });

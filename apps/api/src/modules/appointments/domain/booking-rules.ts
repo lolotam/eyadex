@@ -3,11 +3,14 @@ import type { AppointmentStatus, CancelReason } from "@eyadex/contracts/appointm
 import { canTransition } from "@eyadex/contracts/appointments";
 import { scrubAuditText } from "@eyadex/observability";
 
-import type { Reach } from "./scheduling-scope.ts";
+import { reachCovers, type Reach } from "./scheduling-scope.ts";
+
+/** أفعال الكتابة على المواعيد: ليها `clinic` و `branch` بس، مفيش `own` (spec §3). */
+export type WriteAction = "create" | "update" | "overbook";
 
 /**
- * وصول فعل على المواعيد من مفاتيح الفاعل الفعلية: مفتاح `clinic` = كل الفروع، مفتاح `branch` = فروع
- * العضو، غير كده مفيش فروع (`own` بييجي في A3). نفس شكل `viewReachOf` بتاع الجداول.
+ * وصول فعل كتابة على المواعيد من مفاتيح الفاعل الفعلية: مفتاح `clinic` = كل الفروع، مفتاح `branch` =
+ * فروع العضو، غير كده مفيش فروع. نفس شكل `viewReachOf` بتاع الجداول.
  *
  * @param permissions مفاتيح الفاعل الفعلية (بعد الموديولات المقفولة)
  * @param action الفعل
@@ -16,7 +19,7 @@ import type { Reach } from "./scheduling-scope.ts";
  */
 export function appointmentReach(
   permissions: readonly string[],
-  action: "view" | "create" | "update" | "overbook",
+  action: WriteAction,
   member: Reach,
 ): Reach {
   if (permissions.includes(`${action}:appointments:clinic`)) return { all: true };
@@ -24,10 +27,61 @@ export function appointmentReach(
   return { all: false, branchIds: [] };
 }
 
-/** فاعل على المواعيد: عيادته، مفاتيحه الفعلية، فروعه، منطقة العيادة الزمنية ولغته. */
+/** وصول العرض: فروع (`clinic` أو `branch`)، أو مواعيد الفاعل نفسه بس في أي فرع (`own`، A3). */
+export type ViewReach = Reach | { readonly own: string };
+
+/**
+ * وصول العرض من مفاتيح الفاعل الفعلية، الأوسع يكسب (PRD §4.7): `clinic` = كل الفروع، `branch` = فروع
+ * العضو، `own` = المواعيد اللي مقدّم الخدمة فيها هو عضوية الفاعل، غير كده مفيش حاجة.
+ *
+ * @param permissions مفاتيح الفاعل الفعلية
+ * @param member فروع العضو من سياق الطلب
+ * @param membershipId عضوية الفاعل
+ * @returns وصول العرض
+ */
+export function appointmentViewReach(
+  permissions: readonly string[],
+  member: Reach,
+  membershipId: string,
+): ViewReach {
+  if (permissions.includes("view:appointments:clinic")) return { all: true };
+  if (permissions.includes("view:appointments:branch")) return member;
+  if (permissions.includes("view:appointments:own")) return { own: membershipId };
+  return { all: false, branchIds: [] };
+}
+
+/**
+ * الفروع اللي الفاعل يقدر يفتح يومها: وصول الفروع زي ما هو، وتحت `own` فروع عضويته هو (TODO(spec) 2
+ * في ADR-0026 A3)، واليوم بيوريه عموده هو بس.
+ *
+ * @param view وصول العرض
+ * @param member فروع العضو
+ * @returns الفروع
+ */
+export function dayBranches(view: ViewReach, member: Reach): Reach {
+  return "own" in view ? member : view;
+}
+
+/**
+ * هل وصول العرض بيشوف الموعد ده؟ بالفرع، أو تحت `own` لما مقدّم الخدمة يكون الفاعل نفسه.
+ *
+ * @param view وصول العرض
+ * @param row فرع الموعد ومقدّم الخدمة
+ * @returns `true` لو ظاهر
+ */
+export function viewSees(
+  view: ViewReach,
+  row: { readonly branchId: string; readonly providerMembershipId: string },
+): boolean {
+  if ("own" in view) return row.providerMembershipId === view.own;
+  return reachCovers(view, row.branchId);
+}
+
+/** فاعل على المواعيد: عيادته وعضويته، مفاتيحه الفعلية، فروعه، منطقة العيادة الزمنية ولغته. */
 export interface AppointmentActor {
   readonly clinicId: string;
   readonly userId: string;
+  readonly membershipId: string;
   readonly timezone: string;
   readonly language: "ar" | "en";
   readonly permissions: readonly string[];
@@ -35,17 +89,24 @@ export interface AppointmentActor {
 }
 
 /**
- * وصول الفاعل لفعل على المواعيد.
+ * وصول الفاعل لفعل كتابة على المواعيد.
  *
  * @param actor الفاعل
  * @param action الفعل
  * @returns الوصول
  */
-export function actorReach(
-  actor: AppointmentActor,
-  action: "view" | "create" | "update" | "overbook",
-): Reach {
+export function actorReach(actor: AppointmentActor, action: WriteAction): Reach {
   return appointmentReach(actor.permissions, action, actor.member);
+}
+
+/**
+ * وصول العرض للفاعل (الأوسع يكسب).
+ *
+ * @param actor الفاعل
+ * @returns وصول العرض
+ */
+export function actorViewReach(actor: AppointmentActor): ViewReach {
+  return appointmentViewReach(actor.permissions, actor.member, actor.membershipId);
 }
 
 /** قرار قاعدة 2: مسموح (وعلامة الحجز الإضافي) أو أول مشكلة. */

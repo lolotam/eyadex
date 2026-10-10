@@ -62,6 +62,7 @@ async function readCounted(timezone = TZ, date = DAY) {
   const actor: AppointmentActor = {
     clinicId: C.clinicId,
     userId: C.admin.userId,
+    membershipId: C.admin.memberId,
     timezone,
     language: "en",
     permissions: ["view:appointments:clinic"],

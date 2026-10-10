@@ -28,16 +28,18 @@ const ADDED = [
   "update:schedules:branch",
 ];
 
-// Appointments spec §3, slice A1: the catalogue entries only; `own` is enforced in queries from A3.
+// Appointments spec §3, slice A1: the catalogue entries; `own` is enforced in queries from A3.
 describe("the appointments catalogue", () => {
   it("adds exactly the module's keys, every one gated by the appointments module", () => {
     const added = PERMISSION_CATALOG.filter((p) => p.module === "appointments").map((p) => p.key);
     expect(added).toEqual(ADDED);
   });
 
-  it("offers `own` only on view:appointments; view:patients:own waits for A3", () => {
+  it("offers `own` only on view, on appointments and (A3) on patients", () => {
     const own = PERMISSION_CATALOG.filter((p) => p.scope === "own").map((p) => p.key);
-    expect(own).toEqual(["view:appointments:own"]);
+    expect(own).toEqual(["view:patients:own", "view:appointments:own"]);
+    const patientsOwn = PERMISSION_CATALOG.find((p) => p.key === "view:patients:own");
+    expect(patientsOwn?.module).toBe("patients");
   });
 
   it("keeps every key valid, and PERMISSION_KEYS equal to the catalogue", () => {
@@ -49,6 +51,8 @@ describe("the appointments catalogue", () => {
   it("a role holds one scope per action on every resource, not only on patients", () => {
     const twoViews = ["view:appointments:branch", "view:appointments:own"];
     expect(permissionKeysSchema.safeParse(twoViews).success).toBe(false);
+    const twoPatientViews = ["view:patients:clinic", "view:patients:own"];
+    expect(permissionKeysSchema.safeParse(twoPatientViews).success).toBe(false);
     const mixed = ["view:schedules:clinic", "update:schedules:branch"];
     expect(permissionKeysSchema.safeParse(mixed).success).toBe(true);
   });
@@ -60,9 +64,9 @@ describe("the appointments catalogue", () => {
   });
 });
 
-// Owner decision 2026-10-10 (slice A2): new clinics' front desk books in its branches. Existing clinics'
-// roles are not changed by a migration; the doctor's `own` keys wait for A3.
-describe("new clinics' system roles (A2)", () => {
+// Owner decision 2026-10-10 (slice A2): new clinics' front desk books in its branches. Slice A3 (D-8): the
+// doctor sees its own appointments and patients. Existing clinics' roles are not changed by a migration.
+describe("new clinics' system roles (A2, A3)", () => {
   const keysOf = (key: string) => SYSTEM_ROLES.find((r) => r.key === key)?.permissions;
 
   it("the receptionist books, moves and follows appointments in its branches", () => {
@@ -79,8 +83,9 @@ describe("new clinics' system roles (A2)", () => {
     expect(permissionKeysSchema.safeParse(keysOf("receptionist")).success).toBe(true);
   });
 
-  it("the doctor and the technician keep their keys until A3", () => {
-    expect(keysOf("doctor")).toEqual(["view:patients:branch"]);
+  it("A3 (D-8): the doctor holds only the own keys; the technician keeps its keys", () => {
+    expect(keysOf("doctor")).toEqual(["view:appointments:own", "view:patients:own"]);
+    expect(permissionKeysSchema.safeParse(keysOf("doctor")).success).toBe(true);
     expect(keysOf("technician")).toEqual(["view:patients:branch"]);
   });
 });

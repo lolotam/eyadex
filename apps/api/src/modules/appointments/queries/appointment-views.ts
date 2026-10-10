@@ -1,8 +1,7 @@
 import type { Appointment, AppointmentWriteResponse } from "@eyadex/contracts/appointments";
 import type { Tx } from "@eyadex/db";
 
-import { actorReach, type AppointmentActor } from "../domain/booking-rules.ts";
-import { reachCovers } from "../domain/scheduling-scope.ts";
+import { actorViewReach, viewSees, type AppointmentActor } from "../domain/booking-rules.ts";
 import {
   findAppointment,
   servicesOf,
@@ -74,7 +73,8 @@ export async function projectAppointments(
 
 /**
  * The answer of every appointments write: the appointment as the caller's `view:appointments` keys show
- * it, or `null` when they do not reach its branch — a write never shows more than a read (ADR-0026 §11).
+ * it, or `null` when they do not reach its branch — or, under `own` only, when its provider is not the
+ * caller (ADR-0026 A3): a write never shows more than a read (ADR-0026 §11).
  *
  * @param reads the transaction and ports
  * @param actor the caller
@@ -87,7 +87,7 @@ export async function appointmentAnswer(
   id: string,
 ): Promise<AppointmentWriteResponse> {
   const row = await findAppointment(reads.tx, actor.clinicId, id);
-  if (row === null || !reachCovers(actorReach(actor, "view"), row.branchId)) {
+  if (row === null || !viewSees(actorViewReach(actor), row)) {
     return { appointment: null };
   }
   const [appointment] = await projectAppointments(reads, actor.clinicId, [row]);

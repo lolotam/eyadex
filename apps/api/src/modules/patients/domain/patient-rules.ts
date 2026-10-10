@@ -15,8 +15,11 @@ import { maskPhone, maskPhonesInText } from "@eyadex/observability";
 export type MemberBranches =
   { readonly all: true } | { readonly all: false; readonly branchIds: readonly string[] };
 
-/** نطاق فعل واحد على المراجعين: كل الفروع، أو قايمة فروع. */
-export type PatientScope = MemberBranches;
+/**
+ * نطاق فعل واحد على المراجعين: كل الفروع، أو قايمة فروع، أو (للعرض بس، A3) ملفات الفاعل نفسه: الملفات
+ * اللي ليها موعد مش ملغي مع عضويته (D-4). `own` محتاج الداتابيز، فمفيش فرع بيغطّيه لوحده.
+ */
+export type PatientScope = MemberBranches | { readonly own: string };
 
 /** نطاق كل فعل؛ `null` = الفاعل ما يملكش الفعل ده خالص. */
 export interface PatientScopes {
@@ -27,21 +30,27 @@ export interface PatientScopes {
 }
 
 /**
- * نطاق فعل على المراجعين (PRD §4.7): مفتاح `clinic` = كل الفروع؛ مفتاح `branch` = فروع العضو (أو
- * كلها لو عضويته "كل الفروع")؛ غير كده = ممنوع. بيقرا المفاتيح الفعلية بس، عمره ما بيبص على اسم دور.
+ * نطاق فعل على المراجعين (PRD §4.7)، الأوسع يكسب: مفتاح `clinic` = كل الفروع؛ مفتاح `branch` = فروع
+ * العضو (أو كلها لو عضويته "كل الفروع")؛ للعرض بس مفتاح `own` = ملفات الفاعل (D-4، A3)؛ غير كده =
+ * ممنوع. بيقرا المفاتيح الفعلية بس، عمره ما بيبص على اسم دور.
  *
  * @param permissions المفاتيح الفعلية للفاعل (من غير مفاتيح موديول مقفول)
  * @param branches فروع الفاعل
  * @param action الفعل
+ * @param membershipId عضوية الفاعل (نطاق `own`)
  * @returns النطاق، أو `null` لو مفيش صلاحية
  */
 export function patientScopeFor(
   permissions: readonly string[],
   branches: MemberBranches,
   action: PermissionAction,
+  membershipId: string,
 ): PatientScope | null {
   if (permissions.includes(`${action}:patients:clinic`)) return { all: true };
   if (permissions.includes(`${action}:patients:branch`)) return branches;
+  if (action === "view" && permissions.includes("view:patients:own")) {
+    return { own: membershipId };
+  }
   return null;
 }
 
@@ -50,34 +59,38 @@ export function patientScopeFor(
  *
  * @param permissions المفاتيح الفعلية
  * @param branches فروع الفاعل
+ * @param membershipId عضوية الفاعل
  * @returns نطاق كل فعل
  */
 export function patientScopes(
   permissions: readonly string[],
   branches: MemberBranches,
+  membershipId: string,
 ): PatientScopes {
   return {
-    view: patientScopeFor(permissions, branches, "view"),
-    create: patientScopeFor(permissions, branches, "create"),
-    update: patientScopeFor(permissions, branches, "update"),
-    deactivate: patientScopeFor(permissions, branches, "deactivate"),
+    view: patientScopeFor(permissions, branches, "view", membershipId),
+    create: patientScopeFor(permissions, branches, "create", membershipId),
+    update: patientScopeFor(permissions, branches, "update", membershipId),
+    deactivate: patientScopeFor(permissions, branches, "deactivate", membershipId),
   };
 }
 
 /**
- * هل النطاق ده بيغطي الفرع؟
+ * هل النطاق ده بيغطي الفرع؟ `own` عمره ما بيغطي فرع لوحده: الملف بيبقى "بتاعي" بمواعيده، مش بفرعه،
+ * فالمنادي بيسأل الداتابيز (`viewSees`).
  *
  * @param scope النطاق، أو `null`
  * @param branchId الفرع
  * @returns `true` لو مغطّي
  */
 export function coversBranch(scope: PatientScope | null, branchId: string): boolean {
-  if (scope === null) return false;
+  if (scope === null || "own" in scope) return false;
   return scope.all || scope.branchIds.includes(branchId);
 }
 
 /**
- * أزرار سجل واحد: الفعل مسموح وفرع الملف جوه نطاق الفعل ده بالذات.
+ * أزرار سجل واحد: الفعل مسموح وفرع الملف جوه نطاق الفعل ده بالذات. `own` بيدّي عرض بس، فمفيش زرار
+ * بييجي منه.
  *
  * @param scopes نطاقات الفاعل
  * @param branchId فرع تسجيل الملف
@@ -210,7 +223,7 @@ export interface DuplicateFile {
 
 /**
  * التكرار بيتكشف بس لفاعل يقدر يفتح الملف الموجود (نفس قاعدة الـ mock)؛ غيره بياخد validation عادي،
- * فمفيش ملف مخفي بيتأكد وجوده لحد.
+ * فمفيش ملف مخفي بيتأكد وجوده لحد. نطاق `own` بيخفيه دايمًا (اختيار محافظ، ADR-0026 A3).
  *
  * @param existing الملف الموجود
  * @param view نطاق العرض للفاعل
