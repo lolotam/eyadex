@@ -11,20 +11,6 @@ import { useI18n } from "@/shared/i18n/i18n-provider";
 import { can } from "@/shared/permissions/can";
 import { usePersona, useSession } from "@/shared/persona/persona-provider";
 
-/**
- * Whether the caller is the appointment's provider, as far as the UI can tell: its pinned account,
- * or an own-only view (which shows the caller's own appointments only). TODO(spec): the session
- * contract carries no membership id over HTTP, so a wider-view provider sees no button there.
- */
-function isMine(
-  appointment: Appointment,
-  memberId: string | null,
-  permissions: readonly string[],
-): boolean {
-  if (memberId !== null && memberId === appointment.providerMembershipId) return true;
-  return !can(permissions, "view", "appointments", ["clinic", "branch"]);
-}
-
 /** "Start visit" on an arrived appointment for its provider (P2-2); an existing visit opens instead. */
 export function StartVisitButton({
   appointment,
@@ -53,7 +39,9 @@ export function StartVisitButton({
   });
   if (appointment.status !== "arrived") return null;
   if (!can(permissions, "create", "visits", ["own"])) return null;
-  if (!isMine(appointment, persona.memberId, permissions)) return null;
+  // The session names the caller's clinic membership: only the provider starts the visit.
+  if (!session?.membershipId || session.membershipId !== appointment.providerMembershipId)
+    return null;
   return (
     <Button
       size="sm"

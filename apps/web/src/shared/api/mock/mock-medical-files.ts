@@ -175,6 +175,7 @@ export function createMockMedicalFiles(): Pick<
       // The file name can carry clinical words: only the field names reach the row.
       auditMedical(db, a, "attachment", "attachment.uploaded", row.id, ["file"]);
       persist();
+      return { attachment: view(row) };
     },
 
     async downloadAttachment(persona, attachmentId) {
@@ -197,6 +198,7 @@ export function createMockMedicalFiles(): Pick<
       row.status = "archived";
       auditMedical(db, a, "attachment", "attachment.archived", row.id, [], "archived");
       persist();
+      return { attachment: view(row) };
     },
 
     async getPrescriptionPrint(persona, visitId) {

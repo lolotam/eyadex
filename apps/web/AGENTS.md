@@ -6,4 +6,3 @@
 - Role permission keys are always read live from the role (no copies on accounts), and saving a role keeps keys of switched-off modules untouched — so module toggles and role edits take effect immediately and reversibly.
 - Patients branch scope hides out-of-scope files as `not_found` and patient audit snapshots use an explicit field allowlist (no civil ID) — so files can't be probed and sensitive IDs never reach the log.
 - Platform accounts and platform settings live in the mock store; every platform-console call resolves the signed-in platform account first (`mock-platform-actor.ts`, which also holds the single platform audit writer) — so platform deactivation ends sessions and actor names are real.
-- The platform audit API builds its rows from platform events plus clinic entries that are administrative and not about a patient, filtered at the source — so patient activity can never reach the platform, whatever the UI asks.

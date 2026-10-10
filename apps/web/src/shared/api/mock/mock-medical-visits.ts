@@ -87,8 +87,7 @@ function startFrom(
   }
   const patient = patientOf(db, a, input.patientId);
   if (patient.status !== "active") throw new ApiError("patient_inactive");
-  // TODO(spec): must a walk-in file be registered in the visit's branch? The candidates list is, the
-  // start call here accepts any active file of the clinic.
+  // Owner decision 2026-10-10: any active file may be seen in a branch the caller works in.
   return { patientId: patient.id, branchId: input.branchId, appointmentId: null };
 }
 

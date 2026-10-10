@@ -1,4 +1,4 @@
-import { attachmentListSchema } from "@eyadex/contracts/attachments";
+import { attachmentListSchema, attachmentWriteResponseSchema } from "@eyadex/contracts/attachments";
 import { icd10ResultSchema } from "@eyadex/contracts/icd10";
 import { medicalProfileSchema } from "@eyadex/contracts/medical-profile";
 import { medicineListSchema, medicineWriteResponseSchema } from "@eyadex/contracts/medicines";
@@ -14,7 +14,7 @@ import type { MedicalApi } from "../medical-client";
 import type { HttpContext } from "./http-context";
 
 // P2 spec §5. Clinical text, names, medicine names and search text go in bodies only; a URL holds
-// ids, a cursor, or (the contract's one exception) the ICD-10 lookup's code or title words.
+// ids or a cursor.
 const id = encodeURIComponent;
 const visit = (v: string) => `/v1/visits/${id(v)}`;
 const patient = (p: string) => `/v1/patients/${id(p)}`;
@@ -71,7 +71,7 @@ export function createHttpMedical(ctx: HttpContext): MedicalApi {
         body: input,
       }),
     searchIcd10: (_p, q) =>
-      transport.send("GET", "/v1/icd10", { schema: icd10ResultSchema, query: { q } }),
+      transport.send("POST", "/v1/icd10/search", { schema: icd10ResultSchema, body: { q } }),
     listMedicines: () => transport.send("GET", "/v1/medicines", { schema: medicineListSchema }),
     createMedicine: async (_p, input, idempotencyKey) =>
       (
@@ -95,12 +95,18 @@ export function createHttpMedical(ctx: HttpContext): MedicalApi {
       const form = new FormData();
       form.append("file", file, file.name);
       if (visitId !== null) form.append("visitId", visitId);
-      await transport.sendEmpty("POST", `${patient(patientId)}/attachments`, { form });
+      return transport.send("POST", `${patient(patientId)}/attachments`, {
+        schema: attachmentWriteResponseSchema,
+        form,
+      });
     },
     downloadAttachment: (_p, attachmentId) =>
       transport.download(`/v1/attachments/${id(attachmentId)}`),
     archiveAttachment: (_p, attachmentId) =>
-      transport.sendEmpty("POST", `/v1/attachments/${id(attachmentId)}/archive`),
+      transport.send("POST", `/v1/attachments/${id(attachmentId)}/archive`, {
+        schema: attachmentWriteResponseSchema,
+        body: {},
+      }),
     getPrescriptionPrint: (_p, visitId) =>
       transport.send("GET", `${visit(visitId)}/prescription/print`, {
         schema: prescriptionPrintSchema,
