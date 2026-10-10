@@ -1,9 +1,17 @@
 import type { Appointment, AppointmentDay, DayProvider } from "@eyadex/contracts/appointments";
 import { Badge } from "@/components/ui/badge";
-import { wallMinutes, minutesToWall } from "@eyadex/contracts/schedules";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { AppointmentBlock } from "./appointment-block";
-import { lanes, minuteOfDay, placement, PX_PER_MINUTE, SLOT_MINUTES, slotStarts } from "./day-grid";
+import {
+  labelAt,
+  lanes,
+  minuteOfDay,
+  placement,
+  PX_PER_MINUTE,
+  shiftMinute,
+  SLOT_MINUTES,
+  slotStarts,
+} from "./day-grid";
 
 type Props = {
   day: AppointmentDay;
@@ -36,7 +44,11 @@ export function ProviderColumn({ day, provider, range, onBook, onReschedule, onC
       </div>
       <div className="relative bg-muted" style={{ height }}>
         {provider.shifts.map((s) => {
-          const box = placement(wallMinutes(s.startsAt), wallMinutes(s.endsAt), range);
+          const box = placement(
+            shiftMinute(day.date, s.startsAt, day.timezone),
+            shiftMinute(day.date, s.endsAt, day.timezone),
+            range,
+          );
           return (
             box && (
               <div
@@ -77,9 +89,11 @@ export function ProviderColumn({ day, provider, range, onBook, onReschedule, onC
                 className="size-full hover:bg-primary/10 focus-visible:bg-primary/10 focus-visible:outline-none"
                 aria-label={t("appointments.bookAt", {
                   provider: provider.fullName,
-                  time: minutesToWall(minute),
+                  time: labelAt(minute, day.date, day.timezone),
                 })}
-                onClick={() => onBook(provider.membershipId, minutesToWall(minute))}
+                onClick={() =>
+                  onBook(provider.membershipId, labelAt(minute, day.date, day.timezone))
+                }
               />
             )}
           </div>

@@ -3,6 +3,7 @@ import type { AppointmentDay } from "@eyadex/contracts/appointments";
 import { wallToInstant } from "@eyadex/contracts/clinic-time";
 import {
   hourMarks,
+  labelAt,
   lanes,
   minuteOfDay,
   placement,
@@ -58,7 +59,10 @@ describe("the branch day grid", () => {
 
   it("offers half-hour slots and hourly marks; moves the date by days", () => {
     expect(slotStarts({ from: 480, to: 600 })).toEqual([480, 510, 540, 570]);
-    expect(hourMarks({ from: 480, to: 600 }).map((m) => m.label)).toEqual(["08:00", "09:00"]);
+    expect(hourMarks({ from: 480, to: 600 }, DATE, TZ).map((m) => m.label)).toEqual([
+      "08:00",
+      "09:00",
+    ]);
     expect(shiftDate(DATE, 1)).toBe("2027-03-08");
     expect(shiftDate(DATE, -7)).toBe("2027-02-28");
   });
@@ -84,5 +88,34 @@ describe("the branch day grid", () => {
     const end = minuteOfDay("2027-10-28T21:10:00.000Z", "2027-10-28", "Africa/Cairo");
     expect(end - start).toBe(20);
     expect(placement(start, end, { from: 0, to: 1500 })).not.toBeNull();
+  });
+
+  it("Codex A2 r3: the longer fall-back day shows its last hour, labelled on the clinic's clock", () => {
+    const CAIRO = "Africa/Cairo";
+    const late = {
+      id: "x",
+      branchId: "b",
+      providerMembershipId: "m",
+      providerName: "Dr",
+      patientId: "p",
+      patientName: "P",
+      patientFileNumber: 1,
+      serviceId: null,
+      serviceNameAr: null,
+      serviceNameEn: null,
+      startsAt: "2027-10-28T21:30:00.000Z",
+      endsAt: "2027-10-28T21:50:00.000Z",
+      status: "booked" as const,
+      overbooked: false,
+      cancelReason: null,
+      cancelNote: null,
+    };
+    const fallDay = day({ date: "2027-10-28", timezone: CAIRO, appointments: [late] });
+    const range = visibleRange(fallDay);
+    const start = minuteOfDay(late.startsAt, fallDay.date, CAIRO);
+    expect(range.to).toBe(1500);
+    expect(placement(start, start + 20, range)).not.toBeNull();
+    expect(labelAt(1440, fallDay.date, CAIRO)).toBe("23:00");
+    expect(labelAt(540, fallDay.date, CAIRO)).toBe("09:00");
   });
 });

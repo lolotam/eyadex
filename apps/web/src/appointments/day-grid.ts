@@ -1,9 +1,9 @@
 import type { AppointmentDay } from "@eyadex/contracts/appointments";
 import { instantToWall, wallToInstant } from "@eyadex/contracts/clinic-time";
-import { minutesToWall, wallMinutes } from "@eyadex/contracts/schedules";
 
-// Pure layout of the branch day (spec §5): every position is minutes after the clinic's midnight of
-// the shown date, so a block that started yesterday or ends tomorrow is clipped to the day.
+// Pure layout of the branch day (spec §5): every position is real minutes after the clinic's midnight of
+// the shown date, so a block that started yesterday or ends tomorrow is clipped to the day, and on a
+// daylight-saving day (23 or 25 hours) blocks, hours, labels and slots share one axis (Codex A2 r2, r3).
 
 /** Pixels per minute: one hour is 120px, so a 20-minute visit still shows its patient and time. */
 export const PX_PER_MINUTE = 2;
@@ -24,16 +24,37 @@ export function minuteOfDay(iso: string, date: string, timeZone: string): number
   return Math.round((Date.parse(iso) - dayStartMs(date, timeZone)) / 60_000);
 }
 
+/** The day's real length in minutes (1440, or 1380 / 1500 on a daylight-saving day). */
+export const dayLength = (date: string, timeZone: string) =>
+  minuteOfDay(wallToInstant(shiftDate(date, 1), "00:00", timeZone), date, timeZone);
+
+/** A schedule's wall time (`24:00` = the day's end) on the grid's axis. */
+export function shiftMinute(date: string, time: string, timeZone: string): number {
+  if (time === "24:00") return dayLength(date, timeZone);
+  return minuteOfDay(wallToInstant(date, time, timeZone), date, timeZone);
+}
+
+/** The clinic's `HH:MM` at a minute of the axis. */
+export function labelAt(minute: number, date: string, timeZone: string): string {
+  return wallTime(new Date(dayStartMs(date, timeZone) + minute * 60_000).toISOString(), timeZone);
+}
+
 /** The hours the grid shows: 08:00–20:00 widened to every shift and appointment, whole hours. */
 export function visibleRange(day: AppointmentDay): { from: number; to: number } {
+  const length = dayLength(day.date, day.timezone);
   let from = DEFAULT_FROM;
   let to = DEFAULT_TO;
   const widen = (start: number, end: number) => {
     from = Math.min(from, Math.max(0, start));
-    to = Math.max(to, Math.min(24 * 60, end));
+    to = Math.max(to, Math.min(length, end));
   };
   for (const p of day.providers) {
-    for (const s of p.shifts) widen(wallMinutes(s.startsAt), wallMinutes(s.endsAt));
+    for (const s of p.shifts) {
+      widen(
+        shiftMinute(day.date, s.startsAt, day.timezone),
+        shiftMinute(day.date, s.endsAt, day.timezone),
+      );
+    }
   }
   for (const a of day.appointments) {
     widen(
@@ -41,7 +62,7 @@ export function visibleRange(day: AppointmentDay): { from: number; to: number } 
       minuteOfDay(a.endsAt, day.date, day.timezone),
     );
   }
-  return { from: Math.floor(from / 60) * 60, to: Math.ceil(to / 60) * 60 };
+  return { from: Math.floor(from / 60) * 60, to: Math.min(length, Math.ceil(to / 60) * 60) };
 }
 
 /** The top offset and height (px) of [start, end) inside the visible range, clipped to it. */
@@ -63,13 +84,16 @@ export function slotStarts(range: { from: number; to: number }): number[] {
   return out;
 }
 
-/** The hour labels of the axis. */
-export function hourMarks(range: {
-  from: number;
-  to: number;
-}): { minute: number; label: string }[] {
+/** The hour marks of the axis, labelled on the clinic's clock. */
+export function hourMarks(
+  range: { from: number; to: number },
+  date: string,
+  timeZone: string,
+): { minute: number; label: string }[] {
   const out: { minute: number; label: string }[] = [];
-  for (let m = range.from; m < range.to; m += 60) out.push({ minute: m, label: minutesToWall(m) });
+  for (let m = range.from; m < range.to; m += 60) {
+    out.push({ minute: m, label: labelAt(m, date, timeZone) });
+  }
   return out;
 }
 

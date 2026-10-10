@@ -32,7 +32,7 @@ export function DayView({ day, onBook, onReschedule, onCancel }: Props) {
         <div className="sticky start-0 z-10 w-14 shrink-0 border-e bg-card">
           <div className="h-12 border-b" />
           <div className="relative" style={{ height }}>
-            {hourMarks(range).map((mark) => (
+            {hourMarks(range, day.date, day.timezone).map((mark) => (
               <span
                 key={mark.minute}
                 dir="ltr"
