@@ -205,16 +205,9 @@ export async function readTimeOffOverlapping(
   membershipId: string,
   span: { readonly startsAt: string; readonly endsAt: string },
 ): Promise<{ startsAt: string; endsAt: string }[]> {
-  const rows = await tx.execute<TimeOffRow>(
-    sql`SELECT id, starts_at, ends_at, note, cancelled_at FROM provider_time_off
-        WHERE clinic_id = ${clinicId} AND membership_id = ${membershipId} AND cancelled_at IS NULL
-          AND starts_at < ${span.endsAt}::timestamptz AND ends_at > ${span.startsAt}::timestamptz
-        ORDER BY starts_at, id`,
+  return (
+    (await readTimeOffOverlappingFor(tx, clinicId, [membershipId], span)).get(membershipId) ?? []
   );
-  return rows.map((r) => ({
-    startsAt: new Date(r.starts_at).toISOString(),
-    endsAt: new Date(r.ends_at).toISOString(),
-  }));
 }
 
 /** Rule 2 for many providers in one statement (the branch day): each one's overlapping time off. */
