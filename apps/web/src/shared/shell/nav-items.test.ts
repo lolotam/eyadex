@@ -28,4 +28,12 @@ describe("clinic navigation", () => {
     const visible = navItemsFor(CLINIC_NAV, ["view:patients:branch"]).map((item) => item.to);
     expect(visible).toEqual(["/clinic", "/clinic/patients", "/clinic/account"]);
   });
+
+  it("A2: shows Appointments to holders of view:appointments only", () => {
+    const shows = (keys: string[]) =>
+      navItemsFor(CLINIC_NAV, keys).some((item) => item.to === "/clinic/appointments");
+    expect(shows(["view:appointments:branch"])).toBe(true);
+    expect(shows(["view:appointments:clinic"])).toBe(true);
+    expect(shows(["view:patients:branch", "view:schedules:branch"])).toBe(false);
+  });
 });

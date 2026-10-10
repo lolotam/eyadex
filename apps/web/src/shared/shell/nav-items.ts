@@ -1,5 +1,6 @@
 import {
   Building2,
+  CalendarDays,
   ClipboardList,
   GitBranch,
   LayoutDashboard,
@@ -25,6 +26,7 @@ export type NavPath =
   | "/clinic/users"
   | "/clinic/roles"
   | "/clinic/patients"
+  | "/clinic/appointments"
   | "/clinic/audit"
   | "/clinic/settings"
   | "/clinic/account";
@@ -54,6 +56,13 @@ export const CLINIC_NAV: NavItem[] = [
   { to: "/clinic/users", label: "nav.users", icon: Users, resource: "users" },
   { to: "/clinic/roles", label: "nav.roles", icon: ShieldCheck, resource: "roles" },
   { to: "/clinic/patients", label: "nav.patients", icon: UsersRound, resource: "patients" },
+  // Slice A2: the branch day. The session's keys leave out a module that is off, so the entry needs both.
+  {
+    to: "/clinic/appointments",
+    label: "nav.appointments",
+    icon: CalendarDays,
+    resource: "appointments",
+  },
   { to: "/clinic/audit", label: "nav.audit", icon: ClipboardList, resource: "audit_log" },
   // D-17: the Settings page holds the General, Services and Work schedules tabs.
   {
