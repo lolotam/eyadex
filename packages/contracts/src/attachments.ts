@@ -26,4 +26,7 @@ export const attachmentSchema = z
   .strict();
 export type Attachment = z.infer<typeof attachmentSchema>;
 export const attachmentListSchema = z.object({ items: z.array(attachmentSchema) }).strict();
+/** `POST /v1/patients/:id/attachments` and `POST /v1/attachments/:id/archive` answer the attachment. */
+export const attachmentWriteResponseSchema = z.object({ attachment: attachmentSchema }).strict();
+export type AttachmentWriteResponse = z.infer<typeof attachmentWriteResponseSchema>;
 export const attachmentListQuerySchema = z.object({ visitId: idSchema.optional() }).strict();

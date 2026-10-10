@@ -112,23 +112,23 @@ its time and status, never its content.
 
 ## 5. API (REST under `/v1`, Zod contracts, error envelope, guards in CLAUDE.md §6 order)
 
-| Route                                                                                                                         | Key                                   | Notes                                                               |
-| ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------- |
-| `GET /patients/:id/visits?cursor=`                                                                                            | `view:visits:*`                       | Content summary only with `view:medical:*`                          |
-| `POST /patients/:id/visits/search`                                                                                            | `view:medical:*`                      | `{ q, cursor }` in the body, never the URL                          |
-| `GET /visits/walk-in-branches`, `POST /visits/walk-in-candidates`                                                             | `create:visits:own`                   | The caller's branches; name and file number only, query in the body |
-| `POST /visits` (Idempotency-Key)                                                                                              | `create:visits:own`                   | `{ appointmentId }` or `{ patientId, branchId }`                    |
-| `GET /visits/:id`                                                                                                             | `view:visits:*`                       | Content only with `view:medical:*`; audited (patient access)        |
-| `PUT /visits/:id/note`                                                                                                        | `update:medical:*` + provider         | Draft only                                                          |
-| `PUT /visits/:id/diagnoses`, `/prescription`                                                                                  | `update:medical:*` + provider         | Draft only; whole list replaced                                     |
-| `POST /visits/:id/sign`, `/cancel`, `/addenda`                                                                                | `update:medical:*` + provider         | Sign locks; cancel draft only (reason); addenda signed only         |
-| `GET /patients/:id/medical-profile`, `PUT` same                                                                               | `view:medical:*` / `update:medical:*` | Read audited                                                        |
-| `GET /icd10?q=`                                                                                                               | `view:medical:*`                      | Code prefix or title words, 20 results                              |
-| `GET /medicines`, `POST /medicines`, `PUT /medicines/:id`, `POST /medicines/:id/deactivate`, `POST /medicines/:id/reactivate` | `view/update:medicines:clinic`        | `{ medicine }` answers                                              |
-| `POST /patients/:id/attachments` (multipart)                                                                                  | `update:medical:*`                    | jpeg, png, webp, pdf; at most 20 MB; optional `visitId`             |
-| `GET /patients/:id/attachments?visitId=`                                                                                      | `view:medical:*`                      | List                                                                |
-| `GET /attachments/:id`, `POST /attachments/:id/archive`                                                                       | `view:medical:*` / `update:medical:*` | Download streams the decrypted file; audited                        |
-| `GET /visits/:id/prescription/print`                                                                                          | `view:medical:*`                      | Print-ready data; audited                                           |
+| Route                                                                                                                         | Key                                   | Notes                                                                             |
+| ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- | --------------------------------------------------------------------------------- |
+| `GET /patients/:id/visits?cursor=`                                                                                            | `view:visits:*`                       | Content summary only with `view:medical:*`                                        |
+| `POST /patients/:id/visits/search`                                                                                            | `view:medical:*`                      | `{ q, cursor }` in the body, never the URL                                        |
+| `GET /visits/walk-in-branches`, `POST /visits/walk-in-candidates`                                                             | `create:visits:own`                   | The caller's branches; name and file number only, query in the body               |
+| `POST /visits` (Idempotency-Key)                                                                                              | `create:visits:own`                   | `{ appointmentId }` or `{ patientId, branchId }`                                  |
+| `GET /visits/:id`                                                                                                             | `view:visits:*`                       | Content only with `view:medical:*`; audited (patient access)                      |
+| `PUT /visits/:id/note`                                                                                                        | `update:medical:*` + provider         | Draft only                                                                        |
+| `PUT /visits/:id/diagnoses`, `/prescription`                                                                                  | `update:medical:*` + provider         | Draft only; whole list replaced                                                   |
+| `POST /visits/:id/sign`, `/cancel`, `/addenda`                                                                                | `update:medical:*` + provider         | Sign locks; cancel draft only (reason); addenda signed only                       |
+| `GET /patients/:id/medical-profile`, `PUT` same                                                                               | `view:medical:*` / `update:medical:*` | Read audited                                                                      |
+| `POST /icd10/search`                                                                                                          | `view:medical:*`                      | `{ q }` in the body (diagnosis words never in a URL); 20 billable results         |
+| `GET /medicines`, `POST /medicines`, `PUT /medicines/:id`, `POST /medicines/:id/deactivate`, `POST /medicines/:id/reactivate` | `view/update:medicines:clinic`        | `{ medicine }` answers                                                            |
+| `POST /patients/:id/attachments` (multipart)                                                                                  | `update:medical:*`                    | jpeg, png, webp, pdf; at most 20 MB; optional `visitId`; answers `{ attachment }` |
+| `GET /patients/:id/attachments?visitId=`                                                                                      | `view:medical:*`                      | List                                                                              |
+| `GET /attachments/:id`, `POST /attachments/:id/archive`                                                                       | `view:medical:*` / `update:medical:*` | Download streams the decrypted file; audited                                      |
+| `GET /visits/:id/prescription/print`                                                                                          | `view:medical:*`                      | Print-ready data; audited                                                         |
 
 - Audit (PRD §4.11): every medical audit row (visit, addendum, diagnosis, prescription, medical file,
   attachment) is `patient_access`, excluded from the platform's admin-audit view like `patient` and
@@ -148,6 +148,8 @@ the same port. Either way the API encrypts before upload (AES-256-GCM, additiona
 clinic id), the storage never sees plaintext, and the browser never talks to the storage directly.
 
 ## 7. Web (Lovable, mock adapter first)
+
+- `GET /v1/me` and the web session carry `membershipId` (the caller's clinic membership), so screens compare it with an appointment's or visit's provider (added 2026-10-11 after Lovable's questions).
 
 - Patient file gets tabs: **Overview** (today's), **Medical file**, **Visits**, **Attachments** — each shown
   only with its key. Visits tab: list, search box (with `view:medical:*`), "New walk-in visit".

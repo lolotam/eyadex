@@ -24,6 +24,8 @@ export const meResponseSchema = z.object({
     expiresAt: z.string().datetime(),
   }),
   role: z.object({ id: idSchema, nameAr: z.string(), nameEn: z.string() }),
+  /** The caller's membership in this clinic: a visit's or appointment's provider is a membership (P2). */
+  membershipId: idSchema,
   permissions: z.array(z.string()),
   /** true = every branch of the clinic; otherwise `branchIds` lists the allowed, active branches. */
   allBranches: z.boolean(),

@@ -47,6 +47,7 @@ export const me = {
     expiresAt: "2027-01-01T00:00:00.000Z",
   },
   role: { id: ROLE, nameAr: "ر", nameEn: "R" },
+  membershipId: "0190a000-0000-7000-8000-000000000006",
   permissions: ["view:branches:clinic"],
   allBranches: true,
   branchIds: [],

@@ -1,7 +1,10 @@
 import { z } from "zod";
 import { stripInvisibleControls } from "./common.ts";
 
-/** `GET /v1/icd10?q=` — a code prefix or title words; 20 results, English titles (P2-F1). */
+/**
+ * `POST /v1/icd10/search` with `{ q }` in the body — a code prefix or title words, never in a URL (the
+ * words a doctor types reveal a diagnosis); 20 billable results, English titles (P2-F1).
+ */
 export const icd10QuerySchema = z
   .object({
     q: z.string().transform(stripInvisibleControls).pipe(z.string().trim().min(1).max(60)),
