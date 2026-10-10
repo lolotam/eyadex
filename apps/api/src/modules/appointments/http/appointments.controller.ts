@@ -26,6 +26,14 @@ import {
   type AppointmentStatusInput,
   type AppointmentWriteResponse,
 } from "@eyadex/contracts/appointments";
+import {
+  appointmentMonthQuerySchema,
+  appointmentWeekQuerySchema,
+  type AppointmentMonth,
+  type AppointmentMonthQuery,
+  type AppointmentWeek,
+  type AppointmentWeekQuery,
+} from "@eyadex/contracts/appointment-calendar";
 import { idSchema } from "@eyadex/contracts/common";
 import { idempotencyKeySchema } from "@eyadex/contracts/onboarding";
 import type { Database } from "@eyadex/db";
@@ -51,6 +59,7 @@ import {
   readAppointmentDay,
   type DayDeps,
 } from "../queries/appointment-day.ts";
+import { readAppointmentMonth, readAppointmentWeek } from "../queries/appointment-calendar.ts";
 import type { AppointmentStatusChanges } from "../use-cases/appointment-status/appointment-status.ts";
 import type { BookAppointment } from "../use-cases/book-appointment/book-appointment.ts";
 
@@ -80,7 +89,7 @@ const actorOf = (request: ClinicRequest): AppointmentActor => ({
 });
 
 // Spec §4 and §5 (slice A2, ADR-0026 §11). Thin: validate → call → map. Every route needs the module.
-// The two reads admit `own` (A3; the guard's grantFor still reports a wider key) and the queries narrow it.
+// The reads admit `own` (A3; the guard's grantFor still reports a wider key) and the queries narrow it.
 @Controller("appointments")
 export class AppointmentsController {
   private readonly reads: DayDeps;
@@ -111,6 +120,26 @@ export class AppointmentsController {
     @Query(new ZodValidationPipe(appointmentDayQuerySchema)) query: AppointmentDayQuery,
   ): Promise<AppointmentDay> {
     return readAppointmentDay(this.reads, actorOf(request), query);
+  }
+
+  @Get("week")
+  @Require("view:appointments:own")
+  @RequiresFeature("appointments")
+  week(
+    @Req() request: ClinicRequest,
+    @Query(new ZodValidationPipe(appointmentWeekQuerySchema)) query: AppointmentWeekQuery,
+  ): Promise<AppointmentWeek> {
+    return readAppointmentWeek(this.reads, actorOf(request), query);
+  }
+
+  @Get("month")
+  @Require("view:appointments:own")
+  @RequiresFeature("appointments")
+  month(
+    @Req() request: ClinicRequest,
+    @Query(new ZodValidationPipe(appointmentMonthQuerySchema)) query: AppointmentMonthQuery,
+  ): Promise<AppointmentMonth> {
+    return readAppointmentMonth(this.reads, actorOf(request), query);
   }
 
   @Post()

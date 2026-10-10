@@ -3,6 +3,10 @@ import {
   appointmentDaySchema,
   appointmentWriteResponseSchema,
 } from "@eyadex/contracts/appointments";
+import {
+  appointmentMonthSchema,
+  appointmentWeekSchema,
+} from "@eyadex/contracts/appointment-calendar";
 import type { AppointmentsApi } from "../appointments-client";
 import type { HttpContext } from "./http-context";
 
@@ -18,6 +22,24 @@ export function createHttpAppointments(ctx: HttpContext): AppointmentsApi {
       transport.send("GET", "/v1/appointments/day", {
         schema: appointmentDaySchema,
         query: { branchId: query.branchId, date: query.date },
+      }),
+    week: (_persona, query) =>
+      transport.send("GET", "/v1/appointments/week", {
+        schema: appointmentWeekSchema,
+        query: {
+          branchId: query.branchId,
+          providerMembershipId: query.providerMembershipId,
+          weekStart: query.weekStart,
+        },
+      }),
+    month: (_persona, query) =>
+      transport.send("GET", "/v1/appointments/month", {
+        schema: appointmentMonthSchema,
+        query: {
+          branchId: query.branchId,
+          month: query.month,
+          providerMembershipId: query.providerMembershipId,
+        },
       }),
     create: (_persona, input, idempotencyKey) =>
       transport.send("POST", "/v1/appointments", {

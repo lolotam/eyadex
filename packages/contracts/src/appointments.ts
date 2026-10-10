@@ -133,8 +133,8 @@ export const appointmentWriteResponseSchema = z
   .strict();
 export type AppointmentWriteResponse = z.infer<typeof appointmentWriteResponseSchema>;
 
-/** A real calendar day as `YYYY-MM-DD` (2027-02-29 and 2027-99-99 are refused). */
-const calendarDate = z
+/** A real calendar day as `YYYY-MM-DD` (2027-02-29 and 2027-99-99 are refused); the calendar reads share it. */
+export const calendarDate = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/)
   .refine((value) => {

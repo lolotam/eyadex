@@ -160,6 +160,50 @@ export async function branchDayRows(
   return rows.map(toRow);
 }
 
+/** One provider's live appointments in one branch touching a span (the A4 week), earliest first. */
+export async function providerSpanRows(
+  tx: Tx,
+  clinicId: string,
+  branchId: string,
+  providerMembershipId: string,
+  span: TimeSpan,
+): Promise<AppointmentRow[]> {
+  const rows = await tx.execute<Raw>(
+    sql`SELECT ${COLUMNS} FROM appointments
+        WHERE clinic_id = ${clinicId} AND provider_membership_id = ${providerMembershipId}
+          AND branch_id = ${branchId} AND status <> 'cancelled'
+          AND starts_at < ${span.endsAt}::timestamptz AND ends_at > ${span.startsAt}::timestamptz
+        ORDER BY starts_at, id`,
+  );
+  return rows.map(toRow);
+}
+
+/**
+ * Live appointments of one branch starting inside a span, counted per clinic-calendar date (the A4
+ * month); `providerMembershipId: null` counts every provider. Days without one are absent.
+ */
+export async function branchStartCounts(
+  tx: Tx,
+  clinicId: string,
+  branchId: string,
+  providerMembershipId: string | null,
+  span: TimeSpan,
+  timezone: string,
+): Promise<Map<string, number>> {
+  const provider =
+    providerMembershipId === null
+      ? sql``
+      : sql`AND provider_membership_id = ${providerMembershipId}`;
+  const rows = await tx.execute<{ date: string; count: number | string }>(
+    sql`SELECT to_char(starts_at AT TIME ZONE ${timezone}, 'YYYY-MM-DD') AS date, count(*) AS count
+        FROM appointments
+        WHERE clinic_id = ${clinicId} AND branch_id = ${branchId} AND status <> 'cancelled' ${provider}
+          AND starts_at >= ${span.startsAt}::timestamptz AND starts_at < ${span.endsAt}::timestamptz
+        GROUP BY 1`,
+  );
+  return new Map(rows.map((r) => [r.date, Number(r.count)]));
+}
+
 /** A service as a booking reads it. */
 export interface BookingService {
   readonly id: string;

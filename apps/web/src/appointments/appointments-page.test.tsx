@@ -12,6 +12,8 @@ import { AppointmentsPage } from "./appointments-page";
 // The Forbidden page links home; no router is mounted here.
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children }: { children: ReactNode }) => <a href="/clinic">{children}</a>,
+  useSearch: () => ({}),
+  useNavigate: () => vi.fn(),
 }));
 
 beforeEach(() => resetMockData());

@@ -3,6 +3,8 @@ import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { AppointmentBlock } from "./appointment-block";
 import {
+  dayLength,
+  hourMarks,
   instantAt,
   labelAt,
   lanes,
@@ -19,6 +21,13 @@ type Props = {
   day: AppointmentDay;
   provider: DayProvider;
   range: { from: number; to: number };
+  /** The header; the provider's name unless given (the week labels each column by its date). */
+  title?: string;
+  /**
+   * The column labels its own hours: the week's shared gutter reads a regular day's clock, which a
+   * clock-change day (23 or 25 hours) does not follow (Codex A4).
+   */
+  ownClock?: boolean;
   /** The clicked slot's start instant (UTC ISO); its wall label is for display only. */
   onBook: (providerId: string, startsAt: string) => void;
   onReschedule: (appointment: Appointment) => void;
@@ -26,9 +35,21 @@ type Props = {
 };
 
 /** One provider's column: working hours shaded, time off hatched, a slot button per half hour. */
-export function ProviderColumn({ day, provider, range, onBook, onReschedule, onCancel }: Props) {
+export function ProviderColumn({
+  day,
+  provider,
+  range,
+  title,
+  ownClock = false,
+  onBook,
+  onReschedule,
+  onCancel,
+}: Props) {
   const { t } = useI18n();
   const height = (range.to - range.from) * PX_PER_MINUTE;
+  // The week shares one range across seven columns, but a clock-change day is 23 or 25 hours: content and
+  // slots stop at this column's own day, or a slot past it would book the next calendar date (Codex A4).
+  const own = { from: range.from, to: Math.min(range.to, dayLength(day.date, day.timezone)) };
   const at = (iso: string) => minuteOfDay(iso, day.date, day.timezone);
   const mayBook = day.can.create && provider.bookable;
   const mine = day.appointments.filter((a) => a.providerMembershipId === provider.membershipId);
@@ -37,10 +58,10 @@ export function ProviderColumn({ day, provider, range, onBook, onReschedule, onC
   return (
     <div className="min-w-44 flex-1 border-e last:border-e-0 sm:min-w-52">
       <div className="flex h-12 items-center gap-2 border-b px-3">
-        <span className="truncate text-sm font-medium" title={provider.fullName}>
-          {provider.fullName}
+        <span className="truncate text-sm font-medium" title={title ?? provider.fullName}>
+          {title ?? provider.fullName}
         </span>
-        {!provider.bookable && (
+        {title === undefined && !provider.bookable && (
           <Badge variant="secondary" className="shrink-0 text-[10px]">
             {t("appointments.notBookable")}
           </Badge>
@@ -49,7 +70,7 @@ export function ProviderColumn({ day, provider, range, onBook, onReschedule, onC
       <div className="relative bg-muted" style={{ height }}>
         {provider.shifts.flatMap((s) =>
           shiftSegments(s, runs).map((segment) => {
-            const box = placement(segment.from, segment.to, range);
+            const box = placement(segment.from, segment.to, own);
             return (
               box && (
                 <div
@@ -63,7 +84,7 @@ export function ProviderColumn({ day, provider, range, onBook, onReschedule, onC
           }),
         )}
         {provider.timeOff.map((o) => {
-          const box = placement(at(o.startsAt), at(o.endsAt), range);
+          const box = placement(at(o.startsAt), at(o.endsAt), own);
           return (
             box && (
               <div
@@ -76,7 +97,18 @@ export function ProviderColumn({ day, provider, range, onBook, onReschedule, onC
             )
           );
         })}
-        {slotStarts(range).map((minute) => (
+        {ownClock &&
+          hourMarks(own, day.date, day.timezone).map((mark) => (
+            <span
+              key={`clock-${mark.minute}`}
+              dir="ltr"
+              className="pointer-events-none absolute end-1 z-10 -translate-y-1/2 rounded bg-card/80 px-1 text-[10px] text-muted-foreground"
+              style={{ top: (mark.minute - own.from) * PX_PER_MINUTE }}
+            >
+              {mark.minute === own.from ? "" : mark.label}
+            </span>
+          ))}
+        {slotStarts(own).map((minute) => (
           <div
             key={minute}
             className="absolute inset-x-0 border-t border-dashed border-border/60"
@@ -101,7 +133,7 @@ export function ProviderColumn({ day, provider, range, onBook, onReschedule, onC
           </div>
         ))}
         {mine.map((a) => {
-          const box = placement(at(a.startsAt), at(a.endsAt), range);
+          const box = placement(at(a.startsAt), at(a.endsAt), own);
           return (
             box && (
               <AppointmentBlock
