@@ -61,10 +61,11 @@ function offsetAt(ms: number, timezone: string): number {
 }
 
 /**
- * The slot cut where the clinic's UTC offset changes (a daylight-saving jump or repeated hour; at most one
- * inside 8 hours), so each piece runs on the wall clock without a break.
+ * The span cut where the clinic's UTC offset changes (a daylight-saving jump or repeated hour; at most one
+ * inside a day), so each piece runs on the wall clock without a break. The web day grid cuts its day with
+ * it too, so the grid shades exactly the minutes `slotCovered` accepts (Codex PR #64).
  */
-function wallPieces(slot: TimeSpan, timezone: string): TimeSpan[] {
+export function wallPieces(slot: TimeSpan, timezone: string): TimeSpan[] {
   const from = Date.parse(slot.startsAt);
   const to = Date.parse(slot.endsAt);
   const offset = offsetAt(from, timezone);

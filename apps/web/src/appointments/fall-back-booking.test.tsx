@@ -47,7 +47,12 @@ function wrap(node: ReactNode) {
   );
 }
 
-async function fallBackDay(minutes: number): Promise<AppointmentDay> {
+type Shift = { startsAt: string; endsAt: string };
+
+async function fallBackDay(
+  minutes: number,
+  shifts: Shift[] = [{ startsAt: "00:00", endsAt: "04:00" }],
+): Promise<AppointmentDay> {
   const doctor = getState().members.find(
     (m) => m.clinicId === clinicIdAt(0) && m.status === "active" && m.branchIds.length > 0,
   )!;
@@ -64,13 +69,16 @@ async function fallBackDay(minutes: number): Promise<AppointmentDay> {
       {
         ...provider,
         defaultDurationMinutes: minutes,
-        shifts: [{ startsAt: "00:00", endsAt: "04:00" }],
+        shifts,
         timeOff: [],
       },
     ],
     appointments: [],
   };
 }
+
+const slotLabel = (provider: string, time: string) =>
+  ar.appointments.bookAt.replace("{provider}", provider).replace("{time}", time);
 
 /** Clicks the nth slot labelled 01:30, then books it untouched through the dialog. */
 async function bookSlot(nth: number, minutes = 20) {
@@ -80,10 +88,7 @@ async function bookSlot(nth: number, minutes = 20) {
   const grid = wrap(
     <DayView day={day} onBook={onBook} onReschedule={vi.fn()} onCancel={vi.fn()} />,
   );
-  const label = ar.appointments.bookAt
-    .replace("{provider}", provider.fullName)
-    .replace("{time}", "01:30");
-  const slots = screen.getAllByRole("button", { name: label });
+  const slots = screen.getAllByRole("button", { name: slotLabel(provider.fullName, "01:30") });
   expect(slots).toHaveLength(2);
   fireEvent.click(slots[nth]!);
   const [providerId, startsAt] = onBook.mock.calls[0] as [string, string];
@@ -128,5 +133,21 @@ describe("Codex PR #64: a slot inside the repeated hour books its own instant", 
     expect(end).toBe("01:10");
     expect(input.startsAt).toBe("2027-10-31T00:30:00.000Z");
     expect(input.endsAt).toBe("2027-10-31T01:10:00.000Z");
+  });
+});
+
+describe("Codex PR #64 gh3: a shift on the repeated hour covers both of its real hours", () => {
+  it("shades and offers 01:00–02:00 twice, the grid starting at the first 01:00", async () => {
+    const day = await fallBackDay(20, [{ startsAt: "01:00", endsAt: "02:00" }]);
+    const name = day.providers[0]!.fullName;
+    const view = wrap(
+      <DayView day={day} onBook={vi.fn()} onReschedule={vi.fn()} onCancel={vi.fn()} />,
+    );
+    const slots = screen.getAllByRole("button", { name: /.+/ });
+    expect(slots[0]).toHaveAccessibleName(slotLabel(name, "01:00"));
+    expect(screen.getAllByRole("button", { name: slotLabel(name, "01:00") })).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: slotLabel(name, "01:30") })).toHaveLength(2);
+    const shaded = [...view.container.querySelectorAll<HTMLElement>(".border-s-2")];
+    expect(shaded.map((box) => [box.style.top, box.style.height])).toEqual([["0px", "240px"]]);
   });
 });

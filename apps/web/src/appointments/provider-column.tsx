@@ -9,9 +9,10 @@ import {
   minuteOfDay,
   placement,
   PX_PER_MINUTE,
-  shiftMinute,
+  shiftSegments,
   SLOT_MINUTES,
   slotStarts,
+  wallRuns,
 } from "./day-grid";
 
 type Props = {
@@ -32,6 +33,7 @@ export function ProviderColumn({ day, provider, range, onBook, onReschedule, onC
   const mayBook = day.can.create && provider.bookable;
   const mine = day.appointments.filter((a) => a.providerMembershipId === provider.membershipId);
   const placed = lanes(mine);
+  const runs = wallRuns(day.date, day.timezone);
   return (
     <div className="min-w-44 flex-1 border-e last:border-e-0 sm:min-w-52">
       <div className="flex h-12 items-center gap-2 border-b px-3">
@@ -45,23 +47,21 @@ export function ProviderColumn({ day, provider, range, onBook, onReschedule, onC
         )}
       </div>
       <div className="relative bg-muted" style={{ height }}>
-        {provider.shifts.map((s) => {
-          const box = placement(
-            shiftMinute(day.date, s.startsAt, day.timezone),
-            shiftMinute(day.date, s.endsAt, day.timezone),
-            range,
-          );
-          return (
-            box && (
-              <div
-                key={`${s.startsAt}-${s.endsAt}`}
-                className="absolute inset-x-0 border-s-2 border-primary/40 bg-card"
-                style={box}
-                aria-hidden
-              />
-            )
-          );
-        })}
+        {provider.shifts.flatMap((s) =>
+          shiftSegments(s, runs).map((segment) => {
+            const box = placement(segment.from, segment.to, range);
+            return (
+              box && (
+                <div
+                  key={`${s.startsAt}-${s.endsAt}-${segment.from}`}
+                  className="absolute inset-x-0 border-s-2 border-primary/40 bg-card"
+                  style={box}
+                  aria-hidden
+                />
+              )
+            );
+          }),
+        )}
         {provider.timeOff.map((o) => {
           const box = placement(at(o.startsAt), at(o.endsAt), range);
           return (

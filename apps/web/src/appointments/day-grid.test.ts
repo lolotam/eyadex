@@ -9,8 +9,10 @@ import {
   placement,
   PX_PER_MINUTE,
   shiftDate,
+  shiftSegments,
   slotStarts,
   visibleRange,
+  wallRuns,
 } from "./day-grid";
 
 const TZ = "Asia/Kuwait";
@@ -117,5 +119,50 @@ describe("the branch day grid", () => {
     expect(placement(start, start + 20, range)).not.toBeNull();
     expect(labelAt(1440, fallDay.date, CAIRO)).toBe("23:00");
     expect(labelAt(540, fallDay.date, CAIRO)).toBe("09:00");
+  });
+
+  describe("Codex PR #64 gh3: a wall-time shift covers every real minute that reads inside it", () => {
+    const LONDON = "Europe/London";
+    const withShift = (date: string, timezone: string, startsAt: string, endsAt: string) =>
+      day({
+        date,
+        timezone,
+        providers: [
+          {
+            membershipId: "m",
+            fullName: "Dr",
+            defaultDurationMinutes: 20,
+            bookable: true,
+            shifts: [{ startsAt, endsAt }],
+            timeOff: [],
+          },
+        ],
+      });
+    const segments = (date: string, timezone: string, startsAt: string, endsAt: string) =>
+      shiftSegments({ startsAt, endsAt }, wallRuns(date, timezone));
+
+    it("widens the grid to the first 01:00 of a fall-back day, and not for a skipped hour", () => {
+      expect(visibleRange(withShift("2027-10-31", LONDON, "01:00", "02:00")).from).toBe(60);
+      expect(visibleRange(withShift("2027-03-28", LONDON, "01:00", "02:00"))).toEqual(
+        visibleRange(day({ date: "2027-03-28", timezone: LONDON })),
+      );
+      expect(visibleRange(withShift(DATE, TZ, "06:15", "13:00"))).toEqual({ from: 360, to: 1200 });
+    });
+
+    it("covers both real hours of a repeated hour and none of a skipped one", () => {
+      expect(segments("2027-10-31", LONDON, "01:00", "02:00")).toEqual([{ from: 60, to: 180 }]);
+      // 01:30–02:00 summer time is not in 00:30–01:30, so the shift splits around it.
+      expect(segments("2027-10-31", LONDON, "00:30", "01:30")).toEqual([
+        { from: 30, to: 90 },
+        { from: 120, to: 150 },
+      ]);
+      expect(segments("2027-03-28", LONDON, "01:00", "02:00")).toEqual([]);
+      expect(segments("2027-03-28", LONDON, "00:30", "03:00")).toEqual([{ from: 30, to: 120 }]);
+    });
+
+    it("leaves a normal day and a Kuwait day as they were", () => {
+      expect(segments("2027-06-15", LONDON, "09:00", "17:00")).toEqual([{ from: 540, to: 1020 }]);
+      expect(segments(DATE, TZ, "07:30", "24:00")).toEqual([{ from: 450, to: 1440 }]);
+    });
   });
 });

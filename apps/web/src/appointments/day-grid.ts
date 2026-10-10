@@ -1,5 +1,7 @@
 import type { AppointmentDay } from "@eyadex/contracts/appointments";
+import { wallPieces } from "@eyadex/contracts/appointment-slots";
 import { instantToWall, wallToInstant } from "@eyadex/contracts/clinic-time";
+import { wallMinutes } from "@eyadex/contracts/schedules";
 
 // Pure layout of the branch day (spec §5): every position is real minutes after the clinic's midnight of
 // the shown date, so a block that started yesterday or ends tomorrow is clipped to the day, and on a
@@ -28,10 +30,46 @@ export function minuteOfDay(iso: string, date: string, timeZone: string): number
 export const dayLength = (date: string, timeZone: string) =>
   minuteOfDay(wallToInstant(shiftDate(date, 1), "00:00", timeZone), date, timeZone);
 
-/** A schedule's wall time (`24:00` = the day's end) on the grid's axis. */
-export function shiftMinute(date: string, time: string, timeZone: string): number {
-  if (time === "24:00") return dayLength(date, timeZone);
-  return minuteOfDay(wallToInstant(date, time, timeZone), date, timeZone);
+/** A stretch of the axis where the clinic's clock runs without a jump, and its first wall minute. */
+export type WallRun = { from: number; to: number; wallFrom: number };
+
+/**
+ * The day cut where the clinic's clock jumps, by the same rule `slotCovered` uses: one run on a normal
+ * day, two on a daylight-saving day.
+ */
+export function wallRuns(date: string, timeZone: string): WallRun[] {
+  const day = {
+    startsAt: instantAt(0, date, timeZone),
+    endsAt: instantAt(dayLength(date, timeZone), date, timeZone),
+  };
+  return wallPieces(day, timeZone).map((piece) => ({
+    from: minuteOfDay(piece.startsAt, date, timeZone),
+    to: minuteOfDay(piece.endsAt, date, timeZone),
+    wallFrom: wallMinutes(wallTime(piece.startsAt, timeZone)),
+  }));
+}
+
+/**
+ * The stretches of the axis a wall-time shift covers (`24:00` = the day's end): every real minute whose
+ * clinic time falls inside it. A repeated hour is covered twice and a skipped hour not at all, as
+ * `slotCovered` decides (Codex PR #64).
+ */
+export function shiftSegments(
+  shift: { startsAt: string; endsAt: string },
+  runs: readonly WallRun[],
+): { from: number; to: number }[] {
+  const start = wallMinutes(shift.startsAt);
+  const end = wallMinutes(shift.endsAt);
+  const out: { from: number; to: number }[] = [];
+  for (const run of runs) {
+    const from = run.from + Math.max(start, run.wallFrom) - run.wallFrom;
+    const to = run.from + Math.min(end, run.wallFrom + run.to - run.from) - run.wallFrom;
+    if (to <= from) continue;
+    const last = out.at(-1);
+    if (last?.to === from) last.to = to;
+    else out.push({ from, to });
+  }
+  return out;
 }
 
 /**
@@ -56,12 +94,10 @@ export function visibleRange(day: AppointmentDay): { from: number; to: number } 
     from = Math.min(from, Math.max(0, start));
     to = Math.max(to, Math.min(length, end));
   };
+  const runs = wallRuns(day.date, day.timezone);
   for (const p of day.providers) {
     for (const s of p.shifts) {
-      widen(
-        shiftMinute(day.date, s.startsAt, day.timezone),
-        shiftMinute(day.date, s.endsAt, day.timezone),
-      );
+      for (const segment of shiftSegments(s, runs)) widen(segment.from, segment.to);
     }
   }
   for (const a of day.appointments) {
