@@ -51,12 +51,14 @@ export class PgProviderDirectory {
   }
 
   // ADR-0027: the membership row before any branch row, so no write about a provider waits on it while
-  // holding a branch.
+  // holding a branch. The lock and the read are two statements: a statement that waited for the row
+  // re-reads the row itself but not its subquery, which would keep the branch links of before the wait
+  // (Codex A2 r1); the read after the lock sees what the writer committed.
   async lockForWrite(tx: Tx, clinicId: string, membershipId: string): Promise<ProviderRow | null> {
-    const rows = await tx.execute<Raw>(
-      sql`${SELECT} WHERE m.clinic_id = ${clinicId} AND m.id = ${membershipId} FOR SHARE OF m`,
+    await tx.execute(
+      sql`SELECT id FROM memberships WHERE clinic_id = ${clinicId} AND id = ${membershipId} FOR SHARE`,
     );
-    return rows[0] === undefined ? null : toRow(rows[0]);
+    return this.find(tx, clinicId, membershipId);
   }
 
   async listBookable(tx: Tx, clinicId: string): Promise<readonly ProviderRow[]> {

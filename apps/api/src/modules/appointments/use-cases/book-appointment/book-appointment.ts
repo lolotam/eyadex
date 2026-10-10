@@ -27,6 +27,7 @@ import {
   auditFieldsOf,
   lockExisting,
   lockTarget,
+  retryWhenMoved,
   slotProblems,
   writeAppointmentAudit,
   type AppointmentDeps,
@@ -132,46 +133,48 @@ export class BookAppointment {
   ): Promise<AppointmentWriteResponse> {
     this.assertMay(actor, "update", input.branchId, input.overbook);
     const { db, clock } = this.deps;
-    return db.withTenant(actor.clinicId, async (tx) => {
-      const before = await lockExisting(tx, actor.clinicId, id, actorReach(actor, "update"), [
-        input.providerMembershipId,
-      ]);
-      if (!isReschedulable(before.status)) throw new ApiError("invalid_transition");
-      const startsAt = new Date(input.startsAt).toISOString();
-      const endsAt = new Date(input.endsAt).toISOString();
-      const same =
-        before.branchId === input.branchId &&
-        before.providerMembershipId === input.providerMembershipId &&
-        before.startsAt === startsAt &&
-        before.endsAt === endsAt;
-      if (same) return this.answer(tx, actor, id);
-      const { provider } = await lockTarget(tx, this.deps, actor.clinicId, {
-        providerId: input.providerMembershipId,
-        branchId: input.branchId,
-        // Rule 7 holds for a move too: an archived file is not booked at a new time.
-        patientId: before.patientId,
-        serviceId: null,
-      });
-      const target = { providerId: provider.membershipId, branchId: input.branchId };
-      const problems = await slotProblems(tx, actor, target, { startsAt, endsAt }, id);
-      const decision = decideSlot(problems, input.overbook);
-      if (decision.kind === "refused") throw new ApiError(decision.code);
-      const after: AppointmentRow = {
-        ...before,
-        branchId: input.branchId,
-        providerMembershipId: provider.membershipId,
-        startsAt,
-        endsAt,
-        overbooked: decision.overbooked,
-      };
-      const beforeFields = await auditFieldsOf(tx, this.deps, actor.clinicId, before);
-      await saveTimes(tx, actor.clinicId, after, clock.now());
-      await writeAppointmentAudit(tx, this.deps, actor, "appointment.rescheduled", id, {
-        before: beforeFields,
-        after: await auditFieldsOf(tx, this.deps, actor.clinicId, after),
-      });
-      return this.answer(tx, actor, id);
-    });
+    return retryWhenMoved(() =>
+      db.withTenant(actor.clinicId, async (tx) => {
+        const before = await lockExisting(tx, actor.clinicId, id, actorReach(actor, "update"), [
+          input.providerMembershipId,
+        ]);
+        if (!isReschedulable(before.status)) throw new ApiError("invalid_transition");
+        const startsAt = new Date(input.startsAt).toISOString();
+        const endsAt = new Date(input.endsAt).toISOString();
+        const same =
+          before.branchId === input.branchId &&
+          before.providerMembershipId === input.providerMembershipId &&
+          before.startsAt === startsAt &&
+          before.endsAt === endsAt;
+        if (same) return this.answer(tx, actor, id);
+        const { provider } = await lockTarget(tx, this.deps, actor.clinicId, {
+          providerId: input.providerMembershipId,
+          branchId: input.branchId,
+          // Rule 7 holds for a move too: an archived file is not booked at a new time.
+          patientId: before.patientId,
+          serviceId: null,
+        });
+        const target = { providerId: provider.membershipId, branchId: input.branchId };
+        const problems = await slotProblems(tx, actor, target, { startsAt, endsAt }, id);
+        const decision = decideSlot(problems, input.overbook);
+        if (decision.kind === "refused") throw new ApiError(decision.code);
+        const after: AppointmentRow = {
+          ...before,
+          branchId: input.branchId,
+          providerMembershipId: provider.membershipId,
+          startsAt,
+          endsAt,
+          overbooked: decision.overbooked,
+        };
+        const beforeFields = await auditFieldsOf(tx, this.deps, actor.clinicId, before);
+        await saveTimes(tx, actor.clinicId, after, clock.now());
+        await writeAppointmentAudit(tx, this.deps, actor, "appointment.rescheduled", id, {
+          before: beforeFields,
+          after: await auditFieldsOf(tx, this.deps, actor.clinicId, after),
+        });
+        return this.answer(tx, actor, id);
+      }),
+    );
   }
 
   // The branch inside the action's reach (rule 2's first check), and the overbook key there when asked:

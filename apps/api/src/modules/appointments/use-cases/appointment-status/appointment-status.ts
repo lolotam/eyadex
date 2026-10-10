@@ -13,6 +13,7 @@ import { appointmentAnswer } from "../../queries/appointment-views.ts";
 import {
   auditFieldsOf,
   lockExisting,
+  retryWhenMoved,
   writeAppointmentAudit,
   type AppointmentDeps,
 } from "../appointment-locks.ts";
@@ -66,20 +67,22 @@ export class AppointmentStatusChanges {
     action: string,
   ): Promise<AppointmentWriteResponse> {
     const { db, clock, providers, patients } = this.deps;
-    return db.withTenant(actor.clinicId, async (tx) => {
-      const before = await lockExisting(tx, actor.clinicId, id, actorReach(actor, "update"));
-      const decision = decideTransition(before.status, to);
-      if (decision === "invalid") throw new ApiError("invalid_transition");
-      if (decision === "move") {
-        const after: AppointmentRow = { ...before, status: to, cancelReason, cancelNote };
-        const beforeFields = await auditFieldsOf(tx, this.deps, actor.clinicId, before);
-        await saveStatus(tx, actor.clinicId, id, after, clock.now());
-        await writeAppointmentAudit(tx, this.deps, actor, action, id, {
-          before: beforeFields,
-          after: { ...beforeFields, status: to, cancelReason },
-        });
-      }
-      return appointmentAnswer({ tx, providers, patients }, actor, id);
-    });
+    return retryWhenMoved(() =>
+      db.withTenant(actor.clinicId, async (tx) => {
+        const before = await lockExisting(tx, actor.clinicId, id, actorReach(actor, "update"));
+        const decision = decideTransition(before.status, to);
+        if (decision === "invalid") throw new ApiError("invalid_transition");
+        if (decision === "move") {
+          const after: AppointmentRow = { ...before, status: to, cancelReason, cancelNote };
+          const beforeFields = await auditFieldsOf(tx, this.deps, actor.clinicId, before);
+          await saveStatus(tx, actor.clinicId, id, after, clock.now());
+          await writeAppointmentAudit(tx, this.deps, actor, action, id, {
+            before: beforeFields,
+            after: { ...beforeFields, status: to, cancelReason },
+          });
+        }
+        return appointmentAnswer({ tx, providers, patients }, actor, id);
+      }),
+    );
   }
 }

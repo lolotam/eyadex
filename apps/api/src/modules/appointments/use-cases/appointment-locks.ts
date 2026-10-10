@@ -104,11 +104,15 @@ export async function slotProblems(
   return appointmentSlotProblems(span, actor.timezone, rows, timeOff, busy);
 }
 
+/** The appointment moved to another provider between the first read and its provider's lock. */
+export class AppointmentMoved extends Error {}
+
 /**
  * An existing appointment inside `reach` (else `not_found`, like a file outside a patient scope), with
- * its provider locked (and `alsoLock`, a reschedule's new provider) BEFORE its row is locked. A
- * concurrent reschedule may move it to another provider between the first read and the lock: the read is
- * then repeated with that provider locked too.
+ * its provider locked (and `alsoLock`, a reschedule's new provider) BEFORE its row is locked. If a
+ * concurrent reschedule moved it to another provider meanwhile, the transaction must start over
+ * (`AppointmentMoved`, see `retryWhenMoved`): taking that provider's lock now, while holding the row,
+ * would break the order of ADR-0027 (Codex A2 r1).
  *
  * @returns the row, `FOR UPDATE`
  */
@@ -119,15 +123,31 @@ export async function lockExisting(
   reach: Reach,
   alsoLock: readonly string[] = [],
 ): Promise<AppointmentRow> {
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    const seen = await findAppointment(tx, clinicId, id);
-    if (seen === null || !reachCovers(reach, seen.branchId)) throw new ApiError("not_found");
-    await lockProviders(tx, clinicId, [seen.providerMembershipId, ...alsoLock]);
-    const row = await findAppointment(tx, clinicId, id, true);
-    if (row === null || !reachCovers(reach, row.branchId)) throw new ApiError("not_found");
-    if (row.providerMembershipId === seen.providerMembershipId) return row;
+  const seen = await findAppointment(tx, clinicId, id);
+  if (seen === null || !reachCovers(reach, seen.branchId)) throw new ApiError("not_found");
+  await lockProviders(tx, clinicId, [seen.providerMembershipId, ...alsoLock]);
+  const row = await findAppointment(tx, clinicId, id, true);
+  if (row === null || !reachCovers(reach, row.branchId)) throw new ApiError("not_found");
+  if (row.providerMembershipId !== seen.providerMembershipId) throw new AppointmentMoved();
+  return row;
+}
+
+/**
+ * Runs a transaction again (at most three times) when it found its appointment moved: the rollback
+ * releases every lock, and the next attempt reads the new provider first.
+ *
+ * @param run one whole transaction
+ * @returns its result
+ */
+export async function retryWhenMoved<T>(run: () => Promise<T>): Promise<T> {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await run();
+    } catch (error) {
+      if (!(error instanceof AppointmentMoved)) throw error;
+      if (attempt === 3) throw new ApiError("unknown");
+    }
   }
-  throw new ApiError("unknown");
 }
 
 /** The audit fields of a stored appointment (provider and service names resolved). */
