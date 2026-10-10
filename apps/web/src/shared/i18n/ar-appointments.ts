@@ -11,7 +11,7 @@ export const arAppointmentErrors = {
 export const arAppointments = {
   appointments: {
     title: "المواعيد",
-    subtitle: "يوم الفرع: عمود لكل مقدّم خدمة، وساعات العمل مظلّلة.",
+    subtitle: "مواعيد الفرع باليوم والأسبوع والشهر، وقائمة اليوم.",
     branch: "الفرع",
     date: "التاريخ",
     today: "اليوم",

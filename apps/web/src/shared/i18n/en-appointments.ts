@@ -12,7 +12,7 @@ export const enAppointmentErrors = {
 export const enAppointments = {
   appointments: {
     title: "Appointments",
-    subtitle: "The branch's day: one column per provider, working hours shaded.",
+    subtitle: "The branch's appointments by day, week and month, and today's list.",
     branch: "Branch",
     date: "Date",
     today: "Today",
