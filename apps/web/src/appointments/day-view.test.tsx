@@ -125,13 +125,22 @@ describe("the booking dialog", () => {
       </QueryClientProvider>
     );
     const view = render(tree(day));
+    const field = (label: string) => screen.getByLabelText<HTMLInputElement>(label);
     const start = await screen.findByLabelText(ar.appointments.dialog.start);
     fireEvent.change(start, { target: { value: "11:30" } });
-    view.rerender(tree({ ...day, appointments: [...day.appointments] }));
-    await waitFor(() =>
-      expect(screen.getByLabelText<HTMLInputElement>(ar.appointments.dialog.start).value).toBe(
-        "11:30",
-      ),
+    // Changing the start pre-fills the end from the provider's default length (rule 4).
+    await waitFor(() => expect(field(ar.appointments.dialog.end).value).toBe("11:50"));
+    fireEvent.change(field(ar.appointments.dialog.end), { target: { value: "12:15" } });
+    // Codex A2 r2: a refetch brings new provider objects; the end typed by hand stays.
+    view.rerender(
+      tree({
+        ...day,
+        providers: day.providers.map((p) => ({ ...p })),
+        appointments: [...day.appointments],
+      }),
     );
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(field(ar.appointments.dialog.start).value).toBe("11:30");
+    expect(field(ar.appointments.dialog.end).value).toBe("12:15");
   });
 });

@@ -73,25 +73,33 @@ export function BookingDialog({ request, day, onClose }: Props) {
   // so typed values survive and a retry replays the same key (Codex A2 r1).
   const dayRef = useRef(day);
   dayRef.current = day;
+  const servicesRef = useRef(services.data);
+  servicesRef.current = services.data;
+  const lastPick = useRef<string | null>(null);
   useEffect(() => {
     if (request === null) return;
     key.current = crypto.randomUUID();
     setPatient(null);
     setRefusal(null);
+    lastPick.current = null;
     form.reset(initial(request, dayRef.current));
   }, [request, form]);
   const [providerId, serviceId, startTime] = useWatch({
     control: form.control,
     name: ["providerMembershipId", "serviceId", "startTime"],
   });
-  // Rule 4's pre-fill: the service's length, else the provider's default (the end stays editable).
+  // Rule 4's pre-fill: the service's length, else the provider's default. Only the user's own change of
+  // start, provider or service moves the end; a refetch never overwrites an end typed by hand (Codex A2 r2).
   useEffect(() => {
-    if (!creating || !form.formState.isDirty) return;
-    const service = services.data?.find((s) => s.id === serviceId);
-    const provider = day.providers.find((p) => p.membershipId === providerId);
+    const pick = `${providerId}|${serviceId}|${startTime}`;
+    const previous = lastPick.current;
+    lastPick.current = pick;
+    if (!creating || previous === null || previous === pick) return;
+    const service = servicesRef.current?.find((s) => s.id === serviceId);
+    const provider = dayRef.current.providers.find((p) => p.membershipId === providerId);
     const minutes = service?.durationMinutes ?? provider?.defaultDurationMinutes ?? 20;
     if (/^\d{2}:\d{2}$/.test(startTime ?? "")) form.setValue("endTime", endFor(startTime, minutes));
-  }, [creating, providerId, serviceId, startTime, services.data, day.providers, form]);
+  }, [creating, providerId, serviceId, startTime, form]);
 
   const mutation = useMutation({
     mutationFn: (values: BookingForm) =>
