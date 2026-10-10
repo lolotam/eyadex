@@ -21,3 +21,4 @@ export { platformSettings } from "./platform-settings.ts";
 export { platformAccounts } from "./platform-accounts.ts";
 export { clinicExpiryReminders } from "./clinic-expiry-reminders.ts";
 export { clinicServices, providerSchedules, providerTimeOff } from "./scheduling.ts";
+export { appointments } from "./appointments.ts";

@@ -77,7 +77,7 @@ export const platformAuditLog = pgTable(
   ],
 );
 
-/** The platform's only window on clinic audit: administrative, non-patient rows (0013). */
+/** The platform's only window on clinic audit: administrative rows, no patient or appointment ones (0013, 0043). */
 export const platformClinicAdminAudit = pgView("platform_clinic_admin_audit", {
   clinicId: uuid("clinic_id").notNull(),
   id: uuid("id").notNull(),
