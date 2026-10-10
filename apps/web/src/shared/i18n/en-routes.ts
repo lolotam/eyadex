@@ -13,6 +13,7 @@ export const enRoutes = {
     users: "Users",
     roles: "Roles & permissions",
     patients: "Patients",
+    appointments: "Appointments",
     account: "My account",
     menu: "Menu",
   },
@@ -26,6 +27,10 @@ export const enRoutes = {
       description: "Counts, subscription and usage for your clinic.",
     },
     clinicAccount: { title: "My account", description: "Your profile and language." },
+    clinicAppointments: {
+      title: "Appointments",
+      description: "The branch day: book, move and follow appointments.",
+    },
     clinicAudit: { title: "Audit log", description: "Every change inside the clinic." },
     clinicBranches: {
       title: "Clinic Branches",

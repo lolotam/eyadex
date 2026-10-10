@@ -131,6 +131,10 @@ export const CLINIC_AUDIT_ACTIONS = [
   "schedule.replaced",
   "time_off.added",
   "time_off.cancelled",
+  "appointment.booked",
+  "appointment.rescheduled",
+  "appointment.status_changed",
+  "appointment.cancelled",
 ] as const;
 
 /** Actions only the platform writes (its own log). */
@@ -151,10 +155,11 @@ export const PLATFORM_ONLY_AUDIT_ACTIONS = [
 ] as const;
 
 /**
- * Clinic-log actions the platform never reads: patient access, and the appointments module's
- * configuration (services, schedules, staff time off) — ADR-0026 §8.
+ * Clinic-log actions the platform never reads: patient access, the appointments module's
+ * configuration (services, schedules, staff time off) — ADR-0026 §8 — and the appointments, which name
+ * patients (0043 keeps their rows out of the platform's view as well).
  */
-const CLINIC_ONLY_ACTION = /^(patient|service|schedule|time_off)\./;
+const CLINIC_ONLY_ACTION = /^(patient|service|schedule|time_off|appointment)\./;
 
 /** What the platform audit screen can show: its own events plus clinic administrative ones. */
 export const PLATFORM_AUDIT_ACTIONS = [

@@ -7,6 +7,7 @@ import { enSettings } from "./en-settings";
 import { enAccess, enAccessErrors } from "./en-access";
 import { enBranches } from "./en-branches";
 import { enRoutes } from "./en-routes";
+import { enAppointmentErrors, enAppointments } from "./en-appointments";
 import { enScheduling, enSchedulingErrors } from "./en-scheduling";
 
 export const en = {
@@ -167,6 +168,7 @@ export const en = {
   ...enAudit,
   ...enSettings,
   ...enScheduling,
+  ...enAppointments,
   validation: {
     needsView: "Any create, edit or deactivate permission needs view on the same area",
     timezone: "Choose a supported time zone",
@@ -189,12 +191,14 @@ export const en = {
     civilId: "Enter a valid 12-digit Kuwaiti civil ID",
     civilIdBirthDate: "The civil ID does not match the birth date",
     outOfRange: "Outside the allowed range",
+    duration: "An appointment lasts 5 minutes to 8 hours",
     smtpHost: "Enter the mail server's domain name, e.g. smtp.example.com",
     controlChars: "Remove line breaks and hidden characters",
   },
   errors: {
     ...enAccessErrors,
     ...enSchedulingErrors,
+    ...enAppointmentErrors,
     patient_phone_taken: "This phone already belongs to another patient in this clinic",
     patient_civil_id_taken: "This civil ID already belongs to another patient in this clinic",
     email_taken: "This email already belongs to a user or a pending invitation",

@@ -7,6 +7,7 @@ import { arSettings } from "./ar-settings";
 import { arAccess, arAccessErrors } from "./ar-access";
 import { arBranches } from "./ar-branches";
 import { arRoutes } from "./ar-routes";
+import { arAppointmentErrors, arAppointments } from "./ar-appointments";
 import { arScheduling, arSchedulingErrors } from "./ar-scheduling";
 
 import type { Dictionary } from "./dictionary";
@@ -166,6 +167,7 @@ export const ar: Dictionary = {
   ...arAudit,
   ...arSettings,
   ...arScheduling,
+  ...arAppointments,
   validation: {
     needsView: "أي صلاحية إضافة أو تعديل أو تعطيل تحتاج صلاحية العرض في نفس القسم",
     timezone: "اختر منطقة زمنية مدعومة",
@@ -188,12 +190,14 @@ export const ar: Dictionary = {
     civilId: "أدخل رقمًا مدنيًا كويتيًا صحيحًا من 12 رقمًا",
     civilIdBirthDate: "الرقم المدني لا يطابق تاريخ الميلاد",
     outOfRange: "خارج النطاق المسموح",
+    duration: "مدة الموعد من 5 دقائق إلى 8 ساعات",
     smtpHost: "اكتب اسم نطاق خادم البريد، مثل smtp.example.com",
     controlChars: "احذف فواصل الأسطر والرموز المخفية",
   },
   errors: {
     ...arAccessErrors,
     ...arSchedulingErrors,
+    ...arAppointmentErrors,
     patient_phone_taken: "هذا الهاتف مسجّل لمراجع آخر في هذه العيادة",
     patient_civil_id_taken: "هذا الرقم المدني مسجّل لمراجع آخر في هذه العيادة",
     email_taken: "هذا البريد مستخدم لدى مستخدم آخر أو في دعوة معلّقة",

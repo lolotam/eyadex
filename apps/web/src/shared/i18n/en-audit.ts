@@ -43,6 +43,7 @@ export const enAudit = {
       clinic_service: "Service",
       provider_schedule: "Work schedule",
       provider_time_off: "Time off",
+      appointment: "Appointment",
     },
     actions: {
       branch: {
@@ -82,6 +83,12 @@ export const enAudit = {
       },
       schedule: { replaced: "Work schedule saved" },
       time_off: { added: "Time off added", cancelled: "Time off cancelled" },
+      appointment: {
+        booked: "Appointment booked",
+        rescheduled: "Appointment moved",
+        status_changed: "Appointment status changed",
+        cancelled: "Appointment cancelled",
+      },
       patient: {
         opened: "Patient file opened",
         created: "Patient file created",
@@ -158,6 +165,10 @@ export const enAudit = {
       startsAt: "Starts",
       endsAt: "Ends",
       cancelled: "Cancelled",
+      serviceNameAr: "Service (Arabic)",
+      serviceNameEn: "Service (English)",
+      overbooked: "Overbooked",
+      cancelReason: "Cancel reason",
     },
     values: {
       trial: "Trial",
@@ -183,6 +194,13 @@ export const enAudit = {
       expired: "Expired",
       invited: "Invited",
       deactivated: "Deactivated",
+      booked: "Booked",
+      arrived: "Arrived",
+      completed: "Completed",
+      no_show: "No-show",
+      patient_cancelled: "Patient cancelled",
+      provider_cancelled: "Provider cancelled",
+      other: "Other",
     },
     diff: { field: "Field", before: "Before", after: "After" },
     yes: "Yes",
