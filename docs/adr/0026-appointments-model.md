@@ -186,10 +186,14 @@ applies the API's check order (access before validation) and rules.
 - **Receptionist (owner).** New clinics' receptionist gets `view|create|update:appointments:branch`,
   `view:schedules:branch`, `view:services:clinic` (`SYSTEM_ROLES`, web `ROLE_TEMPLATES`). Existing clinics' roles
   are not changed by a migration.
-- **TODO(spec), conservative choices:** (1) D-10 names "name, mobile, branch", but the patients use case D-10
-  reuses also requires birth date and gender (`NOT NULL` since 0010): the quick file asks for them too and leaves
-  the civil ID for later; relaxing the file is an owner decision. (2) Only a `booked` appointment is rescheduled.
-  (3) A booking in the past is accepted (walk-ins recorded after the fact); no rule refuses it. (4) The provider
+- **Owner-confirmed (2026-10-10):** (1) D-10 names "name, mobile, branch", but the patients use case D-10 reuses
+  also requires birth date and gender (`NOT NULL` since 0010): the quick file asks for them too and leaves the
+  civil ID for later; relaxing the patient file is a separate decision if ever needed. (3) A booking in the past is
+  accepted (walk-ins recorded after the fact); every booking is audited.
+- **Known gap, fixed first in A3 (owner 2026-10-10):** the day bounds and the grid assume local midnight exists;
+  in a zone whose DST change skips midnight (`Africa/Cairo`, last Friday of April) the day's first hour reads
+  from the previous date (Codex, PR #64, after the five review rounds).
+- **TODO(spec), conservative choices:** (2) Only a `booked` appointment is rescheduled. (4) The provider
   must work in the branch and the branch be active; `overbook` lifts neither. (5) The patient search in the
   dialog uses `view:patients` (a booker without it can only make a quick file).
 
