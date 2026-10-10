@@ -14,7 +14,12 @@ describe("clinic navigation", () => {
   });
 
   it("shows Settings to whoever can view any of its tabs, by permission, never by role", () => {
-    expect(settingsEntry()?.anyOf).toEqual(["clinic_settings", "services", "schedules", "medicines"]);
+    expect(settingsEntry()?.anyOf).toEqual([
+      "clinic_settings",
+      "services",
+      "schedules",
+      "medicines",
+    ]);
     expect(settingsEntry()?.anyOf).toEqual(SETTINGS_TABS.map((tab) => tab.resource));
     const shows = (keys: string[]) =>
       navItemsFor(CLINIC_NAV, keys).some((item) => item.to === "/clinic/settings");
