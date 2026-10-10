@@ -1,4 +1,5 @@
 import type { ClinicAuditEntry } from "@eyadex/contracts/organization";
+import { scrubAuditText, scrubAuditValue } from "@eyadex/observability/audit-text";
 import { newId, type MockState } from "./mock-store";
 
 type Snapshot = { id: string } & Record<string, unknown>;
@@ -27,6 +28,11 @@ function withNames(db: MockState, clinicId: string, snap: Snapshot): Record<stri
   return out;
 }
 
+// The API's own scrub (one implementation, so the rules cannot drift): a row is append-only, so a civil ID
+// or a phone typed into a name must never reach it — the resolved reference names included.
+const scrubbed = (snap: Record<string, unknown>) =>
+  scrubAuditValue(snap) as Record<string, unknown>;
+
 /** Append-only clinic audit primitive shared by every clinic-area mock namespace. */
 export function writeClinicAudit(
   db: MockState,
@@ -44,13 +50,13 @@ export function writeClinicAudit(
   db.clinicAudit.unshift({
     id: newId(),
     clinicId: entry.clinicId,
-    actorName: entry.actorName,
+    actorName: scrubAuditText(entry.actorName),
     action: entry.action,
     entity: entry.entity,
     category: entry.entity === "patient" ? "patient_access" : "administrative",
     entityId: subject.id,
-    before: entry.before ? withNames(db, entry.clinicId, entry.before) : null,
-    after: entry.after ? withNames(db, entry.clinicId, entry.after) : null,
+    before: entry.before ? scrubbed(withNames(db, entry.clinicId, entry.before)) : null,
+    after: entry.after ? scrubbed(withNames(db, entry.clinicId, entry.after)) : null,
     createdAt: new Date().toISOString(),
   });
 }
