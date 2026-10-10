@@ -107,7 +107,7 @@ export function BookingDialog({ request, day, onClose }: Props) {
         ? api.appointments.reschedule(
             persona,
             request.appointment.id,
-            toRescheduleInput(values, day.branch.id, day.timezone),
+            toRescheduleInput(values, day.branch.id, day.timezone, request.appointment),
           )
         : api.appointments.create(
             persona,

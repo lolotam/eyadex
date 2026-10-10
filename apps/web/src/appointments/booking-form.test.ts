@@ -79,3 +79,34 @@ describe("Codex A2 r1", () => {
     expect(skippedTimeField(late, "Africa/Cairo")).toBe("endTime");
   });
 });
+
+describe("Codex A2 r3", () => {
+  it("P2: moving a visit through the repeated hour without touching its times keeps its instants", () => {
+    const CAIRO = "Africa/Cairo";
+    const original = {
+      id: "a",
+      branchId: "b",
+      providerMembershipId: "m",
+      providerName: "Dr",
+      patientId: "p",
+      patientName: "P",
+      patientFileNumber: 1,
+      serviceId: null,
+      serviceNameAr: null,
+      serviceNameEn: null,
+      startsAt: "2027-10-28T20:50:00.000Z",
+      endsAt: "2027-10-28T21:10:00.000Z",
+      status: "booked" as const,
+      overbooked: false,
+      cancelReason: null,
+      cancelNote: null,
+    };
+    const form = formOf(original, CAIRO);
+    const moved = toRescheduleInput({ ...form, providerMembershipId: "m2" }, "b", CAIRO, original);
+    expect(moved).toMatchObject({
+      startsAt: original.startsAt,
+      endsAt: original.endsAt,
+      providerMembershipId: "m2",
+    });
+  });
+});

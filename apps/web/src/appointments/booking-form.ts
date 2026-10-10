@@ -68,15 +68,29 @@ export function toAppointmentInput(
   };
 }
 
+/**
+ * A move. Time fields left as the appointment had them keep its exact instants: a wall time inside a
+ * repeated hour names two instants, and converting it back could pick the other one (Codex A2 r3).
+ */
 export function toRescheduleInput(
   values: BookingForm,
   branchId: string,
   timeZone: string,
+  original?: Appointment,
 ): AppointmentRescheduleInput {
+  const was = original === undefined ? null : formOf(original, timeZone);
+  const untouched =
+    original !== undefined &&
+    was !== null &&
+    was.date === values.date &&
+    was.startTime === values.startTime &&
+    was.endTime === values.endTime;
   return {
     branchId,
     providerMembershipId: values.providerMembershipId,
-    ...interval(values, timeZone),
+    ...(untouched
+      ? { startsAt: original.startsAt, endsAt: original.endsAt }
+      : interval(values, timeZone)),
     overbook: values.overbook,
   };
 }
