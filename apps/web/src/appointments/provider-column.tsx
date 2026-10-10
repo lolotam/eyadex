@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { AppointmentBlock } from "./appointment-block";
 import {
+  dayLength,
   instantAt,
   labelAt,
   lanes,
@@ -39,6 +40,9 @@ export function ProviderColumn({
 }: Props) {
   const { t } = useI18n();
   const height = (range.to - range.from) * PX_PER_MINUTE;
+  // The week shares one range across seven columns, but a clock-change day is 23 or 25 hours: content and
+  // slots stop at this column's own day, or a slot past it would book the next calendar date (Codex A4).
+  const own = { from: range.from, to: Math.min(range.to, dayLength(day.date, day.timezone)) };
   const at = (iso: string) => minuteOfDay(iso, day.date, day.timezone);
   const mayBook = day.can.create && provider.bookable;
   const mine = day.appointments.filter((a) => a.providerMembershipId === provider.membershipId);
@@ -59,7 +63,7 @@ export function ProviderColumn({
       <div className="relative bg-muted" style={{ height }}>
         {provider.shifts.flatMap((s) =>
           shiftSegments(s, runs).map((segment) => {
-            const box = placement(segment.from, segment.to, range);
+            const box = placement(segment.from, segment.to, own);
             return (
               box && (
                 <div
@@ -73,7 +77,7 @@ export function ProviderColumn({
           }),
         )}
         {provider.timeOff.map((o) => {
-          const box = placement(at(o.startsAt), at(o.endsAt), range);
+          const box = placement(at(o.startsAt), at(o.endsAt), own);
           return (
             box && (
               <div
@@ -86,7 +90,7 @@ export function ProviderColumn({
             )
           );
         })}
-        {slotStarts(range).map((minute) => (
+        {slotStarts(own).map((minute) => (
           <div
             key={minute}
             className="absolute inset-x-0 border-t border-dashed border-border/60"
@@ -111,7 +115,7 @@ export function ProviderColumn({
           </div>
         ))}
         {mine.map((a) => {
-          const box = placement(at(a.startsAt), at(a.endsAt), range);
+          const box = placement(at(a.startsAt), at(a.endsAt), own);
           return (
             box && (
               <AppointmentBlock

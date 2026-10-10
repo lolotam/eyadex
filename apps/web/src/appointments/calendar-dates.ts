@@ -56,3 +56,21 @@ export function weekDayAsDay(week: AppointmentWeek, index: number): AppointmentD
 export const WEEKDAY_KEYS = ["0", "1", "2", "3", "4", "5", "6"] as const;
 /** The month keys, January first. */
 export const MONTH_KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"] as const;
+
+/** A provider filter as picked, with the branch it was picked in. */
+export type ProviderPick = { readonly branchId: string; readonly providerId: string };
+
+/**
+ * The provider a filter still applies: the pick belongs to the branch it was made in, so another branch, or
+ * a loaded list that no longer offers it, means every provider (`null`) — never a hidden filter that shows
+ * zero counts (Codex A4).
+ */
+export function pickedProvider(
+  pick: ProviderPick | null,
+  branchId: string,
+  listed: readonly { membershipId: string }[] | undefined,
+): string | null {
+  if (pick === null || pick.branchId !== branchId) return null;
+  if (listed !== undefined && !listed.some((p) => p.membershipId === pick.providerId)) return null;
+  return pick.providerId;
+}

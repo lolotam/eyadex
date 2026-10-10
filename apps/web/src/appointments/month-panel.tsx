@@ -7,7 +7,13 @@ import { LoadingBlock } from "@/shared/shell/loading-block";
 import { StatusPanel } from "@/shared/shell/status-panel";
 import { FilterSelect } from "@/shared/table/filter-select";
 import { useAppointmentDay, useAppointmentMonth } from "./appointment-queries";
-import { MONTH_KEYS, monthOf, shiftMonth } from "./calendar-dates";
+import {
+  MONTH_KEYS,
+  monthOf,
+  pickedProvider,
+  shiftMonth,
+  type ProviderPick,
+} from "./calendar-dates";
 import { MonthView } from "./month-view";
 import { PeriodNav } from "./period-nav";
 
@@ -24,9 +30,13 @@ type Props = {
 export function MonthPanel({ branchId, date, today, ownOnly, onDateChange, onOpenDay }: Props) {
   const { t } = useI18n();
   const month = monthOf(date);
-  const [providerId, setProviderId] = useState<string | null>(null);
+  const [pick, setPick] = useState<ProviderPick | null>(null);
   // The filter offers the providers of the branch on the month's first day (as the week's picker).
   const providers = useAppointmentDay(ownOnly ? null : branchId, `${month}-01`);
+  const listed = providers.data?.providers;
+  const providerId = pickedProvider(pick, branchId, listed);
+  const setProviderId = (id: string | null) =>
+    setPick(id === null ? null : { branchId, providerId: id });
   const counts = useAppointmentMonth(branchId, month, ownOnly ? null : providerId);
   const go = (m: string) => onDateChange(`${m}-01`);
   return (
@@ -37,7 +47,7 @@ export function MonthPanel({ branchId, date, today, ownOnly, onDateChange, onOpe
             label={t("appointments.provider")}
             value={providerId}
             anyLabel={t("appointments.month.allProviders")}
-            options={(providers.data?.providers ?? []).map((p) => ({
+            options={(listed ?? []).map((p) => ({
               value: p.membershipId,
               label: p.fullName,
             }))}
