@@ -181,6 +181,7 @@ export const enAudit = {
       inactive: "Inactive",
       patients: "Patients",
       appointments: "Appointments",
+      medical: "Medical",
       ar: "Arabic",
       en: "English",
       male: "Male",

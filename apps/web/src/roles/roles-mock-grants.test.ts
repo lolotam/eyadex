@@ -111,7 +111,7 @@ describe("role grants (ADR-0017 §6, mock)", () => {
   });
 
   it("counts a role's key of a switched-off module", async () => {
-    getState().features[clinicId()] = { patients: false, appointments: false };
+    getState().features[clinicId()] = { patients: false, appointments: false, medical: false };
     const hidden = await roleWith([]);
     getState()
       .roles.find((r) => r.id === hidden)!

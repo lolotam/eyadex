@@ -44,6 +44,9 @@ export async function readPlatformSettingsIn(tx: Tx, lock = false): Promise<Plat
     defaultModules: {
       patients: row.default_module_patients,
       appointments: row.default_module_appointments,
+      // P2 R2-3: `default_module_medical` arrives with 0047 (P2 Task 4 maps it here). Until then no
+      // column holds it and the medical module stays off for every new clinic.
+      medical: false,
     },
   };
 }

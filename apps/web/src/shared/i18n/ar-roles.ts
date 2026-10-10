@@ -31,6 +31,7 @@ export const arRoles = {
       core: "إدارة العيادة",
       patients: "موديول المراجعين",
       appointments: "موديول المواعيد",
+      medical: "الموديول الطبي",
     },
     resources: {
       branches: "الفروع",
@@ -42,6 +43,9 @@ export const arRoles = {
       appointments: "المواعيد",
       services: "الخدمات",
       schedules: "جداول العمل",
+      visits: "الزيارات",
+      medical: "المحتوى الطبي",
+      medicines: "الأدوية",
     },
     actions: {
       view: "عرض",

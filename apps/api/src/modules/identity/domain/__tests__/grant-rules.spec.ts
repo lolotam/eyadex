@@ -138,8 +138,11 @@ describe("the own scope (spec §3: the narrowest; a wider scope on the same acti
 });
 
 describe("new-clinic system roles (ADR-0026 §6)", () => {
-  it("the locked admin holds every clinic-scope key of the catalogue, appointments included", () => {
-    const clinicKeys = PERMISSION_CATALOG.filter((p) => p.scope === "clinic").map((p) => p.key);
+  // P2 R1-4: the medical module's resources reach roles only at its release (0051).
+  it("the locked admin holds every clinic-scope key of the catalogue but the unreleased medical ones", () => {
+    const clinicKeys = PERMISSION_CATALOG.filter(
+      (p) => p.scope === "clinic" && p.module !== "medical",
+    ).map((p) => p.key);
     expect([...adminKeys].sort()).toEqual([...clinicKeys].sort());
     expect(adminKeys).toContain("update:schedules:clinic");
   });

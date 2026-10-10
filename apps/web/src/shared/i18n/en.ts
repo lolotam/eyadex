@@ -148,6 +148,8 @@ export const en = {
       patientsBody: "Patient files, search and registration.",
       appointments: "Appointments",
       appointmentsBody: "Services, work schedules and time off; booking arrives next.",
+      medical: "Medical",
+      medicalBody: "Visits, doctor notes, diagnoses, prescriptions and the medical file.",
       saved: "Module updated",
     },
     members: {

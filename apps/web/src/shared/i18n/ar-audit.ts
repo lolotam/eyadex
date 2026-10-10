@@ -181,6 +181,7 @@ export const arAudit = {
       inactive: "غير نشط",
       patients: "المراجعون",
       appointments: "المواعيد",
+      medical: "الطبي",
       ar: "العربية",
       en: "الإنجليزية",
       male: "ذكر",

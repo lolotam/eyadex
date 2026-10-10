@@ -170,7 +170,8 @@ export function buildSeed(): MockState {
       createdAt,
     };
     state.clinics.push(clinic);
-    const features: ClinicFeatures = { patients: true, appointments: true };
+    // P2: the medical module ships switched off; the release turns it on (R2-3).
+    const features: ClinicFeatures = { patients: true, appointments: true, medical: false };
     state.features[clinicId] = features;
 
     const branches: Branch[] = [0, 1].map((bi) => {

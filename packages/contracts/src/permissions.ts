@@ -14,6 +14,9 @@ export const resourceSchema = z.enum([
   "appointments",
   "services",
   "schedules",
+  "visits",
+  "medical",
+  "medicines",
 ]);
 export type PermissionResource = z.infer<typeof resourceSchema>;
 
@@ -25,7 +28,7 @@ export type PermissionScope = z.infer<typeof scopeSchema>;
 export const permissionSchema = z
   .string()
   .regex(
-    /^(view|create|update|deactivate|overbook):(branches|users|roles|patients|audit_log|clinic_settings|appointments|services|schedules):(clinic|branch|own)$/,
+    /^(view|create|update|deactivate|overbook):(branches|users|roles|patients|audit_log|clinic_settings|appointments|services|schedules|visits|medical|medicines):(clinic|branch|own)$/,
   );
 export type Permission = string;
 
@@ -48,6 +51,9 @@ const resourceModule: Record<PermissionResource, ClinicModule | null> = {
   appointments: "appointments",
   services: "appointments",
   schedules: "appointments",
+  visits: "medical",
+  medical: "medical",
+  medicines: "medical",
 };
 
 type Scopes = readonly PermissionScope[];
@@ -57,8 +63,11 @@ const MANAGED = { view: CLINIC, create: CLINIC, update: CLINIC, deactivate: CLIN
 
 /**
  * Each resource's actions and the scopes each action takes (PRD 4.7, appointments spec §3); no other
- * combination exists. `own` is a view scope only: on appointments the caller's own bookings, on
- * patients the files with a live appointment with the caller (D-4, slice A3, ADR-0026 A3).
+ * combination exists. `own` is a view scope on appointments (the caller's own bookings), on patients
+ * (the files with a live appointment with the caller; D-4, slice A3, ADR-0026 A3), on visits and on
+ * the medical content (the caller's own visits). On visits it is also the only create scope: the
+ * caller starts a visit as its provider (P2 spec). `medical` is a visit's clinical content and the
+ * medical file; `medicines` is the clinic's medicines list (P2-F2).
  */
 const resourceGrants: Record<PermissionResource, Partial<Record<PermissionAction, Scopes>>> = {
   branches: MANAGED,
@@ -80,6 +89,9 @@ const resourceGrants: Record<PermissionResource, Partial<Record<PermissionAction
   },
   services: MANAGED,
   schedules: { view: BRANCHED, update: BRANCHED },
+  visits: { view: ["clinic", "branch", "own"], create: ["own"] },
+  medical: { view: ["clinic", "own"], update: ["clinic", "own"] },
+  medicines: { view: CLINIC, update: CLINIC },
 };
 
 function buildCatalog(): PermissionDefinition[] {
@@ -148,5 +160,15 @@ export const PERMISSION_KEYS = [
   "view:schedules:branch",
   "update:schedules:clinic",
   "update:schedules:branch",
+  "view:visits:clinic",
+  "view:visits:branch",
+  "view:visits:own",
+  "create:visits:own",
+  "view:medical:clinic",
+  "view:medical:own",
+  "update:medical:clinic",
+  "update:medical:own",
+  "view:medicines:clinic",
+  "update:medicines:clinic",
 ] as const;
 export type PermissionKey = (typeof PERMISSION_KEYS)[number];

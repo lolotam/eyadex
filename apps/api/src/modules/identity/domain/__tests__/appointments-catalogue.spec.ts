@@ -35,9 +35,16 @@ describe("the appointments catalogue", () => {
     expect(added).toEqual(ADDED);
   });
 
-  it("offers `own` only on view, on appointments and (A3) on patients", () => {
+  it("offers `own` on appointments and (A3) patients views, and (P2) on visits and the medical content", () => {
     const own = PERMISSION_CATALOG.filter((p) => p.scope === "own").map((p) => p.key);
-    expect(own).toEqual(["view:patients:own", "view:appointments:own"]);
+    expect(own).toEqual([
+      "view:patients:own",
+      "view:appointments:own",
+      "view:visits:own",
+      "create:visits:own",
+      "view:medical:own",
+      "update:medical:own",
+    ]);
     const patientsOwn = PERMISSION_CATALOG.find((p) => p.key === "view:patients:own");
     expect(patientsOwn?.module).toBe("patients");
   });
@@ -87,5 +94,37 @@ describe("new clinics' system roles (A2, A3)", () => {
     expect(keysOf("doctor")).toEqual(["view:appointments:own", "view:patients:own"]);
     expect(permissionKeysSchema.safeParse(keysOf("doctor")).success).toBe(true);
     expect(keysOf("technician")).toEqual(["view:patients:branch"]);
+  });
+});
+
+// P2 (R1-4, R1-10): the medical module's ten keys join the catalogue now, but reach no role until its
+// release (0051); a new clinic's admin is built without them.
+describe("the medical catalogue (P2)", () => {
+  it("adds exactly the module's keys, every one gated by the medical module", () => {
+    const added = PERMISSION_CATALOG.filter((p) => p.module === "medical").map((p) => p.key);
+    expect(added).toEqual([
+      "view:visits:clinic",
+      "view:visits:branch",
+      "view:visits:own",
+      "create:visits:own",
+      "view:medical:clinic",
+      "view:medical:own",
+      "update:medical:clinic",
+      "update:medical:own",
+      "view:medicines:clinic",
+      "update:medicines:clinic",
+    ]);
+  });
+
+  it("gives no system role a medical key before the release", () => {
+    for (const role of SYSTEM_ROLES) {
+      const medical = role.permissions.filter((key) =>
+        /^\w+:(visits|medical|medicines):/.test(key),
+      );
+      expect(medical).toEqual([]);
+    }
+    const admin = SYSTEM_ROLES.find((r) => r.key === "clinic_admin")?.permissions;
+    expect(admin).toContain("view:schedules:clinic");
+    expect(permissionKeysSchema.safeParse(admin).success).toBe(true);
   });
 });

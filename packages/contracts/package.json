@@ -14,7 +14,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "vitest run"
   },
   "dependencies": {
     "zod": "^3.25.76"
@@ -22,6 +23,7 @@
   "devDependencies": {
     "@eyadex/config": "workspace:*",
     "eslint": "^9.32.0",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "4.1.11"
   }
 }

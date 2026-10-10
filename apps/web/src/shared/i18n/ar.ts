@@ -147,6 +147,8 @@ export const ar: Dictionary = {
       patientsBody: "ملفات المراجعين والبحث والتسجيل.",
       appointments: "المواعيد",
       appointmentsBody: "الخدمات وجداول العمل والإجازات؛ الحجز يأتي في المرحلة التالية.",
+      medical: "الطبي",
+      medicalBody: "الزيارات وملاحظات الطبيب والتشخيصات والوصفات والملف الطبي.",
       saved: "تم تحديث الموديول",
     },
     members: {

@@ -126,7 +126,7 @@ describe("platform audit log", () => {
         adminEmail: "resend.admin@example.com",
         maxUsers: 10,
         maxBranches: 3,
-        modules: { patients: true, appointments: true },
+        modules: { patients: true, appointments: true, medical: false },
       },
       crypto.randomUUID(),
     );
