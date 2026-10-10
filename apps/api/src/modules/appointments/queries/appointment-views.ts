@@ -33,10 +33,11 @@ export async function projectAppointments(
   rows: readonly AppointmentRow[],
 ): Promise<Appointment[]> {
   const { tx, providers, patients } = reads;
-  const names = new Map<string, string>();
-  for (const id of new Set(rows.map((r) => r.providerMembershipId))) {
-    names.set(id, (await providers.find(tx, clinicId, id))?.fullName ?? "");
-  }
+  const names = await providers.findMany(
+    tx,
+    clinicId,
+    rows.map((r) => r.providerMembershipId),
+  );
   const labels = await patients.labels(
     tx,
     clinicId,
@@ -54,7 +55,7 @@ export async function projectAppointments(
       id: r.id,
       branchId: r.branchId,
       providerMembershipId: r.providerMembershipId,
-      providerName: names.get(r.providerMembershipId) ?? "",
+      providerName: names.get(r.providerMembershipId)?.fullName ?? "",
       patientId: r.patientId,
       patientName: patient?.fullName ?? "",
       patientFileNumber: patient?.fileNumber ?? 0,

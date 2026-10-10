@@ -50,6 +50,21 @@ export class PgProviderDirectory {
     return rows[0] === undefined ? null : toRow(rows[0]);
   }
 
+  // One statement for any number of members: the branch day reads every column's member at once.
+  async findMany(
+    tx: Tx,
+    clinicId: string,
+    membershipIds: readonly string[],
+  ): Promise<ReadonlyMap<string, ProviderRow>> {
+    const unique = [...new Set(membershipIds)];
+    if (unique.length === 0) return new Map();
+    const rows = await tx.execute<Raw>(
+      sql`${SELECT} WHERE m.clinic_id = ${clinicId}
+            AND m.id = ANY(string_to_array(${unique.join(",")}, ',')::uuid[])`,
+    );
+    return new Map(rows.map((row) => [row.id, toRow(row)]));
+  }
+
   // ADR-0027: the membership row before any branch row, so no write about a provider waits on it while
   // holding a branch. The lock and the read are two statements: a statement that waited for the row
   // re-reads the row itself but not its subquery, which would keep the branch links of before the wait

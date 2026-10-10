@@ -12,7 +12,10 @@ import { ApiError } from "../../../shared/errors.ts";
 import { actorReach, type AppointmentActor } from "../domain/booking-rules.ts";
 import { providerWorksIn, reachCovers } from "../domain/scheduling-scope.ts";
 import { branchDayRows } from "../persistence/pg-appointment-store.ts";
-import { readScheduleRows, readTimeOffOverlapping } from "../persistence/pg-schedule-store.ts";
+import {
+  readBranchDayShifts,
+  readTimeOffOverlappingFor,
+} from "../persistence/pg-schedule-store.ts";
 import type { BookingPatientReader } from "../ports/booking-patient-reader.ts";
 import type { ProviderDirectory, ProviderRecord } from "../ports/provider-directory.ts";
 import type { SchedulingBranchReader } from "../ports/scheduling-branch-reader.ts";
@@ -81,28 +84,25 @@ export function readAppointmentDay(
     const day = clinicDay(query.date, timezone);
     const weekday = new Date(`${query.date}T00:00:00Z`).getUTCDay();
     const rows = await branchDayRows(tx, clinicId, branch.id, day);
+    // A constant number of statements however many columns the branch has (Codex A2 PR #64).
     const columns = new Map<string, ProviderRecord>();
     for (const p of await deps.providers.listBookable(tx, clinicId)) {
       if (providerWorksIn(p, branch.id)) columns.set(p.membershipId, p);
     }
-    for (const id of new Set(rows.map((r) => r.providerMembershipId))) {
-      const p = columns.has(id) ? null : await deps.providers.find(tx, clinicId, id);
-      if (p !== null) columns.set(id, p);
-    }
-    const providers: DayProvider[] = [];
-    for (const p of columns.values()) {
-      const shifts = (await readScheduleRows(tx, clinicId, p.membershipId))
-        .filter((s) => s.branchId === branch.id && s.weekday === weekday)
-        .map((s) => ({ startsAt: s.startsAt, endsAt: s.endsAt }));
-      providers.push({
-        membershipId: p.membershipId,
-        fullName: p.fullName,
-        defaultDurationMinutes: p.defaultDurationMinutes,
-        bookable: p.active && p.acceptsAppointments && providerWorksIn(p, branch.id),
-        shifts,
-        timeOff: await readTimeOffOverlapping(tx, clinicId, p.membershipId, day),
-      });
-    }
+    const holders = [...new Set(rows.map((r) => r.providerMembershipId))];
+    const missing = holders.filter((id) => !columns.has(id));
+    for (const [id, p] of await deps.providers.findMany(tx, clinicId, missing)) columns.set(id, p);
+    const ids = [...columns.keys()];
+    const shifts = await readBranchDayShifts(tx, clinicId, ids, branch.id, weekday);
+    const timeOff = await readTimeOffOverlappingFor(tx, clinicId, ids, day);
+    const providers: DayProvider[] = [...columns.values()].map((p) => ({
+      membershipId: p.membershipId,
+      fullName: p.fullName,
+      defaultDurationMinutes: p.defaultDurationMinutes,
+      bookable: p.active && p.acceptsAppointments && providerWorksIn(p, branch.id),
+      shifts: shifts.get(p.membershipId) ?? [],
+      timeOff: timeOff.get(p.membershipId) ?? [],
+    }));
     providers.sort(
       (a, b) => a.fullName.localeCompare(b.fullName) || (a.membershipId < b.membershipId ? -1 : 1),
     );
