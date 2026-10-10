@@ -3,11 +3,16 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Logging configuration shared by api and worker — pino options and the redaction list (CLAUDE.md §8)",
+  "description": "Logging configuration shared by api and worker — pino options and the redaction list (CLAUDE.md §8). The audit-text subpath is the pure audit scrub (no pino, no node built-ins): the web reads its src/, Node runtimes its dist/ through the `eyadex-runtime` condition.",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./audit-text": {
+      "types": "./src/audit-text.ts",
+      "eyadex-runtime": "./dist/audit-text.js",
+      "default": "./src/audit-text.ts"
     }
   },
   "scripts": {

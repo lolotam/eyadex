@@ -1,5 +1,6 @@
 import type { PlatformAccount } from "@eyadex/contracts/platform";
 import type { Persona } from "@eyadex/contracts/session";
+import { scrubAuditText, scrubAuditValue } from "@eyadex/observability/audit-text";
 import { ApiError } from "../api-error";
 import { newId, type MockState } from "./mock-store";
 
@@ -24,6 +25,9 @@ export function resolvePlatformActor(db: MockState, persona: Persona): PlatformA
 
 type Snapshot = Record<string, unknown> | null;
 
+// The API's audit scrub, as on the clinic side (mock-audit.ts): a typed clinic name can carry a civil ID.
+const scrubbed = (snap: Snapshot) => (snap ? (scrubAuditValue(snap) as Snapshot) : null);
+
 /** Single writer for platform events; before/after are allowlisted by the caller. */
 export function writePlatformAudit(
   db: MockState,
@@ -39,13 +43,13 @@ export function writePlatformAudit(
 ): void {
   db.platformAudit.unshift({
     id: newId(),
-    actorName: entry.actorName,
+    actorName: scrubAuditText(entry.actorName),
     action: entry.action,
     clinicId: entry.clinicId,
     entityId: entry.entityId ?? null,
-    summary: entry.summary,
-    before: entry.before,
-    after: entry.after,
+    summary: scrubAuditText(entry.summary),
+    before: scrubbed(entry.before),
+    after: scrubbed(entry.after),
     createdAt: new Date().toISOString(),
   });
 }
