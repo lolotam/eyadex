@@ -111,3 +111,16 @@ export function weekDialogDay(
   const day = weekDayAsDay(week, index);
   return { ...day, providers: listed.length > 0 ? listed : day.providers };
 }
+
+/**
+ * The week's provider after the branch day's list changed: kept while another week's list is still loading
+ * (`undefined`), kept when the loaded list offers it, else the list's first (Codex A4).
+ */
+export function keptProvider(
+  current: string | null,
+  listed: readonly { membershipId: string }[] | undefined,
+): string | null {
+  if (listed === undefined) return current;
+  if (listed.some((p) => p.membershipId === current)) return current;
+  return listed[0]?.membershipId ?? null;
+}

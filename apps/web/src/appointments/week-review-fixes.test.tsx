@@ -3,7 +3,13 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { AppointmentWeek } from "@eyadex/contracts/appointment-calendar";
 import type { AppointmentDay } from "@eyadex/contracts/appointments";
 import { I18nProvider } from "@/shared/i18n/i18n-provider";
-import { gutterDayIndex, pickedProvider, weekDayIndexOf, weekDialogDay } from "./calendar-dates";
+import {
+  gutterDayIndex,
+  keptProvider,
+  pickedProvider,
+  weekDayIndexOf,
+  weekDialogDay,
+} from "./calendar-dates";
 import { dayLength } from "./day-grid";
 import { ProviderColumn } from "./provider-column";
 
@@ -140,5 +146,20 @@ describe("the booking dialog opened from the week", () => {
       "m2",
     ]);
     expect(weekDialogDay(week, 1, []).providers.map((p) => p.membershipId)).toEqual(["m1"]);
+  });
+});
+
+describe("the week's provider across weeks", () => {
+  const listed = [{ membershipId: "m1" }, { membershipId: "m2" }];
+
+  it("keeps the pick while another week's list loads and when the loaded list offers it", () => {
+    expect(keptProvider("m2", undefined)).toBe("m2");
+    expect(keptProvider("m2", listed)).toBe("m2");
+  });
+
+  it("moves to the list's first only once a loaded list lacks the pick", () => {
+    expect(keptProvider("m9", listed)).toBe("m1");
+    expect(keptProvider(null, listed)).toBe("m1");
+    expect(keptProvider("m2", [])).toBeNull();
   });
 });

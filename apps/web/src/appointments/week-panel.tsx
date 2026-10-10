@@ -9,7 +9,7 @@ import { StatusPanel } from "@/shared/shell/status-panel";
 import { FilterSelect } from "@/shared/table/filter-select";
 import { useAppointmentDay, useAppointmentWeek } from "./appointment-queries";
 import { BookingDialog, type BookingRequest } from "./booking-dialog";
-import { weekDayIndexOf, weekDialogDay, weekStartOf } from "./calendar-dates";
+import { keptProvider, weekDayIndexOf, weekDialogDay, weekStartOf } from "./calendar-dates";
 import { CancelDialog } from "./cancel-dialog";
 import { shiftDate } from "./day-grid";
 import { PeriodNav } from "./period-nav";
@@ -31,10 +31,9 @@ export function WeekPanel({ branchId, date, today, ownOnly, onDateChange }: Prop
   const listed = useMemo(() => providers.data?.providers ?? [], [providers.data]);
   const [providerId, setProviderId] = useState<string | null>(null);
   useEffect(() => {
-    if (!listed.some((p) => p.membershipId === providerId)) {
-      setProviderId(listed[0]?.membershipId ?? null);
-    }
-  }, [listed, providerId]);
+    const kept = keptProvider(providerId, providers.data?.providers);
+    if (kept !== providerId) setProviderId(kept);
+  }, [providers.data, providerId]);
   const week = useAppointmentWeek(branchId, providerId, weekStart);
   const [booking, setBooking] = useState<{ request: BookingRequest; dayIndex: number } | null>(
     null,
