@@ -34,11 +34,33 @@ const day = {
   can: { create: true, update: true, overbook: false },
 };
 
+const week = {
+  branch,
+  weekStart: "2026-01-04",
+  timezone: "Asia/Kuwait",
+  provider: { membershipId: USER, fullName: "Dr A", defaultDurationMinutes: 20, bookable: true },
+  days: Array.from({ length: 7 }, (_, i) => ({
+    date: `2026-01-${String(4 + i).padStart(2, "0")}`,
+    shifts: [],
+    timeOff: [],
+  })),
+  appointments: [appointment],
+  can: { create: true, update: true, overbook: false },
+};
+const month = {
+  branch,
+  month: "2026-01",
+  timezone: "Asia/Kuwait",
+  days: [{ date: "2026-01-01", count: 1 }],
+};
+
 function answer(call: Call) {
   const path = call.url.replace(/\?.*$/, "");
   if (path === "/api/v1/me") return { body: me };
   if (path === "/api/v1/appointments/branches") return { body: { items: [branch] } };
   if (path === "/api/v1/appointments/day") return { body: day };
+  if (path === "/api/v1/appointments/week") return { body: week };
+  if (path === "/api/v1/appointments/month") return { body: month };
   return {
     body: { appointment },
     status: call.method === "POST" && path.endsWith("appointments") ? 201 : 200,
@@ -56,6 +78,27 @@ describe("appointments over HTTP", () => {
     expect(await h.api.appointments.listBranches(P)).toEqual({ items: [branch] });
     expect(await h.api.appointments.day(P, { branchId: BRANCH, date: "2026-01-01" })).toEqual(day);
     expect(last().url).toBe(`/api/v1/appointments/day?branchId=${BRANCH}&date=2026-01-01`);
+  });
+
+  it("reads the provider week and the month with their queries (slice A4)", async () => {
+    const weekQuery = { branchId: BRANCH, providerMembershipId: USER, weekStart: "2026-01-04" };
+    expect(await h.api.appointments.week(P, weekQuery)).toEqual(week);
+    expect(last()).toMatchObject({
+      method: "GET",
+      url: `/api/v1/appointments/week?branchId=${BRANCH}&providerMembershipId=${USER}&weekStart=2026-01-04`,
+    });
+    expect(await h.api.appointments.month(P, { branchId: BRANCH, month: "2026-01" })).toEqual(
+      month,
+    );
+    expect(last().url).toBe(`/api/v1/appointments/month?branchId=${BRANCH}&month=2026-01`);
+    await h.api.appointments.month(P, {
+      branchId: BRANCH,
+      month: "2026-01",
+      providerMembershipId: USER,
+    });
+    expect(last().url).toBe(
+      `/api/v1/appointments/month?branchId=${BRANCH}&month=2026-01&providerMembershipId=${USER}`,
+    );
   });
 
   it("creates with the Idempotency-Key and only the contract's fields", async () => {

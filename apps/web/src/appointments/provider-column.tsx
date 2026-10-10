@@ -19,6 +19,8 @@ type Props = {
   day: AppointmentDay;
   provider: DayProvider;
   range: { from: number; to: number };
+  /** The header; the provider's name unless given (the week labels each column by its date). */
+  title?: string;
   /** The clicked slot's start instant (UTC ISO); its wall label is for display only. */
   onBook: (providerId: string, startsAt: string) => void;
   onReschedule: (appointment: Appointment) => void;
@@ -26,7 +28,15 @@ type Props = {
 };
 
 /** One provider's column: working hours shaded, time off hatched, a slot button per half hour. */
-export function ProviderColumn({ day, provider, range, onBook, onReschedule, onCancel }: Props) {
+export function ProviderColumn({
+  day,
+  provider,
+  range,
+  title,
+  onBook,
+  onReschedule,
+  onCancel,
+}: Props) {
   const { t } = useI18n();
   const height = (range.to - range.from) * PX_PER_MINUTE;
   const at = (iso: string) => minuteOfDay(iso, day.date, day.timezone);
@@ -37,10 +47,10 @@ export function ProviderColumn({ day, provider, range, onBook, onReschedule, onC
   return (
     <div className="min-w-44 flex-1 border-e last:border-e-0 sm:min-w-52">
       <div className="flex h-12 items-center gap-2 border-b px-3">
-        <span className="truncate text-sm font-medium" title={provider.fullName}>
-          {provider.fullName}
+        <span className="truncate text-sm font-medium" title={title ?? provider.fullName}>
+          {title ?? provider.fullName}
         </span>
-        {!provider.bookable && (
+        {title === undefined && !provider.bookable && (
           <Badge variant="secondary" className="shrink-0 text-[10px]">
             {t("appointments.notBookable")}
           </Badge>

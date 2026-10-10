@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
-import { AlertCircle, CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
-import type { Appointment } from "@eyadex/contracts/appointments";
+import { AlertCircle, CalendarDays } from "lucide-react";
 import { todayInTimeZone } from "@eyadex/contracts/patients";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { errorCodeOf } from "@/shared/api/api-error";
 import { can } from "@/shared/permissions/can";
 import { useI18n } from "@/shared/i18n/i18n-provider";
@@ -12,53 +11,48 @@ import { LoadingBlock } from "@/shared/shell/loading-block";
 import { PageHeader } from "@/shared/shell/page-header";
 import { StatusPanel } from "@/shared/shell/status-panel";
 import { FilterSelect } from "@/shared/table/filter-select";
-import { useAppointmentBranches, useAppointmentDay } from "./appointment-queries";
-import { BookingDialog, type BookingRequest } from "./booking-dialog";
-import { CancelDialog } from "./cancel-dialog";
-import { shiftDate } from "./day-grid";
-import { DayView } from "./day-view";
+import { useAppointmentBranches } from "./appointment-queries";
+import { APPOINTMENT_VIEWS, parseAppointmentView, useAppointmentView } from "./appointment-view";
+import { DayPanel } from "./day-panel";
+import { MonthPanel } from "./month-panel";
+import { QueuePanel } from "./queue-panel";
+import { WeekPanel } from "./week-panel";
 
 export function AppointmentsContent() {
   const { t, pick } = useI18n();
   const { session } = useSession();
   const timeZone = session?.clinic?.timezone ?? "Asia/Kuwait";
   const branches = useAppointmentBranches();
+  const [view, setView] = useAppointmentView();
   const [branchId, setBranchId] = useState<string | null>(null);
   const [date, setDate] = useState(() => todayInTimeZone(timeZone));
-  const [booking, setBooking] = useState<BookingRequest | null>(null);
-  const [cancelling, setCancelling] = useState<Appointment | null>(null);
+  const today = todayInTimeZone(timeZone);
   useEffect(() => {
     const listed = branches.data?.items ?? [];
     if (!listed.some((b) => b.id === branchId)) setBranchId(listed[0]?.id ?? null);
   }, [branches.data, branchId]);
   const items = branches.data?.items ?? [];
-  const day = useAppointmentDay(branchId, date);
-  // A3: with only the own key the day shows the caller's own column; the empty state says so.
+  // A3: with only the own key every view shows the caller alone; the week has no provider picker.
   const ownOnly = !can(session?.permissions ?? [], "view", "appointments", ["clinic", "branch"]);
 
-  const failed = branches.error ?? day.error;
   const header = (
     <PageHeader
       title={t("appointments.title")}
       subtitle={`${t("appointments.subtitle")} ${t("appointments.timezoneNote", { zone: timeZone })}`}
     />
   );
-  if (failed) {
+  if (branches.error) {
     return (
       <StatusPanel
         icon={AlertCircle}
         title={t("appointments.loadError")}
-        body={t(`errors.${errorCodeOf(failed)}`)}
-        action={
-          <Button onClick={() => void (branches.error ? branches.refetch() : day.refetch())}>
-            {t("common.tryAgain")}
-          </Button>
-        }
+        body={t(`errors.${errorCodeOf(branches.error)}`)}
+        action={<Button onClick={() => void branches.refetch()}>{t("common.tryAgain")}</Button>}
       />
     );
   }
   if (branches.isLoading) return <LoadingBlock />;
-  if (items.length === 0) {
+  if (items.length === 0 || branchId === null) {
     return (
       <div>
         {header}
@@ -66,61 +60,46 @@ export function AppointmentsContent() {
       </div>
     );
   }
+  const shared = { branchId, date, today, ownOnly, onDateChange: setDate };
   return (
     <div>
       {header}
-      <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border bg-card p-3">
-        <FilterSelect
-          label={t("appointments.branch")}
-          value={branchId}
-          anyLabel={t("appointments.branch")}
-          options={items.map((b) => ({ value: b.id, label: pick(b.nameAr, b.nameEn) }))}
-          onChange={(value) => value && setBranchId(value)}
-        />
-        <div className="flex items-center gap-1">
-          <Button
-            variant="outline"
-            size="icon"
-            aria-label={t("appointments.previousDay")}
-            onClick={() => setDate((d) => shiftDate(d, -1))}
-          >
-            <ChevronLeft className="size-4 rtl:rotate-180" />
-          </Button>
-          <Input
-            type="date"
-            aria-label={t("appointments.date")}
-            className="w-40"
-            value={date}
-            onChange={(e) => e.target.value && setDate(e.target.value)}
+      <Tabs value={view} onValueChange={(v) => setView(parseAppointmentView(v))}>
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border bg-card p-3">
+          <FilterSelect
+            label={t("appointments.branch")}
+            value={branchId}
+            anyLabel={t("appointments.branch")}
+            options={items.map((b) => ({ value: b.id, label: pick(b.nameAr, b.nameEn) }))}
+            onChange={(value) => value && setBranchId(value)}
           />
-          <Button
-            variant="outline"
-            size="icon"
-            aria-label={t("appointments.nextDay")}
-            onClick={() => setDate((d) => shiftDate(d, 1))}
-          >
-            <ChevronRight className="size-4 rtl:rotate-180" />
-          </Button>
-          <Button variant="ghost" onClick={() => setDate(todayInTimeZone(timeZone))}>
-            {t("appointments.today")}
-          </Button>
+          <TabsList className="max-w-full overflow-x-auto">
+            {APPOINTMENT_VIEWS.map((v) => (
+              <TabsTrigger key={v} value={v} className="px-3">
+                {t(`appointments.views.${v}`)}
+              </TabsTrigger>
+            ))}
+          </TabsList>
         </div>
-      </div>
-      {day.isLoading || !day.data ? (
-        <LoadingBlock />
-      ) : (
-        <DayView
-          day={day.data}
-          ownOnly={ownOnly}
-          onBook={(providerId, startsAt) => setBooking({ kind: "create", providerId, startsAt })}
-          onReschedule={(appointment) => setBooking({ kind: "reschedule", appointment })}
-          onCancel={setCancelling}
-        />
-      )}
-      {day.data && (
-        <BookingDialog request={booking} day={day.data} onClose={() => setBooking(null)} />
-      )}
-      <CancelDialog appointment={cancelling} onClose={() => setCancelling(null)} />
+        <TabsContent value="day">
+          <DayPanel {...shared} />
+        </TabsContent>
+        <TabsContent value="week">
+          <WeekPanel {...shared} />
+        </TabsContent>
+        <TabsContent value="month">
+          <MonthPanel
+            {...shared}
+            onOpenDay={(d) => {
+              setDate(d);
+              setView("day");
+            }}
+          />
+        </TabsContent>
+        <TabsContent value="queue">
+          <QueuePanel branchId={branchId} today={today} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
