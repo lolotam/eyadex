@@ -27,6 +27,32 @@ export interface ProviderDirectory {
   find(tx: Tx, clinicId: string, membershipId: string): Promise<ProviderRecord | null>;
 
   /**
+   * أعضاء كتير بأي حالة في استعلام واحد، عشان عدد الاستعلامات ما يكبرش مع عدد مقدّمي الخدمة (يوم الفرع).
+   *
+   * @param tx transaction المواعيد جوه `withTenant(clinicId)`
+   * @param clinicId العيادة
+   * @param membershipIds العضويات (التكرار مش مشكلة)
+   * @returns العضو بتاع كل عضوية لقاها، بالـ id بتاعها؛ اللي مش عضو في العيادة دي مش موجود في الـ map
+   */
+  findMany(
+    tx: Tx,
+    clinicId: string,
+    membershipIds: readonly string[],
+  ): Promise<ReadonlyMap<string, ProviderRecord>>;
+
+  /**
+   * نفس العضو، وصفّه مقفول `FOR SHARE` لحد آخر الـ transaction. أي كتابة عن مقدّم خدمة بتقفل صف
+   * العضوية قبل صف الفرع (ترتيب الأقفال ADR-0027)، فتعطيل العضو أو تغيير فروعه في نفس اللحظة بيستنى
+   * من غير دايرة انتظار.
+   *
+   * @param tx transaction المواعيد جوه `withTenant(clinicId)` وماسكة قفل مقدّم الخدمة
+   * @param clinicId العيادة
+   * @param membershipId العضوية
+   * @returns العضو، أو `null` لو مش عضو في العيادة دي
+   */
+  lockForWrite(tx: Tx, clinicId: string, membershipId: string): Promise<ProviderRecord | null>;
+
+  /**
    * الأعضاء القابلين للحجز (نشطين و"يستقبل مواعيد")، مرتبين بالاسم.
    *
    * @param tx transaction المواعيد جوه `withTenant(clinicId)`

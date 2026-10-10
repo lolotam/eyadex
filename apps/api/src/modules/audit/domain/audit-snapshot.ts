@@ -50,6 +50,19 @@ const ALLOWED: Record<AuditEntity, readonly string[]> = {
   clinic_service: ["nameAr", "nameEn", "durationMinutes", "status"],
   provider_schedule: ["providerName", "branchId", "shifts"],
   provider_time_off: ["providerName", "startsAt", "endsAt", "cancelled"],
+  // ADR-0026 §11 (A2): a booking's administrative facts only. The patient (name, phone, id) and the
+  // free-text cancel note are never shown, whatever a writer stores.
+  appointment: [
+    "providerName",
+    "branchId",
+    "serviceNameAr",
+    "serviceNameEn",
+    "startsAt",
+    "endsAt",
+    "status",
+    "overbooked",
+    "cancelReason",
+  ],
   clinic: [
     "slug",
     "nameAr",

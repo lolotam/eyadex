@@ -43,6 +43,7 @@ export const arAudit = {
       clinic_service: "خدمة",
       provider_schedule: "جدول عمل",
       provider_time_off: "إجازة",
+      appointment: "موعد",
     },
     actions: {
       branch: {
@@ -82,6 +83,12 @@ export const arAudit = {
       },
       schedule: { replaced: "حفظ جدول العمل" },
       time_off: { added: "إضافة إجازة", cancelled: "إلغاء إجازة" },
+      appointment: {
+        booked: "حجز موعد",
+        rescheduled: "تغيير موعد",
+        status_changed: "تغيير حالة موعد",
+        cancelled: "إلغاء موعد",
+      },
       patient: {
         opened: "فتح ملف مراجع",
         created: "إنشاء ملف مراجع",
@@ -158,6 +165,10 @@ export const arAudit = {
       startsAt: "البداية",
       endsAt: "النهاية",
       cancelled: "ملغاة",
+      serviceNameAr: "الخدمة (بالعربية)",
+      serviceNameEn: "الخدمة (بالإنجليزية)",
+      overbooked: "حجز إضافي",
+      cancelReason: "سبب الإلغاء",
     },
     values: {
       trial: "تجريبي",
@@ -183,6 +194,13 @@ export const arAudit = {
       expired: "منتهية",
       invited: "مدعو",
       deactivated: "معطّل",
+      booked: "محجوز",
+      arrived: "حضر",
+      completed: "مكتمل",
+      no_show: "لم يحضر",
+      patient_cancelled: "ألغى المراجع",
+      provider_cancelled: "ألغى مقدّم الخدمة",
+      other: "سبب آخر",
     },
     diff: { field: "الحقل", before: "قبل", after: "بعد" },
     yes: "نعم",

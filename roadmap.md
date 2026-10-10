@@ -83,6 +83,8 @@
 
 - [x] Slice A1: `appointments` module flag (a new-clinic default module), catalogue keys (`overbook`, `own`), services, booking profile on the user editor, weekly schedules per branch (D-14 midnight continuity), time off — as tabs of the clinic Settings page (D-17); admin keys backfilled for existing clinics (ADR-0026, SQL 0042)
 - [ ] Apply `db/sql/0042` to staging, then production, right before the A1 deploy (orchestrator)
-- [ ] Slice A2: appointments — book, reschedule, status, cancel, quick file, overbook; branch day view + booking dialog
-- [ ] Slice A3: the `own` scope on appointments and patients; new-clinic doctor and receptionist defaults
+- [x] Global lock order (ADR-0027): the schedule save locks the membership row before the branch row (the A1 deadlock Codex found); three-session test
+- [x] Slice A2: appointments — book, reschedule, status, cancel, quick file, overbook; branch day view + booking dialog; new clinics' receptionist books in its branches (ADR-0026 §11, SQL 0043)
+- [ ] Apply `db/sql/0043` to staging, then production, before the A2 deploy (orchestrator)
+- [ ] Slice A3: the `own` scope on appointments and patients; new-clinic doctor defaults
 - [ ] Slice A4: provider week, month, today's queue

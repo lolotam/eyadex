@@ -59,9 +59,9 @@ describe("services (D-12) in the mock, as the API", () => {
   });
 
   it("NEGATIVE: no services key is forbidden; the module off is module_disabled first", async () => {
-    expect(await fails(api.scheduling.listServices(as("receptionist"), page))).toBe("forbidden");
+    expect(await fails(api.scheduling.listServices(as("technician"), page))).toBe("forbidden");
     await api.platform.setClinicFeature(PLATFORM, clinicIdAt(0), "appointments", false);
-    expect(await fails(api.scheduling.listServices(as("receptionist"), page))).toBe(
+    expect(await fails(api.scheduling.listServices(as("technician"), page))).toBe(
       "module_disabled",
     );
     expect(await fails(api.scheduling.listServices(admin(), page))).toBe("module_disabled");

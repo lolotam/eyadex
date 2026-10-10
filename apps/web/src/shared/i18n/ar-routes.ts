@@ -13,6 +13,7 @@ export const arRoutes = {
     users: "المستخدمون",
     roles: "الأدوار والصلاحيات",
     patients: "المراجعون",
+    appointments: "المواعيد",
     account: "حسابي",
     menu: "القائمة",
   },
@@ -26,6 +27,10 @@ export const arRoutes = {
       description: "الأعداد والاشتراك والاستخدام في عيادتك.",
     },
     clinicAccount: { title: "حسابي", description: "ملفك الشخصي ولغتك." },
+    clinicAppointments: {
+      title: "المواعيد",
+      description: "يوم الفرع: حجز المواعيد وتغييرها ومتابعتها.",
+    },
     clinicAudit: { title: "سجل التدقيق", description: "كل تغيير داخل العيادة." },
     clinicBranches: {
       title: "فروع العيادة",

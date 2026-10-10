@@ -6,6 +6,8 @@ import {
 import { permissionKeysSchema } from "@eyadex/contracts/roles";
 import { describe, expect, it } from "vitest";
 
+import { SYSTEM_ROLES } from "../system-roles.ts";
+
 const ADDED = [
   "view:appointments:clinic",
   "view:appointments:branch",
@@ -55,5 +57,30 @@ describe("the appointments catalogue", () => {
     expect(permissionKeysSchema.safeParse(["overbook:appointments:branch"]).success).toBe(false);
     const withView = ["view:appointments:branch", "overbook:appointments:branch"];
     expect(permissionKeysSchema.safeParse(withView).success).toBe(true);
+  });
+});
+
+// Owner decision 2026-10-10 (slice A2): new clinics' front desk books in its branches. Existing clinics'
+// roles are not changed by a migration; the doctor's `own` keys wait for A3.
+describe("new clinics' system roles (A2)", () => {
+  const keysOf = (key: string) => SYSTEM_ROLES.find((r) => r.key === key)?.permissions;
+
+  it("the receptionist books, moves and follows appointments in its branches", () => {
+    expect(keysOf("receptionist")).toEqual([
+      "view:patients:branch",
+      "create:patients:branch",
+      "update:patients:branch",
+      "view:appointments:branch",
+      "create:appointments:branch",
+      "update:appointments:branch",
+      "view:schedules:branch",
+      "view:services:clinic",
+    ]);
+    expect(permissionKeysSchema.safeParse(keysOf("receptionist")).success).toBe(true);
+  });
+
+  it("the doctor and the technician keep their keys until A3", () => {
+    expect(keysOf("doctor")).toEqual(["view:patients:branch"]);
+    expect(keysOf("technician")).toEqual(["view:patients:branch"]);
   });
 });

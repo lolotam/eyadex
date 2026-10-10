@@ -57,8 +57,27 @@ const auditSqlRelations = (): string[] =>
   );
 
 // ADR-0026: the appointments module names only its own tables; members come through ProviderDirectory
-// (identity) and branches through SchedulingBranchReader (tenancy).
-const APPOINTMENTS_RELATIONS = ["clinic_services", "provider_schedules", "provider_time_off"];
+// (identity), branches through SchedulingBranchReader (tenancy) and patients' files through
+// BookingPatientReader (patients, A2).
+const APPOINTMENTS_RELATIONS = [
+  "clinic_services",
+  "provider_schedules",
+  "provider_time_off",
+  "appointments",
+];
+
+// ADR-0026 §11: appointments imports patients only through patients/index.ts, and only in its module
+// file (the adapter binding); nothing else in patients is reachable.
+const patientsImports = (): string[] =>
+  sourceFiles(join(modulesDir, "appointments")).flatMap((file) =>
+    [...readFileSync(file, "utf8").matchAll(/from\s+["']([^"']*\/patients\/[^"']*)["']/g)]
+      .map(([, target = ""]) => target)
+      .filter(
+        (target) =>
+          !(/\/patients\/index\.ts$/.test(target) && file.endsWith("appointments.module.ts")),
+      )
+      .map((target) => `${file.slice(modulesDir.length)}: ${target}`),
+  );
 const appointmentsSqlRelations = (): string[] =>
   sourceFiles(join(modulesDir, "appointments")).flatMap((file) =>
     [...readFileSync(file, "utf8").matchAll(/\b(?:FROM|JOIN|UPDATE|INTO)\s+([a-z_]+)/g)]
@@ -71,6 +90,10 @@ describe("module boundaries", () => {
   it("the appointments module's SQL names only its own tables; the rest comes through its ports", () => {
     expect(existsSync(join(modulesDir, "appointments", "appointments.module.ts"))).toBe(true);
     expect(appointmentsSqlRelations()).toEqual([]);
+  });
+
+  it("appointments reaches patients only through patients/index.ts, bound in its module file", () => {
+    expect(patientsImports()).toEqual([]);
   });
 
   it("the audit module's SQL names only the audit relations; other tables come through its ports", () => {

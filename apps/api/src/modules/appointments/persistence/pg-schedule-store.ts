@@ -33,6 +33,44 @@ export async function readScheduleRows(
   }));
 }
 
+const idArray = (ids: readonly string[]) => sql`string_to_array(${ids.join(",")}, ',')::uuid[]`;
+
+/** Appends to the list under `key`, so one bulk read groups back into per-provider lists. */
+function push<T>(map: Map<string, T[]>, key: string, value: T): void {
+  const list = map.get(key);
+  if (list === undefined) map.set(key, [value]);
+  else list.push(value);
+}
+
+/**
+ * The branch day's columns in one statement (not one per provider): each provider's rows of this
+ * branch on this weekday, as wall times, earliest first. A provider without rows there is absent.
+ */
+export async function readBranchDayShifts(
+  tx: Tx,
+  clinicId: string,
+  membershipIds: readonly string[],
+  branchId: string,
+  weekday: number,
+): Promise<Map<string, { startsAt: string; endsAt: string }[]>> {
+  const shifts = new Map<string, { startsAt: string; endsAt: string }[]>();
+  if (membershipIds.length === 0) return shifts;
+  const rows = await tx.execute<{ membership_id: string; starts_at: string; ends_at: string }>(
+    sql`SELECT membership_id, starts_at::text AS starts_at, ends_at::text AS ends_at
+        FROM provider_schedules
+        WHERE clinic_id = ${clinicId} AND membership_id = ANY(${idArray(membershipIds)})
+          AND branch_id = ${branchId} AND weekday = ${weekday}
+        ORDER BY membership_id, starts_at, id`,
+  );
+  for (const r of rows) {
+    push(shifts, r.membership_id, {
+      startsAt: wallFromDb(r.starts_at),
+      endsAt: wallFromDb(r.ends_at),
+    });
+  }
+  return shifts;
+}
+
 /** The branches still holding this provider's rows, live or dormant. */
 export async function readHeldBranchIds(
   tx: Tx,
@@ -158,4 +196,45 @@ export async function readUpcomingTimeOff(
         ORDER BY starts_at, id`,
   );
   return rows.map(toTimeOff);
+}
+
+/** Rule 2: the provider's time off that is not cancelled and shares a minute with the span. */
+export async function readTimeOffOverlapping(
+  tx: Tx,
+  clinicId: string,
+  membershipId: string,
+  span: { readonly startsAt: string; readonly endsAt: string },
+): Promise<{ startsAt: string; endsAt: string }[]> {
+  return (
+    (await readTimeOffOverlappingFor(tx, clinicId, [membershipId], span)).get(membershipId) ?? []
+  );
+}
+
+/** Rule 2 for many providers in one statement (the branch day): each one's overlapping time off. */
+export async function readTimeOffOverlappingFor(
+  tx: Tx,
+  clinicId: string,
+  membershipIds: readonly string[],
+  span: { readonly startsAt: string; readonly endsAt: string },
+): Promise<Map<string, { startsAt: string; endsAt: string }[]>> {
+  const timeOff = new Map<string, { startsAt: string; endsAt: string }[]>();
+  if (membershipIds.length === 0) return timeOff;
+  const rows = await tx.execute<{
+    membership_id: string;
+    starts_at: Date | string;
+    ends_at: Date | string;
+  }>(
+    sql`SELECT membership_id, starts_at, ends_at FROM provider_time_off
+        WHERE clinic_id = ${clinicId} AND membership_id = ANY(${idArray(membershipIds)})
+          AND cancelled_at IS NULL
+          AND starts_at < ${span.endsAt}::timestamptz AND ends_at > ${span.startsAt}::timestamptz
+        ORDER BY starts_at, id`,
+  );
+  for (const r of rows) {
+    push(timeOff, r.membership_id, {
+      startsAt: new Date(r.starts_at).toISOString(),
+      endsAt: new Date(r.ends_at).toISOString(),
+    });
+  }
+  return timeOff;
 }

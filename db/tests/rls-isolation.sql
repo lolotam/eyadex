@@ -33,6 +33,9 @@ BEGIN
     INSERT INTO clinic_services VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'f')::uuid, 'ليزر', 'Laser '||s, 30, 'active', now(), now());
     INSERT INTO provider_schedules VALUES (c, ('00000000-0000-7000-8000-0000000003'||s||'1')::uuid, ('00000000-0000-7000-8000-0000000001'||s||'5')::uuid, ('00000000-0000-7000-8000-0000000001'||s||'2')::uuid, 0, '08:00', '12:00', now());
     INSERT INTO provider_time_off VALUES (c, ('00000000-0000-7000-8000-0000000003'||s||'2')::uuid, ('00000000-0000-7000-8000-0000000001'||s||'5')::uuid, now() + interval '1 day', now() + interval '2 days', null, null, now(), now());
+    INSERT INTO appointments VALUES (c, ('00000000-0000-7000-8000-0000000003'||s||'3')::uuid, ('00000000-0000-7000-8000-0000000001'||s||'2')::uuid, ('00000000-0000-7000-8000-0000000001'||s||'9')::uuid, ('00000000-0000-7000-8000-0000000001'||s||'5')::uuid, ('00000000-0000-7000-8000-0000000001'||s||'f')::uuid, now() + interval '1 day', now() + interval '1 day 30 minutes', 'booked', false, null, null, ('00000000-0000-7000-8000-0000000002'||s||'5')::uuid, now(), now());
+    -- An appointment's audit row names a patient's booking: administrative, yet never the platform's (0043).
+    INSERT INTO audit_log VALUES (c, ('00000000-0000-7000-8000-0000000003'||s||'4')::uuid, ('00000000-0000-7000-8000-0000000002'||s||'5')::uuid, 'appointment.booked', 'administrative', 'appointment', ('00000000-0000-7000-8000-0000000003'||s||'3')::uuid, null, '{}', now());
     INSERT INTO audit_log VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'a')::uuid, ('00000000-0000-7000-8000-0000000002'||s||'5')::uuid, 'user.invited', 'administrative', 'user', null, null, '{}', now());
     INSERT INTO audit_log VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'b')::uuid, ('00000000-0000-7000-8000-0000000002'||s||'5')::uuid, 'patient.opened', 'patient_access', 'patient', null, null, '{}', now());
   END LOOP;
@@ -60,7 +63,7 @@ BEGIN
   FOREACH t IN ARRAY ARRAY['clinic_features','branches','roles','role_permissions','memberships',
       'membership_branches','invitations','invitation_branches','patients','audit_log','clinic_counters',
       'clinic_idempotency_keys','clinic_mail_providers','clinic_expiry_reminders','clinic_services',
-      'provider_schedules','provider_time_off'] LOOP
+      'provider_schedules','provider_time_off','appointments'] LOOP
     EXECUTE format('SELECT count(*) FROM %I WHERE clinic_id = $1', t) INTO n USING other;
     IF n <> 0 THEN RAISE EXCEPTION 'ISO-01 read leak: % shows % rows of another clinic', t, n; END IF;
     EXECUTE format('SELECT count(*) FROM %I', t) INTO n;
@@ -139,6 +142,10 @@ BEGIN
     RAISE EXCEPTION 'ISO-01 write leak: provider_time_off';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   BEGIN
+    INSERT INTO appointments VALUES (b, gen_random_uuid(), '00000000-0000-7000-8000-0000000001b2', '00000000-0000-7000-8000-0000000001b9', '00000000-0000-7000-8000-0000000001b5', null, now(), now() + interval '30 minutes', 'booked', false, null, null, gen_random_uuid(), now(), now());
+    RAISE EXCEPTION 'ISO-01 write leak: appointments';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
     INSERT INTO audit_log VALUES (b, gen_random_uuid(), gen_random_uuid(), 'user.invited', 'administrative', 'user', null, null, '{}', now());
     RAISE EXCEPTION 'ISO-01 write leak: audit_log';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
@@ -147,7 +154,7 @@ BEGIN
   BEGIN
     FOREACH t IN ARRAY ARRAY['branches','roles','role_permissions','memberships','membership_branches',
         'invitations','invitation_branches','patients','clinic_counters','clinic_mail_providers',
-        'clinic_services','provider_schedules','provider_time_off'] LOOP
+        'clinic_services','provider_schedules','provider_time_off','appointments'] LOOP
       BEGIN
         EXECUTE format('UPDATE %I SET clinic_id = $1', t) USING b;
         RAISE EXCEPTION 'ISO-01 write leak: % rows can be moved to another clinic', t;
@@ -176,6 +183,17 @@ BEGIN
   DELETE FROM provider_schedules WHERE clinic_id = b;
   GET DIAGNOSTICS n = ROW_COUNT;
   IF n <> 0 THEN RAISE EXCEPTION 'ISO-01 write leak: deleted % schedule rows of another clinic', n; END IF;
+  -- Appointments (0043) are cancelled, never deleted; another clinic's are invisible to updates.
+  BEGIN DELETE FROM appointments; RAISE EXCEPTION 'appointments are hard-deletable';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  UPDATE appointments SET status = 'arrived' WHERE clinic_id = b;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 0 THEN RAISE EXCEPTION 'ISO-01 write leak: updated % appointments of another clinic', n; END IF;
+  -- D-15 and D-11 in the table itself.
+  BEGIN UPDATE appointments SET ends_at = starts_at + interval '4 minutes'; RAISE EXCEPTION 'a 4-minute appointment was accepted';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN UPDATE appointments SET status = 'cancelled'; RAISE EXCEPTION 'a cancel without a reason was accepted';
+  EXCEPTION WHEN check_violation THEN NULL; END;
   -- The booking columns are clinic data like the rest of the membership (D-1, D-15).
   BEGIN UPDATE memberships SET default_duration_minutes = 4; RAISE EXCEPTION 'a 4-minute default was accepted';
   EXCEPTION WHEN check_violation THEN NULL; END;
@@ -211,10 +229,14 @@ BEGIN
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   BEGIN PERFORM 1 FROM provider_time_off LIMIT 1; RAISE EXCEPTION 'PLAT: platform can read provider_time_off';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN PERFORM 1 FROM appointments LIMIT 1; RAISE EXCEPTION 'PLAT-01: platform can read appointments';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   BEGIN PERFORM 1 FROM audit_log LIMIT 1; RAISE EXCEPTION 'PLAT-01: platform can read audit_log';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   SELECT count(*) INTO n FROM platform_clinic_admin_audit WHERE action = 'patient.opened';
   IF n <> 0 THEN RAISE EXCEPTION 'PLAT-01: admin audit view exposes patient access'; END IF;
+  SELECT count(*) INTO n FROM platform_clinic_admin_audit WHERE entity_type = 'appointment';
+  IF n <> 0 THEN RAISE EXCEPTION 'PLAT-01: admin audit view exposes appointments'; END IF;
   SELECT count(*) INTO n FROM platform_clinic_admin_audit
     WHERE clinic_id IN ('00000000-0000-7000-8000-00000000000a', '00000000-0000-7000-8000-00000000000b');
   IF n <> 2 THEN RAISE EXCEPTION 'PLAT: admin audit view shows %, expected 2', n; END IF;

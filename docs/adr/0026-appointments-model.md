@@ -1,7 +1,7 @@
 # ADR-0026 — Appointments model, the provider lock and the `own` scope
 
 - Status: accepted for slice A1 (design owner-approved 2026-10-09, `docs/specs/appointments-design.md`,
-  decisions D-1..D-17)
+  decisions D-1..D-17); amended for slice A2 (§11, owner decisions 2026-10-10)
 - Date: 2026-10-09
 
 ## Context
@@ -113,8 +113,8 @@ the action only when the module is on as well (the API answers `module_disabled`
   keys from 0042's backfill (D-16, owner-confirmed 2026-10-09): a locked role refuses every write (ADR-0017), so
   otherwise no existing clinic could ever open services or schedules. No other existing role changes. The backfill
   refuses to run unless the migration role is a superuser or bypasses RLS.
-- Doctor and receptionist defaults for new clinics change in A3 (spec §3), together with the `own` queries; A1 has
-  no screen either role needs. TODO(spec): if A2 ships before A3, decide whether the receptionist defaults move to A2.
+- Doctor and receptionist defaults for new clinics: the receptionist's moved to A2 (owner decision 2026-10-10, §11);
+  the doctor's (`own`) stay with A3 and its queries.
 
 ### 7. Time off (D-6)
 
@@ -145,6 +145,58 @@ Services and work schedules are tabs of the clinic Settings page: `/clinic/setti
 three (`NavItem.anyOf`) and lands on the first tab they can see. No new top-level menu entries. The mock adapter
 applies the API's check order (access before validation) and rules.
 
+### 11. Slice A2 — appointments (owner decisions 2026-10-10)
+
+- **Table (0043).** `appointments` exactly as spec §2: forced RLS, PK `(clinic_id, id)`, indexes leading with
+  `clinic_id` (provider + start, branch + start, patient, service, and the `own` partial index on non-cancelled
+  rows), every FK indexed, D-15 and D-11 as CHECKs, `eyadex_app` without `DELETE`, `REVOKE ALL` from
+  `eyadex_platform`. `created_by` is the actor's user id with **no** foreign key: a foreign key to the actor's
+  membership would take a second membership row lock at insert time, after the branch row (ADR-0027).
+- **Platform view.** Appointment audit rows are administrative (rule 9) but record a patient's booking, so 0043
+  re-creates `platform_clinic_admin_audit` without `entity_type = 'appointment'` rows, as it leaves out
+  `patient` rows; the contract's platform filter drops `appointment.*` too.
+- **Boundaries.** A new arrow appointments → patients: the `BookingPatientReader` port (name, file number, status;
+  never phone, birth date or civil ID), implemented by patients' `PgBookingPatients`, bound in
+  `appointments.module.ts`. The quick file (D-10) is **not** a cross-module write: the dialog calls the existing
+  `POST /v1/patients` (its own `Idempotency-Key`, `create:patients:*`) and then books.
+- **Routes** (`@RequiresFeature("appointments")` on each): `GET /v1/appointments/branches`, `GET
+/v1/appointments/day?branchId&date` (`view:appointments:branch`), `POST /v1/appointments` (Idempotency-Key,
+  `create:…`), `PUT /v1/appointments/:id` (reschedule), `POST …/:id/status`, `POST …/:id/cancel`
+  (`update:…`). `own` keys reach nothing until A3.
+- **Check order of a booking** (API and mock): guard → the action's reach covers the branch (`forbidden`) and,
+  when `overbook` is asked, the overbook reach does too (`forbidden`) → idempotency claim → provider lock →
+  membership row (`not_found`, `provider_not_bookable`) → patient row (`not_found`, `patient_inactive`) → branch
+  row (`not_found`, `branch_inactive`, `provider_not_in_branch`) → service row (`not_found`, `service_inactive`)
+  → the end (rule 4, D-15) → rule 2 in order: coverage on that branch's rows (D-6, D-14), time off, live
+  appointments of the provider in **every** branch → insert, one `appointment.booked` row, key completed.
+- **Overbook (D-3)** lifts exactly rule 2's three checks; `overbooked` is set only when one was lifted, and is
+  recomputed on a reschedule. Asking for it without `overbook:appointments:*` at that branch is `forbidden`.
+- **Reschedule** locks the old and new providers (sorted), then the row `FOR UPDATE`; when a concurrent
+  reschedule moved it to another provider meanwhile, the transaction rolls back and starts over (at most three
+  times) rather than take that provider's lock while holding the row. It runs the same checks (the file must
+  still be active, rule 7) excluding itself, and audits old and new times; the same values write nothing.
+- **Statuses** follow D-5 (`invalid_transition` otherwise); the same status again is a no-op without an audit row.
+  A cancel needs a reason (`patient_cancelled|provider_cancelled|other`); the note is stored on the appointment
+  but never in an audit row.
+- **Audit (rule 9).** Entity `appointment`, actions `appointment.booked|rescheduled|status_changed|cancelled`,
+  allowlist: provider name, branch, service names, times, status, overbooked, cancel reason — no patient name,
+  phone, id or note.
+- **Answers.** Every write answers `{ appointment }` clipped to the caller's `view:appointments` reach (`null`
+  outside it), as the schedule writes of §4.
+- **Receptionist (owner).** New clinics' receptionist gets `view|create|update:appointments:branch`,
+  `view:schedules:branch`, `view:services:clinic` (`SYSTEM_ROLES`, web `ROLE_TEMPLATES`). Existing clinics' roles
+  are not changed by a migration.
+- **Owner-confirmed (2026-10-10):** (1) D-10 names "name, mobile, branch", but the patients use case D-10 reuses
+  also requires birth date and gender (`NOT NULL` since 0010): the quick file asks for them too and leaves the
+  civil ID for later; relaxing the patient file is a separate decision if ever needed. (3) A booking in the past is
+  accepted (walk-ins recorded after the fact); every booking is audited.
+- **Known gap, fixed first in A3 (owner 2026-10-10):** the day bounds and the grid assume local midnight exists;
+  in a zone whose DST change skips midnight (`Africa/Cairo`, last Friday of April) the day's first hour reads
+  from the previous date (Codex, PR #64, after the five review rounds).
+- **TODO(spec), conservative choices:** (2) Only a `booked` appointment is rescheduled. (4) The provider
+  must work in the branch and the branch be active; `overbook` lifts neither. (5) The patient search in the
+  dialog uses `view:patients` (a booker without it can only make a quick file).
+
 ## Consequences
 
 - A2 books against these tables under the same lock and calls `coversWallInterval` for D-6/D-14.
@@ -155,3 +207,5 @@ applies the API's check order (access before validation) and rules.
   steps gets no appointments keys on its locked admin (Codex, PR #63). After every deploy of this code,
   `db/tests/appointments-admin-keys.sql` is run on the live database (read-only, as the migration owner); it names
   any such clinic, and 0042's final `INSERT … ON CONFLICT DO NOTHING` (idempotent) is then re-run.
+- A2 (§11): 0043 is additive (a new table and the platform view without appointment rows; no catalogue or role
+  change), so it can be applied before the A2 code ships; the A2 code needs it. Old code never reads the table.

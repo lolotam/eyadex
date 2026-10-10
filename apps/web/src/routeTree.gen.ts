@@ -17,6 +17,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as PlatformRouteImport } from './routes/platform'
 import { Route as ClinicIndexRouteImport } from './routes/clinic.index'
 import { Route as ClinicAccountRouteImport } from './routes/clinic.account'
+import { Route as ClinicAppointmentsRouteImport } from './routes/clinic.appointments'
 import { Route as ClinicAuditRouteImport } from './routes/clinic.audit'
 import { Route as ClinicBranchesRouteImport } from './routes/clinic.branches'
 import { Route as ClinicRolesRouteImport } from './routes/clinic.roles'
@@ -73,6 +74,11 @@ const ClinicIndexRoute = ClinicIndexRouteImport.update({
 const ClinicAccountRoute = ClinicAccountRouteImport.update({
   id: '/account',
   path: '/account',
+  getParentRoute: () => ClinicRoute,
+} as any)
+const ClinicAppointmentsRoute = ClinicAppointmentsRouteImport.update({
+  id: '/appointments',
+  path: '/appointments',
   getParentRoute: () => ClinicRoute,
 } as any)
 const ClinicAuditRoute = ClinicAuditRouteImport.update({
@@ -169,6 +175,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/platform': typeof PlatformRouteWithChildren
   '/clinic/account': typeof ClinicAccountRoute
+  '/clinic/appointments': typeof ClinicAppointmentsRoute
   '/clinic/audit': typeof ClinicAuditRoute
   '/clinic/branches': typeof ClinicBranchesRoute
   '/clinic/roles': typeof ClinicRolesRoute
@@ -194,6 +201,7 @@ export interface FileRoutesByTo {
   '/forbidden': typeof ForbiddenRoute
   '/login': typeof LoginRoute
   '/clinic/account': typeof ClinicAccountRoute
+  '/clinic/appointments': typeof ClinicAppointmentsRoute
   '/clinic/audit': typeof ClinicAuditRoute
   '/clinic/branches': typeof ClinicBranchesRoute
   '/clinic/roles': typeof ClinicRolesRoute
@@ -222,6 +230,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/platform': typeof PlatformRouteWithChildren
   '/clinic/account': typeof ClinicAccountRoute
+  '/clinic/appointments': typeof ClinicAppointmentsRoute
   '/clinic/audit': typeof ClinicAuditRoute
   '/clinic/branches': typeof ClinicBranchesRoute
   '/clinic/roles': typeof ClinicRolesRoute
@@ -251,6 +260,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/platform'
     | '/clinic/account'
+    | '/clinic/appointments'
     | '/clinic/audit'
     | '/clinic/branches'
     | '/clinic/roles'
@@ -276,6 +286,7 @@ export interface FileRouteTypes {
     | '/forbidden'
     | '/login'
     | '/clinic/account'
+    | '/clinic/appointments'
     | '/clinic/audit'
     | '/clinic/branches'
     | '/clinic/roles'
@@ -303,6 +314,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/platform'
     | '/clinic/account'
+    | '/clinic/appointments'
     | '/clinic/audit'
     | '/clinic/branches'
     | '/clinic/roles'
@@ -389,6 +401,13 @@ declare module '@tanstack/react-router' {
       path: '/account'
       fullPath: '/clinic/account'
       preLoaderRoute: typeof ClinicAccountRouteImport
+      parentRoute: typeof ClinicRoute
+    }
+    '/clinic/appointments': {
+      id: '/clinic/appointments'
+      path: '/appointments'
+      fullPath: '/clinic/appointments'
+      preLoaderRoute: typeof ClinicAppointmentsRouteImport
       parentRoute: typeof ClinicRoute
     }
     '/clinic/audit': {
@@ -515,6 +534,7 @@ declare module '@tanstack/react-router' {
 
 interface ClinicRouteChildren {
   ClinicAccountRoute: typeof ClinicAccountRoute
+  ClinicAppointmentsRoute: typeof ClinicAppointmentsRoute
   ClinicAuditRoute: typeof ClinicAuditRoute
   ClinicBranchesRoute: typeof ClinicBranchesRoute
   ClinicRolesRoute: typeof ClinicRolesRoute
@@ -529,6 +549,7 @@ interface ClinicRouteChildren {
 
 const ClinicRouteChildren: ClinicRouteChildren = {
   ClinicAccountRoute: ClinicAccountRoute,
+  ClinicAppointmentsRoute: ClinicAppointmentsRoute,
   ClinicAuditRoute: ClinicAuditRoute,
   ClinicBranchesRoute: ClinicBranchesRoute,
   ClinicRolesRoute: ClinicRolesRoute,

@@ -157,5 +157,29 @@ export const API_ERROR_MESSAGES = {
     message_ar: "هذا المستخدم لا يعمل في هذا الفرع",
     message_en: "This user does not work in this branch",
   },
+  outside_schedule: {
+    message_ar: "الموعد خارج ساعات عمل مقدّم الخدمة في هذا الفرع",
+    message_en: "The appointment is outside the provider's working hours in this branch",
+  },
+  provider_time_off: {
+    message_ar: "مقدّم الخدمة في إجازة في هذا الوقت",
+    message_en: "The provider is on time off at this time",
+  },
+  appointment_overlap: {
+    message_ar: "مقدّم الخدمة لديه موعد آخر في هذا الوقت",
+    message_en: "The provider already has another appointment at this time",
+  },
+  patient_inactive: {
+    message_ar: "ملف المراجع مؤرشف؛ استرجعه قبل الحجز",
+    message_en: "The patient's file is archived; restore it before booking",
+  },
+  service_inactive: {
+    message_ar: "هذه الخدمة معطّلة",
+    message_en: "This service is inactive",
+  },
+  invalid_transition: {
+    message_ar: "لا يمكن نقل الموعد إلى هذه الحالة من حالته الحالية",
+    message_en: "The appointment cannot move to this status from its current one",
+  },
   unknown: { message_ar: "حدث خطأ ما", message_en: "Something went wrong" },
 } satisfies Record<ApiErrorCode, { message_ar: string; message_en: string }>;

@@ -55,6 +55,12 @@ export const apiErrorCodeSchema = z.enum([
   "schedule_overlap",
   "provider_not_bookable",
   "provider_not_in_branch",
+  "outside_schedule",
+  "provider_time_off",
+  "appointment_overlap",
+  "patient_inactive",
+  "service_inactive",
+  "invalid_transition",
   "unknown",
 ]);
 export type ApiErrorCode = z.infer<typeof apiErrorCodeSchema>;

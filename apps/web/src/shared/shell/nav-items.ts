@@ -1,5 +1,6 @@
 import {
   Building2,
+  CalendarDays,
   ClipboardList,
   GitBranch,
   LayoutDashboard,
@@ -10,7 +11,7 @@ import {
   UsersRound,
   type LucideIcon,
 } from "lucide-react";
-import type { PermissionResource } from "@eyadex/contracts/permissions";
+import type { PermissionResource, PermissionScope } from "@eyadex/contracts/permissions";
 import type { TranslationKey } from "@/shared/i18n/dictionary";
 import { can } from "@/shared/permissions/can";
 
@@ -25,6 +26,7 @@ export type NavPath =
   | "/clinic/users"
   | "/clinic/roles"
   | "/clinic/patients"
+  | "/clinic/appointments"
   | "/clinic/audit"
   | "/clinic/settings"
   | "/clinic/account";
@@ -38,6 +40,8 @@ export type NavItem = {
   resource?: PermissionResource;
   /** When set, the item is shown if the user can view any of these resources (a page with tabs). */
   anyOf?: readonly PermissionResource[];
+  /** When set, the view key on `resource` counts only in these scopes. */
+  scopes?: readonly PermissionScope[];
 };
 
 export const PLATFORM_NAV: NavItem[] = [
@@ -54,6 +58,15 @@ export const CLINIC_NAV: NavItem[] = [
   { to: "/clinic/users", label: "nav.users", icon: Users, resource: "users" },
   { to: "/clinic/roles", label: "nav.roles", icon: ShieldCheck, resource: "roles" },
   { to: "/clinic/patients", label: "nav.patients", icon: UsersRound, resource: "patients" },
+  // Slice A2: the branch day. The session's keys leave out a module that is off, so the entry needs both.
+  // Its reads need a branch or clinic key: an `own` key alone shows no entry (Codex PR #64).
+  {
+    to: "/clinic/appointments",
+    label: "nav.appointments",
+    icon: CalendarDays,
+    resource: "appointments",
+    scopes: ["clinic", "branch"],
+  },
   { to: "/clinic/audit", label: "nav.audit", icon: ClipboardList, resource: "audit_log" },
   // D-17: the Settings page holds the General, Services and Work schedules tabs.
   {
@@ -69,6 +82,6 @@ export const CLINIC_NAV: NavItem[] = [
 export function navItemsFor(items: readonly NavItem[], permissions: readonly string[]): NavItem[] {
   return items.filter((item) => {
     if (item.anyOf) return item.anyOf.some((resource) => can(permissions, "view", resource));
-    return !item.resource || can(permissions, "view", item.resource);
+    return !item.resource || can(permissions, "view", item.resource, item.scopes);
   });
 }
