@@ -143,6 +143,8 @@ describe("GET /v1/appointments/week (A4)", () => {
   it("refuses a week start that is not a real date", async () => {
     const res = await week(C.admin.cookie, C.doctor.memberId, C.branchD, "2027-02-29");
     expect(res.statusCode).toBe(400);
+    const edge = await week(C.admin.cookie, C.doctor.memberId, C.branchD, "9999-12-28");
+    expect(edge.statusCode).toBe(400);
   });
 });
 
@@ -179,5 +181,8 @@ describe("GET /v1/appointments/month (A4)", () => {
 
   it("refuses a month that does not exist", async () => {
     expect((await month(C.admin.cookie, "month=2027-13")).statusCode).toBe(400);
+    // A year at the edge of four digits would step out of YYYY when the read moves to the next month.
+    expect((await month(C.admin.cookie, "month=9999-12")).statusCode).toBe(400);
+    expect((await month(C.admin.cookie, "month=0000-01")).statusCode).toBe(400);
   });
 });

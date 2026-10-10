@@ -10,15 +10,31 @@ import { scheduleBranchSchema } from "./schedules.ts";
  * only the caller's own provider is readable (ADR-0026 A3).
  */
 
-/** A calendar month as `YYYY-MM`. */
-const calendarMonth = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "validation.dateRequired");
+/**
+ * The years a calendar read accepts: the reads step past the period they show (the next month, the eighth
+ * day), so a year at the edge of four digits would step out of `YYYY` and fail as a server error (Codex A4).
+ */
+const inCalendarYears = (value: string) => {
+  const year = Number(value.slice(0, 4));
+  return year >= 1900 && year <= 2999;
+};
+
+/** A calendar month as `YYYY-MM`, in the calendar years. */
+const calendarMonth = z
+  .string()
+  .regex(/^\d{4}-(0[1-9]|1[0-2])$/, "validation.dateRequired")
+  .refine(inCalendarYears, "validation.dateRequired");
 
 /**
  * `GET /v1/appointments/week`: one provider in one branch, seven clinic-calendar days from `weekStart`
  * (the screen picks the clinic's first weekday; the API takes any date).
  */
 export const appointmentWeekQuerySchema = z
-  .object({ branchId: idSchema, providerMembershipId: idSchema, weekStart: calendarDate })
+  .object({
+    branchId: idSchema,
+    providerMembershipId: idSchema,
+    weekStart: calendarDate.refine(inCalendarYears, "validation.dateRequired"),
+  })
   .strict();
 export type AppointmentWeekQuery = z.infer<typeof appointmentWeekQuerySchema>;
 

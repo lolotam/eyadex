@@ -43,7 +43,8 @@ export function WeekPanel({ branchId, date, today, ownOnly, onDateChange }: Prop
 
   const nav = (
     <PeriodNav
-      label={t("appointments.week.of", { date: formatDate(`${weekStart}T12:00:00Z`) })}
+      // Local noon, not UTC: the label is a calendar date and must not move with the browser's offset.
+      label={t("appointments.week.of", { date: formatDate(`${weekStart}T12:00:00`) })}
       previousLabel={t("appointments.week.previous")}
       nextLabel={t("appointments.week.next")}
       currentLabel={t("appointments.week.current")}
@@ -110,7 +111,6 @@ export function WeekPanel({ branchId, date, today, ownOnly, onDateChange }: Prop
           <FilterSelect
             label={t("appointments.provider")}
             value={providerId}
-            anyLabel={t("appointments.provider")}
             options={listed.map((p) => ({ value: p.membershipId, label: p.fullName }))}
             onChange={(value) => value && setProviderId(value)}
           />
