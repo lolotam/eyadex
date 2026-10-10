@@ -241,7 +241,7 @@ export function createMockAppointments(): AppointmentsApi {
         found.endsAt === endsAt;
       if (same) return answer(db, a, found);
       const target = { providerId: input.providerMembershipId, branchId: input.branchId };
-      checkTarget(db, a.clinic.id, { ...target, patientId: null, serviceId: null });
+      checkTarget(db, a.clinic.id, { ...target, patientId: found.patientId, serviceId: null });
       const overbooked = decide(
         slotProblems(db, a, target, { startsAt, endsAt }, id),
         input.overbook,

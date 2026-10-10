@@ -148,7 +148,8 @@ export class BookAppointment {
       const { provider } = await lockTarget(tx, this.deps, actor.clinicId, {
         providerId: input.providerMembershipId,
         branchId: input.branchId,
-        patientId: null,
+        // Rule 7 holds for a move too: an archived file is not booked at a new time.
+        patientId: before.patientId,
         serviceId: null,
       });
       const target = { providerId: provider.membershipId, branchId: input.branchId };

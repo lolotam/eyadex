@@ -94,6 +94,13 @@ describe("rule 6 — reschedule", () => {
     );
   });
 
+  it("rule 7: an archived file's appointment does not move", async () => {
+    const file = await addPatient(h, C.clinicId, C.branchD);
+    const id = await booked(C, C.admin.cookie, file);
+    await h.owner`UPDATE patients SET status = 'archived' WHERE id = ${file}`;
+    expect(code(await move(id, at(SUNDAY, "15:00"), at(SUNDAY, "15:30")))).toBe("patient_inactive");
+  });
+
   it("only a booked appointment moves", async () => {
     const id = await booked();
     expect((await status(id, "arrived")).statusCode).toBe(200);
