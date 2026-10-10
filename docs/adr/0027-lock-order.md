@@ -41,7 +41,12 @@ The rule for implicit locks: a row a write will reference through a foreign key 
 its place in the list before anything later is taken, so the INSERT's `KEY SHARE` is already held. The
 schedule save now reads the provider through `ProviderDirectory.lockForWrite` (the membership row
 `FOR SHARE OF m`) before `SchedulingBranchReader.lockForFiling` (the branch row): in the cycle above (c)
-waits on (a) without holding the branch, so (b) completes, then (a), then (c).
+waits on (a) without holding the branch, so (b) completes, then (a), then (c). `lockForWrite` locks the row and then reads
+the member in a second statement: a statement that waited for a row re-reads that row but not its subqueries,
+so one statement would decide on the branch links of before the wait.
+
+A transaction that finds the row it locked has moved to a provider whose lock it does not hold rolls back
+and starts over (`retryWhenMoved`) instead of taking that lock late.
 
 The paths as they stand: user writes take 1 → 2 → 6 → 8 (→ 9 through `membership_branches`); invitation
 writes 1 → 2 → 6 (the invitation row) → 8, and an acceptance 6 → 8;

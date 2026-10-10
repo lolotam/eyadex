@@ -171,8 +171,10 @@ applies the API's check order (access before validation) and rules.
   appointments of the provider in **every** branch → insert, one `appointment.booked` row, key completed.
 - **Overbook (D-3)** lifts exactly rule 2's three checks; `overbooked` is set only when one was lifted, and is
   recomputed on a reschedule. Asking for it without `overbook:appointments:*` at that branch is `forbidden`.
-- **Reschedule** locks the old and new providers (sorted), then the row `FOR UPDATE` (re-read if it moved
-  meanwhile), runs the same checks excluding itself, and audits old and new times; the same values write nothing.
+- **Reschedule** locks the old and new providers (sorted), then the row `FOR UPDATE`; when a concurrent
+  reschedule moved it to another provider meanwhile, the transaction rolls back and starts over (at most three
+  times) rather than take that provider's lock while holding the row. It runs the same checks (the file must
+  still be active, rule 7) excluding itself, and audits old and new times; the same values write nothing.
 - **Statuses** follow D-5 (`invalid_transition` otherwise); the same status again is a no-op without an audit row.
   A cancel needs a reason (`patient_cancelled|provider_cancelled|other`); the note is stored on the appointment
   but never in an audit row.
