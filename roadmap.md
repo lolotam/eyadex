@@ -85,7 +85,7 @@
 - [ ] Apply `db/sql/0042` to staging, then production, right before the A1 deploy (orchestrator)
 - [x] Global lock order (ADR-0027): the schedule save locks the membership row before the branch row (the A1 deadlock Codex found); three-session test
 - [x] Slice A2: appointments — book, reschedule, status, cancel, quick file, overbook; branch day view + booking dialog; new clinics' receptionist books in its branches (ADR-0026 §11, SQL 0043)
-- [ ] Apply `db/sql/0043` to staging, then production, before the A2 deploy (orchestrator)
+- [x] Apply `db/sql/0043` to staging, then production, before the A2 deploy (orchestrator)
 - [x] Slice A3: the clinic day starts at its first real instant (a skipped midnight west of UTC); the `own` scope on appointments and patients (D-4); new clinics' doctor sees its own appointments and patients (ADR-0026 §12, SQL 0044)
 - [ ] Apply `db/sql/0044` to staging, then production, before the A3 deploy (orchestrator)
 - [ ] Slice A4: provider week, month, today's queue
