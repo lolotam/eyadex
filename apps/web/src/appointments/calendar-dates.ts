@@ -1,7 +1,7 @@
 import type { AppointmentWeek } from "@eyadex/contracts/appointment-calendar";
 import type { AppointmentDay } from "@eyadex/contracts/appointments";
-import { clinicDayBounds } from "@eyadex/contracts/clinic-time";
-import { shiftDate } from "./day-grid";
+import { clinicDayBounds, instantToWall } from "@eyadex/contracts/clinic-time";
+import { dayLength, shiftDate } from "./day-grid";
 
 // Pure calendar arithmetic for the week and month views (slice A4). Dates are clinic-calendar
 // `YYYY-MM-DD` strings; weeks start on Sunday (Kuwait), as the spec's plan fixes.
@@ -73,4 +73,41 @@ export function pickedProvider(
   if (pick === null || pick.branchId !== branchId) return null;
   if (listed !== undefined && !listed.some((p) => p.membershipId === pick.providerId)) return null;
   return pick.providerId;
+}
+
+/** A regular day: 24 hours, so its real minutes read as its wall clock (no clock change). */
+export const isRegularDay = (date: string, timeZone: string) =>
+  dayLength(date, timeZone) === 24 * 60;
+
+/**
+ * The day whose clock the week's shared hour gutter reads: the first regular one (a week holds at most one
+ * clock change), so only a clock-change column has to label itself (Codex A4).
+ */
+export function gutterDayIndex(week: AppointmentWeek): number {
+  const i = week.days.findIndex((d) => isRegularDay(d.date, week.timezone));
+  return Math.max(0, i);
+}
+
+/** The week day an appointment starts on (its clinic date), the first day when it starts before the week. */
+export function weekDayIndexOf(week: AppointmentWeek, startsAt: string): number {
+  const date = instantToWall(startsAt, week.timezone).date;
+  return Math.max(
+    0,
+    week.days.findIndex((d) => d.date === date),
+  );
+}
+
+/**
+ * The day the booking dialog opens on from the week: that day of the week with the branch's providers, as
+ * the day view offers them, so a move may change the provider (Codex A4).
+ *
+ * @param listed the branch day's providers; empty falls back to the week's own provider
+ */
+export function weekDialogDay(
+  week: AppointmentWeek,
+  index: number,
+  listed: AppointmentDay["providers"],
+): AppointmentDay {
+  const day = weekDayAsDay(week, index);
+  return { ...day, providers: listed.length > 0 ? listed : day.providers };
 }

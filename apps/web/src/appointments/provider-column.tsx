@@ -4,6 +4,7 @@ import { useI18n } from "@/shared/i18n/i18n-provider";
 import { AppointmentBlock } from "./appointment-block";
 import {
   dayLength,
+  hourMarks,
   instantAt,
   labelAt,
   lanes,
@@ -22,6 +23,11 @@ type Props = {
   range: { from: number; to: number };
   /** The header; the provider's name unless given (the week labels each column by its date). */
   title?: string;
+  /**
+   * The column labels its own hours: the week's shared gutter reads a regular day's clock, which a
+   * clock-change day (23 or 25 hours) does not follow (Codex A4).
+   */
+  ownClock?: boolean;
   /** The clicked slot's start instant (UTC ISO); its wall label is for display only. */
   onBook: (providerId: string, startsAt: string) => void;
   onReschedule: (appointment: Appointment) => void;
@@ -34,6 +40,7 @@ export function ProviderColumn({
   provider,
   range,
   title,
+  ownClock = false,
   onBook,
   onReschedule,
   onCancel,
@@ -90,6 +97,17 @@ export function ProviderColumn({
             )
           );
         })}
+        {ownClock &&
+          hourMarks(own, day.date, day.timezone).map((mark) => (
+            <span
+              key={`clock-${mark.minute}`}
+              dir="ltr"
+              className="pointer-events-none absolute end-1 z-10 -translate-y-1/2 rounded bg-card/80 px-1 text-[10px] text-muted-foreground"
+              style={{ top: (mark.minute - own.from) * PX_PER_MINUTE }}
+            >
+              {mark.minute === own.from ? "" : mark.label}
+            </span>
+          ))}
         {slotStarts(own).map((minute) => (
           <div
             key={minute}

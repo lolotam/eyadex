@@ -1,7 +1,7 @@
 import type { AppointmentWeek } from "@eyadex/contracts/appointment-calendar";
 import type { Appointment } from "@eyadex/contracts/appointments";
 import { useI18n } from "@/shared/i18n/i18n-provider";
-import { WEEKDAY_KEYS, weekDayAsDay } from "./calendar-dates";
+import { gutterDayIndex, isRegularDay, WEEKDAY_KEYS, weekDayAsDay } from "./calendar-dates";
 import { hourMarks, PX_PER_MINUTE, visibleRange } from "./day-grid";
 import { ProviderColumn } from "./provider-column";
 
@@ -22,7 +22,7 @@ export function WeekView({ week, onBook, onReschedule, onCancel }: Props) {
     to: Math.max(...ranges.map((r) => r.to)),
   };
   const height = (range.to - range.from) * PX_PER_MINUTE;
-  const first = days[0]!;
+  const first = days[gutterDayIndex(week)]!;
   return (
     <div className="overflow-x-auto overflow-y-hidden rounded-lg border bg-card">
       <div className="flex min-w-full">
@@ -47,6 +47,7 @@ export function WeekView({ week, onBook, onReschedule, onCancel }: Props) {
             day={day}
             provider={day.providers[0]!}
             range={range}
+            ownClock={!isRegularDay(day.date, day.timezone)}
             title={t("appointments.week.columnTitle", {
               weekday: t(`appointments.weekdays.${WEEKDAY_KEYS[i]!}`),
               day: String(Number(day.date.slice(8))),

@@ -9,7 +9,7 @@ import { StatusPanel } from "@/shared/shell/status-panel";
 import { FilterSelect } from "@/shared/table/filter-select";
 import { useAppointmentDay, useAppointmentWeek } from "./appointment-queries";
 import { BookingDialog, type BookingRequest } from "./booking-dialog";
-import { weekDayAsDay, weekStartOf } from "./calendar-dates";
+import { weekDayIndexOf, weekDialogDay, weekStartOf } from "./calendar-dates";
 import { CancelDialog } from "./cancel-dialog";
 import { shiftDate } from "./day-grid";
 import { PeriodNav } from "./period-nav";
@@ -89,13 +89,16 @@ export function WeekPanel({ branchId, date, today, ownOnly, onDateChange }: Prop
             setBooking({ request: { kind: "create", providerId: id, startsAt }, dayIndex })
           }
           onReschedule={(appointment) =>
-            setBooking({ request: { kind: "reschedule", appointment }, dayIndex: 0 })
+            setBooking({
+              request: { kind: "reschedule", appointment },
+              dayIndex: weekDayIndexOf(data, appointment.startsAt),
+            })
           }
           onCancel={setCancelling}
         />
         <BookingDialog
           request={booking?.request ?? null}
-          day={weekDayAsDay(data, booking?.dayIndex ?? 0)}
+          day={weekDialogDay(data, booking?.dayIndex ?? 0, listed)}
           onClose={() => setBooking(null)}
         />
       </>
