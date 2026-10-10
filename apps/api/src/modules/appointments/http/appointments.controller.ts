@@ -72,6 +72,7 @@ const keyOf = (raw: string | undefined): string => {
 const actorOf = (request: ClinicRequest): AppointmentActor => ({
   clinicId: request.clinicContext.clinicId,
   userId: request.clinicContext.userId,
+  membershipId: request.clinicContext.membershipId,
   timezone: request.clinicMember.clinic.timezone,
   language: request.clinicMember.preferredLanguage,
   permissions: request.clinicContext.permissions,
@@ -79,6 +80,7 @@ const actorOf = (request: ClinicRequest): AppointmentActor => ({
 });
 
 // Spec §4 and §5 (slice A2, ADR-0026 §11). Thin: validate → call → map. Every route needs the module.
+// The two reads admit `own` (A3; the guard's grantFor still reports a wider key) and the queries narrow it.
 @Controller("appointments")
 export class AppointmentsController {
   private readonly reads: DayDeps;
@@ -95,14 +97,14 @@ export class AppointmentsController {
   }
 
   @Get("branches")
-  @Require("view:appointments:branch")
+  @Require("view:appointments:own")
   @RequiresFeature("appointments")
   branches(@Req() request: ClinicRequest): Promise<AppointmentBranches> {
     return listAppointmentBranches(this.reads, actorOf(request));
   }
 
   @Get("day")
-  @Require("view:appointments:branch")
+  @Require("view:appointments:own")
   @RequiresFeature("appointments")
   day(
     @Req() request: ClinicRequest,

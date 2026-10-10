@@ -58,12 +58,19 @@ const keyOf = (raw: string | undefined): string => {
 const actorOf = (request: ClinicRequest): PatientActor => ({
   clinicId: request.clinicContext.clinicId,
   userId: request.clinicContext.userId,
+  membershipId: request.clinicContext.membershipId,
+  branches: request.clinicContext.branchScope,
   timezone: request.clinicMember.clinic.timezone,
-  scopes: patientScopes(request.clinicContext.permissions, request.clinicContext.branchScope),
+  scopes: patientScopes(
+    request.clinicContext.permissions,
+    request.clinicContext.branchScope,
+    request.clinicContext.membershipId,
+  ),
 });
 
 // Stories P1–P6 (ADR-0018). Thin: validate → call → map. No route ever takes personal data in its URL:
-// the search term travels in a POST body, and `:id` is the opaque file id.
+// the search term travels in a POST body, and `:id` is the opaque file id. The three reads admit `own`
+// (A3, D-4) and the queries narrow it to the caller's files; writes keep their branch requirement.
 @Controller("patients")
 export class PatientsController {
   constructor(
@@ -75,7 +82,7 @@ export class PatientsController {
 
   @Post("search")
   @HttpCode(200)
-  @Require("view:patients:branch")
+  @Require("view:patients:own")
   @RequiresFeature("patients")
   search(
     @Req() request: ClinicRequest,
@@ -92,7 +99,7 @@ export class PatientsController {
   }
 
   @Get("branch-options/view")
-  @Require("view:patients:branch")
+  @Require("view:patients:own")
   @RequiresFeature("patients")
   viewBranches(@Req() request: ClinicRequest): Promise<PatientBranchOptionList> {
     return this.options(request, "view");
@@ -113,7 +120,7 @@ export class PatientsController {
   }
 
   @Get(":id")
-  @Require("view:patients:branch")
+  @Require("view:patients:own")
   @RequiresFeature("patients")
   open(@Req() request: ClinicRequest, @Param("id") id: string): Promise<PatientDetail> {
     return this.opener.open(actorOf(request), idOf(id));
@@ -169,6 +176,7 @@ export class PatientsController {
       this.branches,
       actor.clinicId,
       scope,
+      actor.branches,
       request.clinicMember.preferredLanguage,
     );
   }

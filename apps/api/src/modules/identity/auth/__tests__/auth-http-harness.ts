@@ -38,9 +38,10 @@ class ProbeController {
 
 @Controller("probe-patients")
 class FeatureProbeController {
-  // A patients-module route for FLAG-01 until the patients slice brings real ones.
+  // A patients-module route for FLAG-01 until the patients slice brings real ones. The narrowest view
+  // key, so every patients viewer passes it, the new clinics' own-only doctor too (A3).
   @Get()
-  @Require("view:patients:branch")
+  @Require("view:patients:own")
   @RequiresFeature("patients")
   get() {
     return { ok: true };

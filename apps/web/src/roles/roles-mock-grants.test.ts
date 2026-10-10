@@ -150,3 +150,22 @@ describe("the own scope when defining a role (mock, as the API)", () => {
     expect(made.permissionKeys).toEqual(["view:appointments:own"]);
   });
 });
+
+// Codex A3 r1: view:patients:own crosses branches; only view:patients:clinic covers it, as the API.
+describe("granting view:patients:own (mock, as the API)", () => {
+  beforeEach(() => resetMockData());
+
+  it("a branch key does not cover it; the clinic key does", async () => {
+    const keys = ["view:roles:clinic", "create:roles:clinic"];
+    const input = {
+      nameAr: "دور ملفاتي",
+      nameEn: "Own files",
+      permissionKeys: ["view:patients:own"],
+    };
+    const branch = await memberWith([...keys, "view:patients:branch"]);
+    await forbidden(api.roles.create(branch.persona, input, crypto.randomUUID()));
+    const clinic = await memberWith([...keys, "view:patients:clinic"]);
+    const made = await api.roles.create(clinic.persona, input, crypto.randomUUID());
+    expect(made.permissionKeys).toEqual(["view:patients:own"]);
+  });
+});

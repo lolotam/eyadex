@@ -19,8 +19,10 @@ import {
   enforcePhoneFree,
   enforceRegistrationBranch,
   findPatientInScope,
+  branchVisible,
   inScope,
   matchesSearch,
+  seesPatient,
   patientSnapshot,
   toDetail,
   toListItem,
@@ -86,7 +88,7 @@ export function createMockPatients(): ApiClient["patients"] {
       if (!parsed.success) throw new ApiError("validation");
       const query = parsed.data;
       const filtered = db.patients
-        .filter((p) => p.clinicId === access.clinic.id && inScope(access, p.registrationBranchId))
+        .filter((p) => p.clinicId === access.clinic.id && seesPatient(db, access, p))
         .filter((p) => !query.branchId || p.registrationBranchId === query.branchId)
         .filter((p) => !query.status || p.status === query.status)
         .filter((p) => matchesSearch(p, query.q))
@@ -109,7 +111,7 @@ export function createMockPatients(): ApiClient["patients"] {
       if (!action.success) throw new ApiError("validation");
       const access = authorizePatients(db, persona, action.data);
       return db.branches
-        .filter((b) => b.clinicId === access.clinic.id && inScope(access, b.id))
+        .filter((b) => b.clinicId === access.clinic.id && branchVisible(db, access, b))
         .map((b) => ({ id: b.id, nameAr: b.nameAr, nameEn: b.nameEn, isActive: b.isActive }));
     },
 

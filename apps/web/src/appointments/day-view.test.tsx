@@ -91,6 +91,36 @@ describe("the branch day", () => {
   });
 });
 
+// ADR-0026 A3: the own-only doctor's day is its own column, read-only, and an empty day says so.
+describe("the branch day of an own-only doctor", () => {
+  it("shows only the doctor's column and no booking or status control", async () => {
+    const persona = as("doctor");
+    const { day, d } = await dayFor(persona);
+    expect(day.providers.map((p) => p.membershipId)).toEqual([d.id]);
+    wrap(persona, <DayView day={day} ownOnly onBook={noop} onReschedule={noop} onCancel={noop} />);
+    expect(screen.getByText(d.fullName)).toBeInTheDocument();
+    expect(screen.queryAllByRole("button", { name: /احجز مع/ })).toHaveLength(0);
+    expect(screen.queryAllByRole("button", { name: ar.appointments.actions.menu })).toHaveLength(0);
+    expect(screen.queryByText(ar.appointments.noOwnAppointments)).toBeNull();
+  });
+
+  it("says the doctor has no appointments that day", async () => {
+    const persona = as("doctor");
+    const { day } = await dayFor(persona);
+    const empty = { ...day, appointments: [] };
+    const view = wrap(
+      persona,
+      <DayView day={empty} ownOnly onBook={noop} onReschedule={noop} onCancel={noop} />,
+    );
+    expect(screen.getByText(ar.appointments.noOwnAppointments)).toBeInTheDocument();
+    view.unmount();
+    const none = { ...day, providers: [], appointments: [] };
+    wrap(persona, <DayView day={none} ownOnly onBook={noop} onReschedule={noop} onCancel={noop} />);
+    expect(screen.getByText(ar.appointments.noOwnAppointments)).toBeInTheDocument();
+    expect(screen.queryByText(ar.appointments.noProviders)).toBeNull();
+  });
+});
+
 describe("the booking dialog", () => {
   it("shows the overbook switch only when the day says the caller holds it", async () => {
     const persona = as("clinic_admin");

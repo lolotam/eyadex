@@ -165,4 +165,28 @@ describe("the branch day grid", () => {
       expect(segments(DATE, TZ, "07:30", "24:00")).toEqual([{ from: 450, to: 1440 }]);
     });
   });
+
+  describe("ADR-0026 A3: the day starts at its first real instant, also when midnight is skipped", () => {
+    const CAIRO = "Africa/Cairo";
+    const HAVANA = "America/Havana";
+    const segments = (date: string, timezone: string, startsAt: string, endsAt: string) =>
+      shiftSegments({ startsAt, endsAt }, wallRuns(date, timezone));
+
+    it("Cairo's spring day runs from 01:00 for 23 hours; a 00:00–01:00 shift shades nothing", () => {
+      const runs = wallRuns("2027-04-30", CAIRO);
+      expect(runs[0]).toEqual({ from: 0, to: 1380, wallFrom: 60 });
+      expect(labelAt(0, "2027-04-30", CAIRO)).toBe("01:00");
+      expect(segments("2027-04-30", CAIRO, "00:00", "01:00")).toEqual([]);
+      expect(segments("2027-04-30", CAIRO, "00:00", "02:00")).toEqual([{ from: 0, to: 60 }]);
+    });
+
+    it("Havana's spring day does not start with the evening before", () => {
+      const runs = wallRuns("2027-03-14", HAVANA);
+      expect(runs).toEqual([{ from: 0, to: 1380, wallFrom: 60 }]);
+      expect(labelAt(0, "2027-03-14", HAVANA)).toBe("01:00");
+      // 23:00 of the 13th belongs to the 13th: before this day's axis, not on it.
+      expect(minuteOfDay("2027-03-14T04:10:00.000Z", "2027-03-14", HAVANA)).toBeLessThan(0);
+      expect(segments("2027-03-14", HAVANA, "23:00", "24:00")).toEqual([{ from: 1320, to: 1380 }]);
+    });
+  });
 });

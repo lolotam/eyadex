@@ -23,6 +23,8 @@ export const enAppointments = {
     noProviders: "No one accepts appointments in this branch",
     noProvidersBody:
       "Turn on accepting appointments for a user, then give them working hours in Settings → Work schedules.",
+    noOwnAppointments: "You have no appointments this day",
+    noOwnAppointmentsBody: "Only your own appointments in this branch show here.",
     loadError: "The appointments could not be loaded",
     notBookable: "Not bookable",
     timeOff: "Time off",

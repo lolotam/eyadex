@@ -77,6 +77,7 @@ export const en: MkDict = {
     caption: {
       all: "Sees patients in every branch",
       branch: "Sees {branch} patients only",
+      own: "Sees their own patients only",
       none: "Sees no patient files.",
       can: ", and can {list}.",
       viewOnly: ", view only.",

@@ -34,14 +34,21 @@ export const SAMPLE_PERSONAS: Record<KeyId, SamplePersona> = {
   team: { permissions: [], branches: [] },
 };
 
-export type SamplePatient = { file: number; branch: BranchId; phone: string; index: number };
+/** `withDoctor`: the file has an appointment with the sample doctor, so it is the doctor's own (D-4). */
+export type SamplePatient = {
+  file: number;
+  branch: BranchId;
+  phone: string;
+  index: number;
+  withDoctor: boolean;
+};
 export const SAMPLE_PATIENTS: readonly SamplePatient[] = [
-  { file: 1041, branch: "salmiya", phone: "+965 5••• ••37", index: 0 },
-  { file: 1042, branch: "salmiya", phone: "+965 6••• ••02", index: 1 },
-  { file: 1043, branch: "salmiya", phone: "+965 9••• ••81", index: 2 },
-  { file: 1044, branch: "hawalli", phone: "+965 5••• ••46", index: 3 },
-  { file: 1045, branch: "hawalli", phone: "+965 6••• ••19", index: 4 },
-  { file: 1046, branch: "hawalli", phone: "+965 9••• ••73", index: 5 },
+  { file: 1041, branch: "salmiya", phone: "+965 5••• ••37", index: 0, withDoctor: true },
+  { file: 1042, branch: "salmiya", phone: "+965 6••• ••02", index: 1, withDoctor: true },
+  { file: 1043, branch: "salmiya", phone: "+965 9••• ••81", index: 2, withDoctor: false },
+  { file: 1044, branch: "hawalli", phone: "+965 5••• ••46", index: 3, withDoctor: false },
+  { file: 1045, branch: "hawalli", phone: "+965 6••• ••19", index: 4, withDoctor: false },
+  { file: 1046, branch: "hawalli", phone: "+965 9••• ••73", index: 5, withDoctor: false },
 ];
 
 const KNOWN = new Set(PERMISSION_CATALOG.map((p) => p.key));
@@ -50,14 +57,14 @@ function holds(
   perms: readonly string[],
   action: PermissionAction,
   resource: PermissionResource,
-  scope?: "clinic" | "branch",
+  scope?: "clinic" | "branch" | "own",
 ) {
   return perms.some((p) => KNOWN.has(p) && p.startsWith(`${action}:${resource}:${scope ?? ""}`));
 }
 
 export type KeyringView = {
   sidebar: SidebarItem[];
-  scope: "all" | "branch" | "none";
+  scope: "all" | "branch" | "own" | "none";
   branches: readonly BranchId[];
   rows: { patient: SamplePatient; visible: boolean }[];
   buttons: { create: boolean; update: boolean; deactivate: boolean };
@@ -74,10 +81,15 @@ export function computeView(key: KeyId): KeyringView {
     ? "all"
     : holds(permissions, "view", "patients", "branch")
       ? "branch"
-      : "none";
+      : holds(permissions, "view", "patients", "own")
+        ? "own"
+        : "none";
   const rows = SAMPLE_PATIENTS.map((patient) => ({
     patient,
-    visible: scope === "all" || (scope === "branch" && branches.includes(patient.branch)),
+    visible:
+      scope === "all" ||
+      (scope === "branch" && branches.includes(patient.branch)) ||
+      (scope === "own" && patient.withDoctor),
   }));
   const canSee = scope !== "none";
   const buttons = {
@@ -93,6 +105,7 @@ export function computeView(key: KeyId): KeyringView {
 export type CaptionParts = {
   all: string;
   branch: string;
+  own: string;
   none: string;
   can: string;
   viewOnly: string;
@@ -113,7 +126,9 @@ export function buildCaption(
   const subject =
     view.scope === "all"
       ? c.all
-      : c.branch.replace("{branch}", view.branches.map(branchName).join(c.and));
+      : view.scope === "own"
+        ? c.own
+        : c.branch.replace("{branch}", view.branches.map(branchName).join(c.and));
   const abilities = [
     view.buttons.create && c.add,
     view.buttons.update && c.edit,

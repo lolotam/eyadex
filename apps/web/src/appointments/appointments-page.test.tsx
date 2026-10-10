@@ -35,15 +35,18 @@ async function renderWith(permissions: string[]) {
   );
 }
 
-// Codex PR #64: the branch day's reads need view:appointments:branch or :clinic.
+// A3 inverts Codex PR #64: the own key's reads answer with the caller's own column, so it opens too.
 describe("the appointments page", () => {
-  it("is Forbidden to a role holding only own-scope appointment keys", async () => {
-    await renderWith(["view:appointments:own", "create:appointments:own"]);
+  it("is Forbidden to a role holding no appointments view key", async () => {
+    await renderWith(["view:patients:own"]);
     expect(screen.getByText(ar.forbidden.title)).toBeInTheDocument();
   });
 
-  it.each(["view:appointments:branch", "view:appointments:clinic"])("opens for %s", async (key) => {
-    await renderWith([key]);
-    expect(screen.queryByText(ar.forbidden.title)).toBeNull();
-  });
+  it.each(["view:appointments:own", "view:appointments:branch", "view:appointments:clinic"])(
+    "opens for %s",
+    async (key) => {
+      await renderWith([key]);
+      expect(screen.queryByText(ar.forbidden.title)).toBeNull();
+    },
+  );
 });

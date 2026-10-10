@@ -94,7 +94,8 @@ describe("RBAC-01: the three read endpoints", () => {
     const me = await get(h, "/v1/me", A.doctor.cookie);
     expect(me.statusCode).toBe(200);
     expect(me.json()).toMatchObject({ allBranches: false, branchIds: [A.doctor.branchId] });
-    expect(me.json().permissions).toEqual(["view:patients:branch"]);
+    // A3 (D-8): the new clinics' doctor; view:appointments:own is dropped, the module is off here.
+    expect(me.json().permissions).toEqual(["view:patients:own"]);
   });
 
   it("NEGATIVE: no session → 401, platform host → 404", async () => {

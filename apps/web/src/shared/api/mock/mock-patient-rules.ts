@@ -13,14 +13,25 @@ import {
 } from "@eyadex/contracts/patients";
 import type { Persona } from "@eyadex/contracts/session";
 import { ApiError } from "../api-error";
-import { clinicBlockReason, effectivePermissions, resolveActor, type Actor } from "./mock-actor";
+import {
+  clinicBlockReason,
+  effectivePermissions,
+  memberBranchScope,
+  resolveActor,
+  type Actor,
+} from "./mock-actor";
+import { isOwnPatient } from "./mock-own-scope";
 import type { MockState } from "./mock-store";
 
-/** Resolved access for one patients action: all branches, or an explicit branch set. */
+/**
+ * Resolved access for one patients action: all branches, or an explicit branch set; for `view` only,
+ * `own` (A3): the caller's membership, whose own files are visible in any branch and no branch is.
+ */
 export type PatientAccess = Actor & {
   actorName: string;
   allBranches: boolean;
   branchIds: readonly string[];
+  own: string | null;
 };
 
 /**
@@ -43,7 +54,7 @@ export function authorizePatients(
 ): PatientAccess {
   const actor = guardPatients(db, persona);
   const keys = effectivePermissions(db, actor);
-  const base = { ...actor, actorName: actor.member.fullName };
+  const base = { ...actor, actorName: actor.member.fullName, own: null };
   if (keys.includes(`${action}:patients:clinic`))
     return { ...base, allBranches: true, branchIds: [] };
   if (keys.includes(`${action}:patients:branch`))
@@ -52,6 +63,8 @@ export function authorizePatients(
       allBranches: actor.member.allBranches,
       branchIds: actor.member.branchIds,
     };
+  if (action === "view" && keys.includes("view:patients:own"))
+    return { ...base, allBranches: false, branchIds: [], own: actor.member.id };
   throw new ApiError("forbidden");
 }
 
@@ -72,6 +85,19 @@ export function inScope(access: PatientAccess, branchId: string): boolean {
   return access.allBranches || access.branchIds.includes(branchId);
 }
 
+/** Does the access see this file: by its registration branch, or under `own` by a live appointment. */
+export function seesPatient(db: MockState, access: PatientAccess, p: Patient): boolean {
+  if (access.own !== null) return isOwnPatient(db, access.clinic.id, access.own, p.id);
+  return inScope(access, p.registrationBranchId);
+}
+
+/** The branches an access may file in or filter by; under `own` the caller's active branches (A3). */
+export function branchVisible(db: MockState, access: PatientAccess, branch: Branch): boolean {
+  if (access.own === null) return inScope(access, branch.id);
+  const scope = memberBranchScope(db, access.member);
+  return branch.isActive && (scope.allBranches || scope.branchIds.includes(branch.id));
+}
+
 /** A patient outside the caller's branches is not_found, never forbidden, so it can't be probed. */
 export function findPatientInScope(
   db: MockState,
@@ -79,7 +105,7 @@ export function findPatientInScope(
   patientId: string,
 ): Patient {
   const patient = db.patients.find((p) => p.clinicId === access.clinic.id && p.id === patientId);
-  if (!patient || !inScope(access, patient.registrationBranchId)) throw new ApiError("not_found");
+  if (!patient || !seesPatient(db, access, patient)) throw new ApiError("not_found");
   return patient;
 }
 
@@ -221,7 +247,7 @@ export function toDetail(db: MockState, persona: Persona, p: Patient): PatientDe
 /** A write's result: the full file only while the caller may open it under their view scope. */
 export function writeResult(db: MockState, persona: Persona, p: Patient): PatientWriteResult {
   const viewer = tryAuthorizePatients(db, persona, "view");
-  const visible = viewer !== null && inScope(viewer, p.registrationBranchId);
+  const visible = viewer !== null && seesPatient(db, viewer, p);
   return { id: p.id, fileNumber: p.fileNumber, detail: visible ? toDetail(db, persona, p) : null };
 }
 

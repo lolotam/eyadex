@@ -1,7 +1,7 @@
 # ADR-0026 — Appointments model, the provider lock and the `own` scope
 
 - Status: accepted for slice A1 (design owner-approved 2026-10-09, `docs/specs/appointments-design.md`,
-  decisions D-1..D-17); amended for slice A2 (§11, owner decisions 2026-10-10)
+  decisions D-1..D-17); amended for slice A2 (§11, owner decisions 2026-10-10) and slice A3 (§12)
 - Date: 2026-10-09
 
 ## Context
@@ -190,12 +190,89 @@ applies the API's check order (access before validation) and rules.
   also requires birth date and gender (`NOT NULL` since 0010): the quick file asks for them too and leaves the
   civil ID for later; relaxing the patient file is a separate decision if ever needed. (3) A booking in the past is
   accepted (walk-ins recorded after the fact); every booking is audited.
-- **Known gap, fixed first in A3 (owner 2026-10-10):** the day bounds and the grid assume local midnight exists;
-  in a zone whose DST change skips midnight (`Africa/Cairo`, last Friday of April) the day's first hour reads
-  from the previous date (Codex, PR #64, after the five review rounds).
+- **Known gap, fixed in A3 (§12.1):** the day bounds and the grid assumed local midnight exists (Codex, PR #64).
 - **TODO(spec), conservative choices:** (2) Only a `booked` appointment is rescheduled. (4) The provider
   must work in the branch and the branch be active; `overbook` lifts neither. (5) The patient search in the
   dialog uses `view:patients` (a booker without it can only make a quick file).
+
+### 12. Slice A3 — the clinic day bounds and the `own` scope (owner 2026-10-10)
+
+#### 12.1 The clinic day starts at its first real instant
+
+- `clinicDayBounds(date, tz)` (`@eyadex/contracts/clinic-time`) is the day from the first instant whose clinic wall
+  date is `date` to the first instant of the next date: its midnight, the **earlier** reading when the clock repeats
+  midnight, or the clock change itself when the clock skips midnight. It reads every offset the zone uses within a
+  day and a half of the date and halves whole minutes across a skipped midnight, so any gap or overlap of a few
+  hours in any IANA zone is handled. The API's `clinicDay`, the web grid (`dayStartMs`, `dayLength`) and the
+  mock's day all use it.
+- What was actually broken: `wallToInstant(date, "00:00")` (two passes) resolves a skipped midnight with the
+  offset **before** the change. East of UTC (`Africa/Cairo`, `Asia/Beirut`) that lands exactly on the change, so
+  the Cairo day of 2027-04-30 already started at 01:00 and lasted 1380 minutes; the Cairo case named by Codex did
+  not reproduce. West of UTC (`America/Havana`, `America/Santiago`, `Atlantic/Azores`) it lands an hour
+  **before** the change, so the day started at 23:00 of the previous date and lasted 1440 minutes, and the evening
+  before showed on the wrong day. The tests pin both (Cairo, Havana, Santiago, Azores, a repeated midnight in
+  Havana, Kuwait every day of a year).
+
+#### 12.2 The `own` scope (spec §3, D-4, D-8)
+
+- **Wider wins** (`grantFor`, PRD §4.7): a caller holding `clinic` or `branch` on the same action keeps that reach;
+  `own` applies only when it is the caller's widest key. `own` exists for `view` only.
+- **Appointments `own`**: rows whose `provider_membership_id` is the caller's membership
+  (`ClinicRequestContext.membershipId`). `GET /v1/appointments/branches` and `/day` now `@Require`
+  `view:appointments:own` (the guard admits own, branch and clinic holders); the queries narrow
+  (`appointmentViewReach`, `dayBranches`, `viewSees`). Writes keep their `:branch` requirement.
+- **Patients `own`** (D-4): files with at least one appointment with the caller that is not cancelled, past or
+  future, in any branch:
+  `EXISTS (SELECT 1 FROM appointments a WHERE a.clinic_id = p.clinic_id AND a.patient_id = p.id
+AND a.provider_membership_id = $m AND a.status <> 'cancelled')`, on 0043's partial index
+  `appointments_clinic_provider_patient_live_idx` (no new index). It applies to the list page and its total, to
+  `GET :id` (which still writes `patient.opened`; a file that is not own is `not_found`, like an unknown id) and to
+  the visibility of a write's answer. `POST /v1/patients/search`, `GET /v1/patients/branch-options/view` and
+  `GET /v1/patients/:id` now `@Require` `view:patients:own`; writes are unchanged.
+- **Cross-module read.** `appointments` already binds patients' `PgBookingPatients`; a patients port implemented
+  by appointments would close an import cycle. So the patients module's own SQL names the `appointments`
+  relation read-only, in that one `EXISTS` predicate, in `modules/patients/queries/own-patients.ts` only, and
+  imports nothing of appointments. `module-boundaries.spec.ts` pins it: the patients module's SQL names only
+  `patients`, `clinic_counters` (and the `jsonb_array_elements_text` set function of its scope filter), plus
+  `appointments` in that one file (CLAUDE.architecture.md §2.2).
+- **Catalogue (0044).** `view:patients:own` (module `patients`) joins the catalogue (41 keys). The locked admin does
+  not get it (D-16 covers clinic-scope keys; `view:patients:clinic` is wider); no existing role changes.
+- **New clinics' doctor** (D-8): `view:appointments:own` + `view:patients:own` (`SYSTEM_ROLES`, the web
+  `ROLE_TEMPLATES`, the landing's keyring sample). Existing clinics' doctor roles are not changed by a migration.
+- **Granting `view:patients:own` (Codex A3 r1).** A file is own by its appointments, in any branch, so a branch
+  key does not bound it: a branch-scoped user manager could otherwise give a member of its branches the doctor
+  role and reach files registered in every branch. When granting or defining a role (`uncoveredKeys`, ADR-0017
+  §6), only `view:patients:clinic` covers `view:patients:own` (not a branch key, not the own key itself); the
+  route guard's `grantFor` is unchanged. `view:appointments:own` stays covered by a branch key: its day is
+  bounded by the member's own branches, which the granting bound already keeps inside the actor's. So inviting
+  or moving a member into the new doctor role needs `view:patients:clinic` and a `view:appointments` key; the
+  clinic admin holds both.
+- **Web.** `view:appointments:own` shows the Appointments entry and the branch day (inverting the PR #64 rule that
+  hid them while own reached nothing), read-only: the day's `can` is false, so no slot or status control shows.
+  An own-only user's empty day and empty patients list say so in plain words. The roles editor offers
+  `view:patients:own` as a scope of the patients view, as it does for appointments. The mock follows the same
+  rules (`mock-own-scope.ts`).
+- **TODO(spec), conservative choices:**
+  1. Patients `own` ignores the appointments module flag: with the module off the rows still exist and say who
+     the provider saw, so the doctor keeps seeing its files.
+  2. With only `own`, `GET /v1/appointments/branches` lists the active branches of the caller's own membership
+     (all of them for "all branches"), even with no appointments there. The day of such a branch shows only the
+     caller's column (its shifts and time off there, its live appointments there), or no column at all when the
+     caller would not have one; a branch outside the membership is `not_found`. `can` is all false unless a
+     wider key says otherwise.
+  3. With only `own`, `GET /v1/patients/branch-options/view` returns the active branches of the caller's own
+     membership; the list's branch filter narrows only within the caller's own files, and an own file registered
+     in another branch stays visible.
+  4. The `own` predicate lives in the patients module's SQL (above), not behind a port.
+  5. A write's answer under `view:appointments:own` (a caller who also holds a branch-scope create or update) is
+     `{ appointment }` only when its provider is the caller, otherwise `null`. A patients write answer under an
+     own-only view carries `detail` only when the written file is own in the same transaction, so a file the caller
+     just created (no appointment yet) answers `detail: null`.
+  6. Granting `view:patients:own` needs `view:patients:clinic`, even for an all-branch actor holding
+     `view:patients:branch` (which reaches every branch too): one rule, no reach arithmetic.
+  7. A duplicate phone or civil ID is never disclosed under an own-only view (`validation`), even when the
+     existing file is the caller's own: disclosure would need a database read inside the duplicate check, and the
+     plain error leaks nothing.
 
 ## Consequences
 
@@ -209,3 +286,8 @@ applies the API's check order (access before validation) and rules.
   any such clinic, and 0042's final `INSERT … ON CONFLICT DO NOTHING` (idempotent) is then re-run.
 - A2 (§11): 0043 is additive (a new table and the platform view without appointment rows; no catalogue or role
   change), so it can be applied before the A2 code ships; the A2 code needs it. Old code never reads the table.
+- A3 (§12): 0044 is additive (one catalogue row, no role change) and is a hard prerequisite of the A3 code: new
+  clinics' onboarding seeds the doctor role with `view:patients:own` and stops on a key the catalogue lacks. Apply
+  it on staging, then production, before the A3 deploy. The old code is unaffected by it: no role holds the key,
+  its role writes accept only its own catalogue's keys, and its `effectivePermissions` drops a stored key it does
+  not know.

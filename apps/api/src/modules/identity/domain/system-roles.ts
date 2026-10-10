@@ -34,7 +34,9 @@ export const SYSTEM_ROLES: readonly SystemRoleTemplate[] = [
     nameAr: "طبيب",
     nameEn: "Doctor",
     isLocked: false,
-    permissions: ["view:patients:branch"],
+    // D-8 (spec §3, slice A3): the doctor sees its own appointments and its own patients only; booking
+    // stays with the front desk. Existing clinics' doctor roles are not changed by a migration.
+    permissions: ["view:appointments:own", "view:patients:own"],
   },
   {
     key: "receptionist",

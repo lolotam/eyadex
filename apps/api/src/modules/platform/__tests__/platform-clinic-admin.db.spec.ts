@@ -137,7 +137,8 @@ describe("FLAG-01 / FLAG-02: locking a module hides it, re-enabling restores it 
 
     const restored = await platform("PUT", `${clinic()}/features/patients`, { enabled: true });
     expect(restored.json().modules).toEqual({ patients: true, appointments: false });
-    expect(await permissionsOf(A.doctor.cookie)).toEqual(["view:patients:branch"]);
+    // A3 (D-8): the doctor's keys; view:appointments:own stays dropped, the module is off here.
+    expect(await permissionsOf(A.doctor.cookie)).toEqual(["view:patients:own"]);
     expect(await permissionsOf(A.admin.cookie)).toEqual(adminBefore);
     expect((await get(h, "/v1/probe-patients", A.doctor.cookie)).statusCode).toBe(200);
 

@@ -5,6 +5,7 @@ import { todayInTimeZone } from "@eyadex/contracts/patients";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { errorCodeOf } from "@/shared/api/api-error";
+import { can } from "@/shared/permissions/can";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { useSession } from "@/shared/persona/persona-provider";
 import { LoadingBlock } from "@/shared/shell/loading-block";
@@ -32,6 +33,8 @@ export function AppointmentsContent() {
   }, [branches.data, branchId]);
   const items = branches.data?.items ?? [];
   const day = useAppointmentDay(branchId, date);
+  // A3: with only the own key the day shows the caller's own column; the empty state says so.
+  const ownOnly = !can(session?.permissions ?? [], "view", "appointments", ["clinic", "branch"]);
 
   const failed = branches.error ?? day.error;
   const header = (
@@ -108,6 +111,7 @@ export function AppointmentsContent() {
       ) : (
         <DayView
           day={day.data}
+          ownOnly={ownOnly}
           onBook={(providerId, startsAt) => setBooking({ kind: "create", providerId, startsAt })}
           onReschedule={(appointment) => setBooking({ kind: "reschedule", appointment })}
           onCancel={setCancelling}

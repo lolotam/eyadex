@@ -50,6 +50,8 @@ export const enPatients = {
     empty: "No patients yet",
     emptyBody: "Register the first patient to open their file.",
     emptyFiltered: "No patients match these filters",
+    emptyOwn: "You have no patients yet",
+    emptyOwnBody: "A patient shows here after their first appointment with you.",
     loadError: "Patients could not be loaded",
     detailTitle: "Patient file",
     detailError: "This patient file could not be opened",

@@ -67,6 +67,7 @@ export const ar = {
     caption: {
       all: "يرى مراجعي كل الفروع",
       branch: "يرى مراجعي فرع {branch} فقط",
+      own: "يرى مراجعيه هو فقط",
       none: "لا يرى أي ملف مراجع.",
       can: "، ويستطيع {list}.",
       viewOnly: "، للعرض فقط.",

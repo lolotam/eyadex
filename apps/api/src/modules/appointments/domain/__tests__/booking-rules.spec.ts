@@ -4,8 +4,11 @@ import { auditSnapshots } from "../../../audit/domain/audit-snapshot.ts";
 import {
   appointmentAuditSnapshot,
   appointmentReach,
+  appointmentViewReach,
+  dayBranches,
   decideSlot,
   decideTransition,
+  viewSees,
 } from "../booking-rules.ts";
 
 // D-3, D-5, rule 9 (spec §4), ADR-0026 §11.
@@ -17,14 +20,44 @@ describe("appointmentReach", () => {
       all: true,
     });
     expect(appointmentReach(["create:appointments:branch"], "create", member)).toEqual(member);
-    expect(appointmentReach(["view:appointments:own"], "view", member)).toEqual({
-      all: false,
-      branchIds: [],
-    });
     expect(appointmentReach(["create:appointments:clinic"], "overbook", member)).toEqual({
       all: false,
       branchIds: [],
     });
+  });
+});
+
+describe("appointmentViewReach — A3: own is the narrowest view, the wider key wins", () => {
+  it("clinic = every branch, branch = the member's, own = the caller's own appointments", () => {
+    expect(appointmentViewReach(["view:appointments:clinic"], member, "m1")).toEqual({ all: true });
+    expect(appointmentViewReach(["view:appointments:branch"], member, "m1")).toEqual(member);
+    expect(appointmentViewReach(["view:appointments:own"], member, "m1")).toEqual({ own: "m1" });
+    expect(appointmentViewReach(["create:appointments:clinic"], member, "m1")).toEqual({
+      all: false,
+      branchIds: [],
+    });
+  });
+
+  it("a wider key held beside own keeps its reach", () => {
+    const both = ["view:appointments:own", "view:appointments:branch"];
+    expect(appointmentViewReach(both, member, "m1")).toEqual(member);
+    const clinic = ["view:appointments:own", "view:appointments:clinic"];
+    expect(appointmentViewReach(clinic, member, "m1")).toEqual({ all: true });
+  });
+
+  it("own opens the days of the caller's own branches, a wider reach its own", () => {
+    expect(dayBranches({ own: "m1" }, member)).toEqual(member);
+    expect(dayBranches({ all: true }, member)).toEqual({ all: true });
+  });
+});
+
+describe("viewSees", () => {
+  const row = { branchId: "b2", providerMembershipId: "m1" };
+  it("under own only the caller's appointments, in any branch; otherwise by branch", () => {
+    expect(viewSees({ own: "m1" }, row)).toBe(true);
+    expect(viewSees({ own: "m2" }, row)).toBe(false);
+    expect(viewSees(member, row)).toBe(false);
+    expect(viewSees({ all: true }, row)).toBe(true);
   });
 });
 

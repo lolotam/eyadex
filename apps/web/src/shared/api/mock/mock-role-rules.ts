@@ -99,9 +99,11 @@ type Reach = { allBranches: boolean; branchIds: readonly string[] };
 
 /**
  * The API's `uncoveredKeys` (`grantFor`): stored keys of every module; a clinic key covers the
- * branch and own scopes, a branch key covers own (the narrowest).
+ * branch and own scopes, a branch key covers own (the narrowest), except `view:patients:own`: its
+ * files cross branches, so only `view:patients:clinic` covers it (ADR-0026 §12, Codex A3 r1).
  */
 function covers(held: readonly string[], key: string): boolean {
+  if (key === "view:patients:own") return held.includes("view:patients:clinic");
   const [action, resource, scope] = key.split(":");
   if (held.includes(key) || held.includes(`${action}:${resource}:clinic`)) return true;
   return scope === "own" && held.includes(`${action}:${resource}:branch`);

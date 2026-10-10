@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import type { Database, Tx } from "@eyadex/db";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -55,12 +57,13 @@ function countingDb(db: Database): { db: Database; statements: () => number } {
   return { db: wrapped, statements: () => n };
 }
 
-async function readCounted() {
+async function readCounted(timezone = TZ, date = DAY) {
   const { db, statements } = countingDb(h.app.get<Database>(DATABASE));
   const actor: AppointmentActor = {
     clinicId: C.clinicId,
     userId: C.admin.userId,
-    timezone: TZ,
+    membershipId: C.admin.memberId,
+    timezone,
     language: "en",
     permissions: ["view:appointments:clinic"],
     member: { all: true },
@@ -73,7 +76,7 @@ async function readCounted() {
       patients: h.app.get<BookingPatientReader>(BOOKING_PATIENT_READER),
     },
     actor,
-    { branchId: C.branchD, date: DAY },
+    { branchId: C.branchD, date },
   );
   return { day, statements: statements() };
 }
@@ -165,5 +168,32 @@ describe("the branch day's statements (Codex A2 PR #64)", () => {
     for (const a of many.day.appointments) {
       expect(a.providerName).toBe(column(a.providerMembershipId).fullName);
     }
+  });
+});
+
+describe("the day's bounds when the clock skips midnight (ADR-0026 A3)", () => {
+  /** An appointment of the doctor on branch D at an instant, written as the owner. */
+  async function storedAt(startsAt: string): Promise<string> {
+    const id = randomUUID();
+    await h.owner`INSERT INTO appointments (clinic_id, id, branch_id, patient_id, provider_membership_id,
+                    service_id, starts_at, ends_at, status, overbooked, created_by, created_at, updated_at)
+                  VALUES (${C.clinicId}, ${id}, ${C.branchD}, ${patient}, ${C.doctor.memberId}, null,
+                    ${startsAt}::timestamptz, ${startsAt}::timestamptz + interval '20 minutes',
+                    'booked', false, ${C.admin.userId}, now(), now())`;
+    return id;
+  }
+  const ids = async (timezone: string, date: string) =>
+    (await readCounted(timezone, date)).day.appointments.map((a) => a.id);
+
+  it("Cairo 01:10 on the spring day belongs to that day, not to the day before", async () => {
+    const id = await storedAt("2027-04-29T22:10:00.000Z"); // 2027-04-30 01:10 in Cairo
+    expect(await ids("Africa/Cairo", "2027-04-30")).toContain(id);
+    expect(await ids("Africa/Cairo", "2027-04-29")).not.toContain(id);
+  });
+
+  it("Havana 23:10 before the spring change belongs to the day before, not to the spring day", async () => {
+    const id = await storedAt("2027-03-14T04:10:00.000Z"); // 2027-03-13 23:10 in Havana
+    expect(await ids("America/Havana", "2027-03-13")).toContain(id);
+    expect(await ids("America/Havana", "2027-03-14")).not.toContain(id);
   });
 });

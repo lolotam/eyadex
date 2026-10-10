@@ -11,7 +11,7 @@ import {
   type AppointmentDay,
   type AppointmentStatus,
 } from "@eyadex/contracts/appointments";
-import { wallToInstant } from "@eyadex/contracts/clinic-time";
+import { clinicDayBounds } from "@eyadex/contracts/clinic-time";
 import type { z } from "zod";
 import { ApiError } from "../api-error";
 import type { AppointmentsApi } from "../appointments-client";
@@ -41,9 +41,6 @@ function parse<S extends z.ZodTypeAny>(schema: S, raw: unknown): z.infer<S> {
   if (!parsed.success) throw new ApiError("validation");
   return parsed.data;
 }
-
-const nextDate = (date: string) =>
-  new Date(Date.parse(`${date}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
 
 /** An appointment inside the update reach (else not_found, as the API). */
 function existing(db: MockState, a: AppointmentAccess, id: string): StoredAppointment {
@@ -83,25 +80,29 @@ function move(
 function day(db: MockState, a: AppointmentAccess, query: { branchId: string; date: string }) {
   const clinicId = a.clinic.id;
   const branch = db.branches.find((b) => b.clinicId === clinicId && b.id === query.branchId);
-  if (!branch || !reachCovers(a.reach("view"), branch.id)) throw new ApiError("not_found");
+  if (!branch || !reachCovers(a.dayReach, branch.id)) throw new ApiError("not_found");
+  // A3: under `own` only the caller's column and appointments, naming no other provider.
+  const shown = (membershipId: string) => a.own === null || membershipId === a.own;
   const tz = a.clinic.timezone;
-  const span = {
-    startsAt: wallToInstant(query.date, "00:00", tz),
-    endsAt: wallToInstant(nextDate(query.date), "00:00", tz),
-  };
+  const span = clinicDayBounds(query.date, tz);
   const inDay = (x: { startsAt: string; endsAt: string }) =>
     Date.parse(x.startsAt) < Date.parse(span.endsAt) &&
     Date.parse(x.endsAt) > Date.parse(span.startsAt);
   const rows = db.appointments
     .filter(
       (x) =>
-        x.clinicId === clinicId && x.branchId === branch.id && x.status !== "cancelled" && inDay(x),
+        x.clinicId === clinicId &&
+        x.branchId === branch.id &&
+        x.status !== "cancelled" &&
+        inDay(x) &&
+        shown(x.providerMembershipId),
     )
     .sort((x, y) => x.startsAt.localeCompare(y.startsAt) || x.id.localeCompare(y.id));
   const weekday = new Date(`${query.date}T00:00:00Z`).getUTCDay();
   const members = db.members.filter(
     (m) =>
       m.clinicId === clinicId &&
+      shown(m.id) &&
       ((m.status === "active" &&
         profileOf(db, m.id).acceptsAppointments &&
         worksIn(m, branch.id)) ||
@@ -156,9 +157,7 @@ export function createMockAppointments(): AppointmentsApi {
       const db = getState();
       const a = authorizeAppointments(db, persona, "view");
       const items = db.branches
-        .filter(
-          (b) => b.clinicId === a.clinic.id && b.isActive && reachCovers(a.reach("view"), b.id),
-        )
+        .filter((b) => b.clinicId === a.clinic.id && b.isActive && reachCovers(a.dayReach, b.id))
         .map((b) => ({ id: b.id, nameAr: b.nameAr, nameEn: b.nameEn, isActive: b.isActive }));
       return { items };
     },

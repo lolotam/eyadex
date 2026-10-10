@@ -50,6 +50,8 @@ export const arPatients = {
     empty: "لا يوجد مراجعون بعد",
     emptyBody: "سجّل أول مراجع لفتح ملفه.",
     emptyFiltered: "لا يوجد مراجعون يطابقون هذه الفلاتر",
+    emptyOwn: "لا يوجد مراجعون لك بعد",
+    emptyOwnBody: "يظهر المراجع هنا بعد أول موعد له معك.",
     loadError: "تعذّر تحميل المراجعين",
     detailTitle: "ملف المراجع",
     detailError: "تعذّر فتح ملف المراجع",

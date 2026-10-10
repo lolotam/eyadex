@@ -4,17 +4,23 @@ import { DatabaseError } from "@eyadex/db";
 import { ApiError } from "../../../shared/errors.ts";
 import {
   coversBranch,
+  type MemberBranches,
   type PatientRecord,
   type PatientScope,
   type PatientScopes,
 } from "../domain/patient-rules.ts";
 import { lockClinicPatients } from "../persistence/pg-patient-store.ts";
+import { viewSees } from "../queries/own-patients.ts";
 import { readPatientDetail, type PatientReads } from "../queries/patient-views.ts";
 
 /** الفاعل: عضو العيادة اللي الـ guard حلّه، بنطاقات أفعاله على المراجعين ومنطقة عيادته. */
 export interface PatientActor {
   readonly clinicId: string;
   readonly userId: string;
+  /** عضويته: نطاق `own` بيتحسب بيها (A3). */
+  readonly membershipId: string;
+  /** فروع عضويته النشطة، زي ما الـ guard حلّها. */
+  readonly branches: MemberBranches;
   /** منطقة العيادة الزمنية: "النهارده" لتاريخ الميلاد. */
   readonly timezone: string;
   readonly scopes: PatientScopes;
@@ -31,8 +37,14 @@ export function requireScope(scope: PatientScope | null): PatientScope {
 
 // The full file goes out only when the caller's VIEW scope covers the branch of the very row that is
 // returned, never of an earlier read of it: a file moved in between must not leak (Codex P1, slice 9).
-function resultOf(actor: PatientActor, detail: PatientDetail): PatientWriteResult {
-  const visible = coversBranch(actor.scopes.view, detail.registrationBranchId);
+// Under `own` it goes out only when the file is the caller's, judged in the same transaction (A3): a
+// file just created has no appointment yet, so an own-only viewer gets `detail: null` for it.
+async function resultOf(
+  reads: PatientReads,
+  actor: PatientActor,
+  detail: PatientDetail,
+): Promise<PatientWriteResult> {
+  const visible = await viewSees(reads.tx, actor.clinicId, actor.scopes.view, detail);
   return { id: detail.id, fileNumber: detail.fileNumber, detail: visible ? detail : null };
 }
 
@@ -47,7 +59,7 @@ export async function writeResult(
 ): Promise<PatientWriteResult> {
   const detail = await readPatientDetail(reads, actor, record.id);
   if (detail === null) throw new ApiError("not_found");
-  return resultOf(actor, detail);
+  return resultOf(reads, actor, detail);
 }
 
 /**
@@ -66,7 +78,7 @@ export async function replayResult(
   if (detail === null || !coversBranch(createScope, detail.registrationBranchId)) {
     throw new ApiError("not_found");
   }
-  return resultOf(actor, detail);
+  return resultOf(reads, actor, detail);
 }
 
 /**
