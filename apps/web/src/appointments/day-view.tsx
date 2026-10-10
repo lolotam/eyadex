@@ -27,8 +27,8 @@ export function DayView({ day, onBook, onReschedule, onCancel }: Props) {
   const range = visibleRange(day);
   const height = (range.to - range.from) * PX_PER_MINUTE;
   return (
-    <div className="overflow-x-auto rounded-lg border bg-card">
-      <div className="flex min-w-max">
+    <div className="overflow-x-auto overflow-y-hidden rounded-lg border bg-card">
+      <div className="flex min-w-full">
         <div className="sticky start-0 z-10 w-14 shrink-0 border-e bg-card">
           <div className="h-12 border-b" />
           <div className="relative" style={{ height }}>

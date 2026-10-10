@@ -23,7 +23,7 @@ export function ProviderColumn({ day, provider, range, onBook, onReschedule, onC
   const mine = day.appointments.filter((a) => a.providerMembershipId === provider.membershipId);
   const placed = lanes(mine);
   return (
-    <div className="w-44 shrink-0 border-e last:border-e-0 sm:w-52">
+    <div className="min-w-44 flex-1 border-e last:border-e-0 sm:min-w-52">
       <div className="flex h-12 items-center gap-2 border-b px-3">
         <span className="truncate text-sm font-medium" title={provider.fullName}>
           {provider.fullName}
@@ -34,14 +34,14 @@ export function ProviderColumn({ day, provider, range, onBook, onReschedule, onC
           </Badge>
         )}
       </div>
-      <div className="relative bg-muted/40" style={{ height }}>
+      <div className="relative bg-muted" style={{ height }}>
         {provider.shifts.map((s) => {
           const box = placement(wallMinutes(s.startsAt), wallMinutes(s.endsAt), range);
           return (
             box && (
               <div
                 key={`${s.startsAt}-${s.endsAt}`}
-                className="absolute inset-x-0 bg-background"
+                className="absolute inset-x-0 border-s-2 border-primary/40 bg-card"
                 style={box}
                 aria-hidden
               />

@@ -49,7 +49,7 @@ export function AppointmentActions({ appointment, onReschedule, onCancel }: Prop
         <Button
           variant="ghost"
           size="icon"
-          className="-me-1 size-6 shrink-0"
+          className="-me-1 size-4 shrink-0"
           aria-label={t("appointments.actions.menu")}
         >
           <MoreVertical className="size-3.5" />

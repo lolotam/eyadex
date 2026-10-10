@@ -5,8 +5,8 @@ import { minutesToWall, wallMinutes } from "@eyadex/contracts/schedules";
 // Pure layout of the branch day (spec §5): every position is minutes after the clinic's midnight of
 // the shown date, so a block that started yesterday or ends tomorrow is clipped to the day.
 
-/** Pixels per minute: one hour is 64px. */
-export const PX_PER_MINUTE = 64 / 60;
+/** Pixels per minute: one hour is 120px, so a 20-minute visit still shows its patient and time. */
+export const PX_PER_MINUTE = 2;
 /** The bookable slot length offered by a click (the dialog edits it freely). */
 export const SLOT_MINUTES = 30;
 const DEFAULT_FROM = 8 * 60;

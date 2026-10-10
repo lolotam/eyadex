@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
+import { AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import type { Appointment, AppointmentDay } from "@eyadex/contracts/appointments";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ import {
   toAppointmentInput,
   toRescheduleInput,
   type BookingForm,
+  type SlotCode,
 } from "./booking-form";
 import { PatientPicker, type PickedPatient } from "./patient-picker";
 
@@ -63,12 +65,14 @@ export function BookingDialog({ request, day, onClose }: Props) {
   const services = useBookingServices(can(session?.permissions ?? [], "view", "services"));
   const key = useRef(crypto.randomUUID());
   const [patient, setPatient] = useState<PickedPatient | null>(null);
+  const [refusal, setRefusal] = useState<SlotCode | null>(null);
   const creating = request?.kind === "create";
   const form = useForm<BookingForm>({ resolver: zodResolver(bookingFormSchema) });
   useEffect(() => {
     if (request === null) return;
     key.current = crypto.randomUUID();
     setPatient(null);
+    setRefusal(null);
     form.reset(initial(request, day));
   }, [request, day, form]);
   const [providerId, serviceId, startTime] = useWatch({
@@ -103,8 +107,8 @@ export function BookingDialog({ request, day, onClose }: Props) {
       onClose();
     },
     onError: (e) => {
-      const refusal = slotRefusal(e);
-      if (refusal) form.setError("startTime", { message: `errors.${refusal}` });
+      const slot = slotRefusal(e);
+      if (slot) setRefusal(slot);
       else toast.error(t(`errors.${errorCodeOf(e)}`));
     },
   });
@@ -143,7 +147,10 @@ export function BookingDialog({ request, day, onClose }: Props) {
           <form
             id="booking-form"
             className="grid gap-4 sm:grid-cols-2"
-            onSubmit={form.handleSubmit((values) => mutation.mutate(values))}
+            onSubmit={form.handleSubmit((values) => {
+              setRefusal(null);
+              mutation.mutate(values);
+            })}
           >
             <SelectField
               control={form.control}
@@ -184,6 +191,15 @@ export function BookingDialog({ request, day, onClose }: Props) {
             <p className="text-xs text-muted-foreground sm:col-span-2">
               {t("appointments.dialog.endHint")}
             </p>
+            {refusal && (
+              <p
+                role="alert"
+                className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-2 text-sm text-destructive sm:col-span-2"
+              >
+                <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
+                {t(`errors.${refusal}`)}
+              </p>
+            )}
             {day.can.overbook && (
               <div className="sm:col-span-2">
                 <SwitchField

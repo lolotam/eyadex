@@ -30,30 +30,29 @@ export function AppointmentBlock({
   const width = 100 / lane.of;
   return (
     <div
-      className={`absolute z-[1] overflow-hidden rounded-md border px-2 py-1 text-xs shadow-sm ${look.tint}`}
+      className={`absolute z-[1] overflow-hidden rounded-md border px-1.5 py-0.5 text-xs leading-tight shadow-sm ${look.tint}`}
       style={{
         top: box.top + 1,
         height: Math.max(box.height - 2, 18),
         insetInlineStart: `${lane.lane * width}%`,
         width: `calc(${width}% - 4px)`,
       }}
+      title={`${a.patientName} · ${t(`appointments.status.${a.status}`)}`}
     >
-      <div className="flex items-start gap-1">
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-medium">{a.patientName}</p>
-          <p className="truncate text-[11px] text-muted-foreground" dir="ltr">
-            {wallTime(a.startsAt, timeZone)}–{wallTime(a.endsAt, timeZone)}
-          </p>
-        </div>
+      <div className="flex items-center gap-1">
+        <look.icon className="size-3 shrink-0" aria-hidden />
+        <p className="min-w-0 flex-1 truncate font-medium">{a.patientName}</p>
         {canUpdate && (
           <AppointmentActions appointment={a} onReschedule={onReschedule} onCancel={onCancel} />
         )}
       </div>
-      <p className="mt-0.5 flex items-center gap-1 truncate text-[11px]">
-        <look.icon className="size-3 shrink-0" aria-hidden />
-        {t(`appointments.status.${a.status}`)}
+      <p className="flex items-center gap-1 truncate text-[11px] text-muted-foreground">
+        <span dir="ltr">
+          {wallTime(a.startsAt, timeZone)}–{wallTime(a.endsAt, timeZone)}
+        </span>
+        <span>· {t(`appointments.status.${a.status}`)}</span>
         {a.overbooked && (
-          <span className="ms-1 inline-flex items-center gap-0.5 text-amber-700 dark:text-amber-400">
+          <span className="inline-flex items-center gap-0.5 text-amber-700 dark:text-amber-400">
             <AlertTriangle className="size-3" aria-hidden />
             {t("appointments.overbooked")}
           </span>
