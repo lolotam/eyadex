@@ -1,11 +1,12 @@
 import type { AppointmentDay } from "@eyadex/contracts/appointments";
 import { wallPieces } from "@eyadex/contracts/appointment-slots";
-import { instantToWall, wallToInstant } from "@eyadex/contracts/clinic-time";
+import { clinicDayBounds, instantToWall } from "@eyadex/contracts/clinic-time";
 import { wallMinutes } from "@eyadex/contracts/schedules";
 
-// Pure layout of the branch day (spec §5): every position is real minutes after the clinic's midnight of
-// the shown date, so a block that started yesterday or ends tomorrow is clipped to the day, and on a
-// daylight-saving day (23 or 25 hours) blocks, hours, labels and slots share one axis (Codex A2 r2, r3).
+// Pure layout of the branch day (spec §5): every position is real minutes after the first real instant of
+// the shown date (its midnight, or the clock change when the clock skips midnight — ADR-0026 A3), so a
+// block that started yesterday or ends tomorrow is clipped to the day, and on a daylight-saving day (23 or
+// 25 hours) blocks, hours, labels and slots share one axis (Codex A2 r2, r3).
 
 /** Pixels per minute: one hour is 120px, so a 20-minute visit still shows its patient and time. */
 export const PX_PER_MINUTE = 2;
@@ -14,11 +15,22 @@ export const SLOT_MINUTES = 30;
 const DEFAULT_FROM = 8 * 60;
 const DEFAULT_TO = 20 * 60;
 
-const dayStartMs = (date: string, timeZone: string) =>
-  Date.parse(wallToInstant(date, "00:00", timeZone));
+// The grid asks for the same day's bounds for every block, label and slot: keep the last answer.
+let lastBounds: { key: string; startMs: number; endMs: number } | null = null;
+
+function boundsMs(date: string, timeZone: string): { startMs: number; endMs: number } {
+  const key = `${date}|${timeZone}`;
+  if (lastBounds?.key !== key) {
+    const bounds = clinicDayBounds(date, timeZone);
+    lastBounds = { key, startMs: Date.parse(bounds.startsAt), endMs: Date.parse(bounds.endsAt) };
+  }
+  return lastBounds;
+}
+
+const dayStartMs = (date: string, timeZone: string) => boundsMs(date, timeZone).startMs;
 
 /**
- * Minutes from the clinic's midnight of `date` to the instant (negative before, > 1440 after), counted on
+ * Minutes from the first real instant of `date` to the instant (negative before, > 1440 after), counted on
  * the real clock: on a daylight-saving day a block keeps its order and length instead of folding into the
  * repeated hour and vanishing (Codex A2 r2).
  */
@@ -27,8 +39,10 @@ export function minuteOfDay(iso: string, date: string, timeZone: string): number
 }
 
 /** The day's real length in minutes (1440, or 1380 / 1500 on a daylight-saving day). */
-export const dayLength = (date: string, timeZone: string) =>
-  minuteOfDay(wallToInstant(shiftDate(date, 1), "00:00", timeZone), date, timeZone);
+export const dayLength = (date: string, timeZone: string) => {
+  const { startMs, endMs } = boundsMs(date, timeZone);
+  return Math.round((endMs - startMs) / 60_000);
+};
 
 /** A stretch of the axis where the clinic's clock runs without a jump, and its first wall minute. */
 export type WallRun = { from: number; to: number; wallFrom: number };

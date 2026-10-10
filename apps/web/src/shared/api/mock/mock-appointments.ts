@@ -11,7 +11,7 @@ import {
   type AppointmentDay,
   type AppointmentStatus,
 } from "@eyadex/contracts/appointments";
-import { wallToInstant } from "@eyadex/contracts/clinic-time";
+import { clinicDayBounds } from "@eyadex/contracts/clinic-time";
 import type { z } from "zod";
 import { ApiError } from "../api-error";
 import type { AppointmentsApi } from "../appointments-client";
@@ -41,9 +41,6 @@ function parse<S extends z.ZodTypeAny>(schema: S, raw: unknown): z.infer<S> {
   if (!parsed.success) throw new ApiError("validation");
   return parsed.data;
 }
-
-const nextDate = (date: string) =>
-  new Date(Date.parse(`${date}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
 
 /** An appointment inside the update reach (else not_found, as the API). */
 function existing(db: MockState, a: AppointmentAccess, id: string): StoredAppointment {
@@ -85,10 +82,7 @@ function day(db: MockState, a: AppointmentAccess, query: { branchId: string; dat
   const branch = db.branches.find((b) => b.clinicId === clinicId && b.id === query.branchId);
   if (!branch || !reachCovers(a.reach("view"), branch.id)) throw new ApiError("not_found");
   const tz = a.clinic.timezone;
-  const span = {
-    startsAt: wallToInstant(query.date, "00:00", tz),
-    endsAt: wallToInstant(nextDate(query.date), "00:00", tz),
-  };
+  const span = clinicDayBounds(query.date, tz);
   const inDay = (x: { startsAt: string; endsAt: string }) =>
     Date.parse(x.startsAt) < Date.parse(span.endsAt) &&
     Date.parse(x.endsAt) > Date.parse(span.startsAt);

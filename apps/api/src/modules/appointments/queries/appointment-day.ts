@@ -5,7 +5,7 @@ import type {
   AppointmentDayQuery,
   DayProvider,
 } from "@eyadex/contracts/appointments";
-import { wallToInstant } from "@eyadex/contracts/clinic-time";
+import { clinicDayBounds } from "@eyadex/contracts/clinic-time";
 import type { Database } from "@eyadex/db";
 
 import { ApiError } from "../../../shared/errors.ts";
@@ -29,15 +29,12 @@ export interface DayDeps {
   readonly patients: BookingPatientReader;
 }
 
-const nextDate = (date: string): string =>
-  new Date(Date.parse(`${date}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
-
-/** The clinic-calendar day as instants: its midnight to the next one, in the clinic's zone (rule 11). */
+/**
+ * The clinic-calendar day as instants: its first real instant to the next day's, in the clinic's zone
+ * (rule 11), also when a clock change skips or repeats midnight (ADR-0026 A3).
+ */
 export function clinicDay(date: string, timezone: string): TimeSpan {
-  return {
-    startsAt: wallToInstant(date, "00:00", timezone),
-    endsAt: wallToInstant(nextDate(date), "00:00", timezone),
-  };
+  return clinicDayBounds(date, timezone);
 }
 
 /**
