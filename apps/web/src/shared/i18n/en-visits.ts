@@ -105,6 +105,7 @@ export const enVisits = {
     readOnly: "Only the visit's provider can change a draft.",
     lockedNote: "Signed: the note is locked. Corrections go into an addendum.",
     cancelledNote: "This draft was cancelled.",
+    leaveUnsaved: "The visit note is not saved yet. Leave this page?",
   },
   printView: {
     title: "Prescription",

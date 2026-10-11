@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { useBlocker } from "@tanstack/react-router";
 import type { VisitDetail, VisitNoteInput } from "@eyadex/contracts/visits";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,7 +15,8 @@ type Note = NonNullable<VisitDetail["content"]>["note"];
 /**
  * The four note sections; on an editable draft each change autosaves after a short pause. `flushRef`
  * lets the page save what is pending before a sign, so a sign never locks an older note; `saves`
- * follows every save for the page's Sign.
+ * follows every save for the page's Sign. Leaving with text not saved yet asks first, and an unmount
+ * still sends it.
  */
 export function VisitNoteEditor({
   visitId,
@@ -72,6 +74,26 @@ export function VisitNoteEditor({
     }, AUTOSAVE_MS);
     return () => clearTimeout(timer.current);
   }, [value, editable, pump]);
+  // Leaving the page inside the autosave pause must not drop the text (Codex PR #68): the unmount sends
+  // it at once. Its own effect, because the one above cleans up on every keystroke (the debounce).
+  const pumpRef = useRef(pump);
+  useEffect(() => {
+    pumpRef.current = pump;
+  }, [pump]);
+  useEffect(
+    () => () => {
+      clearTimeout(timer.current);
+      if (dirty.current) pumpRef.current().catch(() => undefined);
+    },
+    [],
+  );
+  // Read at navigation time, so a ref is enough: typed and not sent yet, or a save still on its way.
+  const unsaved = () => dirty.current || inFlight.current !== null;
+  useBlocker({
+    shouldBlockFn: () => unsaved() && !window.confirm(t("visit.leaveUnsaved")),
+    enableBeforeUnload: unsaved,
+    disabled: !editable,
+  });
   const flush = useCallback<NoteFlush>(async () => {
     clearTimeout(timer.current);
     // A failed running chain left the text dirty: the second pump sends it again and its failure rejects.

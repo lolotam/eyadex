@@ -11,6 +11,7 @@ import { VisitPage } from "./visit-page";
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children }: { children: ReactNode }) => <a href="/">{children}</a>,
   useNavigate: () => vi.fn(),
+  useBlocker: () => undefined,
 }));
 // The page must call the kit's client: `ApiProvider` builds its own, which a spy could never hold.
 vi.mock("@/shared/api/api-provider", async (importOriginal) => {
@@ -85,4 +86,60 @@ describe("Sign and the section saves (Codex PR #68)", () => {
     },
     10_000,
   );
+});
+
+describe("Cancel draft and the section saves (Codex PR #68)", () => {
+  it.each(SECTIONS)(
+    "a held $section save makes the cancel wait; the saved list stays on the cancelled visit",
+    async ({ method, add, field, save, typed, saved }) => {
+      const D = doctorAt(0);
+      const { visit } = await startDraft();
+      const hold = holdFirst(method);
+      const realCancel = api.medical.cancelVisit.bind(api.medical);
+      const sectionSavedAtCancel: boolean[] = [];
+      vi.spyOn(api.medical, "cancelVisit").mockImplementation((persona, visitId, input) => {
+        sectionSavedAtCancel.push(hold.firstDone());
+        return realCancel(persona, visitId, input);
+      });
+      await renderAs(D, <VisitPage visitId={visit.id} />);
+      fireEvent.click(await screen.findByRole("button", { name: add }));
+      fireEvent.change(screen.getByLabelText(field), { target: { value: typed } });
+      const cancelButton = screen.getByRole("button", { name: ar.visit.cancel });
+      fireEvent.click(cancelButton);
+      const dialog = await screen.findByRole("dialog");
+      fireEvent.click(screen.getByRole("button", { name: save, hidden: true }));
+      await waitFor(() => expect(hold.sent).toHaveLength(1));
+      await waitFor(() => expect(cancelButton).toBeDisabled());
+      fireEvent.click(within(dialog).getByRole("button", { name: ar.visit.cancel }));
+      await pause(50);
+      expect(api.medical.cancelVisit).not.toHaveBeenCalled();
+      hold.release();
+      await screen.findByText(ar.visit.cancelledNote);
+      expect(sectionSavedAtCancel).toEqual([true]);
+      const stored = getState().medical.visits.find((v) => v.id === visit.id)!;
+      expect([stored.status, saved(stored)]).toEqual(["cancelled", [typed]]);
+    },
+    10_000,
+  );
+
+  it("a note typed just before the confirm is saved first, then the visit is cancelled", async () => {
+    const { visit } = await startDraft();
+    const hold = holdFirst("saveNote");
+    await renderAs(doctorAt(0), <VisitPage visitId={visit.id} />);
+    const complaint = await screen.findByLabelText(ar.visit.sections.complaint);
+    fireEvent.change(complaint, { target: { value: "Typed right before cancelling" } });
+    fireEvent.click(screen.getByRole("button", { name: ar.visit.cancel }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: ar.visit.cancel }));
+    await waitFor(() => expect(hold.sent).toHaveLength(1));
+    await pause(50);
+    expect(within(dialog).getByRole("button", { name: ar.visit.cancel })).toBeDisabled();
+    hold.release();
+    await screen.findByText(ar.visit.cancelledNote);
+    const stored = getState().medical.visits.find((v) => v.id === visit.id)!;
+    expect([stored.status, stored.note.complaint]).toEqual([
+      "cancelled",
+      "Typed right before cancelling",
+    ]);
+  }, 10_000);
 });

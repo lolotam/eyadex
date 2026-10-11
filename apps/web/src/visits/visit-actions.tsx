@@ -13,7 +13,7 @@ import { sectionSaveKey } from "./visit-section-saves";
 /**
  * Sign · Cancel draft · Print, each following `can` (UX only: the API refuses as well). Sign is off
  * while any section save runs; its confirm sends the note's pending text and waits for every section
- * save (`settleSaves`), and signs only when all of them succeeded.
+ * save (`settleSaves`), and signs only when all of them succeeded. Cancel draft follows the same rule.
  */
 export function VisitActions({
   detail,
@@ -55,7 +55,7 @@ export function VisitActions({
         </Button>
       )}
       {detail.can.cancel && (
-        <Button variant="outline" onClick={() => setCancelling(true)}>
+        <Button variant="outline" onClick={() => setCancelling(true)} disabled={sectionSaving}>
           <XCircle className="size-4" />
           {t("visit.cancel")}
         </Button>
@@ -77,7 +77,12 @@ export function VisitActions({
         onConfirm={() => void confirm()}
         onClose={() => setConfirmSign(false)}
       />
-      <VisitCancelDialog visitId={id} open={cancelling} onOpenChange={setCancelling} />
+      <VisitCancelDialog
+        visitId={id}
+        open={cancelling}
+        onOpenChange={setCancelling}
+        settleSaves={settleSaves}
+      />
       {printing && (
         <PrescriptionPrintDialog visitId={id} open={printing} onOpenChange={setPrinting} />
       )}
