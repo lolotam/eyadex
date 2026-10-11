@@ -93,19 +93,7 @@ export class FieldCipher {
    * @returns `f1.<version>.<iv>.<ciphertext>.<tag>` بـ base64url
    */
   seal(clinicId: string, ref: FieldRef, plain: string): string {
-    const iv = randomBytes(IV_BYTES);
-    const cipher = createCipheriv(ALGORITHM, this.#clinicKey(clinicId, this.#writeVersion), iv, {
-      authTagLength: TAG_BYTES,
-    });
-    cipher.setAAD(additionalData(clinicId, ref));
-    const body = Buffer.concat([cipher.update(plain, "utf8"), cipher.final()]);
-    return [
-      PREFIX,
-      String(this.#writeVersion),
-      iv.toString("base64url"),
-      body.toString("base64url"),
-      cipher.getAuthTag().toString("base64url"),
-    ].join(".");
+    return this.sealBytes(clinicId, ref, Buffer.from(plain, "utf8"));
   }
 
   /**
@@ -117,6 +105,42 @@ export class FieldCipher {
    * @returns النص
    */
   open(clinicId: string, ref: FieldRef, envelope: string): string {
+    return this.openBytes(clinicId, ref, envelope).toString("utf8");
+  }
+
+  /**
+   * زي `seal` بالظبط لبايتات (محتوى مرفق): نفس الظرف ونفس الربط بالمكان، والجسم base64url جوه الظرف.
+   *
+   * @param clinicId العيادة (مفتاحها مشتق منها)
+   * @param ref مكان القيمة
+   * @param plain البايتات (فاضية مسموح)
+   * @returns `f1.<version>.<iv>.<ciphertext>.<tag>` بـ base64url
+   */
+  sealBytes(clinicId: string, ref: FieldRef, plain: Uint8Array): string {
+    const iv = randomBytes(IV_BYTES);
+    const cipher = createCipheriv(ALGORITHM, this.#clinicKey(clinicId, this.#writeVersion), iv, {
+      authTagLength: TAG_BYTES,
+    });
+    cipher.setAAD(additionalData(clinicId, ref));
+    const body = Buffer.concat([cipher.update(plain), cipher.final()]);
+    return [
+      PREFIX,
+      String(this.#writeVersion),
+      iv.toString("base64url"),
+      body.toString("base64url"),
+      cipher.getAuthTag().toString("base64url"),
+    ].join(".");
+  }
+
+  /**
+   * زي `open` بالظبط لظرف بايتات؛ أي تلاعب أو مكان غلط أو شكل غلط بيرمي.
+   *
+   * @param clinicId العيادة
+   * @param ref مكان القيمة
+   * @param envelope الظرف
+   * @returns البايتات
+   */
+  openBytes(clinicId: string, ref: FieldRef, envelope: string): Buffer {
     // R1-8: the shape is checked by length, never by truthiness — an empty ciphertext ("") is legal.
     const parts = envelope.split(".");
     if (parts.length !== 5 || parts[0] !== PREFIX) throw new TypeError("malformed envelope");
@@ -137,10 +161,7 @@ export class FieldCipher {
     });
     decipher.setAAD(additionalData(clinicId, ref));
     decipher.setAuthTag(tag);
-    return Buffer.concat([
-      decipher.update(Buffer.from(bodyText, "base64url")),
-      decipher.final(),
-    ]).toString("utf8");
+    return Buffer.concat([decipher.update(Buffer.from(bodyText, "base64url")), decipher.final()]);
   }
 }
 

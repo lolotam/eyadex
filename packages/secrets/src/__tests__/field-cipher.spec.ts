@@ -93,6 +93,37 @@ describe("FieldCipher", () => {
   });
 });
 
+describe("FieldCipher bytes (attachment content)", () => {
+  // The attachment's additional data: patient_attachments:blob:<clinic>:<attachment> (plan Task 10).
+  const blob = { table: "patient_attachments", column: "blob", rowId: ref.rowId };
+
+  it("round-trips any bytes, the empty buffer included, in the same envelope as text", () => {
+    const c = v1();
+    const bytes = randomBytes(4096);
+    const sealed = c.sealBytes(A, blob, bytes);
+    expect(sealed).toMatch(/^f1\.1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
+    expect(c.openBytes(A, blob, sealed).equals(bytes)).toBe(true);
+    expect(c.openBytes(A, blob, c.sealBytes(A, blob, Buffer.alloc(0))).length).toBe(0);
+  });
+
+  it("text and bytes share one envelope: a text seal opens as its UTF-8 bytes and back", () => {
+    const c = v1();
+    expect(c.openBytes(A, ref, c.seal(A, ref, "ملف")).toString("utf8")).toBe("ملف");
+    expect(c.open(A, ref, c.sealBytes(A, ref, Buffer.from("ملف", "utf8")))).toBe("ملف");
+  });
+
+  it("NEGATIVE: binds the clinic and the attachment, and refuses a tampered body", () => {
+    const c = v1();
+    const sealed = c.sealBytes(A, blob, randomBytes(64));
+    expect(() => c.openBytes(B, blob, sealed)).toThrow();
+    expect(() => c.openBytes(A, { ...blob, rowId: B }, sealed)).toThrow();
+    const body = Buffer.from(sealed.split(".")[3]!, "base64url");
+    body[0] = body[0]! ^ 1;
+    expect(() => c.openBytes(A, blob, withPart(sealed, 3, body.toString("base64url")))).toThrow();
+    expect(() => c.openBytes(A, blob, withPart(sealed, 2, ""))).toThrow(/malformed envelope/);
+  });
+});
+
 describe("keys from the environment (fail at start)", () => {
   const key = () => randomBytes(32).toString("base64");
 
