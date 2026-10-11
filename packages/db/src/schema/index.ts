@@ -22,3 +22,7 @@ export { platformAccounts } from "./platform-accounts.ts";
 export { clinicExpiryReminders } from "./clinic-expiry-reminders.ts";
 export { clinicServices, providerSchedules, providerTimeOff } from "./scheduling.ts";
 export { appointments } from "./appointments.ts";
+export { visits, visitNotes, visitAddenda, patientMedicalProfiles } from "./medical.ts";
+export { visitDiagnoses, visitPrescriptionItems } from "./medical-lists.ts";
+export { icd10Codes, clinicMedicines } from "./medical-reference.ts";
+export { patientAttachments } from "./attachments.ts";

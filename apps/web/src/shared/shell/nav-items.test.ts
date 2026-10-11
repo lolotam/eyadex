@@ -14,14 +14,27 @@ describe("clinic navigation", () => {
   });
 
   it("shows Settings to whoever can view any of its tabs, by permission, never by role", () => {
-    expect(settingsEntry()?.anyOf).toEqual(["clinic_settings", "services", "schedules"]);
+    expect(settingsEntry()?.anyOf).toEqual([
+      "clinic_settings",
+      "services",
+      "schedules",
+      "medicines",
+    ]);
     expect(settingsEntry()?.anyOf).toEqual(SETTINGS_TABS.map((tab) => tab.resource));
     const shows = (keys: string[]) =>
       navItemsFor(CLINIC_NAV, keys).some((item) => item.to === "/clinic/settings");
     expect(shows(["view:services:clinic"])).toBe(true);
     expect(shows(["view:schedules:branch"])).toBe(true);
     expect(shows(["view:clinic_settings:clinic"])).toBe(true);
+    expect(shows(["view:medicines:clinic"])).toBe(true);
     expect(shows(["view:patients:branch"])).toBe(false);
+  });
+
+  it("shows Visits only with create:visits:own (P2)", () => {
+    const has = (keys: string[]) =>
+      navItemsFor(CLINIC_NAV, keys).some((item) => item.to === "/clinic/visits");
+    expect(has(["create:visits:own"])).toBe(true);
+    expect(has(["view:visits:clinic", "view:visits:own"])).toBe(false);
   });
 
   it("keeps the other entries on their own resource", () => {

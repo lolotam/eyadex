@@ -33,7 +33,13 @@ import { ZodValidationPipe } from "../../../shared/zod-validation.pipe.ts";
 import { Require, RequiresFeature, type ClinicRequest } from "../../identity/index.ts";
 import { patientScopes } from "../domain/patient-rules.ts";
 import type { PatientBranchReader } from "../ports/patient-branch-reader.ts";
-import { OPEN_PATIENT, PATIENT_BRANCH_READER, PATIENT_CHANGES } from "../ports/tokens.ts";
+import type { CivilIdCodec } from "../persistence/civil-id-codec.ts";
+import {
+  OPEN_PATIENT,
+  PATIENT_BRANCH_READER,
+  PATIENT_CHANGES,
+  PATIENT_CIVIL_IDS,
+} from "../ports/tokens.ts";
 import { patientBranchOptions } from "../queries/patient-branch-options.ts";
 import { searchPatients } from "../queries/patient-views.ts";
 import type { OpenPatient } from "../use-cases/open-patient/open-patient.ts";
@@ -78,6 +84,7 @@ export class PatientsController {
     @Inject(PATIENT_CHANGES) private readonly changes: PatientChanges,
     @Inject(OPEN_PATIENT) private readonly opener: OpenPatient,
     @Inject(PATIENT_BRANCH_READER) private readonly branches: PatientBranchReader,
+    @Inject(PATIENT_CIVIL_IDS) private readonly civilIds: CivilIdCodec,
   ) {}
 
   @Post("search")
@@ -92,7 +99,7 @@ export class PatientsController {
     const view = requireScope(actor.scopes.view);
     return searchPatients(
       this.db,
-      this.branches,
+      { branches: this.branches, civilIds: this.civilIds },
       { ...actor, scopes: { ...actor.scopes, view } },
       body,
     );

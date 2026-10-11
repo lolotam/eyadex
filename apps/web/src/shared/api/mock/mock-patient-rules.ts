@@ -52,7 +52,17 @@ export function authorizePatients(
   persona: Persona,
   action: PermissionAction,
 ): PatientAccess {
-  const actor = guardPatients(db, persona);
+  const access = patientAccessFor(db, guardPatients(db, persona), action);
+  if (access === null) throw new ApiError("forbidden");
+  return access;
+}
+
+/** The access an actor's keys give for one patients action (the widest scope), or null. */
+function patientAccessFor(
+  db: MockState,
+  actor: Actor,
+  action: PermissionAction,
+): PatientAccess | null {
   const keys = effectivePermissions(db, actor);
   const base = { ...actor, actorName: actor.member.fullName, own: null };
   if (keys.includes(`${action}:patients:clinic`))
@@ -65,7 +75,18 @@ export function authorizePatients(
     };
   if (action === "view" && keys.includes("view:patients:own"))
     return { ...base, allBranches: false, branchIds: [], own: actor.member.id };
-  throw new ApiError("forbidden");
+  return null;
+}
+
+/**
+ * Owner decision 2026-10-11: does the actor's patients view reach see this file (the rule of
+ * `GET /patients/:id`)? With the patients module off nothing is in reach.
+ */
+export function inPatientViewReach(db: MockState, actor: Actor, patientId: string): boolean {
+  if (!(db.features[actor.clinic.id] ?? NO_FEATURES).patients) return false;
+  const access = patientAccessFor(db, actor, "view");
+  const patient = db.patients.find((p) => p.clinicId === actor.clinic.id && p.id === patientId);
+  return access !== null && patient !== undefined && seesPatient(db, access, patient);
 }
 
 /** Same as authorizePatients, but null instead of throwing (used to decide what an error may reveal). */
@@ -85,7 +106,7 @@ export function inScope(access: PatientAccess, branchId: string): boolean {
   return access.allBranches || access.branchIds.includes(branchId);
 }
 
-/** Does the access see this file: by its registration branch, or under `own` by a live appointment. */
+/** Does the access see this file: by its registration branch, or under `own` (`isOwnPatient`). */
 export function seesPatient(db: MockState, access: PatientAccess, p: Patient): boolean {
   if (access.own !== null) return isOwnPatient(db, access.clinic.id, access.own, p.id);
   return inScope(access, p.registrationBranchId);
@@ -251,6 +272,16 @@ export function writeResult(db: MockState, persona: Persona, p: Patient): Patien
   return { id: p.id, fileNumber: p.fileNumber, detail: visible ? toDetail(db, persona, p) : null };
 }
 
+/** The API's file-number match: the query's digits anywhere in the six-digit padded number. */
+export const fileNumberMatches = (fileNumber: number, digits: string): boolean =>
+  String(fileNumber).padStart(6, "0").includes(digits);
+
+/**
+ * Search: name, phone, file number — and the civil ID only when the whole number is typed (P2-F5).
+ * The API stores it encrypted, so a partial number cannot be looked up there; the mock keeps the
+ * same rule, and only the folded digits count, so a number typed with dashes or in Arabic-Indic
+ * digits still counts as its 12 digits.
+ */
 export function matchesSearch(p: Patient, term: string): boolean {
   if (!term) return true;
   const lower = term.toLocaleLowerCase();
@@ -259,7 +290,7 @@ export function matchesSearch(p: Patient, term: string): boolean {
   if (!digits) return false;
   return (
     p.phone.replace(/\D/g, "").includes(digits) ||
-    String(p.fileNumber).padStart(6, "0").includes(digits) ||
-    (p.civilId ?? "").includes(digits)
+    fileNumberMatches(p.fileNumber, digits) ||
+    (digits.length === 12 && p.civilId === digits)
   );
 }

@@ -10,6 +10,7 @@ import {
   type PatientScope,
   type PatientScopes,
 } from "../domain/patient-rules.ts";
+import type { CivilIdCodec } from "../persistence/civil-id-codec.ts";
 import { PATIENT_COLUMNS, toRecord } from "../persistence/pg-patient-store.ts";
 import type { BranchNames, PatientBranchReader } from "../ports/patient-branch-reader.ts";
 import { ownPatientSql } from "./own-patients.ts";
@@ -38,9 +39,23 @@ const inScopeSql = (scope: PatientScope) => {
     (SELECT value::uuid FROM jsonb_array_elements_text(${ids}::jsonb)))`;
 };
 
+/**
+ * A full civil ID matches its blind index, or the legacy plain column of a file the backfill has not
+ * converted yet (R1-5); any other digits never match a civil ID (P2-F5).
+ */
+const civilIdMatch = (clinicId: string, civilIds: CivilIdCodec, digits: string | null): SQL =>
+  digits === null
+    ? sql`false`
+    : sql`(p.civil_id_hmac = ${civilIds.index(clinicId, digits)} OR p.civil_id = ${digits})`;
+
 /** The WHERE clause shared by the page and its total: clinic, view scope, filters, search. */
-function listFilters(clinicId: string, view: PatientScope, query: PatientSearchRequest): SQL {
-  const { namePattern, digitsPattern } = searchTerms(query.q);
+function listFilters(
+  clinicId: string,
+  civilIds: CivilIdCodec,
+  view: PatientScope,
+  query: PatientSearchRequest,
+): SQL {
+  const { namePattern, digitsPattern, civilId } = searchTerms(query.q);
   return sql`p.clinic_id = ${clinicId} AND ${inScopeSql(view)}
     AND (${query.branchId}::uuid IS NULL OR p.registration_branch_id = ${query.branchId}::uuid)
     AND (${query.status}::text IS NULL OR p.status = ${query.status}::text)
@@ -48,13 +63,17 @@ function listFilters(clinicId: string, view: PatientScope, query: PatientSearchR
       OR (${digitsPattern}::text IS NOT NULL AND (
         regexp_replace(p.phone, '[^0-9]', '', 'g') LIKE ${digitsPattern}::text
         OR repeat('0', greatest(0, 6 - length(p.file_number))) || p.file_number
-          LIKE ${digitsPattern}::text
-        OR coalesce(p.civil_id, '') LIKE ${digitsPattern}::text)))`;
+          LIKE ${digitsPattern}::text))
+      OR ${civilIdMatch(clinicId, civilIds, civilId)})`;
 }
-/** A read inside the patients transaction, with tenancy's branch names behind the patients port. */
+/**
+ * A read inside the patients transaction, with tenancy's branch names behind the patients port and the
+ * civil ID codec (ADR-0028).
+ */
 export interface PatientReads {
   readonly tx: Tx;
   readonly branches: PatientBranchReader;
+  readonly civilIds: CivilIdCodec;
 }
 
 /** Who reads: the clinic and the caller's per-action scopes (a `PatientActor` fits). */
@@ -100,28 +119,30 @@ const toListItem = (
 /**
  * قايمة الملفات (story P1، نفس قواعد الـ mock): جوه نطاق العرض بس (وتحت `own` ملفات الفاعل بس، في أي
  * فرع، والإجمالي بنفس الشرط)، أحدث رقم ملف الأول، بـ cursor.
- * البحث بالاسم، أو بأرقام الموبايل / رقم الملف بستة أرقام / الرقم المدني. الرقم المدني الكامل
- * عمره ما بيتقري هنا: الصف بياخد آخر 4 أرقام بس. أسماء الفروع من port الفروع في نداء واحد للصفحة.
+ * البحث بالاسم، أو بأرقام الموبايل / رقم الملف بستة أرقام، أو بالرقم المدني كامل بس (فهرسه، P2-F5).
+ * الرقم المدني الكامل عمره ما بيتقري هنا: الصف بياخد آخر 4 أرقام بس. أسماء الفروع من port الفروع في
+ * نداء واحد للصفحة.
  *
  * @param db الـ pool على `eyadex_app`
- * @param branches port أسماء الفروع (بتنفّذه tenancy)
+ * @param reads port أسماء الفروع (بتنفّذه tenancy) والـ codec بتاع الرقم المدني
  * @param reader العيادة ونطاقات الفاعل (`view` مش null: الـ guard عدّاه)
  * @param query الفلاتر والـ cursor
  * @returns الصفحة
  */
 export async function searchPatients(
   db: Database,
-  branches: PatientBranchReader,
+  reads: Omit<PatientReads, "tx">,
   reader: PatientReader & { scopes: { view: PatientScope } },
   query: PatientSearchRequest,
 ): Promise<PatientListResponse> {
   const { clinicId, scopes } = reader;
+  const { branches, civilIds } = reads;
   const after = decodeCursor(query.cursor);
-  const filters = listFilters(clinicId, scopes.view, query);
+  const filters = listFilters(clinicId, civilIds, scopes.view, query);
   const { rows, total, names } = await db.withTenant(clinicId, async (tx) => {
     const page = await tx.execute<ListRow>(
       sql`SELECT p.id, p.file_number, p.full_name, p.phone, p.registration_branch_id,
-            right(p.civil_id, 4) AS civil_id_last4, p.status
+            coalesce(p.civil_id_last4, right(p.civil_id, 4)) AS civil_id_last4, p.status
           FROM patients p
           WHERE ${filters}
             AND (${after}::bigint IS NULL OR p.file_number::bigint < ${after}::bigint)
@@ -164,14 +185,14 @@ export async function readPatientDetail(
   reader: PatientReader,
   id: string,
 ): Promise<PatientDetail | null> {
-  const { tx, branches } = reads;
+  const { tx, branches, civilIds } = reads;
   const rows = await tx.execute<Parameters<typeof toRecord>[0] & { created_at: Date | string }>(
     sql`SELECT ${PATIENT_COLUMNS}, p.created_at FROM patients p
         WHERE p.clinic_id = ${reader.clinicId} AND p.id = ${id}`,
   );
   const row = rows[0];
   if (row === undefined) return null;
-  const record = toRecord(row);
+  const record = toRecord(row, reader.clinicId, civilIds);
   const names = await branches.namesOf(tx, reader.clinicId, [record.registrationBranchId]);
   return {
     id: record.id,

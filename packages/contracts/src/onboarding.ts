@@ -40,7 +40,7 @@ const name = z.string().trim().min(2).max(120);
  * The modules a clinic can have switched on (PRD §4.8). A new module joins this list only: every
  * module map (a clinic's features, a new clinic's modules, the platform's default) follows it.
  */
-export const CLINIC_MODULES = ["patients", "appointments"] as const;
+export const CLINIC_MODULES = ["patients", "appointments", "medical"] as const;
 export type ClinicModuleKey = (typeof CLINIC_MODULES)[number];
 
 /** One on/off flag per module, keyed by the module. */

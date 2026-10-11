@@ -50,7 +50,8 @@ beforeAll(async () => {
 afterAll(async () => {
   await h.owner`UPDATE platform_settings SET default_trial_days = 14, alert_days_before_expiry = 7,
     email_sender_name = 'Eyadex', default_max_users = 10, default_max_branches = 3,
-    default_module_patients = true`;
+    default_module_patients = true, default_module_appointments = true,
+    default_module_medical = true`;
   await closeHarness(h);
 });
 
@@ -121,7 +122,8 @@ describe("platform settings (story 26)", () => {
       emailSenderName: "Eyadex",
       defaultMaxUsers: 10,
       defaultMaxBranches: 3,
-      defaultModules: { patients: true, appointments: true },
+      // R2-3: the release (0050) turned the medical default on.
+      defaultModules: { patients: true, appointments: true, medical: true },
     });
     const next = {
       defaultTrialDays: 30,
@@ -129,7 +131,7 @@ describe("platform settings (story 26)", () => {
       emailSenderName: "Eyadex Team",
       defaultMaxUsers: 25,
       defaultMaxBranches: 5,
-      defaultModules: { patients: false, appointments: false },
+      defaultModules: { patients: false, appointments: false, medical: false },
     };
     const saved = await send("PUT", "/v1/platform/settings", { body: next });
     expect(saved.statusCode).toBe(200);
@@ -147,7 +149,7 @@ describe("platform settings (story 26)", () => {
         emailSenderName: "Eyadex",
         defaultMaxUsers: 10,
         defaultMaxBranches: 3,
-        defaultModules: { patients: true, appointments: true },
+        defaultModules: { patients: true, appointments: true, medical: true },
       },
       after: next,
     });
@@ -162,7 +164,7 @@ describe("platform settings (story 26)", () => {
       emailSenderName: "Eyadex Team",
       defaultMaxUsers: 25,
       defaultMaxBranches: 5,
-      defaultModules: { patients: false, appointments: false },
+      defaultModules: { patients: false, appointments: false, medical: false },
     };
     const { defaultModules: _drop, ...noModule } = good;
     void _drop;
@@ -183,6 +185,16 @@ describe("platform settings (story 26)", () => {
       expect((await send("PUT", "/v1/platform/settings", { body })).statusCode).toBe(400);
     }
     expect((await send("GET", "/v1/platform/settings")).json()).toEqual(good);
+  });
+
+  // P2 R2-3, R3-6c: since the release (0050) the platform may turn the medical default on, and off again.
+  it("turns the medical default on and off after the release", async () => {
+    const before = (await send("GET", "/v1/platform/settings")).json();
+    for (const medical of [true, false]) {
+      const body = { ...before, defaultModules: { ...before.defaultModules, medical } };
+      expect((await send("PUT", "/v1/platform/settings", { body })).statusCode).toBe(200);
+      expect((await send("GET", "/v1/platform/settings")).json()).toEqual(body);
+    }
   });
 
   it("NEGATIVE: the clinic host answers 404 and a session without TOTP 403", async () => {

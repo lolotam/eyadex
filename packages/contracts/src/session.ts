@@ -48,6 +48,8 @@ export const sessionContextSchema = z.object({
     })
     .nullable(),
   permissions: z.array(z.string()),
+  /** The caller's clinic membership (a provider id on appointments and visits); null on the platform. */
+  membershipId: idSchema.nullable(),
   /**
    * The account's branch scope, as `GET /v1/me` answers it: true = every branch; otherwise
    * `branchIds` lists its active branches (a branch-scope key reaches only these). UX only.

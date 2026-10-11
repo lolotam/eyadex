@@ -3,6 +3,7 @@ import { createHttpAudit } from "./http-audit";
 import { createHttpBranches } from "./http-branches";
 import type { HttpContext } from "./http-context";
 import { createHttpInvitations } from "./http-invitations";
+import { createHttpMedical } from "./http-medical";
 import { createHttpPatients } from "./http-patients";
 import { createHttpPlatform } from "./http-platform";
 import {
@@ -37,6 +38,7 @@ export function createHttpApiClient(
     patients: createHttpPatients(ctx),
     scheduling: createHttpScheduling(ctx),
     appointments: createHttpAppointments(ctx),
+    medical: createHttpMedical(ctx),
     audit: createHttpAudit(ctx),
     clinicSettings: createHttpClinicSettings(ctx),
     account: createHttpAccount(ctx),

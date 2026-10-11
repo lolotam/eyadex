@@ -200,7 +200,7 @@ describe("platform settings (story 26)", () => {
         adminEmail: "admin-trial@example.com",
         maxUsers: 10,
         maxBranches: 3,
-        modules: { patients: true, appointments: true },
+        modules: { patients: true, appointments: true, medical: false },
       },
       crypto.randomUUID(),
     );

@@ -24,6 +24,8 @@ const PERSON = [
   "defaultDurationMinutes",
 ] as const;
 
+const FIELD_NAMES_ONLY = ["changed"] as const;
+
 // PRD §4.11: before/after is an allowlist. These are the fields the writers record today (branch,
 // person, invitation, mail-provider and platform snapshots); a key not listed here is never shown,
 // whatever a writer stores. No token, hash, password, credential or civil ID is on any list.
@@ -81,6 +83,15 @@ const ALLOWED: Record<AuditEntity, readonly string[]> = {
   ],
   // TODO(spec): the patients slice defines what a patient-file entry may show; until then nothing.
   patient: [],
+  // P2 R1-17, R3-4: the medical writers record which fields changed (`changed: ["plan"]`), never a
+  // value, so a clinical text cannot reach the log whatever else a writer stores.
+  visit: FIELD_NAMES_ONLY,
+  visit_addendum: FIELD_NAMES_ONLY,
+  diagnosis: FIELD_NAMES_ONLY,
+  prescription: FIELD_NAMES_ONLY,
+  medical_profile: FIELD_NAMES_ONLY,
+  attachment: FIELD_NAMES_ONLY,
+  medicine: FIELD_NAMES_ONLY,
   // ADR-0020: the platform team and settings writers. No link, hash or user id is ever recorded.
   platform_account: ["fullName", "email", "status"],
   platform_settings: [

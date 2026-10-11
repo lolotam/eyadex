@@ -36,7 +36,7 @@ import {
 } from "./patient-fixtures.ts";
 
 // D-4, spec §8, ADR-0026 A3: a file is "own" when it has at least one appointment with the caller that
-// is not cancelled, past or future, in any branch. As eyadex_app over HTTP.
+// is not cancelled, past or future, in any branch, or (P2) any visit with the caller. As eyadex_app.
 let h: Harness;
 let C: BookingClinic;
 let other: BookingClinic;
@@ -181,6 +181,36 @@ describe("view:patients:own (D-4, ADR-0026 A3)", () => {
     const inR = await addPatient(h, C.clinicId, C.branchR);
     expect(ids(await search(h, C.front.cookie))).toContain(inR);
     expect(ids(await search(h, C.front.cookie))).not.toContain(files.inD);
+  });
+});
+
+// P2 spec §2, R1-18 (ADR-0029): a visit with the caller makes the file own too, whatever its status — a
+// cancelled walk-in still records who saw the patient.
+describe("own by a visit (P2)", () => {
+  it("a walk-in visit makes the file own, and stays so once the visit is cancelled", async () => {
+    const invalidate = h.app.get<AuthorizationInvalidator>(AUTHORIZATION_INVALIDATOR);
+    await h.owner`INSERT INTO clinic_features (clinic_id, id, module, enabled, updated_at)
+                  VALUES (${C.clinicId}, gen_random_uuid(), 'medical', true, now())
+                  ON CONFLICT (clinic_id, module) DO UPDATE SET enabled = true`;
+    await invalidate.clinicChanged(C.clinicId);
+    const role = await customRole(h, C.clinicId, ["view:patients:own", "create:visits:own"]);
+    const walker = await memberOn(h, C.admin, role, { allBranches: false, branchIds: [C.branchD] });
+    const file = await addPatient(h, C.clinicId, C.branchD);
+    expect((await openPatient(h, walker.cookie, file)).statusCode).toBe(404);
+    const start = await send(
+      h,
+      walker.cookie,
+      "POST",
+      "/v1/visits",
+      { patientId: file, branchId: C.branchD },
+      `${file}`,
+    );
+    expect(start.statusCode).toBe(201);
+    expect(ids(await search(h, walker.cookie))).toEqual([file]);
+    await h.owner`UPDATE visits SET status = 'cancelled', cancel_reason = 'opened_by_mistake'
+                  WHERE clinic_id = ${C.clinicId} AND patient_id = ${file}`;
+    expect((await openPatient(h, walker.cookie, file)).statusCode).toBe(200);
+    expect(ids(await search(h, doctor.cookie))).not.toContain(file);
   });
 });
 

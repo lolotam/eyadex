@@ -97,15 +97,27 @@ export function enforceNotLocked(role: Role): void {
 
 type Reach = { allBranches: boolean; branchIds: readonly string[] };
 
+// P2 spec §2: the locked clinic admin may delegate the clinical keys (visits, medical) to other roles
+// without holding them; their `own` keys are clinic-bound like `view:patients:own`.
+const DELEGATED = new Set(["visits", "medical"]);
+const CLINIC_BOUND = new Set([
+  "view:patients:own",
+  "view:visits:own",
+  "view:medical:own",
+  "update:medical:own",
+]);
+
 /**
  * The API's `uncoveredKeys` (`grantFor`): stored keys of every module; a clinic key covers the
- * branch and own scopes, a branch key covers own (the narrowest), except `view:patients:own`: its
- * files cross branches, so only `view:patients:clinic` covers it (ADR-0026 §12, Codex A3 r1).
+ * branch and own scopes, a branch key covers own (the narrowest), except the clinic-bound own keys:
+ * their files cross branches, so only the clinic key covers them (ADR-0026 §12, Codex A3 r1).
  */
-function covers(held: readonly string[], key: string): boolean {
-  if (key === "view:patients:own") return held.includes("view:patients:clinic");
+function covers(actor: Actor, key: string): boolean {
+  const held = actor.role.permissions;
   const [action, resource, scope] = key.split(":");
+  if (actor.role.isLocked && DELEGATED.has(resource ?? "")) return true;
   if (held.includes(key) || held.includes(`${action}:${resource}:clinic`)) return true;
+  if (CLINIC_BOUND.has(key)) return false;
   return scope === "own" && held.includes(`${action}:${resource}:branch`);
 }
 
@@ -128,7 +140,7 @@ function within(target: Reach, actor: Reach): boolean {
 export function enforceMayDefineRole(db: MockState, actor: Actor, roleKeys: readonly string[]) {
   const usable = actor.member.status === "active" && actor.role.isActive;
   if (!usable || !actorReach(db, actor).allBranches) throw new ApiError("forbidden");
-  if (roleKeys.some((key) => !covers(actor.role.permissions, key))) throw new ApiError("forbidden");
+  if (roleKeys.some((key) => !covers(actor, key))) throw new ApiError("forbidden");
 }
 
 /**
@@ -138,7 +150,7 @@ export function enforceMayDefineRole(db: MockState, actor: Actor, roleKeys: read
 export function enforceMayGrantRole(db: MockState, actor: Actor, roleId: string, target: Reach) {
   const role = findRole(db, actor.clinic.id, roleId);
   const usable = actor.member.status === "active" && actor.role.isActive;
-  if (!usable || role.permissions.some((key) => !covers(actor.role.permissions, key))) {
+  if (!usable || role.permissions.some((key) => !covers(actor, key))) {
     throw new ApiError("forbidden");
   }
   if (!within(target, actorReach(db, actor))) throw new ApiError("forbidden");

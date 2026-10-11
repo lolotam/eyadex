@@ -8,6 +8,7 @@ import type { ScheduleShift, TimeOff } from "@eyadex/contracts/schedules";
 import type { BookingProfileInput, ClinicService } from "@eyadex/contracts/services";
 import type { PlatformAuditEntry } from "@eyadex/contracts/session";
 import type { MembershipUser } from "@eyadex/contracts/users";
+import type { MedicalState } from "./mock-medical-state";
 import { buildSeed } from "./seed";
 
 export type StoredService = ClinicService & { clinicId: string };
@@ -72,13 +73,16 @@ export type MockState = {
   appointments: StoredAppointment[];
   /** Idempotency-Key replay for bookings, as above: key -> appointment id + request fingerprint. */
   idempotentAppointments?: Record<string, { appointmentId: string; fingerprint: string }>;
+  /** P2: visits, medical files, medicines and attachments. */
+  medical: MedicalState;
   platformAccounts: PlatformAccount[];
   platformSettings: PlatformSettings;
   platformAudit: PlatformAuditEntry[];
-  clinicAudit: ClinicAuditEntry[];
+  /** As the API's rows: a medical read about no single record (the walk-in search) names none. */
+  clinicAudit: (Omit<ClinicAuditEntry, "entityId"> & { entityId: string | null })[];
 };
 
-const STORAGE_KEY = "eyadex:mock-db:v16";
+const STORAGE_KEY = "eyadex:mock-db:v18";
 /** Shared with the persona provider by name only (screens never import the mock). */
 const PERSONA_STORAGE_KEY = "eyadex:persona";
 const MOCK_RESET_EVENT = "eyadex:mock-reset";

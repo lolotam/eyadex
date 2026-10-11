@@ -8,7 +8,7 @@ import { Controller, Get, Req, UseGuards } from "@nestjs/common";
 import type { NestFastifyApplication } from "@nestjs/platform-fastify";
 import postgres, { type Sql } from "postgres";
 
-import { createApp } from "../../../../app.ts";
+import { createApp, type AppDependencies } from "../../../../app.ts";
 import { API_LOG_EVENTS } from "../../../../shared/log-events.ts";
 import { AREA_AUTH, type AreaAuth } from "../area-auth.ts";
 import { Public, Require, RequiresFeature } from "../../access/access-rules.ts";
@@ -24,6 +24,13 @@ const required = (name: string): string => {
 export const APP = "https://app.eyadex.test";
 export const PLATFORM = "https://platform.eyadex.test";
 export const password = randomBytes(18).toString("base64url");
+// R2-6: the medical keys are generated once per test file run (module level, stable across every harness
+// the file opens, so a row sealed by one app opens in the next) and never written in source.
+export const MEDICAL_KEYS = {
+  MEDICAL_MASTER_KEY_V1: randomBytes(32).toString("base64"),
+  MEDICAL_INDEX_KEY: randomBytes(32).toString("base64"),
+  MEDICAL_KEY_VERSION: "1",
+} as const;
 
 @Controller("probe")
 @UseGuards(SessionGuard)
@@ -60,6 +67,7 @@ export interface Harness {
 export async function openHarness(
   env: Record<string, string> = {},
   mountPlatform = false,
+  deps: Pick<AppDependencies, "medicalBlobStore"> = {},
 ): Promise<Harness> {
   Object.assign(process.env, {
     APP_URL: APP,
@@ -68,6 +76,7 @@ export async function openHarness(
     BETTER_AUTH_SECRET: randomBytes(32).toString("hex"),
     TRUST_PROXY_HOPS: "0",
     REDIS_URL: required("EYADEX_TEST_REDIS_URL"),
+    ...MEDICAL_KEYS,
     ...(mountPlatform
       ? {
           DATABASE_URL: required("EYADEX_TEST_APP_URL"),
@@ -90,7 +99,13 @@ export async function openHarness(
     },
   });
   const app = await createApp(
-    { mountAuth: true, mountPlatform, mountInvitations: mountPlatform, mountClinic: mountPlatform },
+    {
+      mountAuth: true,
+      mountPlatform,
+      mountInvitations: mountPlatform,
+      mountClinic: mountPlatform,
+      ...deps,
+    },
     {
       logger: createLogger("info", { destination: sink, events: API_LOG_EVENTS }),
       controllers: mountPlatform ? [ProbeController, FeatureProbeController] : [ProbeController],

@@ -9,6 +9,8 @@ import { enBranches } from "./en-branches";
 import { enRoutes } from "./en-routes";
 import { enAppointmentErrors, enAppointments } from "./en-appointments";
 import { enScheduling, enSchedulingErrors } from "./en-scheduling";
+import { enMedicalErrors } from "./en-medical";
+import { enVisits } from "./en-visits";
 
 export const en = {
   app: { name: "Eyadex", tagline: "One place for every clinic" },
@@ -147,6 +149,8 @@ export const en = {
       patientsBody: "Patient files, search and registration.",
       appointments: "Appointments",
       appointmentsBody: "Services, work schedules and time off; booking arrives next.",
+      medical: "Medical",
+      medicalBody: "Visits, doctor notes, diagnoses, prescriptions and the medical file.",
       saved: "Module updated",
     },
     members: {
@@ -169,6 +173,7 @@ export const en = {
   ...enSettings,
   ...enScheduling,
   ...enAppointments,
+  ...enVisits,
   validation: {
     needsView: "Any create, edit or deactivate permission needs view on the same area",
     timezone: "Choose a supported time zone",
@@ -199,6 +204,7 @@ export const en = {
     ...enAccessErrors,
     ...enSchedulingErrors,
     ...enAppointmentErrors,
+    ...enMedicalErrors,
     patient_phone_taken: "This phone already belongs to another patient in this clinic",
     patient_civil_id_taken: "This civil ID already belongs to another patient in this clinic",
     email_taken: "This email already belongs to a user or a pending invitation",

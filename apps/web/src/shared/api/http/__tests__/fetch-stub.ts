@@ -47,6 +47,7 @@ export const me = {
     expiresAt: "2027-01-01T00:00:00.000Z",
   },
   role: { id: ROLE, nameAr: "ر", nameEn: "R" },
+  membershipId: "0190a000-0000-7000-8000-000000000006",
   permissions: ["view:branches:clinic"],
   allBranches: true,
   branchIds: [],
@@ -120,7 +121,7 @@ export const platformDetail = {
   defaultLanguage: "en",
   timezone: "Asia/Kuwait",
   createdAt: TS,
-  modules: { patients: true, appointments: false },
+  modules: { patients: true, appointments: false, medical: false },
   usage: { users: { used: 2, max: 10 }, branches: { used: 1, max: 3 } },
 };
 export const page = <T>(items: T[]) => ({ items, nextCursor: null, total: items.length });

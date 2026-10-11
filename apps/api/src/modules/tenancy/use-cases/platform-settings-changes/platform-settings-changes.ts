@@ -4,7 +4,9 @@ import type { IdGenerator } from "@eyadex/ids";
 import { sql } from "drizzle-orm";
 
 import { scrubAuditText } from "@eyadex/observability";
+import { ApiError } from "../../../../shared/errors.ts";
 import { writePlatformAudit } from "../../../../shared/platform-audit.ts";
+import { MEDICAL_RELEASED, medicalDefaultAllowed } from "../../domain/medical-release.ts";
 import type { Clock } from "../../ports/clock.ts";
 import { readPlatformSettingsIn } from "../../queries/platform-settings.ts";
 
@@ -34,9 +36,12 @@ export class PlatformSettingsChanges {
    *
    * @param actorUserId عضو فريق المنصة
    * @param input القيم بعد الـ contract
-   * @returns القيم بعد الحفظ
+   * @returns القيم بعد الحفظ؛ فتح الموديول الطبي قبل إطلاقه → `validation`
    */
   async update(actorUserId: string, input: PlatformSettings): Promise<PlatformSettings> {
+    if (!medicalDefaultAllowed(MEDICAL_RELEASED, input)) {
+      throw new ApiError("validation", { field: "defaultModuleMedical" });
+    }
     const { db, clock, ids } = this.deps;
     return db.withNoTenant(async (tx) => {
       const before = await readPlatformSettingsIn(tx, true);
@@ -49,6 +54,7 @@ export class PlatformSettingsChanges {
               default_max_branches = ${input.defaultMaxBranches},
               default_module_patients = ${input.defaultModules.patients}::boolean,
               default_module_appointments = ${input.defaultModules.appointments}::boolean,
+              default_module_medical = ${input.defaultModules.medical}::boolean,
               updated_at = ${now.toISOString()}::timestamptz
             WHERE id = 1`,
       );

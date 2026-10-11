@@ -76,7 +76,7 @@ END $$;
 -- The singleton and its bounds.
 DO $$
 BEGIN
-  BEGIN INSERT INTO platform_settings VALUES (2, 14, 7, 'Eyadex', now(), 10, 3, true, true);
+  BEGIN INSERT INTO platform_settings VALUES (2, 14, 7, 'Eyadex', now(), 10, 3, true, true, false);
     RAISE EXCEPTION 'SETTINGS: a second row was accepted';
   EXCEPTION WHEN check_violation THEN NULL; END;
   BEGIN UPDATE platform_settings SET email_sender_name = E'Eyadex\r\nBcc: x';

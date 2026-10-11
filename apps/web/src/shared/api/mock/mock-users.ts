@@ -95,6 +95,8 @@ export function createMockUsers(): ApiClient["users"] {
       enforceAssignableRole(db, clinic.id, parsed.data.roleId);
       enforceMayGrantRole(db, actor, parsed.data.roleId, member);
       enforceNotLastAdmin(db, member);
+      // P2 spec §2: nobody changes their own role (after the grant checks, as they stay stronger).
+      if (member.id === actor.member.id) throw new ApiError("role_self_change");
       const before = { ...member };
       member.roleId = parsed.data.roleId;
       writeClinicAudit(db, {

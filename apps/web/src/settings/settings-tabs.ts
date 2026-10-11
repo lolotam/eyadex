@@ -10,6 +10,8 @@ export const SETTINGS_TABS = [
   { id: "general", resource: "clinic_settings", to: "/clinic/settings" },
   { id: "services", resource: "services", to: "/clinic/settings/services" },
   { id: "schedules", resource: "schedules", to: "/clinic/settings/schedules" },
+  // P2-F2: the clinic medicines list; its keys vanish with the medical module.
+  { id: "medicines", resource: "medicines", to: "/clinic/settings/medicines" },
 ] as const satisfies readonly { id: string; resource: PermissionResource; to: string }[];
 
 export type SettingsTab = (typeof SETTINGS_TABS)[number];

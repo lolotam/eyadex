@@ -11,6 +11,20 @@ export const roleIdOf = async (h: Harness, clinicId: string, key: string) => {
   return row!["id"] as string;
 };
 
+/**
+ * The keys an actor needs to grant the default doctor role (ADR-0017 granting bound): its own keys are
+ * clinic-bound, so their clinic keys stand in for them (ADR-0026 §12, P2 R1-3).
+ */
+export const DOCTOR_ROLE_COVER = [
+  "view:patients:clinic",
+  "view:appointments:own",
+  "view:visits:clinic",
+  "create:visits:own",
+  "view:medical:clinic",
+  "update:medical:clinic",
+  "view:medicines:clinic",
+] as const;
+
 /** A custom role holding exactly these permission keys (written as the owner). */
 export async function customRole(h: Harness, clinicId: string, keys: readonly string[]) {
   const id = randomUUID();

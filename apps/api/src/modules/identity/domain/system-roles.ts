@@ -1,4 +1,4 @@
-import { PERMISSION_CATALOG } from "@eyadex/contracts/permissions";
+import { PERMISSION_CATALOG, type PermissionResource } from "@eyadex/contracts/permissions";
 
 /** مفتاح دور نظام (0004). */
 export type SystemRoleKey = "clinic_admin" | "doctor" | "receptionist" | "technician";
@@ -14,8 +14,12 @@ export interface SystemRoleTemplate {
 
 // PRD §5.3 "Clinic Admin (locked, everything)": every clinic-scope key of the catalogue, so a key the
 // catalogue gains reaches new clinics' admins with no second list (ADR-0026 §6). Same rule as the web
-// mock's ROLE_TEMPLATES.
-const clinicScope = PERMISSION_CATALOG.filter((p) => p.scope === "clinic").map((p) => p.key);
+// mock's ROLE_TEMPLATES. P2-5: never the clinical content; the admin hands those keys to other roles
+// through its bounded delegation (R1-2). Existing clinics got the same keys from 0050 (R1-16).
+const NOT_FOR_ADMIN: ReadonlySet<PermissionResource> = new Set(["medical"]);
+const clinicScope = PERMISSION_CATALOG.filter(
+  (p) => p.scope === "clinic" && !NOT_FOR_ADMIN.has(p.resource),
+).map((p) => p.key);
 
 /**
  * الأدوار الجاهزة: أدمن العيادة (كل الكتالوج بنطاق clinic، مقفول) والتلاتة القابلين للتعديل
@@ -34,9 +38,17 @@ export const SYSTEM_ROLES: readonly SystemRoleTemplate[] = [
     nameAr: "طبيب",
     nameEn: "Doctor",
     isLocked: false,
-    // D-8 (spec §3, slice A3): the doctor sees its own appointments and its own patients only; booking
-    // stays with the front desk. Existing clinics' doctor roles are not changed by a migration.
-    permissions: ["view:appointments:own", "view:patients:own"],
+    // D-8 (spec §3, slice A3): its own appointments and its own patients; booking stays with the front
+    // desk. P2 spec §2: it starts its own visits and reads and writes its own patients' medical content.
+    permissions: [
+      "view:appointments:own",
+      "view:patients:own",
+      "view:visits:own",
+      "create:visits:own",
+      "view:medical:own",
+      "update:medical:own",
+      "view:medicines:clinic",
+    ],
   },
   {
     key: "receptionist",
@@ -53,6 +65,8 @@ export const SYSTEM_ROLES: readonly SystemRoleTemplate[] = [
       "update:appointments:branch",
       "view:schedules:branch",
       "view:services:clinic",
+      // P2-K4: the front desk sees that a visit exists, never its content.
+      "view:visits:branch",
     ],
   },
   {

@@ -3,6 +3,11 @@ import { scrubAuditText, scrubAuditValue } from "@eyadex/observability/audit-tex
 import { newId, type MockState } from "./mock-store";
 
 type Snapshot = { id: string } & Record<string, unknown>;
+type Fields = Record<string, unknown>;
+/** The row's subject: snapshots that carry its id, or the id given apart (a medical row, as the API). */
+type Subject =
+  | { before: Snapshot | null; after: Snapshot | null; entityId?: undefined }
+  | { before: Fields | null; after: Fields | null; entityId: string | null };
 
 // An id no longer found keeps the API's shape (ADR-0019): the id with null names.
 const unnamed = (id: unknown) => (typeof id === "string" ? { id, nameAr: null, nameEn: null } : id);
@@ -11,7 +16,7 @@ const unnamed = (id: unknown) => (typeof id === "string" ? { id, nameAr: null, n
 const ROLE_REFS = new Set(["roleId"]);
 const BRANCH_REFS = new Set(["branchId", "branchIds", "registrationBranchId"]);
 
-function withNames(db: MockState, clinicId: string, snap: Snapshot): Record<string, unknown> {
+function withNames(db: MockState, clinicId: string, snap: Fields): Record<string, unknown> {
   const role = (id: unknown) => {
     const r = db.roles.find((x) => x.clinicId === clinicId && x.id === id);
     return r ? { id: r.id, nameAr: r.nameAr, nameEn: r.nameEn } : unnamed(id);
@@ -33,6 +38,18 @@ function withNames(db: MockState, clinicId: string, snap: Snapshot): Record<stri
 const scrubbed = (snap: Record<string, unknown>) =>
   scrubAuditValue(snap) as Record<string, unknown>;
 
+// P2 R3-4: every medical row is patient access, like the patient file itself; only the clinic
+// medicines list stays administrative.
+const PATIENT_ACCESS: ReadonlySet<string> = new Set([
+  "patient",
+  "visit",
+  "visit_addendum",
+  "diagnosis",
+  "prescription",
+  "medical_profile",
+  "attachment",
+]);
+
 /** Append-only clinic audit primitive shared by every clinic-area mock namespace. */
 export function writeClinicAudit(
   db: MockState,
@@ -41,20 +58,19 @@ export function writeClinicAudit(
     actorName: string;
     action: string;
     entity: ClinicAuditEntry["entity"];
-    before: Snapshot | null;
-    after: Snapshot | null;
-  },
+  } & Subject,
 ): void {
-  const subject = entry.after ?? entry.before;
-  if (!subject) return;
+  const entityId =
+    entry.entityId === undefined ? (entry.after ?? entry.before)?.id : entry.entityId;
+  if (entityId === undefined) return;
   db.clinicAudit.unshift({
     id: newId(),
     clinicId: entry.clinicId,
     actorName: scrubAuditText(entry.actorName),
     action: entry.action,
     entity: entry.entity,
-    category: entry.entity === "patient" ? "patient_access" : "administrative",
-    entityId: subject.id,
+    category: PATIENT_ACCESS.has(entry.entity) ? "patient_access" : "administrative",
+    entityId,
     before: entry.before ? scrubbed(withNames(db, entry.clinicId, entry.before)) : null,
     after: entry.after ? scrubbed(withNames(db, entry.clinicId, entry.after)) : null,
     createdAt: new Date().toISOString(),

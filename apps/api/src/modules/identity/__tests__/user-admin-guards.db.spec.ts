@@ -12,6 +12,7 @@ import {
   act,
   audit,
   customRole,
+  DOCTOR_ROLE_COVER,
   invite,
   inviteBody,
   memberOn,
@@ -65,14 +66,13 @@ describe("only an admin touches the admin role", () => {
     ];
     // The doctor role's keys too: moving the doctor's branches grants the doctor role there, which the
     // granting bound (ADR-0017 §6) lets only an actor holding its keys do (A3: view:patients:own needs the
-    // clinic key, ADR-0026 §12).
+    // clinic key, ADR-0026 §12; P2 R1-3: so do the visits and medical own keys).
     const managerRole = await customRole(h, D.admin.clinicId, [
       "view:users:clinic",
       "create:users:clinic",
       "update:users:clinic",
       "deactivate:users:clinic",
-      "view:patients:clinic",
-      "view:appointments:own",
+      ...DOCTOR_ROLE_COVER,
     ]);
     const manager = await memberOn(h, D.admin, managerRole);
     const adminMember = await memberIdOf(D.admin.userId);

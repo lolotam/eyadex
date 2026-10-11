@@ -58,9 +58,10 @@ BEGIN
      OR has_column_privilege('eyadex_platform', 'idempotency_keys', 'request_hash', 'UPDATE') THEN
     RAISE EXCEPTION 'IDEMPOTENCY: platform can rewrite a key';
   END IF;
-  -- 23 MVP keys (0026) + 17 of the appointments module (0042) + view:patients:own (0044).
-  IF (SELECT count(*) FROM permissions) <> 41 THEN
-    RAISE EXCEPTION 'CATALOGUE: expected 41 permissions, found %', (SELECT count(*) FROM permissions);
+  -- 23 MVP keys (0026) + 17 of the appointments module (0042) + view:patients:own (0044)
+  -- + 10 of the medical module (0046).
+  IF (SELECT count(*) FROM permissions) <> 51 THEN
+    RAISE EXCEPTION 'CATALOGUE: expected 51 permissions, found %', (SELECT count(*) FROM permissions);
   END IF;
 END $$;
 

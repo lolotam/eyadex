@@ -8,7 +8,9 @@ import { arAccess, arAccessErrors } from "./ar-access";
 import { arBranches } from "./ar-branches";
 import { arRoutes } from "./ar-routes";
 import { arAppointmentErrors, arAppointments } from "./ar-appointments";
+import { arVisits } from "./ar-visits";
 import { arScheduling, arSchedulingErrors } from "./ar-scheduling";
+import { arMedicalErrors } from "./ar-medical";
 
 import type { Dictionary } from "./dictionary";
 
@@ -146,6 +148,8 @@ export const ar: Dictionary = {
       patientsBody: "ملفات المراجعين والبحث والتسجيل.",
       appointments: "المواعيد",
       appointmentsBody: "الخدمات وجداول العمل والإجازات؛ الحجز يأتي في المرحلة التالية.",
+      medical: "الطبي",
+      medicalBody: "الزيارات وملاحظات الطبيب والتشخيصات والوصفات والملف الطبي.",
       saved: "تم تحديث الموديول",
     },
     members: {
@@ -168,6 +172,7 @@ export const ar: Dictionary = {
   ...arSettings,
   ...arScheduling,
   ...arAppointments,
+  ...arVisits,
   validation: {
     needsView: "أي صلاحية إضافة أو تعديل أو تعطيل تحتاج صلاحية العرض في نفس القسم",
     timezone: "اختر منطقة زمنية مدعومة",
@@ -198,6 +203,7 @@ export const ar: Dictionary = {
     ...arAccessErrors,
     ...arSchedulingErrors,
     ...arAppointmentErrors,
+    ...arMedicalErrors,
     patient_phone_taken: "هذا الهاتف مسجّل لمراجع آخر في هذه العيادة",
     patient_civil_id_taken: "هذا الرقم المدني مسجّل لمراجع آخر في هذه العيادة",
     email_taken: "هذا البريد مستخدم لدى مستخدم آخر أو في دعوة معلّقة",

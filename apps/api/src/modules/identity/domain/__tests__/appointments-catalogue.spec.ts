@@ -35,9 +35,16 @@ describe("the appointments catalogue", () => {
     expect(added).toEqual(ADDED);
   });
 
-  it("offers `own` only on view, on appointments and (A3) on patients", () => {
+  it("offers `own` on appointments and (A3) patients views, and (P2) on visits and the medical content", () => {
     const own = PERMISSION_CATALOG.filter((p) => p.scope === "own").map((p) => p.key);
-    expect(own).toEqual(["view:patients:own", "view:appointments:own"]);
+    expect(own).toEqual([
+      "view:patients:own",
+      "view:appointments:own",
+      "view:visits:own",
+      "create:visits:own",
+      "view:medical:own",
+      "update:medical:own",
+    ]);
     const patientsOwn = PERMISSION_CATALOG.find((p) => p.key === "view:patients:own");
     expect(patientsOwn?.module).toBe("patients");
   });
@@ -65,8 +72,9 @@ describe("the appointments catalogue", () => {
 });
 
 // Owner decision 2026-10-10 (slice A2): new clinics' front desk books in its branches. Slice A3 (D-8): the
-// doctor sees its own appointments and patients. Existing clinics' roles are not changed by a migration.
-describe("new clinics' system roles (A2, A3)", () => {
+// doctor sees its own appointments and patients. P2 spec §2: both gain their medical keys at the release,
+// which gave existing clinics' system roles the same keys (0050, R1-16).
+describe("new clinics' system roles (A2, A3, P2)", () => {
   const keysOf = (key: string) => SYSTEM_ROLES.find((r) => r.key === key)?.permissions;
 
   it("the receptionist books, moves and follows appointments in its branches", () => {
@@ -79,13 +87,52 @@ describe("new clinics' system roles (A2, A3)", () => {
       "update:appointments:branch",
       "view:schedules:branch",
       "view:services:clinic",
+      "view:visits:branch",
     ]);
     expect(permissionKeysSchema.safeParse(keysOf("receptionist")).success).toBe(true);
   });
 
-  it("A3 (D-8): the doctor holds only the own keys; the technician keeps its keys", () => {
-    expect(keysOf("doctor")).toEqual(["view:appointments:own", "view:patients:own"]);
+  it("A3 (D-8), P2: the doctor holds only the own keys and the medicines list; the technician keeps its keys", () => {
+    expect(keysOf("doctor")).toEqual([
+      "view:appointments:own",
+      "view:patients:own",
+      "view:visits:own",
+      "create:visits:own",
+      "view:medical:own",
+      "update:medical:own",
+      "view:medicines:clinic",
+    ]);
     expect(permissionKeysSchema.safeParse(keysOf("doctor")).success).toBe(true);
     expect(keysOf("technician")).toEqual(["view:patients:branch"]);
+  });
+});
+
+// P2 (R1-10, R1-16): the medical module's ten keys; since the release (0050) the system roles hold theirs.
+describe("the medical catalogue (P2)", () => {
+  it("adds exactly the module's keys, every one gated by the medical module", () => {
+    const added = PERMISSION_CATALOG.filter((p) => p.module === "medical").map((p) => p.key);
+    expect(added).toEqual([
+      "view:visits:clinic",
+      "view:visits:branch",
+      "view:visits:own",
+      "create:visits:own",
+      "view:medical:clinic",
+      "view:medical:own",
+      "update:medical:clinic",
+      "update:medical:own",
+      "view:medicines:clinic",
+      "update:medicines:clinic",
+    ]);
+  });
+
+  it("gives the locked admin the clinic-scope visits and medicines keys, never a medical one (P2-5)", () => {
+    const admin = SYSTEM_ROLES.find((r) => r.key === "clinic_admin")?.permissions ?? [];
+    expect(admin.filter((key) => /^\w+:(visits|medical|medicines):/.test(key))).toEqual([
+      "view:visits:clinic",
+      "view:medicines:clinic",
+      "update:medicines:clinic",
+    ]);
+    expect(admin).toContain("view:schedules:clinic");
+    expect(permissionKeysSchema.safeParse(admin).success).toBe(true);
   });
 });

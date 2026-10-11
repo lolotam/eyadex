@@ -44,6 +44,20 @@ const STATUS: Partial<Record<ApiErrorCode, number>> = {
   provider_time_off: 409,
   appointment_overlap: 409,
   invalid_transition: 409,
+  // P2 (R1-11). Kept after the generic codes: codeForStatus answers a framework status with the first
+  // code listed for it, so a framework 403 or 409 stays `forbidden` or `two_factor_busy`.
+  appointment_not_arrived: 409,
+  visit_exists: 409,
+  visit_signed: 409,
+  visit_not_signed: 409,
+  visit_not_provider: 403,
+  visit_empty: 422,
+  icd10_unknown: 422,
+  medicine_name_taken: 409,
+  attachment_too_large: 413,
+  attachment_type: 415,
+  attachment_patient_mismatch: 422,
+  role_self_change: 403,
   patient_inactive: 400,
   service_inactive: 400,
   role_inactive: 400,
@@ -51,6 +65,15 @@ const STATUS: Partial<Record<ApiErrorCode, number>> = {
   rate_limited: 429,
   unknown: 500,
 };
+
+// Raised by their use case only, never derived from a framework status (see codeForStatus).
+const RULE_ONLY: ReadonlySet<ApiErrorCode> = new Set<ApiErrorCode>([
+  "visit_empty",
+  "icd10_unknown",
+  "attachment_too_large",
+  "attachment_type",
+  "attachment_patient_mismatch",
+]);
 
 /**
  * An error that reaches the client as the bilingual envelope. `details` must never carry a secret, a civil
@@ -83,14 +106,16 @@ export class ApiError extends Error {
 /**
  * Maps a framework HTTP status to a catalogued code. A catalogued status keeps its code; any other 4xx is a
  * malformed request, which the envelope reports as `validation`; any 5xx — or anything else — is `unknown`.
- * Codes for the statuses that have no business here yet (413, 415) arrive with the slice
- * that raises them.
+ * The medical codes at 413, 415 and 422 name one business rule each (an attachment, a visit, an ICD-10
+ * code): a framework 413 on any other route is not about an attachment, so they never answer a status.
  *
  * @param status the status the framework chose
  * @returns the catalogued code
  */
 export function codeForStatus(status: number): ApiErrorCode {
-  const found = (Object.keys(STATUS) as ApiErrorCode[]).find((code) => STATUS[code] === status);
+  const found = (Object.keys(STATUS) as ApiErrorCode[]).find(
+    (code) => STATUS[code] === status && !RULE_ONLY.has(code),
+  );
   if (found !== undefined) return found;
   return status >= 400 && status < 500 ? "validation" : "unknown";
 }

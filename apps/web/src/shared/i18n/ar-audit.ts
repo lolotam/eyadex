@@ -1,4 +1,5 @@
 import { arAuditApiClinicActions } from "./ar-audit-api";
+import { arMedicalAuditActions, arMedicalAuditEntities, arMedicalAuditFields } from "./ar-medical";
 
 // نصوص سجل التدقيق، مفصولة لإبقاء ملفات القاموس صغيرة.
 export const arAudit = {
@@ -44,6 +45,7 @@ export const arAudit = {
       provider_schedule: "جدول عمل",
       provider_time_off: "إجازة",
       appointment: "موعد",
+      ...arMedicalAuditEntities,
     },
     actions: {
       branch: {
@@ -118,8 +120,10 @@ export const arAudit = {
       platform: {
         settings_updated: "تحديث إعدادات المنصة",
       },
+      ...arMedicalAuditActions,
     },
     fields: {
+      ...arMedicalAuditFields,
       nameAr: "الاسم (عربي)",
       nameEn: "الاسم (إنجليزي)",
       address: "العنوان",
@@ -178,6 +182,7 @@ export const arAudit = {
       inactive: "غير نشط",
       patients: "المراجعون",
       appointments: "المواعيد",
+      medical: "الطبي",
       ar: "العربية",
       en: "الإنجليزية",
       male: "ذكر",

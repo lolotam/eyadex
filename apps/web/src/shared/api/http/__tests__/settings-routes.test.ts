@@ -37,7 +37,7 @@ const platformSettings = {
   emailSenderName: "Eyadex",
   defaultMaxUsers: 25,
   defaultMaxBranches: 5,
-  defaultModules: { patients: false, appointments: false },
+  defaultModules: { patients: false, appointments: false, medical: false },
 };
 
 afterEach(() => {

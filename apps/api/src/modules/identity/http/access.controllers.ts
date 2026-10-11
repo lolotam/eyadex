@@ -58,6 +58,7 @@ export class MeController {
         expiresAt: member.clinic.expiresAt,
       },
       role: { id: member.role.id, nameAr: member.role.nameAr, nameEn: member.role.nameEn },
+      membershipId: context.membershipId,
       permissions: [...context.permissions],
       allBranches: context.branchScope.all,
       branchIds: context.branchScope.all ? [] : [...context.branchScope.branchIds],

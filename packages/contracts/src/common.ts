@@ -61,6 +61,18 @@ export const apiErrorCodeSchema = z.enum([
   "patient_inactive",
   "service_inactive",
   "invalid_transition",
+  "appointment_not_arrived",
+  "visit_exists",
+  "visit_signed",
+  "visit_not_signed",
+  "visit_not_provider",
+  "visit_empty",
+  "icd10_unknown",
+  "medicine_name_taken",
+  "attachment_too_large",
+  "attachment_type",
+  "attachment_patient_mismatch",
+  "role_self_change",
   "unknown",
 ]);
 export type ApiErrorCode = z.infer<typeof apiErrorCodeSchema>;

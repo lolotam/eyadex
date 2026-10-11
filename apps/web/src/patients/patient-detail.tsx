@@ -13,8 +13,15 @@ import { PatientStatusBadge } from "./patient-status-badge";
 import { PatientStatusDialog, type PatientStatusTarget } from "./patient-status-dialog";
 
 import { PatientBackLink as BackLink } from "./patient-back-link";
+import { PatientFileTabs, type PatientFileExtraTab } from "./patient-file-tabs";
 
-export function PatientDetail({ patientId }: { patientId: string }) {
+export function PatientDetail({
+  patientId,
+  extraTabs,
+}: {
+  patientId: string;
+  extraTabs: readonly PatientFileExtraTab[];
+}) {
   const { t, pick, lang } = useI18n();
   const { session } = useSession();
   const detail = usePatientDetail(patientId);
@@ -84,22 +91,31 @@ export function PatientDetail({ patientId }: { patientId: string }) {
           </div>
         }
       />
-      <dl className="grid max-w-3xl gap-x-8 rounded-lg border bg-card sm:grid-cols-2">
-        {rows.map(([label, value, ltr]) => (
-          <div key={label} className="flex flex-col gap-1 border-b px-4 py-3 last:border-b-0">
-            <dt className="text-xs text-muted-foreground">{label}</dt>
-            <dd className="text-sm font-medium">
-              <span className="inline-block" {...(ltr ? { dir: "ltr" as const } : {})}>
-                {value}
-              </span>
-            </dd>
-          </div>
-        ))}
-      </dl>
-      <p className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
-        <ShieldCheck className="size-4" />
-        {t("patients.detailAudited")}
-      </p>
+      <PatientFileTabs
+        patientId={patient.id}
+        patientStatus={patient.status}
+        extraTabs={extraTabs}
+        overview={
+          <>
+            <dl className="grid max-w-3xl gap-x-8 rounded-lg border bg-card sm:grid-cols-2">
+              {rows.map(([label, value, ltr]) => (
+                <div key={label} className="flex flex-col gap-1 border-b px-4 py-3 last:border-b-0">
+                  <dt className="text-xs text-muted-foreground">{label}</dt>
+                  <dd className="text-sm font-medium">
+                    <span className="inline-block" {...(ltr ? { dir: "ltr" as const } : {})}>
+                      {value}
+                    </span>
+                  </dd>
+                </div>
+              ))}
+            </dl>
+            <p className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
+              <ShieldCheck className="size-4" />
+              {t("patients.detailAudited")}
+            </p>
+          </>
+        }
+      />
       <PatientFormDialog open={editing} patient={patient} onOpenChange={setEditing} />
       <PatientStatusDialog patient={statusTarget} onClose={() => setStatusTarget(null)} />
     </div>

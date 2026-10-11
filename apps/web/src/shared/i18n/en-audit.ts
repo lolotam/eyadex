@@ -1,4 +1,5 @@
 import { enAuditApiClinicActions } from "./en-audit-api";
+import { enMedicalAuditActions, enMedicalAuditEntities, enMedicalAuditFields } from "./en-medical";
 
 // Audit log strings, split out to keep each dictionary file small.
 export const enAudit = {
@@ -44,6 +45,7 @@ export const enAudit = {
       provider_schedule: "Work schedule",
       provider_time_off: "Time off",
       appointment: "Appointment",
+      ...enMedicalAuditEntities,
     },
     actions: {
       branch: {
@@ -118,8 +120,10 @@ export const enAudit = {
       platform: {
         settings_updated: "Platform settings updated",
       },
+      ...enMedicalAuditActions,
     },
     fields: {
+      ...enMedicalAuditFields,
       nameAr: "Name (Arabic)",
       nameEn: "Name (English)",
       address: "Address",
@@ -178,6 +182,7 @@ export const enAudit = {
       inactive: "Inactive",
       patients: "Patients",
       appointments: "Appointments",
+      medical: "Medical",
       ar: "Arabic",
       en: "English",
       male: "Male",

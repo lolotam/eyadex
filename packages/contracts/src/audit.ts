@@ -135,6 +135,29 @@ export const CLINIC_AUDIT_ACTIONS = [
   "appointment.rescheduled",
   "appointment.status_changed",
   "appointment.cancelled",
+  // P2 (R3-4): snapshots hold field names only, never clinical values.
+  "visit.started",
+  "visit.opened",
+  "visit.note_saved",
+  "visit.signed",
+  "visit.cancelled",
+  "visit.addendum_added",
+  "visit.diagnoses_saved",
+  "visit.prescription_saved",
+  "visit.prescription_printed",
+  "visit.searched",
+  "visit.walk_in_searched",
+  "visit.previews_listed",
+  "medical_profile.opened",
+  "medical_profile.saved",
+  "attachment.uploaded",
+  "attachment.downloaded",
+  "attachment.archived",
+  "attachment.listed",
+  "medicine.created",
+  "medicine.updated",
+  "medicine.deactivated",
+  "medicine.reactivated",
 ] as const;
 
 /** Actions only the platform writes (its own log). */
@@ -156,10 +179,12 @@ export const PLATFORM_ONLY_AUDIT_ACTIONS = [
 
 /**
  * Clinic-log actions the platform never reads: patient access, the appointments module's
- * configuration (services, schedules, staff time off) — ADR-0026 §8 — and the appointments, which name
- * patients (0043 keeps their rows out of the platform's view as well).
+ * configuration (services, schedules, staff time off) — ADR-0026 §8 — the appointments, which name
+ * patients (0043 keeps their rows out of the platform's view as well), and the medical module's
+ * visits, medical files, attachments and medicines list (P2 R3-4).
  */
-const CLINIC_ONLY_ACTION = /^(patient|service|schedule|time_off|appointment)\./;
+const CLINIC_ONLY_ACTION =
+  /^(patient|service|schedule|time_off|appointment|visit|medical_profile|attachment|medicine)\./;
 
 /** What the platform audit screen can show: its own events plus clinic administrative ones. */
 export const PLATFORM_AUDIT_ACTIONS = [

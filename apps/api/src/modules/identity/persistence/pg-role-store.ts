@@ -144,8 +144,9 @@ export async function lockClinicRoles(tx: Tx, clinicId: string): Promise<void> {
 }
 
 /**
- * The actor as the database holds it now — membership and role status, stored role keys of every
- * module, and its active branches — never the cached, module-filtered request context.
+ * The actor as the database holds it now — membership and role status, whether the role is the locked
+ * admin one (P2 R1-2), stored role keys of every module, and its active branches — never the cached,
+ * module-filtered request context.
  */
 export async function readGrantingMember(
   tx: Tx,
@@ -158,8 +159,10 @@ export async function readGrantingMember(
     all_branches: boolean;
     role_id: string;
     role_active: boolean;
+    role_locked: boolean;
   }>(
-    sql`SELECT m.id, m.status, m.all_branches, m.role_id, r.is_active AS role_active
+    sql`SELECT m.id, m.status, m.all_branches, m.role_id, r.is_active AS role_active,
+          r.is_locked AS role_locked
         FROM memberships m JOIN roles r ON r.clinic_id = m.clinic_id AND r.id = m.role_id
         WHERE m.clinic_id = ${clinicId} AND m.user_id = ${userId}`,
   );
@@ -176,5 +179,6 @@ export async function readGrantingMember(
     active: row.status === "active" && row.role_active,
     keys: await readRoleKeys(tx, clinicId, row.role_id),
     reach: { allBranches: row.all_branches, branchIds: branches.map((b) => b.branch_id) },
+    lockedRole: row.role_locked,
   };
 }

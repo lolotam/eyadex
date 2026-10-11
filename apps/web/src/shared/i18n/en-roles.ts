@@ -32,6 +32,7 @@ export const enRoles = {
       core: "Clinic administration",
       patients: "Patients module",
       appointments: "Appointments module",
+      medical: "Medical module",
     },
     resources: {
       branches: "Branches",
@@ -43,6 +44,9 @@ export const enRoles = {
       appointments: "Appointments",
       services: "Services",
       schedules: "Work schedules",
+      visits: "Visits",
+      medical: "Medical content",
+      medicines: "Medicines",
     },
     actions: {
       view: "View",

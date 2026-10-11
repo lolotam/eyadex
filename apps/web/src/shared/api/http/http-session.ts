@@ -25,6 +25,7 @@ export function contextFromMe(me: MeResponse): SessionContext {
     },
     clinic: { ...me.clinic },
     permissions: [...me.permissions],
+    membershipId: me.membershipId,
     allBranches: me.allBranches,
     branchIds: [...me.branchIds],
     features: Object.fromEntries(
@@ -44,6 +45,7 @@ export function contextFromPlatformMe(account: PlatformMeResponse): SessionConte
     user: { fullName: account.fullName, email: account.email, preferredLanguage: null },
     clinic: null,
     permissions: [],
+    membershipId: null,
     allBranches: false,
     branchIds: [],
     features: { ...NO_FEATURES },

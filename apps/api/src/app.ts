@@ -35,6 +35,11 @@ import {
 } from "./modules/identity/index.ts";
 import { PatientsModule } from "./modules/patients/index.ts";
 import { AppointmentsModule } from "./modules/appointments/index.ts";
+import {
+  MedicalModule,
+  registerAttachmentUploads,
+  type BlobStore,
+} from "./modules/medical/index.ts";
 import { ClinicAuditModule, PlatformAuditModule } from "./modules/audit/index.ts";
 import { PlatformModule } from "./modules/platform/index.ts";
 import { SettingsModule } from "./modules/settings/index.ts";
@@ -76,10 +81,16 @@ export interface AppDependencies {
    * `/v1/permissions/catalogue`, `/v1/branches`, `/v1/users`, `/v1/invitations`, `/v1/clinic/mail-provider`,
    * `/v1/patients`, `/v1/clinic/audit`, `/v1/services`, `/v1/schedules` (ADR-0009, 0011, 0012, 0014,
    * 0018, 0019, 0026). Needs auth mounted,
-   * DATABASE_URL, REDIS_URL, OUTBOX_SEAL_KEY and
-   * MAIL_PROVIDER_SEAL_KEY.
+   * DATABASE_URL, REDIS_URL, OUTBOX_SEAL_KEY,
+   * MAIL_PROVIDER_SEAL_KEY, MEDICAL_MASTER_KEY_V<MEDICAL_KEY_VERSION> and MEDICAL_INDEX_KEY (ADR-0028,
+   * docs/specs/medical-keys-runbook.md). Attachments also read MEDICAL_BLOB_S3_ENDPOINT,
+   * MEDICAL_BLOB_S3_BUCKET, MEDICAL_BLOB_S3_ACCESS_KEY, MEDICAL_BLOB_S3_SECRET_KEY and the optional
+   * MEDICAL_BLOB_S3_REGION (docs/specs/medical-blob-runbook.md); without them the API still starts and
+   * only an upload or a download answers 503.
    */
   readonly mountClinic?: boolean;
+  /** Test-only: the attachments' blob store instead of the one the environment configures. */
+  readonly medicalBlobStore?: BlobStore;
 }
 
 export interface AppOptions {
@@ -138,6 +149,7 @@ export function apiModule(
             RolesModule,
             PatientsModule,
             AppointmentsModule,
+            MedicalModule.forRoot(deps.medicalBlobStore),
             ClinicAuditModule,
           ]
         : []),
@@ -250,6 +262,8 @@ export async function startApi(
       app.get<AuthRateLimit>(AUTH_RATE_LIMIT).limiter,
     );
   }
+  // The attachment upload is the only multipart route; every other route keeps refusing the type.
+  await registerAttachmentUploads(app.getHttpAdapter().getInstance());
   // A route without exactly one access declaration fails the boot, not just its requests (RBAC-04).
   assertRouteAccess(app.get(ModulesContainer));
   app.setGlobalPrefix("v1");

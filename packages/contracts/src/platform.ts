@@ -50,7 +50,8 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
   emailSenderName: "Eyadex",
   defaultMaxUsers: 10,
   defaultMaxBranches: 3,
-  defaultModules: { patients: true, appointments: true },
+  // P2 R2-3: the medical module's release (0050) turned it on for new clinics.
+  defaultModules: { patients: true, appointments: true, medical: true },
 };
 
 /**

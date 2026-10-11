@@ -19,6 +19,7 @@ const member = (keys: string[], reach = ALL, active = true): GrantingMember => (
   active,
   keys,
   reach,
+  lockedRole: false,
 });
 const adminKeys = [...SYSTEM_ROLES.find((r) => r.key === "clinic_admin")!.permissions];
 
@@ -138,8 +139,11 @@ describe("the own scope (spec §3: the narrowest; a wider scope on the same acti
 });
 
 describe("new-clinic system roles (ADR-0026 §6)", () => {
-  it("the locked admin holds every clinic-scope key of the catalogue, appointments included", () => {
-    const clinicKeys = PERMISSION_CATALOG.filter((p) => p.scope === "clinic").map((p) => p.key);
+  // P2-5: never the clinical content (the `medical` resource); visits and medicines it holds (0050).
+  it("the locked admin holds every clinic-scope key of the catalogue but the medical content ones", () => {
+    const clinicKeys = PERMISSION_CATALOG.filter(
+      (p) => p.scope === "clinic" && p.resource !== "medical",
+    ).map((p) => p.key);
     expect([...adminKeys].sort()).toEqual([...clinicKeys].sort());
     expect(adminKeys).toContain("update:schedules:clinic");
   });

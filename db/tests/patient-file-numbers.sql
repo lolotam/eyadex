@@ -37,8 +37,10 @@ BEGIN
   BEGIN
     INSERT INTO branches VALUES ('00000000-0000-7000-8000-0000000005a1', '00000000-0000-7000-8000-0000000005b1',
       'ف', 'B', true, now(), now());
-    INSERT INTO patients VALUES ('00000000-0000-7000-8000-0000000005a1', gen_random_uuid(), '000123', 'x',
-      '+96550000001', '1990-01-01', 'male', '00000000-0000-7000-8000-0000000005b1', null, 'active', now(), now());
+    INSERT INTO patients (clinic_id, id, file_number, full_name, phone, birth_date, gender, registration_branch_id,
+        status, created_at, updated_at)
+      VALUES ('00000000-0000-7000-8000-0000000005a1', gen_random_uuid(), '000123', 'x', '+96550000001', '1990-01-01',
+        'male', '00000000-0000-7000-8000-0000000005b1', 'active', now(), now());
     RAISE EXCEPTION 'FILENO: padded file number stored';
   EXCEPTION WHEN check_violation THEN NULL; END;
 END $$;

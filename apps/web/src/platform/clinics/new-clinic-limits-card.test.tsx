@@ -14,7 +14,7 @@ const settings = {
   ...DEFAULT_PLATFORM_SETTINGS,
   defaultMaxUsers: 25,
   defaultMaxBranches: 5,
-  defaultModules: { patients: false, appointments: false },
+  defaultModules: { patients: false, appointments: false, medical: false },
 };
 
 // A complete form, so only the limits decide whether it submits.
@@ -60,7 +60,7 @@ describe("the create-clinic form starts from the platform settings (ADR-0020 ame
       adminEmail: "",
       maxUsers: 25,
       maxBranches: 5,
-      modules: { patients: false, appointments: false },
+      modules: { patients: false, appointments: false, medical: false },
     });
   });
 
@@ -81,7 +81,7 @@ describe("the create-clinic form starts from the platform settings (ADR-0020 ame
     expect(submitted).toMatchObject({
       maxUsers: 25,
       maxBranches: 5,
-      modules: { patients: true, appointments: false },
+      modules: { patients: true, appointments: false, medical: false },
     });
   });
 

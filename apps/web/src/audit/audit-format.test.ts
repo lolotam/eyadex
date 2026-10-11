@@ -92,12 +92,14 @@ describe("audit value translations", () => {
 
 describe("module maps in audit snapshots", () => {
   it("lists the modules switched on, and nothing for an all-off map", () => {
-    expect(enabledFlags({ patients: true, appointments: false })).toEqual(["patients"]);
-    expect(enabledFlags({ patients: true, appointments: true })).toEqual([
+    expect(enabledFlags({ patients: true, appointments: false, medical: false })).toEqual([
+      "patients",
+    ]);
+    expect(enabledFlags({ patients: true, appointments: true, medical: false })).toEqual([
       "patients",
       "appointments",
     ]);
-    expect(enabledFlags({ patients: false, appointments: false })).toEqual([]);
+    expect(enabledFlags({ patients: false, appointments: false, medical: false })).toEqual([]);
   });
   it("leaves any other value to the caller", () => {
     for (const value of [null, true, "patients", ["patients"], {}, { nameAr: "x", nameEn: "y" }])
