@@ -53,6 +53,10 @@ const ROUTES: [method: "GET" | "POST" | "PUT", url: string, body?: unknown][] = 
       familyHistory: null,
     },
   ],
+  ["POST", `/v1/patients/${ID}/attachments`, {}],
+  ["GET", `/v1/patients/${ID}/attachments`],
+  ["GET", `/v1/attachments/${ID}`],
+  ["POST", `/v1/attachments/${ID}/archive`, {}],
 ];
 
 beforeAll(async () => {

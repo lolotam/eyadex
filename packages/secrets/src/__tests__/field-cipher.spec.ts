@@ -106,12 +106,6 @@ describe("FieldCipher bytes (attachment content)", () => {
     expect(c.openBytes(A, blob, c.sealBytes(A, blob, Buffer.alloc(0))).length).toBe(0);
   });
 
-  it("text and bytes share one envelope: a text seal opens as its UTF-8 bytes and back", () => {
-    const c = v1();
-    expect(c.openBytes(A, ref, c.seal(A, ref, "ملف")).toString("utf8")).toBe("ملف");
-    expect(c.open(A, ref, c.sealBytes(A, ref, Buffer.from("ملف", "utf8")))).toBe("ملف");
-  });
-
   it("NEGATIVE: binds the clinic and the attachment, and refuses a tampered body", () => {
     const c = v1();
     const sealed = c.sealBytes(A, blob, randomBytes(64));

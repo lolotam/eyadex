@@ -10,10 +10,12 @@ import {
   type MedicalActor,
   type NoteText,
 } from "../domain/visit-rules.ts";
+import { activeAttachmentsOfVisit } from "../persistence/pg-attachment-store.ts";
 import { addendaOf, notesOf, NOTE_COLUMN, type StoredNote } from "../persistence/pg-note-store.ts";
 import type { VisitRow } from "../persistence/pg-visit-store.ts";
 import type { ClinicalCipher } from "../ports/clinical-cipher.ts";
 import type { ReadContext } from "../use-cases/medical-deps.ts";
+import { attachmentViews } from "./attachment-views.ts";
 
 const PREVIEW_LENGTH = 160;
 // The FK makes a missing name impossible; the dash is the placeholder all the same.
@@ -110,6 +112,9 @@ export async function visitDetail(
   const stored = (await notesOf(tx, clinicId, [visit.id])).get(visit.id);
   const content = readsContent(actor, patientIsOwn);
   const addenda = content ? await addendaOf(tx, clinicId, [visit.id]) : [];
+  const attachments = content
+    ? await attachmentViews(reads, clinicId, await activeAttachmentsOfVisit(tx, clinicId, visit.id))
+    : [];
   const members = await reads.members.findMany(tx, clinicId, [
     visit.providerMembershipId,
     ...addenda.map((a) => a.authorMembershipId),
@@ -133,7 +138,7 @@ export async function visitDetail(
     content: content
       ? {
           note,
-          // Diagnoses, the prescription and attachments arrive with their own slices (0047–0049).
+          // Diagnoses and the prescription arrive with their own slices (0047, 0048).
           diagnoses: [],
           prescription: [],
           addenda: addenda.map((a) => ({
@@ -146,7 +151,7 @@ export async function visitDetail(
             ),
             createdAt: iso(a.createdAt),
           })),
-          attachments: [],
+          attachments,
         }
       : null,
     can: visitAbilities(actor, visit, signable),

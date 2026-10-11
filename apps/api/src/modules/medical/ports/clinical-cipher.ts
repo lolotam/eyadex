@@ -27,4 +27,24 @@ export interface ClinicalCipher {
    * @returns النص
    */
   open(clinicId: string, ref: FieldRef, envelope: string): string;
+
+  /**
+   * زي `seal` لبايتات (محتوى مرفق): نفس الظرف ونفس الربط بالمكان.
+   *
+   * @param clinicId العيادة
+   * @param ref مكان المحتوى
+   * @param plain البايتات
+   * @returns الظرف `f1.<version>.…`
+   */
+  sealBytes(clinicId: string, ref: FieldRef, plain: Uint8Array): string;
+
+  /**
+   * زي `open` لظرف بايتات؛ أي اختلاف أو تلاعب بيرمي.
+   *
+   * @param clinicId العيادة
+   * @param ref مكان المحتوى
+   * @param envelope الظرف
+   * @returns البايتات
+   */
+  openBytes(clinicId: string, ref: FieldRef, envelope: string): Buffer;
 }
