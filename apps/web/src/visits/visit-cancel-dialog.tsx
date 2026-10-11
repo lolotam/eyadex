@@ -27,8 +27,9 @@ import { useSectionSaveRefusal, useVisitWrite } from "./use-visit-write";
 type Values = z.input<typeof visitCancelSchema>;
 
 /**
- * Cancel a draft (P2-6): a reason and an optional note; the draft is kept as cancelled. The confirm sends
- * the note's pending text and waits for every section save (`settleSaves`, as Sign), and cancels only
+ * Cancel a draft (P2-6): a reason and an optional note; the draft is kept as cancelled, with its content.
+ * The confirm sends the note's pending text and the list forms' unsaved edits and waits for every
+ * section save (`settleSaves`, as Sign), and cancels only
  * when each section's last save succeeded: a save landing after the cancel would be refused and its
  * text lost.
  */

@@ -12,9 +12,10 @@ import { sectionSaveKey } from "./visit-section-saves";
 
 /**
  * Sign · Cancel draft · Print, each following `can` (UX only: the API refuses as well). Sign is off
- * while any section save runs; its confirm sends the note's pending text and waits for every section
- * save (`settleSaves`), and signs only when each section's last save succeeded (a section whose save
- * failed earlier shows that error again until it is saved). Cancel draft follows the same rule.
+ * while any section save runs; its confirm waits for every section save, sends the note's pending text
+ * and the list forms' unsaved edits through their own saves (`settleSaves`), and signs only when each
+ * section's last save succeeded (a list whose edits do not validate refuses, naming its section).
+ * Cancel draft follows the same rule.
  */
 export function VisitActions({
   detail,
