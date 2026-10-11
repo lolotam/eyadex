@@ -122,8 +122,12 @@ describe("FLAG-01: the patients module switched off", () => {
 });
 
 describe("happy paths (clinic admin)", () => {
+  // The fictional civil ID the happy path files: the database keeps it encrypted only (ADR-0028).
+  let happyCivilId = "";
+
   it("create answers 201 with the next file number and the full file", async () => {
     const body = patientBody(C.branchX, { fullName: "  Happy Path  ", phone: "+965 5550-0001" });
+    happyCivilId = body.civilId;
     const res = await createPatient(h, C.admin.cookie, { ...body, phone: undefined });
     expect(res.statusCode).toBe(400);
     const ok = await createPatient(h, C.admin.cookie, body);
@@ -146,15 +150,10 @@ describe("happy paths (clinic admin)", () => {
     const numbers = page.items.map((p) => p.fileNumber);
     expect(numbers).toEqual([...numbers].sort((a, b) => b - a));
     expect(page.total).toBe(page.items.length);
-    // Compared with the stored numbers themselves: a pattern like \d{12} also matches inside a UUID.
-    const stored = await h.owner`SELECT civil_id FROM patients
-                                 WHERE clinic_id = ${C.clinicId} AND civil_id IS NOT NULL`;
-    expect(stored.length).toBeGreaterThan(0);
-    for (const row of stored) {
-      const civilId = row["civil_id"] as string;
-      expect(res.body).not.toContain(civilId);
-      expect(page.items.map((p) => p.civilIdLast4)).toContain(civilId.slice(-4));
-    }
+    // Compared with the number itself: a pattern like \d{12} also matches inside a UUID.
+    expect(res.body).not.toContain(happyCivilId);
+    const happy = page.items.find((p) => p.fullName === "Happy Path");
+    expect(happy?.civilIdLast4).toBe(happyCivilId.slice(-4));
   });
 
   it("search pages with an opaque cursor and filters by branch, status and search term", async () => {
@@ -179,18 +178,18 @@ describe("happy paths (clinic admin)", () => {
       (await search(h, C.admin.cookie, { q: "5550-0001" })).json(),
     );
     expect(byPhone.items.map((p) => p.fullName)).toEqual(["Happy Path"]);
-    const [happy] = await h.owner`SELECT file_number, civil_id FROM patients
+    const [happy] = await h.owner`SELECT file_number FROM patients
                                   WHERE clinic_id = ${C.clinicId} AND full_name = 'Happy Path'`;
     const padded = formatFileNumber(Number(happy!["file_number"]));
     const byFileNumber = patientListResponseSchema.parse(
       (await search(h, C.admin.cookie, { q: padded })).json(),
     );
     expect(byFileNumber.items.map((p) => p.fullName)).toEqual(["Happy Path"]);
-    // Digits of the civil ID, like the mock (a run of 7 is enough to find the file).
-    const byCivilDigits = patientListResponseSchema.parse(
-      (await search(h, C.admin.cookie, { q: (happy!["civil_id"] as string).slice(5) })).json(),
+    // The whole civil ID finds the file by its blind index (P2-F5; partial digits: civil-id-encrypted).
+    const byCivilId = patientListResponseSchema.parse(
+      (await search(h, C.admin.cookie, { q: happyCivilId })).json(),
     );
-    expect(byCivilDigits.items.map((p) => p.fullName)).toContain("Happy Path");
+    expect(byCivilId.items.map((p) => p.fullName)).toEqual(["Happy Path"]);
     const bad = await search(h, C.admin.cookie, { cursor: "bm90LWEtbnVtYmVy" });
     expect(bad.statusCode).toBe(400);
   });

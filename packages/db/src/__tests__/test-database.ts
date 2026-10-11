@@ -70,9 +70,9 @@ export const seedTwoClinics = async (owner: Sql): Promise<[ClinicFixture, Clinic
       await tx`INSERT INTO roles (clinic_id, id, system_key, name_ar, name_en, is_locked, is_active, created_at, updated_at)
         VALUES (${clinicId}, ${roleId}, 'doctor', 'طبيب', 'Doctor', false, true, now(), now())`;
       await tx`INSERT INTO patients (clinic_id, id, file_number, full_name, phone, birth_date, gender,
-          registration_branch_id, civil_id, status, created_at, updated_at)
+          registration_branch_id, status, created_at, updated_at)
         VALUES (${clinicId}, ${patientId}, '1', 'مراجع الاختبار', ${`+9655000${letter}`},
-          '1990-01-01', 'female', ${branchId}, NULL, 'active', now(), now())`;
+          '1990-01-01', 'female', ${branchId}, 'active', now(), now())`;
       await tx`INSERT INTO invitations (clinic_id, id, email, full_name, role_id, all_branches, status,
           expires_at, invited_by_user_id, token_hash, created_at, responded_at)
         VALUES (${clinicId}, ${newTestId()}, ${`invite-${clinicId}@example.com`}, 'مُدعى', ${roleId},

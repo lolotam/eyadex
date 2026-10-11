@@ -103,29 +103,33 @@ export function recordActions(scopes: PatientScopes, branchId: string): PatientR
   };
 }
 
-/** كلمة البحث بعد التفكيك: نمط للاسم، وأرقام للموبايل ورقم الملف والرقم المدني. */
+/** كلمة البحث بعد التفكيك: نمط للاسم، وأرقام للموبايل ورقم الملف، والرقم المدني كامل بس. */
 export interface SearchTerms {
   /** نمط `ILIKE` بحروف `%` و `_` و `\` محمية؛ `null` = مفيش بحث. */
   readonly namePattern: string | null;
-  /** نمط `LIKE` للأرقام بس؛ `null` = الكلمة مافيهاش أرقام. */
+  /** نمط `LIKE` للأرقام بس (الموبايل ورقم الملف)؛ `null` = الكلمة مافيهاش أرقام. */
   readonly digitsPattern: string | null;
+  /** الـ 12 رقم لو أرقام الكلمة رقم مدني كامل (تطابق تام بالفهرس، P2-F5)؛ غير كده `null`. */
+  readonly civilId: string | null;
 }
 
+const CIVIL_ID_DIGITS = 12;
 const escapeLike = (text: string) => text.replace(/[\\%_]/g, (c) => `\\${c}`);
 
 /**
- * نفس قاعدة الـ mock (`matchesSearch`): الاسم بيحتوي الكلمة، أو أرقام الكلمة جوه أرقام الموبايل أو
- * رقم الملف بستة أرقام أو الرقم المدني.
+ * الاسم بيحتوي الكلمة، أو أرقام الكلمة جوه أرقام الموبايل أو رقم الملف بستة أرقام. الرقم المدني متشفّر
+ * (ADR-0028)، فبيتلاقى بس لما أرقام الكلمة تكون الـ 12 رقم كاملين (P2-F5)؛ جزء منه مابيلاقيش حاجة بيه.
  *
  * @param q الكلمة بعد الـ trim
  * @returns الأنماط
  */
 export function searchTerms(q: string): SearchTerms {
-  if (q === "") return { namePattern: null, digitsPattern: null };
+  if (q === "") return { namePattern: null, digitsPattern: null, civilId: null };
   const digits = searchDigits(q);
   return {
     namePattern: `%${escapeLike(q)}%`,
     digitsPattern: digits === "" ? null : `%${digits}%`,
+    civilId: digits.length === CIVIL_ID_DIGITS ? digits : null,
   };
 }
 

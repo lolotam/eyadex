@@ -16,7 +16,8 @@ import {
 import { branches } from "./branches.ts";
 import { clinics } from "./clinics.ts";
 
-// Mirror of db/sql/0010, 0019, 0021 (+ 0035's index). civil_id is sensitive: never logged or audited.
+// Mirror of db/sql/0010, 0019, 0021 (+ 0035's index) and 0045. civil_id is sensitive: never logged or
+// audited; from 0045 it is written only as civil_id_enc/hmac/last4 and the plain column is legacy (R1-5).
 const tz = { withTimezone: true, mode: "date" } as const;
 
 export const patients = pgTable(
@@ -34,6 +35,9 @@ export const patients = pgTable(
     status: text("status", { enum: ["active", "archived"] }).notNull(),
     createdAt: timestamp("created_at", tz).notNull(),
     updatedAt: timestamp("updated_at", tz).notNull(),
+    civilIdEnc: text("civil_id_enc"),
+    civilIdHmac: text("civil_id_hmac"),
+    civilIdLast4: text("civil_id_last4"),
   },
   (t) => [
     primaryKey({ name: "patients_pkey", columns: [t.clinicId, t.id] }),
@@ -60,6 +64,23 @@ export const patients = pgTable(
       sql.raw(
         "((civil_id IS NULL) OR ((length(civil_id) = 12) AND (translate(civil_id, '0123456789'::text, ''::text) = ''::text)))",
       ),
+    ),
+    uniqueIndex("patients_clinic_civil_id_hmac_unique")
+      .on(t.clinicId, t.civilIdHmac)
+      .where(sql`${t.civilIdHmac} IS NOT NULL`),
+    check(
+      "patients_civil_id_encrypted_together",
+      sql.raw(
+        "(((civil_id_enc IS NULL) = (civil_id_hmac IS NULL)) AND ((civil_id_enc IS NULL) = (civil_id_last4 IS NULL)))",
+      ),
+    ),
+    check(
+      "patients_civil_id_hmac_hex",
+      sql.raw("((civil_id_hmac IS NULL) OR (civil_id_hmac ~ '^[0-9a-f]{64}$'::text))"),
+    ),
+    check(
+      "patients_civil_id_last4_digits",
+      sql.raw("((civil_id_last4 IS NULL) OR (civil_id_last4 ~ '^[0-9]{4}$'::text))"),
     ),
     check("patients_file_number_numeric", sql.raw("(file_number ~ '^[1-9][0-9]*$'::text)")),
     check("patients_gender_check", sql.raw("(gender = ANY (ARRAY['male'::text, 'female'::text]))")),

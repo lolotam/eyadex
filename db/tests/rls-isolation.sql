@@ -24,7 +24,11 @@ BEGIN
     INSERT INTO membership_branches VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'6')::uuid, ('00000000-0000-7000-8000-0000000001'||s||'5')::uuid, ('00000000-0000-7000-8000-0000000001'||s||'2')::uuid, now());
     INSERT INTO invitations VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'7')::uuid, 'i'||s||'@example.com', 'n', ('00000000-0000-7000-8000-0000000001'||s||'3')::uuid, false, 'pending', now()+interval '7 days', ('00000000-0000-7000-8000-0000000002'||s||'5')::uuid, 'hash-'||s, now(), null);
     INSERT INTO invitation_branches VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'8')::uuid, ('00000000-0000-7000-8000-0000000001'||s||'7')::uuid, ('00000000-0000-7000-8000-0000000001'||s||'2')::uuid);
-    INSERT INTO patients VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'9')::uuid, '1', 'x', '+9650000000'||s, '1990-01-01', 'female', ('00000000-0000-7000-8000-0000000001'||s||'2')::uuid, null, 'active', now(), now());
+    -- The civil ID as 0045 stores it (a shaped placeholder, not a real envelope): never the plain column.
+    INSERT INTO patients (clinic_id, id, file_number, full_name, phone, birth_date, gender, registration_branch_id,
+        civil_id_enc, civil_id_hmac, civil_id_last4, status, created_at, updated_at)
+      VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'9')::uuid, '1', 'x', '+9650000000'||s, '1990-01-01', 'female',
+        ('00000000-0000-7000-8000-0000000001'||s||'2')::uuid, 'f1.1.iv.body.tag', repeat(s, 64), '0000', 'active', now(), now());
     INSERT INTO clinic_counters VALUES (c, 'patient_file_number', 1, now());
     INSERT INTO clinic_idempotency_keys VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'c')::uuid, 'branch:create', 'k', repeat('a', 64), '{}', now());
     INSERT INTO clinic_mail_providers (clinic_id, id, kind, from_name, from_email, sealed_credentials, created_at, updated_at)
@@ -92,7 +96,10 @@ BEGIN
     RAISE EXCEPTION 'ISO-01 write leak: invitation_branches';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   BEGIN
-    INSERT INTO patients VALUES (b, gen_random_uuid(), '9', 'z', '+96500000099', '1990-01-01', 'male', '00000000-0000-7000-8000-0000000001b2', null, 'active', now(), now());
+    INSERT INTO patients (clinic_id, id, file_number, full_name, phone, birth_date, gender, registration_branch_id,
+        status, created_at, updated_at)
+      VALUES (b, gen_random_uuid(), '9', 'z', '+96500000099', '1990-01-01', 'male', '00000000-0000-7000-8000-0000000001b2',
+        'active', now(), now());
     RAISE EXCEPTION 'ISO-01 write leak: patients';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   BEGIN

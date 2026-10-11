@@ -1,7 +1,8 @@
 import type { Tx } from "@eyadex/db";
-import { sql } from "drizzle-orm";
+import { sql, type SQL } from "drizzle-orm";
 
 import type { DuplicateFile, PatientRecord } from "../domain/patient-rules.ts";
+import type { CivilIdCodec, CivilIdColumns } from "./civil-id-codec.ts";
 
 // Every statement here runs inside the caller's withTenant(clinicId) transaction AND filters on
 // clinic_id itself: RLS and the explicit predicate are two independent layers (ISO-01).
@@ -14,15 +15,26 @@ interface PatientRow {
   birth_date: string;
   gender: PatientRecord["gender"];
   registration_branch_id: string;
+  civil_id_enc: string | null;
+  /** Legacy: a file written before 0045, until the backfill converts it (R1-5). */
   civil_id: string | null;
   status: PatientRecord["status"];
 }
 
-/** The columns of one file, with the date as text (the contract wants YYYY-MM-DD, not a Date). */
+/**
+ * The columns of one file, with the date as text (the contract wants YYYY-MM-DD, not a Date), and the
+ * civil ID in both forms it can be stored in until the plain column is dropped (R1-5).
+ */
 export const PATIENT_COLUMNS = sql`p.id, p.file_number, p.full_name, p.phone,
-  p.birth_date::text AS birth_date, p.gender, p.registration_branch_id, p.civil_id, p.status`;
+  p.birth_date::text AS birth_date, p.gender, p.registration_branch_id, p.civil_id_enc, p.civil_id,
+  p.status`;
 
-export const toRecord = (row: PatientRow): PatientRecord => ({
+/** One stored file as a record, its civil ID decrypted (or read from the legacy column). */
+export const toRecord = (
+  row: PatientRow,
+  clinicId: string,
+  civilIds: CivilIdCodec,
+): PatientRecord => ({
   id: row.id,
   fileNumber: Number(row.file_number),
   fullName: row.full_name,
@@ -30,13 +42,14 @@ export const toRecord = (row: PatientRow): PatientRecord => ({
   birthDate: row.birth_date,
   gender: row.gender,
   registrationBranchId: row.registration_branch_id,
-  civilId: row.civil_id,
+  civilId: civilIds.read(clinicId, row.id, row.civil_id_enc, row.civil_id),
   status: row.status,
 });
 
 /**
- * Serialises every patient write of one clinic (create, update, archive, restore), so the duplicate
- * checks and the decision that follows cannot race a parallel write. Never taken by branch writes.
+ * Serialises every patient write of one clinic (create, update, archive, restore, the civil ID
+ * backfill), so the duplicate checks and the decision that follows cannot race a parallel write. Never
+ * taken by branch writes.
  */
 export async function lockClinicPatients(tx: Tx, clinicId: string): Promise<void> {
   await tx.execute(
@@ -47,6 +60,7 @@ export async function lockClinicPatients(tx: Tx, clinicId: string): Promise<void
 /** One file of this clinic, or null; `FOR UPDATE` when the caller is about to change it. */
 export async function findPatient(
   tx: Tx,
+  civilIds: CivilIdCodec,
   clinicId: string,
   id: string,
   forUpdate = false,
@@ -56,17 +70,15 @@ export async function findPatient(
     sql`SELECT ${PATIENT_COLUMNS} FROM patients p
         WHERE p.clinic_id = ${clinicId} AND p.id = ${id}${lock}`,
   );
-  return rows[0] === undefined ? null : toRecord(rows[0]);
+  return rows[0] === undefined ? null : toRecord(rows[0], clinicId, civilIds);
 }
 
 async function findDuplicate(
   tx: Tx,
   clinicId: string,
-  column: "phone" | "civil_id",
-  value: string,
+  match: SQL,
   exceptId: string | null,
 ): Promise<DuplicateFile | null> {
-  const match = column === "phone" ? sql`p.phone = ${value}` : sql`p.civil_id = ${value}`;
   const rows = await tx.execute<{
     id: string;
     file_number: string;
@@ -88,15 +100,25 @@ async function findDuplicate(
 
 /** Another file of this clinic with this phone (any status), or null (PAT-02). */
 export const findPhoneOwner = (tx: Tx, clinicId: string, phone: string, exceptId: string | null) =>
-  findDuplicate(tx, clinicId, "phone", phone, exceptId);
+  findDuplicate(tx, clinicId, sql`p.phone = ${phone}`, exceptId);
 
-/** Another file of this clinic holding this civil ID (archived ones included, 0021), or null. */
+/**
+ * Another file of this clinic holding this civil ID (archived ones included, 0021), or null: by its
+ * blind index, or by the legacy plain column of a file the backfill has not converted yet (R1-5).
+ */
 export const findCivilIdOwner = (
   tx: Tx,
+  civilIds: CivilIdCodec,
   clinicId: string,
   civilId: string,
   exceptId: string | null,
-) => findDuplicate(tx, clinicId, "civil_id", civilId, exceptId);
+) =>
+  findDuplicate(
+    tx,
+    clinicId,
+    sql`(p.civil_id_hmac = ${civilIds.index(clinicId, civilId)} OR p.civil_id = ${civilId})`,
+    exceptId,
+  );
 
 /**
  * The clinic's next file number (0019): the upsert locks the counter row, so parallel creates get
@@ -115,35 +137,51 @@ export async function nextFileNumber(tx: Tx, clinicId: string, now: Date): Promi
   return value;
 }
 
-/** Inserts a new file with the record's id, file number and status. */
+/** The SET list that stores one civil ID encrypted and clears the legacy plain column (R1-5). */
+export const civilIdAssignments = (civil: CivilIdColumns): SQL =>
+  sql`civil_id = NULL, civil_id_enc = ${civil.enc}, civil_id_hmac = ${civil.hmac},
+      civil_id_last4 = ${civil.last4}`;
+
+/**
+ * Inserts a new file with the record's id, file number and status. The civil ID goes only into the
+ * encrypted columns; the legacy plain column is always NULL (R1-5).
+ */
 export async function insertPatient(
   tx: Tx,
+  civilIds: CivilIdCodec,
   clinicId: string,
   record: PatientRecord,
   now: Date,
 ): Promise<void> {
   const at = now.toISOString();
+  const civil = civilIds.columns(clinicId, record.id, record.civilId);
   await tx.execute(
     sql`INSERT INTO patients (clinic_id, id, file_number, full_name, phone, birth_date, gender,
-          registration_branch_id, civil_id, status, created_at, updated_at)
+          registration_branch_id, civil_id, civil_id_enc, civil_id_hmac, civil_id_last4, status,
+          created_at, updated_at)
         VALUES (${clinicId}, ${record.id}, ${String(record.fileNumber)}, ${record.fullName},
           ${record.phone}, ${record.birthDate}::date, ${record.gender},
-          ${record.registrationBranchId}, ${record.civilId}, ${record.status},
-          ${at}::timestamptz, ${at}::timestamptz)`,
+          ${record.registrationBranchId}, NULL, ${civil.enc}, ${civil.hmac}, ${civil.last4},
+          ${record.status}, ${at}::timestamptz, ${at}::timestamptz)`,
   );
 }
 
-/** Replaces the editable fields of one file (the file number and status never change here). */
+/**
+ * Replaces the editable fields of one file (the file number and status never change here). The civil
+ * ID is sealed again and the legacy plain column cleared, so an edit also converts an older file.
+ */
 export async function updatePatientFields(
   tx: Tx,
+  civilIds: CivilIdCodec,
   clinicId: string,
   record: PatientRecord,
   now: Date,
 ): Promise<void> {
+  const civil = civilIds.columns(clinicId, record.id, record.civilId);
   await tx.execute(
     sql`UPDATE patients SET full_name = ${record.fullName}, phone = ${record.phone},
           birth_date = ${record.birthDate}::date, gender = ${record.gender},
-          registration_branch_id = ${record.registrationBranchId}, civil_id = ${record.civilId},
+          registration_branch_id = ${record.registrationBranchId}, ${civilIdAssignments(civil)},
           updated_at = ${now.toISOString()}::timestamptz
         WHERE clinic_id = ${clinicId} AND id = ${record.id}`,
   );

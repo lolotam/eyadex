@@ -5,6 +5,7 @@ import type { IdGenerator } from "@eyadex/ids";
 import { ApiError } from "../../../../shared/errors.ts";
 import { writePatientAccessAudit } from "../../../../shared/patient-audit.ts";
 import type { Clock } from "../../../tenancy/index.ts";
+import type { CivilIdCodec } from "../../persistence/civil-id-codec.ts";
 import type { PatientBranchReader } from "../../ports/patient-branch-reader.ts";
 import { viewSees } from "../../queries/own-patients.ts";
 import { readPatientDetail } from "../../queries/patient-views.ts";
@@ -16,6 +17,8 @@ export interface OpenPatientDeps {
   readonly ids: IdGenerator;
   /** Tenancy's branches behind the patients port. */
   readonly branches: PatientBranchReader;
+  /** The civil ID's encrypted columns (ADR-0028). */
+  readonly civilIds: CivilIdCodec;
 }
 
 /**
@@ -35,9 +38,9 @@ export class OpenPatient {
    */
   open(actor: PatientActor, id: string): Promise<PatientDetail> {
     const scope = requireScope(actor.scopes.view);
-    const { db, clock, ids } = this.deps;
+    const { db, clock, ids, branches, civilIds } = this.deps;
     return db.withTenant(actor.clinicId, async (tx) => {
-      const detail = await readPatientDetail({ tx, branches: this.deps.branches }, actor, id);
+      const detail = await readPatientDetail({ tx, branches, civilIds }, actor, id);
       if (detail === null || !(await viewSees(tx, actor.clinicId, scope, detail))) {
         throw new ApiError("not_found");
       }
