@@ -12,7 +12,9 @@ import {
   type VisitWrite,
 } from "../domain/visit-rules.ts";
 import { findVisit, type VisitRow } from "../persistence/pg-visit-store.ts";
+import { visitDetail } from "../queries/visit-views.ts";
 import type { MedicalDeps, ReadContext } from "./medical-deps.ts";
+import type { VisitWriteResponse } from "./start-visit/start-visit.ts";
 
 /**
  * The read context of one medical transaction.
@@ -84,4 +86,26 @@ export async function lockVisitForWrite(
   const problem = visitWriteProblem(visit, actor.membershipId, write);
   if (problem !== null) throw new ApiError(problem);
   return visit;
+}
+
+/**
+ * One visit write in one transaction: lock in order (`lockVisitForWrite`), run the change, answer the
+ * page as it stands after it. The caller is the provider, so the patient is its own (R1-18).
+ *
+ * @returns the visit page after the change
+ */
+export function writeVisit(
+  deps: MedicalDeps,
+  actor: MedicalActor,
+  visitId: string,
+  kind: VisitWrite,
+  change: (tx: Tx, visit: VisitRow) => Promise<void>,
+): Promise<VisitWriteResponse> {
+  return deps.db.withTenant(actor.clinicId, async (tx) => {
+    const visit = await lockVisitForWrite(deps, tx, actor, visitId, kind);
+    await change(tx, visit);
+    const after = await findVisit(tx, actor.clinicId, visitId);
+    if (after === null) throw new ApiError("not_found");
+    return { visit: await visitDetail(readContext(deps, tx), actor, after, true) };
+  });
 }

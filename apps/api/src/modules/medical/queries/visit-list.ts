@@ -4,6 +4,7 @@ import { sql, type SQL } from "drizzle-orm";
 import { ApiError } from "../../../shared/errors.ts";
 import { matches } from "../domain/text-match.ts";
 import { EMPTY_NOTE, type VisitReach } from "../domain/visit-rules.ts";
+import { diagnosesOf } from "../persistence/pg-diagnosis-store.ts";
 import { addendaOf, notesOf, NOTE_COLUMN } from "../persistence/pg-note-store.ts";
 import {
   toVisitRow,
@@ -12,6 +13,7 @@ import {
   type VisitRow,
 } from "../persistence/pg-visit-store.ts";
 import type { ReadContext } from "../use-cases/medical-deps.ts";
+import { openDiagnoses } from "./visit-lists-view.ts";
 import { openNote, previewOf, visitSummary } from "./visit-views.ts";
 
 const PAGE = 20;
@@ -136,7 +138,7 @@ export async function listVisitPage(
 
 /**
  * P2-F4: the patient's 500 newest visits inside the caller's reach, decrypted in memory, filtered on their
- * note sections and addenda, then paged by cursor. Nothing of the query or the text leaves this function
+ * note sections, addenda and active diagnoses (code and text), then paged by cursor. Nothing of the query or the text leaves this function
  * except the matching visits' summaries.
  *
  * @returns the page of matches (previews included: the caller reads the content)
@@ -160,6 +162,7 @@ export async function searchVisitPage(
   const ids = scanned.map((v) => v.id);
   const notes = await notesOf(reads.tx, clinicId, ids);
   const addenda = await addendaOf(reads.tx, clinicId, ids);
+  const diagnoses = await diagnosesOf(reads.tx, clinicId, ids);
   const previews = new Map<string, string | null>();
   const hits = scanned.filter((v) => {
     const note = openNote(reads.cipher, clinicId, notes.get(v.id));
@@ -172,7 +175,14 @@ export async function searchVisitPage(
           a.bodyEnc,
         ),
       );
-    const text = [...Object.values(note), ...bodies].filter((t) => t !== null).join("\n");
+    const diagnosed = openDiagnoses(
+      reads.cipher,
+      clinicId,
+      diagnoses.filter((d) => d.visitId === v.id),
+    ).flatMap((d) => [d.code, d.text]);
+    const text = [...Object.values(note), ...bodies, ...diagnosed]
+      .filter((t) => t !== null)
+      .join("\n");
     previews.set(v.id, previewOf(note));
     return matches(text, q);
   });
