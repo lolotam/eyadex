@@ -49,10 +49,7 @@ export const visitDiagnoses = pgTable(
       .on(t.clinicId, t.visitId, t.position)
       .where(sql`archived_at IS NULL`),
     index("visit_diagnoses_clinic_visit_idx").on(t.clinicId, t.visitId),
-    check(
-      "visit_diagnoses_position_check",
-      sql.raw("((\"position\" >= 0) AND (\"position\" <= 19))"),
-    ),
+    check("visit_diagnoses_position_check", sql.raw('(("position" >= 0) AND ("position" <= 19))')),
     check(
       "visit_diagnoses_kind_check",
       sql.raw("(kind = ANY (ARRAY['icd10'::text, 'text'::text]))"),
@@ -99,7 +96,7 @@ export const visitPrescriptionItems = pgTable(
     index("visit_prescription_items_clinic_visit_idx").on(t.clinicId, t.visitId),
     check(
       "visit_prescription_items_position_check",
-      sql.raw("((\"position\" >= 0) AND (\"position\" <= 29))"),
+      sql.raw('(("position" >= 0) AND ("position" <= 29))'),
     ),
     envelope("visit_prescription_items", "medicine_enc"),
     envelope("visit_prescription_items", "dose_enc"),

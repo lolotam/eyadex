@@ -27,9 +27,7 @@ export const icd10Codes = pgTable(
     billable: boolean("billable").notNull(),
     release: text("release").notNull(),
   },
-  (t) => [
-    index("icd10_codes_title_trgm_idx").using("gin", sql`lower(${t.titleEn}) gin_trgm_ops`),
-  ],
+  (t) => [index("icd10_codes_title_trgm_idx").using("gin", sql`lower(${t.titleEn}) gin_trgm_ops`)],
 );
 
 export const clinicMedicines = pgTable(
