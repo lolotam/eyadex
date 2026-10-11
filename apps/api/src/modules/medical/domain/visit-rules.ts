@@ -201,6 +201,23 @@ export function visitAbilities(
 }
 
 /**
+ * زرار المرفقات في صفحة الزيارة بنفس قاعدة رفعها (`Attachments.uploadTarget`): وصول `update:medical:*`
+ * بيغطي المراجع والملف نشط. مش مربوط بمقدّم الخدمة ولا بحالة الزيارة، فالزيارة المعتمدة بتاخد مرفق.
+ *
+ * @param actor الفاعل
+ * @param patientIsOwn المراجع من مراجعين الفاعل
+ * @param patientActive ملف المراجع نشط
+ * @returns `true` لو يقدر يرفع ويأرشف
+ */
+export function mayAttach(
+  actor: MedicalActor,
+  patientIsOwn: boolean,
+  patientActive: boolean,
+): boolean {
+  return patientActive && medicalReachCovers(medicalReach(actor, "update"), patientIsOwn);
+}
+
+/**
  * P2-2، R3-1: الزيارة المباشرة في فرع الفاعل شغّال فيه.
  *
  * @param member فروع الفاعل

@@ -82,6 +82,9 @@ export function detailOf(db: MockState, a: MedicalAccess, v: StoredVisit): Visit
       sign: writer && draft && isSignable(v),
       cancel: writer && draft,
       addAddendum: writer && v.status === "signed",
+      // As the API: the upload's own rule, whatever the visit's status or provider.
+      attach:
+        content && patient?.status === "active" && reachesContent(db, a, "update", v.patientId),
     },
   };
 }

@@ -4,6 +4,7 @@ import {
   EMPTY_NOTE,
   changedFields,
   isSignable,
+  mayAttach,
   medicalReach,
   medicalReachCovers,
   startFromAppointmentProblem,
@@ -150,6 +151,19 @@ describe("visitAbilities", () => {
         true,
       ),
     ).toEqual(none);
+  });
+});
+
+describe("mayAttach — the upload rule, not the provider's", () => {
+  it("update:medical reaching the patient on an active file, whoever the provider is", () => {
+    expect(mayAttach(actor(["update:medical:own"]), true, true)).toBe(true);
+    expect(mayAttach(actor(["update:medical:clinic"]), false, true)).toBe(true);
+  });
+
+  it("no attachment for an archived file, outside the own reach, or without the update key", () => {
+    expect(mayAttach(actor(["update:medical:clinic"]), true, false)).toBe(false);
+    expect(mayAttach(actor(["update:medical:own"]), false, true)).toBe(false);
+    expect(mayAttach(actor(["view:medical:clinic"]), true, true)).toBe(false);
   });
 });
 

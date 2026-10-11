@@ -119,6 +119,8 @@ describe("signing (P2-6)", () => {
       sign: false,
       cancel: false,
       addAddendum: true,
+      // A signed visit still takes an attachment (Attachments.uploadTarget, TODO(spec) there).
+      attach: true,
     });
     const [row] = await h.owner`SELECT signed_by FROM visits WHERE id = ${id}`;
     expect(row!["signed_by"]).toBe(C.doctor.memberId);

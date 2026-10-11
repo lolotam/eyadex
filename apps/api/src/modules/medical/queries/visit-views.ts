@@ -6,6 +6,7 @@ import {
   isSignable,
   medicalReach,
   medicalReachCovers,
+  mayAttach,
   visitAbilities,
   type MedicalActor,
   type NoteText,
@@ -167,6 +168,9 @@ export async function visitDetail(
           ),
         }
       : null,
-    can: visitAbilities(actor, visit, signable),
+    can: {
+      ...visitAbilities(actor, visit, signable),
+      attach: mayAttach(actor, patientIsOwn, patient?.active === true),
+    },
   };
 }

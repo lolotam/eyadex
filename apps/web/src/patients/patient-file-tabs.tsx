@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import type { PatientStatus } from "@eyadex/contracts/patients";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AttachmentsPanel } from "@/medical/attachments-panel";
 import { MedicalFileTab } from "@/medical/medical-file-tab";
@@ -11,13 +12,16 @@ type TabId = "overview" | "medical" | "visits" | "attachments";
 
 /**
  * The patient file's tabs (P2 spec §7): Overview always, the others each only with its key. A tab's
- * content mounts only while it is open, so an audited read happens only when the user opens it.
+ * content mounts only while it is open, so an audited read happens only when the user opens it. An
+ * archived file offers no attachment upload (the API answers `patient_inactive`).
  */
 export function PatientFileTabs({
   patientId,
+  patientStatus,
   overview,
 }: {
   patientId: string;
+  patientStatus: PatientStatus;
   overview: ReactNode;
 }) {
   const { t } = useI18n();
@@ -56,7 +60,8 @@ export function PatientFileTabs({
           <AttachmentsPanel
             patientId={patientId}
             visitId={null}
-            canUpload={can(permissions, "update", "medical")}
+            canUpload={patientStatus === "active" && can(permissions, "update", "medical")}
+            canArchive={can(permissions, "update", "medical")}
           />
         </TabsContent>
       )}

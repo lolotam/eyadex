@@ -89,6 +89,29 @@ describe("the medical mock rules", () => {
     await reject(api.medical.saveMedicalProfile(D(), patient.id, profile), "patient_inactive");
   });
 
+  it("patient_inactive: an archived file takes no upload, checked before the bytes", async () => {
+    const { visit } = await startDraft();
+    const patient = getState().patients.find((p) => p.id === visit.patientId)!;
+    patient.status = "archived";
+    for (const sent of [file("image/png", 100), file("text/plain", 10)]) {
+      await reject(
+        api.medical.uploadAttachment(D(), patient.id, sent, visit.id),
+        "patient_inactive",
+      );
+    }
+    expect(getState().medical.attachments.filter((x) => x.patientId === patient.id)).toEqual([]);
+  });
+
+  it("can.attach follows the upload rule: a signed visit takes one, an archived file none", async () => {
+    const { visit } = await startDraft();
+    const note = { complaint: "A", examination: null, assessment: null, plan: null };
+    await api.medical.saveNote(D(), visit.id, note);
+    const signed = await api.medical.signVisit(D(), visit.id);
+    expect([signed.can.edit, signed.can.attach]).toEqual([false, true]);
+    getState().patients.find((p) => p.id === visit.patientId)!.status = "archived";
+    expect((await api.medical.getVisit(D(), visit.id)).can.attach).toBe(false);
+  });
+
   it("visit_signed: a signed note never changes", async () => {
     const { visit } = await startDraft();
     const note = { complaint: "A", examination: null, assessment: null, plan: null };

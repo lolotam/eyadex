@@ -195,6 +195,11 @@ export const visitDetailSchema = z
         sign: z.boolean(),
         cancel: z.boolean(),
         addAddendum: z.boolean(),
+        /**
+         * Upload or archive the visit's attachments: the attachment rule (`update:medical:*` reaching
+         * the patient, an active file), not the provider's edit rule, so a signed visit still takes one.
+         */
+        attach: z.boolean(),
       })
       .strict(),
   })

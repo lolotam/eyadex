@@ -16,7 +16,8 @@ import {
   useRefreshMedical,
 } from "./medical-queries";
 
-type Props = { patientId: string; visitId: string | null; canUpload: boolean };
+/** Upload and archive are offered apart: an archived file takes no upload, yet its rows still archive. */
+type Props = { patientId: string; visitId: string | null; canUpload: boolean; canArchive: boolean };
 
 const sizeOf = (bytes: number) =>
   bytes < 1024 * 1024
@@ -24,7 +25,7 @@ const sizeOf = (bytes: number) =>
     : `${(bytes / 1048576).toFixed(1)} MB`;
 
 /** A file's attachments, or one visit's (P2-10): upload, open, archive — never delete. */
-export function AttachmentsPanel({ patientId, visitId, canUpload }: Props) {
+export function AttachmentsPanel({ patientId, visitId, canUpload, canArchive }: Props) {
   const api = useApi();
   const { persona } = useClinicPersona();
   const { t, formatDate } = useI18n();
@@ -137,7 +138,7 @@ export function AttachmentsPanel({ patientId, visitId, canUpload }: Props) {
                 <ExternalLink className="size-4" />
                 {t("attachments.open")}
               </Button>
-              {canUpload && (
+              {canArchive && (
                 <Button variant="ghost" size="sm" onClick={() => setArchiving(row)}>
                   <Archive className="size-4" />
                   {t("attachments.archive")}

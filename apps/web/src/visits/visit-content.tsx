@@ -111,7 +111,12 @@ export function VisitContent({ visitId }: { visitId: string }) {
             saves={saves}
           />
           <VisitAddenda visitId={visit.id} addenda={content.addenda} canAdd={d.can.addAddendum} />
-          <AttachmentsPanel patientId={visit.patientId} visitId={visit.id} canUpload={editable} />
+          <AttachmentsPanel
+            patientId={visit.patientId}
+            visitId={visit.id}
+            canUpload={d.can.attach}
+            canArchive={d.can.attach}
+          />
         </div>
       )}
       <p className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">

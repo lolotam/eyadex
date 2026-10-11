@@ -87,6 +87,7 @@ export function PatientDetail({ patientId }: { patientId: string }) {
       />
       <PatientFileTabs
         patientId={patient.id}
+        patientStatus={patient.status}
         overview={
           <>
             <dl className="grid max-w-3xl gap-x-8 rounded-lg border bg-card sm:grid-cols-2">

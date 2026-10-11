@@ -68,7 +68,13 @@ describe("the provider", () => {
     expect(detail.content).toMatchObject({ note: { complaint: null, plan: null }, addenda: [] });
     expect(detail.patient.fullName).toMatch(/^Booked Patient /);
     expect(detail.branch.nameEn).not.toBe("—");
-    expect(detail.can).toEqual({ edit: true, sign: false, cancel: true, addAddendum: false });
+    expect(detail.can).toEqual({
+      edit: true,
+      sign: false,
+      cancel: true,
+      addAddendum: false,
+      attach: true,
+    });
     const rows = await medicalAudit(h, C.clinicId, since);
     expect(rows.map((r) => [r["action"], r["category"], r["entity_id"]])).toEqual([
       ["visit.opened", "patient_access", shared],
@@ -77,12 +83,19 @@ describe("the provider", () => {
 });
 
 describe("own (P2-4)", () => {
-  it("doctor B reads doctor A's visit of a patient B treats, content included, no buttons", async () => {
+  it("doctor B reads doctor A's visit of a patient B treats: no visit buttons, attachments as upload", async () => {
     const res = await open(C.doctorB.cookie, shared);
     expect(res.statusCode).toBe(200);
     const detail = res.json() as Detail;
     expect(detail.content).not.toBeNull();
-    expect(detail.can).toEqual({ edit: false, sign: false, cancel: false, addAddendum: false });
+    // The attachment rule is update:medical reaching the patient, not the provider's (uploadTarget).
+    expect(detail.can).toEqual({
+      edit: false,
+      sign: false,
+      cancel: false,
+      addAddendum: false,
+      attach: true,
+    });
   });
 
   it("doctor B gets not_found for a patient it never saw", async () => {
@@ -99,6 +112,7 @@ describe("no content without view:medical (P2-5, P2-K4)", () => {
     expect(detail.content).toBeNull();
     expect(detail.visit.preview).toBeNull();
     expect(detail.patient.fileNumber).toBeGreaterThan(0);
+    expect(detail.can["attach"]).toBe(false);
     expect(await medicalAudit(h, C.clinicId, since)).toEqual([]);
   });
 
@@ -120,6 +134,16 @@ describe("no content without view:medical (P2-5, P2-K4)", () => {
 
   it("NEGATIVE: a member without keys is forbidden", async () => {
     expect((await open(C.noKeys.cookie, shared)).statusCode).toBe(403);
+  });
+});
+
+describe("can.attach follows the attachment rule", () => {
+  it("an archived file takes no attachment, so its visit offers none", async () => {
+    const patient = await patientIn(h, C, C.branchD);
+    const id = await startedVisit(h, C.doctor.cookie, { patientId: patient, branchId: C.branchD });
+    expect(((await open(C.doctor.cookie, id)).json() as Detail).can["attach"]).toBe(true);
+    await h.owner`UPDATE patients SET status = 'archived' WHERE id = ${patient}`;
+    expect(((await open(C.doctor.cookie, id)).json() as Detail).can["attach"]).toBe(false);
   });
 });
 

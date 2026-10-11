@@ -164,15 +164,18 @@ export function createMockMedicalFiles(): Pick<
       await delay();
       const db = getState();
       const a = requireKey(db, persona, "update", "medical", ["clinic", "own"]);
-      contentFile(db, a, "update", patientId);
-      const type = attachmentTypeSchema.safeParse(file.type);
-      if (!type.success) throw new ApiError("attachment_type");
-      if (file.size > ATTACHMENT_MAX_BYTES) throw new ApiError("attachment_too_large");
-      if (file.size === 0) throw new ApiError("validation");
+      // The API's order (`Attachments.uploadTarget`): the file and the visit, then the bytes, so an
+      // archived file answers `patient_inactive` whatever is sent and nothing is stored.
+      const patient = contentFile(db, a, "update", patientId);
+      if (patient.status !== "active") throw new ApiError("patient_inactive");
       if (visitId !== null) {
         const visit = visibleVisit(db, a, visitId);
         if (visit.patientId !== patientId) throw new ApiError("attachment_patient_mismatch");
       }
+      const type = attachmentTypeSchema.safeParse(file.type);
+      if (!type.success) throw new ApiError("attachment_type");
+      if (file.size > ATTACHMENT_MAX_BYTES) throw new ApiError("attachment_too_large");
+      if (file.size === 0) throw new ApiError("validation");
       const row: StoredAttachment = {
         id: newId(),
         clinicId: a.clinic.id,

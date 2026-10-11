@@ -98,6 +98,21 @@ describe("the visit page controls", () => {
     expect(screen.getByText(ar.visit.sections.complaint).nextElementSibling?.tagName).toBe("P");
   });
 
+  it.each([
+    ["active", true],
+    ["archived", false],
+  ] as const)("a signed visit of an %s file: attachment upload = %s", async (status, offered) => {
+    const D = doctorAt(0);
+    const { visit } = await startDraft();
+    await api.medical.saveNote(D, visit.id, NOTE);
+    await api.medical.signVisit(D, visit.id);
+    getState().patients.find((p) => p.id === visit.patientId)!.status = status;
+    await renderAs(D, <VisitPage visitId={visit.id} />);
+    await screen.findByText(ar.visit.lockedNote);
+    await screen.findByText(ar.attachments.empty);
+    expect(button(ar.attachments.upload) !== null).toBe(offered);
+  });
+
   it("a cancelled draft shows no write control", async () => {
     const D = doctorAt(0);
     const { visit } = await startDraft();
