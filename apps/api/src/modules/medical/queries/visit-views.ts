@@ -16,7 +16,7 @@ import { addendaOf, notesOf, NOTE_COLUMN, type StoredNote } from "../persistence
 import { prescriptionOf } from "../persistence/pg-prescription-store.ts";
 import type { VisitRow } from "../persistence/pg-visit-store.ts";
 import type { ClinicalCipher } from "../ports/clinical-cipher.ts";
-import type { ReadContext } from "../use-cases/medical-deps.ts";
+import { openOrNull, type ReadContext } from "../use-cases/medical-deps.ts";
 import { attachmentViews } from "./attachment-views.ts";
 import { openDiagnoses, openPrescription } from "./visit-lists-view.ts";
 
@@ -82,6 +82,7 @@ export function visitSummary(
     startedAt: iso(visit.startedAt),
     signedAt: visit.signedAt === null ? null : iso(visit.signedAt),
     preview,
+    cancelReason: visit.cancelReason,
   };
 }
 
@@ -157,6 +158,13 @@ export async function visitDetail(
             createdAt: iso(a.createdAt),
           })),
           attachments,
+          // The same field reference the cancel sealed it under (visit-lifecycle.ts).
+          cancelNote: openOrNull(
+            cipher,
+            clinicId,
+            { table: "visits", column: "cancel_note_enc", rowId: visit.id },
+            visit.cancelNoteEnc,
+          ),
         }
       : null,
     can: visitAbilities(actor, visit, signable),

@@ -1,8 +1,8 @@
-import type { VisitStatus } from "@eyadex/contracts/visits";
+import type { VisitCancelReason, VisitStatus } from "@eyadex/contracts/visits";
 import type { Tx } from "@eyadex/db";
 import { sql } from "drizzle-orm";
 
-/** صف زيارة زي ما اتخزّن (0046). ملاحظة الإلغاء ظرف مشفّر، عمرها ما تبقى نص. */
+/** صف زيارة زي ما اتخزّن (0046). سبب الإلغاء اختيار ثابت؛ ملاحظة الإلغاء ظرف مشفّر، عمرها ما تبقى نص. */
 export interface VisitRow {
   readonly id: string;
   readonly branchId: string;
@@ -12,6 +12,7 @@ export interface VisitRow {
   readonly status: VisitStatus;
   readonly startedAt: string;
   readonly signedAt: string | null;
+  readonly cancelReason: VisitCancelReason | null;
   readonly cancelNoteEnc: string | null;
 }
 
@@ -24,6 +25,7 @@ interface Raw {
   status: VisitStatus;
   started_at: string;
   signed_at: string | null;
+  cancel_reason: VisitCancelReason | null;
   cancel_note_enc: string | null;
 }
 
@@ -32,7 +34,7 @@ export const VISIT_COLUMNS = sql`v.id, v.branch_id, v.patient_id, v.provider_mem
   v.appointment_id, v.status,
   to_char(v.started_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS started_at,
   to_char(v.signed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS signed_at,
-  v.cancel_note_enc`;
+  v.cancel_reason, v.cancel_note_enc`;
 
 /**
  * A raw visit row as typed by the store.
@@ -49,6 +51,7 @@ export const toVisitRow = (r: Raw): VisitRow => ({
   status: r.status,
   startedAt: r.started_at,
   signedAt: r.signed_at,
+  cancelReason: r.cancel_reason,
   cancelNoteEnc: r.cancel_note_enc,
 });
 

@@ -33,6 +33,7 @@ export function summaryOf(db: MockState, a: MedicalAccess, v: StoredVisit): Visi
     startedAt: v.startedAt,
     signedAt: v.signedAt,
     preview: content ? (v.note.assessment ?? "").slice(0, 160) : null,
+    cancelReason: v.cancelReason,
   };
 }
 
@@ -73,6 +74,7 @@ export function detailOf(db: MockState, a: MedicalAccess, v: StoredVisit): Visit
           attachments: db.medical.attachments
             .filter((x) => x.visitId === v.id && x.status === "active")
             .map(({ clinicId: _clinic, ...rest }) => rest),
+          cancelNote: v.cancelNote,
         }
       : null,
     can: {

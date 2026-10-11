@@ -13,6 +13,7 @@ import { PageHeader } from "@/shared/shell/page-header";
 import { StatusPanel } from "@/shared/shell/status-panel";
 import { VisitActions } from "./visit-actions";
 import { VisitAddenda } from "./visit-addenda";
+import { VisitCancelDetails } from "./visit-cancel-details";
 import { VisitDiagnoses } from "./visit-diagnoses";
 import { VisitNoteEditor } from "./visit-note-editor";
 import { SectionSaves, type NoteFlush } from "./visit-section-saves";
@@ -82,6 +83,9 @@ export function VisitContent({ visitId }: { visitId: string }) {
           <Lock className="size-4 shrink-0" />
           {note}
         </p>
+      )}
+      {visit.cancelReason !== null && (
+        <VisitCancelDetails reason={visit.cancelReason} note={content?.cancelNote ?? null} />
       )}
       {content === null ? (
         <StatusPanel icon={ShieldCheck} title={t("visits.contentHidden")} body="" />

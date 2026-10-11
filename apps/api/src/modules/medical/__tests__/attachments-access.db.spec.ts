@@ -7,6 +7,7 @@ import {
   openHarness,
   type Harness,
 } from "../../identity/auth/__tests__/auth-http-harness.ts";
+import { customRole, memberOn } from "../../identity/__tests__/user-fixtures.ts";
 import { AUTHORIZATION_INVALIDATOR, type AuthorizationInvalidator } from "../../identity/index.ts";
 import { code, send } from "../../appointments/__tests__/scheduling-fixtures.ts";
 import { MemoryBlobStore } from "../persistence/memory-blob-store.ts";
@@ -149,6 +150,28 @@ describe("archive", () => {
     expect(code(await download(C.doctor.cookie, photo))).toBe("not_found");
     const [row] = await h.owner`SELECT status FROM patient_attachments WHERE id = ${photo}`;
     expect(row!["status"]).toBe("archived");
+  });
+
+  it("update:medical:clinic with only view:medical:own archives another's file without its names", async () => {
+    const role = await customRole(h, C.clinicId, ["update:medical:clinic", "view:medical:own"]);
+    const archiver = await memberOn(h, C.admin, role);
+    const secret = await uploaded(h, C.doctor.cookie, patient, [
+      filePart(NAME, "image/png", pngBytes(96)),
+    ]);
+    // The patient is not the archiver's: its view reach does not cover the file.
+    expect(code(await list(archiver.cookie, patient))).toBe("not_found");
+    const since = new Date();
+    const res = await archive(archiver.cookie, secret);
+    expect(res.statusCode).toBe(200);
+    const { attachment } = res.json() as { attachment: Record<string, unknown> };
+    expect(attachment).toMatchObject({ id: secret, status: "archived", name: "" });
+    expect(attachment["uploadedByName"]).toBe("");
+    expect(res.body).not.toContain("أشعة");
+    expect(res.body).not.toContain(".png");
+    const rows = await medicalAudit(h, C.clinicId, since);
+    expect(rows.map((r) => [r["action"], r["entity_id"]])).toEqual([
+      ["attachment.archived", secret],
+    ]);
   });
 
   it("NEGATIVE: a reader without update:medical, or another clinic, cannot archive", async () => {

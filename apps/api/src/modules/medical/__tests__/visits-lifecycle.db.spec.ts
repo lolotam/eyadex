@@ -5,10 +5,12 @@ import {
   openHarness,
   type Harness,
 } from "../../identity/auth/__tests__/auth-http-harness.ts";
+import { customRole, memberOn } from "../../identity/__tests__/user-fixtures.ts";
 import { AUTHORIZATION_INVALIDATOR, type AuthorizationInvalidator } from "../../identity/index.ts";
 import { code, send } from "../../appointments/__tests__/scheduling-fixtures.ts";
 import {
   appointmentFor,
+  DOCTOR_KEYS,
   medicalAudit,
   medicalClinic,
   patientIn,
@@ -29,16 +31,18 @@ const CANCEL_NOTE = "opened on the wrong file";
 
 const NOTE = { complaint: COMPLAINT, examination: null, assessment: null, plan: PLAN };
 type Detail = {
-  visit: { status: string; signedAt: string | null };
+  visit: { status: string; signedAt: string | null; cancelReason: string | null };
   content: {
     note: Record<string, string | null>;
     addenda: { body: string; authorName: string }[];
+    cancelNote: string | null;
   } | null;
   can: Record<string, boolean>;
 };
 const detailOf = (res: { json: () => unknown }) => (res.json() as { visit: Detail }).visit;
 const put = (cookie: string, id: string, body: unknown) =>
   send(h, cookie, "PUT", `/v1/visits/${id}/note`, body);
+const open = (cookie: string, id: string) => send(h, cookie, "GET", `/v1/visits/${id}`);
 const post = (cookie: string, id: string, action: string, body: unknown = {}) =>
   send(h, cookie, "POST", `/v1/visits/${id}/${action}`, body);
 
@@ -168,6 +172,34 @@ describe("cancelling a draft", () => {
     expect(code(await post(C.doctor.cookie, id, "addenda", { body: "x" }))).toBe(
       "invalid_transition",
     );
+  });
+
+  it("answers the reason to every visit reader and the note only with the content", async () => {
+    // A doctor working in branch R, so the front desk (view:visits:branch on R) sees the visit.
+    const role = await customRole(h, C.clinicId, DOCTOR_KEYS);
+    const doctorR = await memberOn(h, C.admin, role, {
+      allBranches: false,
+      branchIds: [C.branchR],
+    });
+    const patient = await patientIn(h, C, C.branchR);
+    const id = await startedVisit(h, doctorR.cookie, { patientId: patient, branchId: C.branchR });
+    const cancel = { reason: "opened_by_mistake", note: CANCEL_NOTE };
+    expect((await post(doctorR.cookie, id, "cancel", cancel)).statusCode).toBe(200);
+    const since = new Date();
+    const own = (await open(doctorR.cookie, id)).json() as Detail;
+    expect(own.visit.cancelReason).toBe("opened_by_mistake");
+    expect(own.content!.cancelNote).toBe(CANCEL_NOTE);
+    const opened = await medicalAudit(h, C.clinicId, since);
+    expect(opened.map((r) => [r["action"], r["entity_id"]])).toEqual([["visit.opened", id]]);
+    expect(opened[0]!["raw"]).not.toContain(CANCEL_NOTE);
+    const visits = await send(h, doctorR.cookie, "GET", `/v1/patients/${patient}/visits`);
+    const items = (visits.json() as { items: { id: string; cancelReason: string | null }[] }).items;
+    expect(items.find((v) => v.id === id)?.cancelReason).toBe("opened_by_mistake");
+    const desk = await open(C.front.cookie, id);
+    expect(desk.statusCode).toBe(200);
+    expect((desk.json() as Detail).visit.cancelReason).toBe("opened_by_mistake");
+    expect((desk.json() as Detail).content).toBeNull();
+    expect(desk.body).not.toContain(CANCEL_NOTE);
   });
 });
 

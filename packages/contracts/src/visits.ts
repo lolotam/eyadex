@@ -9,6 +9,7 @@ export type VisitStatus = z.infer<typeof visitStatusSchema>;
 
 export const VISIT_CANCEL_REASONS = ["opened_by_mistake", "patient_left", "other"] as const;
 export const visitCancelReasonSchema = z.enum(VISIT_CANCEL_REASONS);
+export type VisitCancelReason = z.infer<typeof visitCancelReasonSchema>;
 
 const clinicalText = (max: number) =>
   z
@@ -84,6 +85,8 @@ export const visitSummarySchema = z
     signedAt: z.string().datetime().nullable(),
     /** The assessment's first 160 characters; `null` without `view:medical:*`. */
     preview: z.string().nullable(),
+    /** Why a cancelled draft was cancelled: a fixed choice, metadata (`null` unless cancelled). */
+    cancelReason: visitCancelReasonSchema.nullable(),
   })
   .strict();
 export type VisitSummary = z.infer<typeof visitSummarySchema>;
@@ -181,6 +184,8 @@ export const visitDetailSchema = z
         prescription: z.array(prescriptionItemSchema),
         addenda: z.array(addendumSchema),
         attachments: z.array(attachmentSchema),
+        /** The free cancellation note: clinical text, so it travels only with the content. */
+        cancelNote: z.string().nullable(),
       })
       .strict()
       .nullable(),

@@ -1,4 +1,4 @@
-import type { VisitStatus } from "@eyadex/contracts/visits";
+import type { VisitCancelReason, VisitStatus } from "@eyadex/contracts/visits";
 
 // The mock's medical store (P2). Demo only: plaintext, where the API encrypts (P2-11).
 
@@ -41,7 +41,7 @@ export type StoredVisit = {
   status: VisitStatus;
   startedAt: string;
   signedAt: string | null;
-  cancelReason: string | null;
+  cancelReason: VisitCancelReason | null;
   cancelNote: string | null;
   note: StoredNote;
   diagnoses: StoredDiagnosis[];

@@ -60,3 +60,23 @@ export async function attachmentViews(
     uploadedByName: members.get(r.uploadedBy)?.fullName ?? NO_NAME,
   }));
 }
+
+/**
+ * An attachment answered to a caller who may change it but not read it (`update:medical:clinic` with
+ * only `view:medical:own`, on another member's patient): the frozen contract needs a `name`, so the file
+ * name and the uploader's name are empty strings, and nothing is opened or looked up.
+ *
+ * @param row the stored attachment
+ * @returns the attachment without its name or uploader
+ */
+export const redactedAttachmentView = (row: AttachmentRow): Attachment => ({
+  id: row.id,
+  patientId: row.patientId,
+  visitId: row.visitId,
+  name: "",
+  contentType: row.contentType,
+  sizeBytes: row.sizeBytes,
+  status: row.status,
+  uploadedAt: new Date(row.createdAt).toISOString(),
+  uploadedByName: "",
+});

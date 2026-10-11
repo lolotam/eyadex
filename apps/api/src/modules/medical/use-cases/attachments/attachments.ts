@@ -30,6 +30,7 @@ import {
   attachmentBlobRef,
   attachmentNameRef,
   attachmentViews,
+  redactedAttachmentView,
 } from "../../queries/attachment-views.ts";
 import { auditMedical, type MedicalDeps } from "../medical-deps.ts";
 import { readContext } from "../visit-access.ts";
@@ -156,21 +157,26 @@ export class Attachments {
 
   /**
    * يأرشف المرفق (`attachment.archived`): بيختفي من القوايم ومابيتمسحش. المؤرشف بيرد `not_found` زي
-   * التنزيل، فإعادة الأرشفة مابترجعش اسمه المفكوك من غير أثر في السجل.
+   * التنزيل، فإعادة الأرشفة مابترجعش اسمه المفكوك من غير أثر في السجل. الاسم المفكوك واسم اللي رفعه
+   * بيرجعوا بس لو وصول العرض بيغطي المراجع؛ غير كده (`update:medical:clinic` مع `view:medical:own` على
+   * مراجع مش بتاعه) الاتنين `""` لأن العقد محتاج `name`.
    *
    * @param actor الفاعل
    * @param attachmentId المرفق
-   * @returns المرفق بعد الأرشفة
+   * @returns المرفق بعد الأرشفة، من غير الأسامي لو الفاعل مايقدرش يقراه
    */
   archive(actor: MedicalActor, attachmentId: string): Promise<Attachment> {
     return this.deps.db.withTenant(actor.clinicId, async (tx) => {
-      const row = await this.reachable(tx, actor, "update", attachmentId, true);
+      const { row, own } = await this.reachable(tx, actor, "update", attachmentId, true);
       // Checked under the row lock, so of two racing archives only one answers the name (Codex PR #68).
       if (row.status !== "active") throw new ApiError("not_found");
       await archiveAttachment(tx, actor.clinicId, row.id, this.deps.clock.now());
       const branchId = await this.branchOf(tx, actor, row);
       await this.audit(tx, actor, "attachment.archived", row.id, branchId, ["status"]);
-      return this.view(tx, actor, await this.stored(tx, actor, row.id));
+      const archived = await this.stored(tx, actor, row.id);
+      return medicalReachCovers(medicalReach(actor, "view"), own)
+        ? this.view(tx, actor, archived)
+        : redactedAttachmentView(archived);
     });
   }
 
@@ -218,19 +224,20 @@ export class Attachments {
     return { patient, own };
   }
 
-  // An attachment of a patient inside the caller's reach for the action, else not_found.
+  // An attachment of a patient inside the caller's reach for the action, else not_found; `own` tells
+  // whether that patient is one of the caller's.
   private async reachable(
     tx: Tx,
     actor: MedicalActor,
     action: "view" | "update",
     attachmentId: string,
     lock: boolean,
-  ): Promise<AttachmentRow> {
+  ): Promise<{ row: AttachmentRow; own: boolean }> {
     if (medicalReach(actor, action) === null) throw new ApiError("forbidden");
     const row = await findAttachment(tx, actor.clinicId, attachmentId, lock);
     if (row === null) throw new ApiError("not_found");
-    await this.patientInReach(tx, actor, action, row.patientId, false);
-    return row;
+    const { own } = await this.patientInReach(tx, actor, action, row.patientId, false);
+    return { row, own };
   }
 
   private async stored(tx: Tx, actor: MedicalActor, id: string): Promise<AttachmentRow> {
@@ -251,7 +258,7 @@ export class Attachments {
     actor: MedicalActor,
     attachmentId: string,
   ): Promise<AttachmentRow> {
-    const row = await this.reachable(tx, actor, "view", attachmentId, false);
+    const { row } = await this.reachable(tx, actor, "view", attachmentId, false);
     if (row.status !== "active") throw new ApiError("not_found");
     return row;
   }

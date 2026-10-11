@@ -66,10 +66,15 @@ function profileOf(db: MockState, a: MedicalAccess, patientId: string): MedicalP
 
 const view = ({ clinicId: _clinic, ...rest }: StoredAttachment): Attachment => rest;
 
-function attachmentIn(db: MockState, a: MedicalAccess, id: string, action: "view" | "update") {
+function activeAttachment(db: MockState, a: MedicalAccess, id: string) {
   const row = db.medical.attachments.find((x) => x.clinicId === a.clinic.id && x.id === id);
   if (!row || row.status !== "active") throw new ApiError("not_found");
-  contentFile(db, a, action, row.patientId);
+  return row;
+}
+
+function attachmentIn(db: MockState, a: MedicalAccess, id: string) {
+  const row = activeAttachment(db, a, id);
+  contentFile(db, a, "view", row.patientId);
   return row;
 }
 
@@ -192,7 +197,7 @@ export function createMockMedicalFiles(): Pick<
       await delay();
       const db = getState();
       const a = requireKey(db, persona, "view", "medical", ["clinic", "own"]);
-      const row = attachmentIn(db, a, attachmentId, "view");
+      const row = attachmentIn(db, a, attachmentId);
       const bytes = attachmentBytes.get(row.id);
       if (!bytes) throw new ApiError("not_found");
       auditMedical(db, a, "attachment", "attachment.downloaded", row.id);
@@ -204,11 +209,15 @@ export function createMockMedicalFiles(): Pick<
       await delay();
       const db = getState();
       const a = requireKey(db, persona, "update", "medical", ["clinic", "own"]);
-      const row = attachmentIn(db, a, attachmentId, "update");
+      const row = activeAttachment(db, a, attachmentId);
+      // As the API: the update reach alone decides the archive; the names go back only to a caller
+      // whose view reach covers the file, else both are "" (the contract still needs a name).
+      if (!reachesContent(db, a, "update", row.patientId)) throw new ApiError("not_found");
       row.status = "archived";
       auditMedical(db, a, "attachment", "attachment.archived", row.id, [], "archived");
       persist();
-      return { attachment: view(row) };
+      const readable = reachesContent(db, a, "view", row.patientId);
+      return { attachment: readable ? view(row) : { ...view(row), name: "", uploadedByName: "" } };
     },
 
     async getPrescriptionPrint(persona, visitId) {

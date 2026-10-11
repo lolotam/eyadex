@@ -108,6 +108,31 @@ describe("the visit page controls", () => {
     }
   });
 
+  it("a cancelled draft shows its reason and note to the provider", async () => {
+    const D = doctorAt(0);
+    const { visit } = await startDraft();
+    await api.medical.cancelVisit(D, visit.id, { reason: "patient_left", note: "Left early" });
+    await renderAs(D, <VisitPage visitId={visit.id} />);
+    await screen.findByText(ar.visit.cancelledNote);
+    expect(screen.getByText(ar.visit.cancelReasons.patient_left)).toBeInTheDocument();
+    expect(screen.getByText("Left early")).toBeInTheDocument();
+  });
+
+  it("the front desk sees a cancelled visit's reason, never its note", async () => {
+    const { visit } = await startDraft();
+    await api.medical.cancelVisit(doctorAt(0), visit.id, {
+      reason: "opened_by_mistake",
+      note: "Wrong file",
+    });
+    const deskRole = getState().roles.find((r) => r.systemKey === "receptionist")!;
+    for (const m of getState().members) if (m.roleId === deskRole.id) m.allBranches = true;
+    await renderAs(as("receptionist"), <VisitPage visitId={visit.id} />);
+    await screen.findByText(ar.visits.contentHidden);
+    expect(screen.getByText(ar.visit.cancelReasons.opened_by_mistake)).toBeInTheDocument();
+    expect(screen.queryByText("Wrong file")).toBeNull();
+    expect(screen.queryByText(ar.visit.cancelNote)).toBeNull();
+  });
+
   it("the front desk sees the visit header but not its content", async () => {
     const { visit } = await startDraft();
     const deskRole = getState().roles.find((r) => r.systemKey === "receptionist")!;
