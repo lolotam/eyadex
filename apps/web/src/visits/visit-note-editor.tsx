@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { useVisitWrite } from "./use-visit-write";
-import { noteSaveKey, type NoteFlush } from "./visit-note-save";
+import type { NoteFlush, SectionSaves } from "./visit-section-saves";
 
 const SECTIONS = ["complaint", "examination", "assessment", "plan"] as const;
 const AUTOSAVE_MS = 900;
@@ -13,18 +13,21 @@ type Note = NonNullable<VisitDetail["content"]>["note"];
 
 /**
  * The four note sections; on an editable draft each change autosaves after a short pause. `flushRef`
- * lets the page save what is pending before a sign, so a sign never locks an older note.
+ * lets the page save what is pending before a sign, so a sign never locks an older note; `saves`
+ * follows every save for the page's Sign.
  */
 export function VisitNoteEditor({
   visitId,
   note,
   editable,
   flushRef,
+  saves,
 }: {
   visitId: string;
   note: Note;
   editable: boolean;
   flushRef?: RefObject<NoteFlush | null>;
+  saves?: SectionSaves;
 }) {
   const { t } = useI18n();
   const [value, setValue] = useState<Note>(note);
@@ -35,7 +38,7 @@ export function VisitNoteEditor({
   const save = useVisitWrite<VisitNoteInput>(
     visitId,
     (api, persona, input) => api.saveNote(persona, visitId, input),
-    { mutationKey: noteSaveKey(visitId) },
+    { section: "note", saves },
   );
   const { mutateAsync } = save;
   // Single flight (Codex PR #68): two PUTs in flight could land out of order and store an older text,

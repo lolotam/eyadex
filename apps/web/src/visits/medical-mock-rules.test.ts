@@ -51,6 +51,44 @@ describe("the medical mock rules", () => {
     expect((await api.medical.signVisit(D(), visit.id)).visit.status).toBe("signed");
   });
 
+  it("can.sign follows visit_empty: an empty draft is not offered Sign, a saved note is", async () => {
+    const { visit } = await startDraft();
+    expect((await api.medical.getVisit(D(), visit.id)).can.sign).toBe(false);
+    const note = { complaint: "Headache", examination: null, assessment: null, plan: null };
+    expect((await api.medical.saveNote(D(), visit.id, note)).can.sign).toBe(true);
+  });
+
+  it("patient_inactive, branch_inactive: an appointment of an archived file or a closed branch", async () => {
+    const appt = ownAppointment("arrived");
+    const db = getState();
+    const before = db.medical.visits.length;
+    const start = () =>
+      api.medical.startVisit(D(), { appointmentId: appt.id }, crypto.randomUUID());
+    const patient = db.patients.find((p) => p.id === appt.patientId)!;
+    patient.status = "archived";
+    await reject(start(), "patient_inactive");
+    patient.status = "active";
+    db.branches.find((b) => b.id === appt.branchId)!.isActive = false;
+    await reject(start(), "branch_inactive");
+    expect(getState().medical.visits).toHaveLength(before);
+  });
+
+  it("patient_inactive: an archived file offers no medical file edit and refuses the save", async () => {
+    const { visit } = await startDraft();
+    const patient = getState().patients.find((p) => p.id === visit.patientId)!;
+    expect((await api.medical.getMedicalProfile(D(), patient.id)).can.update).toBe(true);
+    patient.status = "archived";
+    expect((await api.medical.getMedicalProfile(D(), patient.id)).can.update).toBe(false);
+    const profile = {
+      allergies: "Penicillin",
+      chronicConditions: null,
+      currentMedications: null,
+      surgicalHistory: null,
+      familyHistory: null,
+    };
+    await reject(api.medical.saveMedicalProfile(D(), patient.id, profile), "patient_inactive");
+  });
+
   it("visit_signed: a signed note never changes", async () => {
     const { visit } = await startDraft();
     const note = { complaint: "A", examination: null, assessment: null, plan: null };

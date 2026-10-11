@@ -112,6 +112,10 @@ describe("the medical file", () => {
     expect(code(await send(h, C.doctor.cookie, "PUT", url(archived), EMPTY))).toBe(
       "patient_inactive",
     );
+    // The file is still in reach and readable, but it never offers the edit its save refuses.
+    const read = await send(h, C.doctor.cookie, "GET", url(archived));
+    expect(read.statusCode).toBe(200);
+    expect((read.json() as { can: { update: boolean } }).can).toEqual({ update: false });
   });
 
   it("the admin (no medical key, P2-5) and the front desk are forbidden", async () => {

@@ -40,9 +40,10 @@ function contentFile(
   action: "view" | "update",
   patientId: string,
 ) {
-  patientOf(db, a, patientId);
+  const patient = patientOf(db, a, patientId);
   if (!reachesContent(db, a, "view", patientId)) throw new ApiError("not_found");
   if (!reachesContent(db, a, action, patientId)) throw new ApiError("forbidden");
+  return patient;
 }
 
 function profileOf(db: MockState, a: MedicalAccess, patientId: string): MedicalProfile {
@@ -54,7 +55,12 @@ function profileOf(db: MockState, a: MedicalAccess, patientId: string): MedicalP
     profile: profile as MedicalProfile["profile"],
     updatedAt: row?.updatedAt ?? null,
     updatedByName: row?.updatedByName ?? null,
-    can: { update: reachesContent(db, a, "update", patientId) },
+    // An archived file is never written (`patient_inactive`), so it offers no edit (as the API).
+    can: {
+      update:
+        patientOf(db, a, patientId).status === "active" &&
+        reachesContent(db, a, "update", patientId),
+    },
   };
 }
 
@@ -94,7 +100,8 @@ export function createMockMedicalFiles(): Pick<
       const db = getState();
       const input = parse(medicalProfileInputSchema, rawInput);
       const a = requireKey(db, persona, "update", "medical", ["clinic", "own"]);
-      contentFile(db, a, "update", patientId);
+      const patient = contentFile(db, a, "update", patientId);
+      if (patient.status !== "active") throw new ApiError("patient_inactive");
       const before = profileOf(db, a, patientId).profile;
       const next = Object.fromEntries(
         PROFILE_FIELDS.map((f) => [f, input[f] && input[f].length > 0 ? input[f] : null]),

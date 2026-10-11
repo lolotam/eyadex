@@ -8,6 +8,17 @@ import type { MockState } from "./mock-store";
 const nameOf = (db: MockState, memberId: string) =>
   db.members.find((m) => m.id === memberId)?.fullName ?? "";
 
+/**
+ * spec §4, as the API's `isSignable`: a note section that is not blank or an active diagnosis. One
+ * rule for the Sign button (`can.sign`) and the sign itself (`visit_empty`).
+ */
+export function isSignable(v: StoredVisit): boolean {
+  return (
+    v.diagnoses.some((d) => !d.archived) ||
+    Object.values(v.note).some((text) => text !== null && text.trim() !== "")
+  );
+}
+
 /** A visit's metadata; the preview only with `view:medical:*` reaching the file. */
 export function summaryOf(db: MockState, a: MedicalAccess, v: StoredVisit): VisitSummary {
   const content = reachesContent(db, a, "view", v.patientId);
@@ -66,7 +77,7 @@ export function detailOf(db: MockState, a: MedicalAccess, v: StoredVisit): Visit
       : null,
     can: {
       edit: writer && draft,
-      sign: writer && draft,
+      sign: writer && draft && isSignable(v),
       cancel: writer && draft,
       addAddendum: writer && v.status === "signed",
     },

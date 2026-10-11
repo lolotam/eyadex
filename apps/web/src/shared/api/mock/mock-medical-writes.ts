@@ -9,7 +9,7 @@ import {
 import { ApiError } from "../api-error";
 import type { MedicalApi } from "../medical-client";
 import { parse, writableVisit } from "./mock-medical-access";
-import { auditMedical, detailOf } from "./mock-medical-project";
+import { auditMedical, detailOf, isSignable } from "./mock-medical-project";
 import type { StoredNote } from "./mock-medical-state";
 import { delay, getState, newId, persist } from "./mock-store";
 
@@ -86,8 +86,7 @@ export function createMockMedicalWrites(): Pick<
       await delay();
       const db = getState();
       const { a, v } = writableVisit(db, persona, visitId, "draft");
-      const hasNote = NOTE_FIELDS.some((f) => filled(v.note[f]));
-      if (!hasNote && !v.diagnoses.some((d) => !d.archived)) throw new ApiError("visit_empty");
+      if (!isSignable(v)) throw new ApiError("visit_empty");
       v.status = "signed";
       v.signedAt = new Date().toISOString();
       auditMedical(db, a, "visit", "visit.signed", v.id, [], "signed");

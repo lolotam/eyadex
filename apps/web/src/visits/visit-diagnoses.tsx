@@ -14,6 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { Icd10Picker } from "./icd10-picker";
 import { useVisitWrite } from "./use-visit-write";
+import type { SectionSaves } from "./visit-section-saves";
 
 type Diagnoses = NonNullable<VisitDetail["content"]>["diagnoses"];
 type FormValues = { items: DiagnosisInput[] };
@@ -30,10 +31,12 @@ export function VisitDiagnoses({
   visitId,
   diagnoses,
   editable,
+  saves,
 }: {
   visitId: string;
   diagnoses: Diagnoses;
   editable: boolean;
+  saves?: SectionSaves;
 }) {
   const { t } = useI18n();
   const form = useForm<FormValues>({
@@ -45,7 +48,7 @@ export function VisitDiagnoses({
   const save = useVisitWrite<FormValues>(
     visitId,
     (api, persona, input) => api.saveDiagnoses(persona, visitId, input),
-    { success: "visit.diagnosesSaved" },
+    { success: "visit.diagnosesSaved", section: "diagnoses", saves },
   );
   const values = form.watch("items");
 

@@ -14,6 +14,7 @@ import { can } from "@/shared/permissions/can";
 import { useSession } from "@/shared/persona/persona-provider";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { useVisitWrite } from "./use-visit-write";
+import type { SectionSaves } from "./visit-section-saves";
 
 type Items = NonNullable<VisitDetail["content"]>["prescription"];
 type FormValues = { items: PrescriptionItemInput[] };
@@ -27,10 +28,12 @@ export function VisitPrescription({
   visitId,
   items,
   editable,
+  saves,
 }: {
   visitId: string;
   items: Items;
   editable: boolean;
+  saves?: SectionSaves;
 }) {
   const { t } = useI18n();
   const { session } = useSession();
@@ -46,7 +49,7 @@ export function VisitPrescription({
   const save = useVisitWrite<FormValues>(
     visitId,
     (api, persona, input) => api.savePrescription(persona, visitId, input),
-    { success: "visit.prescriptionSaved" },
+    { success: "visit.prescriptionSaved", section: "prescription", saves },
   );
 
   function fillDefaults(index: number, name: string) {

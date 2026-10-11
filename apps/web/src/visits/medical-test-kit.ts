@@ -1,4 +1,6 @@
 /** Shared helpers for the P2 medical mock tests (delay-free store, the doctor and its patients). */
+import { vi } from "vitest";
+import type { VisitDetail } from "@eyadex/contracts/visits";
 import type { Persona } from "@eyadex/contracts/session";
 import { api, as, getState } from "@/shared/api/mock/mock-test-kit";
 
@@ -46,3 +48,40 @@ export const file = (type: string, size: number, name = "scan.png") => {
   Object.defineProperty(f, "size", { value: size });
   return f;
 };
+
+type SectionWrite = (persona: Persona, visitId: string, input: unknown) => Promise<VisitDetail>;
+
+/**
+ * Holds the first call of a section save before it reaches the store, until `release()`; records each
+ * input, how many ran together, and whether the held call has finished.
+ */
+export function holdFirst(method: "saveNote" | "saveDiagnoses" | "savePrescription") {
+  const medical = api.medical as unknown as Record<typeof method, SectionWrite>;
+  const real = medical[method].bind(api.medical);
+  let release: () => void = () => undefined;
+  const gate = new Promise<void>((done) => (release = done));
+  const sent: unknown[] = [];
+  let running = 0;
+  let most = 0;
+  let firstDone = false;
+  vi.spyOn(medical, method).mockImplementation(async (persona, visitId, input) => {
+    const first = sent.length === 0;
+    sent.push(input);
+    running += 1;
+    most = Math.max(most, running);
+    try {
+      if (first) await gate;
+      return await real(persona, visitId, input);
+    } finally {
+      running -= 1;
+      if (first) firstDone = true;
+    }
+  });
+  return {
+    sent,
+    release,
+    most: () => most,
+    running: () => running,
+    firstDone: () => firstDone,
+  };
+}

@@ -75,11 +75,18 @@ function startFrom(
     if (!appt) throw new ApiError("not_found");
     // create:visits:own: the caller starts a visit only as its provider.
     if (appt.providerMembershipId !== a.member.id) throw new ApiError("forbidden");
+    if (appt.status !== "arrived") throw new ApiError("appointment_not_arrived");
     const live = db.medical.visits.find(
       (v) => v.appointmentId === appt.id && v.status !== "cancelled",
     );
     if (live) throw new ApiError("visit_exists", undefined, { visitId: live.id });
-    if (appt.status !== "arrived") throw new ApiError("appointment_not_arrived");
+    // In the API's order (start-visit.ts): an archived file or a closed branch takes no new visit, even
+    // from an appointment booked before it was archived or closed (Codex PR #68).
+    const patient = patientOf(db, a, appt.patientId);
+    if (patient.status !== "active") throw new ApiError("patient_inactive");
+    const branch = db.branches.find((b) => b.clinicId === a.clinic.id && b.id === appt.branchId);
+    if (!branch) throw new ApiError("not_found");
+    if (!branch.isActive) throw new ApiError("branch_inactive");
     return { patientId: appt.patientId, branchId: appt.branchId, appointmentId: appt.id };
   }
   if (!walkInBranchList(db, a).some((b) => b.id === input.branchId)) {

@@ -8,16 +8,23 @@ import { ConfirmActionDialog } from "@/shared/shell/confirm-action-dialog";
 import { PrescriptionPrintDialog } from "./prescription-print-dialog";
 import { useVisitWrite } from "./use-visit-write";
 import { VisitCancelDialog } from "./visit-cancel-dialog";
-import { noteSaveKey, type NoteFlush } from "./visit-note-save";
+import { sectionSaveKey } from "./visit-section-saves";
 
 /**
- * Sign · Cancel draft · Print, each following `can` (UX only: the API refuses as well). Sign first
- * saves the note's pending edits (`flushNote`) and signs only when that save succeeded.
+ * Sign · Cancel draft · Print, each following `can` (UX only: the API refuses as well). Sign is off
+ * while any section save runs; its confirm sends the note's pending text and waits for every section
+ * save (`settleSaves`), and signs only when all of them succeeded.
  */
-export function VisitActions({ detail, flushNote }: { detail: VisitDetail; flushNote: NoteFlush }) {
+export function VisitActions({
+  detail,
+  settleSaves,
+}: {
+  detail: VisitDetail;
+  settleSaves: () => Promise<void>;
+}) {
   const { t } = useI18n();
   const id = detail.visit.id;
-  const noteSaving = useIsMutating({ mutationKey: noteSaveKey(id) }) > 0;
+  const sectionSaving = useIsMutating({ mutationKey: sectionSaveKey(id) }) > 0;
   const [flushing, setFlushing] = useState(false);
   const [confirmSign, setConfirmSign] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -30,9 +37,9 @@ export function VisitActions({ detail, flushNote }: { detail: VisitDetail; flush
   const confirm = async () => {
     setFlushing(true);
     try {
-      await flushNote();
+      await settleSaves();
     } catch {
-      // The note save already showed its error; the dialog stays open and nothing is signed.
+      // The failed save already showed its error; the dialog stays open and nothing is signed.
       return;
     } finally {
       setFlushing(false);
@@ -42,7 +49,7 @@ export function VisitActions({ detail, flushNote }: { detail: VisitDetail; flush
   return (
     <div className="flex flex-wrap items-center gap-2">
       {detail.can.sign && (
-        <Button onClick={() => setConfirmSign(true)} disabled={noteSaving}>
+        <Button onClick={() => setConfirmSign(true)} disabled={sectionSaving}>
           <FileCheck2 className="size-4" />
           {t("visit.sign")}
         </Button>
@@ -65,7 +72,8 @@ export function VisitActions({ detail, flushNote }: { detail: VisitDetail; flush
         body={t("visit.signBody")}
         confirmLabel={t("visit.sign")}
         cancelLabel={t("common.cancel")}
-        pending={flushing || noteSaving || sign.isPending}
+        // A save still running is not a reason to refuse the confirm: the confirm waits for it.
+        pending={flushing || sign.isPending}
         onConfirm={() => void confirm()}
         onClose={() => setConfirmSign(false)}
       />

@@ -51,7 +51,7 @@ export class MedicalProfileChanges {
   open(actor: MedicalActor, patientId: string): Promise<MedicalProfile> {
     return this.deps.db.withTenant(actor.clinicId, async (tx) => {
       const { patient, own } = await this.reachable(tx, actor, "view", patientId, false);
-      const answer = await this.answer(tx, actor, patientId, own);
+      const answer = await this.answer(tx, actor, patient, own);
       await this.audit(tx, actor, patient, "medical_profile.opened", undefined);
       return answer;
     });
@@ -107,7 +107,7 @@ export class MedicalProfileChanges {
         // the same patient_access trail as GET (Codex P2 PR #68).
         await this.audit(tx, actor, patient, "medical_profile.opened", undefined);
       }
-      return this.answer(tx, actor, patientId, own);
+      return this.answer(tx, actor, patient, own);
     });
   }
 
@@ -151,10 +151,10 @@ export class MedicalProfileChanges {
   private async answer(
     tx: Tx,
     actor: MedicalActor,
-    patientId: string,
+    patient: MedicalPatient,
     patientIsOwn: boolean,
   ): Promise<MedicalProfile> {
-    const stored = await findProfile(tx, actor.clinicId, patientId);
+    const stored = await findProfile(tx, actor.clinicId, patient.id);
     const author =
       stored === null
         ? undefined
@@ -165,7 +165,10 @@ export class MedicalProfileChanges {
       profile: this.opened(actor.clinicId, stored),
       updatedAt: stored === null ? null : new Date(stored.updatedAt).toISOString(),
       updatedByName: author?.fullName ?? null,
-      can: { update: medicalReachCovers(medicalReach(actor, "update"), patientIsOwn) },
+      // An archived file refuses every save (`patient_inactive`): no edit offered (Codex PR #68).
+      can: {
+        update: patient.active && medicalReachCovers(medicalReach(actor, "update"), patientIsOwn),
+      },
     };
   }
 

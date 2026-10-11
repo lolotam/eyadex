@@ -15,12 +15,15 @@ vi.mock("@tanstack/react-router", () => ({
 beforeEach(() => resetMockData());
 afterEach(() => cleanup());
 
+const NOTE = { complaint: "Earlier", examination: null, assessment: null, plan: null };
 const button = (name: string) => screen.queryByRole("button", { name: new RegExp(name) });
 
 describe("the visit page controls", () => {
   it("a draft shows Sign, Cancel draft and editable note sections to its provider", async () => {
+    const D = doctorAt(0);
     const { visit } = await startDraft();
-    await renderAs(doctorAt(0), <VisitPage visitId={visit.id} />);
+    await api.medical.saveNote(D, visit.id, NOTE);
+    await renderAs(D, <VisitPage visitId={visit.id} />);
     await screen.findByText(ar.visit.note);
     expect(button(ar.visit.sign)).not.toBeNull();
     expect(button(ar.visit.cancel)).not.toBeNull();
@@ -28,9 +31,19 @@ describe("the visit page controls", () => {
     expect(button(ar.visit.addAddendum)).toBeNull();
   });
 
-  it("Sign saves the note typed just before it, then signs the visit with that text", async () => {
+  it("an empty draft offers no Sign: signing needs a note section or a diagnosis (spec §4)", async () => {
     const { visit } = await startDraft();
     await renderAs(doctorAt(0), <VisitPage visitId={visit.id} />);
+    await screen.findByText(ar.visit.note);
+    expect(button(ar.visit.sign)).toBeNull();
+    expect(button(ar.visit.cancel)).not.toBeNull();
+  });
+
+  it("Sign saves the note typed just before it, then signs the visit with that text", async () => {
+    const D = doctorAt(0);
+    const { visit } = await startDraft();
+    await api.medical.saveNote(D, visit.id, NOTE);
+    await renderAs(D, <VisitPage visitId={visit.id} />);
     const complaint = await screen.findByLabelText(ar.visit.sections.complaint);
     fireEvent.change(complaint, { target: { value: "Typed right before signing" } });
     fireEvent.click(button(ar.visit.sign)!);
