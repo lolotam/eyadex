@@ -12,7 +12,7 @@ import {
 import { acceptedAttachmentType, SIGNATURE_LENGTH } from "../../files/attachment-type";
 import { ApiError } from "../api-error";
 import type { MedicalApi } from "../medical-client";
-import { ICD10_DEMO, ICD10_RELEASE } from "./mock-icd10-list";
+import { ICD10_RELEASE, searchIcd10Demo } from "./mock-icd10-list";
 import {
   parse,
   patientOf,
@@ -152,14 +152,7 @@ export function createMockMedicalFiles(): Pick<
       const db = getState();
       const { q } = parse(icd10QuerySchema, { q: rawQ });
       requireKey(db, persona, "view", "medical", ["clinic", "own"]);
-      const needle = q.toLocaleLowerCase();
-      const words = needle.split(/\s+/).filter(Boolean);
-      const items = ICD10_DEMO.filter(
-        (c) =>
-          c.code.toLocaleLowerCase().startsWith(needle) ||
-          words.every((w) => c.title.toLocaleLowerCase().includes(w)),
-      ).slice(0, 20);
-      return { items: [...items], release: ICD10_RELEASE };
+      return { items: searchIcd10Demo(q), release: ICD10_RELEASE };
     },
 
     async listAttachments(persona, patientId, rawQuery) {

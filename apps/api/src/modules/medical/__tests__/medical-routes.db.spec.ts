@@ -9,8 +9,11 @@ import {
 } from "../../identity/auth/__tests__/auth-http-harness.ts";
 import { AUTHORIZATION_INVALIDATOR, type AuthorizationInvalidator } from "../../identity/index.ts";
 import { addPatient } from "../../appointments/__tests__/appointment-fixtures.ts";
+import { customRole, memberOn } from "../../identity/__tests__/user-fixtures.ts";
+import { addBranch } from "../../patients/__tests__/patient-fixtures.ts";
 import { code, send } from "../../appointments/__tests__/scheduling-fixtures.ts";
 import {
+  DOCTOR_KEYS,
   medicalAudit,
   medicalClinic,
   patientIn,
@@ -146,6 +149,24 @@ describe("walk-in picker (R3-1)", () => {
       q: "Booked",
     });
     expect(code(res)).toBe("forbidden");
+  });
+
+  it("a member of every branch: a closed branch is branch_inactive, an unknown one not_found, unaudited (Codex 4241493936)", async () => {
+    const everyBranch = await memberOn(h, C.admin, await customRole(h, C.clinicId, DOCTOR_KEYS));
+    const closed = await addBranch(h, C.clinicId, false);
+    const filed = await addPatient(h, C.clinicId, closed);
+    await h.owner`UPDATE patients SET full_name = ${"Closed branch file"} WHERE id = ${filed}`;
+    const since = new Date();
+    const search = (branchId: string) =>
+      send(h, everyBranch.cookie, "POST", "/v1/visits/walk-in-candidates", {
+        branchId,
+        q: "Closed branch",
+      });
+    expect(code(await search(closed))).toBe("branch_inactive");
+    expect((await search(randomUUID())).statusCode).toBe(404);
+    expect(await medicalAudit(h, C.clinicId, since)).toEqual([]);
+    const open = await search(C.branchD);
+    expect(open.statusCode).toBe(200);
   });
 });
 

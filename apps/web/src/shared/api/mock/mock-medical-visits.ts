@@ -31,6 +31,9 @@ const PAGE = 20;
 const newestFirst = (x: StoredVisit, y: StoredVisit) =>
   y.startedAt.localeCompare(x.startedAt) || y.id.localeCompare(x.id);
 
+const worksIn = (a: MedicalAccess, branchId: string) =>
+  a.branches.allBranches || a.branches.branchIds.includes(branchId);
+
 function page(
   db: MockState,
   a: MedicalAccess,
@@ -49,20 +52,23 @@ function page(
       start:
         a.keys.includes("create:visits:own") &&
         patient.status === "active" &&
-        (a.branches.allBranches || a.branches.branchIds.includes(patient.registrationBranchId)),
+        worksIn(a, patient.registrationBranchId),
     },
   };
+}
+
+// As the API's walk-in (start-visit.ts, visit-reads.ts): a branch of another clinic or none is
+// `not_found`, a closed one `branch_inactive` (Codex 4241493936).
+function requireOpenBranch(db: MockState, a: MedicalAccess, branchId: string) {
+  const branch = db.branches.find((b) => b.clinicId === a.clinic.id && b.id === branchId);
+  if (!branch) throw new ApiError("not_found");
+  if (!branch.isActive) throw new ApiError("branch_inactive");
 }
 
 /** The active branches where the caller may start a walk-in: its own branch scope (R3). */
 function walkInBranchList(db: MockState, a: MedicalAccess) {
   return db.branches
-    .filter(
-      (b) =>
-        b.clinicId === a.clinic.id &&
-        b.isActive &&
-        (a.branches.allBranches || a.branches.branchIds.includes(b.id)),
-    )
+    .filter((b) => b.clinicId === a.clinic.id && b.isActive && worksIn(a, b.id))
     .map((b) => ({ id: b.id, nameAr: b.nameAr, nameEn: b.nameEn }));
 }
 
@@ -113,19 +119,17 @@ function startFrom(
     // from an appointment booked before it was archived or closed (Codex PR #68).
     const patient = patientOf(db, a, appt.patientId);
     if (patient.status !== "active") throw new ApiError("patient_inactive");
-    const branch = db.branches.find((b) => b.clinicId === a.clinic.id && b.id === appt.branchId);
-    if (!branch) throw new ApiError("not_found");
-    if (!branch.isActive) throw new ApiError("branch_inactive");
+    requireOpenBranch(db, a, appt.branchId);
     return { patientId: appt.patientId, branchId: appt.branchId, appointmentId: appt.id };
   }
-  if (!walkInBranchList(db, a).some((b) => b.id === input.branchId)) {
-    throw new ApiError("forbidden");
-  }
+  if (!worksIn(a, input.branchId)) throw new ApiError("forbidden");
   const patient = patientOf(db, a, input.patientId);
-  if (patient.status !== "active") throw new ApiError("patient_inactive");
   // As the API (walk-in reach) and the candidate search: a walk-in starts only for a file registered in
-  // that branch, so a crafted start cannot make another branch's patient "own" (Codex P2 PR #68).
+  // that branch, so a crafted start cannot make another branch's patient "own" (Codex P2 PR #68). The
+  // reach is judged before the file's status, so another branch's archived file stays `not_found`.
   if (patient.registrationBranchId !== input.branchId) throw new ApiError("not_found");
+  if (patient.status !== "active") throw new ApiError("patient_inactive");
+  requireOpenBranch(db, a, input.branchId);
   return { patientId: patient.id, branchId: input.branchId, appointmentId: null };
 }
 
@@ -181,9 +185,8 @@ export function createMockMedicalVisits(): Pick<
       const db = getState();
       const input = parse(walkInSearchSchema, rawInput);
       const a = requireKey(db, persona, "create", "visits", ["own"]);
-      if (!walkInBranchList(db, a).some((b) => b.id === input.branchId)) {
-        throw new ApiError("forbidden");
-      }
+      if (!worksIn(a, input.branchId)) throw new ApiError("forbidden");
+      requireOpenBranch(db, a, input.branchId);
       // As the API's query: the name contains the query (ILIKE, no letter folding), or its digits
       // (Arabic-Indic folded) are inside the padded file number; by name then number (the collation is
       // approximated), at most 20.

@@ -130,7 +130,6 @@ export function VisitContent({ visitId }: { visitId: string }) {
             patientId={visit.patientId}
             visitId={visit.id}
             canUpload={d.can.attach}
-            canArchive={d.can.attach}
           />
         </div>
       )}

@@ -101,17 +101,23 @@ describe("the visit page controls", () => {
   it.each([
     ["active", true],
     ["archived", false],
-  ] as const)("a signed visit of an %s file: attachment upload = %s", async (status, offered) => {
-    const D = doctorAt(0);
-    const { visit } = await startDraft();
-    await api.medical.saveNote(D, visit.id, NOTE);
-    await api.medical.signVisit(D, visit.id);
-    getState().patients.find((p) => p.id === visit.patientId)!.status = status;
-    await renderAs(D, <VisitPage visitId={visit.id} />);
-    await screen.findByText(ar.visit.lockedNote);
-    await screen.findByText(ar.attachments.empty);
-    expect(button(ar.attachments.upload) !== null).toBe(offered);
-  });
+  ] as const)(
+    "a signed visit of an %s file: attachment upload = %s, archive stays (Codex 4241493938)",
+    async (status, offered) => {
+      const D = doctorAt(0);
+      const { visit } = await startDraft();
+      await api.medical.saveNote(D, visit.id, NOTE);
+      await api.medical.signVisit(D, visit.id);
+      const scan = file("image/png", 100, "a.png");
+      await api.medical.uploadAttachment(D, visit.patientId, scan, visit.id);
+      getState().patients.find((p) => p.id === visit.patientId)!.status = status;
+      await renderAs(D, <VisitPage visitId={visit.id} />);
+      await screen.findByText(ar.visit.lockedNote);
+      await screen.findByText("a.png");
+      expect(button(ar.attachments.upload) !== null).toBe(offered);
+      expect(screen.getByRole("button", { name: ar.attachments.archive })).toBeInTheDocument();
+    },
+  );
 
   it("a cancelled draft shows no write control", async () => {
     const D = doctorAt(0);

@@ -154,6 +154,12 @@ export class VisitReads {
   walkInCandidates(actor: MedicalActor, input: WalkInSearchInput): Promise<WalkInCandidates> {
     if (!worksIn(actor.member, input.branchId)) throw new ApiError("forbidden");
     return this.deps.db.withTenant(actor.clinicId, async (tx) => {
+      // As `start` (Codex 4241493936): a member of every branch still finds no file in a closed or
+      // unknown branch, where no visit could start.
+      const all = await this.deps.branches.listForOptions(tx, actor.clinicId, actor.language);
+      const branch = all.find((b) => b.id === input.branchId);
+      if (branch === undefined) throw new ApiError("not_found");
+      if (!branch.isActive) throw new ApiError("branch_inactive");
       const items = await this.deps.patients.walkInCandidates(
         tx,
         actor.clinicId,

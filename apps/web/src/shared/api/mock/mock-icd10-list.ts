@@ -37,3 +37,31 @@ export const ICD10_DEMO: readonly { code: string; title: string }[] = [
 ];
 
 export const icd10Codes: ReadonlySet<string> = new Set(ICD10_DEMO.map((c) => c.code));
+
+// The API's `icd10Terms` (domain/icd10.ts): one code-like word searches code prefixes.
+const CODE_LIKE = /^[A-Za-z][0-9][0-9A-Za-z.]*$/;
+const first = (hit: boolean) => (hit ? 0 : 1);
+
+/**
+ * The API's `searchIcd10` over the demo slice (Codex 4241493941): a code-like query matches code prefixes
+ * with the dots dropped on both sides (`F411` finds `F41.1`); every word must be in the title, case
+ * folded. Code prefixes first, then titles starting with the first word, then by code; at most 20.
+ */
+export function searchIcd10Demo(q: string): { code: string; title: string }[] {
+  const trimmed = q.trim();
+  const codePrefix = CODE_LIKE.test(trimmed) ? trimmed.toUpperCase().replaceAll(".", "") : null;
+  const words = trimmed.toLowerCase().split(/\s+/).filter(Boolean);
+  const byCode = (c: { code: string }) =>
+    codePrefix !== null && c.code.replaceAll(".", "").startsWith(codePrefix);
+  const startsWithWord = (c: { title: string }) => c.title.toLowerCase().startsWith(words[0] ?? "");
+  return ICD10_DEMO.filter(
+    (c) => byCode(c) || words.every((w) => c.title.toLowerCase().includes(w)),
+  )
+    .sort(
+      (x, y) =>
+        first(byCode(x)) - first(byCode(y)) ||
+        first(startsWithWord(x)) - first(startsWithWord(y)) ||
+        (x.code < y.code ? -1 : x.code > y.code ? 1 : 0),
+    )
+    .slice(0, 20);
+}
