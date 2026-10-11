@@ -83,7 +83,7 @@ export class UserChanges {
   constructor(private readonly deps: UserChangesDeps) {}
 
   /**
-   * يغيّر دور عضو؛ نقل آخر أدمن نشط → `last_active_admin`.
+   * يغيّر دور عضو؛ نقل آخر أدمن نشط → `last_active_admin`، وتغيير العضو لدوره هو → `role_self_change`.
    *
    * @param actor الفاعل
    * @param memberId العضوية
@@ -102,6 +102,10 @@ export class UserChanges {
       const decision = decideRoleChange(before, before.roleId, target, admins);
       if (decision === "same") return null;
       if (decision === "last_active_admin") throw new ApiError("last_active_admin");
+      // P2 R1-2: the admin may hand the medical keys to other roles without holding them, so no member
+      // may move itself into a role (it could otherwise grant itself a key it lacks). After the grant
+      // and last-admin checks, in the web mock's order.
+      if (before.userId === actor.userId) throw new ApiError("role_self_change");
       return { next: { roleId: target.id, status: before.status }, action: "user.role_changed" };
     });
   }

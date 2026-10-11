@@ -19,27 +19,46 @@ export interface GrantingMember {
   readonly keys: readonly string[];
   /** فروعه: كل الفروع، أو فروعه النشطة بس. */
   readonly reach: BranchReach;
+  /** دوره هو دور أدمن العيادة المقفول (`is_locked`)، صاحب تفويض المفاتيح الطبية (P2 R1-2). */
+  readonly lockedRole: boolean;
 }
 
 // ADR-0026 §12 (Codex A3 r1): a file is "own" by its appointments, in any branch, so a branch key does not
 // bound view:patients:own (a branch manager could hand a member files of every branch). Only the clinic
 // key covers it when granting; the route guard's grantFor is unchanged (a wider key held still wins).
+// P2 R1-3: the visits and medical `own` keys reach the caller's patients the same way (appointments or
+// visits in any branch), so they are bound to their clinic keys too.
 const CLINIC_BOUND: ReadonlyMap<string, string> = new Map([
   ["view:patients:own", "view:patients:clinic"],
+  ["view:visits:own", "view:visits:clinic"],
+  ["view:medical:own", "view:medical:clinic"],
+  ["update:medical:own", "update:medical:clinic"],
 ]);
+
+// P2 R1-2 (spec §2, P2-5): the locked clinic admin does not read clinical content by default, yet it is
+// the one who sets up the doctors' roles. It may hand these resources' keys to other roles without
+// holding them; nobody else grants a key it lacks, and no member can change its own role (user-changes).
+const ADMIN_DELEGATED: ReadonlySet<string> = new Set(["visits", "medical"]);
 
 /**
  * المفاتيح المطلوبة اللي مفاتيح الفاعل المخزّنة ماتغطيهاش. مفتاح `clinic` بيغطي نفس الفعل والمورد
- * بنطاق `branch` (زي `grantFor`)، والعكس لأ. `view:patients:own` بيعدّي الفروع، فمفتاح
- * `view:patients:clinic` بس اللي بيغطيه. مفيش فلترة بالموديولات: مفتاح موديول مقفول بيرجع أثره لما
- * الموديول يتفتح، فبيتحسب.
+ * بنطاق `branch` (زي `grantFor`)، والعكس لأ. مفاتيح `own` اللي بتعدّي الفروع (`view:patients:own`
+ * ومفاتيح الزيارات والمحتوى الطبي) مفتاح `clinic` بتاعها بس اللي بيغطيها. أدمن العيادة المقفول بيمنح
+ * مفاتيح `visits` و`medical` من غير ما يكون شايلها (تفويض محدود). مفيش فلترة بالموديولات: مفتاح موديول
+ * مقفول بيرجع أثره لما الموديول يتفتح، فبيتحسب.
  *
  * @param held مفاتيح دور الفاعل المخزّنة
  * @param wanted مفاتيح الدور المستهدف
+ * @param lockedRole دور الفاعل هو دور أدمن العيادة المقفول
  * @returns المفاتيح اللي مش متغطية، مترتبة؛ فاضية = متغطية كلها
  */
-export function uncoveredKeys(held: readonly string[], wanted: readonly string[]): string[] {
+export function uncoveredKeys(
+  held: readonly string[],
+  wanted: readonly string[],
+  lockedRole = false,
+): string[] {
   const covered = (key: string) => {
+    if (lockedRole && ADMIN_DELEGATED.has(key.split(":")[1] ?? "")) return true;
     const bound = CLINIC_BOUND.get(key);
     if (bound !== undefined) return held.includes(bound);
     // Stored keys reference the catalogue (FK to permissions), so each one is a PermissionKey.
@@ -96,7 +115,9 @@ export function decideRoleDefinition(
 ): "allowed" | "forbidden" {
   if (decideActorPermission(actor, required) === "forbidden") return "forbidden";
   if (actor === null || !actor.reach.allBranches) return "forbidden";
-  return uncoveredKeys(actor.keys, roleKeys).length === 0 ? "allowed" : "forbidden";
+  return uncoveredKeys(actor.keys, roleKeys, actor.lockedRole).length === 0
+    ? "allowed"
+    : "forbidden";
 }
 
 /**
@@ -116,6 +137,6 @@ export function decideRoleGrant(
   target: BranchReach,
 ): "allowed" | "forbidden" {
   if (decideActorPermission(actor, required) === "forbidden" || actor === null) return "forbidden";
-  if (uncoveredKeys(actor.keys, roleKeys).length > 0) return "forbidden";
+  if (uncoveredKeys(actor.keys, roleKeys, actor.lockedRole).length > 0) return "forbidden";
   return reachWithin(target, actor.reach) ? "allowed" : "forbidden";
 }

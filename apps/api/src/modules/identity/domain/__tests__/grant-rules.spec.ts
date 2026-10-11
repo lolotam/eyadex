@@ -19,6 +19,7 @@ const member = (keys: string[], reach = ALL, active = true): GrantingMember => (
   active,
   keys,
   reach,
+  lockedRole: false,
 });
 const adminKeys = [...SYSTEM_ROLES.find((r) => r.key === "clinic_admin")!.permissions];
 
