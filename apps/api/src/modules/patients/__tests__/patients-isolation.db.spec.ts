@@ -198,15 +198,19 @@ describe("PLAT-01 / PLAT-02: the platform never sees patient data", () => {
 
   it("no platform route needs a patients key, and every patients route is a gated clinic route", () => {
     const routes = registeredRoutes(h.app.get(ModulesContainer));
-    // P2 (ADR-0029): a patient's visits and medical file sit under /v1/patients/:id but belong to the
-    // medical module, gated by its own flag.
+    // P2 (ADR-0029): a patient's visits, medical file and attachments sit under /v1/patients/:id but
+    // belong to the medical module, gated by its own flag.
     const underPatients = routes.filter((r) => /^\w+ \/v1\/patients(\/|$)/.test(r.route));
-    const medical = underPatients.filter((r) => /\/:id\/(visits|medical-profile)/.test(r.route));
+    const medical = underPatients.filter((r) =>
+      /\/:id\/(visits|medical-profile|attachments)/.test(r.route),
+    );
     const patientRoutes = underPatients.filter((r) => !medical.includes(r));
     expect(medical.map((r) => r.route).sort()).toEqual(
       [
+        "GET /v1/patients/:id/attachments",
         "GET /v1/patients/:id/medical-profile",
         "GET /v1/patients/:id/visits",
+        "POST /v1/patients/:id/attachments",
         "POST /v1/patients/:id/visits/search",
         "PUT /v1/patients/:id/medical-profile",
       ].sort(),

@@ -8,7 +8,7 @@ import { Controller, Get, Req, UseGuards } from "@nestjs/common";
 import type { NestFastifyApplication } from "@nestjs/platform-fastify";
 import postgres, { type Sql } from "postgres";
 
-import { createApp } from "../../../../app.ts";
+import { createApp, type AppDependencies } from "../../../../app.ts";
 import { API_LOG_EVENTS } from "../../../../shared/log-events.ts";
 import { AREA_AUTH, type AreaAuth } from "../area-auth.ts";
 import { Public, Require, RequiresFeature } from "../../access/access-rules.ts";
@@ -67,6 +67,7 @@ export interface Harness {
 export async function openHarness(
   env: Record<string, string> = {},
   mountPlatform = false,
+  deps: Pick<AppDependencies, "medicalBlobStore"> = {},
 ): Promise<Harness> {
   Object.assign(process.env, {
     APP_URL: APP,
@@ -98,7 +99,13 @@ export async function openHarness(
     },
   });
   const app = await createApp(
-    { mountAuth: true, mountPlatform, mountInvitations: mountPlatform, mountClinic: mountPlatform },
+    {
+      mountAuth: true,
+      mountPlatform,
+      mountInvitations: mountPlatform,
+      mountClinic: mountPlatform,
+      ...deps,
+    },
     {
       logger: createLogger("info", { destination: sink, events: API_LOG_EVENTS }),
       controllers: mountPlatform ? [ProbeController, FeatureProbeController] : [ProbeController],

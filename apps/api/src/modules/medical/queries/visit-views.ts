@@ -10,12 +10,14 @@ import {
   type MedicalActor,
   type NoteText,
 } from "../domain/visit-rules.ts";
+import { activeAttachmentsOfVisit } from "../persistence/pg-attachment-store.ts";
 import { diagnosesOf } from "../persistence/pg-diagnosis-store.ts";
 import { addendaOf, notesOf, NOTE_COLUMN, type StoredNote } from "../persistence/pg-note-store.ts";
 import { prescriptionOf } from "../persistence/pg-prescription-store.ts";
 import type { VisitRow } from "../persistence/pg-visit-store.ts";
 import type { ClinicalCipher } from "../ports/clinical-cipher.ts";
 import type { ReadContext } from "../use-cases/medical-deps.ts";
+import { attachmentViews } from "./attachment-views.ts";
 import { openDiagnoses, openPrescription } from "./visit-lists-view.ts";
 
 const PREVIEW_LENGTH = 160;
@@ -116,6 +118,9 @@ export async function visitDetail(
   // Counted without opening: signing needs a diagnosis or a note section (spec §4).
   const diagnoses = await diagnosesOf(tx, clinicId, [visit.id]);
   const prescription = content ? await prescriptionOf(tx, clinicId, [visit.id]) : [];
+  const attachments = content
+    ? await attachmentViews(reads, clinicId, await activeAttachmentsOfVisit(tx, clinicId, visit.id))
+    : [];
   const members = await reads.members.findMany(tx, clinicId, [
     visit.providerMembershipId,
     ...addenda.map((a) => a.authorMembershipId),
@@ -151,8 +156,7 @@ export async function visitDetail(
             ),
             createdAt: iso(a.createdAt),
           })),
-          // Attachments arrive with their own slice (0049).
-          attachments: [],
+          attachments,
         }
       : null,
     can: visitAbilities(actor, visit, signable),

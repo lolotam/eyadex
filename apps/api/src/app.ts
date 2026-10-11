@@ -35,7 +35,11 @@ import {
 } from "./modules/identity/index.ts";
 import { PatientsModule } from "./modules/patients/index.ts";
 import { AppointmentsModule } from "./modules/appointments/index.ts";
-import { MedicalModule } from "./modules/medical/index.ts";
+import {
+  MedicalModule,
+  registerAttachmentUploads,
+  type BlobStore,
+} from "./modules/medical/index.ts";
 import { ClinicAuditModule, PlatformAuditModule } from "./modules/audit/index.ts";
 import { PlatformModule } from "./modules/platform/index.ts";
 import { SettingsModule } from "./modules/settings/index.ts";
@@ -79,9 +83,13 @@ export interface AppDependencies {
    * 0018, 0019, 0026). Needs auth mounted,
    * DATABASE_URL, REDIS_URL, OUTBOX_SEAL_KEY,
    * MAIL_PROVIDER_SEAL_KEY, MEDICAL_MASTER_KEY_V<MEDICAL_KEY_VERSION> and MEDICAL_INDEX_KEY (ADR-0028,
-   * docs/specs/medical-keys-runbook.md).
+   * docs/specs/medical-keys-runbook.md). Attachments also read MEDICAL_BLOB_URL (https),
+   * MEDICAL_BLOB_API_KEY and the optional OPENINARY_FOLDER_PREFIX; without them the API still starts and
+   * only an upload or a download answers 503.
    */
   readonly mountClinic?: boolean;
+  /** Test-only: the attachments' blob store instead of the one the environment configures. */
+  readonly medicalBlobStore?: BlobStore;
 }
 
 export interface AppOptions {
@@ -140,7 +148,7 @@ export function apiModule(
             RolesModule,
             PatientsModule,
             AppointmentsModule,
-            MedicalModule,
+            MedicalModule.forRoot(deps.medicalBlobStore),
             ClinicAuditModule,
           ]
         : []),
@@ -253,6 +261,8 @@ export async function startApi(
       app.get<AuthRateLimit>(AUTH_RATE_LIMIT).limiter,
     );
   }
+  // The attachment upload is the only multipart route; every other route keeps refusing the type.
+  await registerAttachmentUploads(app.getHttpAdapter().getInstance());
   // A route without exactly one access declaration fails the boot, not just its requests (RBAC-04).
   assertRouteAccess(app.get(ModulesContainer));
   app.setGlobalPrefix("v1");

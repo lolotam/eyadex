@@ -109,6 +109,7 @@ const MEDICAL_RELATIONS = [
   "visit_prescription_items",
   "clinic_medicines",
   "icd10_codes",
+  "patient_attachments",
   "jsonb_array_elements_text",
 ];
 const medicalSqlRelations = (): string[] =>

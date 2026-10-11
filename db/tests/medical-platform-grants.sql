@@ -1,4 +1,4 @@
--- The medical tables and audit rows never reach the platform (0046–0048; spec §4, §5; P2 R1-1, P2-K3).
+-- The medical tables and audit rows never reach the platform (0046–0049; spec §4, §5; P2 R1-1, P2-K3).
 -- Runs inside one transaction and ROLLS BACK, so it is safe on any database that has the db/sql baseline.
 -- Usage: psql -v ON_ERROR_STOP=1 -f db/tests/medical-platform-grants.sql
 
@@ -10,7 +10,8 @@ DO $$
 DECLARE t text; r text; priv text;
 BEGIN
   FOREACH t IN ARRAY ARRAY['visits','visit_notes','visit_addenda','patient_medical_profiles',
-      'visit_diagnoses','visit_prescription_items','clinic_medicines','icd10_codes'] LOOP
+      'visit_diagnoses','visit_prescription_items','clinic_medicines','icd10_codes',
+      'patient_attachments'] LOOP
     FOREACH r IN ARRAY ARRAY['eyadex_platform','eyadex_auth','eyadex_dispatcher'] LOOP
       FOREACH priv IN ARRAY ARRAY['SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER'] LOOP
         IF has_table_privilege(r, t, priv) THEN
@@ -68,7 +69,8 @@ DO $$
 DECLARE t text; n bigint;
 BEGIN
   FOREACH t IN ARRAY ARRAY['visits','visit_notes','visit_addenda','patient_medical_profiles',
-      'visit_diagnoses','visit_prescription_items','clinic_medicines','icd10_codes'] LOOP
+      'visit_diagnoses','visit_prescription_items','clinic_medicines','icd10_codes',
+      'patient_attachments'] LOOP
     BEGIN
       EXECUTE format('SELECT 1 FROM %I LIMIT 1', t);
       RAISE EXCEPTION 'PLAT-01: platform can read %', t;

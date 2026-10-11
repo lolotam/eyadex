@@ -7,3 +7,5 @@ export const MEDICAL_PROFILE_CHANGES = Symbol("medical.MedicalProfileChanges");
 export const VISIT_LISTS = Symbol("medical.VisitLists");
 export const PRESCRIPTION_PRINTS = Symbol("medical.PrescriptionPrints");
 export const MEDICINE_CHANGES = Symbol("medical.MedicineChanges");
+export const BLOB_STORE = Symbol("medical.BlobStore");
+export const ATTACHMENTS = Symbol("medical.Attachments");

@@ -47,6 +47,8 @@ BEGIN
     INSERT INTO visit_diagnoses VALUES (c, ('00000000-0000-7000-8000-0000000003'||s||'9')::uuid, ('00000000-0000-7000-8000-0000000003'||s||'5')::uuid, 0, 'icd10', 'f1.1.iv.ct.tag', 'f1.1.iv.ct.tag', now(), null);
     INSERT INTO visit_prescription_items VALUES (c, ('00000000-0000-7000-8000-0000000003'||s||'a')::uuid, ('00000000-0000-7000-8000-0000000003'||s||'5')::uuid, 0, 'f1.1.iv.ct.tag', 'f1.1.iv.ct.tag', 'f1.1.iv.ct.tag', 'f1.1.iv.ct.tag', null, now(), null);
     INSERT INTO clinic_medicines VALUES (c, ('00000000-0000-7000-8000-0000000003'||s||'b')::uuid, 'Paracetamol '||s, '500 mg', null, 'active', now(), now());
+    -- An attachment on the visit (0049); its storage key is the row's own clinic and id.
+    INSERT INTO patient_attachments VALUES (c, ('00000000-0000-7000-8000-0000000003'||s||'c')::uuid, ('00000000-0000-7000-8000-0000000001'||s||'9')::uuid, ('00000000-0000-7000-8000-0000000003'||s||'5')::uuid, 'clinic/'||c||'/00000000-0000-7000-8000-0000000003'||s||'c', 'image/png', 1024, repeat('a', 64), 'f1.1.iv.ct.tag', 'active', ('00000000-0000-7000-8000-0000000001'||s||'5')::uuid, now(), now());
     -- An appointment's audit row names a patient's booking: administrative, yet never the platform's (0043).
     INSERT INTO audit_log VALUES (c, ('00000000-0000-7000-8000-0000000003'||s||'4')::uuid, ('00000000-0000-7000-8000-0000000002'||s||'5')::uuid, 'appointment.booked', 'administrative', 'appointment', ('00000000-0000-7000-8000-0000000003'||s||'3')::uuid, null, '{}', now());
     INSERT INTO audit_log VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'a')::uuid, ('00000000-0000-7000-8000-0000000002'||s||'5')::uuid, 'user.invited', 'administrative', 'user', null, null, '{}', now());
@@ -77,7 +79,8 @@ BEGIN
       'membership_branches','invitations','invitation_branches','patients','audit_log','clinic_counters',
       'clinic_idempotency_keys','clinic_mail_providers','clinic_expiry_reminders','clinic_services',
       'provider_schedules','provider_time_off','appointments','visits','visit_notes','visit_addenda',
-      'patient_medical_profiles','visit_diagnoses','visit_prescription_items','clinic_medicines'] LOOP
+      'patient_medical_profiles','visit_diagnoses','visit_prescription_items','clinic_medicines',
+      'patient_attachments'] LOOP
     EXECUTE format('SELECT count(*) FROM %I WHERE clinic_id = $1', t) INTO n USING other;
     IF n <> 0 THEN RAISE EXCEPTION 'ISO-01 read leak: % shows % rows of another clinic', t, n; END IF;
     EXECUTE format('SELECT count(*) FROM %I', t) INTO n;
@@ -191,6 +194,10 @@ BEGIN
     RAISE EXCEPTION 'ISO-01 write leak: clinic_medicines';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   BEGIN
+    INSERT INTO patient_attachments VALUES (b, '00000000-0000-7000-8000-0000000003bf', '00000000-0000-7000-8000-0000000001b9', null, 'clinic/00000000-0000-7000-8000-00000000000b/00000000-0000-7000-8000-0000000003bf', 'application/pdf', 1, repeat('b', 64), 'f1.1.iv.ct.tag', 'active', gen_random_uuid(), now(), now());
+    RAISE EXCEPTION 'ISO-01 write leak: patient_attachments';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
     INSERT INTO audit_log VALUES (b, gen_random_uuid(), gen_random_uuid(), 'user.invited', 'administrative', 'user', null, null, '{}', now());
     RAISE EXCEPTION 'ISO-01 write leak: audit_log';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
@@ -201,7 +208,7 @@ BEGIN
         'invitations','invitation_branches','patients','clinic_counters','clinic_mail_providers',
         'clinic_services','provider_schedules','provider_time_off','appointments','visits',
         'visit_notes','patient_medical_profiles','visit_diagnoses','visit_prescription_items',
-        'clinic_medicines'] LOOP
+        'clinic_medicines','patient_attachments'] LOOP
       BEGIN
         EXECUTE format('UPDATE %I SET clinic_id = $1', t) USING b;
         RAISE EXCEPTION 'ISO-01 write leak: % rows can be moved to another clinic', t;
@@ -236,9 +243,9 @@ BEGIN
   UPDATE appointments SET status = 'arrived' WHERE clinic_id = b;
   GET DIAGNOSTICS n = ROW_COUNT;
   IF n <> 0 THEN RAISE EXCEPTION 'ISO-01 write leak: updated % appointments of another clinic', n; END IF;
-  -- The medical tables (0046–0048) are never deleted, and an addendum is never edited (P2-6).
+  -- The medical tables (0046–0049) are never deleted, and an addendum is never edited (P2-6).
   FOREACH m IN ARRAY ARRAY['visits','visit_notes','visit_addenda','patient_medical_profiles',
-      'visit_diagnoses','visit_prescription_items','clinic_medicines'] LOOP
+      'visit_diagnoses','visit_prescription_items','clinic_medicines','patient_attachments'] LOOP
     BEGIN EXECUTE format('DELETE FROM %I', m); RAISE EXCEPTION '% are hard-deletable', m;
     EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   END LOOP;

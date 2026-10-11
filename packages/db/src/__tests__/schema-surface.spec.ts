@@ -34,6 +34,7 @@ describe("@eyadex/db/schema", () => {
       schema.visitDiagnoses,
       schema.visitPrescriptionItems,
       schema.clinicMedicines,
+      schema.patientAttachments,
     ];
     for (const table of clinicOwned) {
       const pk = getTableConfig(table).primaryKeys[0]?.columns.map((c) => c.name);
