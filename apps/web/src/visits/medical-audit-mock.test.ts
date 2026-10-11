@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { as, resetMockData } from "@/shared/api/mock/mock-test-kit";
-import { api, doctorAt, file, getState, startDraft } from "./medical-test-kit";
+import { api, doctorAt, file, getState, ownAppointment, startDraft } from "./medical-test-kit";
 
 // P2 spec §5: medical audit rows carry field names only — never clinical text, a code, a medicine
 // name, a search query or a civil ID — and are patient access except the medicines list.
@@ -101,5 +101,32 @@ describe("the medical mock audit", () => {
       ["attachment.listed", "patient_access", visit.patientId],
     ]);
     expect(JSON.stringify(added)).not.toContain(SECRETS[7]);
+  });
+
+  it("a start replayed with its key answers the note, so it is logged as an open", async () => {
+    const D = doctorAt(0);
+    const key = crypto.randomUUID();
+    const body = { appointmentId: ownAppointment().id };
+    const { visit } = await api.medical.startVisit(D, body, key);
+    const note = { complaint: SECRETS[0]!, examination: null, assessment: null, plan: null };
+    await api.medical.saveNote(D, visit.id, note);
+    const before = getState().clinicAudit.length;
+    const replay = await api.medical.startVisit(D, body, key);
+    expect(replay.content?.note.complaint).toBe(SECRETS[0]);
+    const added = getState().clinicAudit.slice(0, getState().clinicAudit.length - before);
+    expect(added.map((r) => [r.action, r.entityId])).toEqual([["visit.opened", visit.id]]);
+    expect(JSON.stringify(added)).not.toContain(SECRETS[0]);
+  });
+
+  it("archiving an archived attachment is not_found and logs nothing more", async () => {
+    const D = doctorAt(0);
+    const { visit } = await startDraft();
+    const up = await api.medical.uploadAttachment(D, visit.patientId, file("image/png", 50), null);
+    await api.medical.archiveAttachment(D, up.attachment.id);
+    const before = getState().clinicAudit.length;
+    await expect(api.medical.archiveAttachment(D, up.attachment.id)).rejects.toMatchObject({
+      code: "not_found",
+    });
+    expect(getState().clinicAudit.length).toBe(before);
   });
 });

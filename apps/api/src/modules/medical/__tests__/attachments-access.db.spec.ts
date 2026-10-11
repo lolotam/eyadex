@@ -126,12 +126,15 @@ describe("own (spec §2)", () => {
 });
 
 describe("archive", () => {
-  it("hides the attachment from lists, the visit page and downloads; a second archive writes nothing", async () => {
+  it("hides the attachment from lists, the visit page and downloads; a second archive is not_found", async () => {
     const since = new Date();
     const res = await archive(C.doctor.cookie, photo);
     expect(res.statusCode).toBe(200);
     expect((res.json() as { attachment: { status: string } }).attachment.status).toBe("archived");
-    expect((await archive(C.doctor.cookie, photo)).statusCode).toBe(200);
+    // An archived attachment is gone like a download of it: no name answered, no audit row (Codex PR #68).
+    const again = await archive(C.doctor.cookie, photo);
+    expect([again.statusCode, code(again)]).toEqual([404, "not_found"]);
+    expect(again.body).not.toContain("b.png");
     const rows = await medicalAudit(h, C.clinicId, since);
     expect(rows.map((r) => [r["action"], r["entity_id"], r["branch_id"], r["details"]])).toEqual([
       ["attachment.archived", photo, C.branchD, { before: null, after: { changed: ["status"] } }],

@@ -91,7 +91,8 @@ export async function lockVisitForWrite(
 /**
  * A visit write whose payload equals what is stored writes nothing, but its answer still carries the
  * decrypted content, so it is audited as an open (`visit.opened`), the same trail as GET (Codex P2 PR
- * #68). The note, diagnoses and prescription saves call it on their no-op path.
+ * #68). The note, diagnoses and prescription saves call it on their no-op path, and a start replayed with
+ * its `Idempotency-Key` on its answer.
  *
  * @returns once the row is written in the write's transaction
  */

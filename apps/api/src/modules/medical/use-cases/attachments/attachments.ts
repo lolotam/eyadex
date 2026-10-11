@@ -155,7 +155,8 @@ export class Attachments {
   }
 
   /**
-   * يأرشف المرفق (`attachment.archived`): بيختفي من القوايم ومابيتمسحش. أرشفة المؤرشف مابتكتبش حاجة.
+   * يأرشف المرفق (`attachment.archived`): بيختفي من القوايم ومابيتمسحش. المؤرشف بيرد `not_found` زي
+   * التنزيل، فإعادة الأرشفة مابترجعش اسمه المفكوك من غير أثر في السجل.
    *
    * @param actor الفاعل
    * @param attachmentId المرفق
@@ -164,11 +165,11 @@ export class Attachments {
   archive(actor: MedicalActor, attachmentId: string): Promise<Attachment> {
     return this.deps.db.withTenant(actor.clinicId, async (tx) => {
       const row = await this.reachable(tx, actor, "update", attachmentId, true);
-      if (row.status === "active") {
-        await archiveAttachment(tx, actor.clinicId, row.id, this.deps.clock.now());
-        const branchId = await this.branchOf(tx, actor, row);
-        await this.audit(tx, actor, "attachment.archived", row.id, branchId, ["status"]);
-      }
+      // Checked under the row lock, so of two racing archives only one answers the name (Codex PR #68).
+      if (row.status !== "active") throw new ApiError("not_found");
+      await archiveAttachment(tx, actor.clinicId, row.id, this.deps.clock.now());
+      const branchId = await this.branchOf(tx, actor, row);
+      await this.audit(tx, actor, "attachment.archived", row.id, branchId, ["status"]);
       return this.view(tx, actor, await this.stored(tx, actor, row.id));
     });
   }

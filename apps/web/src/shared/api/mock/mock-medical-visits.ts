@@ -182,7 +182,15 @@ export function createMockMedicalVisits(): Pick<
       if (previous) {
         if (previous.fingerprint !== fingerprint(input)) throw new ApiError("idempotency_conflict");
         const replayed = db.medical.visits.find((v) => v.id === previous.visitId);
-        if (replayed) return detailOf(db, a, replayed);
+        if (replayed) {
+          // A replay answers the visit's current note, so it is logged as an open, like getVisit.
+          const detail = detailOf(db, a, replayed);
+          if (detail.content) {
+            auditMedical(db, a, "visit", "visit.opened", replayed.id, ["content"]);
+            persist();
+          }
+          return detail;
+        }
       }
       const target = startFrom(db, a, input);
       const visit: StoredVisit = {

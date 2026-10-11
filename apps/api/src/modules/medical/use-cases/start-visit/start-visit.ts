@@ -24,7 +24,7 @@ import {
 import type { MedicalPatient } from "../../ports/medical-patient-reader.ts";
 import { visitDetail } from "../../queries/visit-views.ts";
 import { auditMedical, type MedicalDeps } from "../medical-deps.ts";
-import { readContext } from "../visit-access.ts";
+import { auditUnchangedWrite, readContext } from "../visit-access.ts";
 
 type StoredStart = { id: string };
 /** `visitWriteResponseSchema`: every visit write answers the page as the caller sees it. */
@@ -71,7 +71,7 @@ export class StartVisit {
           clock.now(),
         );
         if (claimed.kind === "conflict") throw new ApiError("idempotency_conflict");
-        if (claimed.kind === "replay") return this.answer(tx, actor, claimed.response.id);
+        if (claimed.kind === "replay") return this.replay(tx, actor, claimed.response.id);
         const target =
           "appointmentId" in input
             ? await this.fromAppointment(tx, actor, input.appointmentId)
@@ -166,6 +166,16 @@ export class StartVisit {
     const branch = await this.deps.branches.lockForFiling(tx, clinicId, branchId);
     if (branch === null) throw new ApiError("not_found");
     if (!branch.isActive) throw new ApiError("branch_inactive");
+  }
+
+  // A replay answers the visit as it stands now, notes included, so its content is audited as an open
+  // (`visit.opened`), the same trail as GET (Codex P2 PR #68); without view:medical nothing is decrypted.
+  private async replay(tx: Tx, actor: MedicalActor, id: string): Promise<VisitWriteResponse> {
+    const visit = await findVisit(tx, actor.clinicId, id);
+    if (visit === null) throw new ApiError("not_found");
+    const detail = await visitDetail(readContext(this.deps, tx), actor, visit, true);
+    if (detail.content !== null) await auditUnchangedWrite(tx, this.deps, actor, visit);
+    return { visit: detail };
   }
 
   // The creator is the provider, so the patient is its own (R1-18); the content still follows its keys.

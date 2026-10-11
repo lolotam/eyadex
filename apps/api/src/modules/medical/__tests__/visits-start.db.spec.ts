@@ -118,6 +118,27 @@ describe("from an appointment", () => {
                                    WHERE clinic_id = ${C.clinicId} AND key = ${key}`;
     expect(JSON.parse(stored!["raw"] as string)).toEqual({ id: visitOf(first).id });
   });
+
+  it("a replay answers the saved note and is audited as one open, without the note's text", async () => {
+    const patient = await patientIn(h, C, C.branchD);
+    const appointment = await appointmentFor(h, C, patient, "15:00");
+    const key = randomUUID();
+    const body = { appointmentId: appointment };
+    const id = visitOf(await startVisit(h, C.doctor.cookie, body, key)).id;
+    const complaint = `Replay complaint ${randomUUID()}`;
+    const note = { complaint, examination: null, assessment: null, plan: null };
+    const saved = await send(h, C.doctor.cookie, "PUT", `/v1/visits/${id}/note`, note);
+    expect(saved.statusCode).toBe(200);
+    const since = new Date();
+    const replay = await startVisit(h, C.doctor.cookie, body, key);
+    type Content = { visit: { content: { note: { complaint: string } } | null } };
+    expect((replay.json() as Content).visit.content?.note.complaint).toBe(complaint);
+    const rows = await medicalAudit(h, C.clinicId, since);
+    expect(rows.map((r) => [r["action"], r["category"], r["entity_id"]])).toEqual([
+      ["visit.opened", "patient_access", id],
+    ]);
+    expect(rows[0]!["raw"]).not.toContain(complaint);
+  });
 });
 
 describe("walk-in", () => {

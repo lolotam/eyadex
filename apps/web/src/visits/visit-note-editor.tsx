@@ -31,37 +31,50 @@ export function VisitNoteEditor({
   const latest = useRef<Note>(note);
   const dirty = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const inFlight = useRef<Promise<unknown> | null>(null);
+  const inFlight = useRef<Promise<void> | null>(null);
   const save = useVisitWrite<VisitNoteInput>(
     visitId,
     (api, persona, input) => api.saveNote(persona, visitId, input),
     { mutationKey: noteSaveKey(visitId) },
   );
   const { mutateAsync } = save;
-  // A failed save leaves the text dirty, so the next flush sends it again instead of signing without it.
-  const send = useCallback(() => {
-    dirty.current = false;
-    const sent = mutateAsync(latest.current).catch((e: unknown) => {
-      dirty.current = true;
-      throw e;
-    });
-    inFlight.current = sent;
-    return sent;
+  // Single flight (Codex PR #68): two PUTs in flight could land out of order and store an older text,
+  // so an edit made during a save is sent once that save settles, always as the latest text. A failed
+  // save leaves the text dirty, so the next flush sends it again instead of signing without it.
+  const pump = useCallback((): Promise<void> => {
+    if (inFlight.current) return inFlight.current;
+    const run = (async () => {
+      try {
+        while (dirty.current) {
+          dirty.current = false;
+          try {
+            await mutateAsync(latest.current);
+          } catch (e) {
+            dirty.current = true;
+            throw e;
+          }
+        }
+      } finally {
+        inFlight.current = null;
+      }
+    })();
+    inFlight.current = run;
+    return run;
   }, [mutateAsync]);
   useEffect(() => {
     if (!dirty.current || !editable) return;
     timer.current = setTimeout(() => {
       // The error is shown by the write's toast; a later flush retries it.
-      send().catch(() => undefined);
+      pump().catch(() => undefined);
     }, AUTOSAVE_MS);
     return () => clearTimeout(timer.current);
-  }, [value, editable, send]);
+  }, [value, editable, pump]);
   const flush = useCallback<NoteFlush>(async () => {
     clearTimeout(timer.current);
-    // A failed in-flight save left the text dirty: it is sent again below and its failure rejects.
+    // A failed running chain left the text dirty: the second pump sends it again and its failure rejects.
     await inFlight.current?.catch(() => undefined);
-    if (dirty.current) await send();
-  }, [send]);
+    await pump();
+  }, [pump]);
   useEffect(() => {
     if (!flushRef) return;
     flushRef.current = flush;
