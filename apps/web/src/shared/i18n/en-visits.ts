@@ -20,6 +20,7 @@ export const enVisits = {
     noCandidates: "No active file in this branch matches.",
     start: "Start visit",
     started: "Visit started",
+    startedNoView: "Visit started. Your role does not open visits.",
     noBranches: "You have no active branch to start a visit in.",
     list: "Visits",
     empty: "No visits yet",

@@ -11,7 +11,10 @@ import { useI18n } from "@/shared/i18n/i18n-provider";
 import { can } from "@/shared/permissions/can";
 import { usePersona, useSession } from "@/shared/persona/persona-provider";
 
-/** "Start visit" on an arrived appointment for its provider (P2-2); an existing visit opens instead. */
+/**
+ * "Start visit" on an arrived appointment for its provider (P2-2); an existing visit opens instead. The
+ * visit opens only for a role that may view visits (the visit page's own gate); another one stays here.
+ */
 export function StartVisitButton({
   appointment,
   compact = false,
@@ -26,14 +29,19 @@ export function StartVisitButton({
   const navigate = useNavigate();
   const [key] = useState(() => crypto.randomUUID());
   const permissions = session?.permissions ?? [];
+  const opensVisit = can(permissions, "view", "visits");
   const open = (visitId: string) =>
     void navigate({ to: "/clinic/visits/$visitId", params: { visitId } });
   const start = useMutation({
     mutationFn: () => api.medical.startVisit(persona, { appointmentId: appointment.id }, key),
-    onSuccess: (detail) => open(detail.visit.id),
+    onSuccess: (detail) => {
+      if (opensVisit) open(detail.visit.id);
+      else toast.success(t("visits.startedNoView"));
+    },
     onError: (e) => {
       const visitId = e instanceof ApiError ? e.details["visitId"] : undefined;
-      if (errorCodeOf(e) === "visit_exists" && typeof visitId === "string") open(visitId);
+      const exists = errorCodeOf(e) === "visit_exists" && typeof visitId === "string";
+      if (exists && opensVisit) open(visitId);
       else toast.error(t(`errors.${errorCodeOf(e)}`));
     },
   });

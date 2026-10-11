@@ -17,16 +17,23 @@ import {
 import { errorCodeOf } from "@/shared/api/api-error";
 import { useApi } from "@/shared/api/api-provider";
 import { useI18n } from "@/shared/i18n/i18n-provider";
+import { can } from "@/shared/permissions/can";
+import { useSession } from "@/shared/persona/persona-provider";
 import { LoadingBlock } from "@/shared/shell/loading-block";
 import { StatusPanel } from "@/shared/shell/status-panel";
 import { useClinicPersona, useWalkInBranches } from "./medical-queries";
 
-/** Walk-in (P2-2): branch → search by name or file number (POST body) → pick → start → the visit. */
+/**
+ * Walk-in (P2-2): branch → search by name or file number (POST body) → pick → start → the visit, which
+ * opens only for a role that may view visits (the visit page's own gate); another one stays here.
+ */
 export function WalkInContent() {
   const api = useApi();
   const { persona } = useClinicPersona();
   const { t, pick } = useI18n();
   const navigate = useNavigate();
+  const { session } = useSession();
+  const opensVisit = can(session?.permissions ?? [], "view", "visits");
   const branches = useWalkInBranches();
   const [branchId, setBranchId] = useState("");
   const [q, setQ] = useState("");
@@ -52,6 +59,10 @@ export function WalkInContent() {
     mutationFn: (patientId: string) =>
       api.medical.startVisit(persona, { patientId, branchId }, keyFor(patientId)),
     onSuccess: (detail) => {
+      if (!opensVisit) {
+        toast.success(t("visits.startedNoView"));
+        return;
+      }
       toast.success(t("visits.started"));
       void navigate({ to: "/clinic/visits/$visitId", params: { visitId: detail.visit.id } });
     },

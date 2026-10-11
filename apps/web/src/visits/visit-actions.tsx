@@ -35,6 +35,12 @@ export function VisitActions({
     onDone: () => setConfirmSign(false),
   });
   const refused = useSectionSaveRefusal(id);
+  const signBusy = flushing || sign.isPending;
+  // Closing while the confirm waits would not stop the sign it is about to send, so it is refused
+  // (as `VisitCancelDialog`).
+  const closeSign = () => {
+    if (!signBusy) setConfirmSign(false);
+  };
   const printable = detail.content !== null && detail.visit.status !== "cancelled";
   const confirm = async () => {
     setFlushing(true);
@@ -76,9 +82,9 @@ export function VisitActions({
         confirmLabel={t("visit.sign")}
         cancelLabel={t("common.cancel")}
         // A save still running is not a reason to refuse the confirm: the confirm waits for it.
-        pending={flushing || sign.isPending}
+        pending={signBusy}
         onConfirm={() => void confirm()}
-        onClose={() => setConfirmSign(false)}
+        onClose={closeSign}
       />
       <VisitCancelDialog
         visitId={id}

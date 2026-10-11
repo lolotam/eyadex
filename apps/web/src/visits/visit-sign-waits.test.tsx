@@ -90,6 +90,36 @@ describe("Sign and the section saves (Codex PR #68)", () => {
   );
 });
 
+describe("the sign confirm while it waits (Codex 4241453962)", () => {
+  it("refuses Escape and Cancel until the held save lands, then signs and closes", async () => {
+    const D = doctorAt(0);
+    const { visit } = await startDraft();
+    await api.medical.saveNote(D, visit.id, NOTE);
+    const hold = holdFirst("saveNote");
+    vi.spyOn(api.medical, "signVisit");
+    await renderAs(D, <VisitPage visitId={visit.id} />);
+    const complaint = await screen.findByLabelText(ar.visit.sections.complaint);
+    fireEvent.change(complaint, { target: { value: "Typed right before signing" } });
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(ar.visit.sign) }));
+    const dialog = await screen.findByRole("alertdialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: ar.visit.sign }));
+    await waitFor(() => expect(hold.sent).toHaveLength(1));
+    fireEvent.keyDown(dialog, { key: "Escape" });
+    fireEvent.click(within(dialog).getByRole("button", { name: ar.common.cancel }));
+    await pause(50);
+    expect(screen.getByRole("alertdialog")).toBe(dialog);
+    expect(api.medical.signVisit).not.toHaveBeenCalled();
+    hold.release();
+    await screen.findByText(ar.visit.lockedNote);
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    const stored = getState().medical.visits.find((v) => v.id === visit.id)!;
+    expect([stored.status, stored.note.complaint]).toEqual([
+      "signed",
+      "Typed right before signing",
+    ]);
+  }, 10_000);
+});
+
 describe("Sign after a section save failed (Codex PR #68)", () => {
   it("a diagnoses save that failed before the sign keeps the visit unsigned and shows the error again until it saves", async () => {
     const D = doctorAt(0);
