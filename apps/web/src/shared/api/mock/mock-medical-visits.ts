@@ -5,11 +5,13 @@ import {
   walkInSearchSchema,
   type VisitList,
 } from "@eyadex/contracts/visits";
+import { searchDigits } from "@eyadex/contracts/patients";
 import type { Persona } from "@eyadex/contracts/session";
 import { matches } from "../../text/text-match";
 import { ApiError } from "../api-error";
 import type { MedicalApi } from "../medical-client";
 import { actorReplayKey } from "./mock-idempotency";
+import { fileNumberMatches } from "./mock-patient-rules";
 import {
   guardMedical,
   parse,
@@ -182,16 +184,21 @@ export function createMockMedicalVisits(): Pick<
       if (!walkInBranchList(db, a).some((b) => b.id === input.branchId)) {
         throw new ApiError("forbidden");
       }
+      // As the API's query: the name contains the query (ILIKE, no letter folding), or its digits
+      // (Arabic-Indic folded) are inside the padded file number; by name then number (the collation is
+      // approximated), at most 20.
       const needle = input.q.toLocaleLowerCase();
-      const digits = /^\d+$/.test(input.q) ? Number(input.q) : null;
+      const digits = searchDigits(input.q);
       const items = db.patients
         .filter(
           (p) =>
             p.clinicId === a.clinic.id &&
             p.status === "active" &&
             p.registrationBranchId === input.branchId &&
-            (p.fullName.toLocaleLowerCase().includes(needle) || p.fileNumber === digits),
+            (p.fullName.toLocaleLowerCase().includes(needle) ||
+              (digits !== "" && fileNumberMatches(p.fileNumber, digits))),
         )
+        .sort((x, y) => x.fullName.localeCompare(y.fullName) || x.fileNumber - y.fileNumber)
         .slice(0, 20)
         .map((p) => ({ patientId: p.id, fullName: p.fullName, fileNumber: p.fileNumber }));
       auditMedical(db, a, "visit", "visit.walk_in_searched", input.branchId, ["q"]);

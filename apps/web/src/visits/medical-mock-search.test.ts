@@ -70,3 +70,26 @@ describe("the mock's visit search", () => {
     expect(await found(P, visit.patientId, "ضغط")).toEqual([visit.id]);
   });
 });
+
+// The API's walk-in search (`PgMedicalPatients.walkInCandidates`): the query's digits (Arabic-Indic
+// folded, anything else dropped) anywhere in the six-digit padded file number, or the name contains it.
+describe("walk-in candidates by file number, as the API", () => {
+  it.each([
+    ["104", true],
+    ["1042", true],
+    ["١٠٤٢", true],
+    ["001042", true],
+    ["0010", true],
+    ["file 1042", true],
+    ["1043", false],
+  ])("%s finds file 1042: %s", async (q, hit) => {
+    const { items: branches } = await api.medical.walkInBranches(D());
+    const branchId = branches[0]!.id;
+    const patient = getState().patients.find(
+      (p) => p.registrationBranchId === branchId && p.status === "active",
+    )!;
+    patient.fileNumber = 1042;
+    const { items } = await api.medical.walkInCandidates(D(), { branchId, q });
+    expect(items.some((c) => c.patientId === patient.id)).toBe(hit);
+  });
+});

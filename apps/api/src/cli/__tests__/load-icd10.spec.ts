@@ -77,12 +77,13 @@ describe("icd10LoadScript", () => {
     expect(script).toContain("ON CONFLICT (code) DO UPDATE SET title_en = EXCLUDED.title_en");
   });
 
-  it("retires every code of another release inside the transaction, before the first upsert", () => {
-    const retire = "UPDATE icd10_codes SET billable = false WHERE release <> 'FY2027';";
+  it("retires every billable code, of any release, inside the transaction before the first upsert", () => {
+    const retire = "UPDATE icd10_codes SET billable = false WHERE billable;";
     const at = script.indexOf(retire);
     expect(at).toBeGreaterThan(script.indexOf("BEGIN;"));
     expect(at).toBeLessThan(script.indexOf("INSERT INTO icd10_codes"));
-    expect(icd10LoadScript([], "FY2028")).toContain("WHERE release <> 'FY2028';");
+    // A corrected file of the same release retires what it drops too: no release in the predicate.
+    expect(icd10LoadScript([], "FY2027")).toContain(retire);
   });
 
   it("doubles a quote inside a title", () => {

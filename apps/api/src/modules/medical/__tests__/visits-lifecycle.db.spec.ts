@@ -95,6 +95,23 @@ describe("the note (draft only)", () => {
     expect(audit[0]!["details"]).toEqual({ before: null, after: null });
   });
 
+  it("a provider without view:medical: the same save answers no content and logs no open", async () => {
+    const role = await customRole(h, C.clinicId, [
+      "view:visits:own",
+      "create:visits:own",
+      "update:medical:own",
+    ]);
+    const writer = await memberOn(h, C.admin, role);
+    const patient = await patientIn(h, C, C.branchD);
+    const id = await startedVisit(h, writer.cookie, { patientId: patient, branchId: C.branchD });
+    expect((await put(writer.cookie, id, NOTE)).statusCode).toBe(200);
+    const since = new Date();
+    const again = await put(writer.cookie, id, NOTE);
+    expect(again.statusCode).toBe(200);
+    expect(detailOf(again).content).toBeNull();
+    expect(await medicalAudit(h, C.clinicId, since)).toEqual([]);
+  });
+
   it("another doctor of the same patient is visit_not_provider; a stranger not_found", async () => {
     const patient = await patientIn(h, C, C.branchD);
     const id = await startedVisit(h, C.doctor.cookie, { patientId: patient, branchId: C.branchD });

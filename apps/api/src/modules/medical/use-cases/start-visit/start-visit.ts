@@ -169,12 +169,12 @@ export class StartVisit {
   }
 
   // A replay answers the visit as it stands now, notes included, so its content is audited as an open
-  // (`visit.opened`), the same trail as GET (Codex P2 PR #68); without view:medical nothing is decrypted.
+  // (`visit.opened`), the same trail as GET (Codex P2 PR #68); without view:medical neither happens.
   private async replay(tx: Tx, actor: MedicalActor, id: string): Promise<VisitWriteResponse> {
     const visit = await findVisit(tx, actor.clinicId, id);
     if (visit === null) throw new ApiError("not_found");
     const detail = await visitDetail(readContext(this.deps, tx), actor, visit, true);
-    if (detail.content !== null) await auditUnchangedWrite(tx, this.deps, actor, visit);
+    await auditUnchangedWrite(tx, this.deps, actor, visit);
     return { visit: detail };
   }
 

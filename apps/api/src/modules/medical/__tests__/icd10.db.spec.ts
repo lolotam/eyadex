@@ -20,7 +20,7 @@ import {
 
 // P2-F1, R2-8 (ADR-0029): POST /v1/icd10/search answers at most 20 billable codes for a code prefix or
 // title words, the query in the body; reference data, so no audit row. The loader's script loads the
-// table as the owner, a rerun updates in place, and a newer release retires the codes it drops.
+// table as the owner, a rerun updates in place, and every load retires the codes its file drops.
 let h: Harness;
 let C: MedicalClinic;
 
@@ -84,6 +84,26 @@ ${dropped}`,
       items: [item],
     });
     expect(code(res)).toBe("icd10_unknown");
+  });
+});
+
+describe("a corrected file of the same release (R2-8)", () => {
+  it("retires a code the corrected file drops, though its release is unchanged", async () => {
+    const dropped = icd10OrderLine(98, "K590", true, "Constipation");
+    try {
+      await seedIcd10(
+        h,
+        `${ICD10_SAMPLE}
+${dropped}`,
+      );
+      expect(codes(await search(C.doctor.cookie, "K59.0"))).toEqual(["K59.0"]);
+    } finally {
+      await seedIcd10(h);
+    }
+    const rows = await h.owner`SELECT billable, release FROM icd10_codes WHERE code = 'K59.0'`;
+    expect(rows.map((r) => [r["billable"], r["release"]])).toEqual([[false, "FY2027"]]);
+    expect(codes(await search(C.doctor.cookie, "K59.0"))).toEqual([]);
+    expect(codes(await search(C.doctor.cookie, "I10"))).toEqual(["I10"]);
   });
 });
 

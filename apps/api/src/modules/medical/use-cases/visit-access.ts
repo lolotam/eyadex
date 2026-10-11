@@ -12,7 +12,7 @@ import {
   type VisitWrite,
 } from "../domain/visit-rules.ts";
 import { findVisit, type VisitRow } from "../persistence/pg-visit-store.ts";
-import { visitDetail } from "../queries/visit-views.ts";
+import { readsContent, visitDetail } from "../queries/visit-views.ts";
 import { auditMedical, type MedicalDeps, type ReadContext } from "./medical-deps.ts";
 import type { VisitWriteResponse } from "./start-visit/start-visit.ts";
 
@@ -91,18 +91,20 @@ export async function lockVisitForWrite(
 /**
  * A visit write whose payload equals what is stored writes nothing, but its answer still carries the
  * decrypted content, so it is audited as an open (`visit.opened`), the same trail as GET (Codex P2 PR
- * #68). The note, diagnoses and prescription saves call it on their no-op path, and a start replayed with
- * its `Idempotency-Key` on its answer.
+ * #68). An answer without the content (a provider with no `view:medical`) opens nothing and logs nothing.
+ * The answer is the provider's, so the patient is its own (R1-18). The note, diagnoses and prescription
+ * saves call it on their no-op path, and a start replayed with its `Idempotency-Key` on its answer.
  *
- * @returns once the row is written in the write's transaction
+ * @returns once the row, if any, is written in the write's transaction
  */
-export function auditUnchangedWrite(
+export async function auditUnchangedWrite(
   tx: Tx,
   deps: MedicalDeps,
   actor: MedicalActor,
   visit: VisitRow,
 ): Promise<void> {
-  return auditMedical(tx, deps, actor, {
+  if (!readsContent(actor, true)) return;
+  await auditMedical(tx, deps, actor, {
     action: "visit.opened",
     entityType: "visit",
     entityId: visit.id,

@@ -26,11 +26,17 @@ function sameList<T extends object>(before: readonly T[], after: readonly T[]): 
   });
 }
 
-/** An identical save writes nothing but answers the content, so it leaves the open's trail (as the API). */
+/**
+ * An identical save writes nothing, but an answer with the content leaves the open's trail; one without
+ * it (no `view:medical`) opens nothing (the API's `auditUnchangedWrite`).
+ */
 function answerUnchanged(db: MockState, a: MedicalAccess, v: StoredVisit) {
-  auditMedical(db, a, "visit", "visit.opened", v.id, ["content"]);
-  persist();
-  return detailOf(db, a, v);
+  const detail = detailOf(db, a, v);
+  if (detail.content !== null) {
+    auditMedical(db, a, "visit", "visit.opened", v.id, ["content"]);
+    persist();
+  }
+  return detail;
 }
 
 /** Visit writes (P2-3, P2-6): draft only, the visit's provider only; a signed note never changes. */
@@ -51,10 +57,9 @@ export function createMockMedicalWrites(): Pick<
         plan: empty(input.plan),
       };
       const changed = NOTE_FIELDS.filter((f) => next[f] !== v.note[f]);
+      if (changed.length === 0) return answerUnchanged(db, a, v);
       v.note = next;
-      // An identical save still answers the note, so it leaves the open's trail (as the API does).
-      if (changed.length > 0) auditMedical(db, a, "visit", "visit.note_saved", v.id, changed);
-      else auditMedical(db, a, "visit", "visit.opened", v.id, ["content"]);
+      auditMedical(db, a, "visit", "visit.note_saved", v.id, changed);
       persist();
       return detailOf(db, a, v);
     },

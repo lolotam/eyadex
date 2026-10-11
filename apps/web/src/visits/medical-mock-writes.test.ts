@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import type { Persona } from "@eyadex/contracts/session";
 import { resetMockData } from "@/shared/api/mock/mock-test-kit";
 import {
   api,
@@ -78,6 +79,42 @@ describe("file writes without view reach (update:medical:clinic + view:medical:o
 });
 
 describe("visit writes without view:medical (update:medical:own only)", () => {
+  // The API's `auditUnchangedWrite`: an identical save opens the content only when it answers it.
+  const item = { medicine: "Paracetamol", dose: "500 mg", frequency: "8h", duration: "3 days" };
+  it.each([
+    [
+      "note",
+      (P: Persona, id: string) =>
+        api.medical.saveNote(P, id, {
+          complaint: "Headache",
+          examination: null,
+          assessment: null,
+          plan: null,
+        }),
+    ],
+    [
+      "diagnoses",
+      (P: Persona, id: string) =>
+        api.medical.saveDiagnoses(P, id, { items: [{ kind: "text", text: "Migraine" }] }),
+    ],
+    [
+      "prescription",
+      (P: Persona, id: string) =>
+        api.medical.savePrescription(P, id, { items: [{ ...item, note: null }] }),
+    ],
+  ] as const)(
+    "the same %s saved again answers no content and logs no open",
+    async (_part, save) => {
+      const { visit } = await startDraft();
+      const P = memberWithKeys(["view:visits:own", "create:visits:own", "update:medical:own"], 0);
+      await save(P, visit.id);
+      const before = getState().clinicAudit.length;
+      const again = await save(P, visit.id);
+      expect(again.content).toBeNull();
+      expect(auditSince(before)).toEqual([]);
+    },
+  );
+
   it("the visit's provider still writes every part, and each answer carries no content, as the API", async () => {
     const { visit } = await startDraft();
     const member = doctorMember(0);

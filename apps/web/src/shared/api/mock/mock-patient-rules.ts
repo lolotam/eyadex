@@ -251,6 +251,10 @@ export function writeResult(db: MockState, persona: Persona, p: Patient): Patien
   return { id: p.id, fileNumber: p.fileNumber, detail: visible ? toDetail(db, persona, p) : null };
 }
 
+/** The API's file-number match: the query's digits anywhere in the six-digit padded number. */
+export const fileNumberMatches = (fileNumber: number, digits: string): boolean =>
+  String(fileNumber).padStart(6, "0").includes(digits);
+
 /**
  * Search: name, phone, file number — and the civil ID only when the whole number is typed (P2-F5).
  * The API stores it encrypted, so a partial number cannot be looked up there; the mock keeps the
@@ -265,7 +269,7 @@ export function matchesSearch(p: Patient, term: string): boolean {
   if (!digits) return false;
   return (
     p.phone.replace(/\D/g, "").includes(digits) ||
-    String(p.fileNumber).padStart(6, "0").includes(digits) ||
+    fileNumberMatches(p.fileNumber, digits) ||
     (digits.length === 12 && p.civilId === digits)
   );
 }
