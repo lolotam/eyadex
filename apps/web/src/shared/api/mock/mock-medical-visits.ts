@@ -146,7 +146,7 @@ export function createMockMedicalVisits(): Pick<
         .sort(newestFirst);
       const result = page(db, a, rows, query.cursor, patient);
       if (result.items.some((i) => i.preview !== null)) {
-        auditMedical(db, a, "visit", "visit.previews_listed", patientId, ["preview"]);
+        auditMedical(db, a, "visit", "visit.previews_listed", patientId);
         persist();
       }
       return result;
@@ -164,7 +164,7 @@ export function createMockMedicalVisits(): Pick<
         .filter((v) => searchScans(a, v) && matches(searchedText(v), query.q))
         .sort(newestFirst);
       // The query itself never reaches the audit row (P2-F4).
-      auditMedical(db, a, "visit", "visit.searched", patientId, ["q"]);
+      auditMedical(db, a, "visit", "visit.searched", patientId);
       persist();
       return page(db, a, rows, query.cursor, patient);
     },
@@ -201,7 +201,7 @@ export function createMockMedicalVisits(): Pick<
         .sort((x, y) => x.fullName.localeCompare(y.fullName) || x.fileNumber - y.fileNumber)
         .slice(0, 20)
         .map((p) => ({ patientId: p.id, fullName: p.fullName, fileNumber: p.fileNumber }));
-      auditMedical(db, a, "visit", "visit.walk_in_searched", input.branchId, ["q"]);
+      auditMedical(db, a, "visit", "visit.walk_in_searched", input.branchId);
       persist();
       return { items };
     },
@@ -220,7 +220,7 @@ export function createMockMedicalVisits(): Pick<
           // A replay answers the visit's current note, so it is logged as an open, like getVisit.
           const detail = detailOf(db, a, replayed);
           if (detail.content) {
-            auditMedical(db, a, "visit", "visit.opened", replayed.id, ["content"]);
+            auditMedical(db, a, "visit", "visit.opened", replayed.id);
             persist();
           }
           return detail;
@@ -263,7 +263,7 @@ export function createMockMedicalVisits(): Pick<
       const detail = detailOf(db, a, v);
       // Only an answer with the clinical content is a patient-file open (as the API and the replay).
       if (detail.content !== null) {
-        auditMedical(db, a, "visit", "visit.opened", v.id, ["content"]);
+        auditMedical(db, a, "visit", "visit.opened", v.id);
         persist();
       }
       return detail;

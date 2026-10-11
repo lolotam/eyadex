@@ -79,7 +79,4 @@ export const enMedicalAuditFields = {
   defaultFrequency: "Default frequency",
   reason: "Reason",
   note: "Note",
-  preview: "Preview",
-  q: "Search words",
-  content: "Clinical content",
 };

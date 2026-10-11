@@ -165,3 +165,44 @@ describe("the medical mock audit", () => {
     expect(added.map((r) => [r.action, r.entityId])).toEqual([["visit.opened", visit.id]]);
   });
 });
+
+// A read records only who, what and when: the API's `auditMedical` without `changed` stores
+// `{ before: null, after: null }` (field names exist only on writes, R3-4).
+describe("the mock's medical read rows, as the API's", () => {
+  type Draft = Awaited<ReturnType<typeof startDraft>>;
+  const D = () => doctorAt(0);
+  it.each<[string, (d: Draft) => Promise<unknown>]>([
+    ["visit.opened", ({ visit }) => api.medical.getVisit(D(), visit.id)],
+    ["visit.searched", ({ visit }) => api.medical.searchVisits(D(), visit.patientId, { q: "a" })],
+    ["visit.previews_listed", ({ visit }) => api.medical.listVisits(D(), visit.patientId, {})],
+    [
+      "visit.walk_in_searched",
+      async () => {
+        const { items } = await api.medical.walkInBranches(D());
+        return api.medical.walkInCandidates(D(), { branchId: items[0]!.id, q: "al" });
+      },
+    ],
+    ["medical_profile.opened", ({ visit }) => api.medical.getMedicalProfile(D(), visit.patientId)],
+    ["attachment.listed", ({ visit }) => api.medical.listAttachments(D(), visit.patientId, {})],
+    [
+      "attachment.downloaded",
+      async ({ visit }) => {
+        const up = await api.medical.uploadAttachment(
+          D(),
+          visit.patientId,
+          file("image/png", 50),
+          null,
+        );
+        return api.medical.downloadAttachment(D(), up.attachment.id);
+      },
+    ],
+    ["visit.prescription_printed", ({ visit }) => api.medical.getPrescriptionPrint(D(), visit.id)],
+  ])("%s carries no snapshot", async (action, read) => {
+    const draft = await startDraft();
+    const note = { complaint: "Headache", examination: null, assessment: "a", plan: null };
+    await api.medical.saveNote(D(), draft.visit.id, note);
+    await read(draft);
+    const row = getState().clinicAudit.find((r) => r.action === action)!;
+    expect([row.before, row.after]).toEqual([null, null]);
+  });
+});

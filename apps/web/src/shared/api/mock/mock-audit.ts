@@ -55,10 +55,12 @@ export function writeClinicAudit(
     entity: ClinicAuditEntry["entity"];
     before: Snapshot | null;
     after: Snapshot | null;
+    /** For a row with no snapshot (a medical read); otherwise the snapshot's id. */
+    entityId?: string;
   },
 ): void {
-  const subject = entry.after ?? entry.before;
-  if (!subject) return;
+  const entityId = entry.entityId ?? (entry.after ?? entry.before)?.id;
+  if (!entityId) return;
   db.clinicAudit.unshift({
     id: newId(),
     clinicId: entry.clinicId,
@@ -66,7 +68,7 @@ export function writeClinicAudit(
     action: entry.action,
     entity: entry.entity,
     category: PATIENT_ACCESS.has(entry.entity) ? "patient_access" : "administrative",
-    entityId: subject.id,
+    entityId,
     before: entry.before ? scrubbed(withNames(db, entry.clinicId, entry.before)) : null,
     after: entry.after ? scrubbed(withNames(db, entry.clinicId, entry.after)) : null,
     createdAt: new Date().toISOString(),

@@ -109,7 +109,12 @@ export function auditMedical(
     actorName: a.actorName,
     action,
     entity,
+    entityId,
     before: null,
-    after: { id: entityId, changed: [...fields], ...(status ? { status } : {}) },
+    // A read records no snapshot, as the API's `auditMedical` without `changed`.
+    after:
+      fields.length === 0 && status === undefined
+        ? null
+        : { id: entityId, changed: [...fields], ...(status ? { status } : {}) },
   });
 }

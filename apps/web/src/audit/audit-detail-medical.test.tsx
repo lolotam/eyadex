@@ -31,9 +31,6 @@ const MEDICAL_FIELDS = [
   "defaultFrequency",
   "reason",
   "note",
-  "preview",
-  "q",
-  "content",
 ];
 
 describe("the audit detail of a medical write", () => {

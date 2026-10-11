@@ -79,7 +79,4 @@ export const arMedicalAuditFields = {
   defaultFrequency: "عدد المرات الافتراضي",
   reason: "السبب",
   note: "الملاحظة",
-  preview: "المعاينة",
-  q: "كلمات البحث",
-  content: "المحتوى الطبي",
 };

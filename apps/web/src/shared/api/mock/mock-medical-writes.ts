@@ -33,7 +33,7 @@ function sameList<T extends object>(before: readonly T[], after: readonly T[]): 
 function answerUnchanged(db: MockState, a: MedicalAccess, v: StoredVisit) {
   const detail = detailOf(db, a, v);
   if (detail.content !== null) {
-    auditMedical(db, a, "visit", "visit.opened", v.id, ["content"]);
+    auditMedical(db, a, "visit", "visit.opened", v.id);
     persist();
   }
   return detail;
