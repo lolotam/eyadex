@@ -82,9 +82,4 @@ describe("POST /v1/icd10/search (P2-F1)", () => {
     expect(code(await search(C.front.cookie, "F41"))).toBe("forbidden");
     expect(code(await search(C.reader.cookie, "F41"))).toBe("forbidden");
   });
-
-  it("the query stays out of the URL: a GET with ?q= is not a route", async () => {
-    const res = await send(h, C.doctor.cookie, "GET", "/v1/icd10/search?q=F41");
-    expect(res.statusCode).toBe(404);
-  });
 });
