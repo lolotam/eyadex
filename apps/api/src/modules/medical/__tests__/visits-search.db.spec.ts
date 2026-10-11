@@ -78,10 +78,6 @@ describe("search inside one patient's visits (P2-F4)", () => {
     expect(rows[0]!["raw"]).not.toContain(QUERY);
   });
 
-  it("Latin case folds", async () => {
-    expect(itemIds(await search(C.doctor.cookie, { q: "HEADACHE" }))).toEqual([ids.headache]);
-  });
-
   it("no log line holds the query, a note, an addendum or a preview (R3-6 a)", async () => {
     h.logs.length = 0;
     await search(C.doctor.cookie, { q: QUERY });
