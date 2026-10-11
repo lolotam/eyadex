@@ -12,9 +12,11 @@ import { createMockCalendar } from "./mock-calendar";
 import { createMockSchedules } from "./mock-schedules";
 import { createMockServices } from "./mock-services";
 import { createMockAuditLog } from "./mock-audit-log";
+import { createMockMedicalAttachments } from "./mock-medical-attachments";
 import { createMockMedicalFiles } from "./mock-medical-files";
 import { createMockMedicalMedicines } from "./mock-medical-medicines";
 import { createMockMedicalVisits } from "./mock-medical-visits";
+import { createMockMedicalWalkIn } from "./mock-medical-walk-in";
 import { createMockMedicalWrites } from "./mock-medical-writes";
 import { createMockAccount, createMockClinicSettings } from "./mock-clinic-settings";
 import {
@@ -36,8 +38,10 @@ export function createMockApiClient(): ApiClient {
     appointments: { ...createMockAppointments(), ...createMockCalendar() },
     medical: {
       ...createMockMedicalVisits(),
+      ...createMockMedicalWalkIn(),
       ...createMockMedicalWrites(),
       ...createMockMedicalFiles(),
+      ...createMockMedicalAttachments(),
       ...createMockMedicalMedicines(),
     },
     audit: createMockAuditLog(),

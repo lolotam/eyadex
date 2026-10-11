@@ -112,17 +112,16 @@ export function visibleVisit(db: MockState, a: MedicalAccess, visitId: string): 
 
 /**
  * A clinical write on a visit (note, diagnoses, prescription, sign, cancel, addendum), in the API's
- * `lockVisitForWrite` order: the update key, a visit its update reach covers (else not_found), the
+ * `lockVisitForWrite` order after the update key (`medicalWriter`): a visit its update reach covers (else not_found), the
  * visit's provider only (P2-3), then its status. No view key is asked: a writer without one gets its
  * answer with `content: null`, as from the API (Codex PR #68).
  */
 export function writableVisit(
   db: MockState,
-  persona: Persona,
+  a: MedicalAccess,
   visitId: string,
   needs: "draft" | "signed",
-): { a: MedicalAccess; v: StoredVisit } {
-  const a = requireKey(db, persona, "update", "medical", ["clinic", "own"]);
+): StoredVisit {
   const v = db.medical.visits.find((x) => x.clinicId === a.clinic.id && x.id === visitId);
   if (!v || !reachesContent(db, a, "update", v.patientId)) throw new ApiError("not_found");
   if (v.providerMembershipId !== a.member.id) throw new ApiError("visit_not_provider");
@@ -130,5 +129,25 @@ export function writableVisit(
   if (v.status === "cancelled") throw new ApiError("invalid_transition");
   if (needs === "draft" && v.status === "signed") throw new ApiError("visit_signed");
   if (needs === "signed" && v.status !== "signed") throw new ApiError("visit_not_signed");
-  return { a, v };
+  return v;
+}
+
+/** The guard of every clinical write: an `update:medical` key, checked before the body is read. */
+export const medicalWriter = (db: MockState, persona: Persona) =>
+  requireKey(db, persona, "update", "medical", ["clinic", "own"]);
+
+/**
+ * The medical file's reach for the action alone, as the API's use cases (`reachable`, `patientInReach`):
+ * a write needs only the update reach, a read only the view reach, and a file outside it is not_found
+ * (cannot be probed).
+ */
+export function contentFile(
+  db: MockState,
+  a: MedicalAccess,
+  action: "view" | "update",
+  patientId: string,
+) {
+  const patient = patientOf(db, a, patientId);
+  if (!reachesContent(db, a, action, patientId)) throw new ApiError("not_found");
+  return patient;
 }

@@ -1,6 +1,14 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { as, resetMockData } from "@/shared/api/mock/mock-test-kit";
-import { api, doctorAt, file, getState, ownAppointment, startDraft } from "./medical-test-kit";
+import {
+  api,
+  doctorAt,
+  doctorMember,
+  file,
+  getState,
+  ownAppointment,
+  startDraft,
+} from "./medical-test-kit";
 
 // P2 spec §5: medical audit rows carry field names only — never clinical text, a code, a medicine
 // name, a search query or a civil ID — and are patient access except the medicines list.
@@ -144,10 +152,13 @@ describe("the medical mock audit", () => {
     expect(getState().clinicAudit[0]?.action).toBe("medical_profile.saved");
     const row = getState().medical.profiles.find((p) => p.patientId === visit.patientId)!;
     row.updatedAt = "2026-01-01T00:00:00.000Z";
-    row.updatedByName = "Earlier author";
+    row.updatedBy = doctorMember(1).id;
     const before = getState().clinicAudit.length;
     const again = await api.medical.saveMedicalProfile(D, visit.patientId, profile);
-    expect([again.updatedAt, again.updatedByName]).toEqual([row.updatedAt, "Earlier author"]);
+    expect([again.updatedAt, again.updatedByName]).toEqual([
+      row.updatedAt,
+      doctorMember(1).fullName,
+    ]);
     const added = getState().clinicAudit.slice(0, getState().clinicAudit.length - before);
     expect(added.map((r) => [r.action, r.category, r.entityId])).toEqual([
       ["medical_profile.opened", "patient_access", visit.patientId],

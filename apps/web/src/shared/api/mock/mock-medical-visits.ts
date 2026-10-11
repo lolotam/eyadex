@@ -2,18 +2,15 @@ import {
   visitListQuerySchema,
   visitSearchSchema,
   visitStartSchema,
-  walkInSearchSchema,
-  type VisitList,
 } from "@eyadex/contracts/visits";
-import { searchDigits } from "@eyadex/contracts/patients";
 import type { Persona } from "@eyadex/contracts/session";
 import { matches } from "../../text/text-match";
 import { ApiError } from "../api-error";
 import type { MedicalApi } from "../medical-client";
-import { actorReplayKey } from "./mock-idempotency";
-import { fileNumberMatches } from "./mock-patient-rules";
+import { actorReplayKey, requireIdempotencyKey } from "./mock-idempotency";
 import {
   guardMedical,
+  isOwnMedicalPatient,
   parse,
   patientOf,
   reachesContent,
@@ -22,55 +19,11 @@ import {
   visibleVisit,
   type MedicalAccess,
 } from "./mock-medical-access";
-import { auditMedical, detailOf, summaryOf } from "./mock-medical-project";
+import { auditMedical, detailOf } from "./mock-medical-project";
+import { requireOpenBranch, worksIn } from "./mock-medical-walk-in";
+import { newestFirst, SEARCH_SCAN_LIMIT, visitPage } from "./mock-visit-page";
 import type { StoredVisit } from "./mock-medical-state";
 import { delay, getState, newId, persist, type MockState } from "./mock-store";
-
-const PAGE = 20;
-
-const newestFirst = (x: StoredVisit, y: StoredVisit) =>
-  y.startedAt.localeCompare(x.startedAt) || y.id.localeCompare(x.id);
-
-const worksIn = (a: MedicalAccess, branchId: string) =>
-  a.branches.allBranches || a.branches.branchIds.includes(branchId);
-
-function page(
-  db: MockState,
-  a: MedicalAccess,
-  rows: StoredVisit[],
-  cursor: string | undefined,
-  patient: ReturnType<typeof patientOf>,
-): VisitList {
-  const start = cursor ? Number(cursor) || 0 : 0;
-  const slice = rows.slice(start, start + PAGE);
-  return {
-    items: slice.map((v) => summaryOf(db, a, v)),
-    nextCursor: start + PAGE < rows.length ? String(start + PAGE) : null,
-    can: {
-      search: reachesContent(db, a, "view", patient.id),
-      // As the API's `canStart`: a walk-in for an active file of a branch the caller works in.
-      start:
-        a.keys.includes("create:visits:own") &&
-        patient.status === "active" &&
-        worksIn(a, patient.registrationBranchId),
-    },
-  };
-}
-
-// As the API's walk-in (start-visit.ts, visit-reads.ts): a branch of another clinic or none is
-// `not_found`, a closed one `branch_inactive` (Codex 4241493936).
-function requireOpenBranch(db: MockState, a: MedicalAccess, branchId: string) {
-  const branch = db.branches.find((b) => b.clinicId === a.clinic.id && b.id === branchId);
-  if (!branch) throw new ApiError("not_found");
-  if (!branch.isActive) throw new ApiError("branch_inactive");
-}
-
-/** The active branches where the caller may start a walk-in: its own branch scope (R3). */
-function walkInBranchList(db: MockState, a: MedicalAccess) {
-  return db.branches
-    .filter((b) => b.clinicId === a.clinic.id && b.isActive && worksIn(a, b.id))
-    .map((b) => ({ id: b.id, nameAr: b.nameAr, nameEn: b.nameEn }));
-}
 
 /**
  * What the API's `searchVisitPage` matches a query against, in its order: the note sections, the
@@ -135,22 +88,25 @@ function startFrom(
 
 export function createMockMedicalVisits(): Pick<
   MedicalApi,
-  "listVisits" | "searchVisits" | "walkInBranches" | "walkInCandidates" | "startVisit" | "getVisit"
+  "listVisits" | "searchVisits" | "startVisit" | "getVisit"
 > {
   return {
     async listVisits(persona: Persona, patientId, rawQuery) {
       await delay();
       const db = getState();
-      const query = parse(visitListQuerySchema, rawQuery);
       const a = requireKey(db, persona, "view", "visits", ["clinic", "branch", "own"]);
+      const query = parse(visitListQuerySchema, rawQuery);
       const patient = patientOf(db, a, patientId);
+      // As the API's `visitViewReach`: an `own` reader is told nothing of a file that is not its own.
+      const ownOnly = !["clinic", "branch"].some((s) => a.keys.includes(`view:visits:${s}`));
+      if (ownOnly && !isOwnMedicalPatient(db, a, patientId)) throw new ApiError("not_found");
       const rows = db.medical.visits
         .filter((v) => v.clinicId === a.clinic.id && v.patientId === patientId)
         .filter((v) => seesVisit(db, a, v))
         .sort(newestFirst);
-      const result = page(db, a, rows, query.cursor, patient);
+      const result = visitPage(db, a, rows, query.cursor, patient);
       if (result.items.some((i) => i.preview !== null)) {
-        auditMedical(db, a, "visit", "visit.previews_listed", patientId);
+        auditMedical(db, a, "patient", "visit.previews_listed", patientId);
         persist();
       }
       return result;
@@ -159,62 +115,33 @@ export function createMockMedicalVisits(): Pick<
     async searchVisits(persona, patientId, rawQuery) {
       await delay();
       const db = getState();
-      const query = parse(visitSearchSchema, rawQuery);
       const a = requireKey(db, persona, "view", "medical", ["clinic", "own"]);
+      const query = parse(visitSearchSchema, rawQuery);
       const patient = patientOf(db, a, patientId);
       if (!reachesContent(db, a, "view", patientId)) throw new ApiError("not_found");
+      // As the API: only the patient's 500 newest visits in reach are scanned (P2-F4).
       const rows = db.medical.visits
         .filter((v) => v.clinicId === a.clinic.id && v.patientId === patientId)
-        .filter((v) => searchScans(a, v) && matches(searchedText(v), query.q))
-        .sort(newestFirst);
+        .filter((v) => searchScans(a, v))
+        .sort(newestFirst)
+        .slice(0, SEARCH_SCAN_LIMIT)
+        .filter((v) => matches(searchedText(v), query.q));
+      // Read first: a malformed cursor answers before anything is audited, as the API's transaction.
+      const result = visitPage(db, a, rows, query.cursor, patient);
       // The query itself never reaches the audit row (P2-F4).
-      auditMedical(db, a, "visit", "visit.searched", patientId);
+      auditMedical(db, a, "patient", "visit.searched", patientId);
       persist();
-      return page(db, a, rows, query.cursor, patient);
-    },
-
-    async walkInBranches(persona) {
-      await delay(60);
-      const db = getState();
-      const a = requireKey(db, persona, "create", "visits", ["own"]);
-      return { items: walkInBranchList(db, a) };
-    },
-
-    async walkInCandidates(persona, rawInput) {
-      await delay();
-      const db = getState();
-      const input = parse(walkInSearchSchema, rawInput);
-      const a = requireKey(db, persona, "create", "visits", ["own"]);
-      if (!worksIn(a, input.branchId)) throw new ApiError("forbidden");
-      requireOpenBranch(db, a, input.branchId);
-      // As the API's query: the name contains the query (ILIKE, no letter folding), or its digits
-      // (Arabic-Indic folded) are inside the padded file number; by name then number (the collation is
-      // approximated), at most 20.
-      const needle = input.q.toLocaleLowerCase();
-      const digits = searchDigits(input.q);
-      const items = db.patients
-        .filter(
-          (p) =>
-            p.clinicId === a.clinic.id &&
-            p.status === "active" &&
-            p.registrationBranchId === input.branchId &&
-            (p.fullName.toLocaleLowerCase().includes(needle) ||
-              (digits !== "" && fileNumberMatches(p.fileNumber, digits))),
-        )
-        .sort((x, y) => x.fullName.localeCompare(y.fullName) || x.fileNumber - y.fileNumber)
-        .slice(0, 20)
-        .map((p) => ({ patientId: p.id, fullName: p.fullName, fileNumber: p.fileNumber }));
-      auditMedical(db, a, "visit", "visit.walk_in_searched", input.branchId);
-      persist();
-      return { items };
+      return result;
     },
 
     async startVisit(persona, rawInput, idempotencyKey) {
       await delay();
       const db = getState();
-      const input = parse(visitStartSchema, rawInput);
+      // The API's order: the guard, the body, then the key (`keyOf`).
       const a = requireKey(db, persona, "create", "visits", ["own"]);
-      const replayKey = actorReplayKey(a.clinic.id, a.member.id, idempotencyKey);
+      const input = parse(visitStartSchema, rawInput);
+      const key = requireIdempotencyKey(idempotencyKey);
+      const replayKey = actorReplayKey(a.clinic.id, a.member.id, key);
       const previous = db.medical.idempotentVisits[replayKey];
       if (previous) {
         if (previous.fingerprint !== fingerprint(input)) throw new ApiError("idempotency_conflict");

@@ -6,7 +6,7 @@ import {
 import type { Persona } from "@eyadex/contracts/session";
 import { ApiError } from "../api-error";
 import type { MedicalApi } from "../medical-client";
-import { actorReplayKey } from "./mock-idempotency";
+import { actorReplayKey, requireIdempotencyKey } from "./mock-idempotency";
 import { parse, requireKey, type MedicalAccess } from "./mock-medical-access";
 import { auditMedical } from "./mock-medical-project";
 import type { StoredMedicine } from "./mock-medical-state";
@@ -84,9 +84,11 @@ export function createMockMedicalMedicines(): Pick<
     async createMedicine(persona, rawInput, idempotencyKey) {
       await delay();
       const db = getState();
-      const input = parse(medicineInputSchema, rawInput);
+      // The API's order: the guard, the body, then the key (`keyOf`).
       const a = writer(persona);
-      const replayKey = actorReplayKey(a.clinic.id, a.member.id, idempotencyKey);
+      const input = parse(medicineInputSchema, rawInput);
+      const key = requireIdempotencyKey(idempotencyKey);
+      const replayKey = actorReplayKey(a.clinic.id, a.member.id, key);
       const fingerprint = JSON.stringify(input);
       const previous = db.medical.idempotentMedicines[replayKey];
       if (previous) {
@@ -112,8 +114,8 @@ export function createMockMedicalMedicines(): Pick<
     async updateMedicine(persona, id, rawInput) {
       await delay();
       const db = getState();
-      const input = fieldsOf(parse(medicineInputSchema, rawInput));
       const a = writer(persona);
+      const input = fieldsOf(parse(medicineInputSchema, rawInput));
       const row = find(db, a, id);
       const changed = FIELDS.filter((f) => row[f] !== input[f]);
       // As the API: an unchanged save answers the row as it stands, with no audit row.

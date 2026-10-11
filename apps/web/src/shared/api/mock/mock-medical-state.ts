@@ -57,7 +57,8 @@ export type StoredProfile = {
   surgicalHistory: string | null;
   familyHistory: string | null;
   updatedAt: string;
-  updatedByName: string;
+  /** The author's membership: the name is looked up on read, as the API's. */
+  updatedBy: string;
 };
 export type StoredMedicine = {
   id: string;
@@ -77,7 +78,8 @@ export type StoredAttachment = {
   sizeBytes: number;
   status: "active" | "archived";
   uploadedAt: string;
-  uploadedByName: string;
+  /** The uploader's membership: the name is looked up on read, as the API's. */
+  uploadedBy: string;
 };
 
 export type MedicalState = {

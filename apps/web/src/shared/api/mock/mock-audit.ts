@@ -7,7 +7,7 @@ type Fields = Record<string, unknown>;
 /** The row's subject: snapshots that carry its id, or the id given apart (a medical row, as the API). */
 type Subject =
   | { before: Snapshot | null; after: Snapshot | null; entityId?: undefined }
-  | { before: Fields | null; after: Fields | null; entityId: string };
+  | { before: Fields | null; after: Fields | null; entityId: string | null };
 
 // An id no longer found keeps the API's shape (ADR-0019): the id with null names.
 const unnamed = (id: unknown) => (typeof id === "string" ? { id, nameAr: null, nameEn: null } : id);
@@ -60,8 +60,9 @@ export function writeClinicAudit(
     entity: ClinicAuditEntry["entity"];
   } & Subject,
 ): void {
-  const entityId = entry.entityId ?? (entry.after ?? entry.before)?.id;
-  if (!entityId) return;
+  const entityId =
+    entry.entityId === undefined ? (entry.after ?? entry.before)?.id : entry.entityId;
+  if (entityId === undefined) return;
   db.clinicAudit.unshift({
     id: newId(),
     clinicId: entry.clinicId,

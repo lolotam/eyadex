@@ -8,7 +8,7 @@ import {
 } from "@eyadex/contracts/visits";
 import { ApiError } from "../api-error";
 import type { MedicalApi } from "../medical-client";
-import { parse, writableVisit, type MedicalAccess } from "./mock-medical-access";
+import { medicalWriter, parse, writableVisit, type MedicalAccess } from "./mock-medical-access";
 import { auditMedical, detailOf, isSignable } from "./mock-medical-project";
 import type { StoredNote, StoredVisit } from "./mock-medical-state";
 import { delay, getState, newId, persist, type MockState } from "./mock-store";
@@ -48,8 +48,9 @@ export function createMockMedicalWrites(): Pick<
     async saveNote(persona, visitId, rawInput) {
       await delay(120);
       const db = getState();
+      const a = medicalWriter(db, persona);
       const input = parse(visitNoteInputSchema, rawInput);
-      const { a, v } = writableVisit(db, persona, visitId, "draft");
+      const v = writableVisit(db, a, visitId, "draft");
       const next: StoredNote = {
         complaint: empty(input.complaint),
         examination: empty(input.examination),
@@ -67,8 +68,9 @@ export function createMockMedicalWrites(): Pick<
     async saveDiagnoses(persona, visitId, rawInput) {
       await delay();
       const db = getState();
+      const a = medicalWriter(db, persona);
       const input = parse(visitDiagnosesInputSchema, rawInput);
-      const { a, v } = writableVisit(db, persona, visitId, "draft");
+      const v = writableVisit(db, a, visitId, "draft");
       for (const item of input.items) {
         if (item.kind === "icd10" && !icd10Codes.has(item.code))
           throw new ApiError("icd10_unknown");
@@ -95,8 +97,9 @@ export function createMockMedicalWrites(): Pick<
     async savePrescription(persona, visitId, rawInput) {
       await delay();
       const db = getState();
+      const a = medicalWriter(db, persona);
       const input = parse(visitPrescriptionInputSchema, rawInput);
-      const { a, v } = writableVisit(db, persona, visitId, "draft");
+      const v = writableVisit(db, a, visitId, "draft");
       // A blank note is no note (the API's `sectionValue`), so it compares equal to a stored one.
       const after = input.items.map((item) => ({ ...item, note: empty(item.note) }));
       const before = v.prescription
@@ -123,7 +126,8 @@ export function createMockMedicalWrites(): Pick<
     async signVisit(persona, visitId) {
       await delay();
       const db = getState();
-      const { a, v } = writableVisit(db, persona, visitId, "draft");
+      const a = medicalWriter(db, persona);
+      const v = writableVisit(db, a, visitId, "draft");
       if (!isSignable(v)) throw new ApiError("visit_empty");
       v.status = "signed";
       v.signedAt = new Date().toISOString();
@@ -135,8 +139,9 @@ export function createMockMedicalWrites(): Pick<
     async cancelVisit(persona, visitId, rawInput) {
       await delay();
       const db = getState();
+      const a = medicalWriter(db, persona);
       const input = parse(visitCancelSchema, rawInput);
-      const { a, v } = writableVisit(db, persona, visitId, "draft");
+      const v = writableVisit(db, a, visitId, "draft");
       v.status = "cancelled";
       v.cancelReason = input.reason;
       v.cancelNote = empty(input.note);
@@ -150,8 +155,9 @@ export function createMockMedicalWrites(): Pick<
     async addAddendum(persona, visitId, rawInput) {
       await delay();
       const db = getState();
+      const a = medicalWriter(db, persona);
       const input = parse(visitAddendumInputSchema, rawInput);
-      const { a, v } = writableVisit(db, persona, visitId, "signed");
+      const v = writableVisit(db, a, visitId, "signed");
       const addendum = {
         id: newId(),
         authorMembershipId: a.member.id,

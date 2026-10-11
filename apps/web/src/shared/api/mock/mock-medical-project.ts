@@ -1,8 +1,9 @@
+import type { Attachment } from "@eyadex/contracts/attachments";
 import type { ClinicAuditEntry } from "@eyadex/contracts/organization";
 import type { VisitDetail, VisitSummary } from "@eyadex/contracts/visits";
 import { writeClinicAudit } from "./mock-audit";
 import { reachesContent, type MedicalAccess } from "./mock-medical-access";
-import type { StoredVisit } from "./mock-medical-state";
+import type { StoredAttachment, StoredVisit } from "./mock-medical-state";
 import type { MockState } from "./mock-store";
 
 const nameOf = (db: MockState, memberId: string) =>
@@ -37,6 +38,19 @@ export function summaryOf(db: MockState, a: MedicalAccess, v: StoredVisit): Visi
     cancelReason: v.cancelReason,
   };
 }
+
+/** As the API's attachment lists: `ORDER BY created_at DESC, id DESC`. */
+export const newestAttachmentFirst = (x: StoredAttachment, y: StoredAttachment) =>
+  x.uploadedAt === y.uploadedAt ? (x.id < y.id ? 1 : -1) : x.uploadedAt < y.uploadedAt ? 1 : -1;
+
+/** As the API's attachment views: the uploader's current name, looked up on every read ("—" when gone). */
+export const attachmentView = (
+  db: MockState,
+  { clinicId: _clinic, uploadedBy, ...rest }: StoredAttachment,
+): Attachment => ({
+  ...rest,
+  uploadedByName: db.members.find((m) => m.id === uploadedBy)?.fullName ?? "—",
+});
 
 /** The visit page: content only with `view:medical:*`; `can` follows the provider rule (P2-3). */
 export function detailOf(db: MockState, a: MedicalAccess, v: StoredVisit): VisitDetail {
@@ -74,7 +88,8 @@ export function detailOf(db: MockState, a: MedicalAccess, v: StoredVisit): Visit
           })),
           attachments: db.medical.attachments
             .filter((x) => x.visitId === v.id && x.status === "active")
-            .map(({ clinicId: _clinic, ...rest }) => rest),
+            .sort(newestAttachmentFirst)
+            .map((x) => attachmentView(db, x)),
           cancelNote: v.cancelNote,
         }
       : null,
@@ -100,7 +115,7 @@ export function auditMedical(
   a: MedicalAccess,
   entity: ClinicAuditEntry["entity"],
   action: string,
-  entityId: string,
+  entityId: string | null,
   changed: readonly string[] = [],
 ): void {
   writeClinicAudit(db, {

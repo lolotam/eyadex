@@ -78,10 +78,11 @@ export type MockState = {
   platformAccounts: PlatformAccount[];
   platformSettings: PlatformSettings;
   platformAudit: PlatformAuditEntry[];
-  clinicAudit: ClinicAuditEntry[];
+  /** As the API's rows: a medical read about no single record (the walk-in search) names none. */
+  clinicAudit: (Omit<ClinicAuditEntry, "entityId"> & { entityId: string | null })[];
 };
 
-const STORAGE_KEY = "eyadex:mock-db:v17";
+const STORAGE_KEY = "eyadex:mock-db:v18";
 /** Shared with the persona provider by name only (screens never import the mock). */
 const PERSONA_STORAGE_KEY = "eyadex:persona";
 const MOCK_RESET_EVENT = "eyadex:mock-reset";

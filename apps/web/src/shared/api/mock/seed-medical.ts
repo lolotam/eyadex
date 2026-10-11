@@ -108,7 +108,7 @@ export function seedMedical(state: MockState, clinicId: string, makeId: () => st
           surgicalHistory: "Appendectomy, childhood",
           familyHistory: "Mother: hypertension",
           updatedAt: new Date(now - 30 * DAY).toISOString(),
-          updatedByName: doctor.fullName,
+          updatedBy: doctor.id,
         });
       }
     }
