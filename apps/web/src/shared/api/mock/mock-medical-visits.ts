@@ -247,7 +247,7 @@ export function createMockMedicalVisits(): Pick<
         visitId: visit.id,
         fingerprint: fingerprint(input),
       };
-      auditMedical(db, a, "visit", "visit.started", visit.id, [], "draft");
+      auditMedical(db, a, "visit", "visit.started", visit.id, ["status"]);
       persist();
       return detailOf(db, a, visit);
     },

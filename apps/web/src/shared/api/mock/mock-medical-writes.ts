@@ -127,7 +127,7 @@ export function createMockMedicalWrites(): Pick<
       if (!isSignable(v)) throw new ApiError("visit_empty");
       v.status = "signed";
       v.signedAt = new Date().toISOString();
-      auditMedical(db, a, "visit", "visit.signed", v.id, [], "signed");
+      auditMedical(db, a, "visit", "visit.signed", v.id, ["status"]);
       persist();
       return detailOf(db, a, v);
     },
@@ -140,8 +140,9 @@ export function createMockMedicalWrites(): Pick<
       v.status = "cancelled";
       v.cancelReason = input.reason;
       v.cancelNote = empty(input.note);
-      // The reason is a fixed choice; the free note's text stays out of the row.
-      auditMedical(db, a, "visit", "visit.cancelled", v.id, ["reason", "note"], "cancelled");
+      // The API's field names: the note counts only when one was given, and its text stays out.
+      const changed = ["status", "cancelReason", ...(v.cancelNote === null ? [] : ["cancelNote"])];
+      auditMedical(db, a, "visit", "visit.cancelled", v.id, changed);
       persist();
       return detailOf(db, a, v);
     },

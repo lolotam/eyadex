@@ -77,6 +77,4 @@ export const arMedicalAuditFields = {
   name: "الاسم",
   defaultDose: "الجرعة الافتراضية",
   defaultFrequency: "عدد المرات الافتراضي",
-  reason: "السبب",
-  note: "الملاحظة",
 };

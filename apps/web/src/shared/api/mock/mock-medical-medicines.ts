@@ -51,7 +51,7 @@ async function setStatus(persona: Persona, id: string, status: StoredMedicine["s
   if (row.status !== status) {
     row.status = status;
     const action = status === "active" ? "medicine.reactivated" : "medicine.deactivated";
-    auditMedical(db, a, "medicine", action, row.id, [], status);
+    auditMedical(db, a, "medicine", action, row.id, ["status"]);
     persist();
   }
   return view(row);
@@ -104,7 +104,7 @@ export function createMockMedicalMedicines(): Pick<
       db.medical.medicines.push(row);
       db.medical.idempotentMedicines[replayKey] = { medicineId: row.id, fingerprint };
       const filled = FIELDS.filter((f) => row[f] !== null);
-      auditMedical(db, a, "medicine", "medicine.created", row.id, filled, "active");
+      auditMedical(db, a, "medicine", "medicine.created", row.id, filled);
       persist();
       return view(row);
     },

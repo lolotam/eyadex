@@ -3,6 +3,11 @@ import { scrubAuditText, scrubAuditValue } from "@eyadex/observability/audit-tex
 import { newId, type MockState } from "./mock-store";
 
 type Snapshot = { id: string } & Record<string, unknown>;
+type Fields = Record<string, unknown>;
+/** The row's subject: snapshots that carry its id, or the id given apart (a medical row, as the API). */
+type Subject =
+  | { before: Snapshot | null; after: Snapshot | null; entityId?: undefined }
+  | { before: Fields | null; after: Fields | null; entityId: string };
 
 // An id no longer found keeps the API's shape (ADR-0019): the id with null names.
 const unnamed = (id: unknown) => (typeof id === "string" ? { id, nameAr: null, nameEn: null } : id);
@@ -11,7 +16,7 @@ const unnamed = (id: unknown) => (typeof id === "string" ? { id, nameAr: null, n
 const ROLE_REFS = new Set(["roleId"]);
 const BRANCH_REFS = new Set(["branchId", "branchIds", "registrationBranchId"]);
 
-function withNames(db: MockState, clinicId: string, snap: Snapshot): Record<string, unknown> {
+function withNames(db: MockState, clinicId: string, snap: Fields): Record<string, unknown> {
   const role = (id: unknown) => {
     const r = db.roles.find((x) => x.clinicId === clinicId && x.id === id);
     return r ? { id: r.id, nameAr: r.nameAr, nameEn: r.nameEn } : unnamed(id);
@@ -53,11 +58,7 @@ export function writeClinicAudit(
     actorName: string;
     action: string;
     entity: ClinicAuditEntry["entity"];
-    before: Snapshot | null;
-    after: Snapshot | null;
-    /** For a row with no snapshot (a medical read); otherwise the snapshot's id. */
-    entityId?: string;
-  },
+  } & Subject,
 ): void {
   const entityId = entry.entityId ?? (entry.after ?? entry.before)?.id;
   if (!entityId) return;

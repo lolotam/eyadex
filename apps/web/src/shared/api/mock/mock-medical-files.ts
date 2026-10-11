@@ -243,7 +243,7 @@ export function createMockMedicalFiles(): Pick<
       // whose view reach covers the file, else both are "" (the contract still needs a name).
       if (!reachesContent(db, a, "update", row.patientId)) throw new ApiError("not_found");
       row.status = "archived";
-      auditMedical(db, a, "attachment", "attachment.archived", row.id, [], "archived");
+      auditMedical(db, a, "attachment", "attachment.archived", row.id, ["status"]);
       persist();
       const readable = reachesContent(db, a, "view", row.patientId);
       return { attachment: readable ? view(row) : { ...view(row), name: "", uploadedByName: "" } };

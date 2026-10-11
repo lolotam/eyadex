@@ -77,6 +77,4 @@ export const enMedicalAuditFields = {
   name: "Name",
   defaultDose: "Default dose",
   defaultFrequency: "Default frequency",
-  reason: "Reason",
-  note: "Note",
 };

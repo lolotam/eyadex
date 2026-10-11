@@ -101,8 +101,7 @@ export function auditMedical(
   entity: ClinicAuditEntry["entity"],
   action: string,
   entityId: string,
-  fields: readonly string[] = [],
-  status?: string,
+  changed: readonly string[] = [],
 ): void {
   writeClinicAudit(db, {
     clinicId: a.clinic.id,
@@ -111,10 +110,7 @@ export function auditMedical(
     entity,
     entityId,
     before: null,
-    // A read records no snapshot, as the API's `auditMedical` without `changed`.
-    after:
-      fields.length === 0 && status === undefined
-        ? null
-        : { id: entityId, changed: [...fields], ...(status ? { status } : {}) },
+    // As the API's `auditMedical`: a write records the names it changed, a read records nothing.
+    after: changed.length === 0 ? null : { changed: [...changed] },
   });
 }

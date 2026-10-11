@@ -9,7 +9,8 @@ import { AuditDetailDialog } from "./audit-detail-dialog";
 // the dialog names that list and each field in the reader's language, never the code identifiers.
 afterEach(() => cleanup());
 
-// Every field name the API's medical module writes (`auditMedical`, the medicines audit) and the mock's.
+// Every field name the API's medical module writes (`auditMedical`, the medicines audit), which the
+// mock writes the same way.
 const MEDICAL_FIELDS = [
   "status",
   "complaint",
@@ -29,8 +30,6 @@ const MEDICAL_FIELDS = [
   "name",
   "defaultDose",
   "defaultFrequency",
-  "reason",
-  "note",
 ];
 
 describe("the audit detail of a medical write", () => {
