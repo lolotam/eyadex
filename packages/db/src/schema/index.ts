@@ -23,3 +23,4 @@ export { clinicExpiryReminders } from "./clinic-expiry-reminders.ts";
 export { clinicServices, providerSchedules, providerTimeOff } from "./scheduling.ts";
 export { appointments } from "./appointments.ts";
 export { visits, visitNotes, visitAddenda, patientMedicalProfiles } from "./medical.ts";
+export { patientAttachments } from "./attachments.ts";
