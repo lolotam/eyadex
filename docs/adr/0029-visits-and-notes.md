@@ -13,8 +13,9 @@ the five-section medical file, and a search inside one patient's notes. Every cl
 ## Decision
 
 1. **A new `medical` module** (`apps/api/src/modules/medical/`, laid out like `appointments`). It names only
-   its own tables (`visits`, `visit_notes`, `visit_addenda`, `patient_medical_profiles`, and from 0047–0048
-   `visit_diagnoses`, `visit_prescription_items`, `clinic_medicines`, `icd10_codes`); patients' files,
+   its own tables (`visits`, `visit_notes`, `visit_addenda`, `patient_medical_profiles`, from 0047–0048
+   `visit_diagnoses`, `visit_prescription_items`, `clinic_medicines`, `icd10_codes`, and from 0049
+   `patient_attachments`); patients' files,
    appointments, members, branches and the clinic's names come through ports it owns, bound in
    `medical.module.ts` to adapters their owners export from `index.ts`: `PgMedicalPatients` (patients),
    `PgVisitAppointments` (appointments), `PgProviderDirectory` (identity), `PgFilingBranches` and
@@ -97,6 +98,20 @@ the five-section medical file, and a search inside one patient's notes. Every cl
     R3-6d). `db/tests/medical-release.sql` checks the catch-up and the admin invariant;
     `db/tests/medical-release-backfill.sh` checks 0050 on an existing clinic and that both statements
     match.
+13. **Attachments (P2-10, spec §6; 0049).** `POST /v1/patients/:id/attachments` (multipart, the only
+    multipart route: `registerAttachmentUploads`), `GET /v1/patients/:id/attachments`,
+    `GET /v1/attachments/:id` (`cache-control: private, no-store`) and `POST /v1/attachments/:id/archive`,
+    under `update:medical:*` / `view:medical:*` and the patient inside that reach. The bytes are sealed with
+    `ClinicalCipher.sealBytes` bound to the attachment's own id before they reach the `BlobStore` port
+    (Openinary from `MEDICAL_BLOB_*`; unconfigured answers 503 on upload and download only), stored at
+    `clinic/<clinic>/<attachment>` with no name or patient data in the path; the row keeps the type, the
+    size, the plaintext's SHA-256 (checked again on download) and the name sealed in `name_enc`. The upload
+    checks the target twice, before the blob leaves and again under the visit row then the patient row
+    (ADR-0027), so no transaction holds a lock across the network; a named visit must be one of the
+    patient's that the caller can see (`attachment_patient_mismatch`). An attachment is archived, never
+    deleted; an archived one is `not_found` on download (TODO(spec)). Audit rows `attachment.uploaded`,
+    `attachment.downloaded` and `attachment.archived` name fields only. The visit page lists the visit's
+    active attachments.
 
 ## Consequences
 
@@ -106,6 +121,6 @@ the five-section medical file, and a search inside one patient's notes. Every cl
   the release (0050). Granting the default doctor role therefore needs its visits, medical and medicines
   keys (or their clinic keys): a user manager without them can no longer invite or move a doctor; the
   admin still can.
-- Attachments plug into `visitDetail`'s empty array with their slice (0049).
+- A blob whose row then fails to commit stays in the store as ciphertext no row points at.
 - A later ICD-10-CM release is loaded over the same table; codes it drops keep their old `release` value,
   so a diagnosis already written still validates against its code until a cleanup is decided.
