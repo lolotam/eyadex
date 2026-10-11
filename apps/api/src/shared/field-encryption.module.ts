@@ -12,8 +12,8 @@ function configured<T>(read: () => T): T {
   try {
     return read();
   } catch (error) {
-    const message = error instanceof TypeError ? error.message : "medical keys";
-    throw new Error(`Invalid API configuration: ${message} — see .env.example`);
+    if (!(error instanceof TypeError)) throw error;
+    throw new Error(`Invalid API configuration: ${error.message} — see .env.example`);
   }
 }
 

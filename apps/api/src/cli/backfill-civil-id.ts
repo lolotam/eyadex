@@ -46,44 +46,50 @@ async function clinicIds(platform: Database): Promise<string[]> {
   return clinics.map((clinic) => clinic.id).sort();
 }
 
+type Deps = Parameters<typeof verifyClinicCivilIds>[0];
+
+/** Every clinic checked; prints the clinics that are not clean, then the totals. */
+async function verifyAll(deps: Deps, ids: readonly string[]): Promise<boolean> {
+  const total = { plain: 0, encrypted: 0, mismatched: 0 };
+  for (const clinicId of ids) {
+    const counts = await verifyClinicCivilIds(deps, clinicId);
+    total.plain += counts.plain;
+    total.encrypted += counts.encrypted;
+    total.mismatched += counts.mismatched;
+    if (counts.plain > 0 || counts.mismatched > 0) {
+      out(`clinic ${clinicId}: ${counts.plain} plain, ${counts.mismatched} mismatched`);
+    }
+  }
+  out(
+    `verify: ${ids.length} clinics, ${total.encrypted} encrypted, ${total.plain} plain, ` +
+      `${total.mismatched} mismatched`,
+  );
+  return total.plain === 0 && total.mismatched === 0;
+}
+
+/** Every clinic converted (or counted, on a dry run); prints collisions per clinic, then the totals. */
+async function convertAll(deps: Deps, ids: readonly string[], dryRun: boolean): Promise<boolean> {
+  const total = { converted: 0, collisions: 0 };
+  for (const clinicId of ids) {
+    const counts = await backfillClinicCivilIds(deps, clinicId, dryRun);
+    total.converted += counts.converted;
+    total.collisions += counts.collisions;
+    if (counts.collisions > 0) {
+      out(`clinic ${clinicId}: ${counts.collisions} collisions (left as they are)`);
+    }
+  }
+  const done = dryRun ? "dry-run: would convert" : "convert: converted";
+  out(`${done} ${total.converted} in ${ids.length} clinics, ${total.collisions} collisions`);
+  return total.collisions === 0;
+}
+
 async function run(mode: Mode, app: Database, platform: Database): Promise<boolean> {
-  const deps = {
+  const deps: Deps = {
     db: app,
     civilIds: new CivilIdCodec(readFieldCipher(process.env), readCivilIdIndexKey(process.env)),
   };
   const ids = await clinicIds(platform);
-  let sound = true;
-  if (mode === "verify") {
-    const total = { plain: 0, encrypted: 0, mismatched: 0 };
-    for (const clinicId of ids) {
-      const counts = await verifyClinicCivilIds(deps, clinicId);
-      total.plain += counts.plain;
-      total.encrypted += counts.encrypted;
-      total.mismatched += counts.mismatched;
-      if (counts.plain > 0 || counts.mismatched > 0) {
-        sound = false;
-        out(`clinic ${clinicId}: ${counts.plain} plain, ${counts.mismatched} mismatched`);
-      }
-    }
-    out(
-      `verify: ${ids.length} clinics, ${total.encrypted} encrypted, ${total.plain} plain, ` +
-        `${total.mismatched} mismatched`,
-    );
-    return sound;
-  }
-  const total = { converted: 0, collisions: 0 };
-  for (const clinicId of ids) {
-    const counts = await backfillClinicCivilIds(deps, clinicId, mode === "dry-run");
-    total.converted += counts.converted;
-    total.collisions += counts.collisions;
-    if (counts.collisions > 0) {
-      sound = false;
-      out(`clinic ${clinicId}: ${counts.collisions} collisions (left as they are)`);
-    }
-  }
-  const verb = mode === "dry-run" ? "would convert" : "converted";
-  out(`${mode}: ${ids.length} clinics, ${verb} ${total.converted}, ${total.collisions} collisions`);
-  return sound;
+  return mode === "verify" ? verifyAll(deps, ids) : convertAll(deps, ids, mode === "dry-run");
 }
 
 const mode = modeOf(process.argv.slice(2));
