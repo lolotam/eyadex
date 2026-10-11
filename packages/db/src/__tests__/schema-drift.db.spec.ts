@@ -222,8 +222,11 @@ async function databaseShapes(owner: Sql): Promise<Map<string, Shape>> {
         `${k.name}(${k.cols})->${k.ref} on delete ${ACTION[k.on_delete]} on update ${ACTION[k.on_update]}`,
       );
   }
+  // PostgreSQL quotes a column named like a keyword (`"position"`, 0047); the mirror side prints names
+  // and expressions unquoted, so both sides compare without quotes.
   for (const i of indexes)
-    if (i.tablename !== "schema_migrations") get(i.tablename).indexes.push(i.indexdef);
+    if (i.tablename !== "schema_migrations")
+      get(i.tablename).indexes.push(i.indexdef.replaceAll('"', ""));
   for (const c of checks)
     if (c.table_name !== "schema_migrations") get(c.table_name).checks.push(`${c.name}:${c.def}`);
   for (const shape of shapes.values()) {

@@ -22,7 +22,8 @@ import { patients } from "./patients.ts";
 // foreign key (ADR-0027).
 const tz = { withTimezone: true, mode: "date" } as const;
 
-const envelope = (table: string, column: string) =>
+// Shared with the visit lists' mirror (medical-lists.ts); schema/index.ts exports tables only.
+export const envelope = (table: string, column: string) =>
   check(`${table}_${column}_check`, sql.raw(`(${column} ~ '^f1\\.[0-9]+\\.'::text)`));
 
 export const visits = pgTable(
