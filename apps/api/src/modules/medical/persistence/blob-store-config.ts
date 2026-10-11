@@ -1,10 +1,21 @@
 import { ServiceUnavailableError } from "../../../shared/errors.ts";
 import type { BlobStore } from "../ports/blob-store.ts";
-import { OpeninaryBlobStore } from "./openinary-blob-store.ts";
+import { S3BlobStore } from "./s3-blob-store.ts";
 
-// Folder segments only: the prefix becomes part of every stored path, so nothing that could climb out of
-// it (`..`), encode, or carry a name.
-const PREFIX_SHAPE = /^[A-Za-z0-9_-]+(\/[A-Za-z0-9_-]+)*$/;
+// The four values the bucket cannot work without; the region is optional and defaults below.
+const REQUIRED = [
+  "MEDICAL_BLOB_S3_ENDPOINT",
+  "MEDICAL_BLOB_S3_BUCKET",
+  "MEDICAL_BLOB_S3_ACCESS_KEY",
+  "MEDICAL_BLOB_S3_SECRET_KEY",
+] as const;
+const REGION = "MEDICAL_BLOB_S3_REGION";
+// MinIO ignores the region but signs with it; us-east-1 is what it expects when none is configured.
+const DEFAULT_REGION = "us-east-1";
+
+// S3 bucket naming rules (lowercase, digits, dots, hyphens; 3–63 characters).
+const BUCKET_SHAPE = /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/;
+const REGION_SHAPE = /^[a-z0-9-]+$/;
 
 // Same wording as every other startup configuration error of the API: the variable, never its value.
 const invalid = (detail: string): Error =>
@@ -12,8 +23,8 @@ const invalid = (detail: string): Error =>
 
 /**
  * The store when nothing is configured: the API still starts (attachments are the only feature that
- * needs it), and an upload or a download answers 503 until the owner pastes the Openinary settings.
- * There is no dedicated error code (the contracts are frozen), so it is `unknown` at 503.
+ * needs it), and an upload or a download answers 503 until the owner pastes the bucket settings. There
+ * is no dedicated error code (the contracts are frozen), so it is `unknown` at 503.
  */
 export class UnconfiguredBlobStore implements BlobStore {
   put(): Promise<void> {
@@ -25,37 +36,50 @@ export class UnconfiguredBlobStore implements BlobStore {
   }
 }
 
+// http is allowed because the bucket is reached on the internal Docker network only; a path, a query,
+// a fragment or credentials in the URL would change where requests go or leak into logs.
+const endpointFrom = (raw: string): URL => {
+  const message = "MEDICAL_BLOB_S3_ENDPOINT must be an http or https origin";
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw invalid(message);
+  }
+  const web = url.protocol === "http:" || url.protocol === "https:";
+  const plain = url.username === "" && url.password === "";
+  if (!web || !plain || url.pathname !== "/" || url.search !== "" || url.hash !== "") {
+    throw invalid(message);
+  }
+  return url;
+};
+
 /**
- * The attachments' store from `MEDICAL_BLOB_URL` (https only), `MEDICAL_BLOB_API_KEY` and the optional
- * `OPENINARY_FOLDER_PREFIX`. Neither of the first two set = not configured; one without the other, an
- * http URL, a URL carrying credentials, a query or a fragment, or a malformed prefix stops the start.
+ * The attachments' store from the `MEDICAL_BLOB_S3_*` variables (spec §6). None set = not configured;
+ * any set without all four required ones stops the start, naming the missing ones; so do a malformed
+ * endpoint, bucket name or region.
  *
  * @param env the process environment
- * @returns the Openinary store, or the unconfigured one
+ * @returns the S3 store, or the unconfigured one
  */
 export function blobStoreFromEnv(env: NodeJS.ProcessEnv): BlobStore {
-  const rawUrl = env["MEDICAL_BLOB_URL"] ?? "";
-  const apiKey = env["MEDICAL_BLOB_API_KEY"] ?? "";
-  const rawPrefix = env["OPENINARY_FOLDER_PREFIX"] ?? "";
-  if (rawUrl === "" && apiKey === "") return new UnconfiguredBlobStore();
-  if (rawUrl === "") throw invalid("MEDICAL_BLOB_URL is required with MEDICAL_BLOB_API_KEY");
-  if (apiKey === "") throw invalid("MEDICAL_BLOB_API_KEY is required with MEDICAL_BLOB_URL");
-  let baseUrl: URL;
-  try {
-    baseUrl = new URL(rawUrl);
-  } catch {
-    throw invalid("MEDICAL_BLOB_URL must be an https URL");
+  const value = (name: string): string => env[name] ?? "";
+  const region = value(REGION);
+  const missing = REQUIRED.filter((name) => value(name) === "");
+  if (missing.length === REQUIRED.length && region === "") return new UnconfiguredBlobStore();
+  if (missing.length > 0) {
+    throw invalid(`${missing.join(", ")} must be set with the other MEDICAL_BLOB_S3_* variables`);
   }
-  const plain = baseUrl.username === "" && baseUrl.password === "";
-  if (baseUrl.protocol !== "https:" || !plain || baseUrl.search !== "" || baseUrl.hash !== "") {
-    throw invalid("MEDICAL_BLOB_URL must be an https URL");
+  const bucket = value("MEDICAL_BLOB_S3_BUCKET");
+  if (!BUCKET_SHAPE.test(bucket)) throw invalid("MEDICAL_BLOB_S3_BUCKET must be an S3 bucket name");
+  if (region !== "" && !REGION_SHAPE.test(region)) {
+    throw invalid("MEDICAL_BLOB_S3_REGION must be a region name");
   }
-  if (rawPrefix !== "" && !PREFIX_SHAPE.test(rawPrefix)) {
-    throw invalid("OPENINARY_FOLDER_PREFIX must be folder names separated by /");
-  }
-  return new OpeninaryBlobStore({
-    baseUrl,
-    apiKey,
-    folderPrefix: rawPrefix === "" ? null : rawPrefix,
+  return new S3BlobStore({
+    endpoint: endpointFrom(value("MEDICAL_BLOB_S3_ENDPOINT")),
+    bucket,
+    region: region === "" ? DEFAULT_REGION : region,
+    accessKey: value("MEDICAL_BLOB_S3_ACCESS_KEY"),
+    secretKey: value("MEDICAL_BLOB_S3_SECRET_KEY"),
   });
 }
