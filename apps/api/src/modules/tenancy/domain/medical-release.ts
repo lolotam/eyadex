@@ -1,10 +1,10 @@
 import type { PlatformSettings } from "@eyadex/contracts/platform";
 
 /**
- * هل الموديول الطبي اتطلق؟ بيشتغل مقفول لحد آخر شريحة (spec §9، P2-F6): ملف الإطلاق في `db/sql` بيفتح
- * الـ default للعيادات الجديدة، والـ PR بتاعه بيقلب القيمة دي لـ `true` في نفس التغيير (R3-6c).
+ * هل الموديول الطبي اتطلق؟ اتطلق مع `db/sql/0050_medical_release.sql` (spec §9، P2-F6): الملف ده فتح الـ
+ * default للعيادات الجديدة، والقيمة دي اتقلبت لـ `true` في نفس التغيير (R3-6c).
  */
-export const MEDICAL_RELEASED = false;
+export const MEDICAL_RELEASED = true;
 
 /**
  * هل إعدادات المنصة الجديدة مسموحة؟ قبل الإطلاق المنصة تقدر تشوف مفتاح الموديول الطبي للعيادات الجديدة،

@@ -10,7 +10,7 @@ import {
 import { clinicWithMembers } from "../../identity/__tests__/access-fixtures.ts";
 import { AUTHORIZATION_INVALIDATOR, type AuthorizationInvalidator } from "../../identity/index.ts";
 import { code, send } from "../../appointments/__tests__/scheduling-fixtures.ts";
-import { grantKeys, medicalClinic, setModule, type MedicalClinic } from "./medical-fixtures.ts";
+import { medicalClinic, setModule, type MedicalClinic } from "./medical-fixtures.ts";
 
 // P2-F2, R3-3 (ADR-0029): the clinic's medicines list. Readers need view:medicines:clinic (the doctor's
 // default), writers update:medicines:clinic; names are unique per clinic, trimmed and case-folded; a
@@ -26,7 +26,6 @@ type Medicine = {
   defaultFrequency: string | null;
   status: string;
 };
-const MEDICINE_KEYS = ["view:medicines:clinic", "update:medicines:clinic"];
 const medicineOf = (res: { json: () => unknown }) =>
   (res.json() as { medicine: Medicine }).medicine;
 const create = (cookie: string, body: unknown, key = randomUUID()) =>
@@ -37,21 +36,11 @@ const auditOf = (clinicId: string, entityId: string) =>
   h.owner`SELECT action, category, entity_type, details, row_to_json(a)::text AS raw FROM audit_log a
           WHERE clinic_id = ${clinicId} AND entity_id = ${entityId} ORDER BY created_at, id`;
 
-/** Grants the medicines keys to the role `userId` holds, then refreshes the cache. */
-async function withMedicineKeys(clinicId: string, userId: string): Promise<void> {
-  const [row] = await h.owner`SELECT role_id FROM memberships WHERE user_id = ${userId}`;
-  await grantKeys(h, clinicId, row!["role_id"] as string, MEDICINE_KEYS);
-  await invalidate.clinicChanged(clinicId);
-}
-
 beforeAll(async () => {
   h = await openHarness({}, true);
   invalidate = h.app.get<AuthorizationInvalidator>(AUTHORIZATION_INVALIDATOR);
+  // Spec §2: since the release the admin's role holds both keys and the doctor's role reads the list.
   C = await medicalClinic(h, invalidate);
-  await withMedicineKeys(C.clinicId, C.admin.userId);
-  // Spec §2: the doctor's default role reads the list (granted as the owner until the release, R1-16).
-  await grantKeys(h, C.clinicId, C.doctor.roleId, ["view:medicines:clinic"]);
-  await invalidate.clinicChanged(C.clinicId);
 });
 
 afterAll(() => closeHarness(h));
@@ -170,7 +159,6 @@ describe("the clinic's medicines (R3-3)", () => {
   it("another clinic's medicine is invisible: not listed, not_found on every write", async () => {
     const B = await clinicWithMembers(h);
     await setModule(h, invalidate, B.admin.clinicId, "medical", true);
-    await withMedicineKeys(B.admin.clinicId, B.admin.userId);
     const theirs = medicineOf(
       await create(B.admin.cookie, {
         name: "Clinic B only",

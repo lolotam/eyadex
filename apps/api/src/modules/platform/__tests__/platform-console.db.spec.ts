@@ -51,7 +51,7 @@ afterAll(async () => {
   await h.owner`UPDATE platform_settings SET default_trial_days = 14, alert_days_before_expiry = 7,
     email_sender_name = 'Eyadex', default_max_users = 10, default_max_branches = 3,
     default_module_patients = true, default_module_appointments = true,
-    default_module_medical = false`;
+    default_module_medical = true`;
   await closeHarness(h);
 });
 
@@ -122,7 +122,8 @@ describe("platform settings (story 26)", () => {
       emailSenderName: "Eyadex",
       defaultMaxUsers: 10,
       defaultMaxBranches: 3,
-      defaultModules: { patients: true, appointments: true, medical: false },
+      // R2-3: the release (0050) turned the medical default on.
+      defaultModules: { patients: true, appointments: true, medical: true },
     });
     const next = {
       defaultTrialDays: 30,
@@ -148,7 +149,7 @@ describe("platform settings (story 26)", () => {
         emailSenderName: "Eyadex",
         defaultMaxUsers: 10,
         defaultMaxBranches: 3,
-        defaultModules: { patients: true, appointments: true, medical: false },
+        defaultModules: { patients: true, appointments: true, medical: true },
       },
       after: next,
     });
@@ -186,22 +187,13 @@ describe("platform settings (story 26)", () => {
     expect((await send("GET", "/v1/platform/settings")).json()).toEqual(good);
   });
 
-  // P2 R2-3, R3-6c: the platform sees the medical default but cannot turn it on before the release.
-  it("reads the stored medical default; NEGATIVE: turning it on before the release is 400", async () => {
+  // P2 R2-3, R3-6c: since the release (0050) the platform may turn the medical default on, and off again.
+  it("turns the medical default on and off after the release", async () => {
     const before = (await send("GET", "/v1/platform/settings")).json();
-    const on = { ...before, defaultModules: { ...before.defaultModules, medical: true } };
-    const refused = await send("PUT", "/v1/platform/settings", { body: on });
-    expect(refused.statusCode).toBe(400);
-    expect(refused.json()).toMatchObject({
-      code: "validation",
-      details: { field: "defaultModuleMedical" },
-    });
-    expect((await send("GET", "/v1/platform/settings")).json()).toEqual(before);
-    await h.owner`UPDATE platform_settings SET default_module_medical = true`;
-    try {
-      expect((await send("GET", "/v1/platform/settings")).json().defaultModules.medical).toBe(true);
-    } finally {
-      await h.owner`UPDATE platform_settings SET default_module_medical = false`;
+    for (const medical of [true, false]) {
+      const body = { ...before, defaultModules: { ...before.defaultModules, medical } };
+      expect((await send("PUT", "/v1/platform/settings", { body })).statusCode).toBe(200);
+      expect((await send("GET", "/v1/platform/settings")).json()).toEqual(body);
     }
   });
 
