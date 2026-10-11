@@ -77,8 +77,9 @@ export interface AppDependencies {
    * `/v1/permissions/catalogue`, `/v1/branches`, `/v1/users`, `/v1/invitations`, `/v1/clinic/mail-provider`,
    * `/v1/patients`, `/v1/clinic/audit`, `/v1/services`, `/v1/schedules` (ADR-0009, 0011, 0012, 0014,
    * 0018, 0019, 0026). Needs auth mounted,
-   * DATABASE_URL, REDIS_URL, OUTBOX_SEAL_KEY and
-   * MAIL_PROVIDER_SEAL_KEY.
+   * DATABASE_URL, REDIS_URL, OUTBOX_SEAL_KEY,
+   * MAIL_PROVIDER_SEAL_KEY, MEDICAL_MASTER_KEY_V<MEDICAL_KEY_VERSION> and MEDICAL_INDEX_KEY (ADR-0028,
+   * docs/specs/medical-keys-runbook.md).
    */
   readonly mountClinic?: boolean;
 }
