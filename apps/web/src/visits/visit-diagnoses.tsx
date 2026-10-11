@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { Icd10Picker } from "./icd10-picker";
+import { useListFlush } from "./use-list-flush";
 import { useServerItems } from "./use-server-items";
 import { useVisitWrite } from "./use-visit-write";
 import type { SectionSaves } from "./visit-section-saves";
@@ -54,6 +55,17 @@ export function VisitDiagnoses({
     (api, persona, input) => api.saveDiagnoses(persona, visitId, input),
     { success: "visit.diagnosesSaved", section: "diagnoses", saves },
   );
+  useListFlush({
+    visitId,
+    section: "diagnoses",
+    saves,
+    editable,
+    form,
+    schema: visitDiagnosesInputSchema,
+    serverItems: (d) => toInput(d.content?.diagnoses ?? []),
+    key: diagnosisFields,
+    submit: (input) => save.mutateAsync(input),
+  });
   const values = form.watch("items");
 
   return (

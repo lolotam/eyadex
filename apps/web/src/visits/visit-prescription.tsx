@@ -13,6 +13,7 @@ import { can } from "@/shared/permissions/can";
 import { useSession } from "@/shared/persona/persona-provider";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { useMedicines } from "./medical-queries";
+import { useListFlush } from "./use-list-flush";
 import { useServerItems } from "./use-server-items";
 import { useVisitWrite } from "./use-visit-write";
 import type { SectionSaves } from "./visit-section-saves";
@@ -62,6 +63,17 @@ export function VisitPrescription({
     { success: "visit.prescriptionSaved", section: "prescription", saves },
   );
 
+  useListFlush({
+    visitId,
+    section: "prescription",
+    saves,
+    editable,
+    form,
+    schema: visitPrescriptionInputSchema,
+    serverItems: (d) => toInput(d.content?.prescription ?? []),
+    key: itemFields,
+    submit: (input) => save.mutateAsync(input),
+  });
   function fillDefaults(index: number, name: string) {
     const known = active.find((m) => m.name === name);
     if (!known) return;

@@ -8,7 +8,12 @@ import type { Persona } from "@eyadex/contracts/session";
 import type { TranslationKey } from "@/shared/i18n/dictionary";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { medicalKeys, useClinicPersona } from "./medical-queries";
-import { sectionSaveKey, type SectionSaves, type VisitSection } from "./visit-section-saves";
+import {
+  SectionInvalidError,
+  sectionSaveKey,
+  type SectionSaves,
+  type VisitSection,
+} from "./visit-section-saves";
 
 // One toast for a visit's section save errors: Sign or Cancel repeating a failure the save already
 // showed replaces that toast instead of stacking a second one.
@@ -37,12 +42,16 @@ export function useVisitWrite<I>(
   return useMutation({
     ...(options.section ? { mutationKey: sectionSaveKey(visitId, options.section) } : {}),
     mutationFn: (input: I) => {
-      const save = run(api.medical, persona, input);
+      // The answer replaces the open visit inside the tracked save, so once Sign has waited for it a
+      // list form compares with what the server holds now (`useListFlush`).
+      const save = run(api.medical, persona, input).then((detail) => {
+        queryClient.setQueryData([...medicalKeys.visit(visitId), ...personaKey], detail);
+        return detail;
+      });
       const { section, saves } = options;
       return section && saves ? saves.track(section, save) : save;
     },
-    onSuccess: (detail) => {
-      queryClient.setQueryData([...medicalKeys.visit(visitId), ...personaKey], detail);
+    onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: [...medicalKeys.all, "visits"] });
       if (options.success) toast.success(t(options.success));
       options.onDone?.();
@@ -62,5 +71,12 @@ export function useVisitWrite<I>(
  */
 export function useSectionSaveRefusal(visitId: string) {
   const { t } = useI18n();
-  return (e: unknown) => toast.error(t(`errors.${errorCodeOf(e)}`), sectionErrorToast(visitId));
+  return (e: unknown) => {
+    // Edits that do not validate name their section: fix or remove them, then sign or cancel.
+    const message =
+      e instanceof SectionInvalidError
+        ? t("visit.sectionInvalid", { section: t(`visit.${e.section}`) })
+        : t(`errors.${errorCodeOf(e)}`);
+    toast.error(message, sectionErrorToast(visitId));
+  };
 }

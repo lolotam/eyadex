@@ -121,12 +121,15 @@ describe("the sign confirm while it waits (Codex 4241453962)", () => {
 });
 
 describe("Sign after a section save failed (Codex PR #68)", () => {
-  it("a diagnoses save that failed before the sign keeps the visit unsigned and shows the error again until it saves", async () => {
+  it("a diagnoses save that keeps failing keeps the visit unsigned and shows the error again until it saves", async () => {
     const D = doctorAt(0);
     const { visit } = await startDraft();
     await api.medical.saveNote(D, visit.id, NOTE);
     const errorToast = vi.spyOn(toast, "error");
-    vi.spyOn(api.medical, "saveDiagnoses").mockRejectedValueOnce(new ApiError("unknown"));
+    // The provider's save fails, and so does the retry Sign makes of the unsaved list (Codex 4241757315).
+    vi.spyOn(api.medical, "saveDiagnoses")
+      .mockRejectedValueOnce(new ApiError("unknown"))
+      .mockRejectedValueOnce(new ApiError("unknown"));
     vi.spyOn(api.medical, "signVisit");
     await renderAs(D, <VisitPage visitId={visit.id} />);
     fireEvent.click(await screen.findByRole("button", { name: ar.visit.addDiagnosis }));
@@ -138,13 +141,13 @@ describe("Sign after a section save failed (Codex PR #68)", () => {
     fireEvent.click(screen.getByRole("button", { name: new RegExp(ar.visit.sign) }));
     const dialog = await screen.findByRole("alertdialog");
     fireEvent.click(within(dialog).getByRole("button", { name: ar.visit.sign }));
-    await waitFor(() => expect(errorToast).toHaveBeenCalledTimes(2));
-    expect(errorToast.mock.calls[1]![0]).toBe(ar.errors.unknown);
+    await waitFor(() => expect(api.medical.saveDiagnoses).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(errorToast.mock.calls.at(-1)![0]).toBe(ar.errors.unknown));
     expect(api.medical.signVisit).not.toHaveBeenCalled();
     expect(getState().medical.visits.find((v) => v.id === visit.id)!.status).toBe("draft");
     // Saving the section again clears it: the next confirm signs, with the saved list.
     fireEvent.click(screen.getByRole("button", { name: ar.visit.saveDiagnoses, hidden: true }));
-    await waitFor(() => expect(api.medical.saveDiagnoses).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(api.medical.saveDiagnoses).toHaveBeenCalledTimes(3));
     fireEvent.click(within(dialog).getByRole("button", { name: ar.visit.sign }));
     await screen.findByText(ar.visit.lockedNote);
     const stored = getState().medical.visits.find((v) => v.id === visit.id)!;

@@ -4,6 +4,7 @@ import { ChevronsUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { errorCodeOf } from "@/shared/api/api-error";
 import { useApi } from "@/shared/api/api-provider";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { useClinicPersona } from "./medical-queries";
@@ -60,7 +61,13 @@ export function Icd10Picker({ code, title, onPick }: Props) {
           onChange={(e) => setQ(e.target.value)}
         />
         <ul className="mt-2 max-h-60 overflow-y-auto" role="listbox">
-          {debounced && !results.isLoading && items.length === 0 && (
+          {/* A refused or failed search is not "no matches": say why (Codex 4241757319). */}
+          {debounced && results.isError && (
+            <li role="alert" className="p-2 text-sm text-destructive">
+              {t("visit.icdError")} {t(`errors.${errorCodeOf(results.error)}`)}
+            </li>
+          )}
+          {debounced && results.isSuccess && items.length === 0 && (
             <li className="p-2 text-sm text-muted-foreground">{t("visit.icdNone")}</li>
           )}
           {items.map((item) => (

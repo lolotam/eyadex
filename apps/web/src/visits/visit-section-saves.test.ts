@@ -72,3 +72,30 @@ describe("the visit's section saves", () => {
     await expect(saves.settle(nothingToFlush)).resolves.toBeUndefined();
   });
 });
+
+// Codex 4241757315: a list form's flush runs after the saves on their way, and only while registered.
+describe("the registered section flushes", () => {
+  it("run after the running saves settle, and no longer once unregistered", async () => {
+    const saves = new SectionSaves();
+    const running = pending();
+    void saves.track("diagnoses", running.promise);
+    const order: string[] = [];
+    const undo = saves.register("diagnoses", async () => {
+      order.push("flush");
+    });
+    void running.promise.then(() => order.push("saved"));
+    const waiting = saves.settle(nothingToFlush);
+    running.resolve();
+    await waiting;
+    expect(order).toEqual(["saved", "flush"]);
+    undo();
+    await saves.settle(nothingToFlush);
+    expect(order).toEqual(["saved", "flush"]);
+  });
+
+  it("a flush that refuses refuses the settle", async () => {
+    const saves = new SectionSaves();
+    saves.register("prescription", () => Promise.reject(new Error("invalid")));
+    await expect(saves.settle(nothingToFlush)).rejects.toThrow("invalid");
+  });
+});
