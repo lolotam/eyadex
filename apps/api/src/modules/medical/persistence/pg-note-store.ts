@@ -55,39 +55,41 @@ export async function notesOf(
   return new Map(rows.map((r) => [r.visit_id, toNote(r)]));
 }
 
-/**
- * Writes the four sections of a visit's note: a new row on the first save, else the existing row by its
- * id (the one its envelopes are bound to). The caller holds the visit row `FOR UPDATE`, so no other save
- * of the same note runs in between.
- */
-export async function saveNote(
-  tx: Tx,
-  clinicId: string,
-  note: {
+/** A note write: who saves it, when. */
+export interface NoteWrite {
+  readonly note: {
     readonly id: string;
     readonly visitId: string;
     readonly sections: StoredNote["sections"];
-  },
-  existing: boolean,
-  updatedBy: string,
-  now: Date,
-): Promise<void> {
-  const at = now.toISOString();
+  };
+  readonly updatedBy: string;
+  readonly now: Date;
+}
+
+/**
+ * A visit's first note save. The caller holds the visit row `FOR UPDATE`, so no other save of the same
+ * note runs in between; the row id it inserts is the one the envelopes are bound to.
+ */
+export async function insertNote(tx: Tx, clinicId: string, write: NoteWrite): Promise<void> {
+  const { note, updatedBy } = write;
+  const at = write.now.toISOString();
   const s = note.sections;
-  if (existing) {
-    await tx.execute(
-      sql`UPDATE visit_notes SET complaint_enc = ${s.complaint}, examination_enc = ${s.examination},
-            assessment_enc = ${s.assessment}, plan_enc = ${s.plan}, updated_by = ${updatedBy},
-            updated_at = ${at}::timestamptz
-          WHERE clinic_id = ${clinicId} AND id = ${note.id}`,
-    );
-    return;
-  }
   await tx.execute(
     sql`INSERT INTO visit_notes (clinic_id, id, visit_id, complaint_enc, examination_enc,
           assessment_enc, plan_enc, updated_by, created_at, updated_at)
         VALUES (${clinicId}, ${note.id}, ${note.visitId}, ${s.complaint}, ${s.examination},
           ${s.assessment}, ${s.plan}, ${updatedBy}, ${at}::timestamptz, ${at}::timestamptz)`,
+  );
+}
+
+/** A later note save, by the note row's id (never an upsert: an envelope stays bound to its row). */
+export async function updateNote(tx: Tx, clinicId: string, write: NoteWrite): Promise<void> {
+  const s = write.note.sections;
+  await tx.execute(
+    sql`UPDATE visit_notes SET complaint_enc = ${s.complaint}, examination_enc = ${s.examination},
+          assessment_enc = ${s.assessment}, plan_enc = ${s.plan}, updated_by = ${write.updatedBy},
+          updated_at = ${write.now.toISOString()}::timestamptz
+        WHERE clinic_id = ${clinicId} AND id = ${write.note.id}`,
   );
 }
 

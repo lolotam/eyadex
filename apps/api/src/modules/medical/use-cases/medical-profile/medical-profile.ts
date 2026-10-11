@@ -14,7 +14,8 @@ import {
   lockProfile,
   PROFILE_COLUMN,
   PROFILE_SECTIONS,
-  saveProfile,
+  insertProfile,
+  updateProfile,
   type ProfileSection,
   type StoredProfile,
 } from "../../persistence/pg-profile-store.ts";
@@ -94,15 +95,12 @@ export class MedicalProfileChanges {
             ),
           ]),
         ) as Sections;
-        const row = { id, patientId, sections };
-        await saveProfile(
-          tx,
-          clinicId,
-          row,
-          stored !== null,
-          actor.membershipId,
-          this.deps.clock.now(),
-        );
+        const write = {
+          profile: { id, patientId, sections },
+          updatedBy: actor.membershipId,
+          now: this.deps.clock.now(),
+        };
+        await (stored === null ? insertProfile : updateProfile)(tx, clinicId, write);
         await this.audit(tx, actor, patient, "medical_profile.saved", changed);
       }
       return this.answer(tx, actor, patientId, own);

@@ -17,7 +17,13 @@ import {
   type NoteSection,
   type VisitWrite,
 } from "../../domain/visit-rules.ts";
-import { insertAddendum, notesOf, NOTE_COLUMN, saveNote } from "../../persistence/pg-note-store.ts";
+import {
+  insertAddendum,
+  insertNote,
+  notesOf,
+  NOTE_COLUMN,
+  updateNote,
+} from "../../persistence/pg-note-store.ts";
 import {
   findVisit,
   markCancelled,
@@ -75,8 +81,12 @@ export class VisitLifecycle {
           ),
         ]),
       ) as Record<NoteSection, string | null>;
-      const note = { id: noteId, visitId: visit.id, sections };
-      await saveNote(tx, clinicId, note, stored !== undefined, actor.membershipId, this.now());
+      const write = {
+        note: { id: noteId, visitId: visit.id, sections },
+        updatedBy: actor.membershipId,
+        now: this.now(),
+      };
+      await (stored === undefined ? insertNote : updateNote)(tx, clinicId, write);
       await this.audit(tx, actor, visit, "visit.note_saved", changed);
     });
   }

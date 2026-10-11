@@ -2,15 +2,11 @@ import type { Tx } from "@eyadex/db";
 import { redactSecrets, scrubAuditValue } from "@eyadex/observability";
 import { sql } from "drizzle-orm";
 
-/** الكيانات الطبية اللي صفوفها وصول لملف مراجع (R1-1)؛ قايمة الأدوية الإدارية مش منهم. */
-export type MedicalAuditEntity =
-  | "patient"
-  | "visit"
-  | "visit_addendum"
-  | "diagnosis"
-  | "prescription"
-  | "medical_profile"
-  | "attachment";
+/**
+ * الكيانات الطبية اللي صفوفها وصول لملف مراجع (R1-1) والزيارات بتكتبها النهارده؛ التشخيص والروشتة
+ * والمرفقات بييجوا مع شرايحهم.
+ */
+export type MedicalAuditEntity = "patient" | "visit" | "visit_addendum" | "medical_profile";
 
 /** صف وصول طبي في سجل العيادة: التصنيف `patient_access` دايمًا (0046 بيرفض غيره للكيانات دي). */
 export interface MedicalAccessEntry {

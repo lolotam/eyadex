@@ -117,7 +117,7 @@ export class StartVisit {
     const live = await liveVisitOf(tx, clinicId, appointmentId);
     if (live !== null) throw visitExists(live);
     // The appointment already placed the visit: its branch stands even if the member's branches moved.
-    await this.lockRows(tx, actor, appointment.patientId, appointment.branchId, () => true);
+    await this.lockRows(tx, actor, appointment, () => true);
     return {
       branchId: appointment.branchId,
       patientId: appointment.patientId,
@@ -134,7 +134,7 @@ export class StartVisit {
   ): Promise<Omit<NewVisit, "id">> {
     if (!worksIn(actor.member, branchId)) throw new ApiError("forbidden");
     await lockProvider(tx, actor.clinicId, actor.membershipId);
-    await this.lockRows(tx, actor, patientId, branchId, (member, patient) =>
+    await this.lockRows(tx, actor, { patientId, branchId }, (member, patient) =>
       // Re-read under the lock: the guard's branches may be up to 30 seconds old (ADR-0009).
       worksIn(member, branchId) ? walkInReaches(patient, branchId) || "not_found" : "forbidden",
     );
@@ -148,11 +148,11 @@ export class StartVisit {
   private async lockRows(
     tx: Tx,
     actor: MedicalActor,
-    patientId: string,
-    branchId: string,
+    target: { readonly patientId: string; readonly branchId: string },
     reaches: (member: MemberBranches, patient: MedicalPatient) => true | "forbidden" | "not_found",
   ): Promise<void> {
     const { clinicId } = actor;
+    const { patientId, branchId } = target;
     const member = await this.deps.members.lockForWrite(tx, clinicId, actor.membershipId);
     if (member === null || !member.active) throw new ApiError("forbidden");
     const patient = await this.deps.patients.lockForVisit(tx, clinicId, patientId);

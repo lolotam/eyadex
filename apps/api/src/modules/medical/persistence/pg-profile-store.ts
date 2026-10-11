@@ -85,35 +85,22 @@ export async function lockProfile(tx: Tx, clinicId: string, patientId: string): 
   );
 }
 
-/**
- * Writes all five sections (spec §5: `PUT` replaces the file), under `lockProfile`: a new row on the
- * first save, else the existing row by its id (the one its envelopes are bound to).
- */
-export async function saveProfile(
-  tx: Tx,
-  clinicId: string,
-  profile: {
+/** A medical-file write: who saves it, when. */
+export interface ProfileWrite {
+  readonly profile: {
     readonly id: string;
     readonly patientId: string;
     readonly sections: StoredProfile["sections"];
-  },
-  existing: boolean,
-  updatedBy: string,
-  now: Date,
-): Promise<void> {
-  const at = now.toISOString();
+  };
+  readonly updatedBy: string;
+  readonly now: Date;
+}
+
+/** The patient's first save (spec §5: `PUT` replaces the file), under `lockProfile`. */
+export async function insertProfile(tx: Tx, clinicId: string, write: ProfileWrite): Promise<void> {
+  const { profile, updatedBy } = write;
+  const at = write.now.toISOString();
   const s = profile.sections;
-  if (existing) {
-    await tx.execute(
-      sql`UPDATE patient_medical_profiles SET allergies_enc = ${s.allergies},
-            chronic_conditions_enc = ${s.chronicConditions},
-            current_medications_enc = ${s.currentMedications},
-            surgical_history_enc = ${s.surgicalHistory}, family_history_enc = ${s.familyHistory},
-            updated_by = ${updatedBy}, updated_at = ${at}::timestamptz
-          WHERE clinic_id = ${clinicId} AND id = ${profile.id}`,
-    );
-    return;
-  }
   await tx.execute(
     sql`INSERT INTO patient_medical_profiles (clinic_id, id, patient_id, allergies_enc,
           chronic_conditions_enc, current_medications_enc, surgical_history_enc, family_history_enc,
@@ -121,5 +108,18 @@ export async function saveProfile(
         VALUES (${clinicId}, ${profile.id}, ${profile.patientId}, ${s.allergies},
           ${s.chronicConditions}, ${s.currentMedications}, ${s.surgicalHistory}, ${s.familyHistory},
           ${updatedBy}, ${at}::timestamptz, ${at}::timestamptz)`,
+  );
+}
+
+/** A later save, by the row's id (the one its envelopes are bound to), under `lockProfile`. */
+export async function updateProfile(tx: Tx, clinicId: string, write: ProfileWrite): Promise<void> {
+  const s = write.profile.sections;
+  await tx.execute(
+    sql`UPDATE patient_medical_profiles SET allergies_enc = ${s.allergies},
+          chronic_conditions_enc = ${s.chronicConditions},
+          current_medications_enc = ${s.currentMedications},
+          surgical_history_enc = ${s.surgicalHistory}, family_history_enc = ${s.familyHistory},
+          updated_by = ${write.updatedBy}, updated_at = ${write.now.toISOString()}::timestamptz
+        WHERE clinic_id = ${clinicId} AND id = ${write.profile.id}`,
   );
 }
