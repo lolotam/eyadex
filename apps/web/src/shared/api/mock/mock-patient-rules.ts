@@ -251,6 +251,12 @@ export function writeResult(db: MockState, persona: Persona, p: Patient): Patien
   return { id: p.id, fileNumber: p.fileNumber, detail: visible ? toDetail(db, persona, p) : null };
 }
 
+/**
+ * Search: name, phone, file number — and the civil ID only when the whole number is typed (P2-F5).
+ * The API stores it encrypted, so a partial number cannot be looked up there; the mock keeps the
+ * same rule, and only the folded digits count, so a number typed with dashes or in Arabic-Indic
+ * digits still counts as its 12 digits.
+ */
 export function matchesSearch(p: Patient, term: string): boolean {
   if (!term) return true;
   const lower = term.toLocaleLowerCase();
@@ -260,6 +266,6 @@ export function matchesSearch(p: Patient, term: string): boolean {
   return (
     p.phone.replace(/\D/g, "").includes(digits) ||
     String(p.fileNumber).padStart(6, "0").includes(digits) ||
-    (p.civilId ?? "").includes(digits)
+    (digits.length === 12 && p.civilId === digits)
   );
 }
