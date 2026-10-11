@@ -26,7 +26,7 @@
 | P2-12 | Search inside notes              | **Yes** (scope in P2-F4).                                                                                                                                       |
 | P2-F1 | ICD-10 source                    | ICD-10-CM (CDC/NCHS), English titles.                                                                                                                           |
 | P2-F2 | Medicine names                   | Typed by the doctor; each clinic keeps its own list of frequent medicines to pick from.                                                                         |
-| P2-F3 | Where attachments live           | The owner's self-hosted storage on the same server (`openinary.walidmohamed.com`), files encrypted before they leave the API. See §6 for the verification gate. |
+| P2-F3 | Where attachments live           | A private S3-compatible bucket (MinIO) on the same Dokploy server, internal network only; files encrypted before they leave the API. See §6 (owner 2026-10-11). |
 | P2-F4 | Search inside notes              | Within one patient's visits only, decrypted in the API at search time.                                                                                          |
 | P2-F5 | Civil ID search once encrypted   | Exact 12-digit match only; the last 4 digits stay visible in lists as today.                                                                                    |
 | P2-F6 | Delivery                         | One phase, released together (no separate P2-a/b/c releases). See §9 for how the work still merges in reviewable slices behind the module flag.                 |
@@ -137,15 +137,22 @@ its time and status, never its content.
   **never** their content, a code, a medicine, a query or a civil ID. Only the clinic medicines list writes
   `administrative` rows.
 
-## 6. Attachments storage — verification gate
+## 6. Attachments storage — decision (2026-10-11)
 
-The owner's storage is Openinary at `openinary.walidmohamed.com`. Its documented upload types are images
-and video; PDFs and opaque encrypted bytes are not listed. Before any attachment code, the orchestrator
-runs a spike: upload an encrypted blob and a PDF through its API with a key the owner creates. If both are
-stored and returned byte-for-byte, a `BlobStore` port gets an Openinary adapter. If not, the fallback (to be
-confirmed by the owner then) is a private S3-compatible bucket on the same server (MinIO on Dokploy) behind
-the same port. Either way the API encrypts before upload (AES-256-GCM, additional data = attachment id and
-clinic id), the storage never sees plaintext, and the browser never talks to the storage directly.
+The first choice was the owner's Openinary at `openinary.walidmohamed.com`, behind a `BlobStore` port, if it
+stored opaque encrypted bytes and returned them byte-for-byte. It cannot: it accepts media types only
+(images, video, audio, 3D; no PDF, no opaque bytes), checks each file's first bytes against its claimed
+type (an AES-GCM envelope never matches), requires a file extension, and serves stored files at public
+download URLs. On 2026-10-11 the owner chose the fallback: a **private S3-compatible bucket on MinIO**, a
+Dokploy service on the same server, reachable only on the internal `dokploy-network` (no domain, no public
+port, no published console), behind the same port (`S3BlobStore`, `MEDICAL_BLOB_S3_*`). The Openinary
+adapter was removed.
+
+The API encrypts before upload (AES-256-GCM, additional data = attachment id and clinic id), the storage
+never sees plaintext, and the browser never talks to the storage directly. The API's MinIO user may only
+get and put objects under `clinic/*` in its bucket (no delete, no list). MinIO's own images are no longer
+published (source only), so the deployment uses a pinned community build; setup, policy, backups and the
+variables are in `docs/specs/medical-blob-runbook.md`.
 
 ## 7. Web (Lovable, mock adapter first)
 

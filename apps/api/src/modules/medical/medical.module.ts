@@ -81,8 +81,8 @@ const medicalDeps = (db: Database, clock: Clock, cipher: ClinicalCipher): Medica
 @Module({})
 export class MedicalModule {
   /**
-   * الموديول بمخزن المرفقات: اللي الاختبار بيديه، وإلا Openinary من البيئة (`MEDICAL_BLOB_*`)، وإلا مخزن
-   * مش متظبّط بيرد 503 على الرفع والتنزيل بس، فالـ API بيقوم من غيره.
+   * الموديول بمخزن المرفقات: اللي الاختبار بيديه، وإلا الـ bucket الخاص (S3/MinIO) من البيئة
+   * (`MEDICAL_BLOB_S3_*`)، وإلا مخزن مش متظبّط بيرد 503 على الرفع والتنزيل بس، فالـ API بيقوم من غيره.
    *
    * @param blobStore مخزن بديل (الاختبارات بس)
    * @returns الموديول

@@ -103,7 +103,10 @@ the five-section medical file, and a search inside one patient's notes. Every cl
     `GET /v1/attachments/:id` (`cache-control: private, no-store`) and `POST /v1/attachments/:id/archive`,
     under `update:medical:*` / `view:medical:*` and the patient inside that reach. The bytes are sealed with
     `ClinicalCipher.sealBytes` bound to the attachment's own id before they reach the `BlobStore` port
-    (Openinary from `MEDICAL_BLOB_*`; unconfigured answers 503 on upload and download only), stored at
+    (`S3BlobStore`: a private MinIO bucket on the internal network, path-style, from
+    `MEDICAL_BLOB_S3_ENDPOINT`/`_BUCKET`/`_ACCESS_KEY`/`_SECRET_KEY` and an optional `_REGION`, all four or
+    none, spec §6 and `docs/specs/medical-blob-runbook.md`; unconfigured answers 503 on upload and download
+    only, a partial configuration refuses to start), stored at
     `clinic/<clinic>/<attachment>` with no name or patient data in the path; the row keeps the type, the
     size, the plaintext's SHA-256 (checked again on download) and the name sealed in `name_enc`. The upload
     checks the target twice, before the blob leaves and again under the visit row then the patient row

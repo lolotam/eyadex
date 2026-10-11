@@ -83,8 +83,9 @@ export interface AppDependencies {
    * 0018, 0019, 0026). Needs auth mounted,
    * DATABASE_URL, REDIS_URL, OUTBOX_SEAL_KEY,
    * MAIL_PROVIDER_SEAL_KEY, MEDICAL_MASTER_KEY_V<MEDICAL_KEY_VERSION> and MEDICAL_INDEX_KEY (ADR-0028,
-   * docs/specs/medical-keys-runbook.md). Attachments also read MEDICAL_BLOB_URL (https),
-   * MEDICAL_BLOB_API_KEY and the optional OPENINARY_FOLDER_PREFIX; without them the API still starts and
+   * docs/specs/medical-keys-runbook.md). Attachments also read MEDICAL_BLOB_S3_ENDPOINT,
+   * MEDICAL_BLOB_S3_BUCKET, MEDICAL_BLOB_S3_ACCESS_KEY, MEDICAL_BLOB_S3_SECRET_KEY and the optional
+   * MEDICAL_BLOB_S3_REGION (docs/specs/medical-blob-runbook.md); without them the API still starts and
    * only an upload or a download answers 503.
    */
   readonly mountClinic?: boolean;

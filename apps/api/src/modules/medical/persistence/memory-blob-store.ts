@@ -1,8 +1,8 @@
 import type { BlobStore } from "../ports/blob-store.ts";
 
 /**
- * The blob store the API tests bind instead of Openinary: a map in memory, copies in and out so a caller
- * can never change what is stored. Never bound outside tests.
+ * The blob store the API tests bind instead of the S3 bucket: a map in memory, copies in and out so a
+ * caller can never change what is stored. Never bound outside tests.
  */
 export class MemoryBlobStore implements BlobStore {
   readonly #blobs = new Map<string, Buffer>();
