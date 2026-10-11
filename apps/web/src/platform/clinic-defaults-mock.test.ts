@@ -23,11 +23,11 @@ const clinic = (over: Partial<CreateClinicInput> = {}): CreateClinicInput => ({
 describe("new-clinic defaults in the platform settings", () => {
   beforeEach(() => resetMockData());
 
-  it("seeds 10 users, 3 branches and the patients module on", async () => {
+  it("seeds 10 users, 3 branches and every module on (medical since its release)", async () => {
     expect(await api.platformSettings.get(PLATFORM)).toMatchObject({
       defaultMaxUsers: 10,
       defaultMaxBranches: 3,
-      defaultModules: { patients: true, appointments: true, medical: false },
+      defaultModules: { patients: true, appointments: true, medical: true },
     });
   });
 

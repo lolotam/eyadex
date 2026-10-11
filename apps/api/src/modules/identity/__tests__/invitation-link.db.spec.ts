@@ -12,6 +12,7 @@ import {
   act,
   audit,
   customRole,
+  DOCTOR_ROLE_COVER,
   invitationEvents,
   invite,
   inviteBody,
@@ -88,12 +89,11 @@ describe("POST /v1/invitations/:id/link", () => {
       h,
       A.admin,
       // It holds the doctor role's keys too: copying a link grants that role (ADR-0017 granting bound);
-      // view:patients:own is covered only by the clinic key (ADR-0026 §12), with view:appointments:own.
+      // the clinic-bound own keys are covered only by their clinic keys (ADR-0026 §12, P2 R1-3).
       await customRole(h, A.admin.clinicId, [
         "view:users:clinic",
         "create:users:clinic",
-        "view:patients:clinic",
-        "view:appointments:own",
+        ...DOCTOR_ROLE_COVER,
       ]),
     );
     const adminRole = await roleIdOf(h, A.admin.clinicId, "clinic_admin");

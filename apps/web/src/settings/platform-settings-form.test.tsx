@@ -52,7 +52,7 @@ describe("platform settings page: new-clinic defaults (ADR-0020 amendment)", () 
       expect(getState().platformSettings).toMatchObject({
         defaultMaxUsers: 25,
         defaultMaxBranches: 5,
-        defaultModules: { patients: false, appointments: true, medical: false },
+        defaultModules: { patients: false, appointments: true, medical: true },
       }),
     );
   });

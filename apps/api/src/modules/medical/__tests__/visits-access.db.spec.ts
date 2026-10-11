@@ -112,8 +112,13 @@ describe("no content without view:medical (P2-5, P2-K4)", () => {
     expect(detail.visit.providerName).not.toBe("—");
   });
 
-  it("the admin (no module key before release, R1-4) and a member without keys are forbidden", async () => {
-    expect((await open(C.admin.cookie, shared)).statusCode).toBe(403);
+  it("the admin (view:visits:clinic since the release, no medical key) sees metadata only", async () => {
+    const res = await open(C.admin.cookie, shared);
+    expect(res.statusCode).toBe(200);
+    expect((res.json() as Detail).content).toBeNull();
+  });
+
+  it("NEGATIVE: a member without keys is forbidden", async () => {
     expect((await open(C.noKeys.cookie, shared)).statusCode).toBe(403);
   });
 });

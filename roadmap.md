@@ -89,3 +89,15 @@
 - [x] Slice A3: the clinic day starts at its first real instant (a skipped midnight west of UTC); the `own` scope on appointments and patients (D-4); new clinics' doctor sees its own appointments and patients (ADR-0026 §12, SQL 0044)
 - [x] Apply `db/sql/0044` to staging, then production, before the A3 deploy (orchestrator)
 - [x] Slice A4: provider week, month (`GET /v1/appointments/week`, `/month`) and today's queue (the branch day) as Day / Week / Month / Today views; no SQL (ADR-0026 §13)
+
+## Post-MVP phase 2 — visits, notes, medical file (`docs/specs/medical-design.md`)
+
+- [x] Field encryption (`FieldCipher`, key configuration) and the civil ID stored encrypted with an exact-match index, plus the backfill command (ADR-0028, SQL 0045)
+- [x] `medical` module flag and catalogue keys; visits (start from an arrived appointment or walk-in), four-section notes, signing, addenda, the five-section medical file, per-patient note search, visit list and module guards (ADR-0029, SQL 0046)
+- [x] Diagnoses (free text or ICD-10-CM) and the ICD-10-CM table and loader (ADR-0029 §9–10, SQL 0047)
+- [x] Prescriptions with the printable view, and the clinic's medicines list (ADR-0029 §9, §11, SQL 0048)
+- [ ] Attachments over the `BlobStore` port (SQL 0049, branch `p2-files`)
+- [x] Release: existing clinics' system roles gain the medical keys by `system_key`, new clinics' default roles hold them, `medical` joins the new-clinic default modules (ADR-0029 §12, SQL 0050, `db/maintenance/medical-release-catch-up.sql`)
+- [ ] Apply `db/sql/0045`–`0050` to staging, then production, each before the deploy that needs it; load ICD-10-CM after 0047 (orchestrator)
+- [ ] After the release deploy, run `db/maintenance/medical-release-catch-up.sql` on staging, then production, before the platform switches `medical` on for any clinic (orchestrator)
+- [ ] Drop the plain `civil_id` column after the backfill's `--verify` passes on each environment (ADR-0028, R1-6)

@@ -15,8 +15,8 @@ import { send } from "../../appointments/__tests__/scheduling-fixtures.ts";
 import { icd10LoadScript } from "../../../cli/icd10-load-script.ts";
 import { parseIcd10OrderFile } from "../index.ts";
 
-// Spec §2: the keys a new clinic's doctor gets at release (R1-16). Until then no role holds them, so the
-// fixtures grant them as the owner.
+// Spec §2: the visits and medical keys of the default doctor role (system-roles.ts, 0050), for custom
+// roles that act as a second doctor.
 export const DOCTOR_KEYS = [
   "view:visits:own",
   "create:visits:own",
@@ -69,7 +69,7 @@ export async function medicalClinic(h: Harness, invalidate: AuthorizationInvalid
   const C = await bookingClinic(h, invalidate);
   await setMaxUsers(h, C.clinicId, 50);
   await setModule(h, invalidate, C.clinicId, "medical", true);
-  await grantKeys(h, C.clinicId, C.doctor.roleId, DOCTOR_KEYS);
+  // The doctor's system role holds its keys from the onboarding; the front desk is a custom role.
   await grantKeys(h, C.clinicId, await roleOf(h, C.front.memberId), ["view:visits:branch"]);
   const doctorB = await bookableMember(h, C, [...DOCTOR_KEYS, "view:appointments:own"]);
   const reader = await memberOn(

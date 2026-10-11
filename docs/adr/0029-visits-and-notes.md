@@ -1,6 +1,6 @@
 # ADR-0029 — Visits, doctor notes, signing, addenda and the medical file
 
-- Status: accepted (owner decisions 2026-10-10, P2 spec §1; plan Tasks 5–9, 11 with amendments R1–R3)
+- Status: accepted (owner decisions 2026-10-10, P2 spec §1; plan Tasks 5–9, 11, 12 with amendments R1–R3)
 - Date: 2026-10-11
 
 ## Context
@@ -82,11 +82,30 @@ the five-section medical file, and a search inside one patient's notes. Every cl
     deactivated, never deleted. Every write holds the advisory lock `medicines:<clinic>` alone (no other
     lock in the same transaction, so ADR-0027's order is untouched) and writes one `administrative` row
     that names fields only, never a medicine.
+12. **Release (P2-F6, spec §9; 0050).** New clinics' system roles (`identity/domain/system-roles.ts`, the
+    web mock's `seed-roles.ts` alike): the doctor holds `view:visits:own`, `create:visits:own`,
+    `view:medical:own`, `update:medical:own` and `view:medicines:clinic`; the receptionist
+    `view:visits:branch`; the locked admin every clinic-scope key except the `medical` resource, so
+    `view:visits:clinic` and both medicines keys but never clinical content (P2-5). 0050 gives existing
+    clinics' system roles the same keys, found by `system_key` (the admin only when locked); custom roles
+    never change, and a role already holding a key of the same action and resource at another scope
+    keeps that one alone (R1-16). It sets `default_module_medical = true` and switches no clinic's
+    `medical` flag; the API stops refusing that default (`MEDICAL_RELEASED`, R3-6c). A clinic created by
+    the code that predates the release, between the migration and the deploy, is fixed by
+    `db/maintenance/medical-release-catch-up.sql` (the same statement, idempotent), run on each
+    environment after the deploy and before the platform switches `medical` on for any clinic (R2-5,
+    R3-6d). `db/tests/medical-release.sql` checks the catch-up and the admin invariant;
+    `db/tests/medical-release-backfill.sh` checks 0050 on an existing clinic and that both statements
+    match.
 
 ## Consequences
 
 - The platform has no grant on any medical table and its audit view excludes every medical entity (0046).
-- A role gains a medical key only by the admin's bounded delegation (R1-2) or at the release migration.
+- A role gains a medical key only by the admin's bounded delegation (R1-2), from a member holding the key
+  (the visits and medical `own` keys need their clinic key, R1-3), from the new-clinic templates or at
+  the release (0050). Granting the default doctor role therefore needs its visits, medical and medicines
+  keys (or their clinic keys): a user manager without them can no longer invite or move a doctor; the
+  admin still can.
 - Attachments plug into `visitDetail`'s empty array with their slice (0049).
 - A later ICD-10-CM release is loaded over the same table; codes it drops keep their old `release` value,
   so a diagnosis already written still validates against its code until a cleanup is decided.

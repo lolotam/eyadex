@@ -25,15 +25,19 @@ const doctorKeys = [
 ];
 
 describe("the locked clinic admin delegates the visits and medical keys (R1-2)", () => {
-  it("defines and grants a doctor role holding none of those keys itself", () => {
-    expect(adminKeys.some((k) => k.includes(":medical:") || k.includes(":visits:"))).toBe(false);
-    expect(decideRoleDefinition(lockedAdmin, C, ["view:medical:own"])).toBe("allowed");
-    expect(decideRoleGrant(lockedAdmin, U, ["view:medical:own", "create:visits:own"], ALL)).toBe(
-      "allowed",
+  it("defines and grants the default doctor role, holding no medical key itself (P2-5)", () => {
+    expect(adminKeys.some((k) => k.includes(":medical:"))).toBe(false);
+    expect(adminKeys.includes("view:visits:own") || adminKeys.includes("create:visits:own")).toBe(
+      false,
     );
+    expect(decideRoleDefinition(lockedAdmin, C, doctorKeys)).toBe("allowed");
+    expect(decideRoleGrant(lockedAdmin, U, doctorKeys, ALL)).toBe("allowed");
   });
 
-  it("NEGATIVE: the delegation stops at visits and medical; medicines keys still need holding", () => {
+  it("grants the medicines keys because it holds them since the release, not by delegation", () => {
+    expect(uncoveredKeys(adminKeys, ["view:medicines:clinic", "update:medicines:clinic"])).toEqual(
+      [],
+    );
     expect(uncoveredKeys([], ["update:medicines:clinic"], true)).toEqual([
       "update:medicines:clinic",
     ]);
