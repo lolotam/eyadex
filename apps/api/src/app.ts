@@ -35,6 +35,7 @@ import {
 } from "./modules/identity/index.ts";
 import { PatientsModule } from "./modules/patients/index.ts";
 import { AppointmentsModule } from "./modules/appointments/index.ts";
+import { MedicalModule } from "./modules/medical/index.ts";
 import { ClinicAuditModule, PlatformAuditModule } from "./modules/audit/index.ts";
 import { PlatformModule } from "./modules/platform/index.ts";
 import { SettingsModule } from "./modules/settings/index.ts";
@@ -138,6 +139,7 @@ export function apiModule(
             RolesModule,
             PatientsModule,
             AppointmentsModule,
+            MedicalModule,
             ClinicAuditModule,
           ]
         : []),

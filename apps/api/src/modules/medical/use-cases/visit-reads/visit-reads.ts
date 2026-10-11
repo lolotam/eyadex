@@ -1,0 +1,200 @@
+import type {
+  VisitDetail,
+  VisitList,
+  VisitSearchInput,
+  WalkInCandidates,
+  WalkInSearchInput,
+} from "@eyadex/contracts/visits";
+import type { z } from "zod";
+import type { walkInBranchesSchema } from "@eyadex/contracts/visits";
+
+import { ApiError } from "../../../../shared/errors.ts";
+import {
+  medicalReach,
+  medicalReachCovers,
+  visitViewReach,
+  worksIn,
+  type MedicalActor,
+} from "../../domain/visit-rules.ts";
+import type { MedicalPatient } from "../../ports/medical-patient-reader.ts";
+import { listVisitPage, searchVisitPage } from "../../queries/visit-list.ts";
+import { readsContent, visitDetail } from "../../queries/visit-views.ts";
+import { auditMedical, type MedicalDeps, type ReadContext } from "../medical-deps.ts";
+import { readContext, seeVisit } from "../visit-access.ts";
+
+type WalkInBranches = z.infer<typeof walkInBranchesSchema>;
+
+// Task 11: a walk-in for this file is possible (UX only; `start` checks again under its locks).
+const canStart = (actor: MedicalActor, patient: MedicalPatient): boolean =>
+  actor.permissions.includes("create:visits:own") &&
+  patient.active &&
+  worksIn(actor.member, patient.registrationBranchId);
+
+/**
+ * قراية الزيارات (spec §5): صفحة الزيارة، قايمة زيارات المراجع، البحث جوه ملاحظاته، واختيارات الزيارة
+ * المباشرة. كل قراية لمحتوى طبي (فتح زيارة بمحتواها، معاينات القايمة، البحث، بحث الزيارة المباشرة) بتكتب
+ * صف `patient_access` واحد في نفس الـ transaction، من غير أي نص ولا كلمة بحث (P2-K2، R3-4).
+ */
+export class VisitReads {
+  constructor(private readonly deps: MedicalDeps) {}
+
+  /**
+   * صفحة الزيارة جوه وصول العرض، والمحتوى بس لقارئه (`visit.opened` لما المحتوى يطلع).
+   *
+   * @param actor الفاعل
+   * @param visitId الزيارة
+   * @returns الصفحة
+   */
+  open(actor: MedicalActor, visitId: string): Promise<VisitDetail> {
+    return this.deps.db.withTenant(actor.clinicId, async (tx) => {
+      const ctx = readContext(this.deps, tx);
+      const { visit, patientIsOwn } = await seeVisit(ctx, actor, visitId);
+      const detail = await visitDetail(ctx, actor, visit, patientIsOwn);
+      if (detail.content !== null) {
+        await auditMedical(tx, this.deps, actor, {
+          action: "visit.opened",
+          entityType: "visit",
+          entityId: visit.id,
+          branchId: visit.branchId,
+        });
+      }
+      return detail;
+    });
+  }
+
+  /**
+   * زيارات المراجع الأحدث الأول جوه وصول العرض، بالمعاينة لقارئ المحتوى (`visit.previews_listed`).
+   *
+   * @param actor الفاعل
+   * @param patientId الملف
+   * @param cursor آخر صفحة
+   * @returns الصفحة وأزرارها
+   */
+  list(actor: MedicalActor, patientId: string, cursor: string | undefined): Promise<VisitList> {
+    return this.deps.db.withTenant(actor.clinicId, async (tx) => {
+      const ctx = readContext(this.deps, tx);
+      const reach = visitViewReach(actor);
+      if (reach === null) throw new ApiError("forbidden");
+      const { patient, patientIsOwn } = await this.patientOf(ctx, actor, patientId);
+      if ("own" in reach && !patientIsOwn) throw new ApiError("not_found");
+      const content = readsContent(actor, patientIsOwn);
+      const page = await listVisitPage(ctx, actor.clinicId, patientId, reach, cursor, content);
+      if (page.previewsShown) await this.auditPatient(actor, ctx, patient, "visit.previews_listed");
+      return {
+        items: page.items,
+        nextCursor: page.nextCursor,
+        can: {
+          search: content,
+          start: canStart(actor, patient),
+        },
+      };
+    });
+  }
+
+  /**
+   * P2-F4: البحث جوه ملاحظات وملاحق مراجع واحد بيقرا محتواه (`visit.searched`، من غير الكلمة).
+   *
+   * @param actor الفاعل
+   * @param patientId الملف
+   * @param input الكلمة والـ cursor (في الجسم، R2-1)
+   * @returns الزيارات المطابقة
+   */
+  search(actor: MedicalActor, patientId: string, input: VisitSearchInput): Promise<VisitList> {
+    return this.deps.db.withTenant(actor.clinicId, async (tx) => {
+      const ctx = readContext(this.deps, tx);
+      const { patient, patientIsOwn } = await this.patientOf(ctx, actor, patientId);
+      if (!medicalReachCovers(medicalReach(actor, "view"), patientIsOwn)) {
+        throw new ApiError("not_found");
+      }
+      // A content reader without a visits key searches every visit of a patient whose content it reads.
+      const reach = visitViewReach(actor);
+      const page = await searchVisitPage(
+        ctx,
+        actor.clinicId,
+        patientId,
+        reach,
+        input.q,
+        input.cursor,
+      );
+      await this.auditPatient(actor, ctx, patient, "visit.searched");
+      return {
+        ...page,
+        can: {
+          search: true,
+          start: canStart(actor, patient),
+        },
+      };
+    });
+  }
+
+  /**
+   * R3-1: الفروع النشطة اللي الفاعل شغّال فيها، المصدر الوحيد لفروع صفحة الزيارة المباشرة.
+   *
+   * @param actor الفاعل (شايل `create:visits:own`)
+   * @returns الفروع
+   */
+  walkInBranches(actor: MedicalActor): Promise<WalkInBranches> {
+    return this.deps.db.withTenant(actor.clinicId, async (tx) => {
+      const all = await this.deps.branches.listForOptions(tx, actor.clinicId, actor.language);
+      const items = all
+        .filter((b) => b.isActive && worksIn(actor.member, b.id))
+        .map((b) => ({ id: b.id, nameAr: b.nameAr, nameEn: b.nameEn }));
+      return { items };
+    });
+  }
+
+  /**
+   * R3-1: ملفات نشطة متسجّلة في فرع الفاعل شغّال فيه، الاسم ورقم الملف بس، 20 بالكتير
+   * (`visit.walk_in_searched` من غير الكلمة).
+   *
+   * @param actor الفاعل (شايل `create:visits:own`)
+   * @param input الفرع والكلمة (في الجسم)
+   * @returns المرشّحين
+   */
+  walkInCandidates(actor: MedicalActor, input: WalkInSearchInput): Promise<WalkInCandidates> {
+    if (!worksIn(actor.member, input.branchId)) throw new ApiError("forbidden");
+    return this.deps.db.withTenant(actor.clinicId, async (tx) => {
+      const items = await this.deps.patients.walkInCandidates(
+        tx,
+        actor.clinicId,
+        input.branchId,
+        input.q,
+      );
+      await auditMedical(tx, this.deps, actor, {
+        action: "visit.walk_in_searched",
+        entityType: "visit",
+        entityId: null,
+        branchId: input.branchId,
+      });
+      return { items: [...items] };
+    });
+  }
+
+  // A file of this clinic, and whether it is the caller's (`own`); another clinic's id is `not_found`.
+  private async patientOf(ctx: ReadContext, actor: MedicalActor, patientId: string) {
+    const patient = await ctx.patients.find(ctx.tx, actor.clinicId, patientId);
+    if (patient === null) throw new ApiError("not_found");
+    const patientIsOwn = await ctx.patients.isOwn(
+      ctx.tx,
+      actor.clinicId,
+      actor.membershipId,
+      patientId,
+    );
+    return { patient, patientIsOwn };
+  }
+
+  // A read across a patient's visits names the patient (the audit screen links its file), never a visit.
+  private auditPatient(
+    actor: MedicalActor,
+    ctx: ReadContext,
+    patient: MedicalPatient,
+    action: string,
+  ) {
+    return auditMedical(ctx.tx, this.deps, actor, {
+      action,
+      entityType: "patient",
+      entityId: patient.id,
+      branchId: patient.registrationBranchId,
+    });
+  }
+}
