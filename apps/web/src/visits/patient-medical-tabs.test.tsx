@@ -35,6 +35,10 @@ describe("the patient file's medical tabs, each by its key", () => {
     expect(shownFor(["view:patients:clinic", "update:medical:clinic"])).toEqual(["attachments"]);
   });
 
+  it("update:medical:own without a view key: none, its reach depends on files it cannot list", () => {
+    expect(shownFor(["view:patients:clinic", "update:medical:own"])).toEqual([]);
+  });
+
   it("no medical or visits key: none", () => {
     expect(shownFor(["view:patients:clinic"])).toEqual([]);
   });
@@ -59,6 +63,29 @@ describe("the attachments tab's upload", () => {
     expect(screen.queryByRole("button", { name: ar.attachments.upload }) !== null).toBe(offered);
     expect(screen.getByRole("button", { name: ar.attachments.archive })).toBeInTheDocument();
   });
+});
+
+// The list answers the API's own write rule: an `own` writer listing another doctor's file sees its
+// attachments but is offered no upload and no archive (the API answers not_found to both). The file's
+// own doctor is offered both: see "the attachments tab's upload" above.
+it("update:medical:own on another doctor's file: the list, without upload or archive", async () => {
+  const { visit } = await startDraft();
+  await api.medical.uploadAttachment(
+    doctorAt(0),
+    visit.patientId,
+    file("image/png", 100, "a.png"),
+    null,
+  );
+  const P = memberWithKeys(["view:medical:clinic", "update:medical:own"]);
+  const { permissions } = await api.session.getContext(P);
+  const attachments = PATIENT_MEDICAL_TABS.find((tab) => tab.id === "attachments")!;
+  await renderAs(
+    P,
+    attachments.render({ patientId: visit.patientId, patientStatus: "active", permissions }),
+  );
+  await screen.findByText("a.png");
+  expect(screen.queryByRole("button", { name: ar.attachments.upload })).toBeNull();
+  expect(screen.queryByRole("button", { name: ar.attachments.archive })).toBeNull();
 });
 
 // The API's file-level upload needs only the update reach and an active file (`uploadTarget` with no

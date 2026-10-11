@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import type { Attachment } from "@eyadex/contracts/attachments";
+import type { Attachment, AttachmentList } from "@eyadex/contracts/attachments";
 import type { Tx } from "@eyadex/db";
 
 import { ApiError } from "../../../../shared/errors.ts";
@@ -105,17 +105,24 @@ export class Attachments {
   }
 
   /**
-   * المرفقات النشطة للمراجع، الأحدث الأول، أو مرفقات زيارة منه (R1-14). القايمة بتفك أسامي الملفات
-   * (معلومة طبية)، فبتكتب صف `attachment.listed` على الملف في نفس الـ transaction، من غير أي اسم.
+   * المرفقات النشطة للمراجع، الأحدث الأول، أو مرفقات زيارة منه (R1-14)، ومعاها `can`: قاعدة الكتابة
+   * بتاعة الفاعل على الملف زي ما `upload` و`archive` بيقرروها (وصول التعديل بيغطي المراجع، والرفع
+   * كمان لملف نشط). القايمة بتفك أسامي الملفات (معلومة طبية)، فبتكتب صف `attachment.listed` على الملف
+   * في نفس الـ transaction، من غير أي اسم.
    *
    * @param actor الفاعل
    * @param patientId الملف
    * @param visitId الزيارة (اختياري)
-   * @returns القايمة
+   * @returns القايمة وقاعدة الرفع والأرشفة
    */
-  list(actor: MedicalActor, patientId: string, visitId: string | undefined): Promise<Attachment[]> {
+  list(
+    actor: MedicalActor,
+    patientId: string,
+    visitId: string | undefined,
+  ): Promise<AttachmentList> {
     return this.deps.db.withTenant(actor.clinicId, async (tx) => {
-      const { patient } = await this.patientInReach(tx, actor, "view", patientId, false);
+      const { patient, own } = await this.patientInReach(tx, actor, "view", patientId, false);
+      const writes = medicalReachCovers(medicalReach(actor, "update"), own);
       const rows = await activeAttachmentsOfPatient(tx, actor.clinicId, patientId, visitId);
       const views = await attachmentViews(readContext(this.deps, tx), actor.clinicId, rows);
       await auditMedical(tx, this.deps, actor, {
@@ -124,7 +131,7 @@ export class Attachments {
         entityId: patient.id,
         branchId: patient.registrationBranchId,
       });
-      return views;
+      return { items: views, can: { upload: writes && patient.active, archive: writes } };
     });
   }
 

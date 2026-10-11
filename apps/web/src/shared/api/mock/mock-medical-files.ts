@@ -167,7 +167,7 @@ export function createMockMedicalFiles(): Pick<
       const db = getState();
       const query = parse(attachmentListQuerySchema, rawQuery);
       const a = requireKey(db, persona, "view", "medical", ["clinic", "own"]);
-      contentFile(db, a, "view", patientId);
+      const patient = contentFile(db, a, "view", patientId);
       const items = db.medical.attachments
         .filter((x) => x.clinicId === a.clinic.id && x.patientId === patientId)
         .filter((x) => x.status === "active")
@@ -177,7 +177,9 @@ export function createMockMedicalFiles(): Pick<
       // The list shows file names (clinical information), so it is an audited read like the API's.
       auditMedical(db, a, "patient", "attachment.listed", patientId);
       persist();
-      return { items };
+      // As the API's list: the caller's own write rule for the file (update reach, active for upload).
+      const writes = reachesContent(db, a, "update", patientId);
+      return { items, can: { upload: writes && patient.status === "active", archive: writes } };
     },
 
     async uploadAttachment(persona, patientId, file, visitId) {

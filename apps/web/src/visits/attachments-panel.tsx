@@ -18,14 +18,16 @@ import {
 
 /**
  * Upload and archive are offered apart: an archived file takes no upload, yet its rows still archive.
- * `canView` false = a caller who may upload but not read the file (the API answers its list with an
- * error), so no list is asked for and none of the file names reach the screen.
+ * Left out, `canUpload` / `canArchive` come from the list's `can` (the API's own rule for the file,
+ * `own` included), and nothing is offered while it loads. `canView` false = a caller who may upload but
+ * not read the file (the API answers its list with an error), so no list is asked for and none of the
+ * file names reach the screen.
  */
 type Props = {
   patientId: string;
   visitId: string | null;
-  canUpload: boolean;
-  canArchive: boolean;
+  canUpload?: boolean;
+  canArchive?: boolean;
   canView?: boolean;
 };
 
@@ -47,6 +49,8 @@ export function AttachmentsPanel({
   const { t, formatDate } = useI18n();
   const refresh = useRefreshMedical();
   const list = useAttachments(patientId, visitId ?? undefined, canView);
+  const mayUpload = canUpload ?? list.data?.can.upload ?? false;
+  const mayArchive = canArchive ?? list.data?.can.archive ?? false;
   const input = useRef<HTMLInputElement>(null);
   const [archiving, setArchiving] = useState<Attachment | null>(null);
   const done = () => refresh([...medicalKeys.all, "attachments", patientId]);
@@ -98,7 +102,7 @@ export function AttachmentsPanel({
         <h2 className="text-base font-semibold">
           {t(visitId ? "visit.attachments" : "attachments.title")}
         </h2>
-        {canUpload && (
+        {mayUpload && (
           <>
             <input
               ref={input}
@@ -123,13 +127,13 @@ export function AttachmentsPanel({
           </>
         )}
       </div>
-      {canUpload && (
+      {mayUpload && (
         <p className="mb-2 text-xs text-muted-foreground">{t("attachments.uploadHint")}</p>
       )}
       {!canView ? (
         <p className="flex items-center gap-2 rounded-lg border bg-card p-4 text-sm text-muted-foreground">
           <Paperclip className="size-4 shrink-0" />
-          {t(canUpload ? "attachments.writeOnly" : "attachments.hidden")}
+          {t(mayUpload ? "attachments.writeOnly" : "attachments.hidden")}
         </p>
       ) : list.isLoading ? (
         <LoadingBlock />
@@ -159,7 +163,7 @@ export function AttachmentsPanel({
                 <ExternalLink className="size-4" />
                 {t("attachments.open")}
               </Button>
-              {canArchive && (
+              {mayArchive && (
                 <Button variant="ghost" size="sm" onClick={() => setArchiving(row)}>
                   <Archive className="size-4" />
                   {t("attachments.archive")}

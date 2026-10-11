@@ -33,7 +33,10 @@ let photo: string;
 const bytes = pngBytes(2048);
 const NAME = "أشعة الصدر (1).png";
 
-type List = { items: { id: string; name: string; status: string; visitId: string | null }[] };
+type List = {
+  items: { id: string; name: string; status: string; visitId: string | null }[];
+  can: { upload: boolean; archive: boolean };
+};
 const list = (cookie: string, id: string, query = "") =>
   send(h, cookie, "GET", `/v1/patients/${id}/attachments${query}`);
 const download = (cookie: string, id: string) => send(h, cookie, "GET", `/v1/attachments/${id}`);
@@ -78,6 +81,22 @@ describe("list", () => {
     expect(rows[0]!["branch_id"]).toBe(C.branchD);
     expect(rows[0]!["details"]).toEqual({ before: null, after: null });
     expect(rows[0]!["raw"]).not.toMatch(/أشعة|\.png/);
+  });
+
+  it("answers the caller's own upload and archive rule for the file: own, not own, archived", async () => {
+    const rights = async (cookie: string, id: string) => (await list(cookie, id)).json() as List;
+    expect((await rights(C.doctor.cookie, patient)).can).toEqual({ upload: true, archive: true });
+    // update:medical:own reaches only the caller's own patients, though the view reach is wider.
+    const role = await customRole(h, C.clinicId, ["view:medical:clinic", "update:medical:own"]);
+    const ownWriter = await memberOn(h, C.admin, role);
+    const seen = await rights(ownWriter.cookie, patient);
+    expect(seen.items.length).toBeGreaterThan(0);
+    expect(seen.can).toEqual({ upload: false, archive: false });
+    // An archived file takes no upload, yet its attachments still archive.
+    const shelved = await patientIn(h, C, C.branchD);
+    await startedVisit(h, C.doctor.cookie, { patientId: shelved, branchId: C.branchD });
+    await h.owner`UPDATE patients SET status = 'archived' WHERE id = ${shelved}`;
+    expect((await rights(C.doctor.cookie, shelved)).can).toEqual({ upload: false, archive: true });
   });
 
   it("NEGATIVE: without a medical key it is forbidden; another doctor's patient is not_found", async () => {

@@ -12,7 +12,7 @@ import {
 } from "@nestjs/common";
 import {
   attachmentListQuerySchema,
-  type attachmentListSchema,
+  type AttachmentList,
   type AttachmentWriteResponse,
 } from "@eyadex/contracts/attachments";
 import type { z } from "zod";
@@ -26,7 +26,6 @@ import { readUpload } from "./attachment-upload.ts";
 import { actorOf, idOf } from "./medical-request.ts";
 
 type AttachmentListQuery = z.infer<typeof attachmentListQuerySchema>;
-type AttachmentList = z.infer<typeof attachmentListSchema>;
 
 /**
  * `attachment; filename="<ascii>"; filename*=UTF-8''<utf-8>` (RFC 6266): the ASCII fallback drops
@@ -72,7 +71,7 @@ export class AttachmentsController {
     @Param("id") id: string,
     @Query(new ZodValidationPipe(attachmentListQuerySchema)) query: AttachmentListQuery,
   ): Promise<AttachmentList> {
-    return { items: await this.attachments.list(actorOf(request), idOf(id), query.visitId) };
+    return this.attachments.list(actorOf(request), idOf(id), query.visitId);
   }
 
   @Get("attachments/:id")

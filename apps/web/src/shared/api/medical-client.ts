@@ -1,4 +1,8 @@
-import type { Attachment, AttachmentWriteResponse } from "@eyadex/contracts/attachments";
+import type {
+  Attachment,
+  AttachmentList,
+  AttachmentWriteResponse,
+} from "@eyadex/contracts/attachments";
 import type { Icd10Result } from "@eyadex/contracts/icd10";
 import type { MedicalProfile, MedicalProfileInput } from "@eyadex/contracts/medical-profile";
 import type { Medicine, MedicineInput } from "@eyadex/contracts/medicines";
@@ -71,12 +75,12 @@ export interface MedicalApi {
   updateMedicine(persona: Persona, id: string, input: MedicineInput): Promise<Medicine>;
   deactivateMedicine(persona: Persona, id: string): Promise<Medicine>;
   reactivateMedicine(persona: Persona, id: string): Promise<Medicine>;
-  /** Active attachments of the file, or of one visit when `visitId` is given. */
+  /** Active attachments of the file, or of one visit when `visitId` is given, and the caller's rights. */
   listAttachments(
     persona: Persona,
     patientId: string,
     query: { visitId?: string },
-  ): Promise<{ items: Attachment[] }>;
+  ): Promise<AttachmentList>;
   /** Multipart `file` + optional `visitId`; answers the attachment as saved. */
   uploadAttachment(
     persona: Persona,
