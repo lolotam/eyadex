@@ -54,3 +54,32 @@ export const enMedicalAuditActions = {
     reactivated: "Medicine reactivated",
   },
 };
+
+/**
+ * The names a medical audit row lists in `after.changed` (field names only, R3-4), from every
+ * `auditMedical` write of the API and the mock, and the label of that list.
+ */
+export const enMedicalAuditFields = {
+  changed: "Changed fields",
+  complaint: "Complaint",
+  examination: "Examination",
+  assessment: "Assessment",
+  plan: "Plan",
+  cancelNote: "Cancellation note",
+  body: "Text",
+  items: "Items",
+  file: "File",
+  allergies: "Allergies",
+  chronicConditions: "Chronic conditions",
+  currentMedications: "Current medications",
+  surgicalHistory: "Surgical history",
+  familyHistory: "Family history",
+  name: "Name",
+  defaultDose: "Default dose",
+  defaultFrequency: "Default frequency",
+  reason: "Reason",
+  note: "Note",
+  preview: "Preview",
+  q: "Search words",
+  content: "Clinical content",
+};

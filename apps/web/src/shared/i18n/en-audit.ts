@@ -1,5 +1,5 @@
 import { enAuditApiClinicActions } from "./en-audit-api";
-import { enMedicalAuditActions, enMedicalAuditEntities } from "./en-medical";
+import { enMedicalAuditActions, enMedicalAuditEntities, enMedicalAuditFields } from "./en-medical";
 
 // Audit log strings, split out to keep each dictionary file small.
 export const enAudit = {
@@ -123,6 +123,7 @@ export const enAudit = {
       ...enMedicalAuditActions,
     },
     fields: {
+      ...enMedicalAuditFields,
       nameAr: "Name (Arabic)",
       nameEn: "Name (English)",
       address: "Address",

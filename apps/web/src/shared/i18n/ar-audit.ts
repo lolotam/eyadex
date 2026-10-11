@@ -1,5 +1,5 @@
 import { arAuditApiClinicActions } from "./ar-audit-api";
-import { arMedicalAuditActions, arMedicalAuditEntities } from "./ar-medical";
+import { arMedicalAuditActions, arMedicalAuditEntities, arMedicalAuditFields } from "./ar-medical";
 
 // نصوص سجل التدقيق، مفصولة لإبقاء ملفات القاموس صغيرة.
 export const arAudit = {
@@ -123,6 +123,7 @@ export const arAudit = {
       ...arMedicalAuditActions,
     },
     fields: {
+      ...arMedicalAuditFields,
       nameAr: "الاسم (عربي)",
       nameEn: "الاسم (إنجليزي)",
       address: "العنوان",

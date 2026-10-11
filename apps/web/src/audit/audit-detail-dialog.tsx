@@ -56,6 +56,11 @@ export function AuditDetailDialog({ entry, timeZone, onClose }: Props) {
     const text = tDynamic(`audit.fields.${field}`);
     return text === `audit.fields.${field}` ? field : text;
   };
+  // A medical write lists the names of the fields it changed (never their values): they read as labels.
+  const cell = (field: string, value: unknown): string =>
+    field === "changed" && Array.isArray(value)
+      ? show(value.map((f) => label(String(f))))
+      : show(value);
 
   return (
     <Dialog open={Boolean(entry)} onOpenChange={(open) => !open && onClose()}>
@@ -92,9 +97,9 @@ export function AuditDetailDialog({ entry, timeZone, onClose }: Props) {
                   <tr key={row.field} className={row.changed ? "bg-accent/40" : undefined}>
                     <td className="border-t px-3 py-2 font-medium">{label(row.field)}</td>
                     <td className="border-t px-3 py-2 break-all text-muted-foreground">
-                      {show(row.before)}
+                      {cell(row.field, row.before)}
                     </td>
-                    <td className="border-t px-3 py-2 break-all">{show(row.after)}</td>
+                    <td className="border-t px-3 py-2 break-all">{cell(row.field, row.after)}</td>
                   </tr>
                 ))}
               </tbody>

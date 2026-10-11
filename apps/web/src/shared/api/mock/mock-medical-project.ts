@@ -92,7 +92,8 @@ export function detailOf(db: MockState, a: MedicalAccess, v: StoredVisit): Visit
 
 /**
  * A medical audit row (spec §5): patient access for everything except medicines, and only the NAMES
- * of the fields involved — never their text, a code, a medicine, a query or a civil ID.
+ * of the fields involved, as `after.changed` like the API — never their text, a code, a medicine, a
+ * query or a civil ID.
  */
 export function auditMedical(
   db: MockState,
@@ -109,6 +110,6 @@ export function auditMedical(
     action,
     entity,
     before: null,
-    after: { id: entityId, fields: [...fields], ...(status ? { status } : {}) },
+    after: { id: entityId, changed: [...fields], ...(status ? { status } : {}) },
   });
 }

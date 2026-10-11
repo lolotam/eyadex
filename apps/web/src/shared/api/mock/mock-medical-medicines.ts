@@ -1,4 +1,8 @@
-import { medicineInputSchema, type Medicine } from "@eyadex/contracts/medicines";
+import {
+  medicineInputSchema,
+  type Medicine,
+  type MedicineInput,
+} from "@eyadex/contracts/medicines";
 import type { Persona } from "@eyadex/contracts/session";
 import { ApiError } from "../api-error";
 import type { MedicalApi } from "../medical-client";
@@ -26,6 +30,15 @@ function enforceUniqueName(db: MockState, a: MedicalAccess, name: string, except
   );
   if (taken) throw new ApiError("medicine_name_taken");
 }
+
+// The API's `fieldsOf`: a blank default is no default.
+const blankAsNull = (text: string | null) => (text === null || text.trim() === "" ? null : text);
+const FIELDS = ["name", "defaultDose", "defaultFrequency"] as const;
+const fieldsOf = (input: MedicineInput): MedicineInput => ({
+  name: input.name,
+  defaultDose: blankAsNull(input.defaultDose),
+  defaultFrequency: blankAsNull(input.defaultFrequency),
+});
 
 const writer = (persona: Persona) =>
   requireKey(getState(), persona, "update", "medicines", ["clinic"]);
@@ -85,12 +98,13 @@ export function createMockMedicalMedicines(): Pick<
       const row: StoredMedicine = {
         id: newId(),
         clinicId: a.clinic.id,
-        ...input,
+        ...fieldsOf(input),
         status: "active",
       };
       db.medical.medicines.push(row);
       db.medical.idempotentMedicines[replayKey] = { medicineId: row.id, fingerprint };
-      auditMedical(db, a, "medicine", "medicine.created", row.id, Object.keys(input), "active");
+      const filled = FIELDS.filter((f) => row[f] !== null);
+      auditMedical(db, a, "medicine", "medicine.created", row.id, filled, "active");
       persist();
       return view(row);
     },
@@ -98,13 +112,13 @@ export function createMockMedicalMedicines(): Pick<
     async updateMedicine(persona, id, rawInput) {
       await delay();
       const db = getState();
-      const input = parse(medicineInputSchema, rawInput);
+      const input = fieldsOf(parse(medicineInputSchema, rawInput));
       const a = writer(persona);
       const row = find(db, a, id);
+      const changed = FIELDS.filter((f) => row[f] !== input[f]);
+      // As the API: an unchanged save answers the row as it stands, with no audit row.
+      if (changed.length === 0) return view(row);
       enforceUniqueName(db, a, input.name, row.id);
-      const changed = (["name", "defaultDose", "defaultFrequency"] as const).filter(
-        (f) => row[f] !== input[f],
-      );
       Object.assign(row, input);
       auditMedical(db, a, "medicine", "medicine.updated", row.id, changed);
       persist();

@@ -76,7 +76,7 @@ describe("the medical mock audit", () => {
     const rows = getState().clinicAudit;
     expect(rows.find((r) => r.action === "visit.started")?.category).toBe("patient_access");
     expect(rows.find((r) => r.action === "medicine.created")?.category).toBe("administrative");
-    expect(rows.find((r) => r.action === "visit.started")?.after).toMatchObject({ fields: [] });
+    expect(rows.find((r) => r.action === "visit.started")?.after).toMatchObject({ changed: [] });
   });
 
   it("an identical note save answers the note, so it is logged as an open", async () => {
