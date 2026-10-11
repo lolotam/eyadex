@@ -83,8 +83,9 @@ mc admin policy attach local eyadex-medical-rw --user eyadex-api
 At the prompt, paste a freshly generated value (§1): it is the API's secret key. It never appears on the
 command line or in the shell history. The prompt needs an interactive terminal (Dokploy's terminal or an SSH
 session you type in). Save the value in your password manager first: §4 needs exactly the same value. If it
-is lost, run the `read`, `mc admin user add` and `mc admin policy attach` lines again with a new value
-(adding an existing user replaces its key; "already attached" from the last line is fine) and update §4.
+is lost, run the `export MC_HOST_local=…`, `read`, `mc admin user add` and `mc admin policy attach` lines
+again with a new value (the cleanup below unsets the `local` alias, so the export comes first; adding an
+existing user replaces its key; "already attached" from the last line is fine) and update §4.
 
 Why the policy is this small:
 
