@@ -4,6 +4,7 @@ import { systemUuidV7 } from "@eyadex/ids";
 
 import { DatabaseModule } from "../../shared/database.module.ts";
 import { DATABASE } from "../../shared/database.provider.ts";
+import { FIELD_CIPHER, FieldEncryptionModule } from "../../shared/field-encryption.module.ts";
 // A module.ts may bind another module's adapter to a port it owns (CLAUDE.architecture.md §2.2,
 // ADR-0029): identity's members, tenancy's branches, patients' files and appointments' bookings.
 import { PgVisitAppointments } from "../appointments/index.ts";
@@ -52,17 +53,6 @@ const members: MedicalMemberDirectory = new PgProviderDirectory();
 const branches: MedicalBranchReader = new PgFilingBranches();
 const clinics: MedicalClinicReader = new PgClinicNames();
 
-// Replaced by FieldCipher (FIELD_CIPHER, branch p2-crypto) before this module ships (a wiring hold); until
-// then nothing clinical can be written or read, never stored in clear.
-const NO_CIPHER: ClinicalCipher = {
-  seal: () => {
-    throw new Error("medical: field cipher not configured");
-  },
-  open: () => {
-    throw new Error("medical: field cipher not configured");
-  },
-};
-
 const DEPS = [DATABASE, CLOCK, CLINICAL_CIPHER];
 const medicalDeps = (db: Database, clock: Clock, cipher: ClinicalCipher): MedicalDeps => ({
   db,
@@ -83,10 +73,11 @@ const medicalDeps = (db: Database, clock: Clock, cipher: ClinicalCipher): Medica
  * الموديول بس، وكل عمود `*_enc` بيعدّي على `ClinicalCipher`.
  */
 @Module({
-  imports: [DatabaseModule, TenancyModule],
+  imports: [DatabaseModule, TenancyModule, FieldEncryptionModule],
   controllers: [VisitsController, PatientMedicalController, Icd10Controller, MedicinesController],
   providers: [
-    { provide: CLINICAL_CIPHER, useValue: NO_CIPHER },
+    // ADR-0028: the app's one FieldCipher, behind the module's own port.
+    { provide: CLINICAL_CIPHER, useExisting: FIELD_CIPHER },
     {
       provide: START_VISIT,
       inject: DEPS,

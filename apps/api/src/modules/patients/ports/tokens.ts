@@ -2,3 +2,4 @@
 export const PATIENT_CHANGES = Symbol("patients.PatientChanges");
 export const OPEN_PATIENT = Symbol("patients.OpenPatient");
 export const PATIENT_BRANCH_READER = Symbol("patients.PatientBranchReader");
+export const PATIENT_CIVIL_IDS = Symbol("patients.CivilIdCodec");

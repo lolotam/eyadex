@@ -26,10 +26,10 @@ export async function addPatient(
 ): Promise<string> {
   const id = randomUUID();
   await h.owner`INSERT INTO patients (clinic_id, id, file_number, full_name, phone, birth_date, gender,
-                  registration_branch_id, civil_id, status, created_at, updated_at)
+                  registration_branch_id, status, created_at, updated_at)
                 VALUES (${clinicId}, ${id}, ${String(Math.floor(Math.random() * 1e9))},
                   ${`Booked Patient ${id.slice(0, 4)}`}, ${`+965${fakePhone()}`}, '1990-04-01',
-                  'female', ${branchId}, null, ${status}, now(), now())`;
+                  'female', ${branchId}, ${status}, now(), now())`;
   return id;
 }
 

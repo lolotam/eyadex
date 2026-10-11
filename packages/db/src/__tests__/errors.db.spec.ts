@@ -51,9 +51,9 @@ describe("a database failure leaves the wrapper as DatabaseError", () => {
       app.withTenant(A.clinicId, (tx) =>
         tx.execute(sql`
           INSERT INTO patients (clinic_id, id, file_number, full_name, phone, birth_date, gender,
-              registration_branch_id, civil_id, status, created_at, updated_at)
+              registration_branch_id, status, created_at, updated_at)
           VALUES (${A.clinicId}, ${probe}, '1', ${fullName}, ${phone}, '1991-02-03', 'male',
-              ${A.branchId}, NULL, 'active', now(), now())
+              ${A.branchId}, 'active', now(), now())
         `),
       ),
     );
@@ -194,9 +194,9 @@ describe("a real driver failure that fn catches and wraps reaches the caller scr
         try {
           await tx.execute(sql`
             INSERT INTO patients (clinic_id, id, file_number, full_name, phone, birth_date, gender,
-                registration_branch_id, civil_id, status, created_at, updated_at)
+                registration_branch_id, status, created_at, updated_at)
             VALUES (${A.clinicId}, ${probe}, '1', ${fullName}, '+96550000000', '1991-02-03', 'male',
-                ${A.branchId}, NULL, 'active', now(), now())
+                ${A.branchId}, 'active', now(), now())
           `);
         } catch (error) {
           throw new Error("could not register the patient", { cause: error });

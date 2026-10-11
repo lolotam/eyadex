@@ -1,9 +1,7 @@
-/** مكان القيمة المشفّرة: الجدول والعمود وصف القيمة نفسها (الـ additional data، ADR-0028). */
-export interface FieldRef {
-  readonly table: string;
-  readonly column: string;
-  readonly rowId: string;
-}
+import type { FieldRef } from "@eyadex/secrets";
+
+// The location is FieldCipher's own type, so the port and its one implementation never disagree on it.
+export type { FieldRef };
 
 /**
  * التشفير اللي موديول الطب محتاجه لكل عمود `*_enc` (ADR-0028). `FieldCipher` من `@eyadex/secrets`

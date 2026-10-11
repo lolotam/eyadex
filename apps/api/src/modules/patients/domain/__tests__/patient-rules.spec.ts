@@ -90,7 +90,7 @@ describe("record actions and coverage", () => {
   });
 });
 
-describe("searchTerms (same rule as the mock)", () => {
+describe("searchTerms", () => {
   it("Arabic-Indic, Persian and full-width digits search like ASCII ones", () => {
     for (const zero of [0x0660, 0x06f0, 0xff10]) {
       const typed = "5550".replace(/\d/g, (d) => String.fromCharCode(zero + Number(d)));
@@ -99,15 +99,28 @@ describe("searchTerms (same rule as the mock)", () => {
   });
 
   it("empty search filters nothing", () => {
-    expect(searchTerms("")).toEqual({ namePattern: null, digitsPattern: null });
+    expect(searchTerms("")).toEqual({ namePattern: null, digitsPattern: null, civilId: null });
   });
 
   it("a name escapes LIKE metacharacters and has no digit pattern", () => {
-    expect(searchTerms("a_b%c\\")).toEqual({ namePattern: "%a\\_b\\%c\\\\%", digitsPattern: null });
+    expect(searchTerms("a_b%c\\")).toEqual({
+      namePattern: "%a\\_b\\%c\\\\%",
+      digitsPattern: null,
+      civilId: null,
+    });
   });
 
-  it("digits are pulled out of any punctuation for phone, file number and civil ID", () => {
+  it("digits are pulled out of any punctuation for phone and file number", () => {
     expect(searchTerms("+965 5550-1234").digitsPattern).toBe("%96555501234%");
+  });
+
+  it("only exactly twelve digits search the civil ID, whatever the separators (P2-F5)", () => {
+    // Made-up numbers of the right shape, never a real person's.
+    expect(searchTerms("289010112345").civilId).toBe("289010112345");
+    expect(searchTerms("2890 1011 2345").civilId).toBe("289010112345");
+    expect(searchTerms("28901011234").civilId).toBeNull();
+    expect(searchTerms("2890101123456").civilId).toBeNull();
+    expect(searchTerms("0112").civilId).toBeNull();
   });
 });
 
