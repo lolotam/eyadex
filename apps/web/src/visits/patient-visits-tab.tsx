@@ -26,10 +26,17 @@ export function PatientVisitsTab({ patientId }: { patientId: string }) {
   const [draft, setDraft] = useState("");
   const [query, setQuery] = useState<string | null>(null);
   const [run, setRun] = useState(0);
+  // The search pages on its own cursors (the API pages the matches of up to 500 visits, Codex PR #68).
+  const [searchCursors, setSearchCursors] = useState<(string | undefined)[]>([undefined]);
+  const searchCursor = searchCursors[searchCursors.length - 1];
   const search = useQuery({
     // The query text stays out of the cache key: one search at a time, dropped on leaving.
-    queryKey: ["clinic", "medical", "visit-search", patientId, run, ...personaKey],
-    queryFn: () => api.medical.searchVisits(persona, patientId, { q: query ?? "" }),
+    queryKey: ["clinic", "medical", "visit-search", patientId, run, searchCursor, ...personaKey],
+    queryFn: () =>
+      api.medical.searchVisits(persona, patientId, {
+        q: query ?? "",
+        ...(searchCursor === undefined ? {} : { cursor: searchCursor }),
+      }),
     enabled: enabled && query !== null,
     gcTime: 0,
     retry: false,
@@ -39,6 +46,7 @@ export function PatientVisitsTab({ patientId }: { patientId: string }) {
     e.preventDefault();
     const q = draft.trim();
     setQuery(q.length > 0 ? q : null);
+    setSearchCursors([undefined]);
     setRun((n) => n + 1);
   }
 
@@ -49,6 +57,10 @@ export function PatientVisitsTab({ patientId }: { patientId: string }) {
     );
   }
   const rows: VisitSummary[] = query !== null ? (search.data?.items ?? []) : list.data.items;
+  const pager =
+    query === null
+      ? { stack: cursors, set: setCursors, next: list.data.nextCursor }
+      : { stack: searchCursors, set: setSearchCursors, next: search.data?.nextCursor ?? null };
   const can = list.data.can;
   return (
     <section className="max-w-3xl">
@@ -83,6 +95,7 @@ export function PatientVisitsTab({ patientId }: { patientId: string }) {
               onClick={() => {
                 setDraft("");
                 setQuery(null);
+                setSearchCursors([undefined]);
               }}
             >
               <X className="size-4" />
@@ -122,24 +135,22 @@ export function PatientVisitsTab({ patientId }: { patientId: string }) {
           ))}
         </ul>
       )}
-      {query === null && (
-        <div className="mt-3 flex gap-2">
-          {cursors.length > 1 && (
-            <Button variant="outline" size="sm" onClick={() => setCursors((c) => c.slice(0, -1))}>
-              {t("common.previous")}
-            </Button>
-          )}
-          {list.data.nextCursor && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCursors((c) => [...c, list.data.nextCursor ?? undefined])}
-            >
-              {t("common.next")}
-            </Button>
-          )}
-        </div>
-      )}
+      <div className="mt-3 flex gap-2">
+        {pager.stack.length > 1 && (
+          <Button variant="outline" size="sm" onClick={() => pager.set((c) => c.slice(0, -1))}>
+            {t("common.previous")}
+          </Button>
+        )}
+        {pager.next && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => pager.set((c) => [...c, pager.next ?? undefined])}
+          >
+            {t("common.next")}
+          </Button>
+        )}
+      </div>
     </section>
   );
 }

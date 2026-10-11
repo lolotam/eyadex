@@ -52,12 +52,24 @@ export function AttachmentsPanel({ patientId, visitId, canUpload }: Props) {
     onError: (e) => toast.error(t(`errors.${errorCodeOf(e)}`)),
   });
   async function open(row: Attachment) {
+    // The tab opens inside the click (a window opened after the await is blocked as a popup, Codex PR
+    // #68) and is pointed at the file once it arrives; with no tab, the file is saved instead.
+    const tab = window.open("", "_blank");
+    if (tab) tab.opener = null;
     try {
       const blob = await api.medical.downloadAttachment(persona, row.id);
       const url = URL.createObjectURL(blob);
-      window.open(url, "_blank", "noopener");
+      if (tab) {
+        tab.location.href = url;
+      } else {
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = row.name;
+        link.click();
+      }
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch (e) {
+      tab?.close();
       toast.error(t(`errors.${errorCodeOf(e)}`));
     }
   }

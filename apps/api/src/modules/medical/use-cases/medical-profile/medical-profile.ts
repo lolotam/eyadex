@@ -58,7 +58,7 @@ export class MedicalProfileChanges {
   }
 
   /**
-   * يحفظ الأقسام الخمسة كلها (`PUT` بيستبدل). نفس القيم = نفس الرد من غير كتابة ولا صف سجل.
+   * يحفظ الأقسام الخمسة كلها (`PUT` بيستبدل). نفس القيم = من غير كتابة، بس بيتسجّل كفتح للملف لأن الرد فيه المحتوى.
    *
    * @param actor الفاعل
    * @param patientId الملف
@@ -102,6 +102,10 @@ export class MedicalProfileChanges {
         };
         await (stored === null ? insertProfile : updateProfile)(tx, clinicId, write);
         await this.audit(tx, actor, patient, "medical_profile.saved", changed);
+      } else {
+        // The answer still carries the five decrypted sections, so a no-op save is a read and leaves
+        // the same patient_access trail as GET (Codex P2 PR #68).
+        await this.audit(tx, actor, patient, "medical_profile.opened", undefined);
       }
       return this.answer(tx, actor, patientId, own);
     });

@@ -87,7 +87,9 @@ function startFrom(
   }
   const patient = patientOf(db, a, input.patientId);
   if (patient.status !== "active") throw new ApiError("patient_inactive");
-  // Owner decision 2026-10-10: any active file may be seen in a branch the caller works in.
+  // As the API (walk-in reach) and the candidate search: a walk-in starts only for a file registered in
+  // that branch, so a crafted start cannot make another branch's patient "own" (Codex P2 PR #68).
+  if (patient.registrationBranchId !== input.branchId) throw new ApiError("not_found");
   return { patientId: patient.id, branchId: input.branchId, appointmentId: null };
 }
 

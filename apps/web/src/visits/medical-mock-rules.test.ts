@@ -188,6 +188,22 @@ describe("the medical mock rules", () => {
     }
   });
 
+  it("a walk-in starts only for a file registered in that branch (Codex PR #68)", async () => {
+    const { items: branches } = await api.medical.walkInBranches(D());
+    const branchId = branches[0]!.id;
+    const clinicId = getState().clinics[0]!.id;
+    const elsewhere = getState().patients.find(
+      (p) =>
+        p.clinicId === clinicId && p.status === "active" && p.registrationBranchId !== branchId,
+    )!;
+    const before = getState().medical.visits.length;
+    await reject(
+      api.medical.startVisit(D(), { patientId: elsewhere.id, branchId }, crypto.randomUUID()),
+      "not_found",
+    );
+    expect(getState().medical.visits).toHaveLength(before);
+  });
+
   it("role_self_change: nobody changes their own role", async () => {
     const admin = as("clinic_admin");
     const db = getState();

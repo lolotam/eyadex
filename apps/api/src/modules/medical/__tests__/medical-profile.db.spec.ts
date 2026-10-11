@@ -88,6 +88,18 @@ describe("the medical file", () => {
     expect((again.json() as { profile: unknown }).profile).toEqual(body);
   });
 
+  it("a save that changes nothing still returns the content, so it is audited as an open (Codex PR #68)", async () => {
+    const body = { ...EMPTY, allergies: ALLERGY };
+    await send(h, C.doctor.cookie, "PUT", url(patient), body);
+    const since = new Date();
+    const res = await send(h, C.doctor.cookie, "PUT", url(patient), body);
+    expect(res.statusCode).toBe(200);
+    const rows = await medicalAudit(h, C.clinicId, since);
+    expect(rows.map((r) => [r["action"], r["category"]])).toEqual([
+      ["medical_profile.opened", "patient_access"],
+    ]);
+  });
+
   it("own reaches own patients only; an archived file is not written", async () => {
     const stranger = await patientIn(h, C, C.branchD);
     expect((await send(h, C.doctor.cookie, "GET", url(stranger))).statusCode).toBe(404);
