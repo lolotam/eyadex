@@ -36,7 +36,7 @@ const appointments: MedicalAppointmentReader = new PgVisitAppointments();
 const members: MedicalMemberDirectory = new PgProviderDirectory();
 const branches: MedicalBranchReader = new PgFilingBranches();
 
-// TODO(spec): replaced by FieldCipher (FIELD_CIPHER, branch p2-crypto) before this module ships; until
+// Replaced by FieldCipher (FIELD_CIPHER, branch p2-crypto) before this module ships (a wiring hold); until
 // then nothing clinical can be written or read, never stored in clear.
 const NO_CIPHER: ClinicalCipher = {
   seal: () => {

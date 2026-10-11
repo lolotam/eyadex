@@ -120,6 +120,13 @@ describe("walk-in picker (R3-1)", () => {
     ).toContain(ids[0]);
   });
 
+  it("the clinic audit log reads a medical row with no entity (the walk-in search)", async () => {
+    const res = await send(h, C.admin.cookie, "GET", "/v1/clinic/audit?category=patient_access");
+    expect(res.statusCode).toBe(200);
+    const actions = (res.json() as { items: { action: string }[] }).items.map((i) => i.action);
+    expect(actions).toContain("visit.walk_in_searched");
+  });
+
   it("a branch outside the caller's is forbidden", async () => {
     const res = await send(h, C.doctor.cookie, "POST", "/v1/visits/walk-in-candidates", {
       branchId: C.branchR,
