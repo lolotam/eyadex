@@ -21,7 +21,6 @@ async function visitsOfOnePatient(count: number, assessment: (i: number) => stri
   const { visit } = await startDraft();
   const db = getState();
   const base = db.medical.visits.find((v) => v.id === visit.id)!;
-  const added: StoredVisit[] = [];
   for (let i = 0; i < count; i += 1) {
     const copy: StoredVisit = {
       ...base,
@@ -33,9 +32,8 @@ async function visitsOfOnePatient(count: number, assessment: (i: number) => stri
       addenda: [],
     };
     db.medical.visits.push(copy);
-    added.push(copy);
   }
-  return { patientId: visit.patientId, added };
+  return { patientId: visit.patientId };
 }
 
 describe("the visit list", () => {
