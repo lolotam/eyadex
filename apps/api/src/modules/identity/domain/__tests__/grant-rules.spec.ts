@@ -139,7 +139,7 @@ describe("the own scope (spec §3: the narrowest; a wider scope on the same acti
 });
 
 describe("new-clinic system roles (ADR-0026 §6)", () => {
-  // P2 R1-4: the medical module's resources reach roles only at its release (0051).
+  // P2 R1-4: the medical module's resources reach roles only at its release (0050).
   it("the locked admin holds every clinic-scope key of the catalogue but the unreleased medical ones", () => {
     const clinicKeys = PERMISSION_CATALOG.filter(
       (p) => p.scope === "clinic" && p.module !== "medical",

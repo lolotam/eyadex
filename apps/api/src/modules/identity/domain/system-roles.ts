@@ -15,7 +15,7 @@ export interface SystemRoleTemplate {
 // PRD §5.3 "Clinic Admin (locked, everything)": every clinic-scope key of the catalogue, so a key the
 // catalogue gains reaches new clinics' admins with no second list (ADR-0026 §6). Same rule as the web
 // mock's ROLE_TEMPLATES. P2 R1-4: the medical module's resources reach roles only at its release
-// (0051), so until then a new clinic's admin is created without them.
+// (0050), so until then a new clinic's admin is created without them.
 const UNRELEASED: ReadonlySet<PermissionResource> = new Set(["visits", "medical", "medicines"]);
 const clinicScope = PERMISSION_CATALOG.filter(
   (p) => p.scope === "clinic" && !UNRELEASED.has(p.resource),
