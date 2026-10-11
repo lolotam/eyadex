@@ -14,7 +14,7 @@ import {
 
 import { clinics } from "./clinics.ts";
 
-// Mirror of db/sql/0011, 0012, 0013. Append-only: no runtime role can update or delete these rows.
+// Mirror of db/sql/0011, 0012, 0013 and 0046. Append-only: no runtime role can update or delete these rows.
 const tz = { withTimezone: true, mode: "date" } as const;
 
 export const auditLog = pgTable(
@@ -51,7 +51,9 @@ export const auditLog = pgTable(
     ),
     check(
       "audit_log_patient_events_are_patient_access",
-      sql.raw("((entity_type <> 'patient'::text) OR (category = 'patient_access'::text))"),
+      sql.raw(
+        "((entity_type <> ALL (ARRAY['patient'::text, 'visit'::text, 'visit_addendum'::text, 'diagnosis'::text, 'prescription'::text, 'medical_profile'::text, 'attachment'::text])) OR (category = 'patient_access'::text))",
+      ),
     ),
   ],
 );
@@ -77,7 +79,7 @@ export const platformAuditLog = pgTable(
   ],
 );
 
-/** The platform's only window on clinic audit: administrative rows, no patient or appointment ones (0013, 0043). */
+/** The platform's only window on clinic audit: administrative rows, no patient, appointment or medical ones (0013, 0043, 0046). */
 export const platformClinicAdminAudit = pgView("platform_clinic_admin_audit", {
   clinicId: uuid("clinic_id").notNull(),
   id: uuid("id").notNull(),

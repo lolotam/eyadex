@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { boolean, check, integer, pgTable, smallint, text, timestamp } from "drizzle-orm/pg-core";
 
-// Mirror of db/sql/0036, 0041 and 0042 (ADR-0020, ADR-0026). Global configuration: one row, no clinic data, no RLS.
+// Mirror of db/sql/0036, 0041, 0042 and 0046 (ADR-0020, ADR-0026, P2 R2-3). Global configuration: one row, no clinic data, no RLS.
 const tz = { withTimezone: true, mode: "date" } as const;
 
 export const platformSettings = pgTable(
@@ -16,6 +16,7 @@ export const platformSettings = pgTable(
     defaultMaxBranches: integer("default_max_branches").notNull(),
     defaultModulePatients: boolean("default_module_patients").notNull(),
     defaultModuleAppointments: boolean("default_module_appointments").notNull(),
+    defaultModuleMedical: boolean("default_module_medical").notNull(),
   },
   () => [
     check("platform_settings_id_check", sql.raw("(id = 1)")),
