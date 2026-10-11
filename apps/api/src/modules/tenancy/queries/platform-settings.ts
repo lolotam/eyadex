@@ -10,6 +10,7 @@ interface SettingsRow {
   default_max_branches: number;
   default_module_patients: boolean;
   default_module_appointments: boolean;
+  default_module_medical: boolean;
 }
 
 /**
@@ -24,11 +25,11 @@ export async function readPlatformSettingsIn(tx: Tx, lock = false): Promise<Plat
     lock
       ? sql`SELECT default_trial_days, alert_days_before_expiry, email_sender_name,
               default_max_users, default_max_branches, default_module_patients,
-              default_module_appointments
+              default_module_appointments, default_module_medical
             FROM platform_settings WHERE id = 1 FOR UPDATE`
       : sql`SELECT default_trial_days, alert_days_before_expiry, email_sender_name,
               default_max_users, default_max_branches, default_module_patients,
-              default_module_appointments
+              default_module_appointments, default_module_medical
             FROM platform_settings WHERE id = 1`,
   );
   const row = rows[0];
@@ -44,9 +45,7 @@ export async function readPlatformSettingsIn(tx: Tx, lock = false): Promise<Plat
     defaultModules: {
       patients: row.default_module_patients,
       appointments: row.default_module_appointments,
-      // P2 R2-3: `default_module_medical` arrives with 0047 (P2 Task 4 maps it here). Until then no
-      // column holds it and the medical module stays off for every new clinic.
-      medical: false,
+      medical: row.default_module_medical,
     },
   };
 }

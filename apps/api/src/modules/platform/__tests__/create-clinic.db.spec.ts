@@ -113,7 +113,7 @@ describe("POST /v1/platform/clinics (ONB-01)", () => {
     const { clinicId, invitation } = res.json();
     expect(await count("clinics", "id::text", clinicId)).toBe(1);
     expect(await count("roles", "clinic_id::text", clinicId)).toBe(4);
-    expect(await count("clinic_features", "clinic_id::text", clinicId)).toBe(2);
+    expect(await count("clinic_features", "clinic_id::text", clinicId)).toBe(3);
     const [inv] = await h.owner`SELECT * FROM invitations WHERE id = ${invitation.id}`;
     expect(inv?.["token_hash"]).toMatch(/^[0-9a-f]{64}$/);
     expect(inv?.["status"]).toBe("pending");

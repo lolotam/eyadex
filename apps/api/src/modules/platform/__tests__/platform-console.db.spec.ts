@@ -50,7 +50,8 @@ beforeAll(async () => {
 afterAll(async () => {
   await h.owner`UPDATE platform_settings SET default_trial_days = 14, alert_days_before_expiry = 7,
     email_sender_name = 'Eyadex', default_max_users = 10, default_max_branches = 3,
-    default_module_patients = true`;
+    default_module_patients = true, default_module_appointments = true,
+    default_module_medical = false`;
   await closeHarness(h);
 });
 
@@ -183,6 +184,25 @@ describe("platform settings (story 26)", () => {
       expect((await send("PUT", "/v1/platform/settings", { body })).statusCode).toBe(400);
     }
     expect((await send("GET", "/v1/platform/settings")).json()).toEqual(good);
+  });
+
+  // P2 R2-3, R3-6c: the platform sees the medical default but cannot turn it on before the release.
+  it("reads the stored medical default; NEGATIVE: turning it on before the release is 400", async () => {
+    const before = (await send("GET", "/v1/platform/settings")).json();
+    const on = { ...before, defaultModules: { ...before.defaultModules, medical: true } };
+    const refused = await send("PUT", "/v1/platform/settings", { body: on });
+    expect(refused.statusCode).toBe(400);
+    expect(refused.json()).toMatchObject({
+      code: "validation",
+      details: { field: "defaultModuleMedical" },
+    });
+    expect((await send("GET", "/v1/platform/settings")).json()).toEqual(before);
+    await h.owner`UPDATE platform_settings SET default_module_medical = true`;
+    try {
+      expect((await send("GET", "/v1/platform/settings")).json().defaultModules.medical).toBe(true);
+    } finally {
+      await h.owner`UPDATE platform_settings SET default_module_medical = false`;
+    }
   });
 
   it("NEGATIVE: the clinic host answers 404 and a session without TOTP 403", async () => {
