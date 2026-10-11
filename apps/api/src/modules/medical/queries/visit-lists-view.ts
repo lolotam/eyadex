@@ -3,10 +3,7 @@ import type { z } from "zod";
 
 import type { DiagnosisItem, PrescriptionItem } from "../domain/visit-lists.ts";
 import type { StoredDiagnosis } from "../persistence/pg-diagnosis-store.ts";
-import {
-  PRESCRIPTION_FIELDS,
-  type StoredPrescriptionItem,
-} from "../persistence/pg-prescription-store.ts";
+import type { StoredPrescriptionItem } from "../persistence/pg-prescription-store.ts";
 import type { ClinicalCipher } from "../ports/clinical-cipher.ts";
 import { openOrNull } from "../use-cases/medical-deps.ts";
 
@@ -44,21 +41,21 @@ export function openPrescription(
   clinicId: string,
   stored: readonly StoredPrescriptionItem[],
 ): PrescriptionItemView[] {
-  return stored.map((item) => {
-    const open = (field: (typeof PRESCRIPTION_FIELDS)[number]) =>
-      openOrNull(
-        cipher,
-        clinicId,
-        { table: "visit_prescription_items", column: `${field}_enc`, rowId: item.id },
-        item.sealed[field],
-      );
+  return stored.map(({ id, position, sealed }) => {
+    const ref = (field: string) => ({
+      table: "visit_prescription_items",
+      column: `${field}_enc`,
+      rowId: id,
+    });
+    const open = (field: "medicine" | "dose" | "frequency" | "duration") =>
+      cipher.open(clinicId, ref(field), sealed[field]);
     return {
-      position: item.position,
-      medicine: open("medicine") ?? "",
-      dose: open("dose") ?? "",
-      frequency: open("frequency") ?? "",
-      duration: open("duration") ?? "",
-      note: open("note"),
+      position,
+      medicine: open("medicine"),
+      dose: open("dose"),
+      frequency: open("frequency"),
+      duration: open("duration"),
+      note: openOrNull(cipher, clinicId, ref("note"), sealed.note),
     };
   });
 }

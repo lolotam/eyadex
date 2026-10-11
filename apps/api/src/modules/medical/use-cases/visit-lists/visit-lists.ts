@@ -12,6 +12,8 @@ import {
   hasUnknownCode,
   prescriptionItem,
   sameList,
+  type DiagnosisItem,
+  type PrescriptionItem,
 } from "../../domain/visit-lists.ts";
 import type { MedicalActor } from "../../domain/visit-rules.ts";
 import {
@@ -25,7 +27,6 @@ import {
   archivePrescription,
   insertPrescription,
   prescriptionOf,
-  PRESCRIPTION_FIELDS,
   type NewPrescriptionItem,
 } from "../../persistence/pg-prescription-store.ts";
 import type { VisitRow } from "../../persistence/pg-visit-store.ts";
@@ -72,17 +73,7 @@ export class VisitLists {
       const stored = await diagnosesOf(tx, clinicId, [visit.id]);
       const before = openDiagnoses(this.deps.cipher, clinicId, stored).map(asDiagnosisItem);
       if (sameList(before, after)) return;
-      const rows = after.map((item, position): NewDiagnosis => {
-        const id = this.deps.ids.newId();
-        const ref = (column: string) => ({ table: "visit_diagnoses", column, rowId: id });
-        return {
-          id,
-          position,
-          kind: item.kind,
-          codeEnc: sealOrNull(this.deps.cipher, clinicId, ref("code_enc"), item.code),
-          textEnc: this.deps.cipher.seal(clinicId, ref("text_enc"), item.text),
-        };
-      });
+      const rows = after.map((item, position) => this.sealDiagnosis(clinicId, item, position));
       await archiveDiagnoses(tx, clinicId, visit.id, this.deps.clock.now());
       await insertDiagnoses(tx, clinicId, visit.id, rows, this.deps.clock.now());
       await this.audit(tx, actor, visit, "diagnosis", "visit.diagnoses_saved");
@@ -108,25 +99,51 @@ export class VisitLists {
       const stored = await prescriptionOf(tx, clinicId, [visit.id]);
       const before = openPrescription(this.deps.cipher, clinicId, stored).map(asPrescriptionItem);
       if (sameList(before, after)) return;
-      const rows = after.map((item, position): NewPrescriptionItem => {
-        const id = this.deps.ids.newId();
-        const sealed = Object.fromEntries(
-          PRESCRIPTION_FIELDS.map((field) => [
-            field,
-            sealOrNull(
-              this.deps.cipher,
-              clinicId,
-              { table: "visit_prescription_items", column: `${field}_enc`, rowId: id },
-              item[field],
-            ),
-          ]),
-        ) as NewPrescriptionItem["sealed"];
-        return { id, position, sealed };
-      });
+      const rows = after.map((item, position) => this.sealItem(clinicId, item, position));
       await archivePrescription(tx, clinicId, visit.id, this.deps.clock.now());
       await insertPrescription(tx, clinicId, visit.id, rows, this.deps.clock.now());
       await this.audit(tx, actor, visit, "prescription", "visit.prescription_saved");
     });
+  }
+
+  // A new row gets a new id, and every envelope is bound to it (ADR-0028): a replaced row's envelopes
+  // can never be opened as the new row's.
+  private sealDiagnosis(clinicId: string, item: DiagnosisItem, position: number): NewDiagnosis {
+    const id = this.deps.ids.newId();
+    const ref = (column: string) => ({ table: "visit_diagnoses", column, rowId: id });
+    return {
+      id,
+      position,
+      kind: item.kind,
+      codeEnc: sealOrNull(this.deps.cipher, clinicId, ref("code_enc"), item.code),
+      textEnc: this.deps.cipher.seal(clinicId, ref("text_enc"), item.text),
+    };
+  }
+
+  private sealItem(
+    clinicId: string,
+    item: PrescriptionItem,
+    position: number,
+  ): NewPrescriptionItem {
+    const id = this.deps.ids.newId();
+    const ref = (field: string) => ({
+      table: "visit_prescription_items",
+      column: `${field}_enc`,
+      rowId: id,
+    });
+    const seal = (field: "medicine" | "dose" | "frequency" | "duration") =>
+      this.deps.cipher.seal(clinicId, ref(field), item[field]);
+    return {
+      id,
+      position,
+      sealed: {
+        medicine: seal("medicine"),
+        dose: seal("dose"),
+        frequency: seal("frequency"),
+        duration: seal("duration"),
+        note: sealOrNull(this.deps.cipher, clinicId, ref("note"), item.note),
+      },
+    };
   }
 
   // A replace changes the visit's whole list, so the row names the visit and the one field: the items.

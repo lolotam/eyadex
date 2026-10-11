@@ -1,16 +1,24 @@
 import type { Tx } from "@eyadex/db";
 import { sql } from "drizzle-orm";
 
-/** الأعمدة المشفّرة لدوا في الروشتة، بالترتيب. */
-export const PRESCRIPTION_FIELDS = ["medicine", "dose", "frequency", "duration", "note"] as const;
-export type PrescriptionField = (typeof PRESCRIPTION_FIELDS)[number];
+/**
+ * ظروف دوا واحد، كل واحد مربوط بصف الدوا وعموده `<field>_enc`. الأربعة بتتكتب دايمًا (فاضية كمان)؛
+ * الملاحظة بس ممكن `null`.
+ */
+export interface SealedPrescriptionItem {
+  readonly medicine: string;
+  readonly dose: string;
+  readonly frequency: string;
+  readonly duration: string;
+  readonly note: string | null;
+}
 
-/** دوا نشط زي ما اتخزّن: معرّف صفه وظرف لكل حقل (الملاحظة ممكن `null`). */
+/** دوا نشط زي ما اتخزّن: معرّف صفه وظروفه. */
 export interface StoredPrescriptionItem {
   readonly id: string;
   readonly visitId: string;
   readonly position: number;
-  readonly sealed: Readonly<Record<PrescriptionField, string | null>>;
+  readonly sealed: SealedPrescriptionItem;
 }
 
 /**

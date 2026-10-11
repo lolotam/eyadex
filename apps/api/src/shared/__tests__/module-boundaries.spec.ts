@@ -40,9 +40,10 @@ const identityDeepImports = (module: string): string[] =>
       .map((target) => `${file.slice(modulesDir.length)}: ${target}`),
   );
 
+// Every relation scan below reads a name as a letter or underscore, then letters, digits or underscores
+// (icd10_codes, 0047), so a table with a digit is never cut short.
 // apps/api/AGENTS.md: the audit module reads the audit relations only (0011, 0012, 0013, 0034); names
 // from memberships and roles (identity), branches and clinics (tenancy) come through its ports.
-// Relation names may hold digits after the first letter (icd10_codes, 0047).
 const AUDIT_RELATIONS = [
   "audit_log",
   "platform_audit_actors",
