@@ -18,6 +18,7 @@ import {
   patientOf,
   reachesContent,
   requireKey,
+  seesVisit,
   visibleVisit,
   type MedicalAccess,
 } from "./mock-medical-access";
@@ -183,19 +184,22 @@ export function createMockMedicalFiles(): Pick<
       await delay();
       const db = getState();
       const a = requireKey(db, persona, "update", "medical", ["clinic", "own"]);
-      // The API's order (`Attachments.uploadTarget`): the file and the visit, then the bytes, so an
-      // archived file answers `patient_inactive` whatever is sent and nothing is stored.
+      // The API's order: `readUpload` refuses an oversized file before the use case runs; then
+      // `Attachments.uploadTarget` (the file's update reach, an active file, the visit), then the bytes.
+      if (file.size > ATTACHMENT_MAX_BYTES) throw new ApiError("attachment_too_large");
       const patient = contentFile(db, a, "update", patientId);
       if (patient.status !== "active") throw new ApiError("patient_inactive");
       if (visitId !== null) {
-        const visit = visibleVisit(db, a, visitId);
-        if (visit.patientId !== patientId) throw new ApiError("attachment_patient_mismatch");
+        // An unknown visit, one the caller cannot see and another file's all answer the same.
+        const visit = db.medical.visits.find((v) => v.clinicId === a.clinic.id && v.id === visitId);
+        if (!visit || !seesVisit(db, a, visit) || visit.patientId !== patientId) {
+          throw new ApiError("attachment_patient_mismatch");
+        }
       }
       // As the API's `acceptedAttachmentType`: the declared type must be allowed and match the first
       // bytes, so a renamed file is refused and an empty one (no signature) answers `attachment_type`.
       const type = acceptedAttachmentType(file.type, await headOf(file));
       if (type === null) throw new ApiError("attachment_type");
-      if (file.size > ATTACHMENT_MAX_BYTES) throw new ApiError("attachment_too_large");
       const row: StoredAttachment = {
         id: newId(),
         clinicId: a.clinic.id,

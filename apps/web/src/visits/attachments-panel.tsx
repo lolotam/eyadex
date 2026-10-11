@@ -129,7 +129,7 @@ export function AttachmentsPanel({
       {!canView ? (
         <p className="flex items-center gap-2 rounded-lg border bg-card p-4 text-sm text-muted-foreground">
           <Paperclip className="size-4 shrink-0" />
-          {t("attachments.writeOnly")}
+          {t(canUpload ? "attachments.writeOnly" : "attachments.hidden")}
         </p>
       ) : list.isLoading ? (
         <LoadingBlock />

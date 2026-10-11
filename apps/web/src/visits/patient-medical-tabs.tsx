@@ -14,7 +14,9 @@ type PatientFile = {
 /**
  * The medical tabs of the patient file (P2 spec §7), in order, each only with its key; the route
  * hands them to the patients area. An archived file offers no attachment upload (the API answers
- * `patient_inactive`).
+ * `patient_inactive`). Attachments also show to a writer without `view:medical`: the API takes its
+ * file-level upload (update reach, active file) but refuses it the list, so the panel lists nothing.
+ * The patient file carries no medical capability, so the keys decide (UX only: the API refuses too).
  */
 export const PATIENT_MEDICAL_TABS: readonly SlotTab<PatientFile>[] = [
   {
@@ -32,13 +34,15 @@ export const PATIENT_MEDICAL_TABS: readonly SlotTab<PatientFile>[] = [
   {
     id: "attachments",
     labelKey: "patientTabs.attachments",
-    visible: (permissions) => can(permissions, "view", "medical"),
+    visible: (permissions) =>
+      can(permissions, "view", "medical") || can(permissions, "update", "medical"),
     render: ({ patientId, patientStatus, permissions }) => (
       <AttachmentsPanel
         patientId={patientId}
         visitId={null}
         canUpload={patientStatus === "active" && can(permissions, "update", "medical")}
         canArchive={can(permissions, "update", "medical")}
+        canView={can(permissions, "view", "medical")}
       />
     ),
   },
