@@ -174,6 +174,11 @@ clinic id), the storage never sees plaintext, and the browser never talks to the
 
 ## 9. Delivery (one release, reviewable slices)
 
+> **Delivered numbering (2026-10-11).** The migrations landed as 0045 civil ID (encrypted columns),
+> 0046 visits (module, catalogue, visits, notes, addenda, medical file, audit), 0047 diagnoses + ICD-10,
+> 0048 prescriptions + clinic medicines, 0049 attachments and 0050 release, in one PR. Dropping the plain
+> `civil_id` column is a follow-up migration. The numbers below are the original plan and are kept as written.
+
 The owner chose one release (P2-F6). The work still merges in slices behind the `medical` flag, which stays
 off for every clinic until the last slice; nothing is visible before release. Order:
 
