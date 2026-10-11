@@ -156,30 +156,35 @@ export const medicalAudit = (h: Harness, clinicId: string, since: Date) =>
           ORDER BY created_at, id`;
 
 /** One line of the CDC order file's fixed-width layout (R2-8). */
-const orderLine = (order: number, code: string, billable: boolean, title: string) =>
+export const icd10OrderLine = (order: number, code: string, billable: boolean, title: string) =>
   `${String(order).padStart(5, "0")} ${code.padEnd(7)} ${billable ? 1 : 0} ${title.slice(0, 60).padEnd(60)} ${title}`;
 
 /** ICD-10-CM codes the medical specs search and diagnose with: a header row, real codes, 25 fillers. */
 export const ICD10_SAMPLE = [
-  orderLine(1, "F41", false, "Other anxiety disorders"),
-  orderLine(2, "F410", true, "Panic disorder [episodic paroxysmal anxiety]"),
-  orderLine(3, "F411", true, "Generalized anxiety disorder"),
-  orderLine(4, "F419", true, "Anxiety disorder, unspecified"),
-  orderLine(5, "I10", true, "Essential (primary) hypertension"),
+  icd10OrderLine(1, "F41", false, "Other anxiety disorders"),
+  icd10OrderLine(2, "F410", true, "Panic disorder [episodic paroxysmal anxiety]"),
+  icd10OrderLine(3, "F411", true, "Generalized anxiety disorder"),
+  icd10OrderLine(4, "F419", true, "Anxiety disorder, unspecified"),
+  icd10OrderLine(5, "I10", true, "Essential (primary) hypertension"),
   ...Array.from({ length: 25 }, (_, i) =>
-    orderLine(10 + i, `U99${String(i).padStart(2, "0")}`, true, `Eyadexfiller condition ${i}`),
+    icd10OrderLine(10 + i, `U99${String(i).padStart(2, "0")}`, true, `Eyadexfiller condition ${i}`),
   ),
 ].join("\n");
 
 /**
- * Loads `ICD10_SAMPLE` through the loader's own script, as the owner (the runtime role only reads
- * `icd10_codes`). The table is global and the database shared, so the upsert makes reruns harmless.
+ * Loads an order file (`ICD10_SAMPLE` by default) through the loader's own script, as the owner (the
+ * runtime role only reads `icd10_codes`). The table is global and the database shared, so the upsert
+ * makes reruns harmless; a spec loading another release reloads the default one after it.
  */
-export async function seedIcd10(h: Harness): Promise<void> {
+export async function seedIcd10(
+  h: Harness,
+  orderFile = ICD10_SAMPLE,
+  release?: string,
+): Promise<void> {
   // The script carries its own BEGIN/COMMIT, which postgres.js runs only on one reserved connection.
   const connection = await h.owner.reserve();
   try {
-    await connection.unsafe(icd10LoadScript(parseIcd10OrderFile(ICD10_SAMPLE))).simple();
+    await connection.unsafe(icd10LoadScript(parseIcd10OrderFile(orderFile), release)).simple();
   } finally {
     connection.release();
   }

@@ -36,7 +36,9 @@ export function createMockMedicalWrites(): Pick<
       };
       const changed = NOTE_FIELDS.filter((f) => next[f] !== v.note[f]);
       v.note = next;
+      // An identical save still answers the note, so it leaves the open's trail (as the API does).
       if (changed.length > 0) auditMedical(db, a, "visit", "visit.note_saved", v.id, changed);
+      else auditMedical(db, a, "visit", "visit.opened", v.id, ["content"]);
       persist();
       return detailOf(db, a, v);
     },

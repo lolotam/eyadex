@@ -79,12 +79,16 @@ describe("the note (draft only)", () => {
     expect(audit[0]!["raw"]).not.toContain("صداع");
   });
 
-  it("saving the same values again writes nothing and logs nothing", async () => {
+  it("saving the same values again writes nothing, and the content it answers is logged as an open", async () => {
     const id = await walkIn();
     await put(C.doctor.cookie, id, NOTE);
     const since = new Date();
     expect((await put(C.doctor.cookie, id, NOTE)).statusCode).toBe(200);
-    expect(await medicalAudit(h, C.clinicId, since)).toEqual([]);
+    const audit = await medicalAudit(h, C.clinicId, since);
+    expect(
+      audit.map((r) => [r["action"], r["category"], r["entity_type"], r["entity_id"]]),
+    ).toEqual([["visit.opened", "patient_access", "visit", id]]);
+    expect(audit[0]!["details"]).toEqual({ before: null, after: null });
   });
 
   it("another doctor of the same patient is visit_not_provider; a stranger not_found", async () => {

@@ -142,6 +142,9 @@ export function createMockMedicalFiles(): Pick<
         .filter((x) => query.visitId === undefined || x.visitId === query.visitId)
         .sort((x, y) => y.uploadedAt.localeCompare(x.uploadedAt))
         .map(view);
+      // The list shows file names (clinical information), so it is an audited read like the API's.
+      auditMedical(db, a, "patient", "attachment.listed", patientId);
+      persist();
       return { items };
     },
 

@@ -13,7 +13,7 @@ import {
 } from "../domain/visit-rules.ts";
 import { findVisit, type VisitRow } from "../persistence/pg-visit-store.ts";
 import { visitDetail } from "../queries/visit-views.ts";
-import type { MedicalDeps, ReadContext } from "./medical-deps.ts";
+import { auditMedical, type MedicalDeps, type ReadContext } from "./medical-deps.ts";
 import type { VisitWriteResponse } from "./start-visit/start-visit.ts";
 
 /**
@@ -86,6 +86,27 @@ export async function lockVisitForWrite(
   const problem = visitWriteProblem(visit, actor.membershipId, write);
   if (problem !== null) throw new ApiError(problem);
   return visit;
+}
+
+/**
+ * A visit write whose payload equals what is stored writes nothing, but its answer still carries the
+ * decrypted content, so it is audited as an open (`visit.opened`), the same trail as GET (Codex P2 PR
+ * #68). The note, diagnoses and prescription saves call it on their no-op path.
+ *
+ * @returns once the row is written in the write's transaction
+ */
+export function auditUnchangedWrite(
+  tx: Tx,
+  deps: MedicalDeps,
+  actor: MedicalActor,
+  visit: VisitRow,
+): Promise<void> {
+  return auditMedical(tx, deps, actor, {
+    action: "visit.opened",
+    entityType: "visit",
+    entityId: visit.id,
+    branchId: visit.branchId,
+  });
 }
 
 /**

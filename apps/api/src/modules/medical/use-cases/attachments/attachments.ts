@@ -104,7 +104,8 @@ export class Attachments {
   }
 
   /**
-   * المرفقات النشطة للمراجع، الأحدث الأول، أو مرفقات زيارة منه (R1-14).
+   * المرفقات النشطة للمراجع، الأحدث الأول، أو مرفقات زيارة منه (R1-14). القايمة بتفك أسامي الملفات
+   * (معلومة طبية)، فبتكتب صف `attachment.listed` على الملف في نفس الـ transaction، من غير أي اسم.
    *
    * @param actor الفاعل
    * @param patientId الملف
@@ -113,9 +114,16 @@ export class Attachments {
    */
   list(actor: MedicalActor, patientId: string, visitId: string | undefined): Promise<Attachment[]> {
     return this.deps.db.withTenant(actor.clinicId, async (tx) => {
-      await this.patientInReach(tx, actor, "view", patientId, false);
+      const { patient } = await this.patientInReach(tx, actor, "view", patientId, false);
       const rows = await activeAttachmentsOfPatient(tx, actor.clinicId, patientId, visitId);
-      return attachmentViews(readContext(this.deps, tx), actor.clinicId, rows);
+      const views = await attachmentViews(readContext(this.deps, tx), actor.clinicId, rows);
+      await auditMedical(tx, this.deps, actor, {
+        action: "attachment.listed",
+        entityType: "patient",
+        entityId: patient.id,
+        branchId: patient.registrationBranchId,
+      });
+      return views;
     });
   }
 

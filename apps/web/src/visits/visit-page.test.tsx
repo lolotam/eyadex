@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { as, resetMockData } from "@/shared/api/mock/mock-test-kit";
 import { ar } from "@/shared/i18n/ar";
@@ -26,6 +26,45 @@ describe("the visit page controls", () => {
     expect(button(ar.visit.cancel)).not.toBeNull();
     expect(screen.getByLabelText(ar.visit.sections.complaint).tagName).toBe("TEXTAREA");
     expect(button(ar.visit.addAddendum)).toBeNull();
+  });
+
+  it("Sign saves the note typed just before it, then signs the visit with that text", async () => {
+    const { visit } = await startDraft();
+    await renderAs(doctorAt(0), <VisitPage visitId={visit.id} />);
+    const complaint = await screen.findByLabelText(ar.visit.sections.complaint);
+    fireEvent.change(complaint, { target: { value: "Typed right before signing" } });
+    fireEvent.click(button(ar.visit.sign)!);
+    const dialog = await screen.findByRole("alertdialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: ar.visit.sign }));
+    await screen.findByText(ar.visit.lockedNote);
+    const stored = getState().medical.visits.find((v) => v.id === visit.id)!;
+    expect([stored.status, stored.note.complaint]).toEqual([
+      "signed",
+      "Typed right before signing",
+    ]);
+    // The log is newest first: the note was saved before the visit was signed.
+    const actions = getState().clinicAudit.map((r) => r.action);
+    expect(actions.indexOf("visit.note_saved")).toBeGreaterThan(actions.indexOf("visit.signed"));
+    expect(screen.getByText("Typed right before signing").tagName).toBe("P");
+  });
+
+  it("a note save that fails before Sign keeps the visit a draft and the dialog open", async () => {
+    const D = doctorAt(0);
+    const { visit } = await startDraft();
+    const note = { complaint: "Saved", examination: null, assessment: null, plan: null };
+    await api.medical.saveNote(D, visit.id, note);
+    await renderAs(D, <VisitPage visitId={visit.id} />);
+    const complaint = await screen.findByLabelText(ar.visit.sections.complaint);
+    // Past the contract's limit (the textarea's maxLength is not applied to a programmatic change).
+    fireEvent.change(complaint, { target: { value: "x".repeat(4001) } });
+    fireEvent.click(button(ar.visit.sign)!);
+    const dialog = await screen.findByRole("alertdialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: ar.visit.sign }));
+    await screen.findByText(ar.visit.saveFailed);
+    const stored = getState().medical.visits.find((v) => v.id === visit.id)!;
+    expect([stored.status, stored.note.complaint]).toEqual(["draft", "Saved"]);
+    expect(getState().clinicAudit.some((r) => r.action === "visit.signed")).toBe(false);
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
   });
 
   it("a signed visit is locked and offers Add addendum", async () => {

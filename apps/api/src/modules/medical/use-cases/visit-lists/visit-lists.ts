@@ -38,7 +38,7 @@ import {
 } from "../../queries/visit-lists-view.ts";
 import type { VisitWriteResponse } from "../start-visit/start-visit.ts";
 import { auditMedical, sealOrNull, type MedicalDeps } from "../medical-deps.ts";
-import { writeVisit } from "../visit-access.ts";
+import { auditUnchangedWrite, writeVisit } from "../visit-access.ts";
 
 type DiagnosesInput = z.infer<typeof visitDiagnosesInputSchema>;
 type PrescriptionInput = z.infer<typeof visitPrescriptionInputSchema>;
@@ -72,7 +72,10 @@ export class VisitLists {
       }
       const stored = await diagnosesOf(tx, clinicId, [visit.id]);
       const before = openDiagnoses(this.deps.cipher, clinicId, stored).map(asDiagnosisItem);
-      if (sameList(before, after)) return;
+      if (sameList(before, after)) {
+        await auditUnchangedWrite(tx, this.deps, actor, visit);
+        return;
+      }
       const rows = after.map((item, position) => this.sealDiagnosis(clinicId, item, position));
       await archiveDiagnoses(tx, clinicId, visit.id, this.deps.clock.now());
       await insertDiagnoses(tx, clinicId, visit.id, rows, this.deps.clock.now());
@@ -98,7 +101,10 @@ export class VisitLists {
       const { clinicId } = actor;
       const stored = await prescriptionOf(tx, clinicId, [visit.id]);
       const before = openPrescription(this.deps.cipher, clinicId, stored).map(asPrescriptionItem);
-      if (sameList(before, after)) return;
+      if (sameList(before, after)) {
+        await auditUnchangedWrite(tx, this.deps, actor, visit);
+        return;
+      }
       const rows = after.map((item, position) => this.sealItem(clinicId, item, position));
       await archivePrescription(tx, clinicId, visit.id, this.deps.clock.now());
       await insertPrescription(tx, clinicId, visit.id, rows, this.deps.clock.now());

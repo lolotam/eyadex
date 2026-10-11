@@ -94,14 +94,18 @@ describe("PUT /v1/visits/:id/prescription (draft only)", () => {
     expect(audit[0]!["raw"]).not.toMatch(/Amoxicillin|Zinc/);
   });
 
-  it("a replace archives the old items; the same list again writes nothing", async () => {
+  it("a replace archives the old items; the same list again writes nothing and is logged as an open", async () => {
     const id = await walkIn();
     await save(C.doctor.cookie, id, [AMOXI, ZINC]);
     const replaced = await save(C.doctor.cookie, id, [ZINC]);
     expect(detailOf(replaced).content.prescription).toEqual([{ position: 0, ...ZINC }]);
     const since = new Date();
     await save(C.doctor.cookie, id, [ZINC]);
-    expect(await medicalAudit(h, C.clinicId, since)).toEqual([]);
+    const audit = await medicalAudit(h, C.clinicId, since);
+    expect(
+      audit.map((r) => [r["action"], r["category"], r["entity_type"], r["entity_id"]]),
+    ).toEqual([["visit.opened", "patient_access", "visit", id]]);
+    expect(audit[0]!["details"]).toEqual({ before: null, after: null });
     const rows = await rowsOf(id);
     expect(rows.filter((r) => r["archived_at"] === null)).toHaveLength(1);
     expect(rows.filter((r) => r["archived_at"] !== null)).toHaveLength(2);

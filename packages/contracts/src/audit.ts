@@ -153,6 +153,7 @@ export const CLINIC_AUDIT_ACTIONS = [
   "attachment.uploaded",
   "attachment.downloaded",
   "attachment.archived",
+  "attachment.listed",
   "medicine.created",
   "medicine.updated",
   "medicine.deactivated",

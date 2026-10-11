@@ -16,13 +16,19 @@ import { useI18n } from "@/shared/i18n/i18n-provider";
 export function useVisitWrite<I>(
   visitId: string,
   run: (api: MedicalApi, persona: Persona, input: I) => Promise<VisitDetail>,
-  options: { success?: TranslationKey; quiet?: boolean; onDone?: () => void } = {},
+  options: {
+    success?: TranslationKey;
+    quiet?: boolean;
+    onDone?: () => void;
+    mutationKey?: readonly unknown[];
+  } = {},
 ) {
   const api = useApi();
   const { persona, personaKey } = useClinicPersona();
   const queryClient = useQueryClient();
   const { t } = useI18n();
   return useMutation({
+    ...(options.mutationKey ? { mutationKey: options.mutationKey } : {}),
     mutationFn: (input: I) => run(api.medical, persona, input),
     onSuccess: (detail) => {
       queryClient.setQueryData([...medicalKeys.visit(visitId), ...personaKey], detail);

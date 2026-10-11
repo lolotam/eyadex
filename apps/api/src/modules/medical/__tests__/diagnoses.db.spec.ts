@@ -19,7 +19,8 @@ import {
 
 // P2-8, R1-13, R2-8 (ADR-0029): the draft's diagnoses are replaced whole by the provider; each code and
 // text is a sealed envelope; a replaced row is archived and never shown; an unknown or header code is
-// icd10_unknown; a diagnosis alone makes a visit signable; a replace queued behind a sign writes nothing.
+// icd10_unknown; a diagnosis alone makes a visit signable; a replace queued behind a sign writes nothing;
+// the same list again writes no row and is audited as the open it answers.
 let h: Harness;
 let C: MedicalClinic;
 
@@ -82,12 +83,16 @@ describe("PUT /v1/visits/:id/diagnoses (draft only)", () => {
     expect(audit[0]!["raw"]).not.toMatch(/F41|anxiety|أرق/);
   });
 
-  it("the same list again writes nothing and logs nothing", async () => {
+  it("the same list again writes nothing, and the content it answers is logged as an open", async () => {
     const id = await walkIn();
     await save(C.doctor.cookie, id, [GAD, FREE]);
     const since = new Date();
     expect((await save(C.doctor.cookie, id, [GAD, FREE])).statusCode).toBe(200);
-    expect(await medicalAudit(h, C.clinicId, since)).toEqual([]);
+    const audit = await medicalAudit(h, C.clinicId, since);
+    expect(
+      audit.map((r) => [r["action"], r["category"], r["entity_type"], r["entity_id"]]),
+    ).toEqual([["visit.opened", "patient_access", "visit", id]]);
+    expect(audit[0]!["details"]).toEqual({ before: null, after: null });
     expect(await rowsOf(id)).toHaveLength(2);
   });
 

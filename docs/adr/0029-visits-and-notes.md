@@ -122,5 +122,8 @@ the five-section medical file, and a search inside one patient's notes. Every cl
   keys (or their clinic keys): a user manager without them can no longer invite or move a doctor; the
   admin still can.
 - A blob whose row then fails to commit stays in the store as ciphertext no row points at.
-- A later ICD-10-CM release is loaded over the same table; codes it drops keep their old `release` value,
-  so a diagnosis already written still validates against its code until a cleanup is decided.
+- A later ICD-10-CM release is loaded over the same table; in the same transaction, before the upserts,
+  every code of another release is made non-billable, so a code the new release drops keeps its row and
+  its old `release` value but is never offered by search nor accepted by a diagnosis save again. A written
+  diagnosis keeps its sealed code; a draft re-saved after such a release with a retired code in its list is
+  `icd10_unknown` until the doctor replaces that code (the code check runs before the no-op check).

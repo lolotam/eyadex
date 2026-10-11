@@ -41,7 +41,12 @@ export const arMedicalAuditActions = {
     previews_listed: "عرض ملخصات الزيارات",
   },
   medical_profile: { opened: "فتح الملف الطبي", saved: "حفظ الملف الطبي" },
-  attachment: { uploaded: "رفع مرفق", downloaded: "تنزيل مرفق", archived: "أرشفة مرفق" },
+  attachment: {
+    uploaded: "رفع مرفق",
+    downloaded: "تنزيل مرفق",
+    archived: "أرشفة مرفق",
+    listed: "عرض قائمة المرفقات",
+  },
   medicine: {
     created: "إضافة دواء",
     updated: "تعديل دواء",

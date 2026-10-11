@@ -7,11 +7,20 @@ import {
 } from "../../identity/auth/__tests__/auth-http-harness.ts";
 import { AUTHORIZATION_INVALIDATOR, type AuthorizationInvalidator } from "../../identity/index.ts";
 import { code, send } from "../../appointments/__tests__/scheduling-fixtures.ts";
-import { medicalAudit, medicalClinic, seedIcd10, type MedicalClinic } from "./medical-fixtures.ts";
+import {
+  ICD10_SAMPLE,
+  icd10OrderLine,
+  medicalAudit,
+  medicalClinic,
+  patientIn,
+  seedIcd10,
+  startedVisit,
+  type MedicalClinic,
+} from "./medical-fixtures.ts";
 
 // P2-F1, R2-8 (ADR-0029): POST /v1/icd10/search answers at most 20 billable codes for a code prefix or
 // title words, the query in the body; reference data, so no audit row. The loader's script loads the
-// table as the owner and a rerun updates in place.
+// table as the owner, a rerun updates in place, and a newer release retires the codes it drops.
 let h: Harness;
 let C: MedicalClinic;
 
@@ -37,6 +46,44 @@ describe("the loader's script (R2-8)", () => {
       ["F41.1", true, "FY2027"],
       ["I10", true, "FY2027"],
     ]);
+  });
+});
+
+describe("a newer release (R2-8)", () => {
+  it("retires a code the newer file drops: kept unbillable, never searched, icd10_unknown in a diagnosis", async () => {
+    const dropped = icd10OrderLine(
+      99,
+      "K219",
+      true,
+      "Gastro-esophageal reflux without esophagitis",
+    );
+    try {
+      await seedIcd10(
+        h,
+        `${ICD10_SAMPLE}
+${dropped}`,
+        "FY2026",
+      );
+      expect(codes(await search(C.doctor.cookie, "K21.9"))).toEqual(["K21.9"]);
+    } finally {
+      // The table is global: the default release is always loaded last, for the next spec files.
+      await seedIcd10(h);
+    }
+    const rows = await h.owner`SELECT billable, release FROM icd10_codes WHERE code = 'K21.9'`;
+    expect(rows.map((r) => [r["billable"], r["release"]])).toEqual([[false, "FY2026"]]);
+    expect(codes(await search(C.doctor.cookie, "K21.9"))).toEqual([]);
+    expect(codes(await search(C.doctor.cookie, "reflux"))).toEqual([]);
+    expect(codes(await search(C.doctor.cookie, "I10"))).toEqual(["I10"]);
+    const patient = await patientIn(h, C, C.branchD);
+    const visit = await startedVisit(h, C.doctor.cookie, {
+      patientId: patient,
+      branchId: C.branchD,
+    });
+    const item = { kind: "icd10", code: "K21.9", text: "Reflux" };
+    const res = await send(h, C.doctor.cookie, "PUT", `/v1/visits/${visit}/diagnoses`, {
+      items: [item],
+    });
+    expect(code(res)).toBe("icd10_unknown");
   });
 });
 

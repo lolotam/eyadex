@@ -45,6 +45,7 @@ export const enMedicalAuditActions = {
     uploaded: "Attachment uploaded",
     downloaded: "Attachment downloaded",
     archived: "Attachment archived",
+    listed: "Attachments listed",
   },
   medicine: {
     created: "Medicine added",

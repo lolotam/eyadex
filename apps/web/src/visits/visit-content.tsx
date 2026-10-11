@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { Link } from "@tanstack/react-router";
 import { AlertCircle, ArrowLeft, Lock, ShieldCheck } from "lucide-react";
 import { formatFileNumber } from "@eyadex/contracts/patients";
@@ -14,6 +15,7 @@ import { VisitActions } from "./visit-actions";
 import { VisitAddenda } from "./visit-addenda";
 import { VisitDiagnoses } from "./visit-diagnoses";
 import { VisitNoteEditor } from "./visit-note-editor";
+import type { NoteFlush } from "./visit-note-save";
 import { VisitPrescription } from "./visit-prescription";
 import { VisitStatusBadge } from "./visit-status-badge";
 
@@ -22,6 +24,8 @@ export function VisitContent({ visitId }: { visitId: string }) {
   const { t, pick, formatDate } = useI18n();
   const { session } = useSession();
   const query = useVisit(visitId);
+  // The page owns the note's flush so Sign can save pending edits first (the editor registers it).
+  const noteFlush = useRef<NoteFlush | null>(null);
   if (query.isLoading) return <LoadingBlock />;
   if (query.isError || !query.data) {
     return (
@@ -66,7 +70,7 @@ export function VisitContent({ visitId }: { visitId: string }) {
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <VisitStatusBadge status={visit.status} />
-            <VisitActions detail={d} />
+            <VisitActions detail={d} flushNote={() => noteFlush.current?.() ?? Promise.resolve()} />
           </div>
         }
       />
@@ -80,7 +84,12 @@ export function VisitContent({ visitId }: { visitId: string }) {
         <StatusPanel icon={ShieldCheck} title={t("visits.contentHidden")} body="" />
       ) : (
         <div className="grid max-w-4xl gap-4">
-          <VisitNoteEditor visitId={visit.id} note={content.note} editable={editable} />
+          <VisitNoteEditor
+            visitId={visit.id}
+            note={content.note}
+            editable={editable}
+            flushRef={noteFlush}
+          />
           <VisitDiagnoses visitId={visit.id} diagnoses={content.diagnoses} editable={editable} />
           <VisitPrescription visitId={visit.id} items={content.prescription} editable={editable} />
           <VisitAddenda visitId={visit.id} addenda={content.addenda} canAdd={d.can.addAddendum} />

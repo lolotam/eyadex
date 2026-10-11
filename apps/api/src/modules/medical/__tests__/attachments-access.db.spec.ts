@@ -67,6 +67,18 @@ describe("list", () => {
     expect(code(await list(C.doctor.cookie, patient, "?visitId=x"))).toBe("validation");
   });
 
+  it("shows decrypted names, so one list writes one patient_access row without a name", async () => {
+    const since = new Date();
+    expect((await list(C.doctor.cookie, patient)).statusCode).toBe(200);
+    const rows = await medicalAudit(h, C.clinicId, since);
+    expect(rows.map((r) => [r["action"], r["category"], r["entity_type"], r["entity_id"]])).toEqual(
+      [["attachment.listed", "patient_access", "patient", patient]],
+    );
+    expect(rows[0]!["branch_id"]).toBe(C.branchD);
+    expect(rows[0]!["details"]).toEqual({ before: null, after: null });
+    expect(rows[0]!["raw"]).not.toMatch(/أشعة|\.png/);
+  });
+
   it("NEGATIVE: without a medical key it is forbidden; another doctor's patient is not_found", async () => {
     expect(code(await list(C.front.cookie, patient))).toBe("forbidden");
     expect(code(await list(C.admin.cookie, patient))).toBe("forbidden");

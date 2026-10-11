@@ -78,4 +78,28 @@ describe("the medical mock audit", () => {
     expect(rows.find((r) => r.action === "medicine.created")?.category).toBe("administrative");
     expect(rows.find((r) => r.action === "visit.started")?.after).toMatchObject({ fields: [] });
   });
+
+  it("an identical note save answers the note, so it is logged as an open", async () => {
+    const D = doctorAt(0);
+    const { visit } = await startDraft();
+    const note = { complaint: "A", examination: null, assessment: null, plan: null };
+    await api.medical.saveNote(D, visit.id, note);
+    const before = getState().clinicAudit.length;
+    await api.medical.saveNote(D, visit.id, note);
+    const added = getState().clinicAudit.slice(0, getState().clinicAudit.length - before);
+    expect(added.map((r) => [r.action, r.category])).toEqual([["visit.opened", "patient_access"]]);
+  });
+
+  it("listing attachments shows their names, so it is logged once, without a name", async () => {
+    const D = doctorAt(0);
+    const { visit } = await startDraft();
+    await api.medical.uploadAttachment(D, visit.patientId, file("image/png", 50, SECRETS[7]), null);
+    const before = getState().clinicAudit.length;
+    await api.medical.listAttachments(D, visit.patientId, {});
+    const added = getState().clinicAudit.slice(0, getState().clinicAudit.length - before);
+    expect(added.map((r) => [r.action, r.category, r.entityId])).toEqual([
+      ["attachment.listed", "patient_access", visit.patientId],
+    ]);
+    expect(JSON.stringify(added)).not.toContain(SECRETS[7]);
+  });
 });

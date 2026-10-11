@@ -29,7 +29,7 @@ import { markCancelled, markSigned, type VisitRow } from "../../persistence/pg-v
 import { openNote } from "../../queries/visit-views.ts";
 import type { VisitWriteResponse } from "../start-visit/start-visit.ts";
 import { auditMedical, sealOrNull, type MedicalDeps } from "../medical-deps.ts";
-import { writeVisit } from "../visit-access.ts";
+import { auditUnchangedWrite, writeVisit } from "../visit-access.ts";
 
 type VisitCancelInput = z.infer<typeof visitCancelSchema>;
 type VisitAddendumInput = z.infer<typeof visitAddendumInputSchema>;
@@ -64,7 +64,10 @@ export class VisitLifecycle {
         NOTE_SECTIONS.map((s) => [s, sectionValue(input[s])]),
       ) as Record<NoteSection, string | null>;
       const changed = changedFields(before, after);
-      if (changed.length === 0) return;
+      if (changed.length === 0) {
+        await auditUnchangedWrite(tx, this.deps, actor, visit);
+        return;
+      }
       const noteId = stored?.id ?? this.deps.ids.newId();
       const sections = Object.fromEntries(
         NOTE_SECTIONS.map((s) => [
