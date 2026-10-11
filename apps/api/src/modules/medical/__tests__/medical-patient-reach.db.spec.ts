@@ -146,8 +146,13 @@ describe("the provider without a patients key", () => {
     const file = await patientIn(h, C, C.branchD);
     const res = await startVisit(h, authorOut.cookie, { patientId: file, branchId: C.branchD });
     expect(res.statusCode).toBe(201);
-    const started = res.json() as { visit: { visit: { id: string }; content: unknown } };
+    const started = res.json() as {
+      visit: { visit: { id: string }; content: unknown; can: Record<string, boolean> };
+    };
     expect(started.visit.content).toBeNull();
+    // Codex 4241757308: no button the writes would answer not_found to.
+    const none = { edit: false, sign: false, cancel: false, addAddendum: false, attach: false };
+    expect(started.visit.can).toEqual(none);
     const note = `/v1/visits/${started.visit.visit.id}/note`;
     expect((await send(h, authorOut.cookie, "PUT", note, NOTE)).statusCode).toBe(404);
   });

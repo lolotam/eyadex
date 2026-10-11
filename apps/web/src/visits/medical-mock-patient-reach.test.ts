@@ -145,6 +145,9 @@ describe("the provider without a patients key", () => {
       crypto.randomUUID(),
     );
     expect(started.content).toBeNull();
+    // As the API (Codex 4241757308): no button the writes would answer not_found to.
+    const none = { edit: false, sign: false, cancel: false, addAddendum: false, attach: false };
+    expect(started.can).toEqual(none);
     await expect(api.medical.saveNote(P, started.visit.id, NOTE)).rejects.toMatchObject({
       code: "not_found",
     });

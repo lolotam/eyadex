@@ -137,14 +137,14 @@ describe("visitAbilities", () => {
 
   it("the provider holding update:medical gets the draft's buttons; sign waits for content", () => {
     const doctor = actor(["update:medical:own"]);
-    expect(visitAbilities(doctor, draft, false)).toEqual({
+    expect(visitAbilities(doctor, draft, ownFile, false)).toEqual({
       edit: true,
       sign: false,
       cancel: true,
       addAddendum: false,
     });
-    expect(visitAbilities(doctor, draft, true).sign).toBe(true);
-    expect(visitAbilities(doctor, { ...draft, status: "signed" }, true)).toEqual({
+    expect(visitAbilities(doctor, draft, ownFile, true).sign).toBe(true);
+    expect(visitAbilities(doctor, { ...draft, status: "signed" }, ownFile, true)).toEqual({
       edit: false,
       sign: false,
       cancel: false,
@@ -154,14 +154,26 @@ describe("visitAbilities", () => {
 
   it("nothing without the update key, and nothing for another provider", () => {
     const none = { edit: false, sign: false, cancel: false, addAddendum: false };
-    expect(visitAbilities(actor(["view:medical:clinic"]), draft, true)).toEqual(none);
+    expect(visitAbilities(actor(["view:medical:clinic"]), draft, ownFile, true)).toEqual(none);
     expect(
       visitAbilities(
         actor(["update:medical:clinic"]),
         { ...draft, providerMembershipId: other },
+        ownFile,
         true,
       ),
     ).toEqual(none);
+  });
+});
+
+describe("visitAbilities outside the patients reach (Codex 4241757308)", () => {
+  it("the provider gets no button on a file outside its patients reach, as its writes are not_found", () => {
+    const outside = { own: true, inPatientReach: false };
+    const draft = { status: "draft" as const, providerMembershipId: me };
+    const none = { edit: false, sign: false, cancel: false, addAddendum: false };
+    expect(visitAbilities(actor(["update:medical:clinic"]), draft, outside, true)).toEqual(none);
+    const signed = { ...draft, status: "signed" as const };
+    expect(visitAbilities(actor(["update:medical:own"]), signed, outside, true)).toEqual(none);
   });
 });
 

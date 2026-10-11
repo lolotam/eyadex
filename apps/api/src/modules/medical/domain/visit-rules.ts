@@ -189,20 +189,23 @@ export interface VisitAbilities {
 }
 
 /**
- * الأزرار: مقدّم الخدمة اللي شايل `update:medical:*`، بحالة الزيارة، والاعتماد لما فيه محتوى.
+ * الأزرار: مقدّم الخدمة اللي وصول `update:medical:*` بتاعه بيغطي ملف المراجع (جوه نطاق المراجعين، قرار
+ * المالك 2026-10-11، زي `lockVisitForWrite`)، بحالة الزيارة، والاعتماد لما فيه محتوى.
  *
  * @param actor الفاعل
  * @param visit حالة الزيارة ومقدّم خدمتها
+ * @param file علاقة الفاعل بملف المراجع
  * @param signable فيها محتوى يتعتمد (`isSignable`)
  * @returns الأزرار
  */
 export function visitAbilities(
   actor: MedicalActor,
   visit: { readonly status: VisitStatus; readonly providerMembershipId: string },
+  file: FileAccess,
   signable: boolean,
 ): VisitAbilities {
   const may = (write: VisitWrite) =>
-    medicalReach(actor, "update") !== null &&
+    medicalReachCovers(medicalReach(actor, "update"), file) &&
     visitWriteProblem(visit, actor.membershipId, write) === null;
   return {
     edit: may("note"),

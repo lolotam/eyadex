@@ -170,7 +170,7 @@ export async function visitDetail(
         }
       : null,
     can: {
-      ...visitAbilities(actor, visit, signable),
+      ...visitAbilities(actor, visit, file, signable),
       attach: mayAttach(actor, file, patient?.active === true),
     },
   };
