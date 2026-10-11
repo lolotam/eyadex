@@ -8,12 +8,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useClinicPersona } from "@/medical/medical-queries";
 import { errorCodeOf } from "@/shared/api/api-error";
 import { useApi } from "@/shared/api/api-provider";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { useSession } from "@/shared/persona/persona-provider";
 import { LoadingBlock } from "@/shared/shell/loading-block";
+import { useClinicPersona } from "./medical-queries";
 import { PrescriptionPrintView } from "./prescription-print-view";
 
 /** Each opening reads the print data once (audited); the print stylesheet prints only the sheet. */

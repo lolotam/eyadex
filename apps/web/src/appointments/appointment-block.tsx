@@ -1,7 +1,7 @@
 import { AlertTriangle } from "lucide-react";
 import type { Appointment } from "@eyadex/contracts/appointments";
 import { useI18n } from "@/shared/i18n/i18n-provider";
-import { StartVisitButton } from "@/visits/start-visit-button";
+import { StartVisitButton } from "./start-visit-button";
 import { AppointmentActions } from "./appointment-actions";
 import { STATUS_LOOK } from "./appointment-status-look";
 import { wallTime } from "./day-grid";

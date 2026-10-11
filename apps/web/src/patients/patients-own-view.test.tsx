@@ -3,13 +3,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { wallToInstant } from "@eyadex/contracts/clinic-time";
-import { PERMISSION_CATALOG } from "@eyadex/contracts/permissions";
 import { ApiProvider } from "@/shared/api/api-provider";
 import { api, as, clinicIdAt, getState, resetMockData } from "@/shared/api/mock/mock-test-kit";
 import { ar } from "@/shared/i18n/ar";
 import { I18nProvider } from "@/shared/i18n/i18n-provider";
 import { PersonaContext } from "@/shared/persona/persona-context";
-import { PermissionMatrix } from "@/roles/permission-matrix";
 import { PatientsContent } from "./patients-content";
 
 vi.mock("@tanstack/react-router", () => ({
@@ -77,22 +75,5 @@ describe("the patients list of an own-only doctor", () => {
     await renderPatients();
     expect(await screen.findByText(mine!.fullName)).toBeInTheDocument();
     expect(screen.queryByText(theirs!.fullName)).toBeNull();
-  });
-});
-
-describe("the roles editor", () => {
-  it("offers view:patients:own as a scope of the patients view, like view:appointments:own", () => {
-    render(
-      <I18nProvider>
-        <PermissionMatrix
-          catalog={[...PERMISSION_CATALOG]}
-          value={["view:patients:own"]}
-          onChange={vi.fn()}
-          readOnly={false}
-        />
-      </I18nProvider>,
-    );
-    const label = `${ar.roles.actions.view} — ${ar.roles.resources.patients}`;
-    expect(screen.getByRole("combobox", { name: label })).toHaveTextContent(ar.roles.scopes.own);
   });
 });

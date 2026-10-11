@@ -9,10 +9,10 @@ import {
 } from "@eyadex/contracts/visits";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useMedicines } from "@/medical/medical-queries";
 import { can } from "@/shared/permissions/can";
 import { useSession } from "@/shared/persona/persona-provider";
 import { useI18n } from "@/shared/i18n/i18n-provider";
+import { useMedicines } from "./medical-queries";
 import { useVisitWrite } from "./use-visit-write";
 import type { SectionSaves } from "./visit-section-saves";
 

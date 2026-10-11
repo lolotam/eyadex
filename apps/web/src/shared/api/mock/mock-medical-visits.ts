@@ -238,8 +238,11 @@ export function createMockMedicalVisits(): Pick<
       }
       const v = visibleVisit(db, a, visitId);
       const detail = detailOf(db, a, v);
-      auditMedical(db, a, "visit", "visit.opened", v.id, detail.content ? ["content"] : []);
-      persist();
+      // Only an answer with the clinical content is a patient-file open (as the API and the replay).
+      if (detail.content !== null) {
+        auditMedical(db, a, "visit", "visit.opened", v.id, ["content"]);
+        persist();
+      }
       return detail;
     },
   };

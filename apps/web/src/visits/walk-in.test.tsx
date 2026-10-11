@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetMockData } from "@/shared/api/mock/mock-test-kit";
 import { ar } from "@/shared/i18n/ar";
 import { doctorAt, getState } from "./medical-test-kit";
-import { renderAs } from "./medical-ui-kit";
+import { renderAs } from "@/shared/persona/persona-test-kit";
 import { VisitsPage } from "./visits-page";
 
 const navigate = vi.fn();

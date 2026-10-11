@@ -1,4 +1,4 @@
-/** Render helper for the P2 screens: the mock API, a session, Arabic, no router (mocked by tests). */
+/** Screen-test render: the mock API, a session (optionally other keys), Arabic, no router. */
 import type { ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render } from "@testing-library/react";

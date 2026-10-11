@@ -1,13 +1,13 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { VisitDetail } from "@eyadex/contracts/visits";
-import { medicalKeys, useClinicPersona } from "@/medical/medical-queries";
 import { errorCodeOf } from "@/shared/api/api-error";
 import { useApi } from "@/shared/api/api-provider";
 import type { MedicalApi } from "@/shared/api/medical-client";
 import type { Persona } from "@eyadex/contracts/session";
 import type { TranslationKey } from "@/shared/i18n/dictionary";
 import { useI18n } from "@/shared/i18n/i18n-provider";
+import { medicalKeys, useClinicPersona } from "./medical-queries";
 import { sectionSaveKey, type SectionSaves, type VisitSection } from "./visit-section-saves";
 
 // One toast for a visit's section save errors: Sign or Cancel repeating a failure the save already

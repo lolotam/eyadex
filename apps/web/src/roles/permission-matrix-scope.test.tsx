@@ -21,4 +21,20 @@ describe("the permission matrix", () => {
     fireEvent.click(screen.getByRole("checkbox", { name: label }));
     expect(onChange).toHaveBeenCalledWith(["create:visits:own", "view:visits:own"]);
   });
+
+  // ADR-0026 A3 (spec §5), moved from the patients area: the matrix belongs to roles (§1.1).
+  it("offers view:patients:own as a scope of the patients view, like view:appointments:own", () => {
+    render(
+      <I18nProvider>
+        <PermissionMatrix
+          catalog={[...PERMISSION_CATALOG]}
+          value={["view:patients:own"]}
+          onChange={vi.fn()}
+          readOnly={false}
+        />
+      </I18nProvider>,
+    );
+    const label = `${ar.roles.actions.view} — ${ar.roles.resources.patients}`;
+    expect(screen.getByRole("combobox", { name: label })).toHaveTextContent(ar.roles.scopes.own);
+  });
 });

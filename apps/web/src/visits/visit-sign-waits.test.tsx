@@ -7,7 +7,7 @@ import { resetMockData } from "@/shared/api/mock/mock-test-kit";
 import type { StoredVisit } from "@/shared/api/mock/mock-medical-state";
 import { ar } from "@/shared/i18n/ar";
 import { api, doctorAt, getState, holdFirst, startDraft } from "./medical-test-kit";
-import { renderAs } from "./medical-ui-kit";
+import { renderAs } from "@/shared/persona/persona-test-kit";
 import { VisitPage } from "./visit-page";
 
 vi.mock("@tanstack/react-router", () => ({

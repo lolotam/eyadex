@@ -14,12 +14,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useClinicPersona, useWalkInBranches } from "@/medical/medical-queries";
 import { errorCodeOf } from "@/shared/api/api-error";
 import { useApi } from "@/shared/api/api-provider";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { LoadingBlock } from "@/shared/shell/loading-block";
 import { StatusPanel } from "@/shared/shell/status-panel";
+import { useClinicPersona, useWalkInBranches } from "./medical-queries";
 
 /** Walk-in (P2-2): branch → search by name or file number (POST body) → pick → start → the visit. */
 export function WalkInContent() {

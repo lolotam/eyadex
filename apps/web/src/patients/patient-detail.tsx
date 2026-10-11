@@ -13,9 +13,15 @@ import { PatientStatusBadge } from "./patient-status-badge";
 import { PatientStatusDialog, type PatientStatusTarget } from "./patient-status-dialog";
 
 import { PatientBackLink as BackLink } from "./patient-back-link";
-import { PatientFileTabs } from "./patient-file-tabs";
+import { PatientFileTabs, type PatientFileExtraTab } from "./patient-file-tabs";
 
-export function PatientDetail({ patientId }: { patientId: string }) {
+export function PatientDetail({
+  patientId,
+  extraTabs,
+}: {
+  patientId: string;
+  extraTabs: readonly PatientFileExtraTab[];
+}) {
   const { t, pick, lang } = useI18n();
   const { session } = useSession();
   const detail = usePatientDetail(patientId);
@@ -88,6 +94,7 @@ export function PatientDetail({ patientId }: { patientId: string }) {
       <PatientFileTabs
         patientId={patient.id}
         patientStatus={patient.status}
+        extraTabs={extraTabs}
         overview={
           <>
             <dl className="grid max-w-3xl gap-x-8 rounded-lg border bg-card sm:grid-cols-2">

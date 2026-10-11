@@ -4,7 +4,7 @@ import type { VisitNoteInput } from "@eyadex/contracts/visits";
 import { resetMockData } from "@/shared/api/mock/mock-test-kit";
 import { ar } from "@/shared/i18n/ar";
 import { api, doctorAt, getState, holdFirst, startDraft } from "./medical-test-kit";
-import { renderAs } from "./medical-ui-kit";
+import { renderAs } from "@/shared/persona/persona-test-kit";
 import { VisitNoteEditor } from "./visit-note-editor";
 import type { NoteFlush } from "./visit-section-saves";
 

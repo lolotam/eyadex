@@ -4,9 +4,9 @@ import { ChevronsUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useClinicPersona } from "@/medical/medical-queries";
 import { useApi } from "@/shared/api/api-provider";
 import { useI18n } from "@/shared/i18n/i18n-provider";
+import { useClinicPersona } from "./medical-queries";
 
 type Props = {
   code: string;

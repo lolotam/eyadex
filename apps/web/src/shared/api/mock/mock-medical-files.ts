@@ -115,6 +115,12 @@ export function createMockMedicalFiles(): Pick<
         PROFILE_FIELDS.map((f) => [f, input[f] && input[f].length > 0 ? input[f] : null]),
       ) as MedicalProfile["profile"];
       const changed = PROFILE_FIELDS.filter((f) => before[f] !== next[f]);
+      if (changed.length === 0) {
+        // Nothing to write, but the answer carries the five sections: a read, logged like the API's.
+        auditMedical(db, a, "medical_profile", "medical_profile.opened", patientId);
+        persist();
+        return profileOf(db, a, patientId);
+      }
       db.medical.profiles = db.medical.profiles.filter(
         (p) => !(p.clinicId === a.clinic.id && p.patientId === patientId),
       );

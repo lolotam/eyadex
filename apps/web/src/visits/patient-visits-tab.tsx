@@ -5,11 +5,12 @@ import { AlertCircle, Plus, Search, Stethoscope, X } from "lucide-react";
 import type { VisitSummary } from "@eyadex/contracts/visits";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { errorCodeOf } from "@/shared/api/api-error";
 import { useApi } from "@/shared/api/api-provider";
-import { useClinicPersona, usePatientVisits } from "@/medical/medical-queries";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { LoadingBlock } from "@/shared/shell/loading-block";
 import { StatusPanel } from "@/shared/shell/status-panel";
+import { useClinicPersona, usePatientVisits } from "./medical-queries";
 import { VisitStatusBadge } from "./visit-status-badge";
 
 /**
@@ -105,6 +106,13 @@ export function PatientVisitsTab({ patientId }: { patientId: string }) {
       )}
       {query !== null && search.isLoading ? (
         <LoadingBlock />
+      ) : query !== null && search.isError ? (
+        // A refused or failed search is not "no matches": say why, like the list does.
+        <StatusPanel
+          icon={AlertCircle}
+          title={t("visits.loadError")}
+          body={t(`errors.${errorCodeOf(search.error)}`)}
+        />
       ) : rows.length === 0 ? (
         <StatusPanel
           icon={Stethoscope}

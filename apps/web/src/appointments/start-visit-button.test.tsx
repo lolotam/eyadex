@@ -2,10 +2,10 @@ import type { ReactNode } from "react";
 import { cleanup, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Appointment } from "@eyadex/contracts/appointments";
-import { as, resetMockData } from "@/shared/api/mock/mock-test-kit";
+import type { Persona } from "@eyadex/contracts/session";
+import { as, getState, resetMockData } from "@/shared/api/mock/mock-test-kit";
 import { ar } from "@/shared/i18n/ar";
-import { doctorAt, doctorMember } from "./medical-test-kit";
-import { renderAs } from "./medical-ui-kit";
+import { renderAs } from "@/shared/persona/persona-test-kit";
 import { StartVisitButton } from "./start-visit-button";
 
 vi.mock("@tanstack/react-router", () => ({
@@ -16,6 +16,23 @@ vi.mock("@tanstack/react-router", () => ({
 beforeEach(() => resetMockData());
 afterEach(() => cleanup());
 
+// The first clinic's active doctors (demo data, not an access rule).
+function doctorMember(index: number) {
+  const db = getState();
+  const clinicId = db.clinics[0]!.id;
+  const doctorRoles = new Set(
+    db.roles.filter((r) => r.clinicId === clinicId && r.systemKey === "doctor").map((r) => r.id),
+  );
+  const doctors = db.members.filter(
+    (m) => m.clinicId === clinicId && m.status === "active" && doctorRoles.has(m.roleId),
+  );
+  return doctors[index]!;
+}
+const doctorAt = (index: number): Persona => ({
+  kind: "doctor",
+  clinicId: getState().clinics[0]!.id,
+  memberId: doctorMember(index).id,
+});
 const appointment = (providerMembershipId: string, status: Appointment["status"]) =>
   ({ id: crypto.randomUUID(), providerMembershipId, status }) as Appointment;
 const shown = () => screen.queryByRole("button", { name: new RegExp(ar.visits.start) }) !== null;

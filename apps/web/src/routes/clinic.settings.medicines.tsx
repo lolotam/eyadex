@@ -1,8 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { MedicinesPage } from "@/medical/medicines-page";
+import { MedicinesPage } from "@/visits/medicines-page";
+import { ClinicSettingsShell } from "@/settings/clinic-settings-shell";
 import { pageHead } from "@/shared/seo/page-head";
 
 export const Route = createFileRoute("/clinic/settings/medicines")({
   ...pageHead("clinicSettingsMedicines"),
-  component: MedicinesPage,
+  component: MedicinesRoute,
 });
+
+function MedicinesRoute() {
+  return (
+    <MedicinesPage
+      frame={(content) => <ClinicSettingsShell active="medicines">{content}</ClinicSettingsShell>}
+    />
+  );
+}

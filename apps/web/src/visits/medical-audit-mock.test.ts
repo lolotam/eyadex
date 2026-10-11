@@ -129,4 +129,39 @@ describe("the medical mock audit", () => {
     });
     expect(getState().clinicAudit.length).toBe(before);
   });
+
+  it("an identical profile save keeps the profile and is logged as an open, like the API", async () => {
+    const D = doctorAt(0);
+    const { visit } = await startDraft();
+    const profile = {
+      allergies: SECRETS[5]!,
+      chronicConditions: null,
+      currentMedications: null,
+      surgicalHistory: null,
+      familyHistory: null,
+    };
+    await api.medical.saveMedicalProfile(D, visit.patientId, profile);
+    expect(getState().clinicAudit[0]?.action).toBe("medical_profile.saved");
+    const row = getState().medical.profiles.find((p) => p.patientId === visit.patientId)!;
+    row.updatedAt = "2026-01-01T00:00:00.000Z";
+    row.updatedByName = "Earlier author";
+    const before = getState().clinicAudit.length;
+    const again = await api.medical.saveMedicalProfile(D, visit.patientId, profile);
+    expect([again.updatedAt, again.updatedByName]).toEqual([row.updatedAt, "Earlier author"]);
+    const added = getState().clinicAudit.slice(0, getState().clinicAudit.length - before);
+    expect(added.map((r) => [r.action, r.category, r.entityId])).toEqual([
+      ["medical_profile.opened", "patient_access", visit.patientId],
+    ]);
+  });
+
+  it("opening a visit without the content key logs no open: nothing clinical was answered", async () => {
+    const { visit } = await startDraft();
+    const before = getState().clinicAudit.length;
+    const admin = await api.medical.getVisit(as("clinic_admin"), visit.id);
+    expect(admin.content).toBeNull();
+    expect(getState().clinicAudit.length).toBe(before);
+    await api.medical.getVisit(doctorAt(0), visit.id);
+    const added = getState().clinicAudit.slice(0, getState().clinicAudit.length - before);
+    expect(added.map((r) => [r.action, r.entityId])).toEqual([["visit.opened", visit.id]]);
+  });
 });
