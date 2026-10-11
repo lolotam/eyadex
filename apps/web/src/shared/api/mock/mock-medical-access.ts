@@ -111,8 +111,10 @@ export function visibleVisit(db: MockState, a: MedicalAccess, visitId: string): 
 }
 
 /**
- * A clinical write on a visit (note, diagnoses, prescription, sign, cancel, addendum): the update
- * key reaching the file, then the visit's provider only (P2-3), then its status.
+ * A clinical write on a visit (note, diagnoses, prescription, sign, cancel, addendum), in the API's
+ * `lockVisitForWrite` order: the update key, a visit its update reach covers (else not_found), the
+ * visit's provider only (P2-3), then its status. No view key is asked: a writer without one gets its
+ * answer with `content: null`, as from the API (Codex PR #68).
  */
 export function writableVisit(
   db: MockState,
@@ -122,12 +124,11 @@ export function writableVisit(
 ): { a: MedicalAccess; v: StoredVisit } {
   const a = requireKey(db, persona, "update", "medical", ["clinic", "own"]);
   const v = db.medical.visits.find((x) => x.clinicId === a.clinic.id && x.id === visitId);
-  if (!v || !reachesContent(db, a, "view", v.patientId)) throw new ApiError("not_found");
-  if (!reachesContent(db, a, "update", v.patientId)) throw new ApiError("forbidden");
+  if (!v || !reachesContent(db, a, "update", v.patientId)) throw new ApiError("not_found");
   if (v.providerMembershipId !== a.member.id) throw new ApiError("visit_not_provider");
-  if (needs === "draft" && v.status === "signed") throw new ApiError("visit_signed");
-  if (needs === "signed" && v.status !== "signed") throw new ApiError("visit_not_signed");
   // A cancelled draft is kept as it is: no transition leaves it (P2-6).
   if (v.status === "cancelled") throw new ApiError("invalid_transition");
+  if (needs === "draft" && v.status === "signed") throw new ApiError("visit_signed");
+  if (needs === "signed" && v.status !== "signed") throw new ApiError("visit_not_signed");
   return { a, v };
 }

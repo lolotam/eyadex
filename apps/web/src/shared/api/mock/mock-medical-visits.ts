@@ -6,6 +6,7 @@ import {
   type VisitList,
 } from "@eyadex/contracts/visits";
 import type { Persona } from "@eyadex/contracts/session";
+import { matches } from "../../text/text-match";
 import { ApiError } from "../api-error";
 import type { MedicalApi } from "../medical-client";
 import { actorReplayKey } from "./mock-idempotency";
@@ -61,6 +62,28 @@ function walkInBranchList(db: MockState, a: MedicalAccess) {
         (a.branches.allBranches || a.branches.branchIds.includes(b.id)),
     )
     .map((b) => ({ id: b.id, nameAr: b.nameAr, nameEn: b.nameEn }));
+}
+
+/**
+ * What the API's `searchVisitPage` matches a query against, in its order: the note sections, the
+ * addenda, then each active diagnosis's code and text, joined, so the words of a query may come from
+ * different parts of one visit.
+ */
+function searchedText(v: StoredVisit): string {
+  const diagnosed = v.diagnoses.filter((d) => !d.archived).flatMap((d) => [d.code, d.text]);
+  return [...Object.values(v.note), ...v.addenda.map((x) => x.body), ...diagnosed]
+    .filter((text) => text !== null)
+    .join("\n");
+}
+
+/**
+ * The visits a search scans, as the API's `visitViewReach`: the widest visits key wins, and only
+ * `branch` narrows (`clinic`, `own` and no visits key at all scan every visit of a file whose content
+ * the caller reads).
+ */
+function searchScans(a: MedicalAccess, v: StoredVisit): boolean {
+  if (a.keys.includes("view:visits:clinic") || !a.keys.includes("view:visits:branch")) return true;
+  return a.branches.allBranches || a.branches.branchIds.includes(v.branchId);
 }
 
 function fingerprint(input: unknown): string {
@@ -134,16 +157,9 @@ export function createMockMedicalVisits(): Pick<
       const a = requireKey(db, persona, "view", "medical", ["clinic", "own"]);
       const patient = patientOf(db, a, patientId);
       if (!reachesContent(db, a, "view", patientId)) throw new ApiError("not_found");
-      const needle = query.q.toLocaleLowerCase();
-      const hit = (text: string | null) => (text ?? "").toLocaleLowerCase().includes(needle);
       const rows = db.medical.visits
         .filter((v) => v.clinicId === a.clinic.id && v.patientId === patientId)
-        .filter(
-          (v) =>
-            Object.values(v.note).some(hit) ||
-            v.diagnoses.some((d) => !d.archived && hit(d.text)) ||
-            v.addenda.some((x) => hit(x.body)),
-        )
+        .filter((v) => searchScans(a, v) && matches(searchedText(v), query.q))
         .sort(newestFirst);
       // The query itself never reaches the audit row (P2-F4).
       auditMedical(db, a, "visit", "visit.searched", patientId, ["q"]);

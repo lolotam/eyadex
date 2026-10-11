@@ -1,4 +1,4 @@
-import { useEffect, useId } from "react";
+import { useId, useMemo } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Trash2 } from "lucide-react";
@@ -13,6 +13,7 @@ import { can } from "@/shared/permissions/can";
 import { useSession } from "@/shared/persona/persona-provider";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { useMedicines } from "./medical-queries";
+import { useServerItems } from "./use-server-items";
 import { useVisitWrite } from "./use-visit-write";
 import type { SectionSaves } from "./visit-section-saves";
 
@@ -22,6 +23,14 @@ const FIELDS = ["dose", "frequency", "duration"] as const;
 
 const toInput = (items: Items): PrescriptionItemInput[] =>
   items.map(({ position: _p, ...item }) => item);
+
+const itemFields = (i: PrescriptionItemInput) => [
+  i.medicine,
+  i.dose,
+  i.frequency,
+  i.duration,
+  i.note ?? null,
+];
 
 /** Prescription items (P2-9): the medicine is picked from the clinic list or typed (P2-F2). */
 export function VisitPrescription({
@@ -40,12 +49,13 @@ export function VisitPrescription({
   const listId = useId();
   const medicines = useMedicines(editable && can(session?.permissions ?? [], "view", "medicines"));
   const active = (medicines.data?.items ?? []).filter((m) => m.status === "active");
+  const server = useMemo(() => toInput(items), [items]);
   const form = useForm<FormValues>({
     resolver: zodResolver(visitPrescriptionInputSchema),
-    defaultValues: { items: toInput(items) },
+    defaultValues: { items: server },
   });
   const rows = useFieldArray({ control: form.control, name: "items" });
-  useEffect(() => form.reset({ items: toInput(items) }), [items, form]);
+  useServerItems(form, server, itemFields);
   const save = useVisitWrite<FormValues>(
     visitId,
     (api, persona, input) => api.savePrescription(persona, visitId, input),

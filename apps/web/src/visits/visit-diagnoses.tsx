@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useMemo } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Trash2 } from "lucide-react";
@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { Icd10Picker } from "./icd10-picker";
+import { useServerItems } from "./use-server-items";
 import { useVisitWrite } from "./use-visit-write";
 import type { SectionSaves } from "./visit-section-saves";
 
@@ -25,6 +26,8 @@ const toInput = (rows: Diagnoses): DiagnosisInput[] =>
       ? { kind: "icd10", code: d.code, text: d.text }
       : { kind: "text", text: d.text },
   );
+
+const diagnosisFields = (d: DiagnosisInput) => [d.kind, d.kind === "icd10" ? d.code : null, d.text];
 
 /** Diagnoses (P2-8): per row a switch between an ICD-10-CM code and free text. */
 export function VisitDiagnoses({
@@ -39,12 +42,13 @@ export function VisitDiagnoses({
   saves?: SectionSaves;
 }) {
   const { t } = useI18n();
+  const server = useMemo(() => toInput(diagnoses), [diagnoses]);
   const form = useForm<FormValues>({
     resolver: zodResolver(visitDiagnosesInputSchema),
-    defaultValues: { items: toInput(diagnoses) },
+    defaultValues: { items: server },
   });
   const rows = useFieldArray({ control: form.control, name: "items" });
-  useEffect(() => form.reset({ items: toInput(diagnoses) }), [diagnoses, form]);
+  useServerItems(form, server, diagnosisFields);
   const save = useVisitWrite<FormValues>(
     visitId,
     (api, persona, input) => api.saveDiagnoses(persona, visitId, input),

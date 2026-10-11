@@ -11,9 +11,9 @@ const D = () => doctorAt(0);
 const auditSince = (count: number) =>
   getState().clinicAudit.slice(0, getState().clinicAudit.length - count);
 
-/** The second doctor, moved to a custom role holding exactly `keys`. */
-function memberWithKeys(keys: string[]): Persona {
-  const member = doctorMember(1);
+/** A doctor (the second by default), moved to a custom role holding exactly `keys`. */
+function memberWithKeys(keys: string[], index = 1): Persona {
+  const member = doctorMember(index);
   const base = getState().roles.find((r) => r.id === member.roleId)!;
   const role = { ...base, id: crypto.randomUUID(), systemKey: null, permissions: keys };
   getState().roles.push(role);
@@ -77,6 +77,37 @@ describe("file writes without view reach (update:medical:clinic + view:medical:o
       "Penicillin",
     );
     expect(stored.attachments.find((a) => a.id === up.attachment.id)?.status).toBe("active");
+  });
+});
+
+describe("visit writes without view:medical (update:medical:own only)", () => {
+  it("the visit's provider still writes every part, and each answer carries no content, as the API", async () => {
+    const { visit } = await startDraft();
+    const member = doctorMember(0);
+    member.allBranches = true;
+    const P = memberWithKeys(["view:visits:own", "create:visits:own", "update:medical:own"], 0);
+    const note = { complaint: "Headache", examination: null, assessment: null, plan: null };
+    const item = { medicine: "Paracetamol", dose: "500 mg", frequency: "8h", duration: "3 days" };
+    const answers = [
+      await api.medical.saveNote(P, visit.id, note),
+      await api.medical.saveDiagnoses(P, visit.id, { items: [{ kind: "text", text: "Migraine" }] }),
+      await api.medical.savePrescription(P, visit.id, { items: [{ ...item, note: null }] }),
+      await api.medical.signVisit(P, visit.id),
+      await api.medical.addAddendum(P, visit.id, { body: "Later" }),
+    ];
+    const patient = getState().patients.find((p) => p.id === visit.patientId)!;
+    const walkIn = { patientId: patient.id, branchId: patient.registrationBranchId };
+    const second = await api.medical.startVisit(P, walkIn, crypto.randomUUID());
+    answers.push(
+      await api.medical.cancelVisit(P, second.visit.id, { reason: "patient_left", note: null }),
+    );
+    expect(answers.map((a) => a.content)).toEqual(Array(6).fill(null));
+    const stored = getState().medical.visits.find((v) => v.id === visit.id)!;
+    expect([stored.status, stored.note.complaint, stored.addenda.length]).toEqual([
+      "signed",
+      "Headache",
+      1,
+    ]);
   });
 });
 
