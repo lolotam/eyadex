@@ -1,6 +1,6 @@
 # ADR-0029 — Visits, doctor notes, signing, addenda and the medical file
 
-- Status: accepted (owner decisions 2026-10-10, P2 spec §1; plan Tasks 5, 6, 7, 11 with amendments R1–R3)
+- Status: accepted (owner decisions 2026-10-10, P2 spec §1; plan Tasks 5–9, 11 with amendments R1–R3)
 - Date: 2026-10-11
 
 ## Context
@@ -13,10 +13,12 @@ the five-section medical file, and a search inside one patient's notes. Every cl
 ## Decision
 
 1. **A new `medical` module** (`apps/api/src/modules/medical/`, laid out like `appointments`). It names only
-   its own tables (`visits`, `visit_notes`, `visit_addenda`, `patient_medical_profiles`); patients' files,
-   appointments, members and branches come through ports it owns, bound in `medical.module.ts` to adapters
-   their owners export from `index.ts`: `PgMedicalPatients` (patients), `PgVisitAppointments`
-   (appointments), `PgProviderDirectory` (identity) and `PgFilingBranches` (tenancy).
+   its own tables (`visits`, `visit_notes`, `visit_addenda`, `patient_medical_profiles`, and from 0047–0048
+   `visit_diagnoses`, `visit_prescription_items`, `clinic_medicines`, `icd10_codes`); patients' files,
+   appointments, members, branches and the clinic's names come through ports it owns, bound in
+   `medical.module.ts` to adapters their owners export from `index.ts`: `PgMedicalPatients` (patients),
+   `PgVisitAppointments` (appointments), `PgProviderDirectory` (identity), `PgFilingBranches` and
+   `PgClinicNames` (tenancy).
    `module-boundaries.spec.ts` pins the tables and the imports; patients and appointments import nothing
    of medical.
 2. **`own` is one predicate.** `patients/queries/own-patients.ts` reads `visits` read-only beside
@@ -26,7 +28,7 @@ the five-section medical file, and a search inside one patient's notes. Every cl
    included (P2-4); `view:visits:branch` filters on the visit's branch; `view:medical:*` decides the
    content (`content: null` without it, P2-5, P2-K4).
 3. **Writes.** Only the visit's provider writes (`visit_not_provider`, P2-3). A draft is saved, signed
-   (`visit_empty` without a non-empty section; diagnoses join the count with 0047) or cancelled with a
+   (`visit_empty` without a non-empty section or an active diagnosis) or cancelled with a
    reason; a signed visit only gains addenda (`visit_signed` otherwise; an addendum on a draft is
    `visit_not_signed`); a cancelled visit takes nothing (`invalid_transition`). Starting from an
    appointment needs the caller as its provider (`forbidden`) and `arrived` (`appointment_not_arrived`);
@@ -59,8 +61,32 @@ the five-section medical file, and a search inside one patient's notes. Every cl
    letter forms, diacritics and Latin case (`domain/text-match.ts`), requires every query word, then pages
    by `(started_at, id)`.
 
+9. **Diagnoses and the prescription (P2-8, P2-9; 0047, 0048).** Each is one list the provider replaces whole
+   on a draft (`PUT /v1/visits/:id/diagnoses`, `/prescription`) under the same locks as a note save: the
+   active rows are archived (`archived_at`) and the new list is inserted with new ids, every value sealed to
+   its own row (R1-13); the same list writes nothing. Archived rows never leave the stores. An `icd10` item
+   whose code is not a billable row of `icd10_codes` is `icd10_unknown` (R2-8). The audit rows are
+   `visit.diagnoses_saved` / `visit.prescription_saved` with the entity `diagnosis` / `prescription`, the
+   visit's id (the list has no single row) and `changed: ["items"]`. The print
+   (`GET /v1/visits/:id/prescription/print`, R2-10) needs the visit inside the visits reach and the content
+   inside `view:medical:*`, and is audited as `visit.prescription_printed`. The note search (§8) also reads
+   the active diagnoses' code and text.
+10. **ICD-10-CM (P2-F1).** `icd10_codes` is global reference data the runtime role only reads.
+    `cli/load-icd10.ts` (in the API image) turns the CDC order file on stdin into one upsert transaction on
+    stdout, which the orchestrator applies as the owner with psql, like a migration; the command never
+    connects to the database. `POST /v1/icd10/search` answers 20 billable codes: code prefixes (dot or not)
+    first, then titles starting with the first word, then by code; every word must be in the title (a
+    trigram index serves it). It is not audited (reference data) and its body is never logged.
+11. **The clinic's medicines (P2-F2, R3-3).** `/v1/medicines` under `view:medicines:clinic` /
+    `update:medicines:clinic`; a name is unique per clinic whatever its status (`medicine_name_taken`);
+    deactivated, never deleted. Every write holds the advisory lock `medicines:<clinic>` alone (no other
+    lock in the same transaction, so ADR-0027's order is untouched) and writes one `administrative` row
+    that names fields only, never a medicine.
+
 ## Consequences
 
 - The platform has no grant on any medical table and its audit view excludes every medical entity (0046).
 - A role gains a medical key only by the admin's bounded delegation (R1-2) or at the release migration.
-- Diagnoses, prescriptions and attachments plug into `visitDetail`'s empty arrays and the signable count.
+- Attachments plug into `visitDetail`'s empty array with their slice (0049).
+- A later ICD-10-CM release is loaded over the same table; codes it drops keep their old `release` value,
+  so a diagnosis already written still validates against its code until a cleanup is decided.

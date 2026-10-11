@@ -10,10 +10,13 @@ import {
   type MedicalActor,
   type NoteText,
 } from "../domain/visit-rules.ts";
+import { diagnosesOf } from "../persistence/pg-diagnosis-store.ts";
 import { addendaOf, notesOf, NOTE_COLUMN, type StoredNote } from "../persistence/pg-note-store.ts";
+import { prescriptionOf } from "../persistence/pg-prescription-store.ts";
 import type { VisitRow } from "../persistence/pg-visit-store.ts";
 import type { ClinicalCipher } from "../ports/clinical-cipher.ts";
 import type { ReadContext } from "../use-cases/medical-deps.ts";
+import { openDiagnoses, openPrescription } from "./visit-lists-view.ts";
 
 const PREVIEW_LENGTH = 160;
 // The FK makes a missing name impossible; the dash is the placeholder all the same.
@@ -110,6 +113,9 @@ export async function visitDetail(
   const stored = (await notesOf(tx, clinicId, [visit.id])).get(visit.id);
   const content = readsContent(actor, patientIsOwn);
   const addenda = content ? await addendaOf(tx, clinicId, [visit.id]) : [];
+  // Counted without opening: signing needs a diagnosis or a note section (spec §4).
+  const diagnoses = await diagnosesOf(tx, clinicId, [visit.id]);
+  const prescription = content ? await prescriptionOf(tx, clinicId, [visit.id]) : [];
   const members = await reads.members.findMany(tx, clinicId, [
     visit.providerMembershipId,
     ...addenda.map((a) => a.authorMembershipId),
@@ -120,7 +126,7 @@ export async function visitDetail(
   const branch = (await reads.branches.namesOf(tx, clinicId, [visit.branchId])).get(visit.branchId);
   const note = content ? openNote(cipher, clinicId, stored) : EMPTY_NOTE;
   // Empty sections are stored NULL (R1-8), so a stored envelope means content without opening it.
-  const signable = isSignable(stored?.sections ?? EMPTY_NOTE, 0);
+  const signable = isSignable(stored?.sections ?? EMPTY_NOTE, diagnoses.length);
   const nameOf = (id: string) => members.get(id)?.fullName ?? NO_NAME;
   return {
     visit: visitSummary(
@@ -133,9 +139,8 @@ export async function visitDetail(
     content: content
       ? {
           note,
-          // Diagnoses, the prescription and attachments arrive with their own slices (0047–0049).
-          diagnoses: [],
-          prescription: [],
+          diagnoses: openDiagnoses(cipher, clinicId, diagnoses),
+          prescription: openPrescription(cipher, clinicId, prescription),
           addenda: addenda.map((a) => ({
             id: a.id,
             authorName: nameOf(a.authorMembershipId),
@@ -146,6 +151,7 @@ export async function visitDetail(
             ),
             createdAt: iso(a.createdAt),
           })),
+          // Attachments arrive with their own slice (0049).
           attachments: [],
         }
       : null,

@@ -97,8 +97,8 @@ export function startFromAppointmentProblem(
   return null;
 }
 
-/** الكتابات على زيارة موجودة. */
-export type VisitWrite = "note" | "sign" | "cancel" | "addendum";
+/** الكتابات على زيارة موجودة؛ التشخيصات والروشتة زي الملاحظة: المسودة بس. */
+export type VisitWrite = "note" | "diagnoses" | "prescription" | "sign" | "cancel" | "addendum";
 
 /**
  * P2-3، P2-6: مقدّم خدمة الزيارة بس اللي بيكتب؛ المسودة بتتعدل وتتعتمد وتتلغي، والمعتمدة بتاخد ملحق بس،

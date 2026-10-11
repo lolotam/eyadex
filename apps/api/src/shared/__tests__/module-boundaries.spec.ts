@@ -40,6 +40,8 @@ const identityDeepImports = (module: string): string[] =>
       .map((target) => `${file.slice(modulesDir.length)}: ${target}`),
   );
 
+// Every relation scan below reads a name as a letter or underscore, then letters, digits or underscores
+// (icd10_codes, 0047), so a table with a digit is never cut short.
 // apps/api/AGENTS.md: the audit module reads the audit relations only (0011, 0012, 0013, 0034); names
 // from memberships and roles (identity), branches and clinics (tenancy) come through its ports.
 const AUDIT_RELATIONS = [
@@ -50,7 +52,7 @@ const AUDIT_RELATIONS = [
 ];
 const auditSqlRelations = (): string[] =>
   sourceFiles(join(modulesDir, "audit")).flatMap((file) =>
-    [...readFileSync(file, "utf8").matchAll(/\b(?:FROM|JOIN|UPDATE|INTO)\s+([a-z_]+)/g)]
+    [...readFileSync(file, "utf8").matchAll(/\b(?:FROM|JOIN|UPDATE|INTO)\s+([a-z_][a-z0-9_]*)/g)]
       .map(([, relation = ""]) => relation)
       .filter((relation) => !AUDIT_RELATIONS.includes(relation))
       .map((relation) => `${file.slice(modulesDir.length)}: ${relation}`),
@@ -80,7 +82,7 @@ const patientsImports = (): string[] =>
   );
 const appointmentsSqlRelations = (): string[] =>
   sourceFiles(join(modulesDir, "appointments")).flatMap((file) =>
-    [...readFileSync(file, "utf8").matchAll(/\b(?:FROM|JOIN|UPDATE|INTO)\s+([a-z_]+)/g)]
+    [...readFileSync(file, "utf8").matchAll(/\b(?:FROM|JOIN|UPDATE|INTO)\s+([a-z_][a-z0-9_]*)/g)]
       .map(([, relation = ""]) => relation)
       .filter((relation) => !APPOINTMENTS_RELATIONS.includes(relation))
       .map((relation) => `${file.slice(modulesDir.length)}: ${relation}`),
@@ -96,18 +98,22 @@ const OWN_PREDICATE_FILE = join("patients", "queries", "own-patients.ts");
 const OWN_PREDICATE_RELATIONS = ["appointments", "visits"];
 
 // ADR-0029: the medical module names only its own tables (and the jsonb set function its batch reads use;
-// audit rows go through shared/); patients, appointments, members and branches come through its ports,
-// bound in medical.module.ts to the adapters their owners export from index.ts.
+// audit rows go through shared/); patients, appointments, members, branches and the clinic's names come
+// through its ports, bound in medical.module.ts to the adapters their owners export from index.ts.
 const MEDICAL_RELATIONS = [
   "visits",
   "visit_notes",
   "visit_addenda",
   "patient_medical_profiles",
+  "visit_diagnoses",
+  "visit_prescription_items",
+  "clinic_medicines",
+  "icd10_codes",
   "jsonb_array_elements_text",
 ];
 const medicalSqlRelations = (): string[] =>
   sourceFiles(join(modulesDir, "medical")).flatMap((file) =>
-    [...readFileSync(file, "utf8").matchAll(/\b(?:FROM|JOIN|UPDATE|INTO)\s+([a-z_]+)/g)]
+    [...readFileSync(file, "utf8").matchAll(/\b(?:FROM|JOIN|UPDATE|INTO)\s+([a-z_][a-z0-9_]*)/g)]
       .map(([, relation = ""]) => relation)
       .filter((relation) => !MEDICAL_RELATIONS.includes(relation))
       .map((relation) => `${file.slice(modulesDir.length)}: ${relation}`),
@@ -137,7 +143,7 @@ const importsOfMedical = (module: string): string[] =>
   );
 const patientsSqlRelations = (): string[] =>
   sourceFiles(join(modulesDir, "patients")).flatMap((file) =>
-    [...readFileSync(file, "utf8").matchAll(/\b(?:FROM|JOIN|UPDATE|INTO)\s+([a-z_]+)/g)]
+    [...readFileSync(file, "utf8").matchAll(/\b(?:FROM|JOIN|UPDATE|INTO)\s+([a-z_][a-z0-9_]*)/g)]
       .map(([, relation = ""]) => relation)
       .filter(
         (relation) =>

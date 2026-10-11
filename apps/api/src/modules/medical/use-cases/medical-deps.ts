@@ -7,6 +7,7 @@ import type { MedicalActor } from "../domain/visit-rules.ts";
 import type { ClinicalCipher, FieldRef } from "../ports/clinical-cipher.ts";
 import type { MedicalAppointmentReader } from "../ports/medical-appointment-reader.ts";
 import type { MedicalBranchReader } from "../ports/medical-branch-reader.ts";
+import type { MedicalClinicReader } from "../ports/medical-clinic-reader.ts";
 import type { MedicalMemberDirectory } from "../ports/medical-member-directory.ts";
 import type { MedicalPatientReader } from "../ports/medical-patient-reader.ts";
 
@@ -20,6 +21,7 @@ export interface MedicalDeps {
   readonly appointments: MedicalAppointmentReader;
   readonly members: MedicalMemberDirectory;
   readonly branches: MedicalBranchReader;
+  readonly clinics: MedicalClinicReader;
 }
 
 /** What a medical read needs inside its transaction. */

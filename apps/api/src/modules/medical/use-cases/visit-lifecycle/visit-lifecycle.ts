@@ -24,16 +24,12 @@ import {
   NOTE_COLUMN,
   updateNote,
 } from "../../persistence/pg-note-store.ts";
-import {
-  findVisit,
-  markCancelled,
-  markSigned,
-  type VisitRow,
-} from "../../persistence/pg-visit-store.ts";
-import { openNote, visitDetail } from "../../queries/visit-views.ts";
+import { activeDiagnosisCount } from "../../persistence/pg-diagnosis-store.ts";
+import { markCancelled, markSigned, type VisitRow } from "../../persistence/pg-visit-store.ts";
+import { openNote } from "../../queries/visit-views.ts";
 import type { VisitWriteResponse } from "../start-visit/start-visit.ts";
 import { auditMedical, sealOrNull, type MedicalDeps } from "../medical-deps.ts";
-import { lockVisitForWrite, readContext } from "../visit-access.ts";
+import { writeVisit } from "../visit-access.ts";
 
 type VisitCancelInput = z.infer<typeof visitCancelSchema>;
 type VisitAddendumInput = z.infer<typeof visitAddendumInputSchema>;
@@ -101,9 +97,9 @@ export class VisitLifecycle {
   sign(actor: MedicalActor, visitId: string): Promise<VisitWriteResponse> {
     return this.write(actor, visitId, "sign", async (tx, visit) => {
       const stored = (await notesOf(tx, actor.clinicId, [visit.id])).get(visit.id);
-      // Empty sections are stored NULL (R1-8), so content is known without opening it. Diagnoses join the
-      // count with their slice (0047).
-      if (!isSignable(stored?.sections ?? EMPTY_NOTE, 0)) throw new ApiError("visit_empty");
+      const diagnoses = await activeDiagnosisCount(tx, actor.clinicId, visit.id);
+      // Empty sections are stored NULL (R1-8), so content is known without opening it.
+      if (!isSignable(stored?.sections ?? EMPTY_NOTE, diagnoses)) throw new ApiError("visit_empty");
       await markSigned(tx, actor.clinicId, visit.id, actor.membershipId, this.now());
       await this.audit(tx, actor, visit, "visit.signed", ["status"]);
     });
@@ -180,21 +176,13 @@ export class VisitLifecycle {
     });
   }
 
-  // One transaction: lock in order, run the change, answer the page as it stands after it. The caller is
-  // the provider, so the patient is its own (R1-18).
   private write(
     actor: MedicalActor,
     visitId: string,
     kind: VisitWrite,
     change: (tx: Tx, visit: VisitRow) => Promise<void>,
   ): Promise<VisitWriteResponse> {
-    return this.deps.db.withTenant(actor.clinicId, async (tx) => {
-      const visit = await lockVisitForWrite(this.deps, tx, actor, visitId, kind);
-      await change(tx, visit);
-      const after = await findVisit(tx, actor.clinicId, visitId);
-      if (after === null) throw new ApiError("not_found");
-      return { visit: await visitDetail(readContext(this.deps, tx), actor, after, true) };
-    });
+    return writeVisit(this.deps, actor, visitId, kind, change);
   }
 
   private audit(tx: Tx, actor: MedicalActor, visit: VisitRow, action: string, changed: string[]) {
