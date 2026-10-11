@@ -46,7 +46,12 @@ packages/contracts/src/         Zod — the single source of types for forms AND
 | business area (`src/users`…) | ✅                | ✅ via `useApi()`      | ❌ never                                  | ❌ (move shared bits to `shared/`) | ✅            |
 | `src/marketing`              | ✅ pure data only | ❌                     | ❌ (pure data like `ROLE_TEMPLATES` only) | ❌                                 | ✅            |
 | `shared/api/mock`            | ✅                | ✅ implements it       | ✅                                        | ❌                                 | ❌            |
-| `src/routes`                 | ❌                | ❌                     | ❌                                        | ✅ page component only             | ❌            |
+| `src/routes`                 | ❌                | ❌                     | ❌                                        | ✅ page components + their slots¹  | ❌            |
+
+¹ A route is where areas meet: besides page components it may import the pieces one area hands
+another page as props — a tab list (`SlotTab`, e.g. the medical tabs of the patient file) or a layout
+frame (the Settings shell). Nothing else of an area. `src/shared/area-boundaries.test.ts` enforces
+the area-to-area rule (ADR-0030).
 
 A screen that imports the mock directly breaks the Phase B swap and is rejected.
 
