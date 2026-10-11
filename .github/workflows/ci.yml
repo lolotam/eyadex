@@ -105,11 +105,14 @@ jobs:
       # ci-only-* credentials exist only inside this job's throwaway container.
       - name: Start MinIO and create the test bucket
         run: |
-          docker run -d --name minio -p 127.0.0.1:9000:9000             -e MINIO_ROOT_USER=ci-only-minio -e MINIO_ROOT_PASSWORD=ci-only-minio-pass             "$MINIO_IMAGE" server /data
+          docker run -d --name minio -p 127.0.0.1:9000:9000 \
+            -e MINIO_ROOT_USER=ci-only-minio -e MINIO_ROOT_PASSWORD=ci-only-minio-pass \
+            "$MINIO_IMAGE" server /data
           for i in $(seq 1 30); do curl -sf http://127.0.0.1:9000/minio/health/ready && break; sleep 1; done
           curl -sf http://127.0.0.1:9000/minio/health/ready
           # The image carries the mc client: the bucket is created from inside the same container.
-          docker exec -e MC_HOST_ci=http://ci-only-minio:ci-only-minio-pass@127.0.0.1:9000             minio mc mb ci/eyadex-medical-ci
+          docker exec -e MC_HOST_ci=http://ci-only-minio:ci-only-minio-pass@127.0.0.1:9000 \
+            minio mc mb ci/eyadex-medical-ci
         env:
           MINIO_IMAGE: pgsty/minio:RELEASE.2026-08-04T00-00-00Z@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372
       - name: API database tests — tenancy, identity, auth over HTTP, the S3 blob store (@eyadex/api)
