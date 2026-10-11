@@ -183,7 +183,7 @@ describe("patients mock: one civil ID per clinic", () => {
     ).rejects.toMatchObject({ code: "forbidden" });
   });
 
-  it("still finds a file by the digits of its number", async () => {
+  it("still finds a file by the whole of its number", async () => {
     const branch = branches()[0];
     if (!branch) throw new Error("no branch");
     const admin = as("clinic_admin");
@@ -192,7 +192,8 @@ describe("patients mock: one civil ID per clinic", () => {
       input(branch.id, "55501015"),
       crypto.randomUUID(),
     );
-    const list = await api.patients.list(admin, { ...ALL, q: "0112347" });
+    // P2-F5: only the whole number is searchable; a part of it never matches (0021 stores it).
+    const list = await api.patients.list(admin, { ...ALL, q: "290040112347" });
     expect(list.items.map((p) => p.id)).toContain(created.id);
     expect(list.items[0]?.civilIdLast4).toBe("2347");
   });
