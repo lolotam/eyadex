@@ -59,6 +59,27 @@ describe("archiving without view reach (update:medical:clinic + view:medical:own
   });
 });
 
+describe("file writes without view reach (update:medical:clinic + view:medical:own)", () => {
+  it("saves another doctor's patient's profile and uploads to the file, as the API's update reach", async () => {
+    const { visit } = await startDraft();
+    const P = memberWithKeys(["update:medical:clinic", "view:medical:own"]);
+    const profile = {
+      allergies: "Penicillin",
+      chronicConditions: null,
+      currentMedications: null,
+      surgicalHistory: null,
+      familyHistory: null,
+    };
+    await api.medical.saveMedicalProfile(P, visit.patientId, profile);
+    const up = await api.medical.uploadAttachment(P, visit.patientId, file("image/png", 50), null);
+    const stored = getState().medical;
+    expect(stored.profiles.find((p) => p.patientId === visit.patientId)?.allergies).toBe(
+      "Penicillin",
+    );
+    expect(stored.attachments.find((a) => a.id === up.attachment.id)?.status).toBe("active");
+  });
+});
+
 describe("an identical list save is a no-op", () => {
   it("diagnoses: nothing archived or appended, and the save is logged as an open", async () => {
     const { visit } = await startDraft();

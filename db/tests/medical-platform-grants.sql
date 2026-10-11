@@ -1,4 +1,4 @@
--- The medical tables and audit rows never reach the platform (0046–0049; spec §4, §5; P2 R1-1, P2-K3).
+-- The medical tables and audit rows never reach the platform (0046–0049, 0051; spec §4, §5; P2 R1-1, P2-K3).
 -- Runs inside one transaction and ROLLS BACK, so it is safe on any database that has the db/sql baseline.
 -- Usage: psql -v ON_ERROR_STOP=1 -f db/tests/medical-platform-grants.sql
 
@@ -83,14 +83,20 @@ BEGIN
   SELECT count(*) INTO n FROM platform_clinic_admin_audit WHERE clinic_id = '00000000-0000-7000-8000-00000000046a';
   IF n <> 1 THEN RAISE EXCEPTION 'PLAT: the admin audit view shows % rows of the clinic, expected 1', n; END IF;
 END $$;
--- Onboarding writes administrative rows as the platform (0016); never a medical one.
+-- Onboarding writes administrative rows as the platform (0016); never an appointment (0043, 0051) or a
+-- medical one (0046): the INSERT policy refuses each entity its read policy and view leave out.
 DO $$
+DECLARE e text;
 BEGIN
   PERFORM set_config('app.clinic_id', '00000000-0000-7000-8000-00000000046a', true);
-  BEGIN
-    INSERT INTO audit_log VALUES ('00000000-0000-7000-8000-00000000046a', gen_random_uuid(), gen_random_uuid(), 'medicine.created', 'administrative', 'medicine', null, null, '{}', now());
-    RAISE EXCEPTION 'PLAT-01: the platform wrote a medicine audit row';
-  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  INSERT INTO audit_log VALUES ('00000000-0000-7000-8000-00000000046a', gen_random_uuid(), gen_random_uuid(), 'invitation.sent', 'administrative', 'invitation', null, null, '{}', now());
+  FOREACH e IN ARRAY ARRAY['patient','appointment','visit','visit_addendum','diagnosis','prescription',
+      'medical_profile','attachment','medicine'] LOOP
+    BEGIN
+      INSERT INTO audit_log VALUES ('00000000-0000-7000-8000-00000000046a', gen_random_uuid(), gen_random_uuid(), e || '.created', 'administrative', e, null, null, '{}', now());
+      RAISE EXCEPTION 'PLAT-01: the platform wrote an administrative % audit row', e;
+    EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  END LOOP;
 END $$;
 
 RESET ROLE;

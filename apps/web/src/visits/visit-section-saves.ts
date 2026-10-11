@@ -12,20 +12,27 @@ export const sectionSaveKey = (visitId: string, section?: VisitSection) =>
 
 /**
  * The section saves running on one visit page (Codex PR #68): Sign waits for every one of them, so a
- * visit is never locked while a note, diagnoses or prescription save is still on its way.
+ * visit is never locked while a note, diagnoses or prescription save is still on its way, nor while a
+ * section's last save failed and that section was not saved again since.
  */
 export class SectionSaves {
   private readonly running = new Set<Promise<unknown>>();
-  private failures = 0;
+  // A section's newest save decides its state: an older one settling late never hides or clears it.
+  private readonly newest = new Map<VisitSection, Promise<unknown>>();
+  private readonly failed = new Map<VisitSection, unknown>();
 
-  /** Follows one save until it settles; returns it unchanged. */
-  track<T>(save: Promise<T>): Promise<T> {
+  /** Follows one save of `section` until it settles; returns it unchanged. */
+  track<T>(section: VisitSection, save: Promise<T>): Promise<T> {
     this.running.add(save);
+    this.newest.set(section, save);
     void save.then(
-      () => this.running.delete(save),
       () => {
         this.running.delete(save);
-        this.failures += 1;
+        if (this.newest.get(section) === save) this.failed.delete(section);
+      },
+      (error: unknown) => {
+        this.running.delete(save);
+        if (this.newest.get(section) === save) this.failed.set(section, error);
       },
     );
     return save;
@@ -33,13 +40,13 @@ export class SectionSaves {
 
   /**
    * Runs `flush` (text typed and not sent yet), then waits until no save runs, saves started meanwhile
-   * included. Rejects when the flush or any save that settled in that time failed: signing then would
-   * lock the visit without what the provider just saved.
+   * included. Rejects with the save's own error while a section's newest save failed, before the sign
+   * or during it: signing then would lock the visit without what the provider meant to save.
    */
   async settle(flush: () => Promise<void>): Promise<void> {
-    const failedBefore = this.failures;
     await flush();
     while (this.running.size > 0) await Promise.allSettled([...this.running]);
-    if (this.failures !== failedBefore) throw new Error("A visit section save failed.");
+    const [error] = this.failed.values();
+    if (this.failed.size > 0) throw error;
   }
 }

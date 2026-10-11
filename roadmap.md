@@ -98,6 +98,7 @@
 - [x] Prescriptions with the printable view, and the clinic's medicines list (ADR-0029 §9, §11, SQL 0048)
 - [ ] Attachments over the `BlobStore` port (SQL 0049, branch `p2-files`)
 - [x] Release: existing clinics' system roles gain the medical keys by `system_key`, new clinics' default roles hold them, `medical` joins the new-clinic default modules (ADR-0029 §12, SQL 0050, `db/maintenance/medical-release-catch-up.sql`)
-- [ ] Apply `db/sql/0045`–`0050` to staging, then production, each before the deploy that needs it; load ICD-10-CM after 0047 (orchestrator)
+- [x] The platform's audit INSERT policy refuses `appointment` rows too, as its read policy and view do (SQL 0051; 0046 is applied on staging, so it stays unedited)
+- [ ] Apply `db/sql/0045`–`0051` to staging, then production, each before the deploy that needs it; load ICD-10-CM after 0047 (orchestrator)
 - [ ] After the release deploy, run `db/maintenance/medical-release-catch-up.sql` on staging, then production, before the platform switches `medical` on for any clinic (orchestrator)
 - [ ] Drop the plain `civil_id` column after the backfill's `--verify` passes on each environment (ADR-0028, R1-6)

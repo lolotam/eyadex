@@ -22,14 +22,15 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useI18n } from "@/shared/i18n/i18n-provider";
-import { useVisitWrite } from "./use-visit-write";
+import { useSectionSaveRefusal, useVisitWrite } from "./use-visit-write";
 
 type Values = z.input<typeof visitCancelSchema>;
 
 /**
  * Cancel a draft (P2-6): a reason and an optional note; the draft is kept as cancelled. The confirm sends
  * the note's pending text and waits for every section save (`settleSaves`, as Sign), and cancels only
- * when all of them succeeded: a save landing after the cancel would be refused and its text lost.
+ * when each section's last save succeeded: a save landing after the cancel would be refused and its
+ * text lost.
  */
 export function VisitCancelDialog({
   visitId,
@@ -56,14 +57,16 @@ export function VisitCancelDialog({
       api.cancelVisit(persona, visitId, { reason: input.reason, note: input.note ?? null }),
     { success: "visit.cancelled", onDone: () => onOpenChange(false) },
   );
+  const refused = useSectionSaveRefusal(visitId);
   const [settling, setSettling] = useState(false);
   const busy = settling || cancel.isPending;
   const confirm = async (values: Values) => {
     setSettling(true);
     try {
       await settleSaves();
-    } catch {
-      // The failed save already showed its error; the dialog stays open and nothing is cancelled.
+    } catch (e) {
+      // The dialog stays open and nothing is cancelled.
+      refused(e);
       return;
     } finally {
       setSettling(false);

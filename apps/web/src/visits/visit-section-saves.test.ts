@@ -19,10 +19,10 @@ describe("the visit's section saves", () => {
     const saves = new SectionSaves();
     const first = pending();
     const late = pending();
-    void saves.track(first.promise);
+    void saves.track("note", first.promise);
     let settled = false;
     const waiting = saves.settle(nothingToFlush).then(() => (settled = true));
-    void saves.track(late.promise);
+    void saves.track("diagnoses", late.promise);
     first.resolve();
     await Promise.resolve();
     expect(settled).toBe(false);
@@ -35,7 +35,7 @@ describe("the visit's section saves", () => {
     const saves = new SectionSaves();
     const started = pending();
     const waiting = saves.settle(async () => {
-      saves.track(started.promise).catch(() => undefined);
+      saves.track("diagnoses", started.promise).catch(() => undefined);
       started.reject();
       await Promise.resolve();
     });
@@ -47,12 +47,28 @@ describe("the visit's section saves", () => {
     await expect(saves.settle(() => Promise.reject(new Error("note")))).rejects.toThrow("note");
   });
 
-  it("a save that failed before the sign does not hold the next one back", async () => {
+  it("a save that failed before the sign refuses it with that error, until the section saves again", async () => {
     const saves = new SectionSaves();
-    const earlier = pending();
-    saves.track(earlier.promise).catch(() => undefined);
-    earlier.reject();
+    const failed = pending();
+    saves.track("diagnoses", failed.promise).catch(() => undefined);
+    failed.reject();
     await Promise.resolve();
+    await expect(saves.settle(nothingToFlush)).rejects.toThrow("save failed");
+    // Another section saving does not clear it; only the failed section's own next save does.
+    await saves.track("prescription", Promise.resolve());
+    await expect(saves.settle(nothingToFlush)).rejects.toThrow("save failed");
+    await saves.track("diagnoses", Promise.resolve());
+    await expect(saves.settle(nothingToFlush)).resolves.toBeUndefined();
+  });
+
+  it("an older save of a section settling after its newer one never changes the section's state", async () => {
+    const saves = new SectionSaves();
+    const older = pending();
+    const newer = pending();
+    saves.track("diagnoses", older.promise).catch(() => undefined);
+    void saves.track("diagnoses", newer.promise);
+    newer.resolve();
+    older.reject();
     await expect(saves.settle(nothingToFlush)).resolves.toBeUndefined();
   });
 });

@@ -33,7 +33,7 @@ function page(
   a: MedicalAccess,
   rows: StoredVisit[],
   cursor: string | undefined,
-  patientId: string,
+  patient: ReturnType<typeof patientOf>,
 ): VisitList {
   const start = cursor ? Number(cursor) || 0 : 0;
   const slice = rows.slice(start, start + PAGE);
@@ -41,8 +41,12 @@ function page(
     items: slice.map((v) => summaryOf(db, a, v)),
     nextCursor: start + PAGE < rows.length ? String(start + PAGE) : null,
     can: {
-      search: reachesContent(db, a, "view", patientId),
-      start: a.keys.includes("create:visits:own"),
+      search: reachesContent(db, a, "view", patient.id),
+      // As the API's `canStart`: a walk-in for an active file of a branch the caller works in.
+      start:
+        a.keys.includes("create:visits:own") &&
+        patient.status === "active" &&
+        (a.branches.allBranches || a.branches.branchIds.includes(patient.registrationBranchId)),
     },
   };
 }
@@ -110,12 +114,12 @@ export function createMockMedicalVisits(): Pick<
       const db = getState();
       const query = parse(visitListQuerySchema, rawQuery);
       const a = requireKey(db, persona, "view", "visits", ["clinic", "branch", "own"]);
-      patientOf(db, a, patientId);
+      const patient = patientOf(db, a, patientId);
       const rows = db.medical.visits
         .filter((v) => v.clinicId === a.clinic.id && v.patientId === patientId)
         .filter((v) => seesVisit(db, a, v))
         .sort(newestFirst);
-      const result = page(db, a, rows, query.cursor, patientId);
+      const result = page(db, a, rows, query.cursor, patient);
       if (result.items.some((i) => i.preview !== null)) {
         auditMedical(db, a, "visit", "visit.previews_listed", patientId, ["preview"]);
         persist();
@@ -128,7 +132,7 @@ export function createMockMedicalVisits(): Pick<
       const db = getState();
       const query = parse(visitSearchSchema, rawQuery);
       const a = requireKey(db, persona, "view", "medical", ["clinic", "own"]);
-      patientOf(db, a, patientId);
+      const patient = patientOf(db, a, patientId);
       if (!reachesContent(db, a, "view", patientId)) throw new ApiError("not_found");
       const needle = query.q.toLocaleLowerCase();
       const hit = (text: string | null) => (text ?? "").toLocaleLowerCase().includes(needle);
@@ -144,7 +148,7 @@ export function createMockMedicalVisits(): Pick<
       // The query itself never reaches the audit row (P2-F4).
       auditMedical(db, a, "visit", "visit.searched", patientId, ["q"]);
       persist();
-      return page(db, a, rows, query.cursor, patientId);
+      return page(db, a, rows, query.cursor, patient);
     },
 
     async walkInBranches(persona) {

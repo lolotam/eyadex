@@ -33,7 +33,11 @@ const PROFILE_FIELDS = [
   "familyHistory",
 ] as const;
 
-/** The medical file's reach: the key's scope, an out-of-scope file is not_found (cannot be probed). */
+/**
+ * The medical file's reach for the action alone, as the API's use cases (`reachable`, `patientInReach`):
+ * a write needs only the update reach, a read only the view reach, and a file outside it is not_found
+ * (cannot be probed).
+ */
 function contentFile(
   db: MockState,
   a: MedicalAccess,
@@ -41,8 +45,7 @@ function contentFile(
   patientId: string,
 ) {
   const patient = patientOf(db, a, patientId);
-  if (!reachesContent(db, a, "view", patientId)) throw new ApiError("not_found");
-  if (!reachesContent(db, a, action, patientId)) throw new ApiError("forbidden");
+  if (!reachesContent(db, a, action, patientId)) throw new ApiError("not_found");
   return patient;
 }
 

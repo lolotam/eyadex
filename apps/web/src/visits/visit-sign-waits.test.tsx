@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ApiError } from "@/shared/api/api-error";
 import { resetMockData } from "@/shared/api/mock/mock-test-kit";
 import type { StoredVisit } from "@/shared/api/mock/mock-medical-state";
 import { ar } from "@/shared/i18n/ar";
@@ -86,6 +88,38 @@ describe("Sign and the section saves (Codex PR #68)", () => {
     },
     10_000,
   );
+});
+
+describe("Sign after a section save failed (Codex PR #68)", () => {
+  it("a diagnoses save that failed before the sign keeps the visit unsigned and shows the error again until it saves", async () => {
+    const D = doctorAt(0);
+    const { visit } = await startDraft();
+    await api.medical.saveNote(D, visit.id, NOTE);
+    const errorToast = vi.spyOn(toast, "error");
+    vi.spyOn(api.medical, "saveDiagnoses").mockRejectedValueOnce(new ApiError("unknown"));
+    vi.spyOn(api.medical, "signVisit");
+    await renderAs(D, <VisitPage visitId={visit.id} />);
+    fireEvent.click(await screen.findByRole("button", { name: ar.visit.addDiagnosis }));
+    fireEvent.change(screen.getByLabelText(ar.visit.diagnosisText), {
+      target: { value: "Migraine" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: ar.visit.saveDiagnoses }));
+    await waitFor(() => expect(errorToast).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(ar.visit.sign) }));
+    const dialog = await screen.findByRole("alertdialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: ar.visit.sign }));
+    await waitFor(() => expect(errorToast).toHaveBeenCalledTimes(2));
+    expect(errorToast.mock.calls[1]![0]).toBe(ar.errors.unknown);
+    expect(api.medical.signVisit).not.toHaveBeenCalled();
+    expect(getState().medical.visits.find((v) => v.id === visit.id)!.status).toBe("draft");
+    // Saving the section again clears it: the next confirm signs, with the saved list.
+    fireEvent.click(screen.getByRole("button", { name: ar.visit.saveDiagnoses, hidden: true }));
+    await waitFor(() => expect(api.medical.saveDiagnoses).toHaveBeenCalledTimes(2));
+    fireEvent.click(within(dialog).getByRole("button", { name: ar.visit.sign }));
+    await screen.findByText(ar.visit.lockedNote);
+    const stored = getState().medical.visits.find((v) => v.id === visit.id)!;
+    expect([stored.status, stored.diagnoses.map((d) => d.text)]).toEqual(["signed", ["Migraine"]]);
+  }, 10_000);
 });
 
 describe("Cancel draft and the section saves (Codex PR #68)", () => {

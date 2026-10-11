@@ -6,14 +6,15 @@ import { Button } from "@/components/ui/button";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { ConfirmActionDialog } from "@/shared/shell/confirm-action-dialog";
 import { PrescriptionPrintDialog } from "./prescription-print-dialog";
-import { useVisitWrite } from "./use-visit-write";
+import { useSectionSaveRefusal, useVisitWrite } from "./use-visit-write";
 import { VisitCancelDialog } from "./visit-cancel-dialog";
 import { sectionSaveKey } from "./visit-section-saves";
 
 /**
  * Sign · Cancel draft · Print, each following `can` (UX only: the API refuses as well). Sign is off
  * while any section save runs; its confirm sends the note's pending text and waits for every section
- * save (`settleSaves`), and signs only when all of them succeeded. Cancel draft follows the same rule.
+ * save (`settleSaves`), and signs only when each section's last save succeeded (a section whose save
+ * failed earlier shows that error again until it is saved). Cancel draft follows the same rule.
  */
 export function VisitActions({
   detail,
@@ -33,13 +34,15 @@ export function VisitActions({
     success: "visit.signed",
     onDone: () => setConfirmSign(false),
   });
+  const refused = useSectionSaveRefusal(id);
   const printable = detail.content !== null && detail.visit.status !== "cancelled";
   const confirm = async () => {
     setFlushing(true);
     try {
       await settleSaves();
-    } catch {
-      // The failed save already showed its error; the dialog stays open and nothing is signed.
+    } catch (e) {
+      // The dialog stays open and nothing is signed.
+      refused(e);
       return;
     } finally {
       setFlushing(false);
