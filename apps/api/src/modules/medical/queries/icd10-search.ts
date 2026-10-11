@@ -31,11 +31,13 @@ export async function searchIcd10(db: Database, clinicId: string, q: string): Pr
     sql` AND `,
   );
   const startsWith = `${likeEscaped(words[0] ?? "")}%`;
+  // PostgreSQL refuses a bare constant in ORDER BY, so the prefix rank exists only with a prefix.
+  const prefixFirst = codePrefix === null ? sql`` : sql`${byCode} DESC, `;
   const rows = await db.withTenant(clinicId, (tx) =>
     tx.execute<{ code: string; title_en: string }>(
       sql`SELECT code, title_en FROM icd10_codes
           WHERE billable AND (${byCode} OR (${byTitle}))
-          ORDER BY ${byCode} DESC, lower(title_en) LIKE ${startsWith} DESC, code
+          ORDER BY ${prefixFirst}lower(title_en) LIKE ${startsWith} DESC, code
           LIMIT ${LIMIT}`,
     ),
   );

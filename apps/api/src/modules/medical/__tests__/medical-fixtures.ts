@@ -12,6 +12,8 @@ import {
   SUNDAY,
 } from "../../appointments/__tests__/appointment-fixtures.ts";
 import { send } from "../../appointments/__tests__/scheduling-fixtures.ts";
+import { icd10LoadScript } from "../../../cli/icd10-load-script.ts";
+import { parseIcd10OrderFile } from "../index.ts";
 
 // Spec §2: the keys a new clinic's doctor gets at release (R1-16). Until then no role holds them, so the
 // fixtures grant them as the owner.
@@ -51,7 +53,8 @@ export async function grantKeys(
   }
 }
 
-const roleOf = async (h: Harness, membershipId: string) => {
+/** The role a member holds. */
+export const roleOf = async (h: Harness, membershipId: string) => {
   const [row] = await h.owner`SELECT role_id FROM memberships WHERE id = ${membershipId}`;
   return row!["role_id"] as string;
 };
@@ -151,3 +154,33 @@ export const medicalAudit = (h: Harness, clinicId: string, since: Date) =>
             row_to_json(a)::text AS raw
           FROM audit_log a WHERE clinic_id = ${clinicId} AND created_at >= ${since}
           ORDER BY created_at, id`;
+
+/** One line of the CDC order file's fixed-width layout (R2-8). */
+const orderLine = (order: number, code: string, billable: boolean, title: string) =>
+  `${String(order).padStart(5, "0")} ${code.padEnd(7)} ${billable ? 1 : 0} ${title.slice(0, 60).padEnd(60)} ${title}`;
+
+/** ICD-10-CM codes the medical specs search and diagnose with: a header row, real codes, 25 fillers. */
+export const ICD10_SAMPLE = [
+  orderLine(1, "F41", false, "Other anxiety disorders"),
+  orderLine(2, "F410", true, "Panic disorder [episodic paroxysmal anxiety]"),
+  orderLine(3, "F411", true, "Generalized anxiety disorder"),
+  orderLine(4, "F419", true, "Anxiety disorder, unspecified"),
+  orderLine(5, "I10", true, "Essential (primary) hypertension"),
+  ...Array.from({ length: 25 }, (_, i) =>
+    orderLine(10 + i, `U99${String(i).padStart(2, "0")}`, true, `Eyadexfiller condition ${i}`),
+  ),
+].join("\n");
+
+/**
+ * Loads `ICD10_SAMPLE` through the loader's own script, as the owner (the runtime role only reads
+ * `icd10_codes`). The table is global and the database shared, so the upsert makes reruns harmless.
+ */
+export async function seedIcd10(h: Harness): Promise<void> {
+  // The script carries its own BEGIN/COMMIT, which postgres.js runs only on one reserved connection.
+  const connection = await h.owner.reserve();
+  try {
+    await connection.unsafe(icd10LoadScript(parseIcd10OrderFile(ICD10_SAMPLE))).simple();
+  } finally {
+    connection.release();
+  }
+}

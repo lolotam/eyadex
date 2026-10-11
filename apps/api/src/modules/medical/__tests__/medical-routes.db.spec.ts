@@ -53,6 +53,15 @@ const ROUTES: [method: "GET" | "POST" | "PUT", url: string, body?: unknown][] = 
       familyHistory: null,
     },
   ],
+  ["PUT", `/v1/visits/${ID}/diagnoses`, { items: [] }],
+  ["PUT", `/v1/visits/${ID}/prescription`, { items: [] }],
+  ["GET", `/v1/visits/${ID}/prescription/print`],
+  ["POST", "/v1/icd10/search", { q: "F41" }],
+  ["GET", "/v1/medicines"],
+  ["POST", "/v1/medicines", { name: "x", defaultDose: null, defaultFrequency: null }],
+  ["PUT", `/v1/medicines/${ID}`, { name: "x", defaultDose: null, defaultFrequency: null }],
+  ["POST", `/v1/medicines/${ID}/deactivate`, {}],
+  ["POST", `/v1/medicines/${ID}/reactivate`, {}],
 ];
 
 beforeAll(async () => {
