@@ -148,6 +148,7 @@ export const enVisits = {
     archiveBody: "It is hidden from the file but kept; nothing is deleted.",
     archived: "File archived",
     loadError: "Attachments could not be loaded",
+    writeOnly: "You can add files to this visit; your role does not show its attachments.",
     by: "{name} · {date} · {size}",
   },
   medicines: {

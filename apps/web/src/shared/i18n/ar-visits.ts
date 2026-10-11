@@ -148,6 +148,7 @@ export const arVisits = {
     archiveBody: "يُخفى من الملف لكنه يبقى محفوظًا؛ لا يُحذف شيء.",
     archived: "تمت أرشفة الملف",
     loadError: "تعذّر تحميل المرفقات",
+    writeOnly: "يمكنك إضافة ملفات إلى هذه الزيارة؛ دورك لا يُظهر مرفقاتها.",
     by: "{name} · {date} · {size}",
   },
   medicines: {

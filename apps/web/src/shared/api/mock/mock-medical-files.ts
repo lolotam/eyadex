@@ -1,7 +1,6 @@
 import {
   ATTACHMENT_MAX_BYTES,
   attachmentListQuerySchema,
-  attachmentTypeSchema,
   type Attachment,
 } from "@eyadex/contracts/attachments";
 import { icd10QuerySchema } from "@eyadex/contracts/icd10";
@@ -10,6 +9,7 @@ import {
   type MedicalProfile,
   type MedicalProfileInput,
 } from "@eyadex/contracts/medical-profile";
+import { acceptedAttachmentType, SIGNATURE_LENGTH } from "../../files/attachment-type";
 import { ApiError } from "../api-error";
 import type { MedicalApi } from "../medical-client";
 import { ICD10_DEMO, ICD10_RELEASE } from "./mock-icd10-list";
@@ -65,6 +65,16 @@ function profileOf(db: MockState, a: MedicalAccess, patientId: string): MedicalP
         reachesContent(db, a, "update", patientId),
     },
   };
+}
+
+// A file's first bytes, through FileReader: jsdom's Blob (the tests' File) has no `arrayBuffer`.
+function headOf(file: Blob): Promise<Uint8Array> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(new Uint8Array(reader.result as ArrayBuffer));
+    reader.onerror = () => reject(reader.error ?? new Error("file read failed"));
+    reader.readAsArrayBuffer(file.slice(0, SIGNATURE_LENGTH));
+  });
 }
 
 const view = ({ clinicId: _clinic, ...rest }: StoredAttachment): Attachment => rest;
@@ -181,17 +191,18 @@ export function createMockMedicalFiles(): Pick<
         const visit = visibleVisit(db, a, visitId);
         if (visit.patientId !== patientId) throw new ApiError("attachment_patient_mismatch");
       }
-      const type = attachmentTypeSchema.safeParse(file.type);
-      if (!type.success) throw new ApiError("attachment_type");
+      // As the API's `acceptedAttachmentType`: the declared type must be allowed and match the first
+      // bytes, so a renamed file is refused and an empty one (no signature) answers `attachment_type`.
+      const type = acceptedAttachmentType(file.type, await headOf(file));
+      if (type === null) throw new ApiError("attachment_type");
       if (file.size > ATTACHMENT_MAX_BYTES) throw new ApiError("attachment_too_large");
-      if (file.size === 0) throw new ApiError("validation");
       const row: StoredAttachment = {
         id: newId(),
         clinicId: a.clinic.id,
         patientId,
         visitId,
         name: file.name.slice(0, 200) || "file",
-        contentType: type.data,
+        contentType: type,
         sizeBytes: file.size,
         status: "active",
         uploadedAt: new Date().toISOString(),

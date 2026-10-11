@@ -32,7 +32,8 @@ export function summaryOf(db: MockState, a: MedicalAccess, v: StoredVisit): Visi
     status: v.status,
     startedAt: v.startedAt,
     signedAt: v.signedAt,
-    preview: content ? (v.note.assessment ?? "").slice(0, 160) : null,
+    // As the API's `previewOf`: no assessment is no preview, so the list writes no audited read for it.
+    preview: content && v.note.assessment !== null ? v.note.assessment.slice(0, 160) : null,
     cancelReason: v.cancelReason,
   };
 }
@@ -82,9 +83,9 @@ export function detailOf(db: MockState, a: MedicalAccess, v: StoredVisit): Visit
       sign: writer && draft && isSignable(v),
       cancel: writer && draft,
       addAddendum: writer && v.status === "signed",
-      // As the API: the upload's own rule, whatever the visit's status or provider.
-      attach:
-        content && patient?.status === "active" && reachesContent(db, a, "update", v.patientId),
+      // As the API's `mayAttach`: the upload's own rule (update reach, active file), whatever the
+      // visit's status or provider and whether the content is readable.
+      attach: patient?.status === "active" && reachesContent(db, a, "update", v.patientId),
     },
   };
 }

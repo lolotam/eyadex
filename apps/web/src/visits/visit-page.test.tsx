@@ -3,7 +3,7 @@ import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { as, resetMockData } from "@/shared/api/mock/mock-test-kit";
 import { ar } from "@/shared/i18n/ar";
-import { api, doctorAt, getState, startDraft } from "./medical-test-kit";
+import { api, doctorAt, file, getState, memberWithKeys, startDraft } from "./medical-test-kit";
 import { renderAs } from "@/shared/persona/persona-test-kit";
 import { VisitPage } from "./visit-page";
 
@@ -156,6 +156,25 @@ describe("the visit page controls", () => {
     await renderAs(as("receptionist"), <VisitPage visitId={visit.id} />);
     await screen.findByText(ar.visits.contentHidden);
     expect(screen.queryByText(ar.visit.note)).toBeNull();
+  });
+
+  it("a writer without view:medical gets the visit's upload, never its attachment list", async () => {
+    const { visit } = await startDraft();
+    const sent = file("image/png", 50, "private-scan.png");
+    await api.medical.uploadAttachment(doctorAt(0), visit.patientId, sent, visit.id);
+    const P = memberWithKeys(["view:visits:clinic", "update:medical:clinic"]);
+    await renderAs(P, <VisitPage visitId={visit.id} />);
+    await screen.findByText(ar.visits.contentHidden);
+    expect(screen.getByText(ar.attachments.writeOnly)).toBeInTheDocument();
+    expect(screen.queryByText("private-scan.png")).toBeNull();
+    fireEvent.change(screen.getByLabelText(ar.attachments.upload), {
+      target: { files: [file("image/png", 50, "new-scan.png")] },
+    });
+    await waitFor(() =>
+      expect(getState().medical.attachments.filter((a) => a.visitId === visit.id)).toHaveLength(2),
+    );
+    // The list is the API's view-reach read: never asked for, so never logged.
+    expect(getState().clinicAudit.some((r) => r.action === "attachment.listed")).toBe(false);
   });
 
   it("a diagnosis row switches between free text and an ICD-10 code", async () => {

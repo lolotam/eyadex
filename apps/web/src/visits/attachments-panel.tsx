@@ -16,8 +16,18 @@ import {
   useRefreshMedical,
 } from "./medical-queries";
 
-/** Upload and archive are offered apart: an archived file takes no upload, yet its rows still archive. */
-type Props = { patientId: string; visitId: string | null; canUpload: boolean; canArchive: boolean };
+/**
+ * Upload and archive are offered apart: an archived file takes no upload, yet its rows still archive.
+ * `canView` false = a caller who may upload but not read the file (the API answers its list with an
+ * error), so no list is asked for and none of the file names reach the screen.
+ */
+type Props = {
+  patientId: string;
+  visitId: string | null;
+  canUpload: boolean;
+  canArchive: boolean;
+  canView?: boolean;
+};
 
 const sizeOf = (bytes: number) =>
   bytes < 1024 * 1024
@@ -25,12 +35,18 @@ const sizeOf = (bytes: number) =>
     : `${(bytes / 1048576).toFixed(1)} MB`;
 
 /** A file's attachments, or one visit's (P2-10): upload, open, archive — never delete. */
-export function AttachmentsPanel({ patientId, visitId, canUpload, canArchive }: Props) {
+export function AttachmentsPanel({
+  patientId,
+  visitId,
+  canUpload,
+  canArchive,
+  canView = true,
+}: Props) {
   const api = useApi();
   const { persona } = useClinicPersona();
   const { t, formatDate } = useI18n();
   const refresh = useRefreshMedical();
-  const list = useAttachments(patientId, visitId ?? undefined);
+  const list = useAttachments(patientId, visitId ?? undefined, canView);
   const input = useRef<HTMLInputElement>(null);
   const [archiving, setArchiving] = useState<Attachment | null>(null);
   const done = () => refresh([...medicalKeys.all, "attachments", patientId]);
@@ -110,7 +126,12 @@ export function AttachmentsPanel({ patientId, visitId, canUpload, canArchive }: 
       {canUpload && (
         <p className="mb-2 text-xs text-muted-foreground">{t("attachments.uploadHint")}</p>
       )}
-      {list.isLoading ? (
+      {!canView ? (
+        <p className="flex items-center gap-2 rounded-lg border bg-card p-4 text-sm text-muted-foreground">
+          <Paperclip className="size-4 shrink-0" />
+          {t("attachments.writeOnly")}
+        </p>
+      ) : list.isLoading ? (
         <LoadingBlock />
       ) : list.isError ? (
         <p className="text-sm text-destructive">{t("attachments.loadError")}</p>

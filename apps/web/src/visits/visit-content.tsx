@@ -88,7 +88,22 @@ export function VisitContent({ visitId }: { visitId: string }) {
         <VisitCancelDetails reason={visit.cancelReason} note={content?.cancelNote ?? null} />
       )}
       {content === null ? (
-        <StatusPanel icon={ShieldCheck} title={t("visits.contentHidden")} body="" />
+        <>
+          <StatusPanel icon={ShieldCheck} title={t("visits.contentHidden")} body="" />
+          {d.can.attach && (
+            // The upload's own rule (the API's `mayAttach`) holds without the content: such a caller
+            // adds files to the visit but cannot list them, so neither can it pick one to archive.
+            <div className="mt-4">
+              <AttachmentsPanel
+                patientId={visit.patientId}
+                visitId={visit.id}
+                canUpload
+                canArchive={false}
+                canView={false}
+              />
+            </div>
+          )}
+        </>
       ) : (
         <div className="grid max-w-4xl gap-4">
           <VisitNoteEditor

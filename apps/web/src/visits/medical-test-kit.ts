@@ -43,8 +43,31 @@ export async function startDraft(index = 0) {
   return api.medical.startVisit(doctorAt(index), { appointmentId: appt.id }, crypto.randomUUID());
 }
 
-export const file = (type: string, size: number, name = "scan.png") => {
-  const f = new File([new Uint8Array(Math.min(size, 16))], name, { type });
+/** A doctor (the second by default), moved to a custom role holding exactly `keys`. */
+export function memberWithKeys(keys: string[], index = 1): Persona {
+  const member = doctorMember(index);
+  const base = getState().roles.find((r) => r.id === member.roleId)!;
+  const role = { ...base, id: crypto.randomUUID(), systemKey: null, permissions: keys };
+  getState().roles.push(role);
+  member.roleId = role.id;
+  return { kind: "custom", clinicId: member.clinicId, memberId: member.id };
+}
+
+const ascii = (text: string) => [...text].map((c) => c.charCodeAt(0));
+
+// The leading bytes the upload sniffs (the API's `attachment-rules.ts`); any other type gets none.
+const SIGNATURES: Readonly<Record<string, number[]>> = {
+  "image/jpeg": [0xff, 0xd8, 0xff, 0xe0],
+  "image/png": [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
+  "image/webp": [...ascii("RIFF"), 0x24, 0, 0, 0, ...ascii("WEBP")],
+  "application/pdf": ascii("%PDF-1.7"),
+};
+
+/** A file declared as `type` whose bytes start as a `content` file does (the declared type by default). */
+export const file = (type: string, size: number, name = "scan.png", content = type) => {
+  const bytes = new Uint8Array(16);
+  bytes.set(SIGNATURES[content] ?? []);
+  const f = new File([bytes], name, { type });
   Object.defineProperty(f, "size", { value: size });
   return f;
 };

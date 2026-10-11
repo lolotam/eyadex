@@ -68,13 +68,14 @@ export function useMedicalProfile(patientId: string) {
   });
 }
 
-export function useAttachments(patientId: string, visitId?: string) {
+/** The list is the view reach's read: `enabled` is false for a caller who may only upload. */
+export function useAttachments(patientId: string, visitId?: string, enabled = true) {
   const api = useApi();
   const p = useClinicPersona();
   return useQuery({
     queryKey: [...medicalKeys.attachments(patientId, visitId), ...p.personaKey],
     queryFn: () => api.medical.listAttachments(p.persona, patientId, visitId ? { visitId } : {}),
-    enabled: p.enabled,
+    enabled: p.enabled && enabled,
     ...AUDITED,
   });
 }

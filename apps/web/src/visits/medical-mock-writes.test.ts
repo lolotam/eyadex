@@ -1,7 +1,14 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import type { Persona } from "@eyadex/contracts/session";
 import { resetMockData } from "@/shared/api/mock/mock-test-kit";
-import { api, doctorAt, doctorMember, file, getState, startDraft } from "./medical-test-kit";
+import {
+  api,
+  doctorAt,
+  doctorMember,
+  file,
+  getState,
+  memberWithKeys,
+  startDraft,
+} from "./medical-test-kit";
 
 // PR #68 review: the mock mirrors the API on an archive by a caller who may change but not read a file,
 // on identical list saves (no archive, no append, an open's trail) and on the cancellation details.
@@ -10,16 +17,6 @@ beforeEach(() => resetMockData());
 const D = () => doctorAt(0);
 const auditSince = (count: number) =>
   getState().clinicAudit.slice(0, getState().clinicAudit.length - count);
-
-/** A doctor (the second by default), moved to a custom role holding exactly `keys`. */
-function memberWithKeys(keys: string[], index = 1): Persona {
-  const member = doctorMember(index);
-  const base = getState().roles.find((r) => r.id === member.roleId)!;
-  const role = { ...base, id: crypto.randomUUID(), systemKey: null, permissions: keys };
-  getState().roles.push(role);
-  member.roleId = role.id;
-  return { kind: "custom", clinicId: member.clinicId, memberId: member.id };
-}
 
 describe("archiving without view reach (update:medical:clinic + view:medical:own)", () => {
   it("archives another doctor's file and answers it without the file or uploader name", async () => {
@@ -181,4 +178,48 @@ describe("the cancellation details", () => {
     expect(draft.visit.cancelReason).toBeNull();
     expect(draft.content?.cancelNote).toBeNull();
   });
+});
+
+describe("a visit's can.attach (Codex PR #68): the upload's rule, as the API's mayAttach", () => {
+  // [case, keys, content hidden, can.attach]
+  it.each([
+    ["update reach, no view:medical", ["view:visits:clinic", "update:medical:clinic"], true, true],
+    [
+      "update reach, view:medical:own on another's file",
+      ["view:visits:clinic", "update:medical:clinic", "view:medical:own"],
+      true,
+      true,
+    ],
+    ["view:medical:clinic, no update", ["view:visits:clinic", "view:medical:clinic"], false, false],
+  ])("%s", async (_case, keys, hidden, attach) => {
+    const { visit } = await startDraft();
+    const detail = await api.medical.getVisit(memberWithKeys(keys), visit.id);
+    expect([detail.content === null, detail.can.attach]).toEqual([hidden, attach]);
+  });
+});
+
+describe("an upload's content must be the type it declares (the API sniffs the first bytes)", () => {
+  it.each([
+    ["PNG bytes declared as a PDF", file("application/pdf", 50, "scan.pdf", "image/png")],
+    ["PDF bytes declared as a PNG", file("image/png", 50, "scan.png", "application/pdf")],
+    ["a WebP without its signature", file("image/webp", 50, "scan.webp", "text/plain")],
+    ["an empty file", new File([], "scan.png", { type: "image/png" })],
+  ])("attachment_type for %s, and nothing is stored", async (_case, sent) => {
+    const { visit } = await startDraft();
+    await expect(
+      api.medical.uploadAttachment(D(), visit.patientId, sent, null),
+    ).rejects.toMatchObject({ code: "attachment_type" });
+    expect(getState().medical.attachments.filter((x) => x.patientId === visit.patientId)).toEqual(
+      [],
+    );
+  });
+
+  it.each(["image/jpeg", "image/png", "image/webp", "application/pdf"])(
+    "accepts %s whose bytes match",
+    async (type) => {
+      const { visit } = await startDraft();
+      const up = await api.medical.uploadAttachment(D(), visit.patientId, file(type, 50), null);
+      expect(up.attachment.contentType).toBe(type);
+    },
+  );
 });

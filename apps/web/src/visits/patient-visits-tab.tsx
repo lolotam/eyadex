@@ -132,9 +132,10 @@ export function PatientVisitsTab({ patientId }: { patientId: string }) {
                   {formatDate(v.startedAt)}
                 </Link>
                 <p className="text-xs text-muted-foreground">{v.providerName}</p>
-                {v.preview !== null && (
+                {/* The API's preview is null without an assessment too; `can.search` is the content reach. */}
+                {can.search && (
                   <p className="mt-1 line-clamp-2 text-muted-foreground">
-                    {v.preview || t("visits.noPreview")}
+                    {v.preview ?? t("visits.noPreview")}
                   </p>
                 )}
               </div>
