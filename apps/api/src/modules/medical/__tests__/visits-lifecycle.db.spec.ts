@@ -97,6 +97,7 @@ describe("the note (draft only)", () => {
 
   it("a provider without view:medical: the same save answers no content and logs no open", async () => {
     const role = await customRole(h, C.clinicId, [
+      "view:patients:own",
       "view:visits:own",
       "create:visits:own",
       "update:medical:own",

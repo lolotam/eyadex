@@ -10,6 +10,7 @@ import {
   type Actor,
 } from "./mock-actor";
 import { isOwnPatient } from "./mock-own-scope";
+import { inPatientViewReach } from "./mock-patient-rules";
 import type { StoredVisit } from "./mock-medical-state";
 import type { MockState } from "./mock-store";
 
@@ -57,21 +58,9 @@ export function requireKey(
   return a;
 }
 
-/**
- * `own` on visits and medical: a file with an appointment with the caller that is not cancelled, or
- * any visit whose provider is the caller (spec §2, one predicate for both).
- */
-export function isOwnMedicalPatient(db: MockState, a: MedicalAccess, patientId: string): boolean {
-  return (
-    isOwnPatient(db, a.clinic.id, a.member.id, patientId) ||
-    db.medical.visits.some(
-      (v) =>
-        v.clinicId === a.clinic.id &&
-        v.patientId === patientId &&
-        v.providerMembershipId === a.member.id,
-    )
-  );
-}
+/** `own` on visits and medical: the patients module's own predicate (spec §2, `isOwnPatient`). */
+export const isOwnMedicalPatient = (db: MockState, a: MedicalAccess, patientId: string): boolean =>
+  isOwnPatient(db, a.clinic.id, a.member.id, patientId);
 
 /** Does `view:visits:*` reach this visit: clinic, the member's branches, or an own file. */
 export function seesVisit(db: MockState, a: MedicalAccess, v: StoredVisit): boolean {
@@ -85,13 +74,17 @@ export function seesVisit(db: MockState, a: MedicalAccess, v: StoredVisit): bool
   return a.keys.includes("view:visits:own") && isOwnMedicalPatient(db, a, v.patientId);
 }
 
-/** Does `view|update:medical:*` reach this file's clinical content. */
+/**
+ * Does `view|update:medical:*` reach this file's clinical content. As the API's `medicalReachCovers`:
+ * the content stays inside the caller's patients view reach (owner decision 2026-10-11).
+ */
 export function reachesContent(
   db: MockState,
   a: MedicalAccess,
   action: "view" | "update",
   patientId: string,
 ): boolean {
+  if (!inPatientViewReach(db, a, patientId)) return false;
   if (a.keys.includes(`${action}:medical:clinic`)) return true;
   return a.keys.includes(`${action}:medical:own`) && isOwnMedicalPatient(db, a, patientId);
 }

@@ -20,7 +20,7 @@ import type { MedicalPatient } from "../../ports/medical-patient-reader.ts";
 import { listVisitPage, searchVisitPage } from "../../queries/visit-list.ts";
 import { readsContent, visitDetail } from "../../queries/visit-views.ts";
 import { auditMedical, type MedicalDeps, type ReadContext } from "../medical-deps.ts";
-import { readContext, seeVisit } from "../visit-access.ts";
+import { fileAccess, readContext, seeVisit } from "../visit-access.ts";
 
 type WalkInBranches = z.infer<typeof walkInBranchesSchema>;
 
@@ -48,8 +48,8 @@ export class VisitReads {
   open(actor: MedicalActor, visitId: string): Promise<VisitDetail> {
     return this.deps.db.withTenant(actor.clinicId, async (tx) => {
       const ctx = readContext(this.deps, tx);
-      const { visit, patientIsOwn } = await seeVisit(ctx, actor, visitId);
-      const detail = await visitDetail(ctx, actor, visit, patientIsOwn);
+      const { visit, file } = await seeVisit(ctx, actor, visitId);
+      const detail = await visitDetail(ctx, actor, visit, file);
       if (detail.content !== null) {
         await auditMedical(tx, this.deps, actor, {
           action: "visit.opened",
@@ -75,9 +75,9 @@ export class VisitReads {
       const ctx = readContext(this.deps, tx);
       const reach = visitViewReach(actor);
       if (reach === null) throw new ApiError("forbidden");
-      const { patient, patientIsOwn } = await this.patientOf(ctx, actor, patientId);
-      if ("own" in reach && !patientIsOwn) throw new ApiError("not_found");
-      const content = readsContent(actor, patientIsOwn);
+      const { patient, file } = await this.patientOf(ctx, actor, patientId);
+      if ("own" in reach && !file.own) throw new ApiError("not_found");
+      const content = readsContent(actor, file);
       const page = await listVisitPage(ctx, actor.clinicId, patientId, reach, cursor, content);
       if (page.previewsShown) await this.auditPatient(actor, ctx, patient, "visit.previews_listed");
       return {
@@ -102,10 +102,8 @@ export class VisitReads {
   search(actor: MedicalActor, patientId: string, input: VisitSearchInput): Promise<VisitList> {
     return this.deps.db.withTenant(actor.clinicId, async (tx) => {
       const ctx = readContext(this.deps, tx);
-      const { patient, patientIsOwn } = await this.patientOf(ctx, actor, patientId);
-      if (!medicalReachCovers(medicalReach(actor, "view"), patientIsOwn)) {
-        throw new ApiError("not_found");
-      }
+      const { patient, file } = await this.patientOf(ctx, actor, patientId);
+      if (!readsContent(actor, file)) throw new ApiError("not_found");
       // A content reader without a visits key searches every visit of a patient whose content it reads.
       const reach = visitViewReach(actor);
       const page = await searchVisitPage(
@@ -176,17 +174,11 @@ export class VisitReads {
     });
   }
 
-  // A file of this clinic, and whether it is the caller's (`own`); another clinic's id is `not_found`.
+  // A file of this clinic and the caller's relation to it; another clinic's id is `not_found`.
   private async patientOf(ctx: ReadContext, actor: MedicalActor, patientId: string) {
     const patient = await ctx.patients.find(ctx.tx, actor.clinicId, patientId);
     if (patient === null) throw new ApiError("not_found");
-    const patientIsOwn = await ctx.patients.isOwn(
-      ctx.tx,
-      actor.clinicId,
-      actor.membershipId,
-      patientId,
-    );
-    return { patient, patientIsOwn };
+    return { patient, file: await fileAccess(ctx.patients, ctx.tx, actor, patientId) };
   }
 
   // A read across a patient's visits names the patient (the audit screen links its file), never a visit.

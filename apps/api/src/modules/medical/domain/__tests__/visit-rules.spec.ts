@@ -19,6 +19,9 @@ import {
 
 // Spec §2 and §4, P2-2…P2-6, R1-18 (ADR-0029).
 const me = "m-1";
+// Files inside the caller's patients view reach: one of its own patients, and another's.
+const ownFile = { own: true, inPatientReach: true };
+const othersFile = { own: false, inPatientReach: true };
 const other = "m-2";
 const actor = (permissions: string[]): MedicalActor => ({
   clinicId: "c",
@@ -58,10 +61,18 @@ describe("medicalReach — P2-5: no key, no content", () => {
   });
 
   it("own content covers own patients only", () => {
-    expect(medicalReachCovers({ own: me }, true)).toBe(true);
-    expect(medicalReachCovers({ own: me }, false)).toBe(false);
-    expect(medicalReachCovers({ all: true }, false)).toBe(true);
-    expect(medicalReachCovers(null, true)).toBe(false);
+    expect(medicalReachCovers({ own: me }, ownFile)).toBe(true);
+    expect(medicalReachCovers({ own: me }, othersFile)).toBe(false);
+    expect(medicalReachCovers({ all: true }, othersFile)).toBe(true);
+    expect(medicalReachCovers(null, ownFile)).toBe(false);
+  });
+
+  // Owner decision 2026-10-11: medical content stays inside the patients view reach.
+  it.each([
+    ["all", { all: true }],
+    ["own", { own: me }],
+  ] as const)("a file outside the patients reach is never covered (%s)", (_s, reach) => {
+    expect(medicalReachCovers(reach, { own: true, inPatientReach: false })).toBe(false);
   });
 });
 
@@ -156,14 +167,17 @@ describe("visitAbilities", () => {
 
 describe("mayAttach — the upload rule, not the provider's", () => {
   it("update:medical reaching the patient on an active file, whoever the provider is", () => {
-    expect(mayAttach(actor(["update:medical:own"]), true, true)).toBe(true);
-    expect(mayAttach(actor(["update:medical:clinic"]), false, true)).toBe(true);
+    expect(mayAttach(actor(["update:medical:own"]), ownFile, true)).toBe(true);
+    expect(mayAttach(actor(["update:medical:clinic"]), othersFile, true)).toBe(true);
   });
 
   it("no attachment for an archived file, outside the own reach, or without the update key", () => {
-    expect(mayAttach(actor(["update:medical:clinic"]), true, false)).toBe(false);
-    expect(mayAttach(actor(["update:medical:own"]), false, true)).toBe(false);
-    expect(mayAttach(actor(["view:medical:clinic"]), true, true)).toBe(false);
+    expect(mayAttach(actor(["update:medical:clinic"]), ownFile, false)).toBe(false);
+    expect(mayAttach(actor(["update:medical:own"]), othersFile, true)).toBe(false);
+    expect(mayAttach(actor(["view:medical:clinic"]), ownFile, true)).toBe(false);
+    expect(
+      mayAttach(actor(["update:medical:clinic"]), { own: true, inPatientReach: false }, true),
+    ).toBe(false);
   });
 });
 

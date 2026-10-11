@@ -1,5 +1,7 @@
 import type { Tx } from "@eyadex/db";
 
+import type { FileAccess, MemberBranches } from "../domain/visit-rules.ts";
+
 /** ملف مراجع زي ما موديول الطب محتاجه: اسمه ورقم ملفه وفرع تسجيله وحالته. مفيش تليفون ولا رقم مدني. */
 export interface MedicalPatient {
   readonly id: string;
@@ -7,6 +9,13 @@ export interface MedicalPatient {
   readonly fileNumber: number;
   readonly registrationBranchId: string;
   readonly active: boolean;
+}
+
+/** الفاعل زي ما نطاق عرض المراجعين محتاجه: مفاتيحه الفعلية وفروعه وعضويته. */
+export interface PatientViewer {
+  readonly permissions: readonly string[];
+  readonly member: MemberBranches;
+  readonly membershipId: string;
 }
 
 /** مرشّح للزيارة المباشرة: الاسم ورقم الملف بس (R3-1). */
@@ -57,16 +66,17 @@ export interface MedicalPatientReader {
   ): Promise<ReadonlyMap<string, MedicalPatient>>;
 
   /**
-   * هل المراجع من مراجعين العضو (spec §2): موعد معاه مش ملغي، أو أي زيارة معاه بأي حالة (R1-18). نفس
-   * شرط `own` بتاع موديول المراجعين، محسوب دلوقتي جوه نفس الـ transaction.
+   * علاقة الفاعل بالملف، محسوبة دلوقتي جوه نفس الـ transaction بقواعد موديول المراجعين نفسها: `own`
+   * (موعد مش ملغي أو أي زيارة معاه بأي حالة، R1-18) وهل نطاق عرض المراجعين بيشوفه (`GET /patients/:id`،
+   * قرار المالك 2026-10-11). ملف مش موجود = الاتنين `false`.
    *
    * @param tx transaction الطب
    * @param clinicId العيادة
-   * @param membershipId عضوية الفاعل
+   * @param viewer الفاعل
    * @param patientId الملف
-   * @returns `true` لو من مراجعينه
+   * @returns العلاقة
    */
-  isOwn(tx: Tx, clinicId: string, membershipId: string, patientId: string): Promise<boolean>;
+  access(tx: Tx, clinicId: string, viewer: PatientViewer, patientId: string): Promise<FileAccess>;
 
   /**
    * ملفات نشطة متسجّلة في الفرع، بالاسم أو رقم الملف بس (مش التليفون ولا الرقم المدني)، 20 بالكتير.

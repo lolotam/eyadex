@@ -7,6 +7,7 @@ import {
   medicalReach,
   medicalReachCovers,
   sectionValue,
+  type FileAccess,
   type MedicalActor,
 } from "../../domain/visit-rules.ts";
 import {
@@ -21,6 +22,7 @@ import {
 } from "../../persistence/pg-profile-store.ts";
 import type { MedicalPatient } from "../../ports/medical-patient-reader.ts";
 import { auditMedical, openOrNull, sealOrNull, type MedicalDeps } from "../medical-deps.ts";
+import { reachFile } from "../visit-access.ts";
 
 type Sections = Record<ProfileSection, string | null>;
 
@@ -50,8 +52,15 @@ export class MedicalProfileChanges {
    */
   open(actor: MedicalActor, patientId: string): Promise<MedicalProfile> {
     return this.deps.db.withTenant(actor.clinicId, async (tx) => {
-      const { patient, own } = await this.reachable(tx, actor, "view", patientId, false);
-      const answer = await this.answer(tx, actor, patient, own);
+      const { patient, file } = await reachFile(
+        this.deps.patients,
+        tx,
+        actor,
+        "view",
+        patientId,
+        false,
+      );
+      const answer = await this.answer(tx, actor, patient, file);
       await this.audit(tx, actor, patient, "medical_profile.opened", undefined);
       return answer;
     });
@@ -74,7 +83,14 @@ export class MedicalProfileChanges {
       const { clinicId } = actor;
       // ADR-0029: the file's own lock first, then the patient row its INSERT references (ADR-0027).
       await lockProfile(tx, clinicId, patientId);
-      const { patient, own } = await this.reachable(tx, actor, "update", patientId, true);
+      const { patient, file } = await reachFile(
+        this.deps.patients,
+        tx,
+        actor,
+        "update",
+        patientId,
+        true,
+      );
       if (!patient.active) throw new ApiError("patient_inactive");
       const stored = await findProfile(tx, clinicId, patientId, true);
       const before = this.opened(clinicId, stored);
@@ -107,30 +123,8 @@ export class MedicalProfileChanges {
         // the same patient_access trail as GET (Codex P2 PR #68).
         await this.audit(tx, actor, patient, "medical_profile.opened", undefined);
       }
-      return this.answer(tx, actor, patient, own);
+      return this.answer(tx, actor, patient, file);
     });
-  }
-
-  // The caller's reach for the action covers this file (`own` = one of its patients), else not_found —
-  // another clinic's file and a file that is not the caller's answer the same. `lock` takes the patient
-  // row FOR SHARE (a save's INSERT references it).
-  private async reachable(
-    tx: Tx,
-    actor: MedicalActor,
-    action: "view" | "update",
-    patientId: string,
-    lock: boolean,
-  ): Promise<{ patient: MedicalPatient; own: boolean }> {
-    const reach = medicalReach(actor, action);
-    if (reach === null) throw new ApiError("forbidden");
-    const { patients } = this.deps;
-    const patient = lock
-      ? await patients.lockForVisit(tx, actor.clinicId, patientId)
-      : await patients.find(tx, actor.clinicId, patientId);
-    if (patient === null) throw new ApiError("not_found");
-    const own = await patients.isOwn(tx, actor.clinicId, actor.membershipId, patientId);
-    if (!medicalReachCovers(reach, own)) throw new ApiError("not_found");
-    return { patient, own };
   }
 
   private opened(clinicId: string, stored: StoredProfile | null): Sections {
@@ -152,7 +146,7 @@ export class MedicalProfileChanges {
     tx: Tx,
     actor: MedicalActor,
     patient: MedicalPatient,
-    patientIsOwn: boolean,
+    file: FileAccess,
   ): Promise<MedicalProfile> {
     const stored = await findProfile(tx, actor.clinicId, patient.id);
     const author =
@@ -167,7 +161,7 @@ export class MedicalProfileChanges {
       updatedByName: author?.fullName ?? null,
       // An archived file refuses every save (`patient_inactive`): no edit offered (Codex PR #68).
       can: {
-        update: patient.active && medicalReachCovers(medicalReach(actor, "update"), patientIsOwn),
+        update: patient.active && medicalReachCovers(medicalReach(actor, "update"), file),
       },
     };
   }

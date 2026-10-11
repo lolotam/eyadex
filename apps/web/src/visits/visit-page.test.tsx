@@ -168,7 +168,11 @@ describe("the visit page controls", () => {
     const { visit } = await startDraft();
     const sent = file("image/png", 50, "private-scan.png");
     await api.medical.uploadAttachment(doctorAt(0), visit.patientId, sent, visit.id);
-    const P = memberWithKeys(["view:visits:clinic", "update:medical:clinic"]);
+    const P = memberWithKeys([
+      "view:patients:clinic",
+      "view:visits:clinic",
+      "update:medical:clinic",
+    ]);
     await renderAs(P, <VisitPage visitId={visit.id} />);
     await screen.findByText(ar.visits.contentHidden);
     expect(screen.getByText(ar.attachments.writeOnly)).toBeInTheDocument();

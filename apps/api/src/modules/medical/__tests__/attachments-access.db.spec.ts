@@ -86,8 +86,13 @@ describe("list", () => {
   it("answers the caller's own upload and archive rule for the file: own, not own, archived", async () => {
     const rights = async (cookie: string, id: string) => (await list(cookie, id)).json() as List;
     expect((await rights(C.doctor.cookie, patient)).can).toEqual({ upload: true, archive: true });
-    // update:medical:own reaches only the caller's own patients, though the view reach is wider.
-    const role = await customRole(h, C.clinicId, ["view:medical:clinic", "update:medical:own"]);
+    // update:medical:own reaches only the caller's own patients, though the view reach is wider (the
+    // patients key keeps the file inside its patients reach, owner 2026-10-11).
+    const role = await customRole(h, C.clinicId, [
+      "view:patients:clinic",
+      "view:medical:clinic",
+      "update:medical:own",
+    ]);
     const ownWriter = await memberOn(h, C.admin, role);
     const seen = await rights(ownWriter.cookie, patient);
     expect(seen.items.length).toBeGreaterThan(0);
@@ -172,7 +177,11 @@ describe("archive", () => {
   });
 
   it("update:medical:clinic with only view:medical:own archives another's file without its names", async () => {
-    const role = await customRole(h, C.clinicId, ["update:medical:clinic", "view:medical:own"]);
+    const role = await customRole(h, C.clinicId, [
+      "view:patients:clinic",
+      "update:medical:clinic",
+      "view:medical:own",
+    ]);
     const archiver = await memberOn(h, C.admin, role);
     const secret = await uploaded(h, C.doctor.cookie, patient, [
       filePart(NAME, "image/png", pngBytes(96)),

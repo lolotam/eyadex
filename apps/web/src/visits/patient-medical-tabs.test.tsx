@@ -76,7 +76,7 @@ it("update:medical:own on another doctor's file: the list, without upload or arc
     file("image/png", 100, "a.png"),
     null,
   );
-  const P = memberWithKeys(["view:medical:clinic", "update:medical:own"]);
+  const P = memberWithKeys(["view:patients:clinic", "view:medical:clinic", "update:medical:own"]);
   const { permissions } = await api.session.getContext(P);
   const attachments = PATIENT_MEDICAL_TABS.find((tab) => tab.id === "attachments")!;
   await renderAs(

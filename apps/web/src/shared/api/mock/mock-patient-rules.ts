@@ -52,7 +52,17 @@ export function authorizePatients(
   persona: Persona,
   action: PermissionAction,
 ): PatientAccess {
-  const actor = guardPatients(db, persona);
+  const access = patientAccessFor(db, guardPatients(db, persona), action);
+  if (access === null) throw new ApiError("forbidden");
+  return access;
+}
+
+/** The access an actor's keys give for one patients action (the widest scope), or null. */
+function patientAccessFor(
+  db: MockState,
+  actor: Actor,
+  action: PermissionAction,
+): PatientAccess | null {
   const keys = effectivePermissions(db, actor);
   const base = { ...actor, actorName: actor.member.fullName, own: null };
   if (keys.includes(`${action}:patients:clinic`))
@@ -65,7 +75,18 @@ export function authorizePatients(
     };
   if (action === "view" && keys.includes("view:patients:own"))
     return { ...base, allBranches: false, branchIds: [], own: actor.member.id };
-  throw new ApiError("forbidden");
+  return null;
+}
+
+/**
+ * Owner decision 2026-10-11: does the actor's patients view reach see this file (the rule of
+ * `GET /patients/:id`)? With the patients module off nothing is in reach.
+ */
+export function inPatientViewReach(db: MockState, actor: Actor, patientId: string): boolean {
+  if (!(db.features[actor.clinic.id] ?? NO_FEATURES).patients) return false;
+  const access = patientAccessFor(db, actor, "view");
+  const patient = db.patients.find((p) => p.clinicId === actor.clinic.id && p.id === patientId);
+  return access !== null && patient !== undefined && seesPatient(db, access, patient);
 }
 
 /** Same as authorizePatients, but null instead of throwing (used to decide what an error may reveal). */
@@ -85,7 +106,7 @@ export function inScope(access: PatientAccess, branchId: string): boolean {
   return access.allBranches || access.branchIds.includes(branchId);
 }
 
-/** Does the access see this file: by its registration branch, or under `own` by a live appointment. */
+/** Does the access see this file: by its registration branch, or under `own` (`isOwnPatient`). */
 export function seesPatient(db: MockState, access: PatientAccess, p: Patient): boolean {
   if (access.own !== null) return isOwnPatient(db, access.clinic.id, access.own, p.id);
   return inScope(access, p.registrationBranchId);

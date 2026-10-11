@@ -116,6 +116,20 @@ the five-section medical file, and a search inside one patient's notes. Every cl
     `attachment.downloaded` and `attachment.archived` name fields only. The visit page lists the visit's
     active attachments.
 
+14. **Medical content stays inside the patients reach (P2-13, owner 2026-10-11, Codex 4241606173).** The
+    medical port's `MedicalPatientReader.access` answers, in one call, `own` and whether the caller's
+    patients view reach sees the file, judged by the patients module's own rule (`patientScopeFor` +
+    `viewSees`, the rule of `GET /patients/:id`) inside the medical transaction. `medicalReachCovers` is
+    true only for a file inside that reach, so every place that already answered `not_found` for the
+    medical reach (`reachFile` for the medical file and attachments, `lockVisitForWrite`, the note search,
+    the prescription print) answers it for a file outside the patients reach too, and the visit page and
+    the list previews carry no content for such a file (nothing is audited as read). The walk-in search
+    and start stay outside the check: the start is what makes the file the caller's own (R1-18); its
+    answer's content still follows the rule. With the patients module off the actor holds no patients key
+    (`effectivePermissions`), so medical content is unreachable: medical requires the patients module
+    (TODO(spec): the platform refusing `medical` without `patients`). The default roles keep their access:
+    the doctor's `view:patients:own` and its medical `own` keys are the same predicate (decision 2).
+
 ## Consequences
 
 - The platform has no grant on any medical table and its audit view excludes every medical entity (0046).

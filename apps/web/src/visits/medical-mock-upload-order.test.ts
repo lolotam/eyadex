@@ -54,7 +54,7 @@ describe("the mock upload answers in the API's order", () => {
     [
       "too large to a file outside the update reach",
       (d) => ({
-        persona: memberWithKeys(["update:medical:own"]),
+        persona: memberWithKeys(["view:patients:clinic", "update:medical:own"]),
         patientId: d.visit.patientId,
         sent: file("image/png", BIG),
         visitId: null,
@@ -79,7 +79,7 @@ describe("the mock upload answers in the API's order", () => {
     [
       "a visit the caller cannot see",
       (d) => ({
-        persona: memberWithKeys(["update:medical:clinic"]),
+        persona: memberWithKeys(["view:patients:clinic", "update:medical:clinic"]),
         patientId: d.visit.patientId,
         sent: file("image/png", 50),
         visitId: d.visit.id,

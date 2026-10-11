@@ -1,8 +1,8 @@
 import type { Tx } from "@eyadex/db";
 import { sql } from "drizzle-orm";
 
-import { searchTerms } from "../domain/patient-rules.ts";
-import { ownPatientSql } from "../queries/own-patients.ts";
+import { patientScopeFor, searchTerms, type MemberBranches } from "../domain/patient-rules.ts";
+import { ownPatientSql, viewSees } from "../queries/own-patients.ts";
 
 /** A file as the medical module reads it (its `MedicalPatientReader` port, ADR-0029). */
 export interface MedicalPatientRow {
@@ -73,12 +73,27 @@ export class PgMedicalPatients {
     return new Map(rows.map((r) => [r.id, toRow(r)]));
   }
 
-  async isOwn(tx: Tx, clinicId: string, membershipId: string, patientId: string): Promise<boolean> {
-    const rows = await tx.execute<{ own: boolean }>(
-      sql`SELECT ${ownPatientSql(membershipId)} AS own FROM patients p
+  // Owner decision 2026-10-11: medical content stays inside the patients view reach, judged by this
+  // module's own rule for `GET /patients/:id` (`patientScopeFor` + `viewSees`), never a copy of it.
+  async access(
+    tx: Tx,
+    clinicId: string,
+    viewer: {
+      readonly permissions: readonly string[];
+      readonly member: MemberBranches;
+      readonly membershipId: string;
+    },
+    patientId: string,
+  ): Promise<{ own: boolean; inPatientReach: boolean }> {
+    const rows = await tx.execute<{ registration_branch_id: string; own: boolean }>(
+      sql`SELECT registration_branch_id, ${ownPatientSql(viewer.membershipId)} AS own FROM patients p
           WHERE p.clinic_id = ${clinicId} AND p.id = ${patientId}`,
     );
-    return rows[0]?.own === true;
+    const row = rows[0];
+    if (row === undefined) return { own: false, inPatientReach: false };
+    const view = patientScopeFor(viewer.permissions, viewer.member, "view", viewer.membershipId);
+    const file = { id: patientId, registrationBranchId: row.registration_branch_id };
+    return { own: row.own === true, inPatientReach: await viewSees(tx, clinicId, view, file) };
   }
 
   // R3-1: by name or file number only. A phone or civil ID match would tie a number the caller typed

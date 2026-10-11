@@ -70,15 +70,27 @@ export function visitReachSees(
 }
 
 /**
- * هل وصول المحتوى بيغطي مراجع ده؟
+ * علاقة الفاعل بملف مراجع واحد: هل هو من مراجعينه (`own`، spec §2)، وهل نطاق عرض المراجعين بتاعه
+ * (`view:patients:*`، نفس قاعدة `GET /patients/:id`) بيشوفه.
+ */
+export interface FileAccess {
+  /** المراجع من مراجعين الفاعل: موعد مش ملغي أو أي زيارة معاه (R1-18). */
+  readonly own: boolean;
+  /** نطاق عرض المراجعين بيشوف الملف؛ موديول المراجعين مقفول = مفيش نطاق (قرار المالك 2026-10-11). */
+  readonly inPatientReach: boolean;
+}
+
+/**
+ * هل وصول المحتوى بيغطي ملف المراجع ده؟ المحتوى الطبي جوه نطاق المراجعين دايمًا (قرار المالك
+ * 2026-10-11): ملف برّه نطاق عرض المراجعين مش مغطّي، أيًا كان مفتاح الطب.
  *
  * @param reach وصول المحتوى
- * @param patientIsOwn المراجع من مراجعين الفاعل
+ * @param file علاقة الفاعل بالملف
  * @returns `true` لو مغطّي
  */
-export function medicalReachCovers(reach: MedicalReach | null, patientIsOwn: boolean): boolean {
-  if (reach === null) return false;
-  return "all" in reach || patientIsOwn;
+export function medicalReachCovers(reach: MedicalReach | null, file: FileAccess): boolean {
+  if (reach === null || !file.inPatientReach) return false;
+  return "all" in reach || file.own;
 }
 
 /**
@@ -205,16 +217,12 @@ export function visitAbilities(
  * بيغطي المراجع والملف نشط. مش مربوط بمقدّم الخدمة ولا بحالة الزيارة، فالزيارة المعتمدة بتاخد مرفق.
  *
  * @param actor الفاعل
- * @param patientIsOwn المراجع من مراجعين الفاعل
+ * @param file علاقة الفاعل بالملف
  * @param patientActive ملف المراجع نشط
  * @returns `true` لو يقدر يرفع ويأرشف
  */
-export function mayAttach(
-  actor: MedicalActor,
-  patientIsOwn: boolean,
-  patientActive: boolean,
-): boolean {
-  return patientActive && medicalReachCovers(medicalReach(actor, "update"), patientIsOwn);
+export function mayAttach(actor: MedicalActor, file: FileAccess, patientActive: boolean): boolean {
+  return patientActive && medicalReachCovers(medicalReach(actor, "update"), file);
 }
 
 /**

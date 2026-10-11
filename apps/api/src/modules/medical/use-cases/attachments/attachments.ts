@@ -14,6 +14,7 @@ import {
   medicalReachCovers,
   visitReachSees,
   visitViewReach,
+  type FileAccess,
   type MedicalActor,
 } from "../../domain/visit-rules.ts";
 import {
@@ -33,7 +34,7 @@ import {
   redactedAttachmentView,
 } from "../../queries/attachment-views.ts";
 import { auditMedical, type MedicalDeps } from "../medical-deps.ts";
-import { readContext } from "../visit-access.ts";
+import { readContext, reachFile } from "../visit-access.ts";
 
 /** A file as the multipart route read it: whole, within the size limit. */
 export interface UploadedFile {
@@ -121,8 +122,15 @@ export class Attachments {
     visitId: string | undefined,
   ): Promise<AttachmentList> {
     return this.deps.db.withTenant(actor.clinicId, async (tx) => {
-      const { patient, own } = await this.patientInReach(tx, actor, "view", patientId, false);
-      const writes = medicalReachCovers(medicalReach(actor, "update"), own);
+      const { patient, file } = await reachFile(
+        this.deps.patients,
+        tx,
+        actor,
+        "view",
+        patientId,
+        false,
+      );
+      const writes = medicalReachCovers(medicalReach(actor, "update"), file);
       const rows = await activeAttachmentsOfPatient(tx, actor.clinicId, patientId, visitId);
       const views = await attachmentViews(readContext(this.deps, tx), actor.clinicId, rows);
       await auditMedical(tx, this.deps, actor, {
@@ -174,14 +182,14 @@ export class Attachments {
    */
   archive(actor: MedicalActor, attachmentId: string): Promise<Attachment> {
     return this.deps.db.withTenant(actor.clinicId, async (tx) => {
-      const { row, own } = await this.reachable(tx, actor, "update", attachmentId, true);
+      const { row, file } = await this.reachable(tx, actor, "update", attachmentId, true);
       // Checked under the row lock, so of two racing archives only one answers the name (Codex PR #68).
       if (row.status !== "active") throw new ApiError("not_found");
       await archiveAttachment(tx, actor.clinicId, row.id, this.deps.clock.now());
       const branchId = await this.branchOf(tx, actor, row);
       await this.audit(tx, actor, "attachment.archived", row.id, branchId, ["status"]);
       const archived = await this.stored(tx, actor, row.id);
-      return medicalReachCovers(medicalReach(actor, "view"), own)
+      return medicalReachCovers(medicalReach(actor, "view"), file)
         ? this.view(tx, actor, archived)
         : redactedAttachmentView(archived);
     });
@@ -201,50 +209,30 @@ export class Attachments {
       file.visitId === null
         ? null
         : await visitForAttachment(tx, actor.clinicId, file.visitId, lock);
-    const { patient, own } = await this.patientInReach(tx, actor, "update", patientId, lock);
+    const target = await reachFile(this.deps.patients, tx, actor, "update", patientId, lock);
+    const { patient } = target;
     if (!patient.active) throw new ApiError("patient_inactive");
     if (file.visitId === null) return patient.registrationBranchId;
     // TODO(spec): a cancelled or signed visit still takes an attachment until the owner decides.
-    const seen = visit !== null && visitReachSees(visitViewReach(actor), visit, own);
+    const seen = visit !== null && visitReachSees(visitViewReach(actor), visit, target.file.own);
     if (!seen || visit.patientId !== patientId) throw new ApiError("attachment_patient_mismatch");
     return visit.branchId;
   }
 
-  // The caller's medical reach for the action covers the file (`own` = one of the caller's patients),
-  // else not_found — another clinic's file and one that is not the caller's answer the same.
-  private async patientInReach(
-    tx: Tx,
-    actor: MedicalActor,
-    action: "view" | "update",
-    patientId: string,
-    lock: boolean,
-  ): Promise<{ patient: MedicalPatient; own: boolean }> {
-    const reach = medicalReach(actor, action);
-    if (reach === null) throw new ApiError("forbidden");
-    const { patients } = this.deps;
-    const patient = lock
-      ? await patients.lockForVisit(tx, actor.clinicId, patientId)
-      : await patients.find(tx, actor.clinicId, patientId);
-    if (patient === null) throw new ApiError("not_found");
-    const own = await patients.isOwn(tx, actor.clinicId, actor.membershipId, patientId);
-    if (!medicalReachCovers(reach, own)) throw new ApiError("not_found");
-    return { patient, own };
-  }
-
-  // An attachment of a patient inside the caller's reach for the action, else not_found; `own` tells
-  // whether that patient is one of the caller's.
+  // An attachment of a patient inside the caller's reach for the action, else not_found; with the
+  // caller's relation to that file.
   private async reachable(
     tx: Tx,
     actor: MedicalActor,
     action: "view" | "update",
     attachmentId: string,
     lock: boolean,
-  ): Promise<{ row: AttachmentRow; own: boolean }> {
+  ): Promise<{ row: AttachmentRow; file: FileAccess }> {
     if (medicalReach(actor, action) === null) throw new ApiError("forbidden");
     const row = await findAttachment(tx, actor.clinicId, attachmentId, lock);
     if (row === null) throw new ApiError("not_found");
-    const { own } = await this.patientInReach(tx, actor, action, row.patientId, false);
-    return { row, own };
+    const { file } = await reachFile(this.deps.patients, tx, actor, action, row.patientId, false);
+    return { row, file };
   }
 
   private async stored(tx: Tx, actor: MedicalActor, id: string): Promise<AttachmentRow> {

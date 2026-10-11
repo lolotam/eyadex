@@ -19,6 +19,8 @@ vi.mock("@tanstack/react-router", () => ({
 beforeEach(() => {
   resetMockData();
   getState().appointments = getState().appointments.filter((a) => a.clinicId !== clinicIdAt(0));
+  // The demo's seeded visits make files the doctor's own too (R1-18).
+  getState().medical.visits = getState().medical.visits.filter((v) => v.clinicId !== clinicIdAt(0));
 });
 afterEach(() => cleanup());
 

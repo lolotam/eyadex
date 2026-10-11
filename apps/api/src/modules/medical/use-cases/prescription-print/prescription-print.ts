@@ -30,8 +30,8 @@ export class PrescriptionPrints {
     return this.deps.db.withTenant(actor.clinicId, async (tx) => {
       const ctx = readContext(this.deps, tx);
       const { clinicId } = actor;
-      const { visit, patientIsOwn } = await seeVisit(ctx, actor, visitId);
-      if (!readsContent(actor, patientIsOwn)) throw new ApiError("not_found");
+      const { visit, file } = await seeVisit(ctx, actor, visitId);
+      if (!readsContent(actor, file)) throw new ApiError("not_found");
       const items = openPrescription(
         this.deps.cipher,
         clinicId,

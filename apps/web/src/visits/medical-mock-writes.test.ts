@@ -29,7 +29,7 @@ describe("archiving without view reach (update:medical:clinic + view:medical:own
       file("image/png", 50, name),
       null,
     );
-    const P = memberWithKeys(["update:medical:clinic", "view:medical:own"]);
+    const P = memberWithKeys(["view:patients:clinic", "update:medical:clinic", "view:medical:own"]);
     // The file is not one of this member's: its view reach does not cover it.
     await expect(api.medical.listAttachments(P, visit.patientId, {})).rejects.toMatchObject({
       code: "not_found",
@@ -60,7 +60,7 @@ describe("archiving without view reach (update:medical:clinic + view:medical:own
 describe("file writes without view reach (update:medical:clinic + view:medical:own)", () => {
   it("saves another doctor's patient's profile and uploads to the file, as the API's update reach", async () => {
     const { visit } = await startDraft();
-    const P = memberWithKeys(["update:medical:clinic", "view:medical:own"]);
+    const P = memberWithKeys(["view:patients:clinic", "update:medical:clinic", "view:medical:own"]);
     const profile = {
       allergies: "Penicillin",
       chronicConditions: null,
@@ -106,7 +106,10 @@ describe("visit writes without view:medical (update:medical:own only)", () => {
     "the same %s saved again answers no content and logs no open",
     async (_part, save) => {
       const { visit } = await startDraft();
-      const P = memberWithKeys(["view:visits:own", "create:visits:own", "update:medical:own"], 0);
+      const P = memberWithKeys(
+        ["view:patients:own", "view:visits:own", "create:visits:own", "update:medical:own"],
+        0,
+      );
       await save(P, visit.id);
       const before = getState().clinicAudit.length;
       const again = await save(P, visit.id);
@@ -119,7 +122,10 @@ describe("visit writes without view:medical (update:medical:own only)", () => {
     const { visit } = await startDraft();
     const member = doctorMember(0);
     member.allBranches = true;
-    const P = memberWithKeys(["view:visits:own", "create:visits:own", "update:medical:own"], 0);
+    const P = memberWithKeys(
+      ["view:patients:own", "view:visits:own", "create:visits:own", "update:medical:own"],
+      0,
+    );
     const note = { complaint: "Headache", examination: null, assessment: null, plan: null };
     const item = { medicine: "Paracetamol", dose: "500 mg", frequency: "8h", duration: "3 days" };
     const answers = [
@@ -230,7 +236,8 @@ describe("a visit's can.attach (Codex PR #68): the upload's rule, as the API's m
     ["view:medical:clinic, no update", ["view:visits:clinic", "view:medical:clinic"], false, false],
   ])("%s", async (_case, keys, hidden, attach) => {
     const { visit } = await startDraft();
-    const detail = await api.medical.getVisit(memberWithKeys(keys), visit.id);
+    const reader = memberWithKeys(["view:patients:clinic", ...keys]);
+    const detail = await api.medical.getVisit(reader, visit.id);
     expect([detail.content === null, detail.can.attach]).toEqual([hidden, attach]);
   });
 });

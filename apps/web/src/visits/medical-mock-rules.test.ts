@@ -137,7 +137,12 @@ describe("the medical mock rules", () => {
     const role = getState().roles.find(
       (r) => r.id === getState().members.find((m) => m.id === other.memberId)!.roleId,
     )!;
-    role.permissions.push("view:visits:clinic", "view:medical:clinic", "update:medical:clinic");
+    role.permissions.push(
+      "view:patients:clinic",
+      "view:visits:clinic",
+      "view:medical:clinic",
+      "update:medical:clinic",
+    );
     const note = { complaint: "X", examination: null, assessment: null, plan: null };
     await reject(api.medical.saveNote(other, visit.id, note), "visit_not_provider");
     expect((await api.medical.getVisit(other, visit.id)).can.edit).toBe(false);

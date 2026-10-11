@@ -52,7 +52,7 @@ describe("the mock's visit search", () => {
     const visit = await visitWith("ضغط مرتفع", []);
     const member = doctorMember(1);
     const base = getState().roles.find((r) => r.id === member.roleId)!;
-    const keys = ["view:medical:clinic", "view:visits:branch"];
+    const keys = ["view:patients:clinic", "view:medical:clinic", "view:visits:branch"];
     getState().roles.push({
       ...base,
       id: "role-branch-reader",

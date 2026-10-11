@@ -8,6 +8,7 @@ import {
   medicalReachCovers,
   mayAttach,
   visitAbilities,
+  type FileAccess,
   type MedicalActor,
   type NoteText,
 } from "../domain/visit-rules.ts";
@@ -92,8 +93,8 @@ export function visitSummary(
  *
  * @returns `true` when the content goes out
  */
-export function readsContent(actor: MedicalActor, patientIsOwn: boolean): boolean {
-  return medicalReachCovers(medicalReach(actor, "view"), patientIsOwn);
+export function readsContent(actor: MedicalActor, file: FileAccess): boolean {
+  return medicalReachCovers(medicalReach(actor, "view"), file);
 }
 
 /**
@@ -110,12 +111,12 @@ export async function visitDetail(
   reads: ReadContext,
   actor: MedicalActor,
   visit: VisitRow,
-  patientIsOwn: boolean,
+  file: FileAccess,
 ): Promise<VisitDetail> {
   const { tx, cipher } = reads;
   const { clinicId } = actor;
   const stored = (await notesOf(tx, clinicId, [visit.id])).get(visit.id);
-  const content = readsContent(actor, patientIsOwn);
+  const content = readsContent(actor, file);
   const addenda = content ? await addendaOf(tx, clinicId, [visit.id]) : [];
   // Counted without opening: signing needs a diagnosis or a note section (spec §4).
   const diagnoses = await diagnosesOf(tx, clinicId, [visit.id]);
@@ -170,7 +171,7 @@ export async function visitDetail(
       : null,
     can: {
       ...visitAbilities(actor, visit, signable),
-      attach: mayAttach(actor, patientIsOwn, patient?.active === true),
+      attach: mayAttach(actor, file, patient?.active === true),
     },
   };
 }

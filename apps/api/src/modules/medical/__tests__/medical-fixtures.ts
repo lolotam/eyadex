@@ -15,9 +15,11 @@ import { send } from "../../appointments/__tests__/scheduling-fixtures.ts";
 import { icd10LoadScript } from "../../../cli/icd10-load-script.ts";
 import { parseIcd10OrderFile } from "../index.ts";
 
-// Spec §2: the visits and medical keys of the default doctor role (system-roles.ts, 0050), for custom
-// roles that act as a second doctor.
+// Spec §2: the patients, visits and medical keys of the default doctor role (system-roles.ts, 0050), for
+// custom roles that act as a second doctor. Its `view:patients:own` is the patients reach the medical
+// content stays inside (owner decision 2026-10-11).
 export const DOCTOR_KEYS = [
+  "view:patients:own",
   "view:visits:own",
   "create:visits:own",
   "view:medical:own",
