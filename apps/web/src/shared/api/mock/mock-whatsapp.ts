@@ -6,12 +6,7 @@ import { ApiError, whatsappUnavailableError } from "../api-error";
 import type { WhatsappApi } from "../whatsapp-client";
 import { authorize } from "./mock-actor";
 import { delay, getState, persist, type MockState } from "./mock-store";
-import {
-  MOCK_QR_DATA_URL,
-  channelOf,
-  channelView,
-  whatsappState,
-} from "./mock-whatsapp-state";
+import { MOCK_QR_DATA_URL, channelOf, channelView, whatsappState } from "./mock-whatsapp-state";
 
 // TODO(spec): the audit catalogue (packages/contracts/src/audit.ts) has no WhatsApp actions yet
 // (spec §7.1 names clinic.whatsapp_risk_accepted), so the mock writes no audit row for them.

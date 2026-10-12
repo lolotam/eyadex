@@ -35,7 +35,8 @@ export function errorFromResponse(status: number, body: unknown): ApiError {
     return new ApiError("unknown");
   }
   const code = webErrorCodeSchema.safeParse(envelope.data.code);
-  if (code.success) return new ApiError(code.data, undefined, flattenDetails(envelope.data.details));
+  if (code.success)
+    return new ApiError(code.data, undefined, flattenDetails(envelope.data.details));
   // An uncatalogued code (e.g. WhatsApp's `unavailable`) stays readable under `details.code`.
   return new ApiError("unknown", undefined, {
     ...flattenDetails(envelope.data.details),
