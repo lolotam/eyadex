@@ -16,6 +16,9 @@ interface PatientRow {
   gender: PatientRecord["gender"];
   registration_branch_id: string;
   civil_id_enc: string | null;
+  email: string | null;
+  message_language: PatientRecord["messageLanguage"];
+  notifications_opt_out: boolean;
   status: PatientRecord["status"];
 }
 
@@ -24,7 +27,8 @@ interface PatientRow {
  * civil ID as its envelope (ADR-0028).
  */
 export const PATIENT_COLUMNS = sql`p.id, p.file_number, p.full_name, p.phone,
-  p.birth_date::text AS birth_date, p.gender, p.registration_branch_id, p.civil_id_enc, p.status`;
+  p.birth_date::text AS birth_date, p.gender, p.registration_branch_id, p.civil_id_enc, p.email, p.message_language,
+  p.notifications_opt_out, p.status`;
 
 /** One stored file as a record, its civil ID decrypted. */
 export const toRecord = (
@@ -40,6 +44,9 @@ export const toRecord = (
   gender: row.gender,
   registrationBranchId: row.registration_branch_id,
   civilId: civilIds.read(clinicId, row.id, row.civil_id_enc),
+  email: row.email,
+  messageLanguage: row.message_language,
+  notificationsOptOut: row.notifications_opt_out,
   status: row.status,
 });
 
@@ -149,11 +156,12 @@ export async function insertPatient(
   const civil = civilIds.columns(clinicId, record.id, record.civilId);
   await tx.execute(
     sql`INSERT INTO patients (clinic_id, id, file_number, full_name, phone, birth_date, gender,
-          registration_branch_id, civil_id_enc, civil_id_hmac, civil_id_last4, status,
-          created_at, updated_at)
+          registration_branch_id, civil_id_enc, civil_id_hmac, civil_id_last4, email,
+          message_language, notifications_opt_out, status, created_at, updated_at)
         VALUES (${clinicId}, ${record.id}, ${String(record.fileNumber)}, ${record.fullName},
           ${record.phone}, ${record.birthDate}::date, ${record.gender},
           ${record.registrationBranchId}, ${civil.enc}, ${civil.hmac}, ${civil.last4},
+          ${record.email}, ${record.messageLanguage}, ${record.notificationsOptOut},
           ${record.status}, ${at}::timestamptz, ${at}::timestamptz)`,
   );
 }
@@ -174,6 +182,8 @@ export async function updatePatientFields(
     sql`UPDATE patients SET full_name = ${record.fullName}, phone = ${record.phone},
           birth_date = ${record.birthDate}::date, gender = ${record.gender},
           registration_branch_id = ${record.registrationBranchId}, ${civilIdAssignments(civil)},
+          email = ${record.email}, message_language = ${record.messageLanguage},
+          notifications_opt_out = ${record.notificationsOptOut},
           updated_at = ${now.toISOString()}::timestamptz
         WHERE clinic_id = ${clinicId} AND id = ${record.id}`,
   );

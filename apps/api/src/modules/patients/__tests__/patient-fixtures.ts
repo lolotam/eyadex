@@ -41,6 +41,9 @@ export const patientBody = (branchId: string, extra: Record<string, unknown> = {
   gender: "female",
   registrationBranchId: branchId,
   civilId: fakeCivilId(),
+  email: "",
+  messageLanguage: "",
+  notificationsOptOut: false,
   ...extra,
 });
 
