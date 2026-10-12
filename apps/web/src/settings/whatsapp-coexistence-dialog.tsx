@@ -73,7 +73,7 @@ export function WhatsappCoexistenceDialog({
   const submit = () => {
     const request = toCoexistenceRequest(draft);
     const next: Record<string, string> = {};
-    if (!view.hasCredentials && !request.accessToken) next.accessToken = "validation.required";
+    if (!view.hasCredentials && !request.accessToken) next["accessToken"] = "validation.required";
     const parsed = whatsappCoexistenceRequestSchema.safeParse(request);
     if (!parsed.success)
       for (const issue of parsed.error.issues) {
