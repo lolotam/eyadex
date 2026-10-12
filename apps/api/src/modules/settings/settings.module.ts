@@ -27,7 +27,7 @@ import { MailProviderChanges } from "./use-cases/mail-provider-changes.ts";
 export function mailProviderSealKey(env: NodeJS.ProcessEnv): string {
   const value = env["MAIL_PROVIDER_SEAL_KEY"] ?? "";
   if (Buffer.from(value, "base64").length !== 32) {
-    throw new ConfigurationError("API", "MAIL_PROVIDER_SEAL_KEY");
+    throw new ConfigurationError("API", ["MAIL_PROVIDER_SEAL_KEY"]);
   }
   return value;
 }

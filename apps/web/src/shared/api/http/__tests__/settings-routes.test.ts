@@ -91,6 +91,14 @@ describe("clinic settings and account", () => {
 });
 
 describe("platform console", () => {
+  it("reads stored defaults even when medical is on without patients", async () => {
+    const stored = {
+      ...platformSettings,
+      defaultModules: { patients: false, appointments: true, medical: true },
+    };
+    const h = clientWith(() => ({ body: stored }));
+    expect(await h.api.platformSettings.get(P)).toEqual(stored);
+  });
   it("reads the overview and the settings, and saves the settings", async () => {
     const h = clientWith((call) =>
       call.url.endsWith("/overview")

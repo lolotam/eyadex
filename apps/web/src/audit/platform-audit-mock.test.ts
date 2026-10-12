@@ -101,6 +101,7 @@ describe("platform audit log", () => {
   it("records structured values for platform events, never free text", async () => {
     const clinicId = getState().clinics[0]?.id;
     if (!clinicId) throw new Error("seed");
+    await api.platform.setClinicFeature(PLATFORM, clinicId, "medical", false);
     await api.platform.setClinicFeature(
       { kind: "platform_admin", clinicId: null, memberId: null },
       clinicId,

@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
 
-import { deriveClinicKey, strictKey } from "./field-cipher.ts";
+import { deriveClinicKey, KeyConfigError, strictKey } from "./field-cipher.ts";
 
 const INDEX_INFO = "eyadex-civil-id";
 
@@ -28,6 +28,6 @@ export function civilIdHmac(indexKey: Buffer, clinicId: string, digits: string):
  */
 export function indexKeyFromEnv(env: Record<string, string | undefined>): Buffer {
   const raw = env["MEDICAL_INDEX_KEY"];
-  if (raw === undefined || raw === "") throw new TypeError("MEDICAL_INDEX_KEY is missing");
+  if (raw === undefined || raw === "") throw new KeyConfigError("MEDICAL_INDEX_KEY", "is missing");
   return strictKey("MEDICAL_INDEX_KEY", raw);
 }

@@ -8,7 +8,8 @@ describe("ConfigurationError in the log", () => {
   it("names the variables to fix", () => {
     const error = new ConfigurationError(
       "API",
-      "MEDICAL_BLOB_S3_BUCKET, MEDICAL_BLOB_S3_SECRET_KEY must be set with the other MEDICAL_BLOB_S3_* variables",
+      ["MEDICAL_BLOB_S3_BUCKET", "MEDICAL_BLOB_S3_SECRET_KEY", "MEDICAL_BLOB_S3_BUCKET"],
+      "must be set with the other MEDICAL_BLOB_S3_* variables",
     );
     expect(error.message).toMatch(
       /^Invalid API configuration: MEDICAL_BLOB_S3_BUCKET, .* — see \.env\.example$/,
@@ -19,12 +20,33 @@ describe("ConfigurationError in the log", () => {
     });
   });
 
-  it("NEGATIVE: a value written into the detail by mistake never reaches the diagnostic", () => {
+  it("NEGATIVE: a variable-shaped value in the reason never reaches the diagnostic", () => {
     const error = new ConfigurationError(
       "worker",
-      "DATABASE_URL postgres://user:hunter2@db/x is wrong",
+      ["DATABASE_URL"],
+      "has an invalid value: PRIVATE_VALUE_SHAPED_LIKE_A_VARIABLE",
     );
-    expect(JSON.stringify(errorDiagnostic(error))).not.toMatch(/hunter2|postgres/);
+    expect(JSON.stringify(errorDiagnostic(error))).not.toContain(
+      "PRIVATE_VALUE_SHAPED_LIKE_A_VARIABLE",
+    );
+    expect(errorDiagnostic(error)).toEqual({
+      type: "ConfigurationError",
+      variables: ["DATABASE_URL"],
+    });
+  });
+
+  it("NEGATIVE: explicit names must match the entire variable shape", () => {
+    const error = new ConfigurationError("API", [
+      "DATABASE_URL",
+      "DATABASE_URL\n",
+      "prefix DATABASE_URL",
+      "DATABASE_URL suffix",
+      "lower_case",
+      "UPPERCASE",
+      "_KEY",
+      "KEY_",
+      "KEY__NAME",
+    ]);
     expect(errorDiagnostic(error)).toEqual({
       type: "ConfigurationError",
       variables: ["DATABASE_URL"],

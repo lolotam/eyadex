@@ -86,7 +86,7 @@ export function readConfig(env: NodeJS.ProcessEnv): WorkerConfig {
   const result = schema.safeParse(env);
   if (!result.success) {
     const keys = [...new Set(result.error.issues.map((issue) => issue.path.join(".")))];
-    throw new ConfigurationError("worker", keys.join(", "));
+    throw new ConfigurationError("worker", keys);
   }
   return result.data;
 }

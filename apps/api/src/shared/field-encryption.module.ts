@@ -1,20 +1,25 @@
 import { ConfigurationError } from "@eyadex/observability";
 import { Global, Module } from "@nestjs/common";
-import { fieldCipherFromEnv, indexKeyFromEnv, type FieldCipher } from "@eyadex/secrets";
+import {
+  fieldCipherFromEnv,
+  indexKeyFromEnv,
+  KeyConfigError,
+  type FieldCipher,
+} from "@eyadex/secrets";
 
 /** Token الـ DI للـ `FieldCipher` (ADR-0028): كل عمود `*_enc` والرقم المدني. */
 export const FIELD_CIPHER = Symbol("shared.FieldCipher");
 /** Token الـ DI لمفتاح فهرس الرقم المدني (`MEDICAL_INDEX_KEY`، مابيتغيّرش أبدًا، R1-7). */
 export const CIVIL_ID_INDEX_KEY = Symbol("shared.CivilIdIndexKey");
 
-// The secrets package names the variable only, never its value; the prefix matches every other startup
-// configuration error of the API.
+// The secrets package reports the variable and the reason as fields; only those reach the error, so a
+// message can never carry a value into the log.
 function configured<T>(read: () => T): T {
   try {
     return read();
   } catch (error) {
-    if (!(error instanceof TypeError)) throw error;
-    throw new ConfigurationError("API", error.message);
+    if (!(error instanceof KeyConfigError)) throw error;
+    throw new ConfigurationError("API", [error.variable], error.reason);
   }
 }
 

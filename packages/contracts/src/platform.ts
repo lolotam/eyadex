@@ -41,9 +41,14 @@ export const platformSettingsSchema = z.object({
     CLINIC_LIMIT_BOUNDS.maxBranches.min,
     CLINIC_LIMIT_BOUNDS.maxBranches.max,
   ),
-  defaultModules: featuresSchema.strict().superRefine(refineModuleDependencies),
+  // Stored defaults can predate a dependency; they must remain readable so staff can repair them.
+  defaultModules: featuresSchema.strict(),
 });
 export type PlatformSettings = z.infer<typeof platformSettingsSchema>;
+
+export const updatePlatformSettingsSchema = platformSettingsSchema.extend({
+  defaultModules: featuresSchema.strict().superRefine(refineModuleDependencies),
+});
 
 export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
   defaultTrialDays: 14,

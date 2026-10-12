@@ -3,7 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { moduleSchema } from "@eyadex/contracts/clinics";
-import { platformSettingsSchema, type PlatformSettings } from "@eyadex/contracts/platform";
+import { updatePlatformSettingsSchema, type PlatformSettings } from "@eyadex/contracts/platform";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Form } from "@/components/ui/form";
@@ -20,7 +20,7 @@ export function PlatformSettingsForm({ settings }: { settings: PlatformSettings 
   const { persona } = usePersona();
   const refresh = useRefreshAfterSettings();
   const form = useForm<PlatformSettings>({
-    resolver: zodResolver(platformSettingsSchema),
+    resolver: zodResolver(updatePlatformSettingsSchema),
     defaultValues: settings,
   });
   const mutation = useMutation({

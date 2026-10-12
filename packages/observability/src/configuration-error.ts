@@ -1,24 +1,26 @@
-// A variable name as the API and the worker spell them: upper case, digits, at least one underscore.
-// Nothing else in a configuration message can reach the log, so a value pasted by mistake never does.
-const VARIABLE = /\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+\b/g;
+// Only a complete variable name may reach the log; neither messages nor reasons are inspected.
+// Unlike `$`, this end check cannot accept a trailing line break.
+const VARIABLE = /^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+(?![\s\S])/;
 
 /**
- * A startup configuration problem. Its message is written by our own code and names variables only;
- * the log still prints just the variable names found in it (`errorDiagnostic`), so the operator sees
- * which setting to fix without the logger ever trusting a message.
+ * Explicit variable names let the operator fix startup without trusting an error's message or reason.
  */
 export class ConfigurationError extends Error {
   override readonly name = "ConfigurationError";
-  /** The variable names the message mentions, in order, without repeats. */
+  /** Explicit variable names, in order, without repeats. */
   readonly variables: readonly string[];
 
   /**
    * @param service whose configuration it is ("API" or "worker")
-   * @param detail what is wrong, naming the variables and never a value
+   * @param variables the settings to fix, never their values
+   * @param reason optional explanation, excluded from diagnostics
    */
-  constructor(service: "API" | "worker", detail: string) {
-    super(`Invalid ${service} configuration: ${detail} — see .env.example`);
-    this.variables = [...new Set(detail.match(VARIABLE) ?? [])];
+  constructor(service: "API" | "worker", variables: readonly string[], reason?: string) {
+    const names = [...new Set(variables)];
+    super(
+      `Invalid ${service} configuration: ${names.join(", ")}${reason ? ` ${reason}` : ""} — see .env.example`,
+    );
+    this.variables = names;
   }
 }
 
@@ -29,6 +31,5 @@ export class ConfigurationError extends Error {
  * @returns the names that match the variable shape exactly
  */
 export function configurationVariables(error: ConfigurationError): string[] {
-  const exact = new RegExp(`^${VARIABLE.source}$`);
-  return error.variables.filter((name) => typeof name === "string" && exact.test(name));
+  return error.variables.filter((name) => typeof name === "string" && VARIABLE.test(name));
 }

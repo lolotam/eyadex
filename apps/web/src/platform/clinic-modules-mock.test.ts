@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { moduleSchema } from "@eyadex/contracts/clinics";
-import { PLATFORM, api, as, clinicIdAt, resetMockData } from "@/shared/api/mock/mock-test-kit";
+import {
+  PLATFORM,
+  api,
+  as,
+  clinicIdAt,
+  getState,
+  resetMockData,
+} from "@/shared/api/mock/mock-test-kit";
 
 beforeEach(() => resetMockData());
 
@@ -22,5 +29,21 @@ describe("the appointments module flag", () => {
     expect((await api.session.getContext(as("clinic_admin"))).features.appointments).toBe(false);
     await api.platform.setClinicFeature(PLATFORM, clinicId, "appointments", true);
     expect((await api.session.getContext(as("clinic_admin"))).features.appointments).toBe(true);
+  });
+
+  it("NEGATIVE: refuses removing patients under medical or enabling medical without patients; writes nothing", async () => {
+    const clinicId = clinicIdAt(0);
+    const before = structuredClone(getState());
+    await expect(
+      api.platform.setClinicFeature(PLATFORM, clinicId, "patients", false),
+    ).rejects.toMatchObject({ code: "validation" });
+    expect(getState()).toEqual(before);
+    await api.platform.setClinicFeature(PLATFORM, clinicId, "medical", false);
+    await api.platform.setClinicFeature(PLATFORM, clinicId, "patients", false);
+    const disabled = structuredClone(getState());
+    await expect(
+      api.platform.setClinicFeature(PLATFORM, clinicId, "medical", true),
+    ).rejects.toMatchObject({ code: "validation" });
+    expect(getState()).toEqual(disabled);
   });
 });
