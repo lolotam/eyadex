@@ -15,7 +15,7 @@ const coexistence = (extra: object = {}) => ({
   businessAccountId: "200000000002",
   templates: Object.fromEntries(
     Object.keys(DEFAULT_NOTIFICATION_SETTINGS.messages).map((k) => [k, null]),
-  ) as never,
+  ) as Record<string, { name: string; language: string } | null>,
   ...extra,
 });
 
