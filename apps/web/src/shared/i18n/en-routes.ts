@@ -46,6 +46,14 @@ export const enRoutes = {
       title: "Visit",
       description: "A visit's doctor notes, diagnoses, prescription and attachments.",
     },
+    clinicSettingsNotifications: {
+      title: "Notifications",
+      description: "Which emails the clinic sends to patients.",
+    },
+    clinicSettingsEmail: {
+      title: "Email senders",
+      description: "The clinic's primary and fallback mail senders.",
+    },
     clinicSettingsMedicines: {
       title: "Medicines",
       description: "The clinic's list of frequent medicines.",

@@ -1,4 +1,4 @@
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -12,6 +12,7 @@ import { errorCodeOf } from "@/shared/api/api-error";
 import { NumberField, SwitchField, TextField } from "@/shared/forms/form-fields";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { usePersona } from "@/shared/persona/persona-provider";
+import { moduleSwitchLocked } from "@/platform/clinics/module-switch-lock";
 import { useRefreshAfterSettings } from "./settings-queries";
 
 export function PlatformSettingsForm({ settings }: { settings: PlatformSettings }) {
@@ -23,6 +24,7 @@ export function PlatformSettingsForm({ settings }: { settings: PlatformSettings 
     resolver: zodResolver(updatePlatformSettingsSchema),
     defaultValues: settings,
   });
+  const modules = useWatch({ control: form.control, name: "defaultModules" });
   const mutation = useMutation({
     mutationFn: (input: PlatformSettings) => api.platformSettings.update(persona, input),
     onSuccess: () => {
@@ -84,7 +86,12 @@ export function PlatformSettingsForm({ settings }: { settings: PlatformSettings 
                   control={form.control}
                   name={`defaultModules.${m}`}
                   label={tDynamic(`clinics.modules.${m}`)}
-                  hint={tDynamic(`clinics.modules.${m}Body`)}
+                  hint={
+                    moduleSwitchLocked(m, modules)
+                      ? `${tDynamic(`clinics.modules.${m}Body`)} · ${t("validation.moduleRequires")}`
+                      : tDynamic(`clinics.modules.${m}Body`)
+                  }
+                  disabled={moduleSwitchLocked(m, modules)}
                 />
               ))}
             </section>

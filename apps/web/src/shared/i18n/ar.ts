@@ -1,3 +1,4 @@
+import { arNotifications } from "./ar-notifications";
 import { arClinicCreate } from "./ar-clinic-create";
 import { arRoles } from "./ar-roles";
 import { arPatients } from "./ar-patients";
@@ -173,6 +174,7 @@ export const ar: Dictionary = {
   ...arScheduling,
   ...arAppointments,
   ...arVisits,
+  ...arNotifications,
   validation: {
     needsView: "أي صلاحية إضافة أو تعديل أو تعطيل تحتاج صلاحية العرض في نفس القسم",
     timezone: "اختر منطقة زمنية مدعومة",

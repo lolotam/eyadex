@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { MoreVertical } from "lucide-react";
 import { toast } from "sonner";
@@ -15,6 +16,7 @@ import { useApi } from "@/shared/api/api-provider";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { usePersona } from "@/shared/persona/persona-provider";
 import { useRefreshAppointments } from "./appointment-queries";
+import { MessageHistoryDialog } from "./message-history-dialog";
 
 const MOVES = ["arrived", "completed", "no_show"] as const;
 
@@ -31,6 +33,7 @@ export function AppointmentActions({ appointment, onReschedule, onCancel }: Prop
   const { persona } = usePersona();
   const { t } = useI18n();
   const refresh = useRefreshAppointments();
+  const [messages, setMessages] = useState(false);
   const status = useMutation({
     mutationFn: (to: (typeof MOVES)[number]) =>
       api.appointments.setStatus(persona, appointment.id, { status: to }),
@@ -43,8 +46,8 @@ export function AppointmentActions({ appointment, onReschedule, onCancel }: Prop
   const moves = MOVES.filter((to) => canTransition(appointment.status, to));
   const cancellable = canTransition(appointment.status, "cancelled");
   const movable = onReschedule !== undefined && isReschedulable(appointment.status);
-  if (moves.length === 0 && !cancellable && !movable) return null;
   return (
+    <>
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
@@ -67,6 +70,10 @@ export function AppointmentActions({ appointment, onReschedule, onCancel }: Prop
             {t("appointments.actions.reschedule")}
           </DropdownMenuItem>
         )}
+        {(moves.length > 0 || movable) && <DropdownMenuSeparator />}
+        <DropdownMenuItem onSelect={() => setMessages(true)}>
+          {t("messageHistory.title")}
+        </DropdownMenuItem>
         {cancellable && (
           <>
             <DropdownMenuSeparator />
@@ -77,5 +84,11 @@ export function AppointmentActions({ appointment, onReschedule, onCancel }: Prop
         )}
       </DropdownMenuContent>
     </DropdownMenu>
+    <MessageHistoryDialog
+      appointmentId={messages ? appointment.id : null}
+      patientName={appointment.patientName}
+      onClose={() => setMessages(false)}
+    />
+    </>
   );
 }

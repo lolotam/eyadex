@@ -46,6 +46,14 @@ export const arRoutes = {
       title: "زيارة",
       description: "ملاحظات الطبيب والتشخيص والروشتة والمرفقات لزيارة.",
     },
+    clinicSettingsNotifications: {
+      title: "الإشعارات",
+      description: "الرسائل التي ترسلها العيادة للمراجعين.",
+    },
+    clinicSettingsEmail: {
+      title: "مرسلو البريد",
+      description: "مرسل بريد العيادة الأساسي والاحتياطي.",
+    },
     clinicSettingsMedicines: {
       title: "الأدوية",
       description: "قائمة الأدوية المتكررة في العيادة.",

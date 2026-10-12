@@ -56,6 +56,9 @@ export async function seedActivity(): Promise<{ patientId: string; civilId: stri
       gender: "male",
       registrationBranchId: branch.id,
       civilId,
+      email: "",
+      messageLanguage: "",
+      notificationsOptOut: false,
     },
     crypto.randomUUID(),
   );

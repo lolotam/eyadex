@@ -1,12 +1,14 @@
-import type { Control } from "react-hook-form";
+import { useWatch, type Control } from "react-hook-form";
 import { moduleSchema, type CreateClinicInput } from "@eyadex/contracts/clinics";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { NumberField, SwitchField } from "@/shared/forms/form-fields";
 import { useI18n } from "@/shared/i18n/i18n-provider";
+import { moduleSwitchLocked } from "./module-switch-lock";
 
 /** The new clinic's limits and modules, pre-filled from the platform settings. */
 export function NewClinicLimitsCard({ control }: { control: Control<CreateClinicInput> }) {
   const { t, tDynamic } = useI18n();
+  const modules = useWatch({ control, name: "modules" });
   return (
     <Card>
       <CardHeader>
@@ -32,7 +34,12 @@ export function NewClinicLimitsCard({ control }: { control: Control<CreateClinic
             control={control}
             name={`modules.${m}`}
             label={tDynamic(`clinics.modules.${m}`)}
-            hint={tDynamic(`clinics.modules.${m}Body`)}
+            hint={
+              moduleSwitchLocked(m, modules)
+                ? `${tDynamic(`clinics.modules.${m}Body`)} · ${t("validation.moduleRequires")}`
+                : tDynamic(`clinics.modules.${m}Body`)
+            }
+            disabled={moduleSwitchLocked(m, modules)}
           />
         ))}
       </CardContent>

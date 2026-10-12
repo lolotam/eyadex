@@ -60,6 +60,17 @@ export function PatientDetail({
     [t("patients.fields.gender"), t(`patients.gender.${patient.gender}`)],
     [t("patients.fields.branch"), pick(patient.branchNameAr, patient.branchNameEn)],
     [t("patients.fields.civilId"), patient.civilId ?? t("patients.none"), true],
+    [t("patientMessages.email"), patient.email ?? t("patients.none"), true],
+    [
+      t("patientMessages.language"),
+      patient.messageLanguage
+        ? t(`language.${patient.messageLanguage}`)
+        : t("patientMessages.languageDefault"),
+    ],
+    [
+      t("patientMessages.section"),
+      t(patient.notificationsOptOut ? "patientMessages.optOutYes" : "patientMessages.optOutNo"),
+    ],
     [t("patients.fields.createdAt"), fmtInstant(patient.createdAt)],
   ];
 
