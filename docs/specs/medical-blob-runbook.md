@@ -33,7 +33,10 @@ In the Dokploy project `Eyadex.com` (staging in its `staging` environment):
 | Staging     | `eyadex-minio-staging` |
 
 1. Create an **Application**, provider **Docker**, image as in §0.
-2. Command (Advanced → Run Command): `server /data`. Without it the container does not start a server.
+2. Command (Advanced → Run Command): `minio server /data`. Dokploy's Command replaces the image's
+   entrypoint, so it must name the `minio` program itself (`server /data` alone fails with "exec: server:
+   executable file not found"); left empty, the image runs `minio` with no server and exits. This field is
+   set on the MinIO service only: the API's Command stays empty.
 3. Volume (Advanced → Volumes): a named volume mounted at `/data`. The files live there.
 4. Environment: `MINIO_ROOT_USER` and `MINIO_ROOT_PASSWORD`. Generate both on your own computer (below);
    the root pair is for you only and **never** goes to the API.
@@ -78,7 +81,11 @@ mc admin policy attach local eyadex-medical-rw --user eyadex-api
 ```
 
 At the prompt, paste a freshly generated value (§1): it is the API's secret key. It never appears on the
-command line or in the shell history.
+command line or in the shell history. The prompt needs an interactive terminal (Dokploy's terminal or an SSH
+session you type in). Save the value in your password manager first: §4 needs exactly the same value. If it
+is lost, run the `export MC_HOST_local=…`, `read`, `mc admin user add` and `mc admin policy attach` lines
+again with a new value (the cleanup below unsets the `local` alias, so the export comes first; adding an
+existing user replaces its key; "already attached" from the last line is fine) and update §4.
 
 Why the policy is this small:
 
@@ -124,5 +131,14 @@ Paste these five on the API service only — `Eyadex-API` for production, `eyade
 The first four go together: with none of them the API starts and only an attachment upload or download
 answers 503; with some but not all, or a malformed endpoint or bucket name, the API refuses to start (its
 log says only `api failed to start`, because startup errors are never logged with their text: check the
-five names and values against this table). After the redeploy, upload and download one test attachment on
+five names and values against this table). The API starts with a wrong secret key too, so check the key
+from inside the API container after the redeploy (`<api-service>` is the API's App Name; it reads a key that
+does not exist, so it writes nothing and prints no secret):
+
+```sh
+docker exec $(docker ps -q --filter name=<api-service> | head -1) node -e 'const {S3Client,GetObjectCommand}=require("@aws-sdk/client-s3");const e=process.env;const s=new S3Client({endpoint:e.MEDICAL_BLOB_S3_ENDPOINT,region:e.MEDICAL_BLOB_S3_REGION||"us-east-1",forcePathStyle:true,credentials:{accessKeyId:e.MEDICAL_BLOB_S3_ACCESS_KEY,secretAccessKey:e.MEDICAL_BLOB_S3_SECRET_KEY}});s.send(new GetObjectCommand({Bucket:e.MEDICAL_BLOB_S3_BUCKET,Key:"clinic/smoke/does-not-exist"})).then(()=>console.log("found")).catch(x=>console.log("answer:",x.name,(x.$metadata||{}).httpStatusCode))'
+```
+
+`NoSuchKey 404` (or `AccessDenied 403`) means the key is right; `SignatureDoesNotMatch` means the secret
+differs from §2, `InvalidAccessKeyId` the access key. Then upload and download one test attachment on
 staging before production.
