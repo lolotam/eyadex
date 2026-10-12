@@ -60,6 +60,27 @@ describe("clinic provider routing (ADR-0014 7c-2b)", () => {
     expect(h.platform.sent[0]!.replyTo).toBeUndefined();
   });
 
+  it("a fallback provider alone never routes an invitation: the primary slot only (spec §8)", async () => {
+    const h = make();
+    const { clinic } = invite();
+    provider(clinic.clinicId, { slot: "fallback" });
+    await drain(h.poller);
+    expect(h.clinic.sent).toHaveLength(0);
+    expect(h.platform.sent).toHaveLength(1);
+    expect(h.platform.sent[0]!.from).toBeUndefined();
+  });
+
+  it("with both slots set, the invitation goes through the primary", async () => {
+    const h = make();
+    const { clinic } = invite();
+    const fallbackId = provider(clinic.clinicId, { slot: "fallback", degraded: true });
+    provider(clinic.clinicId);
+    await drain(h.poller);
+    expect(h.platform.sent).toHaveLength(0);
+    expect(h.clinic.sent).toHaveLength(1);
+    expect(state(fallbackId).consecutive_failures).toBe(0);
+  });
+
   it("clinic.admin_invited uses the platform even with a healthy clinic provider", async () => {
     const h = make();
     const { clinic } = invite(ADMIN_INVITED);
