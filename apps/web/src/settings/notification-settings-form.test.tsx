@@ -49,14 +49,20 @@ describe("notifications tab", () => {
   it("read-only without the update key: switches disabled, no save button", () => {
     session.permissions = ["view:clinic_settings:clinic"];
     renderForm();
-    expect(screen.getByRole("switch", { name: ar.notificationSettings.emailEnabled })).toBeDisabled();
+    expect(
+      screen.getByRole("switch", { name: ar.notificationSettings.emailEnabled }),
+    ).toBeDisabled();
     expect(screen.queryByRole("button", { name: ar.common.save })).toBeNull();
   });
 
   it("with email off the six kinds are disabled", () => {
     session.permissions = ["view:clinic_settings:clinic", "update:clinic_settings:clinic"];
     renderForm(false);
-    expect(screen.getByRole("switch", { name: ar.notificationSettings.kinds.booked })).toBeDisabled();
-    expect(screen.getByRole("switch", { name: ar.notificationSettings.emailEnabled })).toBeEnabled();
+    expect(
+      screen.getByRole("switch", { name: ar.notificationSettings.kinds.booked }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("switch", { name: ar.notificationSettings.emailEnabled }),
+    ).toBeEnabled();
   });
 });

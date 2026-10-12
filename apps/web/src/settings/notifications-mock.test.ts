@@ -78,7 +78,11 @@ describe("mail providers (N-3)", () => {
     vi.advanceTimersByTime(MAIL_TEST_REPORT_MS);
     expect((await api.notifications.mailProviders(admin())).primary?.verifiedAt).not.toBeNull();
     const replaced = await api.notifications.setMailProvider(admin(), "primary", SMTP, key());
-    expect(replaced).toMatchObject({ kind: "smtp", smtpHost: "smtp.example.com", verifiedAt: null });
+    expect(replaced).toMatchObject({
+      kind: "smtp",
+      smtpHost: "smtp.example.com",
+      verifiedAt: null,
+    });
   });
 
   it("NEGATIVE: a fallback with no primary is refused", async () => {

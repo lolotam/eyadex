@@ -37,7 +37,11 @@ describe("patient message fields (N-2)", () => {
       crypto.randomUUID(),
     );
     const detail = await api.patients.open(admin(), created.id);
-    expect(detail).toMatchObject({ email: null, messageLanguage: null, notificationsOptOut: false });
+    expect(detail).toMatchObject({
+      email: null,
+      messageLanguage: null,
+      notificationsOptOut: false,
+    });
   });
 
   it("NEGATIVE: a bad email is refused", async () => {
