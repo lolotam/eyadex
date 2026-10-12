@@ -1,4 +1,8 @@
-import type { NotificationKind, PatientNotification } from "@eyadex/contracts/notifications";
+import type {
+  NotificationChannel,
+  NotificationKind,
+  PatientNotification,
+} from "@eyadex/contracts/notifications";
 import type { Tx } from "@eyadex/db";
 import { sql } from "drizzle-orm";
 
@@ -7,19 +11,20 @@ import type { NotificationSubject } from "../domain/notification-rules.ts";
 // The ledger (0056): one row per message per channel, no address and no text. Every statement runs
 // inside the caller's withTenant(clinicId) transaction and filters on clinic_id itself.
 
-/** A queued email for one patient about one subject. */
+/** A queued message for one patient about one subject, on one channel. */
 export interface QueuedNotification {
   readonly clinicId: string;
   readonly id: string;
   readonly patientId: string;
   readonly kind: NotificationKind;
+  readonly channel: NotificationChannel;
   readonly subject: NotificationSubject;
   /** The membership that triggered it. */
   readonly requestedBy: string;
 }
 
 /**
- * Inserts one `queued` email row; a second request for the same message (same subject, kind, channel and
+ * Inserts one `queued` row on its channel; a second request for the same message (same subject, kind, channel and
  * start) conflicts on `patient_notifications_once` and inserts nothing. The patient foreign key takes its
  * key-share lock here, after the appointment or visit row the caller already holds (ADR-0027).
  *
@@ -35,7 +40,7 @@ export async function insertQueuedNotification(
   const inserted = await tx.execute<{ id: string }>(
     sql`INSERT INTO patient_notifications (clinic_id, id, patient_id, kind, channel, subject_type,
           subject_id, subject_at, status, requested_by, created_at, updated_at)
-        VALUES (${row.clinicId}, ${row.id}, ${row.patientId}, ${row.kind}, 'email',
+        VALUES (${row.clinicId}, ${row.id}, ${row.patientId}, ${row.kind}, ${row.channel},
           ${subject.subjectType}, ${subject.subjectId}, ${subject.subjectAt}::timestamptz, 'queued',
           ${row.requestedBy}, ${at}::timestamptz, ${at}::timestamptz)
         ON CONFLICT ON CONSTRAINT patient_notifications_once DO NOTHING

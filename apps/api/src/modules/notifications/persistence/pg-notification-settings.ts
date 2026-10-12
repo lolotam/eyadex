@@ -8,6 +8,7 @@ import { sql } from "drizzle-orm";
 interface SettingsRow {
   id: string;
   email_enabled: boolean;
+  whatsapp_enabled: boolean;
   booked: boolean;
   rescheduled: boolean;
   cancelled: boolean;
@@ -31,8 +32,8 @@ export async function readNotificationSettings(
   clinicId: string,
 ): Promise<StoredSettings | null> {
   const rows = await tx.execute<SettingsRow>(
-    sql`SELECT id, email_enabled, booked, rescheduled, cancelled, reminder_day, reminder_2h,
-               prescription
+    sql`SELECT id, email_enabled, whatsapp_enabled, booked, rescheduled, cancelled, reminder_day,
+               reminder_2h, prescription
         FROM clinic_notification_settings WHERE clinic_id = ${clinicId}`,
   );
   const row = rows[0];
@@ -41,6 +42,7 @@ export async function readNotificationSettings(
     id: row.id,
     settings: {
       emailEnabled: row.email_enabled,
+      whatsappEnabled: row.whatsapp_enabled,
       messages: {
         booked: row.booked,
         rescheduled: row.rescheduled,
@@ -74,13 +76,16 @@ export async function upsertNotificationSettings(
   const at = now.toISOString();
   const m = settings.messages;
   await tx.execute(
-    sql`INSERT INTO clinic_notification_settings (clinic_id, id, email_enabled, booked, rescheduled,
-          cancelled, reminder_day, reminder_2h, prescription, created_at, updated_at)
-        VALUES (${clinicId}, ${id}, ${settings.emailEnabled}, ${m.booked}, ${m.rescheduled},
+    sql`INSERT INTO clinic_notification_settings (clinic_id, id, email_enabled, whatsapp_enabled,
+          booked, rescheduled, cancelled, reminder_day, reminder_2h, prescription, created_at,
+          updated_at)
+        VALUES (${clinicId}, ${id}, ${settings.emailEnabled}, ${settings.whatsappEnabled},
+          ${m.booked}, ${m.rescheduled},
           ${m.cancelled}, ${m.reminder_day}, ${m.reminder_2h}, ${m.prescription},
           ${at}::timestamptz, ${at}::timestamptz)
         ON CONFLICT ON CONSTRAINT clinic_notification_settings_one_per_clinic DO UPDATE SET
-          email_enabled = EXCLUDED.email_enabled, booked = EXCLUDED.booked,
+          email_enabled = EXCLUDED.email_enabled, whatsapp_enabled = EXCLUDED.whatsapp_enabled,
+          booked = EXCLUDED.booked,
           rescheduled = EXCLUDED.rescheduled, cancelled = EXCLUDED.cancelled,
           reminder_day = EXCLUDED.reminder_day, reminder_2h = EXCLUDED.reminder_2h,
           prescription = EXCLUDED.prescription, updated_at = EXCLUDED.updated_at`,

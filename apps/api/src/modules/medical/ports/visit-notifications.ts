@@ -9,12 +9,13 @@ import type { PrescriptionNotice } from "../domain/visit-notices.ts";
  */
 export interface VisitNotifications {
   /**
-   * بيحط رسالة الروشتة في الطابور جوه transaction الاعتماد، بعد قفل الزيارة. لو بريد العيادة أو رسالة
-   * الروشتة مقفولة، أو اتحطت قبل كده للزيارة دي، مفيش حاجة بتتكتب.
+   * بيحط رسالة الروشتة في الطابور جوه transaction الاعتماد، بعد قفل الزيارة: صف لكل قناة شغّالة (البريد،
+   * وواتساب لو قناته مربوطة). لو القنوات أو رسالة الروشتة مقفولة، أو اتحطت قبل كده للزيارة دي، مفيش حاجة
+   * بتتكتب.
    *
    * @param tx الـ transaction جوه `withTenant(clinicId)`
    * @param notice الرسالة
-   * @returns `true` لو اتحط صف وحدث outbox
+   * @returns `true` لو اتحط صف واحد على الأقل بحدث outbox
    */
   queuePrescription(tx: Tx, notice: PrescriptionNotice): Promise<boolean>;
 

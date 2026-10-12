@@ -36,6 +36,7 @@ const send = (
 
 const quiet: NotificationSettings = {
   emailEnabled: true,
+  whatsappEnabled: false,
   messages: { ...DEFAULT_NOTIFICATION_SETTINGS.messages, reminder_2h: false, prescription: false },
 };
 
@@ -101,7 +102,7 @@ describe("clinic notification settings", () => {
   it("refuses a body that is not the whole contract shape", async () => {
     const A = await clinicWithMembers(h);
     const partial = { emailEnabled: true, messages: { booked: true } };
-    const extra = { ...quiet, whatsappEnabled: true };
+    const extra = { ...quiet, smsEnabled: true };
     for (const body of [partial, extra, { ...quiet, emailEnabled: "yes" }]) {
       expect((await send("PUT", A.admin.cookie, { body })).statusCode).toBe(400);
     }

@@ -1,19 +1,41 @@
 import {
   NOTIFICATION_KINDS,
+  type NotificationChannel,
   type NotificationKind,
   type NotificationSettings,
 } from "@eyadex/contracts/notifications";
 
 /**
- * هل الرسالة دي تتحط في الطابور دلوقتي (N-1)؟ بريد العيادة شغّال والرسالة نفسها شغّالة. إيميل المراجع
- * وطلبه بعدم التذكير مش هنا: بيتقرروا وقت الإرسال عشان ممكن يتغيّروا في النص (spec §3.1).
+ * هل واتساب ممكن ياخد الرسالة دي (spec §7.1)؟ واتساب العيادة شغّال والرسالة نفسها شغّالة؛ ربط القناة
+ * بيتقري بعدها بس لو الإجابة نعم.
  *
  * @param settings إعدادات العيادة (أو الافتراضي لو ماحفظتش)
  * @param kind نوع الرسالة
- * @returns `true` لو تتحط في الطابور
+ * @returns `true` لو لازم نشوف القناة مربوطة ولا لأ
  */
-export function shouldQueue(settings: NotificationSettings, kind: NotificationKind): boolean {
-  return settings.emailEnabled && settings.messages[kind];
+export function wantsWhatsapp(settings: NotificationSettings, kind: NotificationKind): boolean {
+  return settings.whatsappEnabled && settings.messages[kind];
+}
+
+/**
+ * القنوات اللي الرسالة دي تتحط في طابورها دلوقتي (N-1، spec §7.1): البريد لو بريد العيادة والرسالة
+ * شغّالين، وواتساب لو واتساب العيادة والرسالة شغّالين والقناة `connected` وقت الطابور. إيميل المراجع
+ * وموبايله وطلبه بعدم التذكير مش هنا: بيتقرروا وقت الإرسال عشان ممكن يتغيّروا في النص (spec §3.1).
+ *
+ * @param settings إعدادات العيادة (أو الافتراضي لو ماحفظتش)
+ * @param kind نوع الرسالة
+ * @param whatsappConnected قناة واتساب العيادة `connected` دلوقتي
+ * @returns القنوات بالترتيب (البريد الأول)، أو قايمة فاضية
+ */
+export function queuedChannels(
+  settings: NotificationSettings,
+  kind: NotificationKind,
+  whatsappConnected: boolean,
+): NotificationChannel[] {
+  const channels: NotificationChannel[] = [];
+  if (settings.emailEnabled && settings.messages[kind]) channels.push("email");
+  if (wantsWhatsapp(settings, kind) && whatsappConnected) channels.push("whatsapp");
+  return channels;
 }
 
 /** موضوع الرسالة زي ما السجل بيحفظه (قيود 0056). */
@@ -56,6 +78,7 @@ export function subjectOf(
 export function sameSettings(before: NotificationSettings, after: NotificationSettings): boolean {
   return (
     before.emailEnabled === after.emailEnabled &&
+    before.whatsappEnabled === after.whatsappEnabled &&
     NOTIFICATION_KINDS.every((kind) => before.messages[kind] === after.messages[kind])
   );
 }

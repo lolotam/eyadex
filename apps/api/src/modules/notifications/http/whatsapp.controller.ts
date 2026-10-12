@@ -1,0 +1,73 @@
+import { Body, Controller, Get, HttpCode, Inject, Post, Put, Req } from "@nestjs/common";
+import {
+  whatsappChannelViewSchema,
+  whatsappCoexistenceRequestSchema,
+  whatsappConnectRequestSchema,
+  whatsappQrResponseSchema,
+  type WhatsappChannelView,
+  type WhatsappCoexistenceRequest,
+  type WhatsappConnectRequest,
+  type WhatsappQrResponse,
+} from "@eyadex/contracts/whatsapp";
+
+import { ZodValidationPipe } from "../../../shared/zod-validation.pipe.ts";
+// The one identity import a module may make: guards and request types (CLAUDE.architecture.md §2.2).
+import { Require, type ClinicRequest } from "../../identity/index.ts";
+import { WHATSAPP_COEXISTENCE, WHATSAPP_LINK } from "../ports/tokens.ts";
+import type { WhatsappCoexistence } from "../use-cases/whatsapp-channel/whatsapp-coexistence.ts";
+import type { WhatsappLink } from "../use-cases/whatsapp-channel/whatsapp-link.ts";
+import type { WhatsappActor } from "../use-cases/whatsapp-channel/whatsapp-shared.ts";
+
+const actor = (request: ClinicRequest): WhatsappActor => ({
+  clinicId: request.clinicContext.clinicId,
+  userId: request.clinicContext.userId,
+});
+
+// Phase 3 N2 (spec §7.1): the clinic's WhatsApp channel. Clinic settings keys, like the notification
+// settings. The QR refresh needs the update key: a scanned QR links a number to the clinic. Thin:
+// validate → call → map; no response ever carries the token or the full number.
+@Controller("clinic/whatsapp")
+export class WhatsappController {
+  constructor(
+    @Inject(WHATSAPP_LINK) private readonly link: WhatsappLink,
+    @Inject(WHATSAPP_COEXISTENCE) private readonly coexistence: WhatsappCoexistence,
+  ) {}
+
+  @Get()
+  @Require("view:clinic_settings:clinic")
+  async view(@Req() request: ClinicRequest): Promise<WhatsappChannelView> {
+    return whatsappChannelViewSchema.parse(await this.link.view(request.clinicContext.clinicId));
+  }
+
+  @Post("connect")
+  @HttpCode(200)
+  @Require("update:clinic_settings:clinic")
+  async connect(
+    @Req() request: ClinicRequest,
+    @Body(new ZodValidationPipe(whatsappConnectRequestSchema)) body: WhatsappConnectRequest,
+  ): Promise<WhatsappQrResponse> {
+    return whatsappQrResponseSchema.parse(await this.link.connect(actor(request), body));
+  }
+
+  @Get("qr")
+  @Require("update:clinic_settings:clinic")
+  async qr(@Req() request: ClinicRequest): Promise<WhatsappQrResponse> {
+    return whatsappQrResponseSchema.parse(await this.link.refresh(actor(request)));
+  }
+
+  @Post("disconnect")
+  @HttpCode(200)
+  @Require("update:clinic_settings:clinic")
+  async disconnect(@Req() request: ClinicRequest): Promise<WhatsappChannelView> {
+    return whatsappChannelViewSchema.parse(await this.link.disconnect(actor(request)));
+  }
+
+  @Put("coexistence")
+  @Require("update:clinic_settings:clinic")
+  async saveCoexistence(
+    @Req() request: ClinicRequest,
+    @Body(new ZodValidationPipe(whatsappCoexistenceRequestSchema)) body: WhatsappCoexistenceRequest,
+  ): Promise<WhatsappChannelView> {
+    return whatsappChannelViewSchema.parse(await this.coexistence.update(actor(request), body));
+  }
+}

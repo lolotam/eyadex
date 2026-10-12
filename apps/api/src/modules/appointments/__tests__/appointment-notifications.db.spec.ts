@@ -144,12 +144,14 @@ describe("queueing on appointment changes", () => {
 
   it("a message switched off, or the email channel off, queues no row and no event", async () => {
     const messages = { ...DEFAULT_NOTIFICATION_SETTINGS.messages, booked: false };
-    expect((await settings(C, { emailEnabled: true, messages })).statusCode).toBe(200);
+    expect(
+      (await settings(C, { emailEnabled: true, whatsappEnabled: false, messages })).statusCode,
+    ).toBe(200);
     const { id } = await booked();
     expect(await ledger(id)).toHaveLength(0);
     expect((await move(id, at(DAY, nextTime()))).statusCode).toBe(200);
     expect((await ledger(id)).map((r) => r["kind"])).toEqual(["rescheduled"]);
-    const off = { emailEnabled: false, messages: DEFAULT_NOTIFICATION_SETTINGS.messages };
+    const off = { ...DEFAULT_NOTIFICATION_SETTINGS, emailEnabled: false };
     expect((await settings(C, off)).statusCode).toBe(200);
     expect((await cancel(id)).statusCode).toBe(200);
     const after = await booked();

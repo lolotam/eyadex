@@ -41,7 +41,7 @@ import {
   type BlobStore,
 } from "./modules/medical/index.ts";
 import { ClinicAuditModule, PlatformAuditModule } from "./modules/audit/index.ts";
-import { NotificationsModule } from "./modules/notifications/index.ts";
+import { NotificationsModule, type EvolutionApi } from "./modules/notifications/index.ts";
 import { PlatformModule } from "./modules/platform/index.ts";
 import { SettingsModule } from "./modules/settings/index.ts";
 import { EnvelopeExceptionFilter } from "./shared/exception.filter.ts";
@@ -87,11 +87,14 @@ export interface AppDependencies {
    * docs/specs/medical-keys-runbook.md). Attachments also read MEDICAL_BLOB_S3_ENDPOINT,
    * MEDICAL_BLOB_S3_BUCKET, MEDICAL_BLOB_S3_ACCESS_KEY, MEDICAL_BLOB_S3_SECRET_KEY and the optional
    * MEDICAL_BLOB_S3_REGION (docs/specs/medical-blob-runbook.md); without them the API still starts and
-   * only an upload or a download answers 503.
+   * only an upload or a download answers 503. WhatsApp reads EVOLUTION_API_URL and EVOLUTION_API_KEY
+   * (both or neither; without them linking a number answers 503).
    */
   readonly mountClinic?: boolean;
   /** Test-only: the attachments' blob store instead of the one the environment configures. */
   readonly medicalBlobStore?: BlobStore;
+  /** Test-only: Evolution API (WhatsApp, spec §7.1) instead of the one EVOLUTION_API_URL/KEY configure. */
+  readonly evolutionApi?: EvolutionApi;
 }
 
 export interface AppOptions {
@@ -151,7 +154,7 @@ export function apiModule(
             PatientsModule,
             AppointmentsModule,
             MedicalModule.forRoot(deps.medicalBlobStore),
-            NotificationsModule,
+            NotificationsModule.forRoot(deps.evolutionApi),
             ClinicAuditModule,
           ]
         : []),
