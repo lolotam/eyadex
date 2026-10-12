@@ -44,6 +44,7 @@ describe("message history (spec §3, §6)", () => {
   it("nothing is queued while the message kind is switched off", async () => {
     await api.notifications.updateSettings(admin(), {
       emailEnabled: true,
+      whatsappEnabled: false,
       messages: { ...DEFAULT_NOTIFICATION_SETTINGS.messages, cancelled: false },
     });
     const appt = bookedAppointment();

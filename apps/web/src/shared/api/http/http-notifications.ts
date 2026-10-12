@@ -42,6 +42,7 @@ export function toMailProviderBody(input: MailProviderRequest): MailProviderRequ
 
 const settingsBody = (s: NotificationSettings): NotificationSettings => ({
   emailEnabled: s.emailEnabled,
+  whatsappEnabled: s.whatsappEnabled,
   messages: { ...s.messages },
 });
 

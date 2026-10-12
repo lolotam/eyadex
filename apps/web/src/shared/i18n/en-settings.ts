@@ -11,6 +11,7 @@ export const enSettings = {
       medicines: "Medicines",
       notifications: "Notifications",
       email: "Email",
+      whatsapp: "WhatsApp",
     },
   },
   clinicSettings: {

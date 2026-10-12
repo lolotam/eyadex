@@ -35,6 +35,7 @@ import { Route as ClinicSettingsMedicinesRouteImport } from './routes/clinic.set
 import { Route as ClinicSettingsNotificationsRouteImport } from './routes/clinic.settings.notifications'
 import { Route as ClinicSettingsSchedulesRouteImport } from './routes/clinic.settings.schedules'
 import { Route as ClinicSettingsServicesRouteImport } from './routes/clinic.settings.services'
+import { Route as ClinicSettingsWhatsappRouteImport } from './routes/clinic.settings.whatsapp'
 import { Route as ClinicVisitsIndexRouteImport } from './routes/clinic.visits.index'
 import { Route as ClinicVisitsVisitIdRouteImport } from './routes/clinic.visits.$visitId'
 import { Route as PlatformClinicsIndexRouteImport } from './routes/platform.clinics.index'
@@ -172,6 +173,11 @@ const ClinicSettingsServicesRoute = ClinicSettingsServicesRouteImport.update({
   path: '/settings/services',
   getParentRoute: () => ClinicRoute,
 } as any)
+const ClinicSettingsWhatsappRoute = ClinicSettingsWhatsappRouteImport.update({
+  id: '/settings/whatsapp',
+  path: '/settings/whatsapp',
+  getParentRoute: () => ClinicRoute,
+} as any)
 const ClinicVisitsIndexRoute = ClinicVisitsIndexRouteImport.update({
   id: '/visits/',
   path: '/visits/',
@@ -223,6 +229,7 @@ export interface FileRoutesByFullPath {
   '/clinic/settings/notifications': typeof ClinicSettingsNotificationsRoute
   '/clinic/settings/schedules': typeof ClinicSettingsSchedulesRoute
   '/clinic/settings/services': typeof ClinicSettingsServicesRoute
+  '/clinic/settings/whatsapp': typeof ClinicSettingsWhatsappRoute
   '/clinic/visits/$visitId': typeof ClinicVisitsVisitIdRoute
   '/platform/clinics/$clinicId': typeof PlatformClinicsClinicIdRoute
   '/platform/clinics/new': typeof PlatformClinicsNewRoute
@@ -254,6 +261,7 @@ export interface FileRoutesByTo {
   '/clinic/settings/notifications': typeof ClinicSettingsNotificationsRoute
   '/clinic/settings/schedules': typeof ClinicSettingsSchedulesRoute
   '/clinic/settings/services': typeof ClinicSettingsServicesRoute
+  '/clinic/settings/whatsapp': typeof ClinicSettingsWhatsappRoute
   '/clinic/visits/$visitId': typeof ClinicVisitsVisitIdRoute
   '/platform/clinics/$clinicId': typeof PlatformClinicsClinicIdRoute
   '/platform/clinics/new': typeof PlatformClinicsNewRoute
@@ -288,6 +296,7 @@ export interface FileRoutesById {
   '/clinic/settings/notifications': typeof ClinicSettingsNotificationsRoute
   '/clinic/settings/schedules': typeof ClinicSettingsSchedulesRoute
   '/clinic/settings/services': typeof ClinicSettingsServicesRoute
+  '/clinic/settings/whatsapp': typeof ClinicSettingsWhatsappRoute
   '/clinic/visits/$visitId': typeof ClinicVisitsVisitIdRoute
   '/platform/clinics/$clinicId': typeof PlatformClinicsClinicIdRoute
   '/platform/clinics/new': typeof PlatformClinicsNewRoute
@@ -323,6 +332,7 @@ export interface FileRouteTypes {
     | '/clinic/settings/notifications'
     | '/clinic/settings/schedules'
     | '/clinic/settings/services'
+    | '/clinic/settings/whatsapp'
     | '/clinic/visits/$visitId'
     | '/platform/clinics/$clinicId'
     | '/platform/clinics/new'
@@ -354,6 +364,7 @@ export interface FileRouteTypes {
     | '/clinic/settings/notifications'
     | '/clinic/settings/schedules'
     | '/clinic/settings/services'
+    | '/clinic/settings/whatsapp'
     | '/clinic/visits/$visitId'
     | '/platform/clinics/$clinicId'
     | '/platform/clinics/new'
@@ -387,6 +398,7 @@ export interface FileRouteTypes {
     | '/clinic/settings/notifications'
     | '/clinic/settings/schedules'
     | '/clinic/settings/services'
+    | '/clinic/settings/whatsapp'
     | '/clinic/visits/$visitId'
     | '/platform/clinics/$clinicId'
     | '/platform/clinics/new'
@@ -590,6 +602,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ClinicSettingsServicesRouteImport
       parentRoute: typeof ClinicRoute
     }
+    '/clinic/settings/whatsapp': {
+      id: '/clinic/settings/whatsapp'
+      path: '/settings/whatsapp'
+      fullPath: '/clinic/settings/whatsapp'
+      preLoaderRoute: typeof ClinicSettingsWhatsappRouteImport
+      parentRoute: typeof ClinicRoute
+    }
     '/clinic/visits/': {
       id: '/clinic/visits/'
       path: '/visits'
@@ -642,6 +661,7 @@ interface ClinicRouteChildren {
   ClinicSettingsNotificationsRoute: typeof ClinicSettingsNotificationsRoute
   ClinicSettingsSchedulesRoute: typeof ClinicSettingsSchedulesRoute
   ClinicSettingsServicesRoute: typeof ClinicSettingsServicesRoute
+  ClinicSettingsWhatsappRoute: typeof ClinicSettingsWhatsappRoute
   ClinicVisitsVisitIdRoute: typeof ClinicVisitsVisitIdRoute
   ClinicPatientsIndexRoute: typeof ClinicPatientsIndexRoute
   ClinicSettingsIndexRoute: typeof ClinicSettingsIndexRoute
@@ -662,6 +682,7 @@ const ClinicRouteChildren: ClinicRouteChildren = {
   ClinicSettingsNotificationsRoute: ClinicSettingsNotificationsRoute,
   ClinicSettingsSchedulesRoute: ClinicSettingsSchedulesRoute,
   ClinicSettingsServicesRoute: ClinicSettingsServicesRoute,
+  ClinicSettingsWhatsappRoute: ClinicSettingsWhatsappRoute,
   ClinicVisitsVisitIdRoute: ClinicVisitsVisitIdRoute,
   ClinicPatientsIndexRoute: ClinicPatientsIndexRoute,
   ClinicSettingsIndexRoute: ClinicSettingsIndexRoute,
@@ -707,3 +728,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

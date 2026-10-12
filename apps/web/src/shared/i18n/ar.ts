@@ -1,4 +1,5 @@
 import { arNotifications } from "./ar-notifications";
+import { arWhatsapp } from "./ar-whatsapp";
 import { arClinicCreate } from "./ar-clinic-create";
 import { arRoles } from "./ar-roles";
 import { arPatients } from "./ar-patients";
@@ -175,6 +176,7 @@ export const ar: Dictionary = {
   ...arAppointments,
   ...arVisits,
   ...arNotifications,
+  ...arWhatsapp,
   validation: {
     needsView: "أي صلاحية إضافة أو تعديل أو تعطيل تحتاج صلاحية العرض في نفس القسم",
     timezone: "اختر منطقة زمنية مدعومة",
@@ -201,6 +203,8 @@ export const ar: Dictionary = {
     duration: "مدة الموعد من 5 دقائق إلى 8 ساعات",
     smtpHost: "اكتب اسم نطاق خادم البريد، مثل smtp.example.com",
     controlChars: "احذف فواصل الأسطر والرموز المخفية",
+    templateName: "استخدم حروفًا إنجليزية صغيرة وأرقامًا وشرطة سفلية كما في Meta",
+    templateLanguage: "استخدم رمز لغة مثل ar أو en_US",
   },
   errors: {
     ...arAccessErrors,

@@ -15,6 +15,8 @@ export const SETTINGS_TABS = [
   // Phase 3 N1: patient notifications and the clinic's mail senders.
   { id: "notifications", resource: "clinic_settings", to: "/clinic/settings/notifications" },
   { id: "email", resource: "clinic_settings", to: "/clinic/settings/email" },
+  // Phase 3 N2: the clinic's WhatsApp channel.
+  { id: "whatsapp", resource: "clinic_settings", to: "/clinic/settings/whatsapp" },
 ] as const satisfies readonly { id: string; resource: PermissionResource; to: string }[];
 
 export type SettingsTab = (typeof SETTINGS_TABS)[number];

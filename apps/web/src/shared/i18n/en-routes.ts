@@ -50,6 +50,10 @@ export const enRoutes = {
       title: "Notifications",
       description: "Which emails the clinic sends to patients.",
     },
+    clinicSettingsWhatsapp: {
+      title: "WhatsApp",
+      description: "Link the clinic's WhatsApp number for patient messages.",
+    },
     clinicSettingsEmail: {
       title: "Email senders",
       description: "The clinic's primary and fallback mail senders.",
