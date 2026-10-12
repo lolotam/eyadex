@@ -16,7 +16,7 @@ import {
 import { clinics } from "./clinics.ts";
 import { patients } from "./patients.ts";
 
-// Mirror of db/sql/0054 and 0056 (docs/specs/notifications-design.md §2). Clinic tables: forced RLS,
+// Mirror of db/sql/0054, 0056 and 0057 (docs/specs/notifications-design.md §2). Clinic tables: forced RLS,
 // eyadex_app only, never deleted; the platform has no privilege on either.
 const tz = { withTimezone: true, mode: "date" } as const;
 
@@ -35,6 +35,8 @@ export const clinicNotificationSettings = pgTable(
     prescription: boolean("prescription").notNull(),
     createdAt: timestamp("created_at", tz).notNull(),
     updatedAt: timestamp("updated_at", tz).notNull(),
+    // 0057 (N2): appended last, off until the clinic links its number.
+    whatsappEnabled: boolean("whatsapp_enabled").notNull().default(false),
   },
   (t) => [
     primaryKey({ name: "clinic_notification_settings_pkey", columns: [t.clinicId, t.id] }),
@@ -64,9 +66,19 @@ export const patientNotifications = pgTable(
     subjectAt: timestamp("subject_at", tz),
     status: text("status", { enum: ["queued", "sent", "skipped", "failed"] }).notNull(),
     skipReason: text("skip_reason", {
-      enum: ["setting_off", "no_email", "opted_out", "not_booked", "moved"],
+      enum: [
+        "setting_off",
+        "no_email",
+        "opted_out",
+        "not_booked",
+        "moved",
+        "whatsapp_disconnected",
+        "template_missing",
+      ],
     }),
-    route: text("route", { enum: ["primary", "fallback", "platform"] }),
+    route: text("route", {
+      enum: ["primary", "fallback", "platform", "evolution", "coexistence"],
+    }),
     // The requesting membership; no foreign key (ADR-0027, as appointments.created_by).
     requestedBy: uuid("requested_by"),
     attempts: integer("attempts").notNull().default(0),
@@ -110,7 +122,9 @@ export const patientNotifications = pgTable(
     check("patient_notifications_last_error_check", sql.raw("(char_length(last_error) <= 120)")),
     check(
       "patient_notifications_route_check",
-      sql.raw("(route = ANY (ARRAY['primary'::text, 'fallback'::text, 'platform'::text]))"),
+      sql.raw(
+        "(route = ANY (ARRAY['primary'::text, 'fallback'::text, 'platform'::text, 'evolution'::text, 'coexistence'::text]))",
+      ),
     ),
     check(
       "patient_notifications_sent_check",
@@ -121,7 +135,7 @@ export const patientNotifications = pgTable(
     check(
       "patient_notifications_skip_reason_check",
       sql.raw(
-        "(skip_reason = ANY (ARRAY['setting_off'::text, 'no_email'::text, 'opted_out'::text, 'not_booked'::text, 'moved'::text]))",
+        "(skip_reason = ANY (ARRAY['setting_off'::text, 'no_email'::text, 'opted_out'::text, 'not_booked'::text, 'moved'::text, 'whatsapp_disconnected'::text, 'template_missing'::text]))",
       ),
     ),
     check(

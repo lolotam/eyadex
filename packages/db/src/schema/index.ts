@@ -27,3 +27,4 @@ export { visitDiagnoses, visitPrescriptionItems } from "./medical-lists.ts";
 export { icd10Codes, clinicMedicines } from "./medical-reference.ts";
 export { patientAttachments } from "./attachments.ts";
 export { clinicNotificationSettings, patientNotifications } from "./notifications.ts";
+export { clinicWhatsappChannels } from "./whatsapp.ts";

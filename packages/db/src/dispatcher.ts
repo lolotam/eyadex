@@ -33,11 +33,14 @@ export interface ClaimedEvent {
 
 /**
  * نتيجة حدث: `dispatched` (اتبعت أو اتشال من غير إرسال) و`failed` بيمسحوا `sealedToken` من الـ
- * payload في نفس الـ UPDATE؛ `retry` بيسيبه عشان المحاولة الجاية.
+ * payload في نفس الـ UPDATE؛ `retry` بيسيبه عشان المحاولة الجاية. `deferred` = الحدث ماتجرّبش أصلاً
+ * (مثلاً دوره في طابور الإرسال لسه ماجاش، spec الإشعارات §7.1): بيتأجل لـ `nextAttemptAt` من غير ما
+ * يتحسب محاولة ومن غير ما يلمس `last_error`.
  */
 export type DispatchOutcome =
   | { readonly kind: "dispatched" }
   | { readonly kind: "retry"; readonly error: string; readonly nextAttemptAt: Date }
+  | { readonly kind: "deferred"; readonly nextAttemptAt: Date }
   | { readonly kind: "failed"; readonly error: string };
 
 /** الدفاتر التقنية اللي ليها مدة احتفاظ (ADR-0022). */
@@ -155,6 +158,10 @@ export function createDispatcherOutbox(options: DispatcherOptions): DispatcherOu
     if (outcome.kind === "dispatched") {
       await tx`UPDATE outbox_events SET dispatched_at = ${at}::timestamptz,
                  payload = payload - 'sealedToken', next_attempt_at = NULL WHERE id = ${id}`;
+    } else if (outcome.kind === "deferred") {
+      // Not an attempt: attempts and last_error stay as the last real attempt left them.
+      await tx`UPDATE outbox_events
+                 SET next_attempt_at = ${outcome.nextAttemptAt.toISOString()}::timestamptz WHERE id = ${id}`;
     } else if (outcome.kind === "retry") {
       await tx`UPDATE outbox_events SET attempts = attempts + 1,
                  next_attempt_at = ${outcome.nextAttemptAt.toISOString()}::timestamptz,

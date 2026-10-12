@@ -37,6 +37,7 @@ describe("@eyadex/db/schema", () => {
       schema.patientAttachments,
       schema.clinicNotificationSettings,
       schema.patientNotifications,
+      schema.clinicWhatsappChannels,
     ];
     for (const table of clinicOwned) {
       const pk = getTableConfig(table).primaryKeys[0]?.columns.map((c) => c.name);
