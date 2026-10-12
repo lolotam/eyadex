@@ -123,3 +123,46 @@ describe("readConfig SMTP fallback (ADR-0014)", () => {
     }
   });
 });
+
+describe("readConfig Evolution API (spec §7.1, N2)", () => {
+  const evolution = {
+    EVOLUTION_API_URL: "http://evolution.internal.test:8080/",
+    EVOLUTION_API_KEY: "test-only-evolution",
+  };
+
+  it("both keys → WhatsApp configured, the URL without its trailing slash", () => {
+    expect(readConfig({ ...required, ...evolution }).EVOLUTION).toEqual({
+      url: "http://evolution.internal.test:8080",
+      apiKey: "test-only-evolution",
+    });
+  });
+
+  it("neither (or both empty) → WhatsApp unavailable, not a startup error", () => {
+    expect(readConfig(required).EVOLUTION).toBeNull();
+    expect(
+      readConfig({ ...required, EVOLUTION_API_URL: "", EVOLUTION_API_KEY: "" }).EVOLUTION,
+    ).toBeNull();
+  });
+
+  it("one without the other stops startup, naming only the missing key", () => {
+    for (const [present, absent] of [
+      ["EVOLUTION_API_URL", "EVOLUTION_API_KEY"],
+      ["EVOLUTION_API_KEY", "EVOLUTION_API_URL"],
+    ] as const) {
+      const attempt = () => readConfig({ ...required, [present]: evolution[present] });
+      expect(attempt).toThrow(new RegExp(absent));
+      try {
+        attempt();
+      } catch (error) {
+        expect(String(error)).not.toContain("test-only-evolution");
+        expect(String(error)).not.toContain("evolution.internal.test");
+      }
+    }
+  });
+
+  it("refuses a URL that is not http(s), naming the key only", () => {
+    expect(() =>
+      readConfig({ ...required, ...evolution, EVOLUTION_API_URL: "ftp://evolution.test" }),
+    ).toThrow(/EVOLUTION_API_URL/);
+  });
+});

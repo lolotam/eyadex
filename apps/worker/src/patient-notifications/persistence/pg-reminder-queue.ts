@@ -1,3 +1,4 @@
+import type { NotificationChannel } from "@eyadex/contracts/notifications";
 import { sql, type Database, type IdGenerator, type Tx } from "@eyadex/db";
 
 import { PATIENT_NOTIFICATION_REQUESTED } from "../domain/notification-event.ts";
@@ -49,11 +50,13 @@ type CandidateRow = { id: string; starts_at: string; created_at: string };
 type PageResult = { queued: number; next: Cursor | null };
 
 const DONE: PageResult = { queued: 0, next: null };
+const CHANNELS: readonly NotificationChannel[] = ["email", "whatsapp"];
 
 /**
  * الدفتر والأحداث في transaction واحدة لكل صفحة تحت `withTenant` على `eyadex_app` (0056، RLS). القيد
- * `patient_notifications_once` هو اللي بيضمن تذكير واحد لكل بداية موعد مهما اتكرر الفحص أو كتر عدد
- * الـ workers؛ وتأجيل الموعد (بداية جديدة) بياخد تذكيرات جديدة.
+ * `patient_notifications_once` هو اللي بيضمن تذكير واحد لكل بداية موعد لكل قناة مهما اتكرر الفحص أو كتر
+ * عدد الـ workers؛ وتأجيل الموعد (بداية جديدة) بياخد تذكيرات جديدة. واتساب (spec §7.1) بيتسجّل بس لما
+ * `whatsapp_enabled` والقناة `connected` دلوقتي؛ وقت الإرسال بيتفحص تاني.
  */
 export class PgReminderQueue implements ReminderQueue {
   readonly #db: Database;
@@ -87,8 +90,13 @@ export class PgReminderQueue implements ReminderQueue {
     )) as unknown as { enabled: boolean }[];
     if (module?.enabled !== true) return DONE;
     const settings = await readNotificationSettings(tx, clinicId, false);
-    const allowed = (kind: ReminderKind) => settings.emailEnabled && settings.messages[kind];
-    if (!allowed("reminder_day") && !allowed("reminder_2h")) return DONE;
+    const open: Record<NotificationChannel, boolean> = {
+      email: settings.emailEnabled,
+      whatsapp: settings.whatsappEnabled && (await whatsappConnected(tx, clinicId)),
+    };
+    const allowed = (kind: ReminderKind) =>
+      CHANNELS.filter((channel) => open[channel] && settings.messages[kind]);
+    if (allowed("reminder_day").length === 0 && allowed("reminder_2h").length === 0) return DONE;
     const now = at.toISOString();
     // The coarse filter: a start within the next 24 hours, booked at least 2 hours before it. dueReminder
     // decides the window. Timestamps as full-precision text, so the cursor loses no microsecond.
@@ -110,8 +118,9 @@ export class PgReminderQueue implements ReminderQueue {
         { startsAt: new Date(row.starts_at), createdAt: new Date(row.created_at) },
         at,
       );
-      if (kind !== null && allowed(kind) && (await this.#insert(tx, clinicId, row, kind, now))) {
-        queued += 1;
+      if (kind === null) continue;
+      for (const channel of allowed(kind)) {
+        if (await this.#insert(tx, clinicId, row, kind, channel, now)) queued += 1;
       }
     }
     const last = rows.at(-1);
@@ -131,12 +140,13 @@ export class PgReminderQueue implements ReminderQueue {
     clinicId: string,
     candidate: CandidateRow,
     kind: ReminderKind,
+    channel: NotificationChannel,
     now: string,
   ): Promise<boolean> {
     const inserted = (await tx.execute(
       sql`INSERT INTO patient_notifications (clinic_id, id, patient_id, kind, channel, subject_type,
             subject_id, subject_at, status, requested_by, attempts, created_at, updated_at)
-          SELECT a.clinic_id, ${this.#ids.newId()}, a.patient_id, ${kind}, 'email', 'appointment',
+          SELECT a.clinic_id, ${this.#ids.newId()}, a.patient_id, ${kind}, ${channel}, 'appointment',
             a.id, a.starts_at, 'queued', NULL, 0, ${now}::timestamptz, ${now}::timestamptz
           FROM appointments a WHERE a.clinic_id = ${clinicId} AND a.id = ${candidate.id}
             AND a.status = 'booked' AND a.starts_at = ${candidate.starts_at}::timestamptz
@@ -161,4 +171,12 @@ export class PgReminderQueue implements ReminderQueue {
     );
     return true;
   }
+}
+
+// A plain read: the scan only decides whether to queue; the send re-checks the channel under its lock.
+async function whatsappConnected(tx: Tx, clinicId: string): Promise<boolean> {
+  const [row] = (await tx.execute(
+    sql`SELECT status FROM clinic_whatsapp_channels WHERE clinic_id = ${clinicId}`,
+  )) as unknown as { status: string }[];
+  return row?.status === "connected";
 }

@@ -15,6 +15,7 @@ import type { ClinicProviderCredentials } from "../../mail-provider-test/ports/c
 import { OutboxPoller } from "../../shared/outbox-poller.ts";
 import { PATIENT_NOTIFICATION_REQUESTED } from "../domain/notification-event.ts";
 import { PgNotificationStore } from "../persistence/pg-notification-store.ts";
+import type { WhatsappSender } from "../ports/whatsapp-sender.ts";
 import { notificationDispatcher } from "../send-notification.ts";
 
 export const q = (v: string) => `'${v.replace(/'/g, "''")}'`;
@@ -24,6 +25,8 @@ export const cipher = new FieldCipher(new Map([[1, randomBytes(32)]]), 1);
 
 export interface World {
   readonly clinicId: string;
+  /** The patient's phone as stored: eight digits (a fake number). */
+  readonly phone: string;
   readonly branchId: string;
   readonly providerId: string;
   readonly staffUserId: string;
@@ -50,7 +53,7 @@ export function seedWorld(language: "ar" | "en" = "en"): World {
            registration_branch_id, status, email, created_at, updated_at)
          VALUES (${q(clinicId)}, ${q(patientId)}, '1', 'Test Person', ${q(phone)}, '1990-01-01', 'female',
            ${q(branchId)}, 'active', ${q(email)}, now(), now());`);
-  return { clinicId, branchId, providerId, staffUserId, patientId, email };
+  return { clinicId, phone, branchId, providerId, staffUserId, patientId, email };
 }
 
 export function seedAppointment(
@@ -84,6 +87,7 @@ export function queueNotification(
   w: World,
   kind: NotificationKind,
   subject: { id: string; startsAt?: Date },
+  channel: "email" | "whatsapp" = "email",
 ): { notificationId: string; eventId: string } {
   const notificationId = randomUUID();
   const eventId = randomUUID();
@@ -91,7 +95,7 @@ export function queueNotification(
   order += 1;
   owner(`INSERT INTO patient_notifications (clinic_id, id, patient_id, kind, channel, subject_type, subject_id,
            subject_at, status, requested_by, created_at, updated_at)
-         VALUES (${q(w.clinicId)}, ${q(notificationId)}, ${q(w.patientId)}, ${q(kind)}, 'email',
+         VALUES (${q(w.clinicId)}, ${q(notificationId)}, ${q(w.patientId)}, ${q(kind)}, ${q(channel)},
            ${visit ? "'visit'" : "'appointment'"}, ${q(subject.id)},
            ${subject.startsAt === undefined ? "NULL" : q(subject.startsAt.toISOString())}, 'queued',
            ${q(w.providerId)}, now(), now());
@@ -105,6 +109,7 @@ export function queueNotification(
 export function setSettings(clinicId: string, columns: Record<string, boolean>): void {
   const all = {
     email_enabled: true,
+    whatsapp_enabled: false,
     booked: true,
     rescheduled: true,
     cancelled: true,
@@ -185,8 +190,13 @@ export const ledgerRow = (id: string): LedgerState =>
      WHERE id = ${q(id)}`,
   )[0]!;
 
-/** A poller over the real store, with fake senders per slot and a fake platform. */
-export function sendHarness(app: Database, outbox: DispatcherOutbox, withCipher = true) {
+/** A poller over the real store, with fake senders per slot, a fake platform and an optional WhatsApp. */
+export function sendHarness(
+  app: Database,
+  outbox: DispatcherOutbox,
+  withCipher = true,
+  options: { whatsapp?: WhatsappSender | null; random?: () => number } = {},
+) {
   const platform = new FakeMail();
   const slots = { primary: new FakeMail(), fallback: new FakeMail() };
   const opened: ClinicProviderCredentials[] = [];
@@ -215,8 +225,10 @@ export function sendHarness(app: Database, outbox: DispatcherOutbox, withCipher 
         platformFrom: PLATFORM_FROM,
       },
       platform,
+      whatsapp: options.whatsapp ?? null,
       cipher: withCipher ? cipher : null,
       clock,
+      ...(options.random === undefined ? {} : { random: options.random }),
       logger,
     }),
   });

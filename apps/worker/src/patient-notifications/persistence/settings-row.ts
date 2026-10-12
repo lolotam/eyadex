@@ -5,11 +5,14 @@ import {
 } from "@eyadex/contracts/notifications";
 import { sql, type Tx } from "@eyadex/db";
 
-type SettingsRow = { email_enabled: boolean } & Record<NotificationKind, boolean>;
+type SettingsRow = { email_enabled: boolean; whatsapp_enabled: boolean } & Record<
+  NotificationKind,
+  boolean
+>;
 
 /**
- * إعدادات رسايل العيادة (0054). عيادة ماحفظتش إعداداتها مالهاش صف، فبتاخد الافتراضي: الإيميل وكل الرسايل
- * شغّالة.
+ * إعدادات رسايل العيادة (0054، و`whatsapp_enabled` من 0057). عيادة ماحفظتش إعداداتها مالهاش صف، فبتاخد
+ * الافتراضي: الإيميل وكل الرسايل شغّالة، وواتساب مقفول.
  *
  * @param tx الـ transaction تحت `withTenant`
  * @param clinicId العيادة
@@ -23,14 +26,15 @@ export async function readNotificationSettings(
 ): Promise<NotificationSettings> {
   const [row] = (await tx.execute(
     lock
-      ? sql`SELECT email_enabled, booked, rescheduled, cancelled, reminder_day, reminder_2h, prescription
+      ? sql`SELECT email_enabled, whatsapp_enabled, booked, rescheduled, cancelled, reminder_day, reminder_2h, prescription
             FROM clinic_notification_settings WHERE clinic_id = ${clinicId} FOR SHARE`
-      : sql`SELECT email_enabled, booked, rescheduled, cancelled, reminder_day, reminder_2h, prescription
+      : sql`SELECT email_enabled, whatsapp_enabled, booked, rescheduled, cancelled, reminder_day, reminder_2h, prescription
             FROM clinic_notification_settings WHERE clinic_id = ${clinicId}`,
   )) as unknown as SettingsRow[];
   if (row === undefined) return DEFAULT_NOTIFICATION_SETTINGS;
   return {
     emailEnabled: row.email_enabled,
+    whatsappEnabled: row.whatsapp_enabled,
     messages: {
       booked: row.booked,
       rescheduled: row.rescheduled,
