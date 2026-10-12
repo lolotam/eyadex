@@ -1,3 +1,4 @@
+import { mailProviderSlotSchema } from "@eyadex/contracts/notifications";
 import { z } from "zod";
 
 /** الحدث اللي الـ API بيكتبه لما الأدمن يطلب إيميل تجربة لمزود العيادة (ADR-0014، 7c-2a). */
@@ -7,6 +8,8 @@ const schema = z
   .object({
     clinicId: z.string().uuid(),
     providerId: z.string().uuid(),
+    // Phase 3 N1: which slot the admin tested; the provider row is found by its id either way.
+    slot: mailProviderSlotSchema,
     providerVersion: z.number().int().min(1),
     actorUserId: z.string().uuid(),
   })
