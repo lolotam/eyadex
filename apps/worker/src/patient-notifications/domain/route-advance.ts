@@ -1,6 +1,5 @@
-import type { NotificationRoute } from "@eyadex/contracts/notifications";
-
 import { decideFallback } from "../../invitation-mail/domain/fallback-decision.ts";
+import type { EmailRoute } from "./route-plan.ts";
 
 // SMTP failures that happen before the DATA command is written: nothing of the message reached a server,
 // so the next route cannot double it. The worker's SMTP transports report the stage (smtp-mail-sender.ts),
@@ -46,7 +45,7 @@ export function certainlyNotAccepted(error: string): boolean {
 }
 
 const SEPARATOR = ":";
-const ROUTES: readonly NotificationRoute[] = ["primary", "fallback", "platform"];
+const ROUTES: readonly EmailRoute[] = ["primary", "fallback", "platform"];
 
 /**
  * الكود اللي بيتكتب في `last_error` (الدفتر والـ outbox): المسار اللي المحاولة وقفت عنده + كود المرسل،
@@ -58,7 +57,7 @@ const ROUTES: readonly NotificationRoute[] = ["primary", "fallback", "platform"]
  * @returns `<route>:<code>[:<id>:<version>]` بحد أقصى 120 حرف
  */
 export function failureCode(
-  route: NotificationRoute,
+  route: EmailRoute,
   error: string,
   provider?: { readonly id: string; readonly version: number },
 ): string {
@@ -73,11 +72,11 @@ export function failureCode(
  * @param lastError `last_error` على صف الدفتر، أو `null`
  * @returns المسار اللي نبدأ منه، أو `null` = من أول مسار
  */
-export function resumeRoute(lastError: string | null): NotificationRoute | null {
+export function resumeRoute(lastError: string | null): EmailRoute | null {
   if (lastError === null) return null;
   const cut = lastError.indexOf(SEPARATOR);
   if (cut < 0) return null;
-  const route = lastError.slice(0, cut) as NotificationRoute;
+  const route = lastError.slice(0, cut) as EmailRoute;
   if (!ROUTES.includes(route)) return null;
   return certainlyNotAccepted(lastError.slice(cut + 1).split(SEPARATOR)[0]!) ? null : route;
 }

@@ -38,6 +38,7 @@ import {
 } from "./patient-notifications/persistence/pg-reminder-queue.ts";
 import { AppointmentReminderScanner } from "./patient-notifications/scan-appointment-reminders.ts";
 import { notificationDispatcher } from "./patient-notifications/send-notification.ts";
+import { EvolutionWhatsappSender } from "./patient-notifications/whatsapp/evolution-whatsapp-sender.ts";
 import { NamedPlatformSender, platformSenderName } from "./shared/named-platform-sender.ts";
 import { routeEvents } from "./shared/event-router.ts";
 import { medicalCipher, readConfig } from "./shared/config.ts";
@@ -121,11 +122,13 @@ try {
       platformUrl: config.PLATFORM_URL,
       logger,
     }),
-    // Spec §3.3: patient messages try the clinic's primary, then its fallback, then the platform (N-3).
+    // Spec §3.3: patient emails try the clinic's primary, then its fallback, then the platform (N-3).
+    // Spec §7.1: WhatsApp rows go through the clinic's Evolution instance, or are skipped without it.
     [PATIENT_NOTIFICATION_REQUESTED]: notificationDispatcher({
       store: new PgNotificationStore(app, ids),
       clinicMail,
       platform: mail,
+      whatsapp: config.EVOLUTION ? new EvolutionWhatsappSender(config.EVOLUTION) : null,
       cipher: medicalCipher(process.env),
       clock,
       logger,
