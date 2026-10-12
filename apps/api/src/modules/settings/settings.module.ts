@@ -9,13 +9,14 @@ import { AuthorizationCacheModule } from "../identity/index.ts";
 import { ClinicSettingsChanges, CLOCK, TenancyModule, type Clock } from "../tenancy/index.ts";
 import { ClinicSettingsController } from "./http/clinic-settings.controller.ts";
 import { MailProviderController } from "./http/mail-provider.controller.ts";
+import { MailProvidersController } from "./http/mail-providers.controller.ts";
 import type { MailProviderReader } from "./ports/mail-provider-reader.ts";
 import {
   CLINIC_SETTINGS_CHANGES,
   MAIL_PROVIDER_CHANGES,
   MAIL_PROVIDER_READER,
 } from "./ports/tokens.ts";
-import { getMailProvider } from "./queries/mail-provider.ts";
+import { getMailProvider, getMailProviders } from "./queries/mail-provider.ts";
 import { MailProviderChanges } from "./use-cases/mail-provider-changes.ts";
 
 /**
@@ -33,12 +34,13 @@ export function mailProviderSealKey(env: NodeJS.ProcessEnv): string {
 }
 
 /**
- * إعدادات العيادة: `/v1/clinic/mail-provider` (ADR-0014) و `/v1/clinic/settings` (ADR-0020). محتاج
+ * إعدادات العيادة: `/v1/clinic/mail-provider` (ADR-0014، دلوقتي اسم تاني للخانة الأساسية)،
+ * `/v1/clinic/mail-providers` (الخانتين، ADR-0031) و `/v1/clinic/settings` (ADR-0020). محتاج
  * DATABASE_URL و MAIL_PROVIDER_SEAL_KEY والـ REDIS_URL (إبطال الكاش).
  */
 @Module({
   imports: [DatabaseModule, TenancyModule, AuthorizationCacheModule],
-  controllers: [MailProviderController, ClinicSettingsController],
+  controllers: [MailProviderController, MailProvidersController, ClinicSettingsController],
   providers: [
     {
       provide: CLINIC_SETTINGS_CHANGES,
@@ -50,7 +52,8 @@ export function mailProviderSealKey(env: NodeJS.ProcessEnv): string {
       provide: MAIL_PROVIDER_READER,
       inject: [DATABASE],
       useFactory: (db: Database): MailProviderReader => ({
-        read: (clinicId) => getMailProvider(db, clinicId),
+        read: (clinicId, slot) => getMailProvider(db, clinicId, slot),
+        readAll: (clinicId) => getMailProviders(db, clinicId),
       }),
     },
     {

@@ -1,6 +1,7 @@
 import { createHmac } from "node:crypto";
 
 import type { MailProviderRequest, MailProviderView } from "@eyadex/contracts/mail-provider";
+import type { MailProviderSlot } from "@eyadex/contracts/notifications";
 
 /** صف مزود العيادة كما هو في الداتابيز، من غير الختم. */
 export interface MailProviderRecord {
@@ -93,6 +94,34 @@ export function keyedRequestHash(request: MailProviderRequest, base64Key: string
   return createHmac("sha256", Buffer.from(base64Key, "base64"))
     .update("mail-provider-put:" + JSON.stringify(entries))
     .digest("hex");
+}
+
+/** سبب رفض كتابة على خانة مزود (كود `validation`، في تفاصيل الخطأ على المسار `slot`). */
+export type SlotRefusal = "fallback_without_primary" | "primary_has_fallback";
+
+/**
+ * حفظ مزود في خانة (N-3): الاحتياطي من غير أساسي مالوش معنى، فمرفوض لحد ما يتحفظ أساسي.
+ *
+ * @param slot الخانة المطلوبة
+ * @param primaryExists فيه مزود أساسي محفوظ (مقروء تحت قفل بريد العيادة)
+ * @returns سبب الرفض، أو `null` لو مسموح
+ */
+export function slotPutRefusal(slot: MailProviderSlot, primaryExists: boolean): SlotRefusal | null {
+  return slot === "fallback" && !primaryExists ? "fallback_without_primary" : null;
+}
+
+/**
+ * شيل مزود من خانة (N-3): الأساسي مايتشالش وفيه احتياطي، عشان الاحتياطي مايفضلش لوحده.
+ *
+ * @param slot الخانة المطلوبة
+ * @param fallbackExists فيه مزود احتياطي محفوظ (مقروء تحت قفل بريد العيادة)
+ * @returns سبب الرفض، أو `null` لو مسموح
+ */
+export function slotRemoveRefusal(
+  slot: MailProviderSlot,
+  fallbackExists: boolean,
+): SlotRefusal | null {
+  return slot === "primary" && fallbackExists ? "primary_has_fallback" : null;
 }
 
 /** تجربة واحدة لكل عيادة في الدقيقة: إرسال SMTP بياخد لحد 5 ثواني من الـ poller الوحيد. */
