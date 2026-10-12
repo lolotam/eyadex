@@ -11,6 +11,8 @@ export const WORKER_LOG_EVENTS = [
   "outbox poll failed",
   "expiry reminder scan completed",
   "expiry reminder scan failed",
+  "appointment reminder scan completed",
+  "appointment reminder scan failed",
   "retention purge completed",
   "retention purge failed",
   "nest",
