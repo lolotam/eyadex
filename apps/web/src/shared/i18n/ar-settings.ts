@@ -7,7 +7,14 @@ export const arSettings: Shape<typeof enSettings> = {
   settings: {
     title: "الإعدادات",
     subtitle: "تفضيلات العيادة وخدماتها وجداول العمل.",
-    tabs: { general: "عام", services: "الخدمات", schedules: "جداول العمل", medicines: "الأدوية" },
+    tabs: {
+      general: "عام",
+      services: "الخدمات",
+      schedules: "جداول العمل",
+      medicines: "الأدوية",
+      notifications: "الإشعارات",
+      email: "البريد",
+    },
   },
   clinicSettings: {
     title: "إعدادات العيادة",

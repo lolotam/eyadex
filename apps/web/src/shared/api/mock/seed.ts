@@ -272,6 +272,10 @@ export function buildSeed(): MockState {
         registrationBranchId: branch.id,
         // Fictional, and every one encodes the birth date above.
         civilId: pi % 3 === 0 ? null : seedCivilId(birthDate, pi * 97 + ci * 31),
+        // Fictional addresses on a reserved domain, so the demo shows sent and skipped messages.
+        email: pi % 2 === 0 ? `patient${pi + 1}.c${ci + 1}@example.invalid` : null,
+        messageLanguage: pi % 5 === 0 ? "en" : null,
+        notificationsOptOut: pi % 4 === 3,
         status: pi === 7 || pi === patientCount - 1 ? "archived" : "active",
         createdAt,
       };

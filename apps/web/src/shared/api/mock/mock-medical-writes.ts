@@ -10,6 +10,7 @@ import { ApiError } from "../api-error";
 import type { MedicalApi } from "../medical-client";
 import { medicalWriter, parse, writableVisit, type MedicalAccess } from "./mock-medical-access";
 import { auditMedical, detailOf, isSignable } from "./mock-medical-project";
+import { queueNotification } from "./mock-notification-queue";
 import type { StoredNote, StoredVisit } from "./mock-medical-state";
 import { delay, getState, newId, persist, type MockState } from "./mock-store";
 
@@ -132,6 +133,16 @@ export function createMockMedicalWrites(): Pick<
       v.status = "signed";
       v.signedAt = new Date().toISOString();
       auditMedical(db, a, "visit", "visit.signed", v.id, ["status"]);
+      // N-5: the prescription goes out on signing when it has lines; an addendum never re-sends.
+      if (v.prescription.length > 0)
+        queueNotification(db, {
+          clinicId: v.clinicId,
+          patientId: v.patientId,
+          kind: "prescription",
+          subjectType: "visit",
+          subjectId: v.id,
+          subjectAt: null,
+        });
       persist();
       return detailOf(db, a, v);
     },

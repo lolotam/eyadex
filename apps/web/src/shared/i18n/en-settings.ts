@@ -9,6 +9,8 @@ export const enSettings = {
       services: "Services",
       schedules: "Work schedules",
       medicines: "Medicines",
+      notifications: "Notifications",
+      email: "Email",
     },
   },
   clinicSettings: {

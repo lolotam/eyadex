@@ -9,6 +9,7 @@ import type { BookingProfileInput, ClinicService } from "@eyadex/contracts/servi
 import type { PlatformAuditEntry } from "@eyadex/contracts/session";
 import type { MembershipUser } from "@eyadex/contracts/users";
 import type { MedicalState } from "./mock-medical-state";
+import type { NotificationState } from "./mock-notification-state";
 import { buildSeed } from "./seed";
 
 export type StoredService = ClinicService & { clinicId: string };
@@ -75,6 +76,8 @@ export type MockState = {
   idempotentAppointments?: Record<string, { appointmentId: string; fingerprint: string }>;
   /** P2: visits, medical files, medicines and attachments. */
   medical: MedicalState;
+  /** Phase 3 N1: notification settings, mail providers and the message ledger (created on use). */
+  notifications?: NotificationState;
   platformAccounts: PlatformAccount[];
   platformSettings: PlatformSettings;
   platformAudit: PlatformAuditEntry[];
@@ -82,7 +85,7 @@ export type MockState = {
   clinicAudit: (Omit<ClinicAuditEntry, "entityId"> & { entityId: string | null })[];
 };
 
-const STORAGE_KEY = "eyadex:mock-db:v18";
+const STORAGE_KEY = "eyadex:mock-db:v19";
 /** Shared with the persona provider by name only (screens never import the mock). */
 const PERSONA_STORAGE_KEY = "eyadex:persona";
 const MOCK_RESET_EVENT = "eyadex:mock-reset";

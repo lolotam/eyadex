@@ -42,6 +42,9 @@ export function QuickFileForm({ branchId, onCreated, onBack }: Props) {
       gender: "female",
       registrationBranchId: branchId,
       civilId: "",
+      email: "",
+      messageLanguage: "",
+      notificationsOptOut: false,
     },
   });
   const mutation = useMutation({

@@ -20,6 +20,9 @@ const detail = {
   gender: "female",
   registrationBranchId: BRANCH,
   civilId: CIVIL_ID,
+  email: null,
+  messageLanguage: null,
+  notificationsOptOut: false,
   status: "active",
   createdAt: TS,
   branchNameAr: "ف",
@@ -67,6 +70,9 @@ const input: PatientInput = {
   gender: "female",
   registrationBranchId: BRANCH,
   civilId: CIVIL_ID,
+  email: "",
+  messageLanguage: "",
+  notificationsOptOut: false,
 };
 
 describe("patients over HTTP", () => {

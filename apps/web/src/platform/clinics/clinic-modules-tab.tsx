@@ -8,6 +8,7 @@ import { usePersona } from "@/shared/persona/persona-provider";
 import { errorCodeOf } from "@/shared/api/api-error";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { clinicKeys } from "./clinic-queries";
+import { moduleSwitchLocked } from "@/shared/permissions/module-switch-lock";
 
 /** One switch per clinic module (PRD §4.8), in the order of the contract's module list. */
 export function ClinicModulesTab({ clinic }: { clinic: ClinicDetail }) {
@@ -43,10 +44,15 @@ export function ClinicModulesTab({ clinic }: { clinic: ClinicDetail }) {
               <div className="text-sm text-muted-foreground">
                 {tDynamic(`clinics.modules.${module}Body`)}
               </div>
+              {moduleSwitchLocked(module, clinic.features) && (
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {t("validation.moduleRequires")}
+                </div>
+              )}
             </div>
             <Switch
               checked={clinic.features[module]}
-              disabled={mutation.isPending}
+              disabled={mutation.isPending || moduleSwitchLocked(module, clinic.features)}
               onCheckedChange={(enabled) => mutation.mutate({ module, enabled })}
               aria-label={tDynamic(`clinics.modules.${module}`)}
             />

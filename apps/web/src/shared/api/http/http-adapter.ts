@@ -4,6 +4,7 @@ import { createHttpBranches } from "./http-branches";
 import type { HttpContext } from "./http-context";
 import { createHttpInvitations } from "./http-invitations";
 import { createHttpMedical } from "./http-medical";
+import { createHttpNotifications } from "./http-notifications";
 import { createHttpPatients } from "./http-patients";
 import { createHttpPlatform } from "./http-platform";
 import {
@@ -39,6 +40,7 @@ export function createHttpApiClient(
     scheduling: createHttpScheduling(ctx),
     appointments: createHttpAppointments(ctx),
     medical: createHttpMedical(ctx),
+    notifications: createHttpNotifications(ctx),
     audit: createHttpAudit(ctx),
     clinicSettings: createHttpClinicSettings(ctx),
     account: createHttpAccount(ctx),

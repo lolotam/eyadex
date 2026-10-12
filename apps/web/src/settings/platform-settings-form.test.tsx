@@ -66,18 +66,10 @@ describe("platform settings page: new-clinic defaults (ADR-0020 amendment)", () 
     expect(getState().platformSettings.defaultMaxBranches).toBe(3);
   });
 
-  it("NEGATIVE: turning patients off under medical shows the translated message by the switch and does not save", async () => {
+  it("NEGATIVE: patients cannot be switched off while medical is on (PR #70)", () => {
     renderForm();
-    const before = structuredClone(getState());
-    await act(async () =>
-      screen.getByRole("switch", { name: ar.clinics.modules.patients }).click(),
-    );
-    await act(async () => screen.getByRole("button", { name: ar.common.save }).click());
-    const message = await screen.findByText(ar.validation.moduleRequires);
-    const medical = screen.getByRole("switch", { name: ar.clinics.modules.medical });
-    expect(medical).toHaveAttribute("aria-invalid", "true");
-    expect(medical.getAttribute("aria-describedby")).toContain(message.id);
-    expect(medical.closest("div[data-slot]") ?? medical.parentElement).toContainElement(message);
-    expect(getState()).toEqual(before);
+    expect(screen.getByRole("switch", { name: ar.clinics.modules.patients })).toBeDisabled();
+    expect(screen.getByText(new RegExp(ar.validation.moduleRequires))).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: ar.clinics.modules.medical })).toBeEnabled();
   });
 });

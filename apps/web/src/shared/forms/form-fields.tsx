@@ -111,7 +111,14 @@ export function SelectField<T extends FieldValues>({
   label,
   disabled,
   options,
-}: BaseProps<T> & { options: { value: string; label: string }[] }) {
+  fromValue,
+  toValue,
+}: BaseProps<T> & {
+  options: { value: string; label: string }[];
+  /** Maps a stored value the select cannot hold (an empty string) to an option and back. */
+  fromValue?: (value: string) => string;
+  toValue?: (value: string) => string;
+}) {
   return (
     <FormField
       control={control}
@@ -119,7 +126,11 @@ export function SelectField<T extends FieldValues>({
       render={({ field }) => (
         <FormItem>
           <FormLabel>{label}</FormLabel>
-          <Select value={field.value} onValueChange={field.onChange} disabled={disabled ?? false}>
+          <Select
+            value={fromValue ? fromValue(field.value) : field.value}
+            onValueChange={(v) => field.onChange(toValue ? toValue(v) : v)}
+            disabled={disabled ?? false}
+          >
             <FormControl>
               <SelectTrigger>
                 <SelectValue />
