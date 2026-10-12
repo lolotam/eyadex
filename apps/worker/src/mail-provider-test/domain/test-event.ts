@@ -8,8 +8,8 @@ const schema = z
   .object({
     clinicId: z.string().uuid(),
     providerId: z.string().uuid(),
-    // Phase 3 N1: which slot the admin tested; the provider row is found by its id either way.
-    slot: mailProviderSlotSchema,
+    // Pending events written before dual slots still target the primary provider.
+    slot: mailProviderSlotSchema.default("primary"),
     providerVersion: z.number().int().min(1),
     actorUserId: z.string().uuid(),
   })

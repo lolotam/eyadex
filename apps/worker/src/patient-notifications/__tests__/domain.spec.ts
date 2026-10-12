@@ -191,9 +191,9 @@ describe("planRoutes (N-3)", () => {
   });
 
   it("resumes at the route an ambiguous failure stopped on, never earlier", () => {
-    expect(planRoutes(health(), health(), "fallback")).toEqual(["fallback", "platform"]);
+    expect(planRoutes(health(), health(), "fallback")).toEqual(["fallback"]);
     expect(planRoutes(health(), health(), "platform")).toEqual(["platform"]);
-    expect(planRoutes(health(), health({ degraded: true }), "fallback")).toEqual(["platform"]);
+    expect(planRoutes(health(), health({ degraded: true }), "fallback")).toEqual([]);
   });
 });
 

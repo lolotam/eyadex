@@ -78,6 +78,19 @@ export function queueNotification(
 ): void {
   const settings = settingsOf(db, subject.clinicId);
   if (!settings.emailEnabled || !settings.messages[subject.kind]) return;
+  const ledger = notificationState(db).ledger;
+  // Mirror the API's NULLS NOT DISTINCT ledger constraint before scheduling any worker effect.
+  if (
+    ledger.some(
+      (row) =>
+        row.clinicId === subject.clinicId &&
+        row.subjectId === subject.subjectId &&
+        row.kind === subject.kind &&
+        row.channel === "email" &&
+        row.subjectAt === subject.subjectAt,
+    )
+  )
+    return;
   const row: StoredNotification = {
     ...subject,
     id: newId(),
@@ -88,7 +101,7 @@ export function queueNotification(
     createdAt: new Date().toISOString(),
     sentAt: null,
   };
-  notificationState(db).ledger.push(row);
+  ledger.push(row);
   setTimeout(() => {
     const current = getState();
     settleNotification(current, row.id);

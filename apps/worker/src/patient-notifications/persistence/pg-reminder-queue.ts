@@ -110,7 +110,7 @@ export class PgReminderQueue implements ReminderQueue {
         { startsAt: new Date(row.starts_at), createdAt: new Date(row.created_at) },
         at,
       );
-      if (kind !== null && allowed(kind) && (await this.#insert(tx, clinicId, row.id, kind, now))) {
+      if (kind !== null && allowed(kind) && (await this.#insert(tx, clinicId, row, kind, now))) {
         queued += 1;
       }
     }
@@ -124,12 +124,12 @@ export class PgReminderQueue implements ReminderQueue {
     };
   }
 
-  // subject_at is copied from the row itself, so it is the start to the microsecond and the send-time
-  // "moved" check compares like with like.
+  // A concurrent reschedule must not consume the new start's unique reminder key using the old window.
+  // Revalidate the candidate and its eligibility against the INSERT's current snapshot.
   async #insert(
     tx: Tx,
     clinicId: string,
-    appointmentId: string,
+    candidate: CandidateRow,
     kind: ReminderKind,
     now: string,
   ): Promise<boolean> {
@@ -138,7 +138,16 @@ export class PgReminderQueue implements ReminderQueue {
             subject_id, subject_at, status, requested_by, attempts, created_at, updated_at)
           SELECT a.clinic_id, ${this.#ids.newId()}, a.patient_id, ${kind}, 'email', 'appointment',
             a.id, a.starts_at, 'queued', NULL, 0, ${now}::timestamptz, ${now}::timestamptz
-          FROM appointments a WHERE a.clinic_id = ${clinicId} AND a.id = ${appointmentId}
+          FROM appointments a WHERE a.clinic_id = ${clinicId} AND a.id = ${candidate.id}
+            AND a.status = 'booked' AND a.starts_at = ${candidate.starts_at}::timestamptz
+            AND a.starts_at > ${now}::timestamptz
+            AND ((${kind} = 'reminder_day'
+                  AND a.starts_at <= ${now}::timestamptz + interval '24 hours'
+                  AND a.starts_at > ${now}::timestamptz + interval '2 hours'
+                  AND a.created_at < a.starts_at - interval '24 hours')
+              OR (${kind} = 'reminder_2h'
+                  AND a.starts_at <= ${now}::timestamptz + interval '2 hours'
+                  AND a.created_at < a.starts_at - interval '2 hours'))
           ON CONFLICT ON CONSTRAINT patient_notifications_once DO NOTHING
           RETURNING id`,
     )) as unknown as { id: string }[];

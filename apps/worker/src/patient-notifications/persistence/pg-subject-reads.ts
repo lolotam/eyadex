@@ -11,7 +11,6 @@ type AppointmentRow = {
   branch_name_en: string;
   branch_address: string | null;
   provider_name: string;
-  creator_user_id: string | null;
 };
 
 /**
@@ -30,11 +29,10 @@ export async function readAppointment(
     sql`SELECT a.status, to_json(a.starts_at) #>> '{}' AS starts_at,
                a.starts_at = ${subjectAt}::timestamptz AS same_start, a.created_by,
                b.name_ar AS branch_name_ar, b.name_en AS branch_name_en, b.address AS branch_address,
-               p.full_name AS provider_name, c.user_id AS creator_user_id
+               p.full_name AS provider_name
         FROM appointments a
         JOIN branches b ON b.clinic_id = a.clinic_id AND b.id = a.branch_id
         JOIN memberships p ON p.clinic_id = a.clinic_id AND p.id = a.provider_membership_id
-        LEFT JOIN memberships c ON c.clinic_id = a.clinic_id AND c.id = a.created_by
         WHERE a.clinic_id = ${clinicId} AND a.id = ${appointmentId}
         FOR SHARE OF a`,
   )) as unknown as AppointmentRow[];
@@ -45,7 +43,8 @@ export async function readAppointment(
     startsAt: new Date(row.starts_at),
     branch: { nameAr: row.branch_name_ar, nameEn: row.branch_name_en, address: row.branch_address },
     providerName: row.provider_name,
-    createdByUserId: row.creator_user_id,
+    // created_by is the booking actor's user id, not their membership id.
+    createdByUserId: row.created_by,
   };
 }
 

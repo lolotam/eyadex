@@ -22,13 +22,14 @@ const MOVES = ["arrived", "completed", "no_show"] as const;
 
 type Props = {
   appointment: Appointment;
+  canUpdate: boolean;
   /** Absent in today's queue, which offers only the status moves and cancel. */
   onReschedule?: (appointment: Appointment) => void;
   onCancel: (appointment: Appointment) => void;
 };
 
 /** The block's menu: only the moves D-5 allows from its status (UX; the API refuses as well). */
-export function AppointmentActions({ appointment, onReschedule, onCancel }: Props) {
+export function AppointmentActions({ appointment, canUpdate, onReschedule, onCancel }: Props) {
   const api = useApi();
   const { persona } = usePersona();
   const { t } = useI18n();
@@ -43,9 +44,10 @@ export function AppointmentActions({ appointment, onReschedule, onCancel }: Prop
     },
     onError: (e) => toast.error(t(`errors.${errorCodeOf(e)}`)),
   });
-  const moves = MOVES.filter((to) => canTransition(appointment.status, to));
-  const cancellable = canTransition(appointment.status, "cancelled");
-  const movable = onReschedule !== undefined && isReschedulable(appointment.status);
+  // Viewing a visible appointment also permits its history; only writes need update permission.
+  const moves = canUpdate ? MOVES.filter((to) => canTransition(appointment.status, to)) : [];
+  const cancellable = canUpdate && canTransition(appointment.status, "cancelled");
+  const movable = canUpdate && onReschedule !== undefined && isReschedulable(appointment.status);
   return (
     <>
       <DropdownMenu>

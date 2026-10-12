@@ -11,25 +11,25 @@ const usable = (provider: ProviderHealth | null): boolean =>
 /**
  * ترتيب المسارات لمحاولة واحدة (N-3): المزود الأساسي، ثم البديل — كل واحد بس لو متوثق ومش متحوّل —
  * وفي الآخر المنصة بالنيابة عن العيادة (موجودة دايمًا). لو المحاولة اللي فاتت وقفت عند مسار بفشل غامض،
- * نبدأ منه ومانرجعش لمسار قبله.
+ * نعيده وحده؛ اختفاؤه أو تدهوره مايسمحش بالإرسال من مسار تاني.
  *
  * @param primary صف المزود الأساسي، أو `null`
  * @param fallback صف المزود البديل، أو `null`
  * @param resumeFrom المسار اللي نكمّل منه (`resumeRoute`)، أو `null` = من الأول
- * @returns المسارات بالترتيب، وآخرها `platform` دايمًا
+ * @returns المسارات بالترتيب، أو المسار المثبّت وحده لو صالح، وإلا قائمة فارغة
  */
 export function planRoutes(
   primary: ProviderHealth | null,
   fallback: ProviderHealth | null,
   resumeFrom: NotificationRoute | null,
 ): NotificationRoute[] {
-  const from = resumeFrom === null ? 0 : ORDER.indexOf(resumeFrom);
   const open: Record<NotificationRoute, boolean> = {
     primary: usable(primary),
     fallback: usable(fallback),
     platform: true,
   };
-  return ORDER.filter((route, index) => index >= from && open[route]);
+  if (resumeFrom !== null) return open[resumeFrom] ? [resumeFrom] : [];
+  return ORDER.filter((route) => open[route]);
 }
 
 /**

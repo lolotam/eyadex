@@ -8,7 +8,12 @@ import { renderAppointmentEmail } from "./domain/appointment-email.ts";
 import type { RenderedNotification } from "./domain/email-layout.ts";
 import { parseNotificationEvent } from "./domain/notification-event.ts";
 import { renderPrescriptionEmail } from "./domain/prescription-email.ts";
-import { failureCode, resumeRoute } from "./domain/route-advance.ts";
+import {
+  certainlyNotAccepted,
+  failureCode,
+  resumeProvider,
+  resumeRoute,
+} from "./domain/route-advance.ts";
 import { onBehalfReplyTo, planRoutes } from "./domain/route-plan.ts";
 import { notificationSkip } from "./domain/skip-decision.ts";
 import type { NotificationStore, ReadyNotification } from "./ports/notification-store.ts";
@@ -37,6 +42,9 @@ type Built = { kind: "email"; email: RenderedNotification } | { kind: "broken"; 
  * بيبعت حدث `patient.notification_requested` واحد (spec §3.3): يمسك صف الدفتر ويعيد قراءة كل حاجة وقت
  * الإرسال، يتخطّى بسبب مكتوب لو الرسالة مابقتش مطلوبة، وإلا يبني الإيميل بلغة المراجع ويبعته على مسارات
  * العيادة ثم المنصة. السطر المسجّل فيه أكواد بس: مفيش إيميل ولا اسم ولا دوا.
+ *
+ * @param deps الدفتر والمزودون والمفاتيح والساعة ومسجل الأكواد
+ * @returns معالج الحدث وقرار إنهائه أو إعادة محاولته
  */
 export function notificationDispatcher(deps: NotificationDispatchDeps) {
   const note = (event: ClaimedEvent, outcome: string, extra: Record<string, unknown> = {}) =>
@@ -125,6 +133,15 @@ export function notificationDispatcher(deps: NotificationDispatchDeps) {
     const built = build(state, clinicId);
     if (built.kind === "broken") return broken(event, state, built.error);
     const { primary, fallback } = state.providers;
+    const resume = resumeRoute(state.ledger.lastError);
+    const plan = planRoutes(primary?.row ?? null, fallback?.row ?? null, resume);
+    if (resume !== null && resume !== "platform") {
+      const pin = resumeProvider(state.ledger.lastError);
+      if (pin === null) return broken(event, state, "ambiguous_provider_unknown");
+      const row = state.providers[resume]?.row;
+      if (plan.length === 0 || row?.id !== pin.id || row.version !== pin.version)
+        return broken(event, state, "ambiguous_provider_unavailable");
+    }
     const language = state.patient.language ?? state.clinic.language;
     const chain = await sendAlongRoutes(
       {
@@ -133,7 +150,7 @@ export function notificationDispatcher(deps: NotificationDispatchDeps) {
         now: () => deps.clock.now(),
         ...(deps.budgetMs === undefined ? {} : { budgetMs: deps.budgetMs }),
       },
-      planRoutes(primary?.row ?? null, fallback?.row ?? null, resumeRoute(state.ledger.lastError)),
+      plan,
       state.providers,
       { to: state.patient.email, ...built.email, idempotencyKey: event.id },
       {
@@ -148,11 +165,20 @@ export function notificationDispatcher(deps: NotificationDispatchDeps) {
       note(event, "sent", { route: chain.route });
       return DONE;
     }
-    const error = failureCode(chain.route, chain.error);
+    const provider = chain.route === "platform" ? undefined : state.providers[chain.route]?.row;
+    // A refusal on a retry cannot prove that the earlier ambiguous attempt was never accepted.
+    const error =
+      resume !== null && state.ledger.lastError !== null
+        ? state.ledger.lastError
+        : failureCode(
+            chain.route,
+            chain.error,
+            certainlyNotAccepted(chain.error) ? undefined : provider,
+          );
     const step = afterFailure(event.attempts, at);
-    // This attempt degraded a provider, so the next one skips it: kept even when the schedule would give
-    // up now, like the invitation path (ADR-0014, 7c-2b).
-    const nextAttemptAt = step.kind === "retry" ? step.nextAttemptAt : chain.degraded ? at : null;
+    // Only an unpinned chain may use a degradation to try another route past the retry limit.
+    const nextAttemptAt =
+      step.kind === "retry" ? step.nextAttemptAt : chain.degraded && resume === null ? at : null;
     await state.record({
       kind: "failure",
       error,

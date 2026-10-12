@@ -54,10 +54,16 @@ const ROUTES: readonly NotificationRoute[] = ["primary", "fallback", "platform"]
  *
  * @param route المسار اللي وقفت عنده المحاولة
  * @param error كود المرسل
- * @returns `<route>:<code>` بحد أقصى 120 حرف
+ * @param provider هوية المزود وإصداره عند الفشل الغامض، عشان الاستبدال مايكررّش الإرسال
+ * @returns `<route>:<code>[:<id>:<version>]` بحد أقصى 120 حرف
  */
-export function failureCode(route: NotificationRoute, error: string): string {
-  return `${route}${SEPARATOR}${error}`.slice(0, 120);
+export function failureCode(
+  route: NotificationRoute,
+  error: string,
+  provider?: { readonly id: string; readonly version: number },
+): string {
+  const pin = provider === undefined ? "" : `:${provider.id}:${provider.version}`;
+  return `${route}:${error.slice(0, 120 - route.length - 1 - pin.length)}${pin}`;
 }
 
 /**
@@ -73,5 +79,27 @@ export function resumeRoute(lastError: string | null): NotificationRoute | null 
   if (cut < 0) return null;
   const route = lastError.slice(0, cut) as NotificationRoute;
   if (!ROUTES.includes(route)) return null;
-  return certainlyNotAccepted(lastError.slice(cut + 1)) ? null : route;
+  return certainlyNotAccepted(lastError.slice(cut + 1).split(SEPARATOR)[0]!) ? null : route;
+}
+
+/**
+ * هوية المزود للمحاولة الغامضة؛ الأكواد القديمة من غير هوية ماينفعش نخمّن مزودها.
+ *
+ * @param lastError آخر فشل محفوظ في الدفتر
+ * @returns الهوية والإصدار، أو `null` لو مش محفوظين بشكل صالح
+ */
+export function resumeProvider(lastError: string | null): { id: string; version: number } | null {
+  if (lastError === null) return null;
+  const parts = lastError.split(SEPARATOR);
+  const id = parts[2];
+  const version = Number(parts[3]);
+  if (
+    parts.length !== 4 ||
+    id === undefined ||
+    !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id) ||
+    !Number.isSafeInteger(version) ||
+    version < 1
+  )
+    return null;
+  return { id, version };
 }

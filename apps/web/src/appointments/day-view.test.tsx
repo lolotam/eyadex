@@ -87,7 +87,11 @@ describe("the branch day", () => {
     const readOnly = { ...day, can: { create: false, update: false, overbook: false } };
     wrap(persona, <DayView day={readOnly} onBook={noop} onReschedule={noop} onCancel={noop} />);
     expect(screen.queryAllByRole("button", { name: /احجز مع/ })).toHaveLength(0);
-    expect(screen.queryAllByRole("button", { name: ar.appointments.actions.menu })).toHaveLength(0);
+    const trigger = screen.getAllByRole("button", { name: ar.appointments.actions.menu })[0]!;
+    fireEvent.keyDown(trigger, { key: "Enter" });
+    expect(screen.getAllByRole("menuitem").map((item) => item.textContent)).toEqual([
+      ar.messageHistory.title,
+    ]);
   });
 });
 
@@ -100,7 +104,11 @@ describe("the branch day of an own-only doctor", () => {
     wrap(persona, <DayView day={day} ownOnly onBook={noop} onReschedule={noop} onCancel={noop} />);
     expect(screen.getByText(d.fullName)).toBeInTheDocument();
     expect(screen.queryAllByRole("button", { name: /احجز مع/ })).toHaveLength(0);
-    expect(screen.queryAllByRole("button", { name: ar.appointments.actions.menu })).toHaveLength(0);
+    const trigger = screen.getAllByRole("button", { name: ar.appointments.actions.menu })[0]!;
+    fireEvent.keyDown(trigger, { key: "Enter" });
+    expect(screen.getAllByRole("menuitem").map((item) => item.textContent)).toEqual([
+      ar.messageHistory.title,
+    ]);
     expect(screen.queryByText(ar.appointments.noOwnAppointments)).toBeNull();
   });
 

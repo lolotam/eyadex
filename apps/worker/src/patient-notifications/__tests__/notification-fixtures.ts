@@ -65,7 +65,7 @@ export function seedAppointment(
            ends_at, status, overbooked, cancel_reason, created_by, created_at, updated_at)
          VALUES (${q(w.clinicId)}, ${q(id)}, ${q(w.branchId)}, ${q(w.patientId)}, ${q(w.providerId)},
            ${q(startsAt.toISOString())}, ${q(new Date(startsAt.getTime() + 1_800_000).toISOString())},
-           ${q(status)}, false, ${status === "cancelled" ? "'other'" : "NULL"}, ${q(w.providerId)},
+           ${q(status)}, false, ${status === "cancelled" ? "'other'" : "NULL"}, ${q(w.staffUserId)},
            ${q(createdAt.toISOString())}, now())`);
   return { id, startsAt };
 }

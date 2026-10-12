@@ -43,9 +43,12 @@ export function AppointmentBlock({
       <div className="flex items-center gap-1">
         <look.icon className="size-3 shrink-0" aria-hidden />
         <p className="min-w-0 flex-1 truncate font-medium">{a.patientName}</p>
-        {canUpdate && (
-          <AppointmentActions appointment={a} onReschedule={onReschedule} onCancel={onCancel} />
-        )}
+        <AppointmentActions
+          appointment={a}
+          canUpdate={canUpdate}
+          onReschedule={onReschedule}
+          onCancel={onCancel}
+        />
       </div>
       <p className="flex items-center gap-1 truncate text-[11px] text-muted-foreground">
         <span dir="ltr">

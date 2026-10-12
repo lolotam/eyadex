@@ -7,7 +7,7 @@ import type {
 import type { MockState } from "./mock-store";
 
 /** A clinic provider as the mock keeps it: the view plus the write-only secret, never returned. */
-export type StoredMailProvider = MailProviderView & { secret: string; version: number };
+export type StoredMailProvider = MailProviderView & { id: string; secret: string; version: number };
 
 /** One ledger row (spec §2): no address and no text, only what the history shows plus its subject. */
 export type StoredNotification = PatientNotification & {
@@ -24,10 +24,11 @@ export type NotificationState = {
   settings: Record<string, NotificationSettings>;
   providers: Record<string, Record<MailProviderSlot, StoredMailProvider | null>>;
   ledger: StoredNotification[];
-  /** "clinicId:slot" -> the time the last test was asked for (the API's cooldown). */
+  /** One cooldown per clinic, so testing another slot cannot bypass the API limit. */
   lastTest: Record<string, number>;
-  /** Idempotency-Key replay for provider saves, keyed as the other ledgers: key -> fingerprint. */
-  replays?: Record<string, string>;
+  /** Saves retain their original answer, even after a later replacement or removal. */
+  replays?: Record<string, { fingerprint: string; response: MailProviderView }>;
+  testReplays?: Record<string, true>;
 };
 
 /** The notification part of the mock state, created on first use (older saved state has none). */
@@ -42,12 +43,16 @@ export function clinicProviders(
 ): Record<MailProviderSlot, StoredMailProvider | null> {
   const state = notificationState(db);
   state.providers[clinicId] ??= { primary: null, fallback: null };
+  // Older persisted demo providers have no identity; give them one before a test is requested.
+  for (const provider of Object.values(state.providers[clinicId])) {
+    if (provider && !provider.id) provider.id = crypto.randomUUID();
+  }
   return state.providers[clinicId];
 }
 
-/** The view only: the secret and the version never leave the mock. */
+/** The view only: the identity, secret and version never leave the mock. */
 export function providerView(p: StoredMailProvider | null): MailProviderView | null {
   if (!p) return null;
-  const { secret: _secret, version: _version, ...view } = p;
+  const { id: _id, secret: _secret, version: _version, ...view } = p;
   return view;
 }

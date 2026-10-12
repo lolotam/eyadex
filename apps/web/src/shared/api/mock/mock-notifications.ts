@@ -12,7 +12,7 @@ import type { NotificationsApi } from "../notifications-client";
 import { authorize } from "./mock-actor";
 import { authorizeAppointments, sees } from "./mock-appointment-rules";
 import { writeClinicAudit } from "./mock-audit";
-import { actorReplayKey } from "./mock-idempotency";
+import { actorReplayKey, requireIdempotencyKey } from "./mock-idempotency";
 import { requireKey, visibleVisit } from "./mock-medical-access";
 import { historyOf, settingsOf } from "./mock-notification-queue";
 import {
@@ -21,9 +21,9 @@ import {
   providerView,
   type StoredMailProvider,
 } from "./mock-notification-state";
-import { delay, getState, persist } from "./mock-store";
+import { delay, getState, newId, persist } from "./mock-store";
 
-/** The API's cooldown between two test sends of one slot. */
+/** The API's cooldown between two test sends of one clinic. */
 export const MAIL_TEST_COOLDOWN_MS = 60_000;
 /** How long the mock "worker" takes to report a test send. */
 export const MAIL_TEST_REPORT_MS = 2000;
@@ -34,9 +34,10 @@ function slotOf(raw: string): MailProviderSlot {
   return parsed.data;
 }
 
-function toStored(input: MailProviderRequest, version: number): StoredMailProvider {
+function toStored(input: MailProviderRequest, version: number, id: string): StoredMailProvider {
   const smtp = input.kind === "smtp";
   return {
+    id,
     kind: input.kind,
     fromName: input.fromName,
     fromEmail: input.fromEmail,
@@ -55,8 +56,8 @@ function toStored(input: MailProviderRequest, version: number): StoredMailProvid
 }
 
 /** Audit rows name the slot and the kind only: no address, no secret. */
-const snapshot = (clinicId: string, slot: MailProviderSlot, p: StoredMailProvider | null) =>
-  p ? { id: `${clinicId}:${slot}`, slot, kind: p.kind } : null;
+const snapshot = (slot: MailProviderSlot, p: StoredMailProvider | null) =>
+  p ? { id: p.id, slot, kind: p.kind } : null;
 
 export function createMockNotifications(): NotificationsApi {
   return {
@@ -74,11 +75,14 @@ export function createMockNotifications(): NotificationsApi {
       const parsed = notificationSettingsSchema.safeParse(raw);
       if (!parsed.success) throw new ApiError("validation");
       const before = settingsOf(db, clinic.id);
-      notificationState(db).settings[clinic.id] = parsed.data;
+      const state = notificationState(db);
+      if (state.settings[clinic.id] && JSON.stringify(before) === JSON.stringify(parsed.data))
+        return before;
+      state.settings[clinic.id] = parsed.data;
       writeClinicAudit(db, {
         clinicId: clinic.id,
         actorName,
-        action: "clinic.settings_updated",
+        action: "clinic.notification_settings_updated",
         entity: "clinic",
         before: { id: clinic.id, ...before },
         after: { id: clinic.id, ...parsed.data },
@@ -102,33 +106,35 @@ export function createMockNotifications(): NotificationsApi {
       const slot = slotOf(rawSlot);
       const parsed = mailProviderRequestSchema.safeParse(raw);
       if (!parsed.success) throw new ApiError("validation");
+      requireIdempotencyKey(idempotencyKey);
       const slots = clinicProviders(db, clinic.id);
       const state = notificationState(db);
       const replays = (state.replays ??= {});
-      const replayKey = actorReplayKey(clinic.id, member.id, idempotencyKey);
-      const fingerprint = JSON.stringify({ slot, ...parsed.data });
+      const replayKey = actorReplayKey(clinic.id, member.userId, `put:${slot}:${idempotencyKey}`);
+      const fingerprint = JSON.stringify(parsed.data);
       const previous = replays[replayKey];
-      if (previous !== undefined) {
-        if (previous !== fingerprint) throw new ApiError("idempotency_conflict");
-        const current = providerView(slots[slot]);
-        if (current) return current;
+      if (previous !== undefined && typeof previous !== "string") {
+        if (previous.fingerprint !== fingerprint) throw new ApiError("idempotency_conflict");
+        return { ...previous.response };
       }
       // N-3: a fallback exists only behind a primary.
-      if (slot === "fallback" && !slots.primary) throw new ApiError("validation");
+      if (slot === "fallback" && !slots.primary)
+        throw new ApiError("validation", undefined, { slot: "fallback_without_primary" });
       const before = slots[slot];
-      const stored = toStored(parsed.data, (before?.version ?? 0) + 1);
+      const stored = toStored(parsed.data, (before?.version ?? 0) + 1, before?.id ?? newId());
       slots[slot] = stored;
-      replays[replayKey] = fingerprint;
+      const response = providerView(stored)!;
+      replays[replayKey] = { fingerprint, response };
       writeClinicAudit(db, {
         clinicId: clinic.id,
         actorName,
         action: "clinic.mail_provider_updated",
         entity: "clinic_mail_provider",
-        before: snapshot(clinic.id, slot, before),
-        after: snapshot(clinic.id, slot, stored),
+        before: snapshot(slot, before),
+        after: snapshot(slot, stored),
       });
       persist();
-      return providerView(stored)!;
+      return { ...response };
     },
 
     async removeMailProvider(persona, rawSlot) {
@@ -137,16 +143,17 @@ export function createMockNotifications(): NotificationsApi {
       const { clinic, actorName } = authorize(db, persona, "update", "clinic_settings");
       const slot = slotOf(rawSlot);
       const slots = clinicProviders(db, clinic.id);
-      if (slot === "primary" && slots.fallback) throw new ApiError("validation");
       const before = slots[slot];
       if (!before) return;
+      if (slot === "primary" && slots.fallback)
+        throw new ApiError("validation", undefined, { slot: "primary_has_fallback" });
       slots[slot] = null;
       writeClinicAudit(db, {
         clinicId: clinic.id,
         actorName,
         action: "clinic.mail_provider_removed",
         entity: "clinic_mail_provider",
-        before: snapshot(clinic.id, slot, before),
+        before: snapshot(slot, before),
         after: null,
       });
       persist();
@@ -155,31 +162,36 @@ export function createMockNotifications(): NotificationsApi {
     async testMailProvider(persona, rawSlot, idempotencyKey) {
       await delay();
       const db = getState();
-      const { clinic, actorName } = authorize(db, persona, "update", "clinic_settings");
+      const { clinic, actorName, member } = authorize(db, persona, "update", "clinic_settings");
       const slot = slotOf(rawSlot);
-      if (!idempotencyKey) throw new ApiError("validation");
+      requireIdempotencyKey(idempotencyKey);
+      const state = notificationState(db);
+      const replays = (state.testReplays ??= {});
+      const replayKey = actorReplayKey(clinic.id, member.userId, `test:${slot}:${idempotencyKey}`);
+      if (replays[replayKey]) return;
       const provider = clinicProviders(db, clinic.id)[slot];
       if (!provider) throw new ApiError("not_found");
-      const state = notificationState(db);
-      const cooldownKey = `${clinic.id}:${slot}`;
-      const last = state.lastTest[cooldownKey];
-      if (last !== undefined && Date.now() - last < MAIL_TEST_COOLDOWN_MS)
-        throw new ApiError("rate_limited");
-      state.lastTest[cooldownKey] = Date.now();
+      const last = state.lastTest[clinic.id];
+      const wait =
+        last === undefined ? 0 : Math.ceil((last + MAIL_TEST_COOLDOWN_MS - Date.now()) / 1000);
+      if (wait > 0) throw new ApiError("rate_limited", undefined, { retryAfterSeconds: wait });
+      state.lastTest[clinic.id] = Date.now();
+      replays[replayKey] = true;
       writeClinicAudit(db, {
         clinicId: clinic.id,
         actorName,
         action: "clinic.mail_provider_test_requested",
         entity: "clinic_mail_provider",
         before: null,
-        after: snapshot(clinic.id, slot, provider),
+        after: snapshot(slot, provider),
       });
       persist();
       const version = provider.version;
+      const providerId = provider.id;
       // The worker's report: a success verifies the provider and clears any degradation.
       setTimeout(() => {
         const current = clinicProviders(getState(), clinic.id)[slot];
-        if (!current || current.version !== version) return;
+        if (!current || current.id !== providerId || current.version !== version) return;
         current.verifiedAt = new Date().toISOString();
         current.degradedAt = null;
         current.lastError = null;

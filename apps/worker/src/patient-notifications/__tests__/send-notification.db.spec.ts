@@ -100,7 +100,7 @@ describe("patient.notification_requested — send", () => {
   it("a timeout after DATA retries the same route and never falls through", async () => {
     const h = make();
     const { w, notificationId, eventId } = booked();
-    seedProvider(w.clinicId, "primary");
+    const providerId = seedProvider(w.clinicId, "primary");
     seedProvider(w.clinicId, "fallback");
     h.slots.primary.result = async () => ({ sent: false, error: "smtp_timeout_after_data" });
     await drain(h.poller);
@@ -109,11 +109,11 @@ describe("patient.notification_requested — send", () => {
     expect(ledgerRow(notificationId)).toMatchObject({
       status: "queued",
       attempts: 1,
-      last_error: "primary:smtp_timeout_after_data",
+      last_error: `primary:smtp_timeout_after_data:${providerId}:1`,
     });
     const event = eventRow(eventId);
     expect(event.dispatched_at).toBeNull();
-    expect(event.last_error).toBe("primary:smtp_timeout_after_data");
+    expect(event.last_error).toBe(`primary:smtp_timeout_after_data:${providerId}:1`);
 
     h.slots.primary.result = async () => ({ sent: true, provider: "smtp", fallback: false });
     h.clock.t = new Date(h.clock.t.getTime() + 2 * 60_000);
@@ -127,11 +127,11 @@ describe("patient.notification_requested — send", () => {
     const h = make();
     const { w, notificationId } = booked();
     seedProvider(w.clinicId, "primary");
-    seedProvider(w.clinicId, "fallback");
+    const providerId = seedProvider(w.clinicId, "fallback");
     h.slots.primary.result = async () => ({ sent: false, error: "resend_unreachable" });
     h.slots.fallback.result = async () => ({ sent: false, error: "resend_timeout" });
     await drain(h.poller);
-    expect(ledgerRow(notificationId).last_error).toBe("fallback:resend_timeout");
+    expect(ledgerRow(notificationId).last_error).toBe(`fallback:resend_timeout:${providerId}:1`);
     h.slots.primary.result = async () => ({ sent: true, provider: "resend", fallback: false });
     h.slots.fallback.result = async () => ({ sent: true, provider: "resend", fallback: false });
     h.clock.t = new Date(h.clock.t.getTime() + 2 * 60_000);
