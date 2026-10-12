@@ -25,6 +25,8 @@ import {
   updateNote,
 } from "../../persistence/pg-note-store.ts";
 import { activeDiagnosisCount } from "../../persistence/pg-diagnosis-store.ts";
+import { prescriptionOf } from "../../persistence/pg-prescription-store.ts";
+import { prescriptionNotice } from "../../domain/visit-notices.ts";
 import { markCancelled, markSigned, type VisitRow } from "../../persistence/pg-visit-store.ts";
 import { openNote } from "../../queries/visit-views.ts";
 import type { VisitWriteResponse } from "../start-visit/start-visit.ts";
@@ -91,7 +93,8 @@ export class VisitLifecycle {
   }
 
   /**
-   * يعتمد المسودة فتتقفل (P2-6). محتاجة قسم ملاحظة مش فاضي أو تشخيص (`visit_empty`).
+   * يعتمد المسودة فتتقفل (P2-6). محتاجة قسم ملاحظة مش فاضي أو تشخيص (`visit_empty`). لو فيها روشتة،
+   * رسالة الروشتة بتتحط في الطابور في نفس الـ transaction (N-5، ADR-0031).
    *
    * @param actor الفاعل (مقدّم خدمة الزيارة)
    * @param visitId الزيارة
@@ -105,6 +108,11 @@ export class VisitLifecycle {
       if (!isSignable(stored?.sections ?? EMPTY_NOTE, diagnoses)) throw new ApiError("visit_empty");
       await markSigned(tx, actor.clinicId, visit.id, actor.membershipId, this.now());
       await this.audit(tx, actor, visit, "visit.signed", ["status"]);
+      // Last, under the provider lock and the visit row (ADR-0027); the ledger row's patient key-share
+      // lock follows them. An addendum never comes here, so it never sends the prescription again.
+      const lines = await prescriptionOf(tx, actor.clinicId, [visit.id]);
+      const notice = prescriptionNotice(visit, lines.length, actor);
+      if (notice !== null) await this.deps.notifications.queuePrescription(tx, notice);
     });
   }
 

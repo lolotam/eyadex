@@ -35,6 +35,7 @@ import {
   type AppointmentWeekQuery,
 } from "@eyadex/contracts/appointment-calendar";
 import { idSchema } from "@eyadex/contracts/common";
+import type { PatientNotificationList } from "@eyadex/contracts/notifications";
 import { idempotencyKeySchema } from "@eyadex/contracts/onboarding";
 import type { Database } from "@eyadex/db";
 
@@ -44,10 +45,12 @@ import { ZodValidationPipe } from "../../../shared/zod-validation.pipe.ts";
 // The one identity import a module may make: guards and request types (CLAUDE.architecture.md §2.2).
 import { Require, RequiresFeature, type ClinicRequest } from "../../identity/index.ts";
 import type { AppointmentActor } from "../domain/booking-rules.ts";
+import type { AppointmentNotifications } from "../ports/appointment-notifications.ts";
 import type { BookingPatientReader } from "../ports/booking-patient-reader.ts";
 import type { ProviderDirectory } from "../ports/provider-directory.ts";
 import type { SchedulingBranchReader } from "../ports/scheduling-branch-reader.ts";
 import {
+  APPOINTMENT_NOTIFICATIONS,
   APPOINTMENT_STATUS_CHANGES,
   BOOK_APPOINTMENT,
   BOOKING_PATIENT_READER,
@@ -60,6 +63,7 @@ import {
   type DayDeps,
 } from "../queries/appointment-day.ts";
 import { readAppointmentMonth, readAppointmentWeek } from "../queries/appointment-calendar.ts";
+import { readAppointmentNotifications } from "../queries/appointment-notifications.ts";
 import type { AppointmentStatusChanges } from "../use-cases/appointment-status/appointment-status.ts";
 import type { BookAppointment } from "../use-cases/book-appointment/book-appointment.ts";
 
@@ -101,6 +105,7 @@ export class AppointmentsController {
     @Inject(PROVIDER_DIRECTORY) providers: ProviderDirectory,
     @Inject(SCHEDULING_BRANCH_READER) branches: SchedulingBranchReader,
     @Inject(BOOKING_PATIENT_READER) patients: BookingPatientReader,
+    @Inject(APPOINTMENT_NOTIFICATIONS) private readonly notifications: AppointmentNotifications,
   ) {
     this.reads = { db, providers, branches, patients };
   }
@@ -140,6 +145,22 @@ export class AppointmentsController {
     @Query(new ZodValidationPipe(appointmentMonthQuerySchema)) query: AppointmentMonthQuery,
   ): Promise<AppointmentMonth> {
     return readAppointmentMonth(this.reads, actorOf(request), query);
+  }
+
+  // Spec §5 (ADR-0031): the appointment's message history, under the same view rules as the day.
+  @Get(":id/notifications")
+  @Require("view:appointments:own")
+  @RequiresFeature("appointments")
+  notificationsOf(
+    @Req() request: ClinicRequest,
+    @Param("id") id: string,
+  ): Promise<PatientNotificationList> {
+    return readAppointmentNotifications(
+      this.reads.db,
+      this.notifications,
+      actorOf(request),
+      idOf(id),
+    );
   }
 
   @Post()

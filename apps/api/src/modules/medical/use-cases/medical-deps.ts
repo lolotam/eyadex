@@ -10,6 +10,7 @@ import type { MedicalBranchReader } from "../ports/medical-branch-reader.ts";
 import type { MedicalClinicReader } from "../ports/medical-clinic-reader.ts";
 import type { MedicalMemberDirectory } from "../ports/medical-member-directory.ts";
 import type { MedicalPatientReader } from "../ports/medical-patient-reader.ts";
+import type { VisitNotifications } from "../ports/visit-notifications.ts";
 
 /** Everything the medical use cases share: the pool, time, ids, the cipher and the module's ports. */
 export interface MedicalDeps {
@@ -22,6 +23,8 @@ export interface MedicalDeps {
   readonly members: MedicalMemberDirectory;
   readonly branches: MedicalBranchReader;
   readonly clinics: MedicalClinicReader;
+  /** Patient messages (notifications' ledger behind the module's port, ADR-0031). */
+  readonly notifications: VisitNotifications;
 }
 
 /** What a medical read needs inside its transaction. */

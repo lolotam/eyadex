@@ -6,9 +6,11 @@ import { DatabaseModule } from "../../shared/database.module.ts";
 import { DATABASE } from "../../shared/database.provider.ts";
 import { FIELD_CIPHER, FieldEncryptionModule } from "../../shared/field-encryption.module.ts";
 // A module.ts may bind another module's adapter to a port it owns (CLAUDE.architecture.md §2.2,
-// ADR-0029): identity's members, tenancy's branches, patients' files and appointments' bookings.
+// ADR-0029): identity's members, tenancy's branches, patients' files and appointments' bookings; from
+// phase 3 notifications' ledger (ADR-0031).
 import { PgVisitAppointments } from "../appointments/index.ts";
 import { PgProviderDirectory } from "../identity/index.ts";
+import { PgVisitNotifications } from "../notifications/index.ts";
 import { PgMedicalPatients } from "../patients/index.ts";
 import {
   CLOCK,
@@ -30,6 +32,7 @@ import type { MedicalBranchReader } from "./ports/medical-branch-reader.ts";
 import type { MedicalClinicReader } from "./ports/medical-clinic-reader.ts";
 import type { MedicalMemberDirectory } from "./ports/medical-member-directory.ts";
 import type { MedicalPatientReader } from "./ports/medical-patient-reader.ts";
+import type { VisitNotifications } from "./ports/visit-notifications.ts";
 import {
   ATTACHMENTS,
   BLOB_STORE,
@@ -70,6 +73,10 @@ const medicalDeps = (db: Database, clock: Clock, cipher: ClinicalCipher): Medica
   members,
   branches,
   clinics,
+  notifications: new PgVisitNotifications({
+    ids: systemUuidV7(),
+    clock,
+  }) satisfies VisitNotifications,
 });
 
 /**

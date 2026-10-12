@@ -25,6 +25,7 @@ import {
   type BookingService,
 } from "../persistence/pg-appointment-store.ts";
 import { readScheduleRows, readTimeOffOverlapping } from "../persistence/pg-schedule-store.ts";
+import type { AppointmentNotifications } from "../ports/appointment-notifications.ts";
 import type { BookingPatientReader } from "../ports/booking-patient-reader.ts";
 import type { ProviderDirectory, ProviderRecord } from "../ports/provider-directory.ts";
 import type { SchedulingBranchReader } from "../ports/scheduling-branch-reader.ts";
@@ -39,6 +40,8 @@ export interface AppointmentDeps {
   readonly providers: ProviderDirectory;
   readonly branches: SchedulingBranchReader;
   readonly patients: BookingPatientReader;
+  /** Patient messages (notifications' ledger behind the module's port, ADR-0031). */
+  readonly notifications: AppointmentNotifications;
 }
 
 /** Where a booking goes: the provider, the branch, and on a create the patient and the service. */

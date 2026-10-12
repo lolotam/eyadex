@@ -41,6 +41,7 @@ import {
   type BlobStore,
 } from "./modules/medical/index.ts";
 import { ClinicAuditModule, PlatformAuditModule } from "./modules/audit/index.ts";
+import { NotificationsModule } from "./modules/notifications/index.ts";
 import { PlatformModule } from "./modules/platform/index.ts";
 import { SettingsModule } from "./modules/settings/index.ts";
 import { EnvelopeExceptionFilter } from "./shared/exception.filter.ts";
@@ -150,6 +151,7 @@ export function apiModule(
             PatientsModule,
             AppointmentsModule,
             MedicalModule.forRoot(deps.medicalBlobStore),
+            NotificationsModule,
             ClinicAuditModule,
           ]
         : []),

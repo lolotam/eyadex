@@ -7,6 +7,7 @@ import type {
 } from "@eyadex/contracts/appointments";
 
 import { ApiError } from "../../../../shared/errors.ts";
+import { appointmentNotice } from "../../domain/appointment-notices.ts";
 import { actorReach, decideTransition, type AppointmentActor } from "../../domain/booking-rules.ts";
 import { saveStatus, type AppointmentRow } from "../../persistence/pg-appointment-store.ts";
 import { appointmentAnswer } from "../../queries/appointment-views.ts";
@@ -66,7 +67,7 @@ export class AppointmentStatusChanges {
     cancelNote: string | null,
     action: string,
   ): Promise<AppointmentWriteResponse> {
-    const { db, clock, providers, patients } = this.deps;
+    const { db, clock, providers, patients, notifications } = this.deps;
     return retryWhenMoved(() =>
       db.withTenant(actor.clinicId, async (tx) => {
         const before = await lockExisting(tx, actor.clinicId, id, actorReach(actor, "update"));
@@ -80,6 +81,11 @@ export class AppointmentStatusChanges {
             before: beforeFields,
             after: { ...beforeFields, status: to, cancelReason },
           });
+          // A cancellation names the start the appointment had (it does not move); after every lock,
+          // so the ledger row's patient key-share lock comes after the appointment row (ADR-0027).
+          if (to === "cancelled") {
+            await notifications.queue(tx, appointmentNotice("cancelled", before, actor));
+          }
         }
         return appointmentAnswer({ tx, providers, patients }, actor, id);
       }),
