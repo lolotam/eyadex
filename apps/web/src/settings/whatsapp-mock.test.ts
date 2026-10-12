@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_NOTIFICATION_SETTINGS } from "@eyadex/contracts/notifications";
-import { WHATSAPP_RISK_VERSION } from "@eyadex/contracts/whatsapp";
+import { WHATSAPP_RISK_VERSION, type WhatsappCoexistenceRequest } from "@eyadex/contracts/whatsapp";
 import { api, as, getState, resetMockData } from "@/shared/api/mock/mock-test-kit";
 import { isWhatsappUnavailable } from "@/shared/api/api-error";
 import { MOCK_SCAN_DELAY_MS } from "@/shared/api/mock/mock-whatsapp-state";
@@ -10,12 +10,12 @@ import { notificationState } from "@/shared/api/mock/mock-notification-state";
 const admin = as("clinic_admin");
 const ACCEPT = { acceptRisk: true, riskVersion: WHATSAPP_RISK_VERSION } as const;
 const TOKEN = "fictional-token-0123456789";
-const coexistence = (extra: object = {}) => ({
+const coexistence = (extra: object = {}): WhatsappCoexistenceRequest => ({
   phoneNumberId: "100000000001",
   businessAccountId: "200000000002",
   templates: Object.fromEntries(
     Object.keys(DEFAULT_NOTIFICATION_SETTINGS.messages).map((k) => [k, null]),
-  ) as Record<string, { name: string; language: string } | null>,
+  ) as WhatsappCoexistenceRequest["templates"],
   ...extra,
 });
 
