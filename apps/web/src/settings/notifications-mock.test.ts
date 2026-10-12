@@ -39,6 +39,7 @@ describe("notification settings (N-1)", () => {
   it("saves and reads back the switches", async () => {
     const next = {
       emailEnabled: true,
+      whatsappEnabled: false,
       messages: { ...DEFAULT_NOTIFICATION_SETTINGS.messages, reminder_2h: false },
     };
     await api.notifications.updateSettings(admin(), next);
