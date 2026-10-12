@@ -1,4 +1,12 @@
-import { AlertCircle, CircleCheck, CircleSlash, Clock, Mail, MailX, MessageCircle } from "lucide-react";
+import {
+  AlertCircle,
+  CircleCheck,
+  CircleSlash,
+  Clock,
+  Mail,
+  MailX,
+  MessageCircle,
+} from "lucide-react";
 import type { NotificationStatus, PatientNotification } from "@eyadex/contracts/notifications";
 import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/shared/i18n/i18n-provider";

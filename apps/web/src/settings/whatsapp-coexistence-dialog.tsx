@@ -78,7 +78,9 @@ export function WhatsappCoexistenceDialog({
     if (!parsed.success)
       for (const issue of parsed.error.issues) {
         const key = issue.path.join(".");
-        next[key] ??= issue.message.startsWith("validation.") ? issue.message : "validation.required";
+        next[key] ??= issue.message.startsWith("validation.")
+          ? issue.message
+          : "validation.required";
       }
     setErrors(next);
     if (Object.keys(next).length === 0 && parsed.success) mutation.mutate(parsed.data);

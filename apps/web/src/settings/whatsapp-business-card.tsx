@@ -36,7 +36,9 @@ export function WhatsappBusinessCard({
             <Button variant="outline" disabled={blocked} onClick={onEdit}>
               {view.hasCredentials ? t("whatsapp.business.edit") : t("whatsapp.business.set")}
             </Button>
-            {blocked && <p className="text-xs text-muted-foreground">{t("whatsapp.otherActive")}</p>}
+            {blocked && (
+              <p className="text-xs text-muted-foreground">{t("whatsapp.otherActive")}</p>
+            )}
           </div>
         )}
       </CardContent>

@@ -22,7 +22,10 @@ function renderForm(emailEnabled = true) {
     <QueryClientProvider client={new QueryClient()}>
       <I18nProvider>
         <ApiProvider>
-          <NotificationSettingsForm settings={{ ...DEFAULT_NOTIFICATION_SETTINGS, emailEnabled }} />
+          <NotificationSettingsForm
+            settings={{ ...DEFAULT_NOTIFICATION_SETTINGS, emailEnabled }}
+            whatsappConnected={false}
+          />
         </ApiProvider>
       </I18nProvider>
     </QueryClientProvider>,

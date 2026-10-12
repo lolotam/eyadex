@@ -80,7 +80,9 @@ export function WhatsappQrCard({
                 ? t("whatsapp.qr.showCode")
                 : t("whatsapp.qr.connect")}
             </Button>
-            {blocked && <p className="text-xs text-muted-foreground">{t("whatsapp.otherActive")}</p>}
+            {blocked && (
+              <p className="text-xs text-muted-foreground">{t("whatsapp.otherActive")}</p>
+            )}
           </div>
         )}
       </CardContent>

@@ -22,9 +22,7 @@ export function WhatsappStatusBadge({ view }: { view: WhatsappChannelView }) {
     <Badge variant={variant} className="gap-1.5 whitespace-nowrap">
       <Icon className="size-3" />
       {t(`whatsapp.status.${view.status}`)}
-      {view.status === "connected" && view.phoneLast4 && (
-        <span dir="ltr">…{view.phoneLast4}</span>
-      )}
+      {view.status === "connected" && view.phoneLast4 && <span dir="ltr">…{view.phoneLast4}</span>}
     </Badge>
   );
 }
