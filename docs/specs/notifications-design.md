@@ -102,6 +102,40 @@ showing whether the prescription email was sent, skipped (why) or failed.
 - The ledger, scanner and send handler are shared with N1: `channel = 'whatsapp'`, the patient's
   mobile as the address, and no fallback to email unless the clinic enables both channels.
 
+### 7.1 N2 details (orchestrator, 2026-10-13; contracts in `packages/contracts/src/whatsapp.ts`)
+
+- **Table `clinic_whatsapp_channels`** (one row per clinic, `UNIQUE (clinic_id)`; no row = not linked):
+  `transport text NULL` (`evolution`/`coexistence`), `status text NOT NULL` (`disconnected`/`pending`/
+  `connected`), `instance_name text NULL` (Evolution instance, `eyadex-<clinic id>`), `phone_last4 text
+  NULL` (`^[0-9]{4}$`), `risk_accepted_at timestamptz NULL`, `risk_accepted_by uuid NULL` (user id, no
+  FK), `risk_version int NULL`, `sealed_credentials text NULL` (coexistence access token, sealed with
+  `MAIL_PROVIDER_SEAL_KEY`, AAD = row id), `phone_number_id text NULL`, `business_account_id text NULL`,
+  `templates jsonb NOT NULL DEFAULT '{}'` (kind → `{name, language}`), `connected_at timestamptz NULL`,
+  `last_error text NULL` (≤120, a code), `next_send_at timestamptz NULL` (the pace), `created_at`,
+  `updated_at`. RLS forced; `eyadex_app` SELECT/INSERT/UPDATE; no platform grant.
+- **`clinic_notification_settings.whatsapp_enabled boolean NOT NULL DEFAULT false`**;
+  `patient_notifications.route` CHECK gains `evolution` and `coexistence`, `skip_reason` gains
+  `whatsapp_disconnected` and `template_missing`.
+- **Env (API + worker):** `EVOLUTION_API_URL` (internal `http://<app>:8080`) and `EVOLUTION_API_KEY`.
+  Both unset = WhatsApp unavailable (connect answers `unavailable`, sends skip `whatsapp_disconnected`);
+  one set without the other stops the start (`ConfigurationError`).
+- **API** (`view`/`update:clinic_settings:clinic`): `GET /v1/clinic/whatsapp`;
+  `POST /v1/clinic/whatsapp/connect` (`whatsappConnectRequestSchema`; records the risk acceptance once,
+  audit `clinic.whatsapp_risk_accepted`; creates the Evolution instance with integration
+  `WHATSAPP-BAILEYS` if missing; answers `whatsappQrResponseSchema`); `GET /v1/clinic/whatsapp/qr`
+  (refresh; reads `connectionState` and turns `pending` into `connected` with `phone_last4` when open);
+  `POST /v1/clinic/whatsapp/disconnect` (logs the instance out; `status = disconnected`; audit);
+  `PUT /v1/clinic/whatsapp/coexistence` (`whatsappCoexistenceRequestSchema`; token write-only, kept
+  when omitted on an update; audit without the token). Queueing (N1 flow) adds a `whatsapp` ledger row
+  per kind when `whatsappEnabled` and the channel is `connected` at queue time.
+- **Worker:** same handler, `channel = 'whatsapp'`: the patient's mobile (`+965…` → `965…`);
+  skips as N1 plus `whatsapp_disconnected` (not connected now) and `template_missing` (coexistence kind
+  without a template). Evolution: `POST /message/sendText/<instance>` with the same text as the email's
+  plain part (ar/en). Coexistence: Evolution's Business integration template send with the fixed
+  parameter order in `whatsappTemplateSchema`. Pace: one message per clinic at least 8 s apart (+0–4 s
+  jitter) via `next_send_at` under the channel row lock; too early = retry at that time without an
+  attempt. A send failure retries with the N1 schedule; there is no cross-channel fallback.
+
 ## 8. Checklist for every N slice
 
 - Each new clinic table (`clinic_notification_settings`, `patient_notifications`, N2's
