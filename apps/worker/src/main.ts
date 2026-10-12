@@ -30,9 +30,17 @@ import { PgProviderTestStore } from "./mail-provider-test/persistence/pg-provide
 import { TEAM_INVITED } from "./platform-invite-mail/domain/team-invite.ts";
 import { teamInviteDispatcher } from "./platform-invite-mail/handle-team-invited.ts";
 import { PgTeamInviteStateReader } from "./platform-invite-mail/pg-team-invite-state.ts";
+import { PATIENT_NOTIFICATION_REQUESTED } from "./patient-notifications/domain/notification-event.ts";
+import { PgNotificationStore } from "./patient-notifications/persistence/pg-notification-store.ts";
+import {
+  PgReminderClinicFinder,
+  PgReminderQueue,
+} from "./patient-notifications/persistence/pg-reminder-queue.ts";
+import { AppointmentReminderScanner } from "./patient-notifications/scan-appointment-reminders.ts";
+import { notificationDispatcher } from "./patient-notifications/send-notification.ts";
 import { NamedPlatformSender, platformSenderName } from "./shared/named-platform-sender.ts";
 import { routeEvents } from "./shared/event-router.ts";
-import { readConfig } from "./shared/config.ts";
+import { medicalCipher, readConfig } from "./shared/config.ts";
 import { WORKER_LOG_EVENTS } from "./shared/log-events.ts";
 import { OutboxPoller } from "./shared/outbox-poller.ts";
 import { createWorker, SHUTDOWN_WATCHDOG_MS, watchShutdown } from "./worker.ts";
@@ -73,12 +81,17 @@ try {
   );
   const providerSealer = new SecretSealer(config.MAIL_PROVIDER_SEAL_KEY);
   const clinicSenders = new RealClinicSenderFactory();
+  const clinicMail = {
+    sealer: providerSealer,
+    senders: clinicSenders,
+    platformFrom: config.MAIL_FROM,
+  };
   const mailInvitation = invitationDispatcher({
     sealer: new SecretSealer(config.OUTBOX_SEAL_KEY),
     invitations: new PgInvitationStateReader(app, ids),
     mail,
     // ADR-0014 7c-2b: staff invitations go through a verified, healthy clinic provider.
-    clinicMail: { sealer: providerSealer, senders: clinicSenders, platformFrom: config.MAIL_FROM },
+    clinicMail,
     clock,
     appUrl: config.APP_URL,
     logger,
@@ -108,6 +121,15 @@ try {
       platformUrl: config.PLATFORM_URL,
       logger,
     }),
+    // Spec §3.3: patient messages try the clinic's primary, then its fallback, then the platform (N-3).
+    [PATIENT_NOTIFICATION_REQUESTED]: notificationDispatcher({
+      store: new PgNotificationStore(app, ids),
+      clinicMail,
+      platform: mail,
+      cipher: medicalCipher(process.env),
+      clock,
+      logger,
+    }),
     [BRANCH_DEACTIVATED]: branchDeactivatedHandler({
       canceller: new PgOrphanInvitationCanceller(app, ids),
       clock,
@@ -130,6 +152,14 @@ try {
     logger,
     intervalMs: config.EXPIRY_SCAN_INTERVAL_MS,
   });
+  // Spec §3.2: the appointment reminders; once per appointment start by the 0056 ledger.
+  const reminders = new AppointmentReminderScanner({
+    finder: new PgReminderClinicFinder(platform),
+    queue: new PgReminderQueue(app, ids),
+    clock,
+    logger,
+    intervalMs: config.REMINDER_SCAN_INTERVAL_MS,
+  });
   // ADR-0022: the retention purge, on the dispatcher pool — the only role the API never signs in as.
   const retention = new RetentionPurgeJob({
     purger: outbox,
@@ -139,7 +169,7 @@ try {
   const worker = await createWorker(
     {
       stop: async () => {
-        await Promise.all([poller.stop(), scanner.stop(), retention.stop()]);
+        await Promise.all([poller.stop(), scanner.stop(), reminders.stop(), retention.stop()]);
       },
       readiness: {
         app: () => app.ping(),
@@ -163,6 +193,7 @@ try {
   await worker.listen({ host: config.WORKER_HOST, port: config.WORKER_PORT });
   poller.start();
   scanner.start();
+  reminders.start();
   retention.start();
   logger.info({ capability: { name: "WORKER", state: "LISTENING" } }, "worker started");
 } catch (error) {
