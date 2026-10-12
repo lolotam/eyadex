@@ -9,7 +9,12 @@ describe("settings tabs", () => {
     expect(
       ids(["view:clinic_settings:clinic", "view:services:clinic", "view:schedules:clinic"]),
     ).toEqual(["general", "services", "schedules", "notifications", "email", "whatsapp"]);
-    expect(ids(["view:clinic_settings:clinic"])).toEqual(["general", "notifications", "email", "whatsapp"]);
+    expect(ids(["view:clinic_settings:clinic"])).toEqual([
+      "general",
+      "notifications",
+      "email",
+      "whatsapp",
+    ]);
     expect(ids(["view:services:clinic", "view:schedules:branch"])).toEqual([
       "services",
       "schedules",

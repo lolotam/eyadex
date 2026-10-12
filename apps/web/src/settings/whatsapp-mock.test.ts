@@ -137,7 +137,10 @@ describe("whatsapp queueing", () => {
     queueNotification(getState(), subject());
     vi.advanceTimersByTime(MOCK_SEND_DELAY_MS);
     expect(rows()[0]).toMatchObject({ status: "skipped", skipReason: "template_missing" });
-    const templates = { ...coexistence().templates, prescription: { name: "rx_ready", language: "ar" } };
+    const templates = {
+      ...coexistence().templates,
+      prescription: { name: "rx_ready", language: "ar" },
+    };
     await api.whatsapp.saveCoexistence(admin, coexistence({ templates }));
     queueNotification(getState(), { ...subject(), subjectId: "visit-2" });
     vi.advanceTimersByTime(MOCK_SEND_DELAY_MS);

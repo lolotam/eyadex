@@ -69,3 +69,14 @@ describe("notifications tab", () => {
     ).toBeEnabled();
   });
 });
+
+describe("WhatsApp switch", () => {
+  it("is locked with the link hint while WhatsApp is not connected", () => {
+    session.permissions = ["view:clinic_settings:clinic", "update:clinic_settings:clinic"];
+    renderForm();
+    expect(
+      screen.getByRole("switch", { name: ar.notificationSettings.whatsappEnabled }),
+    ).toBeDisabled();
+    expect(screen.getByText(ar.notificationSettings.whatsappNeedsLink)).toBeTruthy();
+  });
+});
