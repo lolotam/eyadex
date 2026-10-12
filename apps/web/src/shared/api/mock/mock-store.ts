@@ -10,6 +10,7 @@ import type { PlatformAuditEntry } from "@eyadex/contracts/session";
 import type { MembershipUser } from "@eyadex/contracts/users";
 import type { MedicalState } from "./mock-medical-state";
 import type { NotificationState } from "./mock-notification-state";
+import type { StoredWhatsappChannel } from "./mock-whatsapp-state";
 import { buildSeed } from "./seed";
 
 export type StoredService = ClinicService & { clinicId: string };
@@ -78,6 +79,8 @@ export type MockState = {
   medical: MedicalState;
   /** Phase 3 N1: notification settings, mail providers and the message ledger (created on use). */
   notifications?: NotificationState;
+  /** Phase 3 N2: each clinic's WhatsApp channel (created on use). */
+  whatsapp?: { channels: Record<string, StoredWhatsappChannel>; unavailable?: boolean };
   platformAccounts: PlatformAccount[];
   platformSettings: PlatformSettings;
   platformAudit: PlatformAuditEntry[];

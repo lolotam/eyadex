@@ -22,6 +22,7 @@ import {
   type StoredMailProvider,
 } from "./mock-notification-state";
 import { delay, getState, newId, persist } from "./mock-store";
+import { channelOf } from "./mock-whatsapp-state";
 
 /** The API's cooldown between two test sends of one clinic. */
 export const MAIL_TEST_COOLDOWN_MS = 60_000;
@@ -75,6 +76,14 @@ export function createMockNotifications(): NotificationsApi {
       const parsed = notificationSettingsSchema.safeParse(raw);
       if (!parsed.success) throw new ApiError("validation");
       const before = settingsOf(db, clinic.id);
+      // N2: WhatsApp can be switched on only while the channel is connected. TODO(spec): a value
+      // already on (the channel dropped since) is kept, so the clinic can still save other changes.
+      if (
+        parsed.data.whatsappEnabled &&
+        !before.whatsappEnabled &&
+        channelOf(db, clinic.id).status !== "connected"
+      )
+        throw new ApiError("validation", undefined, { whatsappEnabled: "whatsapp_not_connected" });
       const state = notificationState(db);
       if (state.settings[clinic.id] && JSON.stringify(before) === JSON.stringify(parsed.data))
         return before;

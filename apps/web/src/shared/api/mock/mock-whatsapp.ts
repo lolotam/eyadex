@@ -34,7 +34,7 @@ export function createMockWhatsapp(): WhatsappApi {
     async connect(persona, raw) {
       await delay();
       const db = getState();
-      const { clinic, member } = authorize(db, persona, "update", "clinic_settings");
+      const { clinic } = authorize(db, persona, "update", "clinic_settings");
       const parsed = whatsappConnectRequestSchema.safeParse(raw);
       if (!parsed.success) throw new ApiError("validation", undefined, { acceptRisk: "required" });
       requireAvailable(db);
@@ -43,7 +43,6 @@ export function createMockWhatsapp(): WhatsappApi {
       if (!row.riskAcceptedAt) {
         row.riskAcceptedAt = new Date().toISOString();
         row.riskVersion = parsed.data.riskVersion;
-        void member;
       }
       if (row.transport === "evolution" && row.status === "connected") {
         persist();
