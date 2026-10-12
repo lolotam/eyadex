@@ -50,6 +50,10 @@ export const arRoutes = {
       title: "الإشعارات",
       description: "الرسائل التي ترسلها العيادة للمراجعين.",
     },
+    clinicSettingsWhatsapp: {
+      title: "واتساب",
+      description: "ربط رقم واتساب العيادة لرسائل المراجعين.",
+    },
     clinicSettingsEmail: {
       title: "مرسلو البريد",
       description: "مرسل بريد العيادة الأساسي والاحتياطي.",

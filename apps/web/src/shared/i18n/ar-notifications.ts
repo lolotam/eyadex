@@ -19,6 +19,10 @@ export const arNotifications: Strings<typeof enNotifications> = {
     subtitle: "رسائل البريد التي ترسلها العيادة للمراجعين عن مواعيدهم ووصفاتهم.",
     emailEnabled: "إرسال إشعارات البريد الإلكتروني",
     emailEnabledHint: "أوقفه لإيقاف كل رسائل المراجعين؛ اختياراتك بالأسفل محفوظة.",
+    whatsappEnabled: "إرسال رسائل واتساب",
+    whatsappEnabledHint: "تُرسل الرسائل نفسها إلى جوال المراجع عبر واتساب العيادة.",
+    whatsappNeedsLink: "اربط واتساب أولًا (الإعدادات ← واتساب).",
+    whatsappNotConnected: "واتساب غير متصل، فلا يمكن تشغيله",
     note: "لا تتضمن الرسائل اسم الخدمة ولا أي تفاصيل طبية، عدا الوصفة الطبية.",
     saved: "تم حفظ إعدادات الإشعارات",
     kinds: {
@@ -97,7 +101,16 @@ export const arNotifications: Strings<typeof enNotifications> = {
       opted_out: "ألغى استقبال التذكيرات",
       not_booked: "لم يعد محجوزًا",
       moved: "تم نقل الموعد",
+      whatsapp_disconnected: "واتساب غير متصل",
+      template_missing: "لا يوجد قالب واتساب",
     },
-    route: { primary: "المرسل الأساسي", fallback: "المرسل الاحتياطي", platform: "Eyadex" },
+    route: {
+      primary: "المرسل الأساسي",
+      fallback: "المرسل الاحتياطي",
+      platform: "Eyadex",
+      evolution: "مربوط برمز QR",
+      coexistence: "واتساب للأعمال",
+    },
+    channel: { email: "البريد الإلكتروني", whatsapp: "واتساب" },
   },
 };
