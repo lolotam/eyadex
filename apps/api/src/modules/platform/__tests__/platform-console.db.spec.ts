@@ -191,9 +191,28 @@ describe("platform settings (story 26)", () => {
   it("turns the medical default on and off after the release", async () => {
     const before = (await send("GET", "/v1/platform/settings")).json();
     for (const medical of [true, false]) {
-      const body = { ...before, defaultModules: { ...before.defaultModules, medical } };
+      const body = {
+        ...before,
+        defaultModules: { ...before.defaultModules, patients: true, medical },
+      };
       expect((await send("PUT", "/v1/platform/settings", { body })).statusCode).toBe(200);
       expect((await send("GET", "/v1/platform/settings")).json()).toEqual(body);
+    }
+  });
+
+  it("reads an incoherent stored row and allows staff to repair it", async () => {
+    const before = (await send("GET", "/v1/platform/settings")).json();
+    try {
+      await h.owner`UPDATE platform_settings SET default_module_patients = false,
+        default_module_medical = true WHERE id = 1`;
+      const response = await send("GET", "/v1/platform/settings");
+      expect(response.statusCode).toBe(200);
+      expect(response.json().defaultModules).toMatchObject({ patients: false, medical: true });
+      const rejected = await send("PUT", "/v1/platform/settings", { body: response.json() });
+      expect(rejected.statusCode).toBe(400);
+      expect(rejected.json().code).toBe("validation");
+    } finally {
+      expect((await send("PUT", "/v1/platform/settings", { body: before })).statusCode).toBe(200);
     }
   });
 

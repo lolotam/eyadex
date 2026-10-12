@@ -157,6 +157,7 @@ export function SwitchField<T extends FieldValues>({
           <div className="flex flex-col gap-1">
             <FormLabel>{label}</FormLabel>
             {hint && <FormDescription>{hint}</FormDescription>}
+            <FieldError />
           </div>
           <FormControl>
             <Switch

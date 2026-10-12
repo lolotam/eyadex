@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 
 import { Test } from "@nestjs/testing";
+import { errorDiagnostic } from "@eyadex/observability";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -21,11 +22,22 @@ describe("medical keys at startup", () => {
     [{ MEDICAL_KEY_VERSION: "1" }, "MEDICAL_MASTER_KEY_V1"],
     [{ MEDICAL_KEY_VERSION: "x", MEDICAL_MASTER_KEY_V1: key() }, "MEDICAL_KEY_VERSION"],
     [{ MEDICAL_MASTER_KEY_V1: "c2hvcnQ=" }, "MEDICAL_MASTER_KEY_V1"],
+    [{ MEDICAL_KEY_VERSION: "2", MEDICAL_MASTER_KEY_V1: key() }, "MEDICAL_MASTER_KEY_V2"],
+    [
+      { MEDICAL_MASTER_KEY_V1: key(), MEDICAL_MASTER_KEY_V2: "INVALID_VALUE" },
+      "MEDICAL_MASTER_KEY_V2",
+    ],
   ])("NEGATIVE: the cipher refuses %j naming %s only", (env, name) => {
     expect(() => readFieldCipher(env)).toThrow(
       new RegExp(`^Invalid API configuration: ${name}.* — see \\.env\\.example$`),
     );
     expect(() => readFieldCipher(env)).not.toThrow(/c2hvcnQ/);
+    try {
+      readFieldCipher(env);
+    } catch (error) {
+      expect(errorDiagnostic(error)).toEqual({ type: "ConfigurationError", variables: [name] });
+      expect((error as Error).message).not.toContain("INVALID_VALUE");
+    }
   });
 
   it.each([{}, { MEDICAL_INDEX_KEY: "" }, { MEDICAL_INDEX_KEY: "c2hvcnQ=" }])(
@@ -34,6 +46,14 @@ describe("medical keys at startup", () => {
       expect(() => readCivilIdIndexKey(env)).toThrow(
         /^Invalid API configuration: MEDICAL_INDEX_KEY.* — see \.env\.example$/,
       );
+      try {
+        readCivilIdIndexKey(env);
+      } catch (error) {
+        expect(errorDiagnostic(error)).toEqual({
+          type: "ConfigurationError",
+          variables: ["MEDICAL_INDEX_KEY"],
+        });
+      }
     },
   );
 

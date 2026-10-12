@@ -39,14 +39,9 @@ const inScopeSql = (scope: PatientScope) => {
     (SELECT value::uuid FROM jsonb_array_elements_text(${ids}::jsonb)))`;
 };
 
-/**
- * A full civil ID matches its blind index, or the legacy plain column of a file the backfill has not
- * converted yet (R1-5); any other digits never match a civil ID (P2-F5).
- */
+/** A full civil ID matches its blind index; any other digits never match a civil ID (P2-F5). */
 const civilIdMatch = (clinicId: string, civilIds: CivilIdCodec, digits: string | null): SQL =>
-  digits === null
-    ? sql`false`
-    : sql`(p.civil_id_hmac = ${civilIds.index(clinicId, digits)} OR p.civil_id = ${digits})`;
+  digits === null ? sql`false` : sql`p.civil_id_hmac = ${civilIds.index(clinicId, digits)}`;
 
 /** The WHERE clause shared by the page and its total: clinic, view scope, filters, search. */
 function listFilters(
@@ -142,7 +137,7 @@ export async function searchPatients(
   const { rows, total, names } = await db.withTenant(clinicId, async (tx) => {
     const page = await tx.execute<ListRow>(
       sql`SELECT p.id, p.file_number, p.full_name, p.phone, p.registration_branch_id,
-            coalesce(p.civil_id_last4, right(p.civil_id, 4)) AS civil_id_last4, p.status
+            p.civil_id_last4, p.status
           FROM patients p
           WHERE ${filters}
             AND (${after}::bigint IS NULL OR p.file_number::bigint < ${after}::bigint)

@@ -164,32 +164,12 @@ export async function filed(
   return { id, fileNumber };
 }
 
-/**
- * A file as it was stored before SQL 0045: the civil ID in the plain column, no encrypted columns (R1-5).
- * Written as the owner; the API never writes this shape any more.
- */
-export async function addLegacyPatient(
-  h: Harness,
-  clinicId: string,
-  branchId: string,
-  civilId: string,
-): Promise<string> {
-  const id = randomUUID();
-  await h.owner`INSERT INTO patients (clinic_id, id, file_number, full_name, phone, birth_date, gender,
-                  registration_branch_id, civil_id, status, created_at, updated_at)
-                VALUES (${clinicId}, ${id}, ${String(Math.floor(Math.random() * 1e9) + 1)},
-                  ${`Legacy ${id.slice(0, 4)}`}, ${`+965${fakePhone()}`}, '1990-04-01', 'male',
-                  ${branchId}, ${civilId}, 'active', now(), now())`;
-  return id;
-}
-
 /** The stored civil ID columns of one file, and the whole row as JSON text (for "never stored" checks). */
 export async function storedCivilId(h: Harness, clinicId: string, id: string) {
-  const [row] = await h.owner`SELECT p.civil_id, p.civil_id_enc, p.civil_id_hmac, p.civil_id_last4,
+  const [row] = await h.owner`SELECT p.civil_id_enc, p.civil_id_hmac, p.civil_id_last4,
                                 row_to_json(p)::text AS raw
                               FROM patients p WHERE p.clinic_id = ${clinicId} AND p.id = ${id}`;
   return row as {
-    civil_id: string | null;
     civil_id_enc: string | null;
     civil_id_hmac: string | null;
     civil_id_last4: string | null;

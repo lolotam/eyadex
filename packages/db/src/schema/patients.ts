@@ -16,8 +16,8 @@ import {
 import { branches } from "./branches.ts";
 import { clinics } from "./clinics.ts";
 
-// Mirror of db/sql/0010, 0019, 0021 (+ 0035's index) and 0045. civil_id is sensitive: never logged or
-// audited; from 0045 it is written only as civil_id_enc/hmac/last4 and the plain column is legacy (R1-5).
+// Mirror of db/sql/0010, 0019 (+ 0035's index), 0045 and 0052. The civil ID is sensitive: never logged
+// or audited, and stored only as civil_id_enc/hmac/last4 (0052 dropped the plain column and 0021's check).
 const tz = { withTimezone: true, mode: "date" } as const;
 
 export const patients = pgTable(
@@ -31,7 +31,6 @@ export const patients = pgTable(
     birthDate: date("birth_date", { mode: "string" }).notNull(),
     gender: text("gender", { enum: ["male", "female"] }).notNull(),
     registrationBranchId: uuid("registration_branch_id").notNull(),
-    civilId: text("civil_id"),
     status: text("status", { enum: ["active", "archived"] }).notNull(),
     createdAt: timestamp("created_at", tz).notNull(),
     updatedAt: timestamp("updated_at", tz).notNull(),
@@ -56,15 +55,6 @@ export const patients = pgTable(
     index("patients_clinic_name_idx").on(t.clinicId, t.fullName),
     index("patients_clinic_branch_status_idx").on(t.clinicId, t.registrationBranchId, t.status),
     index("patients_clinic_file_number_num_idx").on(t.clinicId, sql`((file_number)::bigint)`),
-    uniqueIndex("patients_clinic_civil_id_unique")
-      .on(t.clinicId, t.civilId)
-      .where(sql`${t.civilId} IS NOT NULL`),
-    check(
-      "patients_civil_id_digits",
-      sql.raw(
-        "((civil_id IS NULL) OR ((length(civil_id) = 12) AND (translate(civil_id, '0123456789'::text, ''::text) = ''::text)))",
-      ),
-    ),
     uniqueIndex("patients_clinic_civil_id_hmac_unique")
       .on(t.clinicId, t.civilIdHmac)
       .where(sql`${t.civilIdHmac} IS NOT NULL`),

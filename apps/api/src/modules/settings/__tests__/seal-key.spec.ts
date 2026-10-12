@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 
 import { describe, expect, it } from "vitest";
+import { errorDiagnostic } from "@eyadex/observability";
 
 import { mailProviderSealKey } from "../settings.module.ts";
 
@@ -19,6 +20,14 @@ describe("MAIL_PROVIDER_SEAL_KEY (required when settings is mounted)", () => {
       expect(() => mailProviderSealKey({ MAIL_PROVIDER_SEAL_KEY: "c2hvcnQ=" })).not.toThrow(
         /c2hvcnQ/,
       );
+      try {
+        mailProviderSealKey(env);
+      } catch (error) {
+        expect(errorDiagnostic(error)).toEqual({
+          type: "ConfigurationError",
+          variables: ["MAIL_PROVIDER_SEAL_KEY"],
+        });
+      }
     },
   );
 });

@@ -185,6 +185,7 @@ export const ar: Dictionary = {
     email: "أدخل بريدًا صحيحًا",
     slug: "استخدم حروفًا إنجليزية صغيرة وأرقامًا وشرطات",
     slugReserved: "هذا العنوان محجوز لمنصة Eyadex",
+    moduleRequires: "الملف الطبي يحتاج تفعيل موديول المراجعين أولًا",
     number: "أدخل رقمًا",
     min: "يجب ألا يقل عن 1",
     dateRequired: "اختر تاريخًا",

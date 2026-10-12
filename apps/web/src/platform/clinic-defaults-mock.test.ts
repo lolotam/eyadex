@@ -49,6 +49,21 @@ describe("new-clinic defaults in the platform settings", () => {
     });
   });
 
+  it("reads incoherent stored defaults, but refuses saving them without changes or audit", async () => {
+    getState().platformSettings.defaultModules = {
+      patients: false,
+      appointments: true,
+      medical: true,
+    };
+    const before = structuredClone(getState());
+    const stored = await api.platformSettings.get(PLATFORM);
+    expect(stored).toEqual(before.platformSettings);
+    await expect(api.platformSettings.update(PLATFORM, stored)).rejects.toMatchObject({
+      code: "validation",
+    });
+    expect(getState()).toEqual(before);
+  });
+
   it("NEGATIVE: refuses out-of-range limits and a missing, extra or non-boolean module", async () => {
     const base = await api.platformSettings.get(PLATFORM);
     const bad: unknown[] = [
@@ -95,5 +110,24 @@ describe("a new clinic keeps the form's limits and modules", () => {
       ).rejects.toBeDefined();
     }
     expect(getState().clinics.length).toBe(count);
+  });
+
+  it("NEGATIVE: medical without patients creates no clinic, invitation or audit", async () => {
+    const before = structuredClone(getState());
+    await expect(
+      api.platform.createClinic(
+        PLATFORM,
+        clinic({ modules: { patients: false, appointments: true, medical: true } }),
+        crypto.randomUUID(),
+      ),
+    ).rejects.toMatchObject({
+      issues: [
+        expect.objectContaining({
+          path: ["modules", "medical"],
+          message: "validation.moduleRequires",
+        }),
+      ],
+    });
+    expect(getState()).toEqual(before);
   });
 });

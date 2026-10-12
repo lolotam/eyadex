@@ -16,20 +16,17 @@ interface PatientRow {
   gender: PatientRecord["gender"];
   registration_branch_id: string;
   civil_id_enc: string | null;
-  /** Legacy: a file written before 0045, until the backfill converts it (R1-5). */
-  civil_id: string | null;
   status: PatientRecord["status"];
 }
 
 /**
  * The columns of one file, with the date as text (the contract wants YYYY-MM-DD, not a Date), and the
- * civil ID in both forms it can be stored in until the plain column is dropped (R1-5).
+ * civil ID as its envelope (ADR-0028).
  */
 export const PATIENT_COLUMNS = sql`p.id, p.file_number, p.full_name, p.phone,
-  p.birth_date::text AS birth_date, p.gender, p.registration_branch_id, p.civil_id_enc, p.civil_id,
-  p.status`;
+  p.birth_date::text AS birth_date, p.gender, p.registration_branch_id, p.civil_id_enc, p.status`;
 
-/** One stored file as a record, its civil ID decrypted (or read from the legacy column). */
+/** One stored file as a record, its civil ID decrypted. */
 export const toRecord = (
   row: PatientRow,
   clinicId: string,
@@ -42,14 +39,13 @@ export const toRecord = (
   birthDate: row.birth_date,
   gender: row.gender,
   registrationBranchId: row.registration_branch_id,
-  civilId: civilIds.read(clinicId, row.id, row.civil_id_enc, row.civil_id),
+  civilId: civilIds.read(clinicId, row.id, row.civil_id_enc),
   status: row.status,
 });
 
 /**
- * Serialises every patient write of one clinic (create, update, archive, restore, the civil ID
- * backfill), so the duplicate checks and the decision that follows cannot race a parallel write. Never
- * taken by branch writes.
+ * Serialises every patient write of one clinic (create, update, archive, restore), so the duplicate
+ * checks and the decision that follows cannot race a parallel write. Never taken by branch writes.
  */
 export async function lockClinicPatients(tx: Tx, clinicId: string): Promise<void> {
   await tx.execute(
@@ -103,8 +99,8 @@ export const findPhoneOwner = (tx: Tx, clinicId: string, phone: string, exceptId
   findDuplicate(tx, clinicId, sql`p.phone = ${phone}`, exceptId);
 
 /**
- * Another file of this clinic holding this civil ID (archived ones included, 0021), or null: by its
- * blind index, or by the legacy plain column of a file the backfill has not converted yet (R1-5).
+ * Another file of this clinic holding this civil ID (archived ones included), or null, found by its
+ * blind index (0045).
  */
 export const findCivilIdOwner = (
   tx: Tx,
@@ -116,7 +112,7 @@ export const findCivilIdOwner = (
   findDuplicate(
     tx,
     clinicId,
-    sql`(p.civil_id_hmac = ${civilIds.index(clinicId, civilId)} OR p.civil_id = ${civilId})`,
+    sql`p.civil_id_hmac = ${civilIds.index(clinicId, civilId)}`,
     exceptId,
   );
 
@@ -137,15 +133,11 @@ export async function nextFileNumber(tx: Tx, clinicId: string, now: Date): Promi
   return value;
 }
 
-/** The SET list that stores one civil ID encrypted and clears the legacy plain column (R1-5). */
-export const civilIdAssignments = (civil: CivilIdColumns): SQL =>
-  sql`civil_id = NULL, civil_id_enc = ${civil.enc}, civil_id_hmac = ${civil.hmac},
-      civil_id_last4 = ${civil.last4}`;
+/** The SET list that stores one civil ID: its three encrypted columns, or three nulls. */
+const civilIdAssignments = (civil: CivilIdColumns): SQL =>
+  sql`civil_id_enc = ${civil.enc}, civil_id_hmac = ${civil.hmac}, civil_id_last4 = ${civil.last4}`;
 
-/**
- * Inserts a new file with the record's id, file number and status. The civil ID goes only into the
- * encrypted columns; the legacy plain column is always NULL (R1-5).
- */
+/** Inserts a new file with the record's id, file number and status; the civil ID only encrypted. */
 export async function insertPatient(
   tx: Tx,
   civilIds: CivilIdCodec,
@@ -157,18 +149,18 @@ export async function insertPatient(
   const civil = civilIds.columns(clinicId, record.id, record.civilId);
   await tx.execute(
     sql`INSERT INTO patients (clinic_id, id, file_number, full_name, phone, birth_date, gender,
-          registration_branch_id, civil_id, civil_id_enc, civil_id_hmac, civil_id_last4, status,
+          registration_branch_id, civil_id_enc, civil_id_hmac, civil_id_last4, status,
           created_at, updated_at)
         VALUES (${clinicId}, ${record.id}, ${String(record.fileNumber)}, ${record.fullName},
           ${record.phone}, ${record.birthDate}::date, ${record.gender},
-          ${record.registrationBranchId}, NULL, ${civil.enc}, ${civil.hmac}, ${civil.last4},
+          ${record.registrationBranchId}, ${civil.enc}, ${civil.hmac}, ${civil.last4},
           ${record.status}, ${at}::timestamptz, ${at}::timestamptz)`,
   );
 }
 
 /**
- * Replaces the editable fields of one file (the file number and status never change here). The civil
- * ID is sealed again and the legacy plain column cleared, so an edit also converts an older file.
+ * Replaces the editable fields of one file (the file number and status never change here); the civil
+ * ID is sealed again.
  */
 export async function updatePatientFields(
   tx: Tx,

@@ -36,6 +36,25 @@ export function deriveClinicKey(master: Buffer, clinicId: string, info: string):
 }
 
 /**
+ * خطأ إعداد مفتاح: بيشيل اسم المتغيّر والسبب كحقول منفصلة، عشان اللي بيسجّل الخطأ يطبع الاسم من غير ما
+ * يثق في نص الرسالة. لسه TypeError عشان أي حد بيمسك TypeError يفضل شغال.
+ */
+export class KeyConfigError extends TypeError {
+  readonly variable: string;
+  readonly reason: string;
+
+  /**
+   * @param variable اسم المتغيّر، عمره ما يكون قيمته
+   * @param reason السبب، نص ثابت من الكود
+   */
+  constructor(variable: string, reason: string) {
+    super(`${variable} ${reason}`);
+    this.variable = variable;
+    this.reason = reason;
+  }
+}
+
+/**
  * بيقبل المفتاح بس لو Base64 سليم بالظبط و32 بايت (R2-9)، عشان مفتاح متقصّ أو فيه حرف زيادة مايعدّيش.
  * الخطأ بيسمّي المتغيّر بس، عمره ما بيطبع القيمة.
  *
@@ -46,7 +65,7 @@ export function deriveClinicKey(master: Buffer, clinicId: string, info: string):
 export function strictKey(name: string, value: string): Buffer {
   const key = Buffer.from(value, "base64");
   if (!KEY_SHAPE.test(value) || key.length !== KEY_BYTES || key.toString("base64") !== value) {
-    throw new TypeError(`${name} must be 32 bytes, base64-encoded`);
+    throw new KeyConfigError(name, "must be 32 bytes, base64-encoded");
   }
   return key;
 }
@@ -63,11 +82,14 @@ export class FieldCipher {
   constructor(keys: ReadonlyMap<number, Buffer>, writeVersion: number) {
     for (const [version, key] of keys) {
       if (key.length !== KEY_BYTES) {
-        throw new TypeError(`MEDICAL_MASTER_KEY_V${version} must be 32 bytes, base64-encoded`);
+        throw new KeyConfigError(
+          `MEDICAL_MASTER_KEY_V${version}`,
+          "must be 32 bytes, base64-encoded",
+        );
       }
     }
     if (!keys.has(writeVersion)) {
-      throw new TypeError(`MEDICAL_MASTER_KEY_V${writeVersion} is missing`);
+      throw new KeyConfigError(`MEDICAL_MASTER_KEY_V${writeVersion}`, "is missing");
     }
     this.#keys = new Map(keys);
     this.#writeVersion = writeVersion;
@@ -175,7 +197,7 @@ export class FieldCipher {
 export function fieldCipherFromEnv(env: Record<string, string | undefined>): FieldCipher {
   const rawVersion = env["MEDICAL_KEY_VERSION"] || "1";
   if (!/^[1-9][0-9]{0,3}$/.test(rawVersion)) {
-    throw new TypeError("MEDICAL_KEY_VERSION must be a positive integer");
+    throw new KeyConfigError("MEDICAL_KEY_VERSION", "must be a positive integer");
   }
   const keys = new Map<number, Buffer>();
   for (const [name, value] of Object.entries(env)) {

@@ -1,3 +1,5 @@
+import { ConfigurationError, configurationVariables } from "./configuration-error.ts";
+
 /**
  * Log serializers. The defaults would print an error's message, its causes, its stack and every
  * enumerable property, and a request's full URL — each can carry a secret the key-based sanitizer cannot
@@ -20,6 +22,7 @@ const KNOWN_NAMES = new Set([
   "ApiError",
   "PostgresError",
   "ZodError",
+  "ConfigurationError",
   "HttpException",
   "NotFoundException",
   "BadRequestException",
@@ -56,6 +59,9 @@ export function errorDiagnostic(error: unknown): Record<string, unknown> {
   return {
     type: KNOWN_NAMES.has(error.name) ? error.name : "Error",
     ...(typeof code === "string" && KNOWN_CODES.has(code) ? { code } : {}),
+    // A failed start names the setting to fix (names only, re-checked); without it the log said just
+    // "Error" and the operator had to guess which variable Dokploy was missing.
+    ...(error instanceof ConfigurationError ? { variables: configurationVariables(error) } : {}),
   };
 }
 

@@ -45,14 +45,14 @@ describe("platform settings page: new-clinic defaults (ADR-0020 amendment)", () 
     fireEvent.change(screen.getByLabelText(t.defaultMaxUsers), { target: { value: "25" } });
     fireEvent.change(screen.getByLabelText(t.defaultMaxBranches), { target: { value: "5" } });
     await act(async () =>
-      screen.getByRole("switch", { name: ar.clinics.modules.patients }).click(),
+      screen.getByRole("switch", { name: ar.clinics.modules.appointments }).click(),
     );
     await act(async () => screen.getByRole("button", { name: ar.common.save }).click());
     await waitFor(() =>
       expect(getState().platformSettings).toMatchObject({
         defaultMaxUsers: 25,
         defaultMaxBranches: 5,
-        defaultModules: { patients: false, appointments: true, medical: true },
+        defaultModules: { patients: true, appointments: false, medical: true },
       }),
     );
   });
@@ -64,5 +64,20 @@ describe("platform settings page: new-clinic defaults (ADR-0020 amendment)", () 
     await act(async () => screen.getByRole("button", { name: ar.common.save }).click());
     expect(await screen.findByText(ar.validation.outOfRange)).toBeInTheDocument();
     expect(getState().platformSettings.defaultMaxBranches).toBe(3);
+  });
+
+  it("NEGATIVE: turning patients off under medical shows the translated message by the switch and does not save", async () => {
+    renderForm();
+    const before = structuredClone(getState());
+    await act(async () =>
+      screen.getByRole("switch", { name: ar.clinics.modules.patients }).click(),
+    );
+    await act(async () => screen.getByRole("button", { name: ar.common.save }).click());
+    const message = await screen.findByText(ar.validation.moduleRequires);
+    const medical = screen.getByRole("switch", { name: ar.clinics.modules.medical });
+    expect(medical).toHaveAttribute("aria-invalid", "true");
+    expect(medical.getAttribute("aria-describedby")).toContain(message.id);
+    expect(medical.closest("div[data-slot]") ?? medical.parentElement).toContainElement(message);
+    expect(getState()).toEqual(before);
   });
 });

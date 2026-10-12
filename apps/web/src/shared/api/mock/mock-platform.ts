@@ -4,8 +4,6 @@ import {
   type Clinic,
   type ClinicDetail,
   type FirstAdminInviteLink,
-} from "@eyadex/contracts/clinics";
-import {
   clinicDetailsInputSchema,
   createClinicInputSchema,
   RESERVED_CLINIC_SLUGS,
@@ -20,6 +18,7 @@ import { INVITATION_TTL_DAYS, type InvitationRecord } from "@eyadex/contracts/in
 import { invitationAuditSnapshot, issueInviteToken } from "./mock-invite-tokens";
 import { writeClinicAudit } from "./mock-audit";
 import { rememberClinicCreate, replayClinicCreate } from "./mock-clinic-replay";
+import { moduleDependencyGap } from "@eyadex/contracts/onboarding";
 import { enforceEmailFree, toUserView, userUsage } from "./mock-user-rules";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -263,10 +262,11 @@ export function createMockPlatform(): Omit<
       const db = getState();
       const clinic = findClinic(db, clinicId);
       const was = Boolean((db.features[clinicId] ?? NO_FEATURES)[module]);
-      db.features[clinicId] = {
-        ...(db.features[clinicId] ?? NO_FEATURES),
-        [module]: enabled,
-      };
+      const next = { ...(db.features[clinicId] ?? NO_FEATURES), [module]: enabled };
+      if (moduleDependencyGap(next) !== null) {
+        throw new ApiError("validation");
+      }
+      db.features[clinicId] = next;
       audit(
         db,
         actor.fullName,

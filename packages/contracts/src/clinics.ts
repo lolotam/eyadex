@@ -5,6 +5,7 @@ import {
   CLINIC_MODULES,
   RESERVED_CLINIC_SLUGS,
   moduleFlagsSchema,
+  refineModuleDependencies,
   timezoneOptions,
 } from "./onboarding.ts";
 
@@ -129,7 +130,7 @@ export const createClinicInputSchema = clinicDetailsInputSchema.extend({
   // Pre-filled from the platform settings; whatever the super admin leaves here is what is sent.
   maxUsers: maxUsersSchema,
   maxBranches: maxBranchesSchema,
-  modules: featuresSchema,
+  modules: featuresSchema.superRefine(refineModuleDependencies),
 });
 export type CreateClinicInput = z.infer<typeof createClinicInputSchema>;
 

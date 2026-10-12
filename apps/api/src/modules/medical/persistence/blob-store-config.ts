@@ -1,3 +1,4 @@
+import { ConfigurationError } from "@eyadex/observability";
 import { ServiceUnavailableError } from "../../../shared/errors.ts";
 import type { BlobStore } from "../ports/blob-store.ts";
 import { S3BlobStore } from "./s3-blob-store.ts";
@@ -18,8 +19,8 @@ const BUCKET_SHAPE = /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/;
 const REGION_SHAPE = /^[a-z0-9-]+$/;
 
 // Same wording as every other startup configuration error of the API: the variable, never its value.
-const invalid = (detail: string): Error =>
-  new Error(`Invalid API configuration: ${detail} — see .env.example`);
+const invalid = (variables: readonly string[], reason: string): Error =>
+  new ConfigurationError("API", variables, reason);
 
 /**
  * The store when nothing is configured: the API still starts (attachments are the only feature that
@@ -39,17 +40,18 @@ export class UnconfiguredBlobStore implements BlobStore {
 // http is allowed because the bucket is reached on the internal Docker network only; a path, a query,
 // a fragment or credentials in the URL would change where requests go or leak into logs.
 const endpointFrom = (raw: string): URL => {
-  const message = "MEDICAL_BLOB_S3_ENDPOINT must be an http or https origin";
+  const invalidEndpoint = () =>
+    invalid(["MEDICAL_BLOB_S3_ENDPOINT"], "must be an http or https origin");
   let url: URL;
   try {
     url = new URL(raw);
   } catch {
-    throw invalid(message);
+    throw invalidEndpoint();
   }
   const web = url.protocol === "http:" || url.protocol === "https:";
   const plain = url.username === "" && url.password === "";
   if (!web || !plain || url.pathname !== "/" || url.search !== "" || url.hash !== "") {
-    throw invalid(message);
+    throw invalidEndpoint();
   }
   return url;
 };
@@ -68,12 +70,13 @@ export function blobStoreFromEnv(env: NodeJS.ProcessEnv): BlobStore {
   const missing = REQUIRED.filter((name) => value(name) === "");
   if (missing.length === REQUIRED.length && region === "") return new UnconfiguredBlobStore();
   if (missing.length > 0) {
-    throw invalid(`${missing.join(", ")} must be set with the other MEDICAL_BLOB_S3_* variables`);
+    throw invalid(missing, "must be set with the other MEDICAL_BLOB_S3_* variables");
   }
   const bucket = value("MEDICAL_BLOB_S3_BUCKET");
-  if (!BUCKET_SHAPE.test(bucket)) throw invalid("MEDICAL_BLOB_S3_BUCKET must be an S3 bucket name");
+  if (!BUCKET_SHAPE.test(bucket))
+    throw invalid(["MEDICAL_BLOB_S3_BUCKET"], "must be an S3 bucket name");
   if (region !== "" && !REGION_SHAPE.test(region)) {
-    throw invalid("MEDICAL_BLOB_S3_REGION must be a region name");
+    throw invalid(["MEDICAL_BLOB_S3_REGION"], "must be a region name");
   }
   return new S3BlobStore({
     endpoint: endpointFrom(value("MEDICAL_BLOB_S3_ENDPOINT")),

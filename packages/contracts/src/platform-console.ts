@@ -6,6 +6,7 @@ import {
   invitePlatformAccountInputSchema,
   platformAccountSchema,
   platformSettingsSchema,
+  updatePlatformSettingsSchema,
 } from "./platform.ts";
 
 // Phase B slice 11 (ADR-0020): the platform console over HTTP. Every shape is strict: no clinic
@@ -31,7 +32,7 @@ export const platformOverviewResponseSchema = z
 export type PlatformOverviewResponse = z.infer<typeof platformOverviewResponseSchema>;
 
 /** `GET`/`PUT /v1/platform/settings` (story 26). */
-export const platformSettingsRequestSchema = platformSettingsSchema.strict();
+export const platformSettingsRequestSchema = updatePlatformSettingsSchema.strict();
 export const platformSettingsResponseSchema = platformSettingsSchema.strict();
 export type PlatformSettingsBody = z.infer<typeof platformSettingsRequestSchema>;
 
