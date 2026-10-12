@@ -9,7 +9,6 @@ import {
   type Harness,
 } from "../../identity/auth/__tests__/auth-http-harness.ts";
 import {
-  addLegacyPatient,
   code,
   createPatient,
   fakeCivilId,
@@ -24,8 +23,8 @@ import {
 } from "./patient-fixtures.ts";
 import { testCivilIds } from "./civil-id-fixtures.ts";
 
-// ADR-0028, P2-11, P2-F5, R1-5: the civil ID is stored encrypted, found by its full number only, and
-// files written before SQL 0045 (plain column) keep working until the backfill converts them.
+// ADR-0028, P2-11, P2-F5: the civil ID is stored only encrypted (0052 dropped the plain column) and is
+// found by its full number only.
 let h: Harness;
 let C: Awaited<ReturnType<typeof patientsClinic>>;
 let other: Awaited<ReturnType<typeof patientsClinic>>;
@@ -49,7 +48,6 @@ describe("a file written through the API", () => {
     const body = patientBody(C.branchR);
     const { id } = await filed(h, C.admin.cookie, body);
     const row = await storedCivilId(h, C.clinicId, id);
-    expect(row.civil_id).toBeNull();
     expect(row.civil_id_enc).toMatch(/^f1\.1\./);
     expect(row.civil_id_hmac).toBe(testCivilIds().index(C.clinicId, body.civilId));
     expect(row.civil_id_last4).toBe(body.civilId.slice(-4));
@@ -61,7 +59,6 @@ describe("a file written through the API", () => {
   it("a file without a number stores none of the three columns", async () => {
     const { id } = await filed(h, C.admin.cookie, patientBody(C.branchR, { civilId: "" }));
     expect(await storedCivilId(h, C.clinicId, id)).toMatchObject({
-      civil_id: null,
       civil_id_enc: null,
       civil_id_hmac: null,
       civil_id_last4: null,
@@ -91,38 +88,29 @@ describe("a file written through the API", () => {
 });
 
 describe("search (P2-F5)", () => {
-  it("the full number finds an encrypted file and a legacy one; part of it finds neither", async () => {
+  it("the full number finds the file; part of it does not", async () => {
     const encrypted = patientBody(C.branchR);
     const { id } = await filed(h, C.admin.cookie, encrypted);
-    const legacyNumber = fakeCivilId();
-    const legacy = await addLegacyPatient(h, C.clinicId, C.branchR, legacyNumber);
     expect(await found(encrypted.civilId)).toEqual([id]);
-    expect(await found(legacyNumber)).toEqual([legacy]);
     // Seven digits from the middle: the birth date part, never inside a 5550… phone or a file number.
     expect(await found(encrypted.civilId.slice(1, 8))).not.toContain(id);
-    expect(await found(legacyNumber.slice(1, 8))).not.toContain(legacy);
   });
 
-  it("lists show the last four digits of both kinds, never the number", async () => {
+  it("lists show the last four digits, never the number", async () => {
     const encrypted = patientBody(C.branchR);
     const { id } = await filed(h, C.admin.cookie, encrypted);
-    const legacyNumber = fakeCivilId();
-    const legacy = await addLegacyPatient(h, C.clinicId, C.branchR, legacyNumber);
     const res = await search(h, C.admin.cookie);
     const items = patientListResponseSchema.parse(res.json()).items;
     expect(items.find((p) => p.id === id)?.civilIdLast4).toBe(encrypted.civilId.slice(-4));
-    expect(items.find((p) => p.id === legacy)?.civilIdLast4).toBe(legacyNumber.slice(-4));
     expect(res.body).not.toContain(encrypted.civilId);
-    expect(res.body).not.toContain(legacyNumber);
   });
 });
 
-describe("one number per clinic across both forms (R1-5)", () => {
-  it("a legacy file reads its plain number and blocks a duplicate, with today's masking", async () => {
-    const number = fakeCivilId();
-    const legacy = await addLegacyPatient(h, C.clinicId, C.branchX, number);
-    const detail = patientDetailSchema.parse((await openPatient(h, C.admin.cookie, legacy)).json());
-    expect(detail.civilId).toBe(number);
+describe("one number per clinic", () => {
+  it("a file blocks a duplicate, with today's masking", async () => {
+    const body = patientBody(C.branchX);
+    const number = body.civilId;
+    const { id: taken } = await filed(h, C.admin.cookie, body);
     const admin = await createPatient(
       h,
       C.admin.cookie,
@@ -131,7 +119,7 @@ describe("one number per clinic across both forms (R1-5)", () => {
     expect(admin.statusCode).toBe(409);
     expect(admin.json()).toMatchObject({
       code: "patient_civil_id_taken",
-      details: { patientId: legacy },
+      details: { patientId: taken },
     });
     expect(admin.body).not.toContain(number);
     // Branch X is outside the receptionist's view: the clash is a plain validation error.
@@ -175,26 +163,5 @@ describe("one number per clinic across both forms (R1-5)", () => {
     const a = await storedCivilId(h, C.clinicId, mine.id);
     const b = await storedCivilId(h, other.clinicId, theirId);
     expect(a.civil_id_hmac).not.toBe(b.civil_id_hmac);
-  });
-
-  it("an edit converts a legacy file and keeps its number", async () => {
-    const number = fakeCivilId();
-    const legacy = await addLegacyPatient(h, C.clinicId, C.branchR, number);
-    const before = patientDetailSchema.parse((await openPatient(h, C.admin.cookie, legacy)).json());
-    const res = await updatePatient(h, C.admin.cookie, legacy, {
-      fullName: "Edited Legacy",
-      phone: before.phone,
-      birthDate: before.birthDate,
-      gender: before.gender,
-      registrationBranchId: before.registrationBranchId,
-      civilId: number,
-    });
-    expect(res.statusCode).toBe(200);
-    const row = await storedCivilId(h, C.clinicId, legacy);
-    expect(row.civil_id).toBeNull();
-    expect(row.civil_id_last4).toBe(number.slice(-4));
-    expect(row.raw).not.toContain(number);
-    const after = patientDetailSchema.parse((await openPatient(h, C.admin.cookie, legacy)).json());
-    expect(after.civilId).toBe(number);
   });
 });

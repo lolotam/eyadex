@@ -46,11 +46,8 @@ export class CivilIdCodec {
     };
   }
 
-  /**
-   * The number of one stored file: the envelope when it is set, else the legacy plain column a file
-   * written before 0045 still holds until the backfill converts it (R1-5).
-   */
-  read(clinicId: string, patientId: string, enc: string | null, legacy: string | null) {
-    return enc === null ? legacy : this.cipher.open(clinicId, refOf(patientId), enc);
+  /** The number of one stored file, or null when it has none. */
+  read(clinicId: string, patientId: string, enc: string | null): string | null {
+    return enc === null ? null : this.cipher.open(clinicId, refOf(patientId), enc);
   }
 }

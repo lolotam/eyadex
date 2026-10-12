@@ -54,20 +54,9 @@ without them:
 
 `MEDICAL_INDEX_KEY` does not change during a rotation.
 
-## The civil ID backfill (plan Task 3, R1-5/R1-6)
+## The civil ID backfill (plan Task 3, R1-5/R1-6) — done
 
-SQL 0045 adds the encrypted civil ID columns. The API then writes only the encrypted form, but files
-saved before it keep the plain number until the backfill converts them. After the release that carries
-0045 is deployed on an environment, the orchestrator runs inside that API container (it already holds
-`DATABASE_URL`, `PLATFORM_DATABASE_URL` and the medical keys):
-
-```sh
-node --conditions=eyadex-runtime dist/cli/backfill-civil-id.js --dry-run   # counts what it would convert
-node --conditions=eyadex-runtime dist/cli/backfill-civil-id.js             # converts, in batches of 500
-node --conditions=eyadex-runtime dist/cli/backfill-civil-id.js --verify    # proves the result
-```
-
-It prints counts only, never a number or a key, and exits non-zero on a collision (two files of one
-clinic with the same number) or, with `--verify`, when a plain number remains or any encrypted value does
-not decrypt to a number matching its index and last four digits. It is safe to re-run. Dropping the plain
-`civil_id` column is a later migration, applied only after `--verify` passes on that environment.
+SQL 0045 added the encrypted civil ID columns, and a one-off backfill command converted the files saved
+before it. Once no plain number was left on staging or production, SQL 0052 dropped the plain `civil_id`
+column and the command was removed. 0052 refuses to run on a database that still holds a plain number;
+such a database needs the backfill of an earlier release (before 0052) first.

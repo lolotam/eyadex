@@ -42,6 +42,9 @@ four digits stay visible in lists.
    a locked re-read (counts only; `--dry-run`, `--verify`; non-zero exit on a collision or a mismatch). It
    lists clinics on the `eyadex_platform` pool and converts on `eyadex_app` inside `withTenant`, because
    `@eyadex/db` refuses a role that bypasses RLS.
+   **Ended by SQL 0052:** with no plain number left on staging or production, 0052 drops `civil_id`, its
+   0021 digits check and unique index; the code reads, writes, searches and checks uniqueness through the
+   three 0045 columns only, and the backfill command is removed.
 6. **Ciphertext is never searched in SQL.** Note search decrypts one patient's bounded set in memory
    (ADR-0029 §8).
 
@@ -52,6 +55,6 @@ four digits stay visible in lists.
   (`docs/specs/medical-keys-runbook.md`).
 - **Rotation** = add `V<n+1>`, switch `MEDICAL_KEY_VERSION`, re-encrypt old rows in a job, then retire the
   old version. Nothing re-encrypts at deploy time.
-- Dropping the plain `civil_id` is a later migration, applied on an environment only after the code that
-  never names `civil_id` is live there and `--verify` passed there (R1-6).
+- Dropping the plain `civil_id` is SQL 0052 (R1-6): it refuses to run while any row still holds a plain
+  number, so an environment that was never backfilled stops instead of losing it.
 - Partial civil ID search is gone (P2-F5); a partial number finds nothing by civil ID.

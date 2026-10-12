@@ -101,4 +101,5 @@
 - [x] The platform's audit INSERT policy refuses `appointment` rows too, as its read policy and view do (SQL 0051; 0046 is applied on staging, so it stays unedited)
 - [ ] Apply `db/sql/0045`–`0051` to staging, then production, each before the deploy that needs it; load ICD-10-CM after 0047 (orchestrator)
 - [ ] After the release deploy, run `db/maintenance/medical-release-catch-up.sql` on staging, then production, before the platform switches `medical` on for any clinic (orchestrator)
-- [ ] Drop the plain `civil_id` column after the backfill's `--verify` passes on each environment (ADR-0028, R1-6)
+- [x] Drop the plain `civil_id` column: SQL 0052 (refuses while a plain number remains) and code that never names it; the backfill command is removed (ADR-0028, R1-6)
+- [ ] Apply `db/sql/0052` to staging, then production, before the deploy that no longer names `civil_id` can be relied on (orchestrator)
