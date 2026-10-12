@@ -1,3 +1,4 @@
+import { ConfigurationError } from "@eyadex/observability";
 import { Module } from "@nestjs/common";
 import type { Database } from "@eyadex/db";
 import { systemUuidV7 } from "@eyadex/ids";
@@ -26,7 +27,7 @@ import { MailProviderChanges } from "./use-cases/mail-provider-changes.ts";
 export function mailProviderSealKey(env: NodeJS.ProcessEnv): string {
   const value = env["MAIL_PROVIDER_SEAL_KEY"] ?? "";
   if (Buffer.from(value, "base64").length !== 32) {
-    throw new Error("Invalid API configuration: MAIL_PROVIDER_SEAL_KEY — see .env.example");
+    throw new ConfigurationError("API", "MAIL_PROVIDER_SEAL_KEY");
   }
   return value;
 }

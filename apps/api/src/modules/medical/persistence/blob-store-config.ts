@@ -1,3 +1,4 @@
+import { ConfigurationError } from "@eyadex/observability";
 import { ServiceUnavailableError } from "../../../shared/errors.ts";
 import type { BlobStore } from "../ports/blob-store.ts";
 import { S3BlobStore } from "./s3-blob-store.ts";
@@ -18,8 +19,7 @@ const BUCKET_SHAPE = /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/;
 const REGION_SHAPE = /^[a-z0-9-]+$/;
 
 // Same wording as every other startup configuration error of the API: the variable, never its value.
-const invalid = (detail: string): Error =>
-  new Error(`Invalid API configuration: ${detail} — see .env.example`);
+const invalid = (detail: string): Error => new ConfigurationError("API", detail);
 
 /**
  * The store when nothing is configured: the API still starts (attachments are the only feature that

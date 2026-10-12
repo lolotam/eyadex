@@ -52,6 +52,37 @@ export const moduleFlagsSchema = z.object(
 );
 
 /**
+ * Modules that only work on top of another one (owner decision P2-14): a medical file lives inside a
+ * patient file, so `medical` needs `patients`. The create form, the platform default and the
+ * per-clinic switch all read this one table.
+ */
+export const MODULE_REQUIRES: Readonly<Partial<Record<ClinicModuleKey, ClinicModuleKey>>> = {
+  medical: "patients",
+};
+
+/** The first module switched on while the module it needs is off, or `null` when the map holds. */
+export function moduleDependencyGap(
+  flags: Readonly<Record<ClinicModuleKey, boolean>>,
+): { module: ClinicModuleKey; requires: ClinicModuleKey } | null {
+  for (const module of CLINIC_MODULES) {
+    const requires = MODULE_REQUIRES[module];
+    if (requires !== undefined && flags[module] && !flags[requires]) return { module, requires };
+  }
+  return null;
+}
+
+/** Zod refinement for a module map: the gap is reported on the module that cannot stand alone. */
+export function refineModuleDependencies(
+  flags: Readonly<Record<ClinicModuleKey, boolean>>,
+  ctx: z.RefinementCtx,
+): void {
+  const gap = moduleDependencyGap(flags);
+  if (gap !== null) {
+    ctx.addIssue({ code: "custom", path: [gap.module], message: "validation.moduleRequires" });
+  }
+}
+
+/**
  * A clinic's user and branch limits: the same bounds when it is created, when the platform changes
  * them, and as the platform's default for new clinics (ADR-0020 amendment, 2026-10-09).
  */
@@ -100,7 +131,7 @@ export const createClinicRequestSchema = z
       .max(CLINIC_LIMIT_BOUNDS.maxBranches.max),
     // One platform-wide default the form pre-fills (owner decision 2026-10-09), not PRD §4.8's
     // "by specialty" table: the value sent is always the super admin's.
-    modules: moduleFlagsSchema.strict(),
+    modules: moduleFlagsSchema.strict().superRefine(refineModuleDependencies),
     admin: z
       .object({
         fullName: name,

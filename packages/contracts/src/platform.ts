@@ -9,6 +9,7 @@ import {
   type ClinicFeatures,
   type EffectiveClinicStatus,
 } from "./clinics.ts";
+import { refineModuleDependencies } from "./onboarding.ts";
 
 export { effectiveClinicStatus, effectiveClinicStatusSchema, type EffectiveClinicStatus };
 
@@ -40,7 +41,7 @@ export const platformSettingsSchema = z.object({
     CLINIC_LIMIT_BOUNDS.maxBranches.min,
     CLINIC_LIMIT_BOUNDS.maxBranches.max,
   ),
-  defaultModules: featuresSchema.strict(),
+  defaultModules: featuresSchema.strict().superRefine(refineModuleDependencies),
 });
 export type PlatformSettings = z.infer<typeof platformSettingsSchema>;
 

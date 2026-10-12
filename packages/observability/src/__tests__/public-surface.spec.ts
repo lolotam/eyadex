@@ -6,6 +6,7 @@ describe("@eyadex/observability public surface", () => {
   it("offers createLogger as the only way to build a logger — no raw pino options", () => {
     expect(Object.keys(observability).sort()).toEqual([
       "BASE_LOG_EVENTS",
+      "ConfigurationError",
       "LOG_LEVELS",
       "REDACTED",
       "WITHHELD_MESSAGE",

@@ -1,3 +1,4 @@
+import { ConfigurationError } from "@eyadex/observability";
 import { Global, Module } from "@nestjs/common";
 import { fieldCipherFromEnv, indexKeyFromEnv, type FieldCipher } from "@eyadex/secrets";
 
@@ -13,7 +14,7 @@ function configured<T>(read: () => T): T {
     return read();
   } catch (error) {
     if (!(error instanceof TypeError)) throw error;
-    throw new Error(`Invalid API configuration: ${error.message} — see .env.example`);
+    throw new ConfigurationError("API", error.message);
   }
 }
 

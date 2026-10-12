@@ -9,6 +9,7 @@ export { maskPhone, REDACTED, redactSecrets, sanitize } from "./redaction.ts";
 export { maskPhonesInText } from "./free-text.ts";
 export { normalizeAuditText } from "./normalize.ts";
 export { scrubAuditText, scrubAuditValue } from "./audit-text.ts";
+export { ConfigurationError } from "./configuration-error.ts";
 export { errorDiagnostic, requestDiagnostic, responseDiagnostic } from "./serializers.ts";
 export type { DestinationStream, Logger } from "pino";
 export {

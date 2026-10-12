@@ -1,3 +1,4 @@
+import { ConfigurationError } from "@eyadex/observability";
 import { LOG_LEVELS } from "@eyadex/observability";
 import { z } from "zod";
 
@@ -85,7 +86,7 @@ export function readConfig(env: NodeJS.ProcessEnv): WorkerConfig {
   const result = schema.safeParse(env);
   if (!result.success) {
     const keys = [...new Set(result.error.issues.map((issue) => issue.path.join(".")))];
-    throw new Error(`Invalid worker configuration: ${keys.join(", ")} — see .env.example`);
+    throw new ConfigurationError("worker", keys.join(", "));
   }
   return result.data;
 }

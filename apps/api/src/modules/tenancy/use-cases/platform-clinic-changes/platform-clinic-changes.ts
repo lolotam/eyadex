@@ -1,4 +1,5 @@
-import type { ClinicModule } from "@eyadex/contracts/clinics";
+import { NO_FEATURES, type ClinicModule } from "@eyadex/contracts/clinics";
+import { moduleDependencyGap } from "@eyadex/contracts/onboarding";
 import type {
   UpdateLimitsRequest,
   UpdateSubscriptionRequest,
@@ -56,13 +57,21 @@ export class PlatformClinicChanges {
    * @param clinicId العيادة
    * @param module الموديول
    * @param enabled الحالة الجديدة
-   * @returns بيخلص بعد الـ commit؛ عيادة مش موجودة → `not_found`
+   * @returns بيخلص بعد الـ commit؛ عيادة مش موجودة → `not_found`؛ موديول من غير اللي محتاجه
+   *   (الطبي من غير المراجعين، P2-14) → `validation`
    */
   async setFeature(actorUserId: string, clinicId: string, module: ClinicModule, enabled: boolean) {
     await this.inClinic(actorUserId, clinicId, async (tx, _clinic, now) => {
-      const before = await tx.execute<{ enabled: boolean }>(
-        sql`SELECT enabled FROM clinic_features WHERE clinic_id = ${clinicId} AND module = ${module}`,
+      const rows = await tx.execute<{ module: ClinicModule; enabled: boolean }>(
+        sql`SELECT module, enabled FROM clinic_features WHERE clinic_id = ${clinicId}`,
       );
+      const before = rows.filter((row) => row.module === module);
+      // صف ناقص = مقفول (default deny)، نفس قاعدة isModuleEnabled.
+      const next = Object.fromEntries(rows.map((row) => [row.module, row.enabled]));
+      next[module] = enabled;
+      if (moduleDependencyGap({ ...NO_FEATURES, ...next })) {
+        throw new ApiError("validation", [{ path: ["enabled"], code: "module_requires" }]);
+      }
       await tx.execute(
         sql`INSERT INTO clinic_features (clinic_id, id, module, enabled, updated_at)
             VALUES (${clinicId}, ${this.deps.ids.newId()}, ${module}, ${enabled},
