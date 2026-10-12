@@ -8,6 +8,7 @@ import {
   type PatientRecordActions,
   type PatientStatus,
 } from "@eyadex/contracts/patients";
+import type { MessageLanguage } from "@eyadex/contracts/notifications";
 import type { PermissionAction } from "@eyadex/contracts/permissions";
 import { maskPhone, maskPhonesInText } from "@eyadex/observability";
 
@@ -159,6 +160,12 @@ export interface NormalizedPatient {
   readonly gender: Gender;
   readonly registrationBranchId: string;
   readonly civilId: string | null;
+  /** إيميل رسائل المراجع (متطبّع)، أو `null` لو مش متسجّل. */
+  readonly email: string | null;
+  /** لغة رسائله، أو `null` = لغة العيادة الافتراضية. */
+  readonly messageLanguage: MessageLanguage | null;
+  /** طلب مايوصلوش تذكيرات (N-2). */
+  readonly notificationsOptOut: boolean;
 }
 
 /**
@@ -177,6 +184,9 @@ export function normalizePatientInput(input: PatientInput): NormalizedPatient | 
     gender: input.gender,
     registrationBranchId: input.registrationBranchId,
     civilId: input.civilId === "" ? null : input.civilId,
+    email: input.email === "" ? null : input.email,
+    messageLanguage: input.messageLanguage === "" ? null : input.messageLanguage,
+    notificationsOptOut: input.notificationsOptOut,
   };
 }
 
@@ -196,12 +206,17 @@ export interface PatientAuditSnapshot {
   readonly gender: Gender;
   readonly registrationBranchId: string;
   readonly status: PatientStatus;
+  /** فيه إيميل ولا لأ: العنوان نفسه عمره ما بيدخل السجل (ADR-0031). */
+  readonly hasEmail: boolean;
+  readonly messageLanguage: MessageLanguage | null;
+  readonly notificationsOptOut: boolean;
 }
 
 /**
  * لقطة "قبل/بعد" لسجل التدقيق (PRD §4.11، CLAUDE.md §5): الرقم المدني مش موجود بأي شكل، والموبايل
  * آخر 3 أرقام بس، وأي رقم موبايل مكتوب جوه الاسم بيتغطّى. تاريخ الميلاد برة القايمة كمان: سياسة
- * التنقية (ADR-0001) بتشيله من أي سجل محفوظ، فالقايمة نفسها ماتسيبش حاجة تتشال بعدين.
+ * التنقية (ADR-0001) بتشيله من أي سجل محفوظ، فالقايمة نفسها ماتسيبش حاجة تتشال بعدين. الإيميل بيان
+ * شخصي: السجل بيقول فيه إيميل ولا لأ (`hasEmail`) من غير العنوان.
  *
  * @param patient الملف
  * @returns اللقطة
@@ -215,6 +230,9 @@ export function patientAuditSnapshot(patient: PatientRecord): PatientAuditSnapsh
     gender: patient.gender,
     registrationBranchId: patient.registrationBranchId,
     status: patient.status,
+    hasEmail: patient.email !== null,
+    messageLanguage: patient.messageLanguage,
+    notificationsOptOut: patient.notificationsOptOut,
   };
 }
 

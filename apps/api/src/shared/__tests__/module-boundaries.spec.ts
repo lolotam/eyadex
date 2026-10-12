@@ -142,6 +142,26 @@ const importsOfMedical = (module: string): string[] =>
       ([, target = ""]) => `${file.slice(modulesDir.length)}: ${target}`,
     ),
   );
+// ADR-0031: the notifications module names only its two tables (the outbox goes through shared/);
+// appointments and medical reach it only through notifications/index.ts, bound in their module file.
+const NOTIFICATIONS_RELATIONS = ["clinic_notification_settings", "patient_notifications"];
+const notificationsSqlRelations = (): string[] =>
+  sourceFiles(join(modulesDir, "notifications")).flatMap((file) =>
+    [...readFileSync(file, "utf8").matchAll(/\b(?:FROM|JOIN|UPDATE|INTO)\s+([a-z_][a-z0-9_]*)/g)]
+      .map(([, relation = ""]) => relation)
+      .filter((relation) => !NOTIFICATIONS_RELATIONS.includes(relation))
+      .map((relation) => `${file.slice(modulesDir.length)}: ${relation}`),
+  );
+const notificationsImports = (module: string): string[] =>
+  sourceFiles(join(modulesDir, module)).flatMap((file) =>
+    [...readFileSync(file, "utf8").matchAll(/from\s+["']([^"']*\/notifications\/[^"']*)["']/g)]
+      .map(([, target = ""]) => target)
+      .filter(
+        (target) =>
+          !(/\/notifications\/index\.ts$/.test(target) && file.endsWith(`${module}.module.ts`)),
+      )
+      .map((target) => `${file.slice(modulesDir.length)}: ${target}`),
+  );
 const patientsSqlRelations = (): string[] =>
   sourceFiles(join(modulesDir, "patients")).flatMap((file) =>
     [...readFileSync(file, "utf8").matchAll(/\b(?:FROM|JOIN|UPDATE|INTO)\s+([a-z_][a-z0-9_]*)/g)]
@@ -189,6 +209,17 @@ describe("module boundaries", () => {
 
   it("patients and appointments import nothing of medical (its adapters live with their owners)", () => {
     expect([...importsOfMedical("patients"), ...importsOfMedical("appointments")]).toEqual([]);
+  });
+
+  it("the notifications module's SQL names only its own two tables", () => {
+    expect(existsSync(join(modulesDir, "notifications", "notifications.module.ts"))).toBe(true);
+    expect(notificationsSqlRelations()).toEqual([]);
+  });
+
+  it("appointments and medical reach notifications only through its index.ts, bound in their module file", () => {
+    expect([...notificationsImports("appointments"), ...notificationsImports("medical")]).toEqual(
+      [],
+    );
   });
 
   it("the audit module's SQL names only the audit relations; other tables come through its ports", () => {

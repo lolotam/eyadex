@@ -1,0 +1,75 @@
+import {
+  DEFAULT_NOTIFICATION_SETTINGS,
+  NOTIFICATION_KINDS,
+  type NotificationSettings,
+} from "@eyadex/contracts/notifications";
+import { describe, expect, it } from "vitest";
+
+import { sameSettings, shouldQueue, subjectOf } from "../notification-rules.ts";
+
+const ID = "0190a000-0000-7000-8000-0000000000aa";
+
+const withMessage = (
+  kind: keyof NotificationSettings["messages"],
+  on: boolean,
+): NotificationSettings => ({
+  ...DEFAULT_NOTIFICATION_SETTINGS,
+  messages: { ...DEFAULT_NOTIFICATION_SETTINGS.messages, [kind]: on },
+});
+
+describe("shouldQueue (N-1)", () => {
+  it("queues every message of a clinic that never saved its settings", () => {
+    for (const kind of NOTIFICATION_KINDS) {
+      expect(shouldQueue(DEFAULT_NOTIFICATION_SETTINGS, kind)).toBe(true);
+    }
+  });
+
+  it("queues nothing when the email channel is off, whatever the message switch", () => {
+    const off = { ...DEFAULT_NOTIFICATION_SETTINGS, emailEnabled: false };
+    for (const kind of NOTIFICATION_KINDS) expect(shouldQueue(off, kind)).toBe(false);
+  });
+
+  it("a message switched off is not queued; the others still are", () => {
+    const settings = withMessage("cancelled", false);
+    expect(shouldQueue(settings, "cancelled")).toBe(false);
+    expect(shouldQueue(settings, "booked")).toBe(true);
+  });
+});
+
+describe("subjectOf (0056 subject check)", () => {
+  it("an appointment message names the start, normalised to UTC ISO", () => {
+    expect(subjectOf("rescheduled", ID, "2027-03-07T10:00:00+03:00")).toEqual({
+      subjectType: "appointment",
+      subjectId: ID,
+      subjectAt: "2027-03-07T07:00:00.000Z",
+    });
+  });
+
+  it("the prescription is a visit message without a start", () => {
+    expect(subjectOf("prescription", ID, null)).toEqual({
+      subjectType: "visit",
+      subjectId: ID,
+      subjectAt: null,
+    });
+  });
+
+  it("refuses a mismatch the database would refuse", () => {
+    expect(() => subjectOf("booked", ID, null)).toThrow();
+    expect(() => subjectOf("prescription", ID, "2027-03-07T07:00:00.000Z")).toThrow();
+  });
+});
+
+describe("sameSettings", () => {
+  it("is true only when the channel and every switch match", () => {
+    expect(sameSettings(DEFAULT_NOTIFICATION_SETTINGS, withMessage("booked", true))).toBe(true);
+    expect(sameSettings(DEFAULT_NOTIFICATION_SETTINGS, withMessage("reminder_2h", false))).toBe(
+      false,
+    );
+    expect(
+      sameSettings(DEFAULT_NOTIFICATION_SETTINGS, {
+        ...DEFAULT_NOTIFICATION_SETTINGS,
+        emailEnabled: false,
+      }),
+    ).toBe(false);
+  });
+});

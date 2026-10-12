@@ -26,6 +26,7 @@ import {
   type WalkInSearchInput,
   type walkInBranchesSchema,
 } from "@eyadex/contracts/visits";
+import type { PatientNotificationList } from "@eyadex/contracts/notifications";
 import type { z } from "zod";
 
 import { ZodValidationPipe } from "../../../shared/zod-validation.pipe.ts";
@@ -100,6 +101,17 @@ export class VisitsController {
   @RequiresFeature("medical")
   open(@Req() request: ClinicRequest, @Param("id") id: string): Promise<VisitDetail> {
     return this.reads.open(actorOf(request), idOf(id));
+  }
+
+  // Spec §5 (ADR-0031): the visit's message history (the prescription email), under the visit's view.
+  @Get(":id/notifications")
+  @Require("view:visits:own")
+  @RequiresFeature("medical")
+  notificationsOf(
+    @Req() request: ClinicRequest,
+    @Param("id") id: string,
+  ): Promise<PatientNotificationList> {
+    return this.reads.notifications(actorOf(request), idOf(id));
   }
 
   @Put(":id/note")

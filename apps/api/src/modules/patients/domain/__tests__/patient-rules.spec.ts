@@ -31,6 +31,9 @@ const record: PatientRecord = {
   gender: "male",
   registrationBranchId: B1,
   civilId: CIVIL_ID,
+  email: "patient@example.test",
+  messageLanguage: "en",
+  notificationsOptOut: true,
   status: "active",
 };
 
@@ -146,10 +149,27 @@ describe("normalizePatientInput", () => {
     gender: "female" as const,
     registrationBranchId: B1,
     civilId: "",
+    email: "",
+    messageLanguage: "" as const,
+    notificationsOptOut: false,
   };
 
   it("canonical phone and an empty civil ID stored as null", () => {
     expect(normalizePatientInput(input)).toMatchObject({ phone: "+96555501234", civilId: null });
+  });
+
+  it("an empty email and message language are stored as null; the opt-out is kept", () => {
+    expect(normalizePatientInput(input)).toMatchObject({
+      email: null,
+      messageLanguage: null,
+      notificationsOptOut: false,
+    });
+    const filled = { ...input, email: "a@example.test", messageLanguage: "ar" as const };
+    expect(normalizePatientInput({ ...filled, notificationsOptOut: true })).toMatchObject({
+      email: "a@example.test",
+      messageLanguage: "ar",
+      notificationsOptOut: true,
+    });
   });
 
   it("an unnormalizable phone is null (the caller refuses it)", () => {
@@ -162,8 +182,29 @@ describe("patientAuditSnapshot (no civil ID in any form)", () => {
 
   it("is exactly the allowlist", () => {
     expect(Object.keys(snapshot).sort()).toEqual(
-      ["fileNumber", "fullName", "gender", "id", "phone", "registrationBranchId", "status"].sort(),
+      [
+        "fileNumber",
+        "fullName",
+        "gender",
+        "hasEmail",
+        "id",
+        "messageLanguage",
+        "notificationsOptOut",
+        "phone",
+        "registrationBranchId",
+        "status",
+      ].sort(),
     );
+  });
+
+  it("says whether the file has an email, never the address", () => {
+    expect(snapshot).toMatchObject({
+      hasEmail: true,
+      messageLanguage: "en",
+      notificationsOptOut: true,
+    });
+    expect(JSON.stringify(snapshot)).not.toContain("patient@example.test");
+    expect(patientAuditSnapshot({ ...record, email: null }).hasEmail).toBe(false);
   });
 
   it("keeps only the phone's last 3 digits, also inside the name, and never the civil ID", () => {
