@@ -85,8 +85,15 @@ export function MailProviderCard(props: Props) {
         </div>
         {provider ? (
           <dl className="grid gap-2 text-sm sm:grid-cols-2">
-            <Row label={t("mailProviders.kind")} value={t(`mailProviders.kinds.${provider.kind}`)} />
-            <Row label={t("mailProviders.from")} value={`${provider.fromName} <${provider.fromEmail}>`} ltr />
+            <Row
+              label={t("mailProviders.kind")}
+              value={t(`mailProviders.kinds.${provider.kind}`)}
+            />
+            <Row
+              label={t("mailProviders.from")}
+              value={`${provider.fromName} <${provider.fromEmail}>`}
+              ltr
+            />
             <Row label={t("mailProviders.replyTo")} value={provider.replyTo ?? "—"} ltr />
             {provider.kind === "smtp" && (
               <>
@@ -108,7 +115,8 @@ export function MailProviderCard(props: Props) {
         {provider?.lastError && (
           <p className="text-xs text-destructive">
             {t("mailProviders.lastError", { error: provider.lastError })}
-            {provider.degradedAt && ` · ${t("mailProviders.degradedAt", { time: fmt(provider.degradedAt) })}`}
+            {provider.degradedAt &&
+              ` · ${t("mailProviders.degradedAt", { time: fmt(provider.degradedAt) })}`}
           </p>
         )}
         {provider?.verifiedAt && !provider.degradedAt && (
@@ -123,7 +131,12 @@ export function MailProviderCard(props: Props) {
             </Button>
             {provider && (
               <>
-                <Button size="sm" variant="outline" disabled={test.isPending} onClick={() => test.mutate()}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={test.isPending}
+                  onClick={() => test.mutate()}
+                >
                   <Send className="size-4" />
                   {t("mailProviders.test")}
                 </Button>

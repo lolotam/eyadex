@@ -1,4 +1,7 @@
-import { mailProviderRequestSchema, type MailProviderRequest } from "@eyadex/contracts/mail-provider";
+import {
+  mailProviderRequestSchema,
+  type MailProviderRequest,
+} from "@eyadex/contracts/mail-provider";
 import {
   mailProviderSlotSchema,
   notificationSettingsSchema,
@@ -188,7 +191,9 @@ export function createMockNotifications(): NotificationsApi {
       await delay();
       const db = getState();
       const a = authorizeAppointments(db, persona, "view");
-      const found = db.appointments.find((x) => x.clinicId === a.clinic.id && x.id === appointmentId);
+      const found = db.appointments.find(
+        (x) => x.clinicId === a.clinic.id && x.id === appointmentId,
+      );
       if (!found || !sees(a, found)) throw new ApiError("not_found");
       return historyOf(db, a.clinic.id, found.id);
     },

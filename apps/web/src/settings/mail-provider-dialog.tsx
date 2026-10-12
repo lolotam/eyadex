@@ -118,7 +118,9 @@ export function MailProviderDialog({ slot, current, onClose }: Props) {
       const next: Record<string, string> = {};
       for (const issue of parsed.error.issues) {
         const field = String(issue.path[0] ?? "");
-        next[field] ??= issue.message.startsWith("validation.") ? issue.message : "validation.required";
+        next[field] ??= issue.message.startsWith("validation.")
+          ? issue.message
+          : "validation.required";
       }
       setErrors(next);
       return;
@@ -169,7 +171,10 @@ export function MailProviderDialog({ slot, current, onClose }: Props) {
                 {field("host", { ltr: true })}
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="mp-port">{t("mailProviders.fields.port")}</Label>
-                  <Select value={draft.port} onValueChange={(port) => setDraft((d) => ({ ...d, port }))}>
+                  <Select
+                    value={draft.port}
+                    onValueChange={(port) => setDraft((d) => ({ ...d, port }))}
+                  >
                     <SelectTrigger id="mp-port">
                       <SelectValue />
                     </SelectTrigger>

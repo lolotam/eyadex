@@ -5,7 +5,11 @@ import {
   type NotificationSettings,
   type NotificationSkipReason,
 } from "@eyadex/contracts/notifications";
-import { clinicProviders, notificationState, type StoredNotification } from "./mock-notification-state";
+import {
+  clinicProviders,
+  notificationState,
+  type StoredNotification,
+} from "./mock-notification-state";
 import { getState, newId, persist, type MockState } from "./mock-store";
 
 /** How long the mock "worker" takes to decide a queued message. */

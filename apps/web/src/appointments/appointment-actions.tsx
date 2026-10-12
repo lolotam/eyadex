@@ -48,47 +48,51 @@ export function AppointmentActions({ appointment, onReschedule, onCancel }: Prop
   const movable = onReschedule !== undefined && isReschedulable(appointment.status);
   return (
     <>
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="-me-1 size-4 shrink-0"
-          aria-label={t("appointments.actions.menu")}
-        >
-          <MoreVertical className="size-3.5" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        {moves.map((to) => (
-          <DropdownMenuItem key={to} disabled={status.isPending} onSelect={() => status.mutate(to)}>
-            {t(`appointments.actions.${to}`)}
-          </DropdownMenuItem>
-        ))}
-        {movable && (
-          <DropdownMenuItem onSelect={() => onReschedule?.(appointment)}>
-            {t("appointments.actions.reschedule")}
-          </DropdownMenuItem>
-        )}
-        {(moves.length > 0 || movable) && <DropdownMenuSeparator />}
-        <DropdownMenuItem onSelect={() => setMessages(true)}>
-          {t("messageHistory.title")}
-        </DropdownMenuItem>
-        {cancellable && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive" onSelect={() => onCancel(appointment)}>
-              {t("appointments.actions.cancel")}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="-me-1 size-4 shrink-0"
+            aria-label={t("appointments.actions.menu")}
+          >
+            <MoreVertical className="size-3.5" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {moves.map((to) => (
+            <DropdownMenuItem
+              key={to}
+              disabled={status.isPending}
+              onSelect={() => status.mutate(to)}
+            >
+              {t(`appointments.actions.${to}`)}
             </DropdownMenuItem>
-          </>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
-    <MessageHistoryDialog
-      appointmentId={messages ? appointment.id : null}
-      patientName={appointment.patientName}
-      onClose={() => setMessages(false)}
-    />
+          ))}
+          {movable && (
+            <DropdownMenuItem onSelect={() => onReschedule?.(appointment)}>
+              {t("appointments.actions.reschedule")}
+            </DropdownMenuItem>
+          )}
+          {(moves.length > 0 || movable) && <DropdownMenuSeparator />}
+          <DropdownMenuItem onSelect={() => setMessages(true)}>
+            {t("messageHistory.title")}
+          </DropdownMenuItem>
+          {cancellable && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-destructive" onSelect={() => onCancel(appointment)}>
+                {t("appointments.actions.cancel")}
+              </DropdownMenuItem>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <MessageHistoryDialog
+        appointmentId={messages ? appointment.id : null}
+        patientName={appointment.patientName}
+        onClose={() => setMessages(false)}
+      />
     </>
   );
 }
