@@ -79,3 +79,18 @@ export type MailProviderView = z.infer<typeof mailProviderViewSchema>;
 /** `GET` answers the view, or `null` when the clinic has no provider (the platform sends). */
 export const mailProviderResponseSchema = mailProviderViewSchema.nullable();
 export type MailProviderResponse = z.infer<typeof mailProviderResponseSchema>;
+
+/**
+ * `GET /v1/clinic/mail-providers`: both slots (phase 3, N-3). The primary sends first; the fallback only
+ * when the primary certainly did not accept the message; Eyadex sends on the clinic's behalf last. A
+ * fallback without a primary is refused on `PUT`, so `fallback` is non-null only when `primary` is.
+ * `PUT`/`DELETE /v1/clinic/mail-providers/:slot` and `POST …/:slot/test` take the same bodies as the
+ * single-provider routes above, which stay as the primary slot's alias.
+ */
+export const mailProvidersResponseSchema = z
+  .object({
+    primary: mailProviderViewSchema.nullable(),
+    fallback: mailProviderViewSchema.nullable(),
+  })
+  .strict();
+export type MailProvidersResponse = z.infer<typeof mailProvidersResponseSchema>;
