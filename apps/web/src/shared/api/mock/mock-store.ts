@@ -85,7 +85,7 @@ export type MockState = {
   clinicAudit: (Omit<ClinicAuditEntry, "entityId"> & { entityId: string | null })[];
 };
 
-const STORAGE_KEY = "eyadex:mock-db:v19";
+const STORAGE_KEY = "eyadex:mock-db:v20";
 /** Shared with the persona provider by name only (screens never import the mock). */
 const PERSONA_STORAGE_KEY = "eyadex:persona";
 const MOCK_RESET_EVENT = "eyadex:mock-reset";

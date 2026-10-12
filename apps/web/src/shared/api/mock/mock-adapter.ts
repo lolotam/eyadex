@@ -12,6 +12,7 @@ import { createMockCalendar } from "./mock-calendar";
 import { createMockSchedules } from "./mock-schedules";
 import { createMockServices } from "./mock-services";
 import { createMockNotifications } from "./mock-notifications";
+import { createMockWhatsapp } from "./mock-whatsapp";
 import { createMockAuditLog } from "./mock-audit-log";
 import { createMockMedicalAttachments } from "./mock-medical-attachments";
 import { createMockMedicalFiles } from "./mock-medical-files";
@@ -46,6 +47,7 @@ export function createMockApiClient(): ApiClient {
       ...createMockMedicalMedicines(),
     },
     notifications: createMockNotifications(),
+    whatsapp: createMockWhatsapp(),
     audit: createMockAuditLog(),
     clinicSettings: createMockClinicSettings(),
     account: createMockAccount(),
