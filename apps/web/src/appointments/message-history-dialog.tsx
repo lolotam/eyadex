@@ -6,10 +6,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useMessageHistory } from "@/settings/notification-queries";
+import { useMessageHistory } from "@/shared/messages/use-message-history";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { LoadingBlock } from "@/shared/shell/loading-block";
-import { MessageHistoryList } from "./message-history-list";
+import { MessageHistoryList } from "@/shared/messages/message-history-list";
 
 function HistoryBody({ appointmentId }: { appointmentId: string }) {
   const { t } = useI18n();

@@ -1,6 +1,6 @@
 import { Mail } from "lucide-react";
-import { MessageHistoryRow } from "@/appointments/message-history-list";
-import { useMessageHistory } from "@/settings/notification-queries";
+import { MessageHistoryRow } from "@/shared/messages/message-history-list";
+import { useMessageHistory } from "@/shared/messages/use-message-history";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 
 /** Spec §6: on a signed visit, one line saying whether the prescription email was sent, skipped or failed. */

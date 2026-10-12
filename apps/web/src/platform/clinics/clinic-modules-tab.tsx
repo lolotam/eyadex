@@ -8,7 +8,7 @@ import { usePersona } from "@/shared/persona/persona-provider";
 import { errorCodeOf } from "@/shared/api/api-error";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { clinicKeys } from "./clinic-queries";
-import { moduleSwitchLocked } from "./module-switch-lock";
+import { moduleSwitchLocked } from "@/shared/permissions/module-switch-lock";
 
 /** One switch per clinic module (PRD §4.8), in the order of the contract's module list. */
 export function ClinicModulesTab({ clinic }: { clinic: ClinicDetail }) {

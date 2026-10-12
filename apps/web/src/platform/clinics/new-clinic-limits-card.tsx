@@ -3,7 +3,7 @@ import { moduleSchema, type CreateClinicInput } from "@eyadex/contracts/clinics"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { NumberField, SwitchField } from "@/shared/forms/form-fields";
 import { useI18n } from "@/shared/i18n/i18n-provider";
-import { moduleSwitchLocked } from "./module-switch-lock";
+import { moduleSwitchLocked } from "@/shared/permissions/module-switch-lock";
 
 /** The new clinic's limits and modules, pre-filled from the platform settings. */
 export function NewClinicLimitsCard({ control }: { control: Control<CreateClinicInput> }) {

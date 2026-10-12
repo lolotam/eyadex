@@ -12,7 +12,7 @@ import { errorCodeOf } from "@/shared/api/api-error";
 import { NumberField, SwitchField, TextField } from "@/shared/forms/form-fields";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { usePersona } from "@/shared/persona/persona-provider";
-import { moduleSwitchLocked } from "@/platform/clinics/module-switch-lock";
+import { moduleSwitchLocked } from "@/shared/permissions/module-switch-lock";
 import { useRefreshAfterSettings } from "./settings-queries";
 
 export function PlatformSettingsForm({ settings }: { settings: PlatformSettings }) {
