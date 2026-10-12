@@ -11,7 +11,7 @@ type Props = { day: AppointmentDay; onCancel: (appointment: Appointment) => void
 
 /**
  * Today's queue: the branch day as one list by start time. The menu offers only the moves of
- * APPOINTMENT_TRANSITIONS and cancel (no reschedule here); it shows only with `can.update`.
+ * APPOINTMENT_TRANSITIONS and cancel to editors; viewers can still read the message history.
  */
 export function QueueView({ day, onCancel }: Props) {
   const { t, pick } = useI18n();
@@ -64,7 +64,7 @@ export function QueueView({ day, onCancel }: Props) {
             )}
             <StartVisitButton appointment={a} />
             <div className="ms-auto w-6">
-              {day.can.update && <AppointmentActions appointment={a} onCancel={onCancel} />}
+              <AppointmentActions appointment={a} canUpdate={day.can.update} onCancel={onCancel} />
             </div>
           </li>
         );

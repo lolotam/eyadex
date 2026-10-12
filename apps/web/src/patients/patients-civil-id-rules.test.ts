@@ -29,6 +29,9 @@ const BASE = {
   birthDate: "1990-04-01",
   gender: "male" as const,
   registrationBranchId: "00000000-0000-4000-8000-000000000001",
+  email: "",
+  messageLanguage: "" as const,
+  notificationsOptOut: false,
 };
 
 describe("Kuwaiti civil ID: shape, date and checksum", () => {

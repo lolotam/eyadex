@@ -116,7 +116,9 @@ describe("mail provider over HTTP", () => {
       "clinicId",
       "providerId",
       "providerVersion",
+      "slot",
     ]);
+    expect(events[0]!["payload"]).toMatchObject({ slot: "primary" });
   });
 
   it("another clinic's provider is invisible, and DELETE removes only its own", async () => {

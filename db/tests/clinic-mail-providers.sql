@@ -1,4 +1,4 @@
--- Clinic mail providers (0030, ADR-0014): grants, CHECKs, one per clinic, isolation. Rolls back.
+-- Clinic mail providers (0030, ADR-0014; 0055 slots): grants, CHECKs, one per slot, isolation. Rolls back.
 -- Usage: psql -v ON_ERROR_STOP=1 -f db/tests/clinic-mail-providers.sql
 
 BEGIN;
@@ -86,6 +86,39 @@ BEGIN
   DELETE FROM clinic_mail_providers;
   GET DIAGNOSTICS n = ROW_COUNT;
   IF n <> 1 THEN RAISE EXCEPTION 'MAIL-PROVIDER: the clinic cannot remove its own provider'; END IF;
+END $$;
+
+-- 0055: a primary and a fallback per clinic, never two of one slot, never another slot name. A row that
+-- does not name its slot is the primary (an older API's insert).
+DO $$
+DECLARE n bigint;
+BEGIN
+  INSERT INTO clinic_mail_providers (clinic_id, id, kind, from_name, from_email, sealed_credentials, created_at, updated_at)
+    VALUES ('00000000-0000-7000-8000-0000000007a1', '00000000-0000-7000-8000-0000000007c1', 'resend', 'A', 'a@example.test', 'v1', now(), now());
+  INSERT INTO clinic_mail_providers (clinic_id, id, slot, kind, from_name, from_email, sealed_credentials, created_at, updated_at)
+    VALUES ('00000000-0000-7000-8000-0000000007a1', '00000000-0000-7000-8000-0000000007c2', 'fallback', 'resend', 'A', 'a@example.test', 'v1', now(), now());
+  SELECT count(*) INTO n FROM clinic_mail_providers WHERE slot = 'primary' AND id = '00000000-0000-7000-8000-0000000007c1';
+  IF n <> 1 THEN RAISE EXCEPTION 'MAIL-PROVIDER: a row without a slot is not the primary'; END IF;
+  BEGIN
+    INSERT INTO clinic_mail_providers (clinic_id, id, slot, kind, from_name, from_email, sealed_credentials, created_at, updated_at)
+      VALUES ('00000000-0000-7000-8000-0000000007a1', gen_random_uuid(), 'fallback', 'resend', 'x', 'x@example.test', 'v1', now(), now());
+    RAISE EXCEPTION 'MAIL-PROVIDER: a second fallback row was accepted';
+  EXCEPTION WHEN unique_violation THEN NULL; END;
+  BEGIN
+    INSERT INTO clinic_mail_providers (clinic_id, id, slot, kind, from_name, from_email, sealed_credentials, created_at, updated_at)
+      VALUES ('00000000-0000-7000-8000-0000000007a1', gen_random_uuid(), 'primary', 'resend', 'x', 'x@example.test', 'v1', now(), now());
+    RAISE EXCEPTION 'MAIL-PROVIDER: a second primary row was accepted';
+  EXCEPTION WHEN unique_violation THEN NULL; END;
+  BEGIN
+    UPDATE clinic_mail_providers SET slot = 'backup' WHERE id = '00000000-0000-7000-8000-0000000007c2';
+    RAISE EXCEPTION 'MAIL-PROVIDER: an unknown slot was accepted';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  -- Another clinic's fallback is still another clinic's row.
+  BEGIN
+    INSERT INTO clinic_mail_providers (clinic_id, id, slot, kind, from_name, from_email, sealed_credentials, created_at, updated_at)
+      VALUES ('00000000-0000-7000-8000-0000000007a2', gen_random_uuid(), 'fallback', 'resend', 'x', 'x@example.test', 'v1', now(), now());
+    RAISE EXCEPTION 'ISO-01 write leak: a fallback for another clinic';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
 END $$;
 RESET ROLE;
 

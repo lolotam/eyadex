@@ -13,7 +13,7 @@ import {
 
 import { clinics } from "./clinics.ts";
 
-// Mirror of db/sql/0030 (ADR-0014). A clinic table: forced RLS on clinic_id; credentials only sealed.
+// Mirror of db/sql/0030 (ADR-0014) and 0055 (a primary and a fallback slot per clinic). A clinic table: forced RLS on clinic_id; credentials only sealed.
 const tz = { withTimezone: true, mode: "date" } as const;
 
 export const clinicMailProviders = pgTable(
@@ -22,6 +22,9 @@ export const clinicMailProviders = pgTable(
     clinicId: uuid("clinic_id").notNull(),
     id: uuid("id").notNull(),
     kind: text("kind").notNull(),
+    slot: text("slot", { enum: ["primary", "fallback"] })
+      .notNull()
+      .default(sql`'primary'::text`),
     fromName: text("from_name").notNull(),
     fromEmail: text("from_email").notNull(),
     replyTo: text("reply_to"),
@@ -44,7 +47,7 @@ export const clinicMailProviders = pgTable(
       columns: [t.clinicId],
       foreignColumns: [clinics.id],
     }),
-    unique("clinic_mail_providers_one_per_clinic").on(t.clinicId),
+    unique("clinic_mail_providers_one_per_slot").on(t.clinicId, t.slot),
     check(
       "clinic_mail_providers_kind_check",
       sql.raw("(kind = ANY (ARRAY['resend'::text, 'smtp'::text]))"),
@@ -56,6 +59,10 @@ export const clinicMailProviders = pgTable(
     check(
       "clinic_mail_providers_consecutive_failures_check",
       sql.raw("(consecutive_failures >= 0)"),
+    ),
+    check(
+      "clinic_mail_providers_slot_check",
+      sql.raw("(slot = ANY (ARRAY['primary'::text, 'fallback'::text]))"),
     ),
     check("clinic_mail_providers_version_check", sql.raw("(version >= 1)")),
     check("clinic_mail_providers_last_error_check", sql.raw("(char_length(last_error) <= 120)")),

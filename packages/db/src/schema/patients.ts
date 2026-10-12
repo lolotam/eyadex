@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   check,
   date,
   foreignKey,
@@ -16,7 +17,7 @@ import {
 import { branches } from "./branches.ts";
 import { clinics } from "./clinics.ts";
 
-// Mirror of db/sql/0010, 0019 (+ 0035's index), 0045 and 0052. The civil ID is sensitive: never logged
+// Mirror of db/sql/0010, 0019 (+ 0035's index), 0045, 0052 and 0053. The civil ID is sensitive: never logged
 // or audited, and stored only as civil_id_enc/hmac/last4 (0052 dropped the plain column and 0021's check).
 const tz = { withTimezone: true, mode: "date" } as const;
 
@@ -37,6 +38,10 @@ export const patients = pgTable(
     civilIdEnc: text("civil_id_enc"),
     civilIdHmac: text("civil_id_hmac"),
     civilIdLast4: text("civil_id_last4"),
+    // 0053: where and how the clinic's messages reach the patient (notifications-design.md N-2).
+    email: text("email"),
+    messageLanguage: text("message_language", { enum: ["ar", "en"] }),
+    notificationsOptOut: boolean("notifications_opt_out").notNull().default(false),
   },
   (t) => [
     primaryKey({ name: "patients_pkey", columns: [t.clinicId, t.id] }),
@@ -71,6 +76,16 @@ export const patients = pgTable(
     check(
       "patients_civil_id_last4_digits",
       sql.raw("((civil_id_last4 IS NULL) OR (civil_id_last4 ~ '^[0-9]{4}$'::text))"),
+    ),
+    check(
+      "patients_email_canonical",
+      sql.raw(
+        "((email = lower(btrim(email))) AND (char_length(email) <= 254) AND (email ~ '^[^@[:space:]]+@[^@[:space:]]+$'::text))",
+      ),
+    ),
+    check(
+      "patients_message_language_check",
+      sql.raw("(message_language = ANY (ARRAY['ar'::text, 'en'::text]))"),
     ),
     check("patients_file_number_numeric", sql.raw("(file_number ~ '^[1-9][0-9]*$'::text)")),
     check("patients_gender_check", sql.raw("(gender = ANY (ARRAY['male'::text, 'female'::text]))")),

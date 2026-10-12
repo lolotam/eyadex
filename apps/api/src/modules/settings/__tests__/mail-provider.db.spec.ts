@@ -77,11 +77,11 @@ describe("clinic mail provider (ADR-0014, 7c-2a)", () => {
   it("never returns or audits the secret; seals it bound to the row id", async () => {
     const clinicId = await seedClinic();
     const actor = { clinicId, userId: newId() };
-    const view = await changes.put(actor, resend, "k1");
+    const view = await changes.put(actor, "primary", resend, "k1");
     expect(view).toMatchObject({ kind: "resend", hasCredentials: true, verifiedAt: null });
     expect(JSON.stringify(view)).not.toContain(API_KEY);
-    expect(JSON.stringify(await getMailProvider(db, clinicId))).not.toContain(API_KEY);
-    await changes.put(actor, smtp, "k2");
+    expect(JSON.stringify(await getMailProvider(db, clinicId, "primary"))).not.toContain(API_KEY);
+    await changes.put(actor, "primary", smtp, "k2");
     const audit = await auditText(clinicId);
     expect(audit).not.toContain(API_KEY);
     expect(audit).not.toContain(PASSWORD);
@@ -106,9 +106,9 @@ describe("clinic mail provider (ADR-0014, 7c-2a)", () => {
   ] as const)("masks a phone number typed into %s in every audit row", async (_field, body) => {
     const clinicId = await seedClinic();
     const actor = { clinicId, userId: newId() };
-    expect(JSON.stringify(await changes.put(actor, body, "p1"))).toContain("99887766");
-    await changes.put(actor, body.kind === "smtp" ? resend : smtp, "p2");
-    await changes.remove(actor);
+    expect(JSON.stringify(await changes.put(actor, "primary", body, "p1"))).toContain("99887766");
+    await changes.put(actor, "primary", body.kind === "smtp" ? resend : smtp, "p2");
+    await changes.remove(actor, "primary");
     const audit = await auditText(clinicId);
     expect(audit).toContain("clinic.mail_provider_removed");
     expect(audit).not.toContain("99887766");
@@ -117,12 +117,12 @@ describe("clinic mail provider (ADR-0014, 7c-2a)", () => {
   it("a replay returns the same view with one audit row; another body conflicts", async () => {
     const clinicId = await seedClinic();
     const actor = { clinicId, userId: newId() };
-    const first = await changes.put(actor, resend, "same");
-    expect(await changes.put(actor, resend, "same")).toEqual(first);
+    const first = await changes.put(actor, "primary", resend, "same");
+    expect(await changes.put(actor, "primary", resend, "same")).toEqual(first);
     const rows = await owner`SELECT 1 FROM audit_log WHERE clinic_id = ${clinicId}`;
     expect(rows).toHaveLength(1);
     await expect(
-      changes.put(actor, { ...resend, apiKey: "re_other" }, "same"),
+      changes.put(actor, "primary", { ...resend, apiKey: "re_other" }, "same"),
     ).rejects.toMatchObject({
       code: "idempotency_conflict",
     });
@@ -131,12 +131,12 @@ describe("clinic mail provider (ADR-0014, 7c-2a)", () => {
   it("replacing keeps the row id and clears verification and failure state", async () => {
     const clinicId = await seedClinic();
     const actor = { clinicId, userId: newId() };
-    await changes.put(actor, resend, "a");
+    await changes.put(actor, "primary", resend, "a");
     const [before] =
       await owner`SELECT id FROM clinic_mail_providers WHERE clinic_id = ${clinicId}`;
     await owner`UPDATE clinic_mail_providers SET verified_at = now(), last_error = 'x',
       consecutive_failures = 2, degraded_at = now() WHERE clinic_id = ${clinicId}`;
-    await changes.put(actor, smtp, "b");
+    await changes.put(actor, "primary", smtp, "b");
     const rows = await owner`SELECT id, verified_at, last_error, consecutive_failures, degraded_at
       FROM clinic_mail_providers WHERE clinic_id = ${clinicId}`;
     expect(rows).toHaveLength(1);
@@ -152,17 +152,18 @@ describe("clinic mail provider (ADR-0014, 7c-2a)", () => {
   it("test request: 404 without a provider; one id-only event with a provider", async () => {
     const clinicId = await seedClinic();
     const actor = { clinicId, userId: newId() };
-    await expect(changes.requestTest(actor, "t0")).rejects.toBeInstanceOf(ApiError);
-    await changes.put(actor, smtp, "p");
+    await expect(changes.requestTest(actor, "primary", "t0")).rejects.toBeInstanceOf(ApiError);
+    await changes.put(actor, "primary", smtp, "p");
     const [row] = await owner`SELECT id FROM clinic_mail_providers WHERE clinic_id = ${clinicId}`;
-    await changes.requestTest(actor, "t1");
-    await changes.requestTest(actor, "t1");
+    await changes.requestTest(actor, "primary", "t1");
+    await changes.requestTest(actor, "primary", "t1");
     const events = await owner`SELECT payload FROM outbox_events
       WHERE clinic_id = ${clinicId} AND event_type = 'clinic.mail_provider_test_requested'`;
     expect(events).toHaveLength(1);
     expect(events[0]!["payload"]).toEqual({
       clinicId,
       providerId: row!["id"],
+      slot: "primary",
       providerVersion: 1,
       actorUserId: actor.userId,
     });
@@ -178,21 +179,27 @@ describe("clinic mail provider (ADR-0014, 7c-2a)", () => {
     });
     const clinicId = await seedClinic();
     const actor = { clinicId, userId: newId() };
-    await timed.put(actor, resend, "c-put");
-    await timed.requestTest(actor, "c1");
+    await timed.put(actor, "primary", resend, "c-put");
+    await timed.requestTest(actor, "primary", "c1");
     time = new Date(time.getTime() + 30_000);
-    const refused = await timed.requestTest(actor, "c2").catch((error: unknown) => error);
+    const refused = await timed
+      .requestTest(actor, "primary", "c2")
+      .catch((error: unknown) => error);
     expect(refused).toMatchObject({ code: "rate_limited", details: { retryAfterSeconds: 30 } });
     // Neither replacing nor deleting and re-creating the provider resets the limit.
-    await timed.put(actor, smtp, "c-put-2");
-    await expect(timed.requestTest(actor, "c2b")).rejects.toMatchObject({ code: "rate_limited" });
-    await timed.remove(actor);
-    await timed.put(actor, resend, "c-put-3");
-    await expect(timed.requestTest(actor, "c2c")).rejects.toMatchObject({ code: "rate_limited" });
+    await timed.put(actor, "primary", smtp, "c-put-2");
+    await expect(timed.requestTest(actor, "primary", "c2b")).rejects.toMatchObject({
+      code: "rate_limited",
+    });
+    await timed.remove(actor, "primary");
+    await timed.put(actor, "primary", resend, "c-put-3");
+    await expect(timed.requestTest(actor, "primary", "c2c")).rejects.toMatchObject({
+      code: "rate_limited",
+    });
     time = new Date(time.getTime() + 31_000);
-    await timed.requestTest(actor, "c3");
+    await timed.requestTest(actor, "primary", "c3");
     time = new Date(time.getTime() + 61_000);
-    await timed.requestTest(actor, "c4");
+    await timed.requestTest(actor, "primary", "c4");
     const events = await owner`SELECT 1 FROM outbox_events
       WHERE clinic_id = ${clinicId} AND event_type = 'clinic.mail_provider_test_requested'`;
     expect(events).toHaveLength(3);
@@ -207,8 +214,8 @@ describe("clinic mail provider (ADR-0014, 7c-2a)", () => {
     await owner.begin(async (tx) => {
       await tx`LOCK TABLE clinic_mail_providers IN SHARE ROW EXCLUSIVE MODE`;
       racing = Promise.allSettled([
-        changes.put({ clinicId, userId: a }, resend, "race-a"),
-        changes.put({ clinicId, userId: b }, smtp, "race-b"),
+        changes.put({ clinicId, userId: a }, "primary", resend, "race-a"),
+        changes.put({ clinicId, userId: b }, "primary", smtp, "race-b"),
       ]);
       for (let i = 0; i < 100; i += 1) {
         const [waiting] = await tx`SELECT count(*)::int AS n FROM pg_locks
@@ -227,12 +234,12 @@ describe("clinic mail provider (ADR-0014, 7c-2a)", () => {
   it("remove deletes the config row and audits it; another clinic's row is invisible", async () => {
     const a = await seedClinic();
     const b = await seedClinic();
-    await changes.put({ clinicId: b, userId: newId() }, resend, "b");
-    expect(await getMailProvider(db, a)).toBeNull();
-    expect(await changes.remove({ clinicId: a, userId: newId() })).toBe(false);
-    expect(await getMailProvider(db, b)).not.toBeNull();
-    expect(await changes.remove({ clinicId: b, userId: newId() })).toBe(true);
-    expect(await getMailProvider(db, b)).toBeNull();
+    await changes.put({ clinicId: b, userId: newId() }, "primary", resend, "b");
+    expect(await getMailProvider(db, a, "primary")).toBeNull();
+    expect(await changes.remove({ clinicId: a, userId: newId() }, "primary")).toBe(false);
+    expect(await getMailProvider(db, b, "primary")).not.toBeNull();
+    expect(await changes.remove({ clinicId: b, userId: newId() }, "primary")).toBe(true);
+    expect(await getMailProvider(db, b, "primary")).toBeNull();
     expect(await auditText(b)).toContain("clinic.mail_provider_removed");
   });
 });

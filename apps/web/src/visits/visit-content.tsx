@@ -18,6 +18,7 @@ import { VisitDiagnoses } from "./visit-diagnoses";
 import { VisitNoteEditor } from "./visit-note-editor";
 import { SectionSaves, type NoteFlush } from "./visit-section-saves";
 import { VisitPrescription } from "./visit-prescription";
+import { VisitPrescriptionEmail } from "./visit-prescription-email";
 import { VisitStatusBadge } from "./visit-status-badge";
 
 /** The visit: header, the notes, diagnoses, prescription, addenda and attachments, by `can`. */
@@ -126,6 +127,9 @@ export function VisitContent({ visitId }: { visitId: string }) {
             saves={saves}
           />
           <VisitAddenda visitId={visit.id} addenda={content.addenda} canAdd={d.can.addAddendum} />
+          {visit.status === "signed" && content.prescription.length > 0 && (
+            <VisitPrescriptionEmail visitId={visit.id} />
+          )}
           <AttachmentsPanel
             patientId={visit.patientId}
             visitId={visit.id}

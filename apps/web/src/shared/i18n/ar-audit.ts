@@ -97,6 +97,7 @@ export const arAudit = {
         updated: "تعديل بيانات مراجع",
         archived: "أرشفة ملف مراجع",
         restored: "استعادة ملف مراجع",
+        prescription_sent: "إرسال الوصفة للمراجع بالبريد",
       },
       clinic: {
         created: "إنشاء عيادة",
@@ -109,6 +110,7 @@ export const arAudit = {
         mail_provider_removed: "إزالة مزود البريد",
         mail_provider_test_requested: "طلب رسالة تجربة لمزود البريد",
         mail_provider_degraded: "تحويل البريد لمزود المنصة بعد أعطال متكررة",
+        notification_settings_updated: "تحديث إعدادات الإشعارات",
       },
       platform_account: {
         invited: "دعوة عضو منصة",

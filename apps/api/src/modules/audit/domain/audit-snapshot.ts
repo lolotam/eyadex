@@ -46,6 +46,7 @@ const ALLOWED: Record<AuditEntity, readonly string[]> = {
     "verifiedAt",
     "lastError",
     "degradedAt",
+    "slot",
   ],
   // ADR-0026: the appointments module's configuration. A time-off note is free text about a person's
   // absence: it is never recorded, so it can never be shown.
@@ -80,6 +81,9 @@ const ALLOWED: Record<AuditEntity, readonly string[]> = {
     "firstAdmin",
     "defaultLanguage",
     "timezone",
+    // ADR-0031: the clinic's notification settings (switches only, no address).
+    "emailEnabled",
+    "messages",
   ],
   // TODO(spec): the patients slice defines what a patient-file entry may show; until then nothing.
   patient: [],
@@ -106,7 +110,8 @@ const ALLOWED: Record<AuditEntity, readonly string[]> = {
 
 // Context a writer keeps beside before/after that the reader needs to make sense of the change
 // (a feature change records which module); copied into each non-null snapshot.
-const CONTEXT_KEYS = ["module"] as const;
+// A mail provider change records its slot (ADR-0031).
+const CONTEXT_KEYS = ["module", "slot"] as const;
 
 const isPlainObject = (value: unknown): value is Snapshot =>
   typeof value === "object" && value !== null && !Array.isArray(value);

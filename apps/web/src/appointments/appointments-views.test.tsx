@@ -147,22 +147,26 @@ const menuItems = (row: HTMLElement) => {
 };
 
 describe("today's queue", () => {
-  it("lists by start time and hides every action without can.update", () => {
+  it("lists by start time and offers only message history without can.update", () => {
     wrapQueue(queueDay(false));
     const rows = screen.getAllByRole("listitem");
     expect(rows[0]).toHaveTextContent("Early Booked");
     expect(rows[1]).toHaveTextContent("Later Arrived");
-    expect(screen.queryAllByRole("button", { name: ar.appointments.actions.menu })).toHaveLength(0);
+    expect(menuItems(rows[0]!)).toEqual([ar.messageHistory.title]);
   });
 
   it("offers booked → arrived, no-show, cancel and arrived → completed, cancel", () => {
     wrapQueue(queueDay(true));
     const a = ar.appointments.actions;
     const [booked, arrived] = screen.getAllByRole("listitem");
-    expect(menuItems(booked!)).toEqual([a.arrived, a.no_show, a.cancel]);
+    expect(menuItems(booked!)).toEqual([a.arrived, a.no_show, ar.messageHistory.title, a.cancel]);
     fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
     cleanup();
     wrapQueue(queueDay(true));
-    expect(menuItems(screen.getAllByRole("listitem")[1]!)).toEqual([a.completed, a.cancel]);
+    expect(menuItems(screen.getAllByRole("listitem")[1]!)).toEqual([
+      a.completed,
+      ar.messageHistory.title,
+      a.cancel,
+    ]);
   });
 });

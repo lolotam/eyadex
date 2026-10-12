@@ -26,6 +26,7 @@ import {
   slotProblems,
   type AppointmentAccess,
 } from "./mock-appointment-rules";
+import { queueNotification } from "./mock-notification-queue";
 import { profileOf, reachCovers, worksIn } from "./mock-scheduling-rules";
 import {
   delay,
@@ -47,6 +48,18 @@ function existing(db: MockState, a: AppointmentAccess, id: string): StoredAppoin
   const found = db.appointments.find((x) => x.clinicId === a.clinic.id && x.id === id);
   if (!found || !reachCovers(a.reach("update"), found.branchId)) throw new ApiError("not_found");
   return found;
+}
+
+/** Spec §3.1: the patient's message for this change, when the clinic has it on. */
+function notify(db: MockState, s: StoredAppointment, kind: "booked" | "rescheduled" | "cancelled") {
+  queueNotification(db, {
+    clinicId: s.clinicId,
+    patientId: s.patientId,
+    kind,
+    subjectType: "appointment",
+    subjectId: s.id,
+    subjectAt: s.startsAt,
+  });
 }
 
 /** Rule 2 decided as the API's `decideSlot`: overbook lifts every problem and marks the booking. */
@@ -73,6 +86,7 @@ function move(
   found.cancelNote = cancel?.note ?? null;
   const action = to === "cancelled" ? "appointment.cancelled" : "appointment.status_changed";
   auditAppointment(db, a, action, before, found);
+  if (to === "cancelled") notify(db, found, "cancelled");
   persist();
   return answer(db, a, found);
 }
@@ -219,6 +233,7 @@ export function createMockAppointments(): Omit<AppointmentsApi, "week" | "month"
       db.appointments.push(stored);
       ledger[replayKey] = { appointmentId: stored.id, fingerprint };
       auditAppointment(db, a, "appointment.booked", null, stored);
+      notify(db, stored, "booked");
       persist();
       return answer(db, a, stored);
     },
@@ -253,6 +268,7 @@ export function createMockAppointments(): Omit<AppointmentsApi, "week" | "month"
         overbooked,
       });
       auditAppointment(db, a, "appointment.rescheduled", before, found);
+      notify(db, found, "rescheduled");
       persist();
       return answer(db, a, found);
     },

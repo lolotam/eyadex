@@ -1,3 +1,7 @@
+import {
+  patientNotificationListSchema,
+  type PatientNotificationList,
+} from "@eyadex/contracts/notifications";
 import type {
   VisitDetail,
   VisitList,
@@ -59,6 +63,22 @@ export class VisitReads {
         });
       }
       return detail;
+    });
+  }
+
+  /**
+   * تاريخ رسائل الزيارة (رسالة الروشتة، ADR-0031) جوه وصول عرض الزيارات بس: حالة الرسالة بيانات وصفية من
+   * غير محتوى طبي، فمابتكتبش صف وصول. زيارة برة الوصول أو من عيادة تانية = `not_found`.
+   *
+   * @param actor الفاعل
+   * @param visitId الزيارة
+   * @returns الرسائل، الأحدث الأول
+   */
+  notifications(actor: MedicalActor, visitId: string): Promise<PatientNotificationList> {
+    return this.deps.db.withTenant(actor.clinicId, async (tx) => {
+      const { visit } = await seeVisit(readContext(this.deps, tx), actor, visitId);
+      const history = await this.deps.notifications.history(tx, actor.clinicId, visit.id);
+      return patientNotificationListSchema.parse(history);
     });
   }
 

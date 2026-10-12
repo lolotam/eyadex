@@ -2,10 +2,9 @@ import { DEFAULT_PLATFORM_SETTINGS } from "@eyadex/contracts/platform";
 import type { Clinic, ClinicFeatures } from "@eyadex/contracts/clinics";
 import type { Branch } from "@eyadex/contracts/organization";
 import type { MembershipUser } from "@eyadex/contracts/users";
-import type { Patient } from "@eyadex/contracts/patients";
 import type { MockState } from "./mock-store";
 import { issueInviteToken } from "./mock-invite-tokens";
-import { seedCivilId } from "./seed-civil-id";
+import { seedPatients } from "./seed-patients";
 import { seedAppointments } from "./seed-appointments";
 import { seedMedical } from "./seed-medical";
 import { EMPTY_MEDICAL } from "./mock-medical-state";
@@ -75,35 +74,6 @@ const STAFF = [
 
 /** Index into STAFF of the seeded deactivated account. */
 const DEACTIVATED_STAFF = 5;
-
-/** Fictional names, Arabic and English, alternating male / female to match the seeded gender. */
-const PATIENT_NAMES = [
-  "أحمد العنزي",
-  "فاطمة المطيري",
-  "Omar Haddad",
-  "Sarah Al-Kandari",
-  "عبدالله الرشيدي",
-  "نورة العجمي",
-  "Ali Hassan",
-  "Mariam Youssef",
-  "حمد الشمري",
-  "دانة الكندري",
-  "Faisal Al-Otaibi",
-  "Reem Al-Salem",
-  "يوسف الهاجري",
-  "شيخة الدوسري",
-  "Bader Al-Mutawa",
-  "Lulwa Al-Ghanim",
-  "خالد البناي",
-  "هيا العتيبي",
-  "Nasser Al-Fadhli",
-  "Aisha Rahman",
-  "سعود الظفيري",
-  "منيرة الصباح",
-  "Tariq Mansour",
-  "Hessa Al-Qattan",
-  "جاسم الخالدي",
-];
 
 export function buildSeed(): MockState {
   const makeId = idFactory();
@@ -254,30 +224,7 @@ export function buildSeed(): MockState {
       );
     }
 
-    const patientCount = ci === 0 ? 25 : 6;
-    for (let pi = 0; pi < patientCount; pi += 1) {
-      const name = PATIENT_NAMES[(pi + ci * 8) % PATIENT_NAMES.length] ?? "أحمد العنزي";
-      const branch = branches[pi % 2];
-      if (!branch) continue;
-      const birthDate = `${1970 + ((pi * 3) % 40)}-${String((pi % 12) + 1).padStart(2, "0")}-15`;
-      const patient: Patient = {
-        id: makeId(),
-        clinicId,
-        fileNumber: pi + 1,
-        fullName: name,
-        // Fake numbers in the +9655xxxxxxx range; never real ones.
-        phone: `+9655${String(1000000 + ci * 100000 + pi * 3517).slice(-7)}`,
-        birthDate,
-        gender: pi % 2 === 0 ? "male" : "female",
-        registrationBranchId: branch.id,
-        // Fictional, and every one encodes the birth date above.
-        civilId: pi % 3 === 0 ? null : seedCivilId(birthDate, pi * 97 + ci * 31),
-        status: pi === 7 || pi === patientCount - 1 ? "archived" : "active",
-        createdAt,
-      };
-      state.patients.push(patient);
-    }
-    state.patientCounters[clinicId] = patientCount;
+    seedPatients(state, clinicId, ci, branches, makeId, createdAt);
     seedScheduling(state, clinicId, makeId, createdAt);
     if (ci === 0) seedAppointments(state, clinicId, makeId, createdAt);
     if (ci === 0) seedMedical(state, clinicId, makeId);

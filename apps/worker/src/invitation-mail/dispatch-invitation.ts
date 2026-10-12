@@ -2,9 +2,6 @@ import type { ClaimedEvent, DispatchOutcome } from "@eyadex/db";
 import type { Logger } from "@eyadex/observability";
 import type { SecretSealer } from "@eyadex/secrets";
 
-import { credentialsOf } from "../mail-provider-test/domain/credentials.ts";
-import type { ClinicSenderFactory } from "../mail-provider-test/ports/clinic-sender-factory.ts";
-import { isDefinitiveClinicFailure } from "./domain/clinic-failure.ts";
 import { routeInvitation } from "./domain/clinic-routing.ts";
 import { formatExpiry, renderInvitationEmail } from "./domain/invitation-email.ts";
 import { parseInvitationEvent, USER_INVITED } from "./domain/invitation-event.ts";
@@ -16,6 +13,9 @@ import type {
   LockedClinicProvider,
 } from "./ports/invitation-state-reader.ts";
 import type { MailMessage, MailResult, MailSender } from "./ports/mail-sender.ts";
+import { sendViaClinic, type ClinicMailDeps } from "./send-via-clinic.ts";
+
+export type { ClinicMailDeps } from "./send-via-clinic.ts";
 
 export interface Clock {
   now(): Date;
@@ -31,15 +31,6 @@ export interface InvitationDispatchDeps {
   readonly logger: Logger;
   /** مزود العيادة (ADR-0014، 7c-2b). من غيره كل الرسايل بتروح من المنصة. */
   readonly clinicMail?: ClinicMailDeps;
-}
-
-export interface ClinicMailDeps {
-  /** مفتاح `MAIL_PROVIDER_SEAL_KEY`. */
-  readonly sealer: SecretSealer;
-  /** المسار الوحيد لبناء مرسل العيادة: فيه حارس SSRF والتثبيت على العناوين. */
-  readonly senders: ClinicSenderFactory;
-  /** `MAIL_FROM` المنصة: عنوانه بيتستخدم في الإرسال بالنيابة. */
-  readonly platformFrom: string;
 }
 
 const DONE: DispatchOutcome = { kind: "dispatched" };
@@ -70,51 +61,8 @@ export function invitationDispatcher(deps: InvitationDispatchDeps) {
 
   // The clinic's own path, no platform fallback inside the attempt: a failure retries with the clinic
   // provider, because an ambiguous failure may already have delivered (ADR-0014, 7c-2b).
-  const viaClinic = async (
-    clinic: ClinicMailDeps,
-    locked: LockedClinicProvider,
-    message: MailMessage,
-  ): Promise<{ result: MailResult; degraded: boolean }> => {
-    const { row } = locked;
-    let result: MailResult;
-    let secret: string | null = null;
-    try {
-      secret = clinic.sealer.open(row.sealedCredentials, row.id);
-    } catch {
-      // Counted as definitive below: a seal that never opens will not open on a retry either.
-    }
-    const credentials = secret === null ? null : credentialsOf(row, secret);
-    if (secret === null) {
-      result = { sent: false, error: "seal_unreadable" };
-    } else if (credentials === null) {
-      result = { sent: false, error: "invalid_provider" };
-    } else {
-      const sender = await clinic.senders.open(credentials);
-      try {
-        result = await sender.sender.send({
-          ...message,
-          from: { name: row.fromName, address: row.fromEmail },
-          ...(row.replyTo === null ? {} : { replyTo: row.replyTo }),
-        });
-      } finally {
-        sender.close();
-      }
-    }
-    const degraded = await locked.record(
-      result.sent
-        ? { ok: true }
-        : {
-            ok: false,
-            error: result.error,
-            definitive: isDefinitiveClinicFailure(result.error),
-            at: deps.clock.now(),
-          },
-    );
-    return {
-      result: result.sent ? { sent: true, provider: row.kind, fallback: false } : result,
-      degraded,
-    };
-  };
+  const viaClinic = (clinic: ClinicMailDeps, locked: LockedClinicProvider, message: MailMessage) =>
+    sendViaClinic(clinic, locked, message, () => deps.clock.now());
 
   // This attempt degraded the provider, so the next one goes through the platform. When the schedule
   // would give up now (ambiguous failures used the earlier attempts), that platform try is kept anyway.

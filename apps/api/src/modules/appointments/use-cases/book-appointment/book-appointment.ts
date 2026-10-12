@@ -14,6 +14,7 @@ import {
 import { ApiError } from "../../../../shared/errors.ts";
 import { requestHash } from "../../../../shared/idempotency.ts";
 import { lockProvider } from "../../../../shared/provider-lock.ts";
+import { appointmentNotice } from "../../domain/appointment-notices.ts";
 import { actorReach, decideSlot, type AppointmentActor } from "../../domain/booking-rules.ts";
 import { reachCovers } from "../../domain/scheduling-scope.ts";
 import {
@@ -111,6 +112,9 @@ export class BookAppointment {
         before: null,
         after: await auditFieldsOf(tx, this.deps, actor.clinicId, row),
       });
+      // Last, after every lock of the booking (ADR-0027): the ledger row's patient key-share lock
+      // lands on the file row this transaction already holds.
+      await this.deps.notifications.queue(tx, appointmentNotice("booked", row, actor));
       await completeClinicIdempotencyKey(tx, claim, { id: row.id } satisfies StoredCreate);
       return this.answer(tx, actor, row.id);
     });
@@ -171,6 +175,7 @@ export class BookAppointment {
           before: beforeFields,
           after: await auditFieldsOf(tx, this.deps, actor.clinicId, after),
         });
+        await this.deps.notifications.queue(tx, appointmentNotice("rescheduled", after, actor));
         return this.answer(tx, actor, id);
       }),
     );

@@ -5,17 +5,21 @@ import { systemUuidV7 } from "@eyadex/ids";
 import { DatabaseModule } from "../../shared/database.module.ts";
 import { DATABASE } from "../../shared/database.provider.ts";
 // A module.ts may bind another module's adapter to a port it owns (CLAUDE.architecture.md §2.2,
-// ADR-0026): identity's members and, from A2, patients' files.
+// ADR-0026): identity's members and, from A2, patients' files; from phase 3 notifications' ledger
+// (ADR-0031).
 import { PgProviderDirectory } from "../identity/index.ts";
+import { PgAppointmentNotifications } from "../notifications/index.ts";
 import { PgBookingPatients } from "../patients/index.ts";
 import { CLOCK, PgFilingBranches, TenancyModule, type Clock } from "../tenancy/index.ts";
 import { AppointmentsController } from "./http/appointments.controller.ts";
 import { SchedulesController } from "./http/schedules.controller.ts";
 import { ServicesController } from "./http/services.controller.ts";
+import type { AppointmentNotifications } from "./ports/appointment-notifications.ts";
 import type { BookingPatientReader } from "./ports/booking-patient-reader.ts";
 import type { ProviderDirectory } from "./ports/provider-directory.ts";
 import type { SchedulingBranchReader } from "./ports/scheduling-branch-reader.ts";
 import {
+  APPOINTMENT_NOTIFICATIONS,
   APPOINTMENT_STATUS_CHANGES,
   BOOK_APPOINTMENT,
   BOOKING_PATIENT_READER,
@@ -41,6 +45,7 @@ const PORTS = [
   PROVIDER_DIRECTORY,
   SCHEDULING_BRANCH_READER,
   BOOKING_PATIENT_READER,
+  APPOINTMENT_NOTIFICATIONS,
 ];
 const appointmentDeps = (
   db: Database,
@@ -48,6 +53,7 @@ const appointmentDeps = (
   providerDirectory: ProviderDirectory,
   branchReader: SchedulingBranchReader,
   patientReader: BookingPatientReader,
+  notifications: AppointmentNotifications,
 ): AppointmentDeps => ({
   db,
   clock,
@@ -55,6 +61,7 @@ const appointmentDeps = (
   providers: providerDirectory,
   branches: branchReader,
   patients: patientReader,
+  notifications,
 });
 
 /**
@@ -69,6 +76,12 @@ const appointmentDeps = (
     { provide: PROVIDER_DIRECTORY, useValue: providers },
     { provide: SCHEDULING_BRANCH_READER, useValue: branches },
     { provide: BOOKING_PATIENT_READER, useValue: patients },
+    {
+      provide: APPOINTMENT_NOTIFICATIONS,
+      inject: [CLOCK],
+      useFactory: (clock: Clock): AppointmentNotifications =>
+        new PgAppointmentNotifications({ ids: systemUuidV7(), clock }),
+    },
     {
       provide: SERVICE_CHANGES,
       inject: [DATABASE, CLOCK],

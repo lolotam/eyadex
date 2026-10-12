@@ -67,14 +67,15 @@ export interface ProviderOptions {
   degraded?: boolean;
   failures?: number;
   sealKey?: string;
+  slot?: "primary" | "fallback";
 }
 
 export function provider(clinicId: string, o: ProviderOptions = {}): string {
   const id = randomUUID();
   const sealed = new SecretSealer(o.sealKey ?? KEY).seal(FAKE_SECRET, id);
-  owner(`INSERT INTO clinic_mail_providers (clinic_id, id, kind, from_name, from_email, reply_to,
+  owner(`INSERT INTO clinic_mail_providers (clinic_id, id, slot, kind, from_name, from_email, reply_to,
            sealed_credentials, verified_at, degraded_at, consecutive_failures, created_at, updated_at)
-         VALUES (${q(clinicId)}, ${q(id)}, 'resend', 'Clinic Desk', 'clinic@example.test',
+         VALUES (${q(clinicId)}, ${q(id)}, ${q(o.slot ?? "primary")}, 'resend', 'Clinic Desk', 'clinic@example.test',
            'desk@example.test', ${q(sealed)}, ${o.verified === false ? "NULL" : "now()"},
            ${o.degraded ? "now()" : "NULL"}, ${o.failures ?? 0}, now(), now())`);
   return id;

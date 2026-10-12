@@ -1,3 +1,4 @@
+import type { MailProviderSlot } from "@eyadex/contracts/notifications";
 import type { Tx } from "@eyadex/db";
 import { sql } from "drizzle-orm";
 
@@ -35,36 +36,44 @@ const record = (row: Row): MailProviderRecord => ({
   version: row.version,
 });
 
-/** صف العيادة (واحد بالكتير)، بقفل `FOR UPDATE` لو طُلب. الختم مابيتقراش هنا أبداً. */
+/**
+ * صف خانة واحدة من مزودي العيادة (واحد بالكتير لكل خانة، 0055)، بقفل `FOR UPDATE` لو طُلب. الختم
+ * مابيتقراش هنا أبداً.
+ */
 export async function findMailProvider(
   tx: Tx,
   clinicId: string,
+  slot: MailProviderSlot,
   forUpdate = false,
 ): Promise<MailProviderRecord | null> {
   const lock = forUpdate ? sql` FOR UPDATE` : sql``;
   const rows = await tx.execute<Row>(
     sql`SELECT id, kind, from_name, from_email, reply_to, smtp_host, smtp_port, smtp_user,
                verified_at, last_error, degraded_at, version
-        FROM clinic_mail_providers WHERE clinic_id = ${clinicId}${lock}`,
+        FROM clinic_mail_providers WHERE clinic_id = ${clinicId} AND slot = ${slot}${lock}`,
   );
   return rows[0] === undefined ? null : record(rows[0]);
 }
 
-/** بيكتب الصف كله (جديد أو بديل بنفس الـ id) ويصفّر حالة التحقق والفشل. */
+/**
+ * بيكتب صف الخانة كله (جديد أو بديل بنفس الـ id) ويصفّر حالة التحقق والفشل. المنادي ماسك قفل بريد
+ * العيادة، فخانة جديدة عمرها ما توصل لـ `UNIQUE (clinic_id, slot)`.
+ */
 export async function upsertMailProvider(
   tx: Tx,
   clinicId: string,
-  id: string,
+  target: { readonly id: string; readonly slot: MailProviderSlot },
   { fields }: SplitRequest,
   sealed: string,
   now: Date,
 ): Promise<void> {
   const at = now.toISOString();
+  const { id, slot } = target;
   await tx.execute(
-    sql`INSERT INTO clinic_mail_providers (clinic_id, id, kind, from_name, from_email, reply_to,
-          smtp_host, smtp_port, smtp_user, sealed_credentials, verified_at, consecutive_failures,
-          degraded_at, last_error, created_at, updated_at)
-        VALUES (${clinicId}, ${id}, ${fields.kind}, ${fields.fromName}, ${fields.fromEmail},
+    sql`INSERT INTO clinic_mail_providers (clinic_id, id, slot, kind, from_name, from_email,
+          reply_to, smtp_host, smtp_port, smtp_user, sealed_credentials, verified_at,
+          consecutive_failures, degraded_at, last_error, created_at, updated_at)
+        VALUES (${clinicId}, ${id}, ${slot}, ${fields.kind}, ${fields.fromName}, ${fields.fromEmail},
           ${fields.replyTo}, ${fields.smtpHost}, ${fields.smtpPort}, ${fields.smtpUser}, ${sealed},
           NULL, 0, NULL, NULL, ${at}::timestamptz, ${at}::timestamptz)
         ON CONFLICT (clinic_id, id) DO UPDATE SET kind = EXCLUDED.kind,
@@ -85,8 +94,9 @@ export async function deleteMailProvider(tx: Tx, clinicId: string, id: string): 
 }
 
 /**
- * قفل إعداد بريد العيادة: كل كتابة (إنشاء، استبدال، حذف، طلب تجربة) بتاخده الأول، فأول إنشاء من
- * أدمنين في نفس اللحظة مايوصلش لـ `UNIQUE (clinic_id)`، وقرار حد التجربة مايتعدّاش بالتوازي.
+ * قفل إعداد بريد العيادة (الخانتين): كل كتابة (إنشاء، استبدال، حذف، طلب تجربة) بتاخده الأول، فأول
+ * إنشاء من أدمنين في نفس اللحظة مايوصلش لـ `UNIQUE (clinic_id, slot)`، وقواعد الخانتين (الاحتياطي
+ * محتاج أساسي) وقرار حد التجربة مايتعدّوش بالتوازي.
  */
 export async function lockClinicMailProvider(tx: Tx, clinicId: string): Promise<void> {
   await tx.execute(

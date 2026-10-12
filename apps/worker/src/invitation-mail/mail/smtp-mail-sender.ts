@@ -14,6 +14,11 @@ export interface SmtpTransport {
     text: string;
   }): Promise<unknown>;
   close(): void;
+  /**
+   * Whether the send in flight (or the last one) had already written the DATA command. A failure after it
+   * is ambiguous: the server may have taken the message. Absent on a transport that cannot tell.
+   */
+  dataSent?(): boolean;
 }
 
 export interface SmtpSettings {
@@ -32,11 +37,45 @@ export interface SmtpSettings {
 export const SMTP_BUDGET_MS = 5_000;
 
 /**
+ * Watches nodemailer's transaction log for the client's DATA command and drops every line: server lines
+ * can echo the recipient, so nothing here is ever forwarded. Only command lines are seen —
+ * `transactionLog`, unlike `debug`, never pipes the message body to the logger.
+ */
+export function dataStageTracker(): {
+  readonly logger: Record<"trace" | "debug" | "info" | "warn" | "error" | "fatal", LogLine>;
+  readonly dataSent: () => boolean;
+  readonly reset: () => void;
+} {
+  let sent = false;
+  const ignore: LogLine = () => undefined;
+  return {
+    logger: {
+      trace: ignore,
+      debug: (entry, message) => {
+        if (entry?.tnx === "client" && message === "DATA") sent = true;
+      },
+      info: ignore,
+      warn: ignore,
+      error: ignore,
+      fatal: ignore,
+    },
+    dataSent: () => sent,
+    reset: () => {
+      sent = false;
+    },
+  };
+}
+
+type LogLine = (entry: { tnx?: unknown } | undefined, message?: unknown) => void;
+
+/**
  * One transporter for the process. Port 465 is implicit TLS; any other port must upgrade with
- * STARTTLS (`requireTLS`), so a server that cannot never receives plain text.
+ * STARTTLS (`requireTLS`), so a server that cannot never receives plain text. The worker sends one
+ * message at a time (one poller), so one stage flag per transporter is enough.
  */
 export function createSmtpTransport(settings: SmtpSettings): SmtpTransport {
-  return createTransport({
+  const stage = dataStageTracker();
+  const transporter = createTransport({
     host: settings.host,
     port: settings.port,
     secure: settings.port === 465,
@@ -46,12 +85,34 @@ export function createSmtpTransport(settings: SmtpSettings): SmtpTransport {
     connectionTimeout: 2_000,
     greetingTimeout: 1_500,
     socketTimeout: 1_500,
-    logger: false,
+    logger: stage.logger,
+    transactionLog: true,
     debug: false,
   });
+  return {
+    sendMail: (mail) => {
+      stage.reset();
+      return transporter.sendMail(mail);
+    },
+    close: () => transporter.close(),
+    dataSent: stage.dataSent,
+  };
 }
 
 const CODE = /^E[A-Z]{2,20}$/;
+const REPLY = /^smtp_\d{3}$/;
+
+/**
+ * A failure once DATA was written gets the `_after_data` suffix, unless it is the server's own reply: a
+ * reply is a refusal, but a timeout or a dropped connection then may hide an accepted message.
+ *
+ * @param code the short code
+ * @param dataSent whether DATA had been written
+ * @returns the code, marked when it is ambiguous
+ */
+export function afterDataCode(code: string, dataSent: boolean): string {
+  return dataSent && !REPLY.test(code) ? `${code}_after_data` : code;
+}
 
 // Only a short code leaves this file: the server's text can echo the address or the message.
 export function smtpErrorCode(error: unknown): string {
@@ -96,10 +157,10 @@ export class SmtpMailSender implements MailSender {
         }),
         deadline,
       ]);
-      if (outcome === "timeout") return { sent: false, error: "smtp_timeout" };
+      if (outcome === "timeout") return { sent: false, error: this.#code("smtp_timeout") };
       return { sent: true, provider: "smtp", fallback: false };
     } catch (error) {
-      return { sent: false, error: smtpErrorCode(error) };
+      return { sent: false, error: this.#code(smtpErrorCode(error)) };
     } finally {
       clearTimeout(timer);
     }
@@ -107,5 +168,9 @@ export class SmtpMailSender implements MailSender {
 
   close(): void {
     this.transport.close();
+  }
+
+  #code(code: string): string {
+    return afterDataCode(code, this.transport.dataSent?.() ?? false);
   }
 }

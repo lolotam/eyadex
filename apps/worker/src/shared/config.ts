@@ -1,5 +1,6 @@
 import { ConfigurationError } from "@eyadex/observability";
 import { LOG_LEVELS } from "@eyadex/observability";
+import { fieldCipherFromEnv, type FieldCipher } from "@eyadex/secrets";
 import { z } from "zod";
 
 // An empty value (the `.env.example` default) counts as unset.
@@ -36,6 +37,8 @@ const schema = z
       .transform((v) => v.replace(/\/+$/, "")),
     // How often the expiry reminder scan runs; the ledger makes a reminder once per expiry date anyway.
     EXPIRY_SCAN_INTERVAL_MS: z.coerce.number().int().min(60_000).max(86_400_000).default(3_600_000),
+    // How often the appointment reminder scan runs (spec §3.2); the ledger makes a reminder once per start.
+    REMINDER_SCAN_INTERVAL_MS: z.coerce.number().int().min(60_000).max(86_400_000).default(300_000),
     // How often the retention purge runs (ADR-0022); the database decides what is old enough to go.
     RETENTION_PURGE_INTERVAL_MS: z.coerce
       .number()
@@ -89,4 +92,20 @@ export function readConfig(env: NodeJS.ProcessEnv): WorkerConfig {
     throw new ConfigurationError("worker", keys);
   }
   return result.data;
+}
+
+const MEDICAL_KEY = /^MEDICAL_MASTER_KEY_V[1-9][0-9]{0,3}$/;
+
+/**
+ * The prescription email opens the visit's medicine lines (ADR-0028), so the worker reads the same
+ * `MEDICAL_MASTER_KEY_V<n>` keys as the API. Optional like the SMTP fallback: with none set, a prescription
+ * message fails with `no_medical_key` and every other message still goes out. A key that is set but
+ * malformed stops the process (`KeyConfigError` names the variable, never the value).
+ *
+ * @param env the process environment
+ * @returns the cipher, or `null` when no medical key is set
+ */
+export function medicalCipher(env: NodeJS.ProcessEnv): FieldCipher | null {
+  const configured = Object.entries(env).some(([name, value]) => MEDICAL_KEY.test(name) && !!value);
+  return configured ? fieldCipherFromEnv(env) : null;
 }

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { messageLanguageSchema } from "./notifications.ts";
 import { idSchema, pageQuerySchema, stripInvisibleControls } from "./common.ts";
 
 export const genderSchema = z.enum(["male", "female"]);
@@ -128,6 +129,12 @@ export const patientSchema = z.object({
   gender: genderSchema,
   registrationBranchId: idSchema,
   civilId: z.string().nullable(),
+  /** Where the patient's messages go (phase 3); `null` = none recorded. */
+  email: z.string().nullable(),
+  /** `null` = the clinic's default language. */
+  messageLanguage: messageLanguageSchema.nullable(),
+  /** The patient asked for no reminders; other messages still go out (N-2). */
+  notificationsOptOut: z.boolean(),
   status: patientStatusSchema,
   createdAt: z.string().datetime(),
 });
@@ -159,6 +166,16 @@ export const patientInputSchema = z
     registrationBranchId: idSchema,
     /** Empty string = none. */
     civilId: civilIdInput,
+    /** Empty string = none. */
+    email: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .max(254, "validation.tooLong")
+      .refine((v) => v === "" || z.string().email().safeParse(v).success, "validation.email"),
+    /** Empty string = the clinic's default language. */
+    messageLanguage: z.union([z.literal(""), messageLanguageSchema]),
+    notificationsOptOut: z.boolean(),
   })
   .superRefine((value, ctx) => {
     // Digits 1-7 of a civil ID are its birth date, so a number and a date cannot disagree.

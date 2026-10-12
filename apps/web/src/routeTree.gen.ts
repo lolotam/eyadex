@@ -30,7 +30,9 @@ import { Route as PlatformTeamRouteImport } from './routes/platform.team'
 import { Route as ClinicPatientsIndexRouteImport } from './routes/clinic.patients.index'
 import { Route as ClinicPatientsPatientIdRouteImport } from './routes/clinic.patients.$patientId'
 import { Route as ClinicSettingsIndexRouteImport } from './routes/clinic.settings.index'
+import { Route as ClinicSettingsEmailRouteImport } from './routes/clinic.settings.email'
 import { Route as ClinicSettingsMedicinesRouteImport } from './routes/clinic.settings.medicines'
+import { Route as ClinicSettingsNotificationsRouteImport } from './routes/clinic.settings.notifications'
 import { Route as ClinicSettingsSchedulesRouteImport } from './routes/clinic.settings.schedules'
 import { Route as ClinicSettingsServicesRouteImport } from './routes/clinic.settings.services'
 import { Route as ClinicVisitsIndexRouteImport } from './routes/clinic.visits.index'
@@ -144,11 +146,22 @@ const ClinicSettingsIndexRoute = ClinicSettingsIndexRouteImport.update({
   path: '/settings/',
   getParentRoute: () => ClinicRoute,
 } as any)
+const ClinicSettingsEmailRoute = ClinicSettingsEmailRouteImport.update({
+  id: '/settings/email',
+  path: '/settings/email',
+  getParentRoute: () => ClinicRoute,
+} as any)
 const ClinicSettingsMedicinesRoute = ClinicSettingsMedicinesRouteImport.update({
   id: '/settings/medicines',
   path: '/settings/medicines',
   getParentRoute: () => ClinicRoute,
 } as any)
+const ClinicSettingsNotificationsRoute =
+  ClinicSettingsNotificationsRouteImport.update({
+    id: '/settings/notifications',
+    path: '/settings/notifications',
+    getParentRoute: () => ClinicRoute,
+  } as any)
 const ClinicSettingsSchedulesRoute = ClinicSettingsSchedulesRouteImport.update({
   id: '/settings/schedules',
   path: '/settings/schedules',
@@ -205,7 +218,9 @@ export interface FileRoutesByFullPath {
   '/clinic/': typeof ClinicIndexRoute
   '/platform/': typeof PlatformIndexRoute
   '/clinic/patients/$patientId': typeof ClinicPatientsPatientIdRoute
+  '/clinic/settings/email': typeof ClinicSettingsEmailRoute
   '/clinic/settings/medicines': typeof ClinicSettingsMedicinesRoute
+  '/clinic/settings/notifications': typeof ClinicSettingsNotificationsRoute
   '/clinic/settings/schedules': typeof ClinicSettingsSchedulesRoute
   '/clinic/settings/services': typeof ClinicSettingsServicesRoute
   '/clinic/visits/$visitId': typeof ClinicVisitsVisitIdRoute
@@ -234,7 +249,9 @@ export interface FileRoutesByTo {
   '/clinic': typeof ClinicIndexRoute
   '/platform': typeof PlatformIndexRoute
   '/clinic/patients/$patientId': typeof ClinicPatientsPatientIdRoute
+  '/clinic/settings/email': typeof ClinicSettingsEmailRoute
   '/clinic/settings/medicines': typeof ClinicSettingsMedicinesRoute
+  '/clinic/settings/notifications': typeof ClinicSettingsNotificationsRoute
   '/clinic/settings/schedules': typeof ClinicSettingsSchedulesRoute
   '/clinic/settings/services': typeof ClinicSettingsServicesRoute
   '/clinic/visits/$visitId': typeof ClinicVisitsVisitIdRoute
@@ -266,7 +283,9 @@ export interface FileRoutesById {
   '/clinic/': typeof ClinicIndexRoute
   '/platform/': typeof PlatformIndexRoute
   '/clinic/patients/$patientId': typeof ClinicPatientsPatientIdRoute
+  '/clinic/settings/email': typeof ClinicSettingsEmailRoute
   '/clinic/settings/medicines': typeof ClinicSettingsMedicinesRoute
+  '/clinic/settings/notifications': typeof ClinicSettingsNotificationsRoute
   '/clinic/settings/schedules': typeof ClinicSettingsSchedulesRoute
   '/clinic/settings/services': typeof ClinicSettingsServicesRoute
   '/clinic/visits/$visitId': typeof ClinicVisitsVisitIdRoute
@@ -299,7 +318,9 @@ export interface FileRouteTypes {
     | '/clinic/'
     | '/platform/'
     | '/clinic/patients/$patientId'
+    | '/clinic/settings/email'
     | '/clinic/settings/medicines'
+    | '/clinic/settings/notifications'
     | '/clinic/settings/schedules'
     | '/clinic/settings/services'
     | '/clinic/visits/$visitId'
@@ -328,7 +349,9 @@ export interface FileRouteTypes {
     | '/clinic'
     | '/platform'
     | '/clinic/patients/$patientId'
+    | '/clinic/settings/email'
     | '/clinic/settings/medicines'
+    | '/clinic/settings/notifications'
     | '/clinic/settings/schedules'
     | '/clinic/settings/services'
     | '/clinic/visits/$visitId'
@@ -359,7 +382,9 @@ export interface FileRouteTypes {
     | '/clinic/'
     | '/platform/'
     | '/clinic/patients/$patientId'
+    | '/clinic/settings/email'
     | '/clinic/settings/medicines'
+    | '/clinic/settings/notifications'
     | '/clinic/settings/schedules'
     | '/clinic/settings/services'
     | '/clinic/visits/$visitId'
@@ -530,11 +555,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ClinicSettingsIndexRouteImport
       parentRoute: typeof ClinicRoute
     }
+    '/clinic/settings/email': {
+      id: '/clinic/settings/email'
+      path: '/settings/email'
+      fullPath: '/clinic/settings/email'
+      preLoaderRoute: typeof ClinicSettingsEmailRouteImport
+      parentRoute: typeof ClinicRoute
+    }
     '/clinic/settings/medicines': {
       id: '/clinic/settings/medicines'
       path: '/settings/medicines'
       fullPath: '/clinic/settings/medicines'
       preLoaderRoute: typeof ClinicSettingsMedicinesRouteImport
+      parentRoute: typeof ClinicRoute
+    }
+    '/clinic/settings/notifications': {
+      id: '/clinic/settings/notifications'
+      path: '/settings/notifications'
+      fullPath: '/clinic/settings/notifications'
+      preLoaderRoute: typeof ClinicSettingsNotificationsRouteImport
       parentRoute: typeof ClinicRoute
     }
     '/clinic/settings/schedules': {
@@ -598,7 +637,9 @@ interface ClinicRouteChildren {
   ClinicUsersRoute: typeof ClinicUsersRoute
   ClinicIndexRoute: typeof ClinicIndexRoute
   ClinicPatientsPatientIdRoute: typeof ClinicPatientsPatientIdRoute
+  ClinicSettingsEmailRoute: typeof ClinicSettingsEmailRoute
   ClinicSettingsMedicinesRoute: typeof ClinicSettingsMedicinesRoute
+  ClinicSettingsNotificationsRoute: typeof ClinicSettingsNotificationsRoute
   ClinicSettingsSchedulesRoute: typeof ClinicSettingsSchedulesRoute
   ClinicSettingsServicesRoute: typeof ClinicSettingsServicesRoute
   ClinicVisitsVisitIdRoute: typeof ClinicVisitsVisitIdRoute
@@ -616,7 +657,9 @@ const ClinicRouteChildren: ClinicRouteChildren = {
   ClinicUsersRoute: ClinicUsersRoute,
   ClinicIndexRoute: ClinicIndexRoute,
   ClinicPatientsPatientIdRoute: ClinicPatientsPatientIdRoute,
+  ClinicSettingsEmailRoute: ClinicSettingsEmailRoute,
   ClinicSettingsMedicinesRoute: ClinicSettingsMedicinesRoute,
+  ClinicSettingsNotificationsRoute: ClinicSettingsNotificationsRoute,
   ClinicSettingsSchedulesRoute: ClinicSettingsSchedulesRoute,
   ClinicSettingsServicesRoute: ClinicSettingsServicesRoute,
   ClinicVisitsVisitIdRoute: ClinicVisitsVisitIdRoute,
@@ -664,13 +707,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

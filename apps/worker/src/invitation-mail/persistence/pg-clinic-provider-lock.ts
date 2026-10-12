@@ -41,21 +41,27 @@ const toRow = (r: Row): ClinicProviderRow => ({
   consecutiveFailures: r.consecutive_failures,
 });
 
+/** A clinic provider slot (0055): the primary, and the fallback only patient messages use. */
+export type ProviderSlot = "primary" | "fallback";
+
 /**
- * Takes the clinic's provider row FOR UPDATE, after the invitation and its branches (the test handler
- * takes only this row, so the lock order stays one way). RLS limits it to the event's clinic.
+ * Takes one of the clinic's provider rows FOR UPDATE, after the rows the message is about (the test
+ * handler takes only this row, so the lock order stays one way). RLS limits it to the event's clinic.
+ * Invitations read the primary slot only (spec §8): a fallback row never routes an invitation. A caller
+ * that takes both slots takes the primary first.
  */
 export async function lockClinicProvider(
   tx: Tx,
   clinicId: string,
   actorUserId: string,
   ids: IdGenerator,
+  slot: ProviderSlot = "primary",
 ): Promise<LockedClinicProvider | null> {
   const rows = (await tx.execute(
     sql`SELECT id, kind, from_name, from_email, reply_to, smtp_host, smtp_port, smtp_user,
                sealed_credentials, version, verified_at::text AS verified_at,
                degraded_at::text AS degraded_at, consecutive_failures
-        FROM clinic_mail_providers WHERE clinic_id = ${clinicId} FOR UPDATE`,
+        FROM clinic_mail_providers WHERE clinic_id = ${clinicId} AND slot = ${slot} FOR UPDATE`,
   )) as unknown as Row[];
   if (rows[0] === undefined) return null;
   const row = toRow(rows[0]);

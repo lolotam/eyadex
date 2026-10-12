@@ -84,6 +84,20 @@ describe("audit snapshots", () => {
     });
   });
 
+  it("shows the notification settings switches and a mail provider's slot (ADR-0031)", () => {
+    const off = { emailEnabled: false, messages: { booked: false } };
+    expect(auditSnapshots("clinic", { before: null, after: off })).toEqual({
+      before: null,
+      after: off,
+    });
+    const provider = auditSnapshots("clinic_mail_provider", {
+      slot: "fallback",
+      before: null,
+      after: { kind: "smtp", hasCredentials: true },
+    });
+    expect(provider.after).toEqual({ kind: "smtp", hasCredentials: true, slot: "fallback" });
+  });
+
   it("shows nothing for entities without an allowlist, and nothing for odd details", () => {
     const empty = { before: null, after: null };
     expect(

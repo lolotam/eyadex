@@ -40,6 +40,9 @@ export function input(branchId: string, phone = "55501234"): PatientInput {
     registrationBranchId: branchId,
     // Well-formed and encodes 1990-04-01; fictional, never a real person's number.
     civilId: "290040112347",
+    email: "",
+    messageLanguage: "",
+    notificationsOptOut: false,
   };
 }
 export const ALL = { cursor: null, limit: 100, q: "", branchId: null, status: null };

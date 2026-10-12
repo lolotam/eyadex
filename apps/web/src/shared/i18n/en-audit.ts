@@ -97,6 +97,7 @@ export const enAudit = {
         updated: "Patient file updated",
         archived: "Patient file archived",
         restored: "Patient file restored",
+        prescription_sent: "Prescription emailed to the patient",
       },
       clinic: {
         created: "Clinic created",
@@ -106,6 +107,7 @@ export const enAudit = {
         feature_toggled: "Module switched",
         settings_updated: "Clinic settings updated",
         mail_provider_updated: "Mail provider saved",
+        notification_settings_updated: "Notification settings updated",
         mail_provider_removed: "Mail provider removed",
         mail_provider_test_requested: "Mail provider test requested",
         mail_provider_degraded: "Mail provider degraded to platform mail",

@@ -109,7 +109,10 @@ function setup(kind: "resend" | "smtp" = "resend") {
   const admin = `admin-${tag}@example.test`;
   const actor = member(clinicId, roleId, admin);
   const providerId = provider(clinicId, kind);
-  const eventId = event({ clinicId, providerId, providerVersion: 1, actorUserId: actor }, clinicId);
+  const eventId = event(
+    { clinicId, providerId, slot: "primary", providerVersion: 1, actorUserId: actor },
+    clinicId,
+  );
   return { clinicId, providerId, eventId, admin };
 }
 
@@ -185,7 +188,13 @@ describe("clinic mail provider test send (ADR-0014, 7c-2a)", () => {
     const { clinicId, providerId } = setup();
     const bad = event({ clinicId, providerId }, clinicId);
     const other = event(
-      { clinicId: randomUUID(), providerId, providerVersion: 1, actorUserId: randomUUID() },
+      {
+        clinicId: randomUUID(),
+        providerId,
+        slot: "primary",
+        providerVersion: 1,
+        actorUserId: randomUUID(),
+      },
       clinicId,
     );
     await drain(h.poller);

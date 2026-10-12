@@ -166,6 +166,9 @@ export function createMockPatients(): ApiClient["patients"] {
         gender: input.gender,
         registrationBranchId: input.registrationBranchId,
         civilId: input.civilId || null,
+        email: input.email || null,
+        messageLanguage: input.messageLanguage || null,
+        notificationsOptOut: input.notificationsOptOut,
         status: "active",
         createdAt: new Date().toISOString(),
       };
@@ -198,6 +201,9 @@ export function createMockPatients(): ApiClient["patients"] {
         gender: input.gender,
         registrationBranchId: input.registrationBranchId,
         civilId: input.civilId || null,
+        email: input.email || null,
+        messageLanguage: input.messageLanguage || null,
+        notificationsOptOut: input.notificationsOptOut,
       });
       audit(db, access, "patient.updated", before, patient);
       persist();
