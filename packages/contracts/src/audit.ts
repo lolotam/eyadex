@@ -127,6 +127,11 @@ export const CLINIC_AUDIT_ACTIONS = [
   "clinic.mail_provider_test_requested",
   "clinic.mail_provider_degraded",
   "clinic.notification_settings_updated",
+  // Phase 3 N2 (spec §7.1): the WhatsApp channel. No token and no number in their details.
+  "clinic.whatsapp_risk_accepted",
+  "clinic.whatsapp_connected",
+  "clinic.whatsapp_disconnected",
+  "clinic.whatsapp_coexistence_updated",
   "service.created",
   "service.updated",
   "service.deactivated",

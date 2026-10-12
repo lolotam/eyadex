@@ -142,9 +142,14 @@ const importsOfMedical = (module: string): string[] =>
       ([, target = ""]) => `${file.slice(modulesDir.length)}: ${target}`,
     ),
   );
-// ADR-0031: the notifications module names only its two tables (the outbox goes through shared/);
-// appointments and medical reach it only through notifications/index.ts, bound in their module file.
-const NOTIFICATIONS_RELATIONS = ["clinic_notification_settings", "patient_notifications"];
+// ADR-0031: the notifications module names only its three tables (N2 added the WhatsApp channel; the
+// outbox goes through shared/); appointments and medical reach it only through notifications/index.ts,
+// bound in their module file.
+const NOTIFICATIONS_RELATIONS = [
+  "clinic_notification_settings",
+  "patient_notifications",
+  "clinic_whatsapp_channels",
+];
 const notificationsSqlRelations = (): string[] =>
   sourceFiles(join(modulesDir, "notifications")).flatMap((file) =>
     [...readFileSync(file, "utf8").matchAll(/\b(?:FROM|JOIN|UPDATE|INTO)\s+([a-z_][a-z0-9_]*)/g)]
@@ -211,7 +216,7 @@ describe("module boundaries", () => {
     expect([...importsOfMedical("patients"), ...importsOfMedical("appointments")]).toEqual([]);
   });
 
-  it("the notifications module's SQL names only its own two tables", () => {
+  it("the notifications module's SQL names only its own three tables", () => {
     expect(existsSync(join(modulesDir, "notifications", "notifications.module.ts"))).toBe(true);
     expect(notificationsSqlRelations()).toEqual([]);
   });

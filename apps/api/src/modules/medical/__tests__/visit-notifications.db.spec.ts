@@ -99,6 +99,7 @@ describe("queueing on sign (N-5)", () => {
     const messages = { ...DEFAULT_NOTIFICATION_SETTINGS.messages, prescription: false };
     const off = await send(h, C.admin.cookie, "PUT", "/v1/clinic/notification-settings", {
       emailEnabled: true,
+      whatsappEnabled: false,
       messages,
     });
     expect(off.statusCode).toBe(200);

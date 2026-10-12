@@ -1,10 +1,10 @@
-import { ConfigurationError } from "@eyadex/observability";
 import { Module } from "@nestjs/common";
 import type { Database } from "@eyadex/db";
 import { systemUuidV7 } from "@eyadex/ids";
 
 import { DatabaseModule } from "../../shared/database.module.ts";
 import { DATABASE } from "../../shared/database.provider.ts";
+import { mailProviderSealKey } from "../../shared/mail-provider-seal-key.ts";
 import { AuthorizationCacheModule } from "../identity/index.ts";
 import { ClinicSettingsChanges, CLOCK, TenancyModule, type Clock } from "../tenancy/index.ts";
 import { ClinicSettingsController } from "./http/clinic-settings.controller.ts";
@@ -19,19 +19,8 @@ import {
 import { getMailProvider, getMailProviders } from "./queries/mail-provider.ts";
 import { MailProviderChanges } from "./use-cases/mail-provider-changes.ts";
 
-/**
- * بيقرا `MAIL_PROVIDER_SEAL_KEY` ويوقف التشغيل لو ناقص أو مش 32 بايت. الخطأ بيسمّي المفتاح بس.
- *
- * @param env البيئة
- * @returns المفتاح base64
- */
-export function mailProviderSealKey(env: NodeJS.ProcessEnv): string {
-  const value = env["MAIL_PROVIDER_SEAL_KEY"] ?? "";
-  if (Buffer.from(value, "base64").length !== 32) {
-    throw new ConfigurationError("API", ["MAIL_PROVIDER_SEAL_KEY"]);
-  }
-  return value;
-}
+// Re-exported for settings/index.ts, whose callers named it here before it moved to shared/.
+export { mailProviderSealKey };
 
 /**
  * إعدادات العيادة: `/v1/clinic/mail-provider` (ADR-0014، دلوقتي اسم تاني للخانة الأساسية)،

@@ -9,12 +9,13 @@ import type { AppointmentNotice } from "../domain/appointment-notices.ts";
  */
 export interface AppointmentNotifications {
   /**
-   * بيحط رسالة الحجز أو التغيير أو الإلغاء في الطابور جوه transaction الـ use case، بعد أقفاله كلها. لو
-   * بريد العيادة أو الرسالة مقفولة، أو الرسالة دي اتحطت قبل كده لنفس البداية، مفيش حاجة بتتكتب.
+   * بيحط رسالة الحجز أو التغيير أو الإلغاء في الطابور جوه transaction الـ use case، بعد أقفاله كلها: صف
+   * لكل قناة شغّالة (البريد، وواتساب لو قناته مربوطة). لو القنوات أو الرسالة مقفولة، أو الرسالة دي اتحطت
+   * قبل كده لنفس البداية، مفيش حاجة بتتكتب.
    *
    * @param tx الـ transaction جوه `withTenant(clinicId)`
    * @param notice الرسالة
-   * @returns `true` لو اتحط صف وحدث outbox
+   * @returns `true` لو اتحط صف واحد على الأقل بحدث outbox
    */
   queue(tx: Tx, notice: AppointmentNotice): Promise<boolean>;
 
