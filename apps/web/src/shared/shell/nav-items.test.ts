@@ -20,7 +20,7 @@ describe("clinic navigation", () => {
       "schedules",
       "medicines",
     ]);
-    expect(settingsEntry()?.anyOf).toEqual(SETTINGS_TABS.map((tab) => tab.resource));
+    expect(settingsEntry()?.anyOf).toEqual([...new Set(SETTINGS_TABS.map((tab) => tab.resource))]);
     const shows = (keys: string[]) =>
       navItemsFor(CLINIC_NAV, keys).some((item) => item.to === "/clinic/settings");
     expect(shows(["view:services:clinic"])).toBe(true);

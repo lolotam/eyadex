@@ -39,6 +39,9 @@ export function toPatientBody(input: PatientInput): PatientInput {
     gender: input.gender,
     registrationBranchId: input.registrationBranchId,
     civilId: input.civilId,
+    email: input.email,
+    messageLanguage: input.messageLanguage,
+    notificationsOptOut: input.notificationsOptOut,
   };
 }
 

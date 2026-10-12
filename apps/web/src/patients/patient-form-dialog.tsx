@@ -27,6 +27,7 @@ import { ApiError, errorCodeOf } from "@/shared/api/api-error";
 import { SelectField, TextField } from "@/shared/forms/form-fields";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { usePersona } from "@/shared/persona/persona-provider";
+import { PatientMessagesFields } from "./patient-messages-fields";
 import { usePatientBranches, useRefreshPatients } from "./patient-queries";
 
 type Props = {
@@ -50,6 +51,9 @@ function blank(branchId: string): PatientInput {
     gender: "male",
     registrationBranchId: branchId,
     civilId: "",
+    email: "",
+    messageLanguage: "",
+    notificationsOptOut: false,
   };
 }
 
@@ -91,6 +95,9 @@ export function PatientFormDialog({ open, patient, onOpenChange }: Props) {
             gender: current.gender,
             registrationBranchId: current.registrationBranchId,
             civilId: current.civilId ?? "",
+            email: current.email ?? "",
+            messageLanguage: current.messageLanguage ?? "",
+            notificationsOptOut: current.notificationsOptOut,
           }
         : blank(""),
     );
@@ -191,6 +198,7 @@ export function PatientFormDialog({ open, patient, onOpenChange }: Props) {
               hint={t("patients.fields.civilIdHint")}
               dir="ltr"
             />
+            <PatientMessagesFields control={form.control} />
           </form>
         </Form>
         {duplicate && (

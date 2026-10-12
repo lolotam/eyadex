@@ -60,6 +60,9 @@ describe("mock audit rows are scrubbed like the API's", () => {
         gender: "male",
         registrationBranchId: branch.id,
         civilId: "",
+        email: "",
+        messageLanguage: "",
+        notificationsOptOut: false,
       },
       crypto.randomUUID(),
     );

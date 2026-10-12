@@ -159,10 +159,14 @@ describe("today's queue", () => {
     wrapQueue(queueDay(true));
     const a = ar.appointments.actions;
     const [booked, arrived] = screen.getAllByRole("listitem");
-    expect(menuItems(booked!)).toEqual([a.arrived, a.no_show, a.cancel]);
+    expect(menuItems(booked!)).toEqual([a.arrived, a.no_show, ar.messageHistory.title, a.cancel]);
     fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
     cleanup();
     wrapQueue(queueDay(true));
-    expect(menuItems(screen.getAllByRole("listitem")[1]!)).toEqual([a.completed, a.cancel]);
+    expect(menuItems(screen.getAllByRole("listitem")[1]!)).toEqual([
+      a.completed,
+      ar.messageHistory.title,
+      a.cancel,
+    ]);
   });
 });

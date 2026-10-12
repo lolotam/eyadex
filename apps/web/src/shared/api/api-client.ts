@@ -70,6 +70,7 @@ import type {
 } from "@eyadex/contracts/platform";
 import type { AppointmentsApi } from "./appointments-client";
 import type { MedicalApi } from "./medical-client";
+import type { NotificationsApi } from "./notifications-client";
 import type { SchedulingApi } from "./scheduling-client";
 
 /**
@@ -205,6 +206,8 @@ export interface ApiClient {
   appointments: AppointmentsApi;
   /** Visits, the medical file, prescriptions, attachments and the medicines list (P2). */
   medical: MedicalApi;
+  /** Patient email notifications: settings, mail providers and message history (phase 3 N1). */
+  notifications: NotificationsApi;
   audit: {
     /** Needs view:audit_log:clinic; the caller's clinic only, newest first. */
     clinicList(persona: Persona, query: ClinicAuditListQuery): Promise<Page<ClinicAuditItem>>;
