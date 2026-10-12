@@ -98,8 +98,17 @@ function mirrorShape(table: PgTable): [string, Shape] {
   // every column or expression in order with its direction, and the partial predicate — not its name
   // alone (Codex on PR #24). Expressions render as drizzle-kit would put them in an index; PostgreSQL
   // prints these lower-case identifiers unquoted.
-  const define = (name: string, unique: boolean, method: string, cols: string[], where?: string) =>
+  // A NULLS NOT DISTINCT unique constraint (0056) prints the clause after the column list.
+  const define = (
+    name: string,
+    unique: boolean,
+    method: string,
+    cols: string[],
+    where?: string,
+    nullsNotDistinct = false,
+  ) =>
     `CREATE ${unique ? "UNIQUE " : ""}INDEX ${name} ON public.${config.name} USING ${method} (${cols.join(", ")})` +
+    (nullsNotDistinct ? " NULLS NOT DISTINCT" : "") +
     (where === undefined ? "" : ` WHERE (${where})`);
   const expression = (value: SQL): string =>
     dialect.sqlToQuery(value, "indexes").sql.replaceAll('"', "");
@@ -125,6 +134,8 @@ function mirrorShape(table: PgTable): [string, Shape] {
         true,
         "btree",
         u.columns.map((c) => c.name),
+        undefined,
+        u.nullsNotDistinct,
       ),
     ),
     ...config.columns
