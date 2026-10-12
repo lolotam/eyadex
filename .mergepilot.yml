@@ -1,0 +1,12 @@
+language: ar
+
+review:
+  maxFindings: 5
+  minSeverity: medium
+  rulesFiles:
+    - CLAUDE.md
+    - CLAUDE.architecture.md
+    - AGENTS.md
+
+budget:
+  perReviewUsd: 1.0
