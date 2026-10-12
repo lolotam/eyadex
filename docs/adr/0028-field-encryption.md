@@ -55,6 +55,8 @@ four digits stay visible in lists.
   (`docs/specs/medical-keys-runbook.md`).
 - **Rotation** = add `V<n+1>`, switch `MEDICAL_KEY_VERSION`, re-encrypt old rows in a job, then retire the
   old version. Nothing re-encrypts at deploy time.
-- Dropping the plain `civil_id` is SQL 0052 (R1-6): it refuses to run while any row still holds a plain
-  number, so an environment that was never backfilled stops instead of losing it.
+- Dropping the plain `civil_id` is SQL 0052 (R1-6), applied on an environment only after the code that
+  never names `civil_id` is live there (the older API reads and writes the column). It refuses to run
+  while any row still holds a plain number, so an environment that was never backfilled stops instead of
+  losing it.
 - Partial civil ID search is gone (P2-F5); a partial number finds nothing by civil ID.

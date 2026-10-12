@@ -7,6 +7,10 @@
 -- With the column go 0021's digits check and its per-clinic unique index: the database now only sees an
 -- envelope, so the 12-digit shape is the API contract's job and uniqueness is the hmac index of 0045.
 --
+-- Order: apply only after the API that never names `civil_id` is deployed on that environment; the older
+-- API still reads and writes the column and fails once it is gone. The guard below protects the data, not
+-- an older binary.
+--
 -- An environment where a plain number is still stored refuses this file instead of losing the number.
 -- patients is FORCE ROW LEVEL SECURITY (0010) and no role has BYPASSRLS, so without a clinic context the
 -- check would see zero rows and pass; lifting FORCE for this one transaction lets the owner see them all.

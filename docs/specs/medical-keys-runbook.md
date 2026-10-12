@@ -58,5 +58,6 @@ without them:
 
 SQL 0045 added the encrypted civil ID columns, and a one-off backfill command converted the files saved
 before it. Once no plain number was left on staging or production, SQL 0052 dropped the plain `civil_id`
-column and the command was removed. 0052 refuses to run on a database that still holds a plain number;
-such a database needs the backfill of an earlier release (before 0052) first.
+column and the command was removed. Apply 0052 on an environment only after the release that no longer
+names `civil_id` is deployed there: the older API reads and writes the column. 0052 refuses to run on a
+database that still holds a plain number; such a database needs the backfill of an earlier release first.
