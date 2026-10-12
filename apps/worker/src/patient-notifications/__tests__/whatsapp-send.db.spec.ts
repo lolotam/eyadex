@@ -158,7 +158,11 @@ describe("WhatsApp send (spec §7.1)", () => {
     ["Evolution is not configured in the worker", null, {}],
     ["the channel is still pending", "fake", { status: "pending" as const }],
     ["the channel was disconnected", "fake", { status: "disconnected" as const }],
-    ["no transport was chosen", "fake", { transport: null }],
+    [
+      "the link was undone and its transport cleared",
+      "fake",
+      { status: "disconnected" as const, transport: null },
+    ],
   ])("whatsapp_disconnected: %s", async (_case, sender, channel) => {
     const fake = new FakeWhatsapp();
     const h = make(sender === null ? null : fake);

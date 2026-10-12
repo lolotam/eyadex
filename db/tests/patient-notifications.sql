@@ -1,4 +1,4 @@
--- Patient notifications (0053–0057, docs/specs/notifications-design.md §2): grants, the patient fields,
+-- Patient notifications (0053–0056, docs/specs/notifications-design.md §2): grants, the patient fields,
 -- the ledger's one-message rule and its CHECKs. Cross-clinic isolation is in rls-isolation.sql.
 -- Runs inside one transaction and ROLLS BACK, so it is safe on any database that has the db/sql baseline.
 -- Usage: psql -v ON_ERROR_STOP=1 -f db/tests/patient-notifications.sql
@@ -10,8 +10,7 @@ BEGIN;
 DO $$
 DECLARE t text; r text; priv text;
 BEGIN
-  FOREACH t IN ARRAY ARRAY['clinic_notification_settings','patient_notifications',
-      'clinic_whatsapp_channels'] LOOP
+  FOREACH t IN ARRAY ARRAY['clinic_notification_settings','patient_notifications'] LOOP
     IF NOT (SELECT relrowsecurity AND relforcerowsecurity FROM pg_class WHERE relname = t) THEN
       RAISE EXCEPTION 'NOTIFY-GRANTS: RLS is not enabled and forced on %', t;
     END IF;

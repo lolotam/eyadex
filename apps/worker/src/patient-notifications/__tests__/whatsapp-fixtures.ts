@@ -39,7 +39,7 @@ export class FakeWhatsapp implements WhatsappSender {
   }
 }
 
-/** The clinic's channel row as the API writes it (0057). */
+/** The clinic's channel row as the API writes it (0057: connected_at set exactly when connected). */
 export function seedChannel(
   clinicId: string,
   o: {
@@ -51,11 +51,12 @@ export function seedChannel(
 ): string {
   const id = randomUUID();
   const transport = o.transport === undefined ? "evolution" : o.transport;
+  const status = o.status ?? "connected";
   owner(`INSERT INTO clinic_whatsapp_channels (clinic_id, id, transport, status, instance_name, phone_last4,
            templates, connected_at, next_send_at, created_at, updated_at)
          VALUES (${q(clinicId)}, ${q(id)}, ${transport === null ? "NULL" : q(transport)},
-           ${q(o.status ?? "connected")}, ${q(`eyadex-${clinicId}`)}, '0001',
-           ${q(JSON.stringify(o.templates ?? {}))}::jsonb, now(),
+           ${q(status)}, ${q(`eyadex-${clinicId}`)}, '0001',
+           ${q(JSON.stringify(o.templates ?? {}))}::jsonb, ${status === "connected" ? "now()" : "NULL"},
            ${o.nextSendAt ? q(o.nextSendAt.toISOString()) : "NULL"}, now(), now())`);
   return id;
 }
