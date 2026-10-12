@@ -26,7 +26,7 @@ export function errorCodeOf(error: unknown): WebErrorCode {
  */
 export function isWhatsappUnavailable(error: unknown): boolean {
   return (
-    error instanceof ApiError && error.code === "unknown" && error.details.code === "unavailable"
+    error instanceof ApiError && error.code === "unknown" && error.details["code"] === "unavailable"
   );
 }
 

@@ -40,7 +40,7 @@ function skipReason(db: MockState, row: StoredNotification): NotificationSkipRea
   if (!channelOn || !settings.messages[row.kind]) return "setting_off";
   const patient = db.patients.find((p) => p.clinicId === row.clinicId && p.id === row.patientId);
   if (row.channel === "email" && !patient?.email) return "no_email";
-  if ((row.kind === "reminder_day" || row.kind === "reminder_2h") && patient.notificationsOptOut)
+  if ((row.kind === "reminder_day" || row.kind === "reminder_2h") && patient?.notificationsOptOut)
     return "opted_out";
   if (row.subjectType === "appointment" && row.kind !== "cancelled") {
     const appt = db.appointments.find((a) => a.id === row.subjectId);
