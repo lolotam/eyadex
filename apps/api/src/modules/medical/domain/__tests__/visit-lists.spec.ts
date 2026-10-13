@@ -49,6 +49,11 @@ describe("icd10Terms (P2-F1)", () => {
     expect(icd10Terms(" I10 ")).toEqual({ codePrefix: "I10", words: ["i10"] });
   });
 
+  it("a FY2027 code with a letter second is code-like; a word without an early digit is not", () => {
+    expect(icd10Terms("qa0.01")).toEqual({ codePrefix: "QA001", words: ["qa0.01"] });
+    expect(icd10Terms("flu")).toEqual({ codePrefix: null, words: ["flu"] });
+  });
+
   it("words search the title only", () => {
     expect(icd10Terms("Generalized  Anxiety")).toEqual({
       codePrefix: null,
