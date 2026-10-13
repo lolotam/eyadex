@@ -1,4 +1,8 @@
-import type { MessageLanguage, NotificationKind } from "@eyadex/contracts/notifications";
+import type {
+  MessageLanguage,
+  NotificationChannel,
+  NotificationKind,
+} from "@eyadex/contracts/notifications";
 import { sql, type Database, type IdGenerator, type Tx } from "@eyadex/db";
 
 import { lockClinicProvider } from "../../invitation-mail/persistence/pg-clinic-provider-lock.ts";
@@ -8,6 +12,7 @@ import type {
   NotificationStore,
   ReadyNotification,
 } from "../ports/notification-store.ts";
+import { lockWhatsappChannel } from "./pg-channel-lock.ts";
 import { readAppointment, readVisit, userOfMembership } from "./pg-subject-reads.ts";
 import { readNotificationSettings } from "./settings-row.ts";
 
@@ -16,6 +21,7 @@ const PRESCRIPTION_SENT = "patient.prescription_sent";
 type LedgerRow = {
   id: string;
   kind: NotificationKind;
+  channel: NotificationChannel;
   status: "queued" | "sent" | "skipped" | "failed";
   patient_id: string;
   subject_type: "appointment" | "visit";
@@ -31,8 +37,9 @@ async function rows<T>(tx: Tx, query: ReturnType<typeof sql>): Promise<T[]> {
 
 /**
  * الدفتر على pool الـ `eyadex_app` تحت `withTenant` (0056، RLS). ترتيب الأقفال ثابت: صف الدفتر، ثم
- * العيادة والإعدادات والمراجع والموعد أو الزيارة، ثم صفّي المزود (الأساسي قبل البديل). الـ API بيضيف صفوف
- * دفتر جديدة بس ومابيعدّلش صف موجود، فمفيش ترتيب معكوس.
+ * العيادة والإعدادات والمراجع والموعد أو الزيارة، ثم صفّي المزود (الأساسي قبل البديل) لصف إيميل أو صف
+ * قناة واتساب (0057) لصف واتساب. الـ API بيضيف صفوف دفتر جديدة بس ومابيعدّلش صف موجود، فمفيش ترتيب
+ * معكوس.
  */
 export class PgNotificationStore implements NotificationStore {
   readonly #db: Database;
@@ -52,7 +59,7 @@ export class PgNotificationStore implements NotificationStore {
       // subject_at as full-precision text: the moved check compares every microsecond PostgreSQL stores.
       const [ledger] = await rows<LedgerRow>(
         tx,
-        sql`SELECT id, kind, status, patient_id, subject_type, subject_id,
+        sql`SELECT id, kind, channel, status, patient_id, subject_type, subject_id,
                    to_json(subject_at) #>> '{}' AS subject_at, requested_by, last_error
             FROM patient_notifications WHERE clinic_id = ${clinicId} AND id = ${notificationId}
             FOR UPDATE`,
@@ -78,11 +85,12 @@ export class PgNotificationStore implements NotificationStore {
     const settings = await readNotificationSettings(tx, clinicId, true);
     const [patient] = await rows<{
       email: string | null;
+      phone: string;
       message_language: MessageLanguage | null;
       notifications_opt_out: boolean;
     }>(
       tx,
-      sql`SELECT email, message_language, notifications_opt_out FROM patients
+      sql`SELECT email, phone, message_language, notifications_opt_out FROM patients
           WHERE clinic_id = ${clinicId} AND id = ${ledger.patient_id} FOR SHARE`,
     );
     if (patient === undefined) throw new Error("patient row not visible");
@@ -99,14 +107,18 @@ export class PgNotificationStore implements NotificationStore {
         ? null
         : await userOfMembership(tx, clinicId, ledger.requested_by);
     const actor = requester ?? appointment?.createdByUserId ?? visit?.signerUserId ?? null;
+    // A WhatsApp row has no provider chain: it locks the clinic's channel instead (spec §7.1).
+    const email = ledger.channel === "email";
     const lock = (slot: "primary" | "fallback") =>
-      actor === null ? null : lockClinicProvider(tx, clinicId, actor, this.#ids, slot);
+      actor === null || !email ? null : lockClinicProvider(tx, clinicId, actor, this.#ids, slot);
     const primary = await lock("primary");
     const fallback = await lock("fallback");
+    const whatsapp = email ? null : await lockWhatsappChannel(tx, clinicId, this.#ids);
     return {
       ledger: {
         id: ledger.id,
         kind: ledger.kind,
+        channel: ledger.channel,
         patientId: ledger.patient_id,
         subjectId: ledger.subject_id,
         lastError: ledger.last_error,
@@ -120,12 +132,14 @@ export class PgNotificationStore implements NotificationStore {
       settings,
       patient: {
         email: patient.email,
+        phone: patient.phone,
         language: patient.message_language,
         optedOut: patient.notifications_opt_out,
       },
       appointment,
       visit,
       providers: { primary, fallback },
+      whatsapp,
       record: (outcome) => this.#record(tx, clinicId, ledger.id, outcome),
       auditPrescriptionSent: async (at) => {
         if (visit === null) return;
@@ -147,7 +161,8 @@ export class PgNotificationStore implements NotificationStore {
     if (outcome.kind === "sent") {
       await tx.execute(
         sql`UPDATE patient_notifications SET status = 'sent', route = ${outcome.route},
-              sent_at = ${at}::timestamptz, updated_at = ${at}::timestamptz WHERE ${row}`,
+              provider_message_id = ${outcome.messageId ?? null},
+              sent_at = ${at}::timestamptz, last_error = NULL, updated_at = ${at}::timestamptz WHERE ${row}`,
       );
     } else if (outcome.kind === "skipped") {
       await tx.execute(

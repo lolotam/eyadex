@@ -38,6 +38,8 @@ import {
 } from "./patient-notifications/persistence/pg-reminder-queue.ts";
 import { AppointmentReminderScanner } from "./patient-notifications/scan-appointment-reminders.ts";
 import { notificationDispatcher } from "./patient-notifications/send-notification.ts";
+import { MetaGraphSender } from "./patient-notifications/whatsapp/meta-graph-sender.ts";
+import { EvolutionWhatsappSender } from "./patient-notifications/whatsapp/evolution-whatsapp-sender.ts";
 import { NamedPlatformSender, platformSenderName } from "./shared/named-platform-sender.ts";
 import { routeEvents } from "./shared/event-router.ts";
 import { medicalCipher, readConfig } from "./shared/config.ts";
@@ -51,7 +53,12 @@ const logger = createLogger(config.LOG_LEVEL, { events: WORKER_LOG_EVENTS });
 try {
   // Both pools are lazy: nothing connects until the first claim, so boot never needs the database.
   const ids = systemUuidV7();
-  const app = createDatabase({ url: config.DATABASE_URL, role: "eyadex_app", ids });
+  const app = createDatabase({
+    url: config.DATABASE_URL,
+    role: "eyadex_app",
+    ids,
+    transactionTimeoutMs: 30_000,
+  });
   const outbox = createDispatcherOutbox({ url: config.DISPATCHER_DATABASE_URL });
   // ADR-0020: clinics + platform_settings for the expiry scan, platform_accounts for team links.
   const platform = createDatabase({
@@ -121,11 +128,15 @@ try {
       platformUrl: config.PLATFORM_URL,
       logger,
     }),
-    // Spec §3.3: patient messages try the clinic's primary, then its fallback, then the platform (N-3).
+    // Spec §3.3: patient emails try the clinic's primary, then its fallback, then the platform (N-3).
+    // Spec §7.1: WhatsApp rows go through the clinic's Evolution instance, or are skipped without it.
     [PATIENT_NOTIFICATION_REQUESTED]: notificationDispatcher({
       store: new PgNotificationStore(app, ids),
       clinicMail,
       platform: mail,
+      meta: new MetaGraphSender(),
+      whatsappSealer: providerSealer,
+      whatsapp: config.EVOLUTION ? new EvolutionWhatsappSender(config.EVOLUTION) : null,
       cipher: medicalCipher(process.env),
       clock,
       logger,

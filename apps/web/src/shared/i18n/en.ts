@@ -1,4 +1,5 @@
 import { enNotifications } from "./en-notifications";
+import { enWhatsapp } from "./en-whatsapp";
 import { enClinicCreate } from "./en-clinic-create";
 import { enRoles } from "./en-roles";
 import { enPatients } from "./en-patients";
@@ -176,6 +177,7 @@ export const en = {
   ...enAppointments,
   ...enVisits,
   ...enNotifications,
+  ...enWhatsapp,
   validation: {
     needsView: "Any create, edit or deactivate permission needs view on the same area",
     timezone: "Choose a supported time zone",
@@ -202,6 +204,8 @@ export const en = {
     duration: "An appointment lasts 5 minutes to 8 hours",
     smtpHost: "Enter the mail server's domain name, e.g. smtp.example.com",
     controlChars: "Remove line breaks and hidden characters",
+    templateName: "Use lowercase letters, numbers and underscores, as in Meta",
+    templateLanguage: "Use a language code such as ar or en_US",
   },
   errors: {
     ...enAccessErrors,

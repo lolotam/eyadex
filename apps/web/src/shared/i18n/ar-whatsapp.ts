@@ -1,0 +1,98 @@
+import type { enWhatsapp } from "./en-whatsapp";
+
+type Strings<T> = { [K in keyof T]: T[K] extends string ? string : Strings<T[K]> };
+
+export const arWhatsapp: Strings<typeof enWhatsapp> = {
+  whatsapp: {
+    title: "واتساب",
+    subtitle: "أرسل رسائل المراجعين من رقم واتساب العيادة نفسها.",
+    status: {
+      disconnected: "غير متصل",
+      pending: "بانتظار المسح",
+      connected: "متصل",
+    },
+    number: "الرقم المنتهي بـ {last4}",
+    connection: "طريقة الربط",
+    transport: { evolution: "مربوط برمز QR", coexistence: "واتساب للأعمال" },
+    connectedAt: "اتصل في {time}",
+    lastError: "حدث خطأ في آخر محاولة",
+    lastErrors: {
+      connectionClosed: "انقطع اتصال واتساب.",
+      notConnected: "جوال العيادة غير متصل بواتساب.",
+      evolutionKeyRefused: "رفض Evolution مفتاح الاتصال.",
+      metaCredentialsRefused: "رفضت Meta بيانات الاتصال.",
+      metaRateLimit: "وصل الإرسال عبر Meta إلى الحد المسموح. حاول لاحقًا.",
+      unconfirmed: "انتهت مهلة المحاولة دون تأكيد الإرسال.",
+      unreachable: "تعذّر الوصول إلى خدمة واتساب. حاول لاحقًا.",
+    },
+    inUse: "مستخدم",
+    otherActive: "افصل الربط الحالي أولًا.",
+    errors: {
+      coexistence_linked: "افصل واتساب للأعمال قبل الربط برمز QR.",
+      evolution_linked: "افصل الربط برمز QR قبل حفظ واتساب للأعمال.",
+      meta_credentials_invalid:
+        "Meta رفضت بيانات الدخول — تأكد من التوكن ورقم الهاتف ورقم حساب الأعمال",
+    },
+    disconnect: "فصل",
+    disconnectTitle: "فصل واتساب؟",
+    disconnectBody: "تتوقف رسائل المراجعين على واتساب حتى يُربط الرقم من جديد. البريد لا يتأثر.",
+    disconnected: "تم فصل واتساب",
+    unavailableTitle: "واتساب غير متاح على هذا الخادم",
+    unavailableBody: "لم يُعدّ Eyadex واتساب هنا بعد. تستمر إشعارات البريد كما هي.",
+    qr: {
+      title: "الربط برمز QR",
+      body: "امسح رمزًا بجوال العيادة. إعداد سريع، لكنه غير رسمي.",
+      riskTitle: "خطر فقدان الرقم",
+      risk: "يربط هذا رقم واتساب العيادة عبر اتصال غير رسمي. قد يحظر واتساب الرقم في أي وقت وبشكل نهائي. استخدم رقمًا يمكنك الاستغناء عنه، وأبقِ عدد الرسائل قليلًا، ولا تستخدمه للتسويق أبدًا.",
+      accept: "أفهم هذا الخطر وأقبله",
+      acceptedOn: "قُبل الخطر في {date}",
+      connect: "ربط",
+      showCode: "عرض الرمز",
+      dialogTitle: "امسح الرمز بجوال العيادة",
+      steps: {
+        open: "افتح واتساب على جوال العيادة.",
+        devices: "اذهب إلى الأجهزة المرتبطة.",
+        link: "اضغط ربط جهاز.",
+        scan: "وجّه الجوال نحو هذا الرمز.",
+      },
+      waiting: "بانتظار المسح…",
+      preparing: "جارٍ تجهيز رمز QR…",
+      image: "رمز QR لربط واتساب العيادة",
+      expired: "انتهت صلاحية الرمز قبل مسحه.",
+      refresh: "تحديث الرمز",
+      connected: "تم ربط واتساب",
+    },
+    business: {
+      title: "واتساب للأعمال (التشغيل المشترك)",
+      body: "منصة Meta الرسمية، على رقم يحتفظ بتطبيق واتساب للأعمال.",
+      set: "إعداد",
+      edit: "تعديل",
+      dialogHint: "لا يُعرض الرمز المميز مجددًا، ولا المعرّفان كذلك: اكتبهما في كل حفظ.",
+      fields: {
+        accessToken: "رمز الوصول",
+        phoneNumberId: "معرّف رقم الهاتف",
+        businessAccountId: "معرّف حساب الأعمال",
+      },
+      tokenStored: "يوجد رمز محفوظ؛ اترك الحقل فارغًا للإبقاء عليه.",
+      tokenHelp:
+        "استخدم رمزًا دائمًا (مستخدم النظام) من Meta Business. يبقى الرقم يعمل في تطبيق واتساب للأعمال (التشغيل المشترك).",
+      templatesTitle: "قوالب الرسائل",
+      templatesHelp:
+        "يجب أن توافق Meta على كل قالب (فئة الخدمات؛ وتحاسب Meta على كل رسالة). اترك الرسالة فارغة فلا تُرسل على واتساب.",
+      templateName: "اسم القالب",
+      templateLanguage: "اللغة",
+      paramsAppointment: "رسائل المواعيد تملأ:",
+      paramsPrescription: "الوصفة الطبية تملأ:",
+      params: {
+        clinic: "العيادة",
+        date: "التاريخ",
+        time: "الوقت",
+        provider: "مقدّم الخدمة",
+        branch: "الفرع",
+        doctor: "الطبيب",
+        medicines: "أسطر الأدوية",
+      },
+      saved: "تم حفظ واتساب للأعمال",
+    },
+  },
+};

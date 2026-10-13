@@ -22,6 +22,7 @@ interface PublicRouteRules {
  * refused by `PublicRateLimitGuard` (fail closed), and the completeness test walks the controllers.
  */
 export const PUBLIC_V1_ROUTES: Readonly<Record<string, PublicRouteRules>> = {
+  "POST /v1/hooks/evolution": { ip: { max: 600, windowMs: MINUTE } },
   "POST /v1/invitations/inspect": { ip: PUBLIC_LIMITS.invitationPerIp },
   "POST /v1/invitations/accept": {
     ip: PUBLIC_LIMITS.invitationPerIp,

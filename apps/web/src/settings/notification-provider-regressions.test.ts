@@ -76,6 +76,7 @@ describe("notification settings audit parity", () => {
     const reordered = {
       messages: { ...DEFAULT_NOTIFICATION_SETTINGS.messages },
       emailEnabled: DEFAULT_NOTIFICATION_SETTINGS.emailEnabled,
+      whatsappEnabled: false,
     };
     const auditCount = getState().clinicAudit.length;
     await expect(api.notifications.updateSettings(admin(), reordered)).resolves.toEqual(

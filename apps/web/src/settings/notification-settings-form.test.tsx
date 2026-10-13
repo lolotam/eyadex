@@ -22,7 +22,10 @@ function renderForm(emailEnabled = true) {
     <QueryClientProvider client={new QueryClient()}>
       <I18nProvider>
         <ApiProvider>
-          <NotificationSettingsForm settings={{ ...DEFAULT_NOTIFICATION_SETTINGS, emailEnabled }} />
+          <NotificationSettingsForm
+            settings={{ ...DEFAULT_NOTIFICATION_SETTINGS, emailEnabled }}
+            whatsappConnected={false}
+          />
         </ApiProvider>
       </I18nProvider>
     </QueryClientProvider>,
@@ -64,5 +67,16 @@ describe("notifications tab", () => {
     expect(
       screen.getByRole("switch", { name: ar.notificationSettings.emailEnabled }),
     ).toBeEnabled();
+  });
+});
+
+describe("WhatsApp switch", () => {
+  it("is locked with the link hint while WhatsApp is not connected", () => {
+    session.permissions = ["view:clinic_settings:clinic", "update:clinic_settings:clinic"];
+    renderForm();
+    expect(
+      screen.getByRole("switch", { name: ar.notificationSettings.whatsappEnabled }),
+    ).toBeDisabled();
+    expect(screen.getByText(ar.notificationSettings.whatsappNeedsLink)).toBeTruthy();
   });
 });

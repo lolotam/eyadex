@@ -14,6 +14,7 @@ import { API_LOG_EVENTS } from "../log-events.ts";
 import { Public } from "../../modules/identity/access/access-rules.ts";
 import { PinoNestLogger } from "../nest-logger.ts";
 import { ZodValidationPipe } from "../zod-validation.pipe.ts";
+import { ServiceUnavailableError } from "../errors.ts";
 
 // A contract-shaped input, validated by the same pipe every controller will use. The schema is declared here
 // because packages/contracts is still TypeScript source the API cannot import at runtime (see config.ts).
@@ -25,6 +26,11 @@ const probeInput = z.object({
 // Test-only routes: a validated body, a deliberate crash, and one that logs what must not be logged.
 @Controller("probe")
 class ProbeController {
+  @Get("unavailable")
+  @Public()
+  unavailable(): never {
+    throw new ServiceUnavailableError({ code: "unavailable" });
+  }
   @Post("patient")
   @Public()
   create(@Body(new ZodValidationPipe(probeInput)) body: unknown): unknown {
@@ -87,6 +93,11 @@ afterAll(async () => {
 });
 
 describe("an unknown route", () => {
+  it("preserves the unconfigured dependency detail in a 503 envelope", async () => {
+    const res = await request("GET", "/v1/probe/unavailable");
+    expect(res.status).toBe(503);
+    expect(res.body).toMatchObject({ code: "unknown", details: { code: "unavailable" } });
+  });
   it("is 404 not_found in the bilingual envelope, with no details", async () => {
     const res = await request("GET", "/v1/nothing-here");
     expect(res.status).toBe(404);

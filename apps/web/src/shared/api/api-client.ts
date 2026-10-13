@@ -71,6 +71,7 @@ import type {
 import type { AppointmentsApi } from "./appointments-client";
 import type { MedicalApi } from "./medical-client";
 import type { NotificationsApi } from "./notifications-client";
+import type { WhatsappApi } from "./whatsapp-client";
 import type { SchedulingApi } from "./scheduling-client";
 
 /**
@@ -208,6 +209,8 @@ export interface ApiClient {
   medical: MedicalApi;
   /** Patient email notifications: settings, mail providers and message history (phase 3 N1). */
   notifications: NotificationsApi;
+  /** The clinic's WhatsApp channel: Evolution QR link or WhatsApp Business (phase 3 N2). */
+  whatsapp: WhatsappApi;
   audit: {
     /** Needs view:audit_log:clinic; the caller's clinic only, newest first. */
     clinicList(persona: Persona, query: ClinicAuditListQuery): Promise<Page<ClinicAuditItem>>;

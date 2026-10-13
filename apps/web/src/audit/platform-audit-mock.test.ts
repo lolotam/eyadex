@@ -109,7 +109,12 @@ describe("platform audit log", () => {
       false,
     );
     const list = await api.audit.platformList(PLATFORM, { ...PLATFORM_QUERY, clinicId });
-    const toggle = list.items.find((e) => e.action === "clinic.feature_toggled");
+    // Both toggles can land in the same millisecond, so newest-first order alone does not pick one.
+    const toggle = list.items.find(
+      (e) =>
+        e.action === "clinic.feature_toggled" &&
+        (e.after as { module?: string } | null)?.module === "patients",
+    );
     expect(toggle?.after).toEqual({ module: "patients", enabled: false });
     expect(toggle && "summary" in toggle).toBe(false);
   });

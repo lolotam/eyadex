@@ -45,13 +45,19 @@ function harness() {
     ledger: {
       id: randomUUID(),
       kind: "booked",
+      channel: "email",
       patientId: randomUUID(),
       subjectId: randomUUID(),
       lastError: null,
     },
     clinic: { nameAr: "عيادة", nameEn: "Clinic", language: "en", timeZone: "Asia/Kuwait" },
     settings: DEFAULT_NOTIFICATION_SETTINGS,
-    patient: { email: "patient@example.invalid", language: "en", optedOut: false },
+    patient: {
+      email: "patient@example.invalid",
+      phone: "+96550000000",
+      language: "en",
+      optedOut: false,
+    },
     appointment: {
       status: "booked",
       startUnchanged: true,
@@ -61,6 +67,7 @@ function harness() {
     },
     visit: null,
     providers: { primary: provider("primary"), fallback: provider("fallback") },
+    whatsapp: null,
     record: async (outcome) => {
       outcomes.push(outcome);
       if (state.kind === "ready" && outcome.kind === "failure") {
@@ -101,6 +108,7 @@ function harness() {
       },
     },
     platform,
+    whatsapp: null,
     cipher: null,
     clock: { now: () => new Date("2026-10-13T00:00:00Z") },
     logger,

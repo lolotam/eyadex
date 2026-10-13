@@ -19,7 +19,7 @@ export type NotificationKind = z.infer<typeof notificationKindSchema>;
 /** The two reminders: the only kinds a patient's opt-out stops (N-2). */
 export const REMINDER_KINDS: readonly NotificationKind[] = ["reminder_day", "reminder_2h"];
 
-export const notificationChannelSchema = z.enum(["email"]);
+export const notificationChannelSchema = z.enum(["email", "whatsapp"]);
 export type NotificationChannel = z.infer<typeof notificationChannelSchema>;
 
 export const notificationStatusSchema = z.enum(["queued", "sent", "skipped", "failed"]);
@@ -32,11 +32,24 @@ export const notificationSkipReasonSchema = z.enum([
   "opted_out",
   "not_booked",
   "moved",
+  // N2: the clinic's WhatsApp is not connected at send time, or (coexistence) no Meta template is set
+  // for that kind.
+  "whatsapp_disconnected",
+  "template_missing",
 ]);
 export type NotificationSkipReason = z.infer<typeof notificationSkipReasonSchema>;
 
-/** Which sender delivered it: the clinic's primary or fallback provider, or Eyadex on its behalf (N-3). */
-export const notificationRouteSchema = z.enum(["primary", "fallback", "platform"]);
+/**
+ * Which sender delivered it. Email: the clinic's primary or fallback provider, or Eyadex on its behalf
+ * (N-3). WhatsApp (N2): the clinic's transport.
+ */
+export const notificationRouteSchema = z.enum([
+  "primary",
+  "fallback",
+  "platform",
+  "evolution",
+  "coexistence",
+]);
 export type NotificationRoute = z.infer<typeof notificationRouteSchema>;
 
 const messageSwitches = z
@@ -50,18 +63,39 @@ const messageSwitches = z
 
 /** `GET`/`PUT /v1/clinic/notification-settings`. */
 export const notificationSettingsSchema = z
-  .object({ emailEnabled: z.boolean(), messages: messageSwitches })
+  .object({ emailEnabled: z.boolean(), whatsappEnabled: z.boolean(), messages: messageSwitches })
   .strict();
 export type NotificationSettings = z.infer<typeof notificationSettingsSchema>;
 
-/** A clinic that never saved its settings: email on, every message on. */
+/** A clinic that never saved its settings: email on, WhatsApp off until linked, every message on. */
 export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   emailEnabled: true,
+  whatsappEnabled: false,
   messages: Object.fromEntries(NOTIFICATION_KINDS.map((kind) => [kind, true])) as Record<
     NotificationKind,
     boolean
   >,
 };
+
+/**
+ * A failed message's reason as the clinic sees it (N2). The ledger keeps the provider's exact code;
+ * this is the coarse mapping: `delivery_rejected` (WhatsApp accepted, then refused delivery),
+ * `not_on_whatsapp`, `whatsapp_credentials` (Meta token or Evolution key refused), `template`
+ * (Meta refused the template), `disconnected` (the linked phone dropped), `unconfirmed` (no answer in
+ * time; never resent, so the patient never gets it twice), `invalid_address` (bad phone or email),
+ * `other`.
+ */
+export const notificationFailureReasonSchema = z.enum([
+  "delivery_rejected",
+  "not_on_whatsapp",
+  "whatsapp_credentials",
+  "template",
+  "disconnected",
+  "unconfirmed",
+  "invalid_address",
+  "other",
+]);
+export type NotificationFailureReason = z.infer<typeof notificationFailureReasonSchema>;
 
 /** One row of a message history (appointment details, visit page). No address, no text. */
 export const patientNotificationSchema = z
@@ -74,6 +108,8 @@ export const patientNotificationSchema = z
     route: notificationRouteSchema.nullable(),
     createdAt: z.string().datetime(),
     sentAt: z.string().datetime().nullable(),
+    /** Why a `failed` row failed, in coarse words; `null` for every other status. */
+    failureReason: notificationFailureReasonSchema.nullable(),
   })
   .strict();
 export type PatientNotification = z.infer<typeof patientNotificationSchema>;

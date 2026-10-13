@@ -41,7 +41,7 @@ import {
   type BlobStore,
 } from "./modules/medical/index.ts";
 import { ClinicAuditModule, PlatformAuditModule } from "./modules/audit/index.ts";
-import { NotificationsModule } from "./modules/notifications/index.ts";
+import { whatsappModule, type WhatsappDependencies } from "./app-whatsapp.ts";
 import { PlatformModule } from "./modules/platform/index.ts";
 import { SettingsModule } from "./modules/settings/index.ts";
 import { EnvelopeExceptionFilter } from "./shared/exception.filter.ts";
@@ -54,7 +54,7 @@ import { LOGS, SHUTDOWN, ShutdownHook, UNCLEAN } from "./shared/shutdown.ts";
 
 export { SHUTDOWN_WATCHDOG_MS, watchShutdown } from "./shared/shutdown.ts";
 
-export interface AppDependencies {
+export interface AppDependencies extends WhatsappDependencies {
   /** UUID v7 for rows the use cases create; the system clock and Web Crypto unless a test injects its own. */
   readonly ids?: IdGenerator;
   /** Releases what main.ts opened. Runs on app.close() and on SIGTERM/SIGINT. */
@@ -151,7 +151,7 @@ export function apiModule(
             PatientsModule,
             AppointmentsModule,
             MedicalModule.forRoot(deps.medicalBlobStore),
-            NotificationsModule,
+            whatsappModule(deps),
             ClinicAuditModule,
           ]
         : []),

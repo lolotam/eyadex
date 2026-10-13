@@ -13,9 +13,15 @@ export const enNotifications = {
   notificationSettings: {
     tab: "Notifications",
     title: "Patient notifications",
-    subtitle: "Emails the clinic sends to patients about their appointments and prescriptions.",
+    subtitle:
+      "Email and WhatsApp messages the clinic sends about patients' appointments and prescriptions.",
     emailEnabled: "Send email notifications",
     emailEnabledHint: "Turn off to stop every patient email; your choices below are kept.",
+    whatsappEnabled: "Send WhatsApp messages",
+    whatsappEnabledHint:
+      "Sends the same messages to the patient's mobile through the clinic's WhatsApp.",
+    whatsappNeedsLink: "Link WhatsApp first (Settings → WhatsApp).",
+    whatsappNotConnected: "WhatsApp is not connected, so it cannot be switched on",
     note: "Messages never include the service name or medical details, except the prescription.",
     saved: "Notification settings saved",
     kinds: {
@@ -85,8 +91,8 @@ export const enNotifications = {
   messageHistory: {
     title: "Messages",
     empty: "No messages yet",
-    prescriptionTitle: "Prescription email",
-    prescriptionNone: "No prescription email for this visit",
+    prescriptionTitle: "Prescription messages",
+    prescriptionNone: "No prescription messages for this visit",
     loadError: "The messages could not be loaded",
     status: { queued: "Queued", sent: "Sent", skipped: "Skipped", failed: "Failed" },
     skip: {
@@ -95,7 +101,27 @@ export const enNotifications = {
       opted_out: "Opted out of reminders",
       not_booked: "Not booked any more",
       moved: "Appointment moved",
+      whatsapp_disconnected: "WhatsApp not connected",
+      template_missing: "No WhatsApp template",
     },
-    route: { primary: "Primary sender", fallback: "Fallback sender", platform: "Eyadex" },
+    route: {
+      primary: "Primary sender",
+      fallback: "Fallback sender",
+      platform: "Eyadex",
+      evolution: "Linked by QR",
+      coexistence: "WhatsApp Business",
+    },
+    channel: { email: "Email", whatsapp: "WhatsApp" },
+    failure: {
+      delivery_rejected:
+        "WhatsApp refused delivery (often because the patient never messaged the clinic)",
+      not_on_whatsapp: "This number is not on WhatsApp",
+      whatsapp_credentials: "WhatsApp credentials were refused — check the settings",
+      template: "Meta refused the message template",
+      disconnected: "The clinic's phone disconnected from WhatsApp",
+      unconfirmed: "No answer in time; not resent so the message is never duplicated",
+      invalid_address: "The phone number or email is not valid",
+      other: "Could not send",
+    },
   },
 };

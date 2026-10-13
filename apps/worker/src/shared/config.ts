@@ -8,6 +8,7 @@ const optional = <T extends z.ZodTypeAny>(inner: T) =>
   z.preprocess((v) => (v === "" ? undefined : v), inner.optional());
 
 const SMTP_KEYS = ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASSWORD"] as const;
+const EVOLUTION_KEYS = ["EVOLUTION_API_URL", "EVOLUTION_API_KEY"] as const;
 
 // Read once at startup; a missing or malformed value stops the process instead of failing later.
 const schema = z
@@ -58,24 +59,67 @@ const schema = z
     SMTP_PORT: optional(z.coerce.number().int().min(1).max(65_535)),
     SMTP_USER: optional(z.string().min(1)),
     SMTP_PASSWORD: optional(z.string().min(1)),
+    // Spec §7.1 (N2): the internal Evolution API and its key — both or neither; neither = no WhatsApp.
+    EVOLUTION_API_URL: optional(
+      z
+        .string()
+        .url()
+        .refine((v) => {
+          try {
+            const url = new URL(v);
+            return (
+              (url.protocol === "http:" || url.protocol === "https:") &&
+              url.username === "" &&
+              url.password === "" &&
+              url.pathname === "/" &&
+              url.search === "" &&
+              url.hash === ""
+            );
+          } catch {
+            return false;
+          }
+        }, "http or https origin")
+        .transform((v) => v.replace(/\/+$/, "")),
+    ),
+    EVOLUTION_API_KEY: optional(z.string().min(1)),
   })
   .superRefine((env, ctx) => {
-    const missing = SMTP_KEYS.filter((key) => env[key] === undefined);
-    if (missing.length === 0 || missing.length === SMTP_KEYS.length) return;
-    for (const key of missing) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: "SMTP is all or none" });
+    // ADR-0014 SMTP and §7.1 Evolution: each group is all or none; a partial group names its missing keys.
+    const groups = [
+      { keys: SMTP_KEYS, message: "SMTP is all or none" },
+      { keys: EVOLUTION_KEYS, message: "Evolution is both or none" },
+    ];
+    for (const { keys, message } of groups) {
+      const missing = keys.filter((key) => env[key] === undefined);
+      if (missing.length === 0 || missing.length === keys.length) continue;
+      for (const key of missing)
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message });
     }
   })
-  .transform(({ SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, ...rest }) => ({
-    ...rest,
-    SMTP:
-      SMTP_HOST !== undefined &&
-      SMTP_PORT !== undefined &&
-      SMTP_USER !== undefined &&
-      SMTP_PASSWORD !== undefined
-        ? { host: SMTP_HOST, port: SMTP_PORT, user: SMTP_USER, password: SMTP_PASSWORD }
-        : null,
-  }));
+  .transform(
+    ({
+      SMTP_HOST,
+      SMTP_PORT,
+      SMTP_USER,
+      SMTP_PASSWORD,
+      EVOLUTION_API_URL,
+      EVOLUTION_API_KEY,
+      ...rest
+    }) => ({
+      ...rest,
+      SMTP:
+        SMTP_HOST !== undefined &&
+        SMTP_PORT !== undefined &&
+        SMTP_USER !== undefined &&
+        SMTP_PASSWORD !== undefined
+          ? { host: SMTP_HOST, port: SMTP_PORT, user: SMTP_USER, password: SMTP_PASSWORD }
+          : null,
+      EVOLUTION:
+        EVOLUTION_API_URL !== undefined && EVOLUTION_API_KEY !== undefined
+          ? { url: EVOLUTION_API_URL, apiKey: EVOLUTION_API_KEY }
+          : null,
+    }),
+  );
 
 export type WorkerConfig = z.output<typeof schema>;
 

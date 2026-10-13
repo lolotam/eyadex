@@ -1,9 +1,8 @@
-import type { NotificationRoute } from "@eyadex/contracts/notifications";
-
 import { addressOf } from "../invitation-mail/domain/mail-address.ts";
 import type { MailMessage, MailResult, MailSender } from "../invitation-mail/ports/mail-sender.ts";
 import { sendViaClinic, type ClinicMailDeps } from "../invitation-mail/send-via-clinic.ts";
 import { certainlyNotAccepted } from "./domain/route-advance.ts";
+import type { EmailRoute } from "./domain/route-plan.ts";
 import type { LockedProviders } from "./ports/notification-store.ts";
 
 // One budget for the whole chain: the ledger and the patient stay locked during the send, inside a tenant
@@ -30,10 +29,10 @@ export interface OnBehalf {
 
 /** نتيجة المحاولة: المسار اللي بعت، أو اللي المحاولة وقفت عنده وكوده؛ وهل مزود اتحوّل فيها. */
 export type ChainResult =
-  | { readonly sent: true; readonly route: NotificationRoute; readonly degraded: boolean }
+  | { readonly sent: true; readonly route: EmailRoute; readonly degraded: boolean }
   | {
       readonly sent: false;
-      readonly route: NotificationRoute;
+      readonly route: EmailRoute;
       readonly error: string;
       readonly degraded: boolean;
     };
@@ -53,7 +52,7 @@ type Attempt = { result: MailResult; degraded: boolean };
  */
 export async function sendAlongRoutes(
   deps: RouteDeps,
-  plan: readonly NotificationRoute[],
+  plan: readonly EmailRoute[],
   providers: LockedProviders,
   message: MailMessage,
   onBehalf: OnBehalf,
@@ -77,7 +76,7 @@ export async function sendAlongRoutes(
 
 function send(
   deps: RouteDeps,
-  route: NotificationRoute,
+  route: EmailRoute,
   providers: LockedProviders,
   message: MailMessage,
   onBehalf: OnBehalf,

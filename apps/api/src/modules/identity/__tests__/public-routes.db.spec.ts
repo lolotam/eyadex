@@ -53,6 +53,7 @@ describe("sessionless /v1 POST routes", () => {
       }
     }
     expect(found.sort()).toEqual([
+      "/v1/hooks/evolution",
       "/v1/invitations/accept",
       "/v1/invitations/inspect",
       "/v1/platform/invitations/accept",

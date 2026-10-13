@@ -111,6 +111,10 @@ export const arAudit = {
         mail_provider_test_requested: "طلب رسالة تجربة لمزود البريد",
         mail_provider_degraded: "تحويل البريد لمزود المنصة بعد أعطال متكررة",
         notification_settings_updated: "تحديث إعدادات الإشعارات",
+        whatsapp_risk_accepted: "قبول مخاطر ربط واتساب غير الرسمي",
+        whatsapp_connected: "ربط رقم واتساب العيادة",
+        whatsapp_disconnected: "فك ربط رقم واتساب العيادة",
+        whatsapp_coexistence_updated: "حفظ إعدادات واتساب للأعمال (Coexistence)",
       },
       platform_account: {
         invited: "دعوة عضو منصة",

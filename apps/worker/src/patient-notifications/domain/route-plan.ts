@@ -2,7 +2,10 @@ import type { NotificationRoute } from "@eyadex/contracts/notifications";
 
 import type { ProviderHealth } from "../../invitation-mail/domain/clinic-routing.ts";
 
-const ORDER: readonly NotificationRoute[] = ["primary", "fallback", "platform"];
+/** مسارات الإيميل (N-3)؛ `evolution` و`coexistence` مسارات واتساب (N2) ومالهاش سلسلة. */
+export type EmailRoute = Extract<NotificationRoute, "primary" | "fallback" | "platform">;
+
+const ORDER: readonly EmailRoute[] = ["primary", "fallback", "platform"];
 
 /** مزود متوثق ومش متحوّل: الحالة الوحيدة اللي بنبعت بيها عبر مزود العيادة (ADR-0014). */
 const usable = (provider: ProviderHealth | null): boolean =>
@@ -21,9 +24,9 @@ const usable = (provider: ProviderHealth | null): boolean =>
 export function planRoutes(
   primary: ProviderHealth | null,
   fallback: ProviderHealth | null,
-  resumeFrom: NotificationRoute | null,
-): NotificationRoute[] {
-  const open: Record<NotificationRoute, boolean> = {
+  resumeFrom: EmailRoute | null,
+): EmailRoute[] {
+  const open: Record<EmailRoute, boolean> = {
     primary: usable(primary),
     fallback: usable(fallback),
     platform: true,

@@ -6,6 +6,7 @@ import type { Database } from "@eyadex/db";
 import type { IdGenerator } from "@eyadex/ids";
 
 import { writeClinicAudit } from "../../../../shared/clinic-audit.ts";
+import { ApiError } from "../../../../shared/errors.ts";
 import type { Clock } from "../../../tenancy/index.ts";
 import { sameSettings } from "../../domain/notification-rules.ts";
 import {
@@ -13,6 +14,7 @@ import {
   readNotificationSettings,
   upsertNotificationSettings,
 } from "../../persistence/pg-notification-settings.ts";
+import { whatsappConnected } from "../../persistence/pg-whatsapp-channel.ts";
 
 /** What the settings use case needs: the clinic pool, the time and ids. */
 export interface NotificationSettingsDeps {
@@ -50,7 +52,8 @@ export class NotificationSettingsChanges {
 
   /**
    * بيحفظ الإعدادات كلها (upsert للصف الواحد) ويكتب `clinic.notification_settings_updated` على كيان
-   * العيادة. القفل بيخلّي "قبل" هو الصف اللي اتبدّل فعلاً.
+   * العيادة. القفل بيخلّي "قبل" هو الصف اللي اتبدّل فعلاً. واتساب شغّال وقناة العيادة مش `connected` =
+   * رفض (`validation`، `whatsapp_not_connected`)، حتى لو كان شغّال قبل كده والقناة اتفكت بعدها.
    *
    * @param actor الأدمن
    * @param settings الإعدادات بعد `notificationSettingsSchema`
@@ -65,6 +68,13 @@ export class NotificationSettingsChanges {
       await lockNotificationSettings(tx, actor.clinicId);
       const stored = await readNotificationSettings(tx, actor.clinicId);
       const before = stored?.settings ?? DEFAULT_NOTIFICATION_SETTINGS;
+      // A plain read of the channel: the save holds no lock the link writes wait on, and the worker
+      // decides again at send time (`whatsapp_disconnected`).
+      if (settings.whatsappEnabled && !(await whatsappConnected(tx, actor.clinicId))) {
+        throw new ApiError("validation", [
+          { path: ["whatsappEnabled"], code: "whatsapp_not_connected" },
+        ]);
+      }
       if (stored !== null && sameSettings(before, settings)) return before;
       const now = clock.now();
       await upsertNotificationSettings(

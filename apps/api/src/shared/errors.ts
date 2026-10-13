@@ -122,8 +122,8 @@ export function codeForStatus(status: number): ApiErrorCode {
 
 /** A dependency the request must not pass without (the rate limiter's Redis) is down: 503, `unknown`. */
 export class ServiceUnavailableError extends ApiError {
-  constructor() {
-    super("unknown");
+  constructor(details?: unknown) {
+    super("unknown", details);
   }
 
   override get status(): number {

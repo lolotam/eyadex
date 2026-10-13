@@ -20,9 +20,13 @@ export class PublicRateLimitGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const http = context.switchToHttp();
     const request = http.getRequest<FastifyRequest>();
-    const area = this.areaAuth.hosts.resolve(request.headers);
-    if (area === null) throw new ApiError("not_found");
     const routeKey = `${request.method} ${request.routeOptions.url ?? ""}`;
+    // The machine endpoint authenticates its own header first; Evolution reaches an internal host.
+    const area =
+      routeKey === "POST /v1/hooks/evolution"
+        ? "clinic"
+        : this.areaAuth.hosts.resolve(request.headers);
+    if (area === null) throw new ApiError("not_found");
     const ip = this.areaAuth.hosts.clientIp(request.headers, request.socket.remoteAddress);
     const rules = publicRulesFor(routeKey, ip, request.body);
     if (rules === null) throw new ApiError("unknown");

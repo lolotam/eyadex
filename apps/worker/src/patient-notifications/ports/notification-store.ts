@@ -1,10 +1,12 @@
 import type {
   MessageLanguage,
+  NotificationChannel,
   NotificationKind,
   NotificationRoute,
   NotificationSettings,
   NotificationSkipReason,
 } from "@eyadex/contracts/notifications";
+import type { WhatsappStatus, WhatsappTransport } from "@eyadex/contracts/whatsapp";
 
 import type { LockedClinicProvider } from "../../invitation-mail/ports/invitation-state-reader.ts";
 import type { AppointmentNow } from "../domain/skip-decision.ts";
@@ -13,6 +15,7 @@ import type { AppointmentNow } from "../domain/skip-decision.ts";
 export interface LedgerRow {
   readonly id: string;
   readonly kind: NotificationKind;
+  readonly channel: NotificationChannel;
   readonly patientId: string;
   readonly subjectId: string;
   /** آخر فشل `<route>:<code>`، عشان المحاولة الجاية تعرف تكمّل منين. */
@@ -56,9 +59,50 @@ export interface LockedProviders {
   readonly fallback: LockedClinicProvider | null;
 }
 
+/** صف قناة واتساب العيادة ممسوك `FOR UPDATE` (0057): الطابور بيمشي رسالة واحدة في المرة لكل عيادة. */
+export interface LockedWhatsappChannel {
+  readonly kind: "locked";
+  readonly id: string;
+  readonly sealedCredentials: string | null;
+  readonly phoneNumberId: string | null;
+  readonly transport: WhatsappTransport | null;
+  readonly status: WhatsappStatus;
+  readonly instanceName: string | null;
+  /** عمود `templates` كما هو (kind → `{name, language}`)؛ بيتحقق منه وقت الاستخدام. */
+  readonly templates: unknown;
+  readonly nextSendAt: Date | null;
+  /**
+   * بعد أي محاولة إرسال: الدور الجاي للعيادة (`next_send_at`) وكود آخر فشل (أو `null` بعد نجاح).
+   *
+   * @param next أول وقت مسموح بالرسالة الجاية
+   * @param error كود الفشل، أو `null`
+   * @param at وقت المحاولة
+   * @returns اكتمال كتابة الدور والكود
+   */
+  recordSend(next: Date, error: string | null, at: Date): Promise<void>;
+  /**
+   * يفصل قناة Evolution بعد إغلاق الاتصال.
+   * @param at وقت الفصل
+   * @returns اكتمال الكتابة
+   */
+  disconnect(at: Date): Promise<void>;
+}
+
+/**
+ * قناة واتساب العيادة وقت الإرسال: مفيش صف (مش مربوطة)، أو صف ممسوك عند إرسال تاني لنفس العيادة دلوقتي
+ * (`busy`، الرسالة تستنى دورها)، أو ممسوك لنا.
+ */
+export type WhatsappChannelState =
+  { readonly kind: "none" } | { readonly kind: "busy" } | LockedWhatsappChannel;
+
 /** نتيجة المحاولة اللي بتتكتب على صف الدفتر في نفس الـ transaction. */
 export type LedgerOutcome =
-  | { readonly kind: "sent"; readonly route: NotificationRoute; readonly at: Date }
+  | {
+      readonly kind: "sent";
+      readonly route: NotificationRoute;
+      readonly messageId?: string;
+      readonly at: Date;
+    }
   | { readonly kind: "skipped"; readonly reason: NotificationSkipReason; readonly at: Date }
   /** `final` = الفشل الخامس أو فشل مالوش علاج: الصف بيبقى `failed`؛ غير كده بيفضل `queued`. */
   | {
@@ -81,6 +125,8 @@ export interface ReadyNotification {
   readonly settings: NotificationSettings;
   readonly patient: {
     readonly email: string | null;
+    /** `patients.phone` (عنوان واتساب). عمره ما بيتسجّل. */
+    readonly phone: string;
     readonly language: MessageLanguage | null;
     readonly optedOut: boolean;
   };
@@ -88,7 +134,10 @@ export interface ReadyNotification {
   readonly appointment: AppointmentSubject | null;
   /** للوصفة؛ `null` لو الزيارة مش موجودة أو مش موقّعة أو الرسالة موعد. */
   readonly visit: VisitSubject | null;
+  /** صفّي مزود الإيميل؛ فاضيين لصف واتساب (مالوش سلسلة مزودين). */
   readonly providers: LockedProviders;
+  /** لصفوف واتساب بس؛ `null` لصف إيميل. */
+  readonly whatsapp: WhatsappChannelState | null;
   /**
    * بيكتب نتيجة المحاولة على صف الدفتر (والصف لسه `queued`): `sent` بالمسار والوقت، `skipped` بالسبب،
    * أو الفشل (عدد المحاولات وكود قصير، و`failed` لو نهائي).
@@ -111,9 +160,10 @@ export type LockedNotification =
 /** قارئ وكاتب الدفتر على pool الـ `eyadex_app` تحت `withTenant` (RLS بيقصره على عيادة الحدث). */
 export interface NotificationStore {
   /**
-   * بيمسك صف الدفتر `FOR UPDATE`، وبعدين المراجع والعيادة والإعدادات والموعد أو الزيارة `FOR SHARE`، وصفّي
-   * مزود العيادة `FOR UPDATE` (الأساسي قبل البديل)، ويشغّل `use` والكل ممسوك: أي تعديل على الموعد أو
-   * المراجع بيستنى الإرسال، فاللي اتفحص هو اللي اتبعت عليه.
+   * بيمسك صف الدفتر `FOR UPDATE`، وبعدين المراجع والعيادة والإعدادات والموعد أو الزيارة `FOR SHARE`، ثم
+   * لصف إيميل صفّي مزود العيادة `FOR UPDATE` (الأساسي قبل البديل)، ولصف واتساب صف قناة العيادة
+   * `FOR UPDATE SKIP LOCKED`، ويشغّل `use` والكل ممسوك: أي تعديل على الموعد أو المراجع بيستنى الإرسال،
+   * فاللي اتفحص هو اللي اتبعت عليه.
    *
    * @param clinicId عيادة الحدث
    * @param notificationId صف الدفتر

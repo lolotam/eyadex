@@ -1,4 +1,12 @@
-import { AlertCircle, CircleCheck, CircleSlash, Clock, MailX } from "lucide-react";
+import {
+  AlertCircle,
+  CircleCheck,
+  CircleSlash,
+  Clock,
+  Mail,
+  MailX,
+  MessageCircle,
+} from "lucide-react";
 import type { NotificationStatus, PatientNotification } from "@eyadex/contracts/notifications";
 import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/shared/i18n/i18n-provider";
@@ -25,7 +33,7 @@ export function NotificationStatusBadge({ status }: { status: NotificationStatus
   );
 }
 
-/** One row's words: the kind, then why it was skipped or which sender delivered it, then the time. */
+/** One row's words: the kind, the channel, then why it was skipped or which sender delivered it, then the time. */
 export function MessageHistoryRow({ item }: { item: PatientNotification }) {
   const { t, lang } = useI18n();
   const { session } = useSession();
@@ -40,13 +48,20 @@ export function MessageHistoryRow({ item }: { item: PatientNotification }) {
       : item.route
         ? t(`messageHistory.route.${item.route}`)
         : null;
+  const ChannelIcon = item.channel === "whatsapp" ? MessageCircle : Mail;
   return (
     <li className="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2 last:border-b-0">
       <div className="flex flex-col gap-0.5">
         <span className="text-sm font-medium">{t(`notificationSettings.kinds.${item.kind}`)}</span>
-        <span className="text-xs text-muted-foreground">
-          {[detail, time].filter(Boolean).join(" · ")}
+        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <ChannelIcon className="size-3 shrink-0" aria-hidden />
+          {[t(`messageHistory.channel.${item.channel}`), detail, time].filter(Boolean).join(" · ")}
         </span>
+        {item.status === "failed" && item.failureReason && (
+          <span className="text-xs text-destructive">
+            {t(`messageHistory.failure.${item.failureReason}`)}
+          </span>
+        )}
       </div>
       <NotificationStatusBadge status={item.status} />
     </li>

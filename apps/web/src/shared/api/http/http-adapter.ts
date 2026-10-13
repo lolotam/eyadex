@@ -5,6 +5,7 @@ import type { HttpContext } from "./http-context";
 import { createHttpInvitations } from "./http-invitations";
 import { createHttpMedical } from "./http-medical";
 import { createHttpNotifications } from "./http-notifications";
+import { createHttpWhatsapp } from "./http-whatsapp";
 import { createHttpPatients } from "./http-patients";
 import { createHttpPlatform } from "./http-platform";
 import {
@@ -41,6 +42,7 @@ export function createHttpApiClient(
     appointments: createHttpAppointments(ctx),
     medical: createHttpMedical(ctx),
     notifications: createHttpNotifications(ctx),
+    whatsapp: createHttpWhatsapp(ctx),
     audit: createHttpAudit(ctx),
     clinicSettings: createHttpClinicSettings(ctx),
     account: createHttpAccount(ctx),

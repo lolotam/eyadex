@@ -97,10 +97,100 @@ showing whether the prescription email was sent, skipped (why) or failed.
   clinic's instance and return its QR; the screen polls the state. Sends go out with a per-clinic
   pace (at least a few seconds apart, jitter) to lower the ban risk. The risk text is accepted by an
   admin before the first connect and audited.
-- Coexistence: the clinic's Meta Business credentials through Evolution's Business integration;
+- Coexistence: the clinic's Meta Business credentials directly through Meta Graph v22.0;
   reminder templates must be approved by Meta (utility category, charged per message by Meta).
 - The ledger, scanner and send handler are shared with N1: `channel = 'whatsapp'`, the patient's
   mobile as the address, and no fallback to email unless the clinic enables both channels.
+
+### 7.1 N2 details (orchestrator, 2026-10-13; contracts in `packages/contracts/src/whatsapp.ts`)
+
+- **Table `clinic_whatsapp_channels`** (one row per clinic, `UNIQUE (clinic_id)`; no row = not linked):
+  `transport text NULL` (`evolution`/`coexistence`), `status text NOT NULL` (`disconnected`/`pending`/
+  `connected`), `instance_name text NULL` (Evolution instance, `eyadex-<clinic id>`), `phone_last4 text
+NULL` (`^[0-9]{4}$`), `risk_accepted_at timestamptz NULL`, `risk_accepted_by uuid NULL` (user id, no
+  FK), `risk_version int NULL`, `sealed_credentials text NULL` (coexistence access token, sealed with
+  `MAIL_PROVIDER_SEAL_KEY`, AAD = row id), `phone_number_id text NULL`, `business_account_id text NULL`,
+  `templates jsonb NOT NULL DEFAULT '{}'` (kind → `{name, language}`), `connected_at timestamptz NULL`,
+  `last_error text NULL` (≤120, a code), `next_send_at timestamptz NULL` (the pace), `created_at`,
+  `updated_at`, `operation_id uuid NULL`, `operation_expires_at timestamptz NULL` (a 60-second API
+  reservation across network calls; sends wait while it is active). RLS forced; `eyadex_app`
+  SELECT/INSERT/UPDATE; no platform grant.
+- **`clinic_notification_settings.whatsapp_enabled boolean NOT NULL DEFAULT false`**;
+  `patient_notifications.route` CHECK gains `evolution` and `coexistence`, `skip_reason` gains
+  `whatsapp_disconnected` and `template_missing`.
+- **Env (API + worker):** `EVOLUTION_API_URL` (internal `http://<app>:8080`) and `EVOLUTION_API_KEY`.
+  Both unset = QR unavailable (connect answers `unavailable`, Evolution sends skip `whatsapp_disconnected`);
+  coexistence save, view and sends still work.
+  One set without the other stops the start (`ConfigurationError`).
+- **API** (`view`/`update:clinic_settings:clinic`): `GET /v1/clinic/whatsapp`;
+  `POST /v1/clinic/whatsapp/connect` (`whatsappConnectRequestSchema`; records the risk acceptance once,
+  audit `clinic.whatsapp_risk_accepted`; creates the Evolution instance with integration
+  `WHATSAPP-BAILEYS` if missing; answers `whatsappQrResponseSchema`); `GET /v1/clinic/whatsapp/qr`
+  (refresh; reads `connectionState` and turns `pending` into `connected` with `phone_last4` when open);
+  `POST /v1/clinic/whatsapp/disconnect` (logs the instance out; `status = disconnected`; audit);
+  `PUT /v1/clinic/whatsapp/coexistence` (`whatsappCoexistenceRequestSchema`; token write-only, kept
+  when omitted on an update; audit without the token). Queueing (N1 flow) adds a `whatsapp` ledger row
+  per kind when `whatsappEnabled` and the channel is `connected` at queue time.
+- **Worker:** same handler, `channel = 'whatsapp'`: the patient's mobile (`+965…` → `965…`);
+  skips as N1 plus `whatsapp_disconnected` (not connected now) and `template_missing` (coexistence kind
+  without a template). Evolution: `POST /message/sendText/<instance>` with the same text as the email's
+  plain part (ar/en). Coexistence: direct `POST https://graph.facebook.com/v22.0/{phone_number_id}/messages`
+  with `Authorization: Bearer <token>`, `messaging_product: "whatsapp"`, `type: "template"`,
+  `template.language: {code}`, and body text parameters in the fixed
+  parameter order in `whatsappTemplateSchema`. Pace: one message per clinic at least 8 s apart (+0–4 s
+  jitter) via `next_send_at` under the channel row lock; too early = retry at that time without an
+  attempt. Safe failures retry with the N1 schedule; ambiguous timeouts are final. No cross-channel fallback.
+
+- **Coexistence verification (API):** injectable `MetaApi` / `HttpMetaApi`, 10 s timeout per request,
+  redirects refused. Verify when the token, transport or either Meta id changes: first
+  `GET /v22.0/{phone_number_id}?fields=display_phone_number,verified_name`, retaining only
+  `phone_last4`, then `POST /v22.0/{business_account_id}/subscribed_apps`. Never `/register` and never
+  create a Business instance in Evolution. Templates-only edits make no Meta call. The token is sealed
+  with `MAIL_PROVIDER_SEAL_KEY`, AAD = channel row id; the worker opens it with that same id.
+  HTTP 400/401/403 or numeric error 190 gives `validation`, token field `meta_credentials_invalid`;
+  network, 5xx, timeout and malformed answers give 503. Unlinking coexistence updates the row only.
+- **API-only env:** `EVOLUTION_WEBHOOK_URL` and `EVOLUTION_WEBHOOK_SECRET` (at least 32 chars) are
+  required with Evolution, and must both be unset without it. The URL is the internal API origin plus
+  `/v1/hooks/evolution`: Docker's API listens on `0.0.0.0:3000`; the local process defaults to 3001.
+  The worker does not require the webhook variables.
+- **Webhook registration (Evolution v2.3.7):** create uses nested `webhook: {enabled: true, url,
+byEvents: false, base64: false, headers: {"x-eyadex-webhook": <secret>},
+events: ["MESSAGES_UPDATE", "CONNECTION_UPDATE"]}`. These request field names are confirmed by
+  [the versioned InstanceDto](https://github.com/evolution-foundation/evolution-api/blob/2.3.7/src/api/dto/instance.dto.ts);
+  `webhookByEvents` / `webhookBase64` are storage names. Connecting an existing instance also calls
+  `POST /webhook/set/:instance` with `{webhook: {...}}`. Create timeout is 10 s; other API calls remain 5 s.
+- **QR robustness:** prefixed or bare PNG base64, top-level or `qrcode.base64`, is normalized to a data
+  URL. Only `code` or `count: 0` is pending with null QR. Owner digits come from `ownerJid`, then `owner`,
+  stripping `:device` and `@...` before taking the last four.
+- **`POST /v1/hooks/evolution`:** no browser session, CSRF or origin requirement; a constant-time
+  digest comparison authenticates `x-eyadex-webhook` before the public rate limiter. Wrong header gives
+  the existing bilingual 401 `unauthorized` envelope; Evolution unset gives 404. Internal-host access
+  is exempt only on this exact POST route; other browser routes retain their guards. Zod strips unknown
+  body fields; unknown/malformed events and unknown clinic UUIDs are ignored with 200. The body is never
+  logged. Both uppercase events and Evolution's dotted lowercase event names are accepted, including
+  arrays of message updates. `eyadex-<uuid>` selects `withTenant`.
+  `MESSAGES_UPDATE` with status `ERROR` or numeric 0 and `keyId` or `key.id` changes only matching
+  WhatsApp/Evolution `sent` rows to `failed`, `last_error = evolution:evo_delivery_rejected`.
+  `CONNECTION_UPDATE` state `close` disconnects only an Evolution channel, clears `connected_at`, sets
+  `evo_connection_closed`, and writes one `clinic.whatsapp_disconnected` administrative audit with
+  system/null actor and `{transport: "evolution", reason: "connection_closed"}`. Replays are idempotent.
+- **Ledger (0058):** `provider_message_id text NULL`, at most 200 chars; partial index on
+  `(clinic_id, provider_message_id) WHERE provider_message_id IS NOT NULL`. Successful WhatsApp sends
+  retain Evolution's `key.id` or Meta's `messages[0].id`. `sent_check` permits route + sent_at on a
+  failed row only for a WhatsApp/Evolution delivery rejection; other unsent rows retain neither.
+  History returns the contract's coarse `failureReason` only for failed rows, never provider text.
+- **Evolution retry:** `evo_timeout`, `evo_rejected`, `evo_unauthorized`, `evo_not_on_whatsapp`, other
+  4xx and `evo_not_connected` are final. No idempotency key means timeout retries could duplicate a send.
+  `evo_not_connected`, including a 5xx with "Connection Closed" in top-level `message` or
+  `response.message` (string or array), also disconnects the channel with `evo_not_connected` and clears
+  `connected_at`; later messages skip `whatsapp_disconnected`. Other `evo_5xx` and `evo_unreachable` retry.
+- **Meta worker:** 15 s timeout, injected fetch, redirects refused. Only numeric provider error codes
+  are inspected; provider message/subcode text never reaches errors, logs, audit or the ledger.
+  HTTP 401, codes 190/10/200-299 -> final `meta_unauthorized`; 132000-132015/132068/132069 -> final
+  `meta_template`; 131026 -> final `meta_not_on_whatsapp`; 4/80007/130429/131048/131056 -> retry
+  `meta_rate_limited`; HTTP 5xx -> retry `meta_5xx`; timeout -> final `meta_timeout`; unreachable -> retry
+  `meta_unreachable`; other 4xx or invalid acceptance responses -> final `meta_rejected`.
+  The worker's app transaction budget is 30 s to encompass the 15 s Meta request and ledger settlement.
 
 ## 8. Checklist for every N slice
 
