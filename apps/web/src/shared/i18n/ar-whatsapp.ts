@@ -29,7 +29,8 @@ export const arWhatsapp: Strings<typeof enWhatsapp> = {
     otherActive: "افصل الربط الحالي أولًا.",
     errors: {
       meta_code_invalid: "انتهت صلاحية الربط، حاول مرة أخرى",
-      meta_two_step_enabled: "تطبيق واتساب للأعمال مفعّل فيه التحقق بخطوتين — أوقفه ثم أعد المحاولة",
+      meta_two_step_enabled:
+        "تطبيق واتساب للأعمال مفعّل فيه التحقق بخطوتين — أوقفه ثم أعد المحاولة",
       number_in_use: "هذا الرقم مربوط بعيادة أخرى",
       coexistence_linked: "افصل واتساب للأعمال قبل الربط برمز QR.",
       evolution_linked: "افصل الربط برمز QR قبل حفظ واتساب للأعمال.",
@@ -69,7 +70,8 @@ export const arWhatsapp: Strings<typeof enWhatsapp> = {
       connect: "ربط واتساب للأعمال",
       demo: "تجربة الربط",
       demoCode: "رمز التجربة",
-      demoHint: "للتجربة فقط: cancel أو two_step أو used أو expired تعرض ردود Meta؛ وأي رمز آخر يربط.",
+      demoHint:
+        "للتجربة فقط: cancel أو two_step أو used أو expired تعرض ردود Meta؛ وأي رمز آخر يربط.",
       cancelled: "تم إلغاء الربط",
       missingIds: "لم يكتمل اختيار الرقم في نافذة Meta — حاول مرة أخرى",
       connectedTo: "متصل …{last4}",

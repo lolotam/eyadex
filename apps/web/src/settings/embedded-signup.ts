@@ -5,8 +5,7 @@ import type {
 
 /** What Meta's `WA_EMBEDDED_SIGNUP` message told us: the ids, or that the admin stopped. */
 export type SignupMessage =
-  | { kind: "ids"; wabaId: string | null; phoneNumberId: string | null }
-  | { kind: "cancel" };
+  { kind: "ids"; wabaId: string | null; phoneNumberId: string | null } | { kind: "cancel" };
 
 export type SignupOutcome =
   | { kind: "ready"; request: WhatsappEmbeddedSignupRequest }
@@ -91,7 +90,8 @@ export function runEmbeddedSignup(
     const deadline = Date.now() + waitMs;
     const tick = () => {
       if (done) return;
-      if (wabaId && phoneNumberId) return finish({ kind: "ready", request: { code, wabaId, phoneNumberId } });
+      if (wabaId && phoneNumberId)
+        return finish({ kind: "ready", request: { code, wabaId, phoneNumberId } });
       if (Date.now() >= deadline) return finish({ kind: "missing_ids" });
       setTimeout(tick, 100);
     };
@@ -124,7 +124,12 @@ export function loadFacebookSdk(config: WhatsappSignupConfig): Promise<FbLike> {
   sdk ??= new Promise<FbLike>((resolve, reject) => {
     const w = window as unknown as { FB?: FbLike; fbAsyncInit?: () => void };
     const ready = () => {
-      w.FB!.init({ appId: config.appId, version: config.graphVersion, xfbml: false, cookie: false });
+      w.FB!.init({
+        appId: config.appId,
+        version: config.graphVersion,
+        xfbml: false,
+        cookie: false,
+      });
       resolve(w.FB!);
     };
     if (w.FB) return ready();

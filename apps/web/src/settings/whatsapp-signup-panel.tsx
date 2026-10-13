@@ -41,7 +41,8 @@ export function WhatsappSignupPanel({
   }, [config.data]);
 
   const signup = useMutation({
-    mutationFn: (input: WhatsappEmbeddedSignupRequest) => api.whatsapp.embeddedSignup(persona, input),
+    mutationFn: (input: WhatsappEmbeddedSignupRequest) =>
+      api.whatsapp.embeddedSignup(persona, input),
     onSuccess: () => {
       refresh();
       toast.success(t("whatsapp.qr.connected"));

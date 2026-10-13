@@ -25,7 +25,8 @@ export const enWhatsapp = {
     otherActive: "Disconnect the current link first.",
     errors: {
       meta_code_invalid: "The link expired, try again",
-      meta_two_step_enabled: "Two-step verification is on in the WhatsApp Business app — turn it off, then try again",
+      meta_two_step_enabled:
+        "Two-step verification is on in the WhatsApp Business app — turn it off, then try again",
       number_in_use: "This number is linked to another clinic",
       coexistence_linked: "Disconnect WhatsApp Business before linking by QR code.",
       evolution_linked: "Disconnect the QR link before saving WhatsApp Business.",
@@ -67,7 +68,8 @@ export const enWhatsapp = {
       connect: "Connect WhatsApp Business",
       demo: "Try the link",
       demoCode: "Demo code",
-      demoHint: "Demo only: cancel, two_step, used or expired show Meta's answers; anything else connects.",
+      demoHint:
+        "Demo only: cancel, two_step, used or expired show Meta's answers; anything else connects.",
       cancelled: "Linking was cancelled",
       missingIds: "The number was not chosen in Meta's window — try again",
       connectedTo: "Connected …{last4}",

@@ -15,7 +15,12 @@ export function WhatsappReceipt({
   const step = item.readAt
     ? { at: item.readAt, label: t("messageHistory.receipt.read"), Icon: CheckCheck, read: true }
     : item.deliveredAt
-      ? { at: item.deliveredAt, label: t("messageHistory.receipt.delivered"), Icon: CheckCheck, read: false }
+      ? {
+          at: item.deliveredAt,
+          label: t("messageHistory.receipt.delivered"),
+          Icon: CheckCheck,
+          read: false,
+        }
       : item.sentAt
         ? { at: item.sentAt, label: t("messageHistory.status.sent"), Icon: Check, read: false }
         : null;
@@ -26,7 +31,11 @@ export function WhatsappReceipt({
       data-testid="whatsapp-receipt"
       className={`flex items-center gap-1.5 text-xs ${step.read ? "text-primary" : "text-muted-foreground"}`}
     >
-      <Icon className="size-3 shrink-0" aria-hidden data-icon={step.read || item.deliveredAt ? "check-check" : "check"} />
+      <Icon
+        className="size-3 shrink-0"
+        aria-hidden
+        data-icon={step.read || item.deliveredAt ? "check-check" : "check"}
+      />
       {`${step.label} · ${format(step.at)}`}
     </span>
   );

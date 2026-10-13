@@ -181,7 +181,7 @@ export function createMockWhatsapp(): WhatsappApi {
       });
       persist();
     },
-  
+
     async signupConfig(persona) {
       await delay();
       authorize(getState(), persona, "update", "clinic_settings");
