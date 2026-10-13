@@ -20,6 +20,7 @@ const row = (over: Partial<PatientNotification>, i: number): PatientNotification
   route: "primary",
   createdAt: "2026-10-12T08:00:00.000Z",
   sentAt: null,
+  failureReason: null,
   ...over,
 });
 

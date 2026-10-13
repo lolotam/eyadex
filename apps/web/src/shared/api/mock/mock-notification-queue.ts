@@ -113,7 +113,7 @@ function queueRow(
   db: MockState,
   subject: Omit<
     StoredNotification,
-    "id" | "channel" | "status" | "skipReason" | "route" | "createdAt" | "sentAt"
+    "id" | "channel" | "status" | "skipReason" | "route" | "createdAt" | "sentAt" | "failureReason"
   >,
   channel: NotificationChannel,
 ): void {
