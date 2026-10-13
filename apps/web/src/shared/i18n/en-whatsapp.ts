@@ -11,7 +11,16 @@ export const enWhatsapp = {
     connection: "Connection",
     transport: { evolution: "Linked by QR code", coexistence: "WhatsApp Business" },
     connectedAt: "Connected on {time}",
-    lastError: "The last attempt failed (code: {code})",
+    lastError: "The last attempt failed",
+    lastErrors: {
+      connectionClosed: "The WhatsApp connection closed.",
+      notConnected: "The clinic's phone is not connected to WhatsApp.",
+      evolutionKeyRefused: "Evolution refused the connection key.",
+      metaCredentialsRefused: "Meta refused the connection credentials.",
+      metaRateLimit: "Meta's sending limit was reached. Try again later.",
+      unconfirmed: "The attempt timed out without confirming delivery.",
+      unreachable: "The WhatsApp service could not be reached. Try again later.",
+    },
     inUse: "In use",
     otherActive: "Disconnect the current link first.",
     errors: {

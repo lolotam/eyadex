@@ -1,4 +1,5 @@
 import { randomBytes, randomUUID } from "node:crypto";
+import { SYSTEM_ACTOR_ID } from "@eyadex/contracts/audit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createDatabase } from "@eyadex/db";
 import { systemUuidV7 } from "@eyadex/ids";
@@ -162,7 +163,7 @@ describe("Evolution webhook over HTTP and real RLS", () => {
       before.slice(0, 3),
     );
   });
-  it("close disconnects only Evolution and audits once in the linking admin's name", async () => {
+  it("close disconnects only Evolution and audits once as Eyadex, not the linking admin", async () => {
     const id = randomUUID();
     const linkedBy = randomUUID();
     await h.owner`INSERT INTO clinic_whatsapp_channels (clinic_id, id, transport, status, instance_name, connected_at,
@@ -183,7 +184,7 @@ describe("Evolution webhook over HTTP and real RLS", () => {
       await h.owner`SELECT actor_user_id, details FROM audit_log WHERE clinic_id = ${C.clinicId} AND action = 'clinic.whatsapp_disconnected'`;
     expect(audit).toHaveLength(1);
     expect(audit[0]).toMatchObject({
-      actor_user_id: linkedBy,
+      actor_user_id: SYSTEM_ACTOR_ID,
       details: { transport: "evolution", reason: "connection_closed" },
     });
     await h.owner`UPDATE clinic_whatsapp_channels SET transport = 'coexistence', status = 'connected', connected_at = now(), last_error = NULL WHERE id = ${id}`;

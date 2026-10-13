@@ -15,7 +15,16 @@ export const arWhatsapp: Strings<typeof enWhatsapp> = {
     connection: "طريقة الربط",
     transport: { evolution: "مربوط برمز QR", coexistence: "واتساب للأعمال" },
     connectedAt: "اتصل في {time}",
-    lastError: "فشلت آخر محاولة (الرمز: {code})",
+    lastError: "حدث خطأ في آخر محاولة",
+    lastErrors: {
+      connectionClosed: "انقطع اتصال واتساب.",
+      notConnected: "جوال العيادة غير متصل بواتساب.",
+      evolutionKeyRefused: "رفض Evolution مفتاح الاتصال.",
+      metaCredentialsRefused: "رفضت Meta بيانات الاتصال.",
+      metaRateLimit: "وصل الإرسال عبر Meta إلى الحد المسموح. حاول لاحقًا.",
+      unconfirmed: "انتهت مهلة المحاولة دون تأكيد الإرسال.",
+      unreachable: "تعذّر الوصول إلى خدمة واتساب. حاول لاحقًا.",
+    },
     inUse: "مستخدم",
     otherActive: "افصل الربط الحالي أولًا.",
     errors: {

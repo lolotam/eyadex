@@ -1,5 +1,6 @@
+import { SYSTEM_ACTOR_ID } from "@eyadex/contracts/audit";
 import type { WhatsappStatus, WhatsappTransport } from "@eyadex/contracts/whatsapp";
-import { sql, type Tx } from "@eyadex/db";
+import { sql, type IdGenerator, type Tx } from "@eyadex/db";
 
 import type { WhatsappChannelState } from "../ports/notification-store.ts";
 
@@ -22,9 +23,14 @@ type ChannelRow = {
  *
  * @param tx الـ transaction تحت `withTenant`
  * @param clinicId العيادة
+ * @param ids مولّد معرّف سجل التدقيق
  * @returns حالة القناة
  */
-export async function lockWhatsappChannel(tx: Tx, clinicId: string): Promise<WhatsappChannelState> {
+export async function lockWhatsappChannel(
+  tx: Tx,
+  clinicId: string,
+  ids: IdGenerator,
+): Promise<WhatsappChannelState> {
   const [row] = (await tx.execute(
     sql`SELECT id, sealed_credentials, phone_number_id, transport, status, instance_name, templates,
                to_json(next_send_at) #>> '{}' AS next_send_at,
@@ -54,10 +60,21 @@ export async function lockWhatsappChannel(tx: Tx, clinicId: string): Promise<Wha
     templates: row.templates,
     nextSendAt: row.next_send_at === null ? null : new Date(row.next_send_at),
     disconnect: async (at) => {
-      await tx.execute(sql`UPDATE clinic_whatsapp_channels
+      const changed = await tx.execute(sql`UPDATE clinic_whatsapp_channels
         SET status = 'disconnected', last_error = 'evo_not_connected', connected_at = NULL,
             updated_at = ${at.toISOString()}::timestamptz
-        WHERE clinic_id = ${clinicId} AND id = ${row.id} AND transport = 'evolution'`);
+        WHERE clinic_id = ${clinicId} AND id = ${row.id} AND transport = 'evolution'
+          AND status <> 'disconnected'
+        RETURNING id`);
+      if (changed.length === 0) return;
+      const details = { transport: "evolution", reason: "send_not_connected" };
+      await tx.execute(
+        sql`INSERT INTO audit_log (clinic_id, id, actor_user_id, action, category, entity_type,
+              entity_id, branch_id, details, created_at)
+            VALUES (${clinicId}, ${ids.newId()}, ${SYSTEM_ACTOR_ID}, 'clinic.whatsapp_disconnected',
+              'administrative', 'clinic', ${clinicId}, NULL, ${JSON.stringify(details)}::jsonb,
+              ${at.toISOString()}::timestamptz)`,
+      );
     },
     recordSend: async (next, error, at) => {
       await tx.execute(

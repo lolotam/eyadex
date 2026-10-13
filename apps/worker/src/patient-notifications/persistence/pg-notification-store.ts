@@ -113,7 +113,7 @@ export class PgNotificationStore implements NotificationStore {
       actor === null || !email ? null : lockClinicProvider(tx, clinicId, actor, this.#ids, slot);
     const primary = await lock("primary");
     const fallback = await lock("fallback");
-    const whatsapp = email ? null : await lockWhatsappChannel(tx, clinicId);
+    const whatsapp = email ? null : await lockWhatsappChannel(tx, clinicId, this.#ids);
     return {
       ledger: {
         id: ledger.id,

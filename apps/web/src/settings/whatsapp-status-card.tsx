@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { useSession } from "@/shared/persona/persona-provider";
+import { whatsappErrorKey } from "./whatsapp-error-copy";
 
 const LOOK: Record<
   WhatsappStatus,
@@ -27,7 +28,7 @@ export function WhatsappStatusBadge({ view }: { view: WhatsappChannelView }) {
   );
 }
 
-/** The channel at a glance: status, the transport, when it connected, the last error code. */
+/** The channel at a glance: status, the transport, when it connected, the last error. */
 export function WhatsappStatusCard({
   view,
   editable,
@@ -67,9 +68,7 @@ export function WhatsappStatusCard({
             </p>
           )}
           {view.lastError && (
-            <p className="text-xs text-destructive">
-              {t("whatsapp.lastError", { code: view.lastError })}
-            </p>
+            <p className="text-xs text-destructive">{t(whatsappErrorKey(view.lastError))}</p>
           )}
         </div>
         {editable && view.status !== "disconnected" && (

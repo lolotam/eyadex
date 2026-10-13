@@ -1,3 +1,4 @@
+import { SYSTEM_ACTOR_ID } from "@eyadex/contracts/audit";
 import type { Database } from "@eyadex/db";
 import type { IdGenerator } from "@eyadex/ids";
 import { writeClinicAudit } from "../../../../shared/clinic-audit.ts";
@@ -24,21 +25,17 @@ export class EvolutionWebhook {
         return;
       }
       const rows = await closeEvolutionChannel(tx, event.clinicId, at);
-      // The audit needs a person: the admin who accepted the risk and linked this number. An Evolution
-      // link always has one (clinic_whatsapp_channels_risk_check), so a row without it is not audited.
-      for (const row of rows) {
-        if (row.risk_accepted_by === null) continue;
-        await writeClinicAudit(tx, {
-          clinicId: event.clinicId,
-          id: ids.newId(),
-          actorUserId: row.risk_accepted_by,
-          action: "clinic.whatsapp_disconnected",
-          entityType: "clinic",
-          entityId: event.clinicId,
-          details: { transport: "evolution", reason: "connection_closed" },
-          createdAt: at,
-        });
-      }
+      if (rows.length === 0) return;
+      await writeClinicAudit(tx, {
+        clinicId: event.clinicId,
+        id: ids.newId(),
+        actorUserId: SYSTEM_ACTOR_ID,
+        action: "clinic.whatsapp_disconnected",
+        entityType: "clinic",
+        entityId: event.clinicId,
+        details: { transport: "evolution", reason: "connection_closed" },
+        createdAt: at,
+      });
     });
   }
 }

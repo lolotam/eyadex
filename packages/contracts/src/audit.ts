@@ -2,6 +2,9 @@ import { z } from "zod";
 import { idSchema, pageQuerySchema } from "./common.ts";
 import { clinicAuditEntitySchema } from "./organization.ts";
 
+/** فاعل إجراء تلقائي ينفّذه Eyadex، ولا يمثل شخصًا أو حساب مستخدم. */
+export const SYSTEM_ACTOR_ID = "00000000-0000-0000-0000-000000000000";
+
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "validation.dateRequired");
 
 export const auditCategorySchema = z.enum(["patient_access", "administrative"]);

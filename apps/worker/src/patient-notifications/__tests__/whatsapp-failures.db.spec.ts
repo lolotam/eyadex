@@ -1,14 +1,17 @@
 import { randomUUID } from "node:crypto";
+import { SYSTEM_ACTOR_ID } from "@eyadex/contracts/audit";
 import { createDatabase, createDispatcherOutbox } from "@eyadex/db";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import {
   drain,
   eventRow,
+  ownerJson,
   parkLeftovers,
   urls,
 } from "../../invitation-mail/__tests__/dispatch-fixtures.ts";
 import {
   ledgerRow,
+  q,
   queueNotification,
   seedAppointment,
   seedWorld,
@@ -17,6 +20,7 @@ import {
 } from "./notification-fixtures.ts";
 import { channelRow, FakeMetaSender, FakeWhatsapp, seedChannel } from "./whatsapp-fixtures.ts";
 import { EvolutionWhatsappSender } from "../whatsapp/evolution-whatsapp-sender.ts";
+import { lockWhatsappChannel } from "../persistence/pg-channel-lock.ts";
 
 let app: ReturnType<typeof createDatabase>;
 let outbox: ReturnType<typeof createDispatcherOutbox>;
@@ -42,6 +46,24 @@ const queued = () => {
 };
 
 describe("WhatsApp final failures", () => {
+  it("rolls back the disconnection and its audit together", async () => {
+    const w = seedWorld();
+    seedChannel(w.clinicId);
+    await expect(
+      app.withTenant(w.clinicId, async (tx) => {
+        const channel = await lockWhatsappChannel(tx, w.clinicId, { newId: randomUUID });
+        expect(channel.kind).toBe("locked");
+        if (channel.kind === "locked") await channel.disconnect(new Date());
+        throw new Error("rollback probe");
+      }),
+    ).rejects.toThrow("rollback probe");
+    expect(channelRow(w.clinicId).status).toBe("connected");
+    expect(
+      ownerJson<unknown[]>(
+        `SELECT id FROM audit_log WHERE clinic_id = ${q(w.clinicId)} AND action = 'clinic.whatsapp_disconnected'`,
+      ),
+    ).toEqual([]);
+  });
   it.each(["evo_timeout", "evo_rejected", "evo_unauthorized", "evo_not_on_whatsapp"])(
     "%s is never retried",
     async (error) => {
@@ -91,12 +113,34 @@ describe("WhatsApp final failures", () => {
         last_error: "evo_not_connected",
         connected_at: null,
       });
+      const audits = () =>
+        ownerJson<Record<string, unknown>[]>(
+          `SELECT actor_user_id, category, entity_type, entity_id, branch_id, details FROM audit_log
+         WHERE clinic_id = ${q(w.clinicId)} AND action = 'clinic.whatsapp_disconnected'`,
+        );
+      expect(audits()).toEqual([
+        {
+          actor_user_id: SYSTEM_ACTOR_ID,
+          category: "administrative",
+          entity_type: "clinic",
+          entity_id: w.clinicId,
+          branch_id: null,
+          details: { transport: "evolution", reason: "send_not_connected" },
+        },
+      ]);
+      // A repeat of the disconnect itself must also be a no-op, not only a skipped send.
+      await app.withTenant(w.clinicId, async (tx) => {
+        const channel = await lockWhatsappChannel(tx, w.clinicId, { newId: randomUUID });
+        expect(channel.kind).toBe("locked");
+        if (channel.kind === "locked") await channel.disconnect(new Date());
+      });
       const later = queueNotification(w, "rescheduled", seedAppointment(w), "whatsapp");
       await drain(h.poller);
       expect(ledgerRow(later.notificationId)).toMatchObject({
         status: "skipped",
         skip_reason: "whatsapp_disconnected",
       });
+      expect(audits()).toHaveLength(1);
     },
   );
   it.each([
