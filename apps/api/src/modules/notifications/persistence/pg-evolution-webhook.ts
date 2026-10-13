@@ -30,7 +30,10 @@ export async function closeEvolutionChannel(
   clinicId: string,
   at: Date,
 ): Promise<readonly { id: string; risk_accepted_by: string | null }[]> {
-  return tx.execute<{ id: string; risk_accepted_by: string | null }>(sql`UPDATE clinic_whatsapp_channels
+  return tx.execute<{
+    id: string;
+    risk_accepted_by: string | null;
+  }>(sql`UPDATE clinic_whatsapp_channels
     SET status = 'disconnected', last_error = 'evo_connection_closed', connected_at = NULL,
         updated_at = ${at.toISOString()}::timestamptz
     WHERE clinic_id = ${clinicId} AND transport = 'evolution'
