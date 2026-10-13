@@ -162,10 +162,12 @@ describe("Evolution webhook over HTTP and real RLS", () => {
       before.slice(0, 3),
     );
   });
-  it("close disconnects only Evolution and audits once with a system actor", async () => {
+  it("close disconnects only Evolution and audits once in the linking admin's name", async () => {
     const id = randomUUID();
-    await h.owner`INSERT INTO clinic_whatsapp_channels (clinic_id, id, transport, status, instance_name, connected_at, created_at, updated_at)
-      VALUES (${C.clinicId}, ${id}, 'evolution', 'connected', ${`eyadex-${C.clinicId}`}, now(), now(), now())`;
+    const linkedBy = randomUUID();
+    await h.owner`INSERT INTO clinic_whatsapp_channels (clinic_id, id, transport, status, instance_name, connected_at,
+        risk_accepted_at, risk_accepted_by, risk_version, created_at, updated_at)
+      VALUES (${C.clinicId}, ${id}, 'evolution', 'connected', ${`eyadex-${C.clinicId}`}, now(), now(), ${linkedBy}, 1, now(), now())`;
     for (let i = 0; i < 2; i++)
       expect((await hook(envelope("CONNECTION_UPDATE", { state: "close" }))).statusCode).toBe(200);
     expect(
@@ -181,7 +183,7 @@ describe("Evolution webhook over HTTP and real RLS", () => {
       await h.owner`SELECT actor_user_id, details FROM audit_log WHERE clinic_id = ${C.clinicId} AND action = 'clinic.whatsapp_disconnected'`;
     expect(audit).toHaveLength(1);
     expect(audit[0]).toMatchObject({
-      actor_user_id: null,
+      actor_user_id: linkedBy,
       details: { transport: "evolution", reason: "connection_closed" },
     });
     await h.owner`UPDATE clinic_whatsapp_channels SET transport = 'coexistence', status = 'connected', connected_at = now(), last_error = NULL WHERE id = ${id}`;

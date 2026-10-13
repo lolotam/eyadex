@@ -24,17 +24,21 @@ export class EvolutionWebhook {
         return;
       }
       const rows = await closeEvolutionChannel(tx, event.clinicId, at);
-      for (const row of rows)
+      // The audit needs a person: the admin who accepted the risk and linked this number. An Evolution
+      // link always has one (clinic_whatsapp_channels_risk_check), so a row without it is not audited.
+      for (const row of rows) {
+        if (row.risk_accepted_by === null) continue;
         await writeClinicAudit(tx, {
           clinicId: event.clinicId,
           id: ids.newId(),
-          actorUserId: null,
+          actorUserId: row.risk_accepted_by,
           action: "clinic.whatsapp_disconnected",
-          entityType: "whatsapp_channel",
-          entityId: row.id,
+          entityType: "clinic",
+          entityId: event.clinicId,
           details: { transport: "evolution", reason: "connection_closed" },
           createdAt: at,
         });
+      }
     });
   }
 }

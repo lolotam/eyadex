@@ -6,7 +6,7 @@ import { sql } from "drizzle-orm";
 export interface ClinicAuditEntry {
   readonly clinicId: string;
   readonly id: string;
-  readonly actorUserId: string | null;
+  readonly actorUserId: string;
   readonly action: string;
   readonly entityType: string;
   readonly entityId: string;
