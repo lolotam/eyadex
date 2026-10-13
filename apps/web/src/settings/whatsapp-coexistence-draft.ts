@@ -10,12 +10,12 @@ export type CoexistenceDraft = {
   templates: Record<NotificationKind, TemplateDraft>;
 };
 
-/** The token and the two Meta ids always start empty: the view never carries them. */
+/** Meta identifiers pre-fill from the view; the write-only token always starts empty. */
 export function coexistenceDraftOf(view: WhatsappChannelView | null): CoexistenceDraft {
   return {
     accessToken: "",
-    phoneNumberId: "",
-    businessAccountId: "",
+    phoneNumberId: view?.phoneNumberId ?? "",
+    businessAccountId: view?.businessAccountId ?? "",
     templates: Object.fromEntries(
       NOTIFICATION_KINDS.map((kind) => {
         const t = view?.templates[kind];

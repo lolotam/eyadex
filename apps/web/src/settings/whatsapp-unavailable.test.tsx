@@ -12,6 +12,8 @@ const view: WhatsappChannelView = {
   transport: null,
   status: "disconnected",
   hasCredentials: false,
+  phoneNumberId: null,
+  businessAccountId: null,
   phoneLast4: null,
   riskAcceptedAt: "2026-10-12T08:00:00.000Z",
   connectedAt: null,

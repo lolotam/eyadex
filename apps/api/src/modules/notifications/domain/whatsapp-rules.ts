@@ -198,6 +198,8 @@ export function channelView(record: ChannelRecord | null): WhatsappChannelView {
     phoneLast4: record?.phoneLast4 ?? null,
     riskAcceptedAt: iso(record?.riskAcceptedAt ?? null),
     hasCredentials: record?.sealedCredentials != null,
+    phoneNumberId: record?.transport === "coexistence" ? record.phoneNumberId : null,
+    businessAccountId: record?.transport === "coexistence" ? record.businessAccountId : null,
     templates: record?.templates ?? templatesOf({}),
     connectedAt: iso(record?.connectedAt ?? null),
     lastError: record?.lastError ?? null,

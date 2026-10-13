@@ -149,13 +149,25 @@ describe("coexistence changes", () => {
 describe("the channel view", () => {
   it("answers an unlinked channel for a clinic without a row", () => {
     const view = whatsappChannelViewSchema.parse(channelView(null));
-    expect(view).toMatchObject({ transport: null, status: "disconnected", hasCredentials: false });
+    expect(view).toMatchObject({
+      transport: null,
+      status: "disconnected",
+      hasCredentials: false,
+      phoneNumberId: null,
+      businessAccountId: null,
+    });
     expect(Object.keys(view.templates).sort()).toEqual([...NOTIFICATION_KINDS].sort());
   });
 
-  it("says credentials exist without ever carrying them", () => {
+  it("carries Meta identifiers without ever carrying the token", () => {
     const view = whatsappChannelViewSchema.parse(channelView(coexistence));
     expect(view.hasCredentials).toBe(true);
+    expect(view).toMatchObject({
+      phoneNumberId: coexistence.phoneNumberId,
+      businessAccountId: coexistence.businessAccountId,
+    });
+    expect(view).not.toHaveProperty("accessToken");
+    expect(view).not.toHaveProperty("sealedCredentials");
     expect(JSON.stringify(view)).not.toContain("v1.a.b.c");
     expect(view.connectedAt).toBe("2027-01-01T00:00:00.000Z");
   });

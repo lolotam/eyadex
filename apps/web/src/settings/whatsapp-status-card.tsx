@@ -1,32 +1,11 @@
-import { CircleCheck, CircleSlash, Clock, Unplug } from "lucide-react";
-import type { WhatsappChannelView, WhatsappStatus } from "@eyadex/contracts/whatsapp";
-import { Badge } from "@/components/ui/badge";
+import { Unplug } from "lucide-react";
+import type { WhatsappChannelView } from "@eyadex/contracts/whatsapp";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { useSession } from "@/shared/persona/persona-provider";
 import { whatsappErrorKey } from "./whatsapp-error-copy";
-
-const LOOK: Record<
-  WhatsappStatus,
-  { icon: typeof Clock; variant: "default" | "secondary" | "outline" }
-> = {
-  disconnected: { icon: CircleSlash, variant: "secondary" },
-  pending: { icon: Clock, variant: "outline" },
-  connected: { icon: CircleCheck, variant: "default" },
-};
-
-export function WhatsappStatusBadge({ view }: { view: WhatsappChannelView }) {
-  const { t } = useI18n();
-  const { icon: Icon, variant } = LOOK[view.status];
-  return (
-    <Badge variant={variant} className="gap-1.5 whitespace-nowrap">
-      <Icon className="size-3" />
-      {t(`whatsapp.status.${view.status}`)}
-      {view.status === "connected" && view.phoneLast4 && <span dir="ltr">…{view.phoneLast4}</span>}
-    </Badge>
-  );
-}
+import { WhatsappStatusBadge } from "./whatsapp-status-badge";
 
 /** The channel at a glance: status, the transport, when it connected, the last error. */
 export function WhatsappStatusCard({

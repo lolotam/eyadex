@@ -16,6 +16,8 @@ const view: WhatsappChannelView = {
   phoneLast4: null,
   riskAcceptedAt: null,
   hasCredentials: false,
+  phoneNumberId: null,
+  businessAccountId: null,
   templates: {
     booked: null,
     rescheduled: null,

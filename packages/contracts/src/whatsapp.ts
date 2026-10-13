@@ -48,7 +48,10 @@ const templateSlots = z
   )
   .strict();
 
-/** `GET /v1/clinic/whatsapp`: the clinic's channel. Never a token, never the full number. */
+/**
+ * `GET /v1/clinic/whatsapp`: the clinic's channel. The Meta identifiers are not credentials;
+ * the view still never carries the token or the full number.
+ */
 export const whatsappChannelViewSchema = z
   .object({
     transport: whatsappTransportSchema.nullable(),
@@ -61,6 +64,16 @@ export const whatsappChannelViewSchema = z
     riskAcceptedAt: z.string().datetime().nullable(),
     /** Coexistence only: whether Meta credentials are stored (write-only). */
     hasCredentials: z.boolean(),
+    /** Meta phone number identifier, not a phone number or credential; coexistence only. */
+    phoneNumberId: z
+      .string()
+      .regex(/^\d{5,30}$/)
+      .nullable(),
+    /** Meta business account identifier, not a credential; coexistence only. */
+    businessAccountId: z
+      .string()
+      .regex(/^\d{5,30}$/)
+      .nullable(),
     templates: templateSlots,
     connectedAt: z.string().datetime().nullable(),
     lastError: z.string().nullable(),
@@ -92,7 +105,7 @@ export const whatsappQrResponseSchema = z
   .strict();
 export type WhatsappQrResponse = z.infer<typeof whatsappQrResponseSchema>;
 
-/** `PUT /v1/clinic/whatsapp/coexistence`: Meta credentials (write-only) and the template per kind. */
+/** `PUT /v1/clinic/whatsapp/coexistence`: the write-only Meta token, identifiers and templates. */
 export const whatsappCoexistenceRequestSchema = z
   .object({
     accessToken: z

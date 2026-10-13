@@ -13,8 +13,6 @@ export const MOCK_QR_DATA_URL =
 /** The channel row as the mock keeps it: the view plus what never leaves the server. */
 export type StoredWhatsappChannel = WhatsappChannelView & {
   accessToken: string | null;
-  phoneNumberId: string | null;
-  businessAccountId: string | null;
   riskVersion: number | null;
   /** When the Evolution QR was issued; the mock "scans" it MOCK_SCAN_DELAY_MS later. */
   pendingSince: number | null;
@@ -58,7 +56,7 @@ export function channelOf(db: MockState, clinicId: string): StoredWhatsappChanne
   return row;
 }
 
-/** The view only: the token, Meta ids and timers never leave the mock. */
+/** The view includes non-secret Meta identifiers; the token and timers never leave the mock. */
 export function channelView(row: StoredWhatsappChannel): WhatsappChannelView {
   return {
     transport: row.transport,
@@ -66,6 +64,8 @@ export function channelView(row: StoredWhatsappChannel): WhatsappChannelView {
     phoneLast4: row.phoneLast4,
     riskAcceptedAt: row.riskAcceptedAt,
     hasCredentials: row.hasCredentials,
+    phoneNumberId: row.transport === "coexistence" ? row.phoneNumberId : null,
+    businessAccountId: row.transport === "coexistence" ? row.businessAccountId : null,
     templates: { ...row.templates },
     connectedAt: row.connectedAt,
     lastError: row.lastError,

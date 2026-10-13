@@ -76,6 +76,11 @@ describe("whatsapp mock", () => {
     await api.whatsapp.saveCoexistence(admin, coexistence());
     const view = await api.whatsapp.channel(admin);
     expect(view.hasCredentials).toBe(true);
+    expect(view).toMatchObject({
+      phoneNumberId: coexistence().phoneNumberId,
+      businessAccountId: coexistence().businessAccountId,
+    });
+    expect(view).not.toHaveProperty("accessToken");
     expect(JSON.stringify(view)).not.toContain(TOKEN);
     const clinicId = getState().clinics[0]!.id;
     expect(getState().whatsapp!.channels[clinicId]!.accessToken).toBe(TOKEN);

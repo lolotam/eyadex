@@ -98,8 +98,21 @@ describe("PUT /v1/clinic/whatsapp/coexistence", () => {
       transport: "coexistence",
       status: "connected",
       hasCredentials: true,
+      phoneNumberId: BODY.phoneNumberId,
+      businessAccountId: BODY.businessAccountId,
       templates: BODY.templates,
     });
+    const view = await send(h, A.admin.cookie, "GET", "/v1/clinic/whatsapp");
+    expect(view.statusCode).toBe(200);
+    expect(whatsappChannelViewSchema.parse(view.json())).toMatchObject({
+      phoneNumberId: BODY.phoneNumberId,
+      businessAccountId: BODY.businessAccountId,
+    });
+    for (const response of [res, view]) {
+      expect(response.json()).not.toHaveProperty("accessToken");
+      expect(response.json()).not.toHaveProperty("sealedCredentials");
+      expect(response.body).not.toContain(TOKEN);
+    }
     const row = await sealedRow(clinicId);
     expect(row["sealed_credentials"]).not.toContain(TOKEN);
     expect(opened(row)).toBe(TOKEN);
