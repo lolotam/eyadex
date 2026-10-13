@@ -77,6 +77,26 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   >,
 };
 
+/**
+ * A failed message's reason as the clinic sees it (N2). The ledger keeps the provider's exact code;
+ * this is the coarse mapping: `delivery_rejected` (WhatsApp accepted, then refused delivery),
+ * `not_on_whatsapp`, `whatsapp_credentials` (Meta token or Evolution key refused), `template`
+ * (Meta refused the template), `disconnected` (the linked phone dropped), `unconfirmed` (no answer in
+ * time; never resent, so the patient never gets it twice), `invalid_address` (bad phone or email),
+ * `other`.
+ */
+export const notificationFailureReasonSchema = z.enum([
+  "delivery_rejected",
+  "not_on_whatsapp",
+  "whatsapp_credentials",
+  "template",
+  "disconnected",
+  "unconfirmed",
+  "invalid_address",
+  "other",
+]);
+export type NotificationFailureReason = z.infer<typeof notificationFailureReasonSchema>;
+
 /** One row of a message history (appointment details, visit page). No address, no text. */
 export const patientNotificationSchema = z
   .object({
@@ -88,6 +108,8 @@ export const patientNotificationSchema = z
     route: notificationRouteSchema.nullable(),
     createdAt: z.string().datetime(),
     sentAt: z.string().datetime().nullable(),
+    /** Why a `failed` row failed, in coarse words; `null` for every other status. */
+    failureReason: notificationFailureReasonSchema.nullable(),
   })
   .strict();
 export type PatientNotification = z.infer<typeof patientNotificationSchema>;
