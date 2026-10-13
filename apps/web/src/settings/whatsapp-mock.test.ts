@@ -181,7 +181,8 @@ describe("whatsapp mock", () => {
 describe("whatsapp queueing", () => {
   const subject = () => {
     const db = getState();
-    const p = db.patients.find((x) => x.clinicId === db.clinics[0]!.id)!;
+    // A phone not ending in 0: the demo fails WhatsApp delivery to those (see the next test).
+    const p = db.patients.find((x) => x.clinicId === db.clinics[0]!.id && !x.phone.endsWith("0"))!;
     return {
       clinicId: p.clinicId,
       patientId: p.id,
@@ -196,6 +197,19 @@ describe("whatsapp queueing", () => {
   it("queues nothing on WhatsApp while it is off", () => {
     queueNotification(getState(), subject());
     expect(rows()).toEqual([]);
+  });
+
+  it("fails delivery_rejected for a patient whose phone ends in 0", async () => {
+    await connectAndScan();
+    await api.notifications.updateSettings(admin, {
+      ...DEFAULT_NOTIFICATION_SETTINGS,
+      whatsappEnabled: true,
+    });
+    const s = subject();
+    getState().patients.find((p) => p.id === s.patientId)!.phone = "+96550000000";
+    queueNotification(getState(), s);
+    vi.advanceTimersByTime(MOCK_SEND_DELAY_MS);
+    expect(rows()[0]).toMatchObject({ status: "failed", failureReason: "delivery_rejected" });
   });
 
   it("sends through evolution when enabled and connected", async () => {

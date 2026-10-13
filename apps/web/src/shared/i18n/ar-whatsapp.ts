@@ -21,7 +21,8 @@ export const arWhatsapp: Strings<typeof enWhatsapp> = {
     errors: {
       coexistence_linked: "افصل واتساب للأعمال قبل الربط برمز QR.",
       evolution_linked: "افصل الربط برمز QR قبل حفظ واتساب للأعمال.",
-      meta_credentials_invalid: "Meta رفضت بيانات الدخول — تأكد من التوكن ورقم الهاتف ورقم حساب الأعمال",
+      meta_credentials_invalid:
+        "Meta رفضت بيانات الدخول — تأكد من التوكن ورقم الهاتف ورقم حساب الأعمال",
     },
     disconnect: "فصل",
     disconnectTitle: "فصل واتساب؟",
