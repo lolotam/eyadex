@@ -25,6 +25,8 @@ let h: Harness;
 
 beforeAll(async () => {
   h = await openHarness(META, true);
+  // A first clinic warms the harness's Redis connection: the public limiter fails closed (503) until it is up.
+  await clinicWithMembers(h);
 });
 afterAll(async () => {
   await closeHarness(h);
@@ -84,7 +86,7 @@ const sentRow = async (
   await h.owner`INSERT INTO patient_notifications (clinic_id, id, patient_id, kind, channel, subject_type,
       subject_id, subject_at, status, route, sent_at, provider_message_id, created_at, updated_at)
     VALUES (${c.clinicId}, ${id}, ${patientId}, 'booked', ${o.channel ?? "whatsapp"}, 'appointment',
-      ${subjectId}, now(), 'sent', ${o.route ?? "coexistence"}, '2027-01-01T09:00:00Z', ${messageId},
+      ${subjectId}, now(), 'sent', ${o.route ?? "coexistence"}, '2026-01-01T09:00:00Z', ${messageId},
       now(), now())`;
   return { id, subjectId };
 };
@@ -156,21 +158,21 @@ describe("POST /v1/hooks/meta (statuses)", () => {
     const messageId = `wamid.${randomUUID()}`;
     const { id, subjectId } = await sentRow(c, messageId);
     const delivered = statuses(c.phoneNumberId, [
-      { id: messageId, status: "delivered", timestamp: at("2027-01-01T09:01:00Z") },
+      { id: messageId, status: "delivered", timestamp: at("2026-01-01T09:01:00Z") },
     ]);
     expect((await post(delivered)).statusCode).toBe(200);
     expect(await row(id)).toMatchObject({ status: "sent", read_at: null });
-    expect((await row(id))["delivered_at"]).toEqual(new Date("2027-01-01T09:01:00Z"));
+    expect((await row(id))["delivered_at"]).toEqual(new Date("2026-01-01T09:01:00Z"));
     const read = statuses(c.phoneNumberId, [
-      { id: messageId, status: "read", timestamp: at("2027-01-01T09:05:00Z") },
+      { id: messageId, status: "read", timestamp: at("2026-01-01T09:05:00Z") },
     ]);
     expect((await post(read)).statusCode).toBe(200);
     const [item] = await history(c.clinicId, subjectId);
     expect(item).toMatchObject({
       status: "sent",
       route: "coexistence",
-      deliveredAt: "2027-01-01T09:01:00.000Z",
-      readAt: "2027-01-01T09:05:00.000Z",
+      deliveredAt: "2026-01-01T09:01:00.000Z",
+      readAt: "2026-01-01T09:05:00.000Z",
       failureReason: null,
     });
     // Replays change nothing, not even updated_at.
@@ -185,15 +187,15 @@ describe("POST /v1/hooks/meta (statuses)", () => {
     const { id } = await sentRow(c, messageId);
     await post(
       statuses(c.phoneNumberId, [
-        { id: messageId, status: "read", timestamp: at("2027-01-01T09:07:00Z") },
+        { id: messageId, status: "read", timestamp: at("2026-01-01T09:07:00Z") },
       ]),
     );
     const afterRead = await row(id);
-    expect(afterRead["delivered_at"]).toEqual(new Date("2027-01-01T09:07:00Z"));
-    expect(afterRead["read_at"]).toEqual(new Date("2027-01-01T09:07:00Z"));
+    expect(afterRead["delivered_at"]).toEqual(new Date("2026-01-01T09:07:00Z"));
+    expect(afterRead["read_at"]).toEqual(new Date("2026-01-01T09:07:00Z"));
     await post(
       statuses(c.phoneNumberId, [
-        { id: messageId, status: "delivered", timestamp: at("2027-01-01T09:02:00Z") },
+        { id: messageId, status: "delivered", timestamp: at("2026-01-01T09:02:00Z") },
       ]),
     );
     expect(await row(id)).toEqual(afterRead);
@@ -212,7 +214,7 @@ describe("POST /v1/hooks/meta (statuses)", () => {
       route: "coexistence",
       last_error: "coexistence:meta_not_on_whatsapp",
     });
-    expect((await row(id))["sent_at"]).toEqual(new Date("2027-01-01T09:00:00Z"));
+    expect((await row(id))["sent_at"]).toEqual(new Date("2026-01-01T09:00:00Z"));
     const before = await row(id);
     await post(failed);
     await post(statuses(c.phoneNumberId, [{ id: messageId, status: "read" }]));

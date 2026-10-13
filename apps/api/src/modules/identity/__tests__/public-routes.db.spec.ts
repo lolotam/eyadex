@@ -48,7 +48,8 @@ describe("sessionless /v1 routes", () => {
             Reflect.getMetadata(PATH_METADATA, type),
             Reflect.getMetadata(PATH_METADATA, handler),
           );
-          if (method === RequestMethod.GET && path === "/v1/health") continue;
+          // The health check, and the auth specs' session probe the harness mounts (SessionGuard).
+          if (method === RequestMethod.GET && ["/v1/health", "/v1/probe"].includes(path)) continue;
           const verb = method === RequestMethod.GET ? "GET" : "POST";
           found.push(`${verb} ${path}`);
           expect(PUBLIC_V1_ROUTES[`${verb} ${path}`], path).toBeDefined();

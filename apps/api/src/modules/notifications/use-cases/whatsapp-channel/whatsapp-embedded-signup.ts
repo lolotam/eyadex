@@ -82,7 +82,11 @@ export class WhatsappEmbeddedSignup {
       refuse(coexistenceRefusal(await findWhatsappChannel(tx, actor.clinicId), true));
       await refuseNumberInUse(tx, actor.clinicId, request.phoneNumberId);
     });
-    const token = await meta.exchangeCode(request.code, app);
+    // The port gets the app's id and secret only, never the verify token.
+    const token = await meta.exchangeCode(request.code, {
+      appId: app.appId,
+      appSecret: app.appSecret,
+    });
     const phoneLast4 = await this.verified(token, request);
     return saveCoexistence(
       { ...this.deps, sealer: this.#sealer },

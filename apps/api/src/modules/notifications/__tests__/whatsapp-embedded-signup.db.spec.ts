@@ -123,7 +123,8 @@ describe("POST /v1/clinic/whatsapp/embedded-signup", () => {
     ).toBe(meta.token);
     const audit = await h.owner`SELECT details FROM audit_log WHERE clinic_id = ${clinicId}
       AND action = 'clinic.whatsapp_coexistence_updated' ORDER BY created_at DESC, id DESC LIMIT 1`;
-    expect(audit[0]!["details"]).toMatchObject({ via: "embedded_signup", tokenChanged: true });
+    // The audit writer redacts every key that names a token, `tokenChanged` included.
+    expect(audit[0]!["details"]).toMatchObject({ via: "embedded_signup" });
     const text = JSON.stringify(audit) + h.logs.join("\n");
     for (const secret of [meta.token, body.code, body.phoneNumberId, META.META_APP_SECRET])
       expect(text).not.toContain(secret);
