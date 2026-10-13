@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { DEFAULT_NOTIFICATION_SETTINGS } from "@eyadex/contracts/notifications";
 import { WHATSAPP_RISK_VERSION } from "@eyadex/contracts/whatsapp";
 import { api, as, clinicIdAt, getState, resetMockData } from "@/shared/api/mock/mock-test-kit";
 import {
@@ -54,8 +55,9 @@ describe("delivered/read receipts (mock)", () => {
     vi.advanceTimersByTime(6000);
     await api.whatsapp.qr(admin);
     await api.notifications.updateSettings(admin, {
-      ...(await api.notifications.settings(admin)),
+      emailEnabled: true,
       whatsappEnabled: true,
+      messages: DEFAULT_NOTIFICATION_SETTINGS.messages,
     });
     const s = getState();
     const appt = s.appointments.find((a) => a.clinicId === clinicIdAt(0) && a.status === "booked")!;
