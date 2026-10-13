@@ -85,10 +85,22 @@ describe("whatsapp mock", () => {
     getState().whatsapp = { channels: {}, unavailable: true };
     const error = await api.whatsapp.connect(admin, ACCEPT).catch((e) => e);
     expect(isWhatsappUnavailable(error)).toBe(true);
-    const saveError = await api.whatsapp
-      .saveCoexistence(admin, coexistence({ accessToken: TOKEN }))
-      .catch((e) => e);
-    expect(isWhatsappUnavailable(saveError)).toBe(true);
+    // Round 2: WhatsApp Business talks to Meta directly, so it still saves and connects.
+    await api.whatsapp.saveCoexistence(admin, coexistence({ accessToken: TOKEN }));
+    expect(await api.whatsapp.channel(admin)).toMatchObject({
+      status: "connected",
+      phoneLast4: "0000",
+    });
+  });
+
+  it("refuses a token Meta rejects with meta_credentials_invalid on accessToken", async () => {
+    await expect(
+      api.whatsapp.saveCoexistence(admin, coexistence({ accessToken: "invalid-token-0123456789" })),
+    ).rejects.toMatchObject({
+      code: "validation",
+      details: { accessToken: "meta_credentials_invalid" },
+    });
+    expect((await api.whatsapp.channel(admin)).status).toBe("disconnected");
   });
 
   it("refuses Evolution while coexistence is linked, without changing the channel", async () => {
