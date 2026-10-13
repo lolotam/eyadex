@@ -76,12 +76,6 @@ export function WhatsappSettingsContent() {
       <SectionHeader title={t("whatsapp.title")} subtitle={t("whatsapp.subtitle")} />
       {query.isLoading ? (
         <LoadingBlock />
-      ) : unavailable || (query.error && isWhatsappUnavailable(query.error)) ? (
-        <StatusPanel
-          icon={MessageCircleOff}
-          title={t("whatsapp.unavailableTitle")}
-          body={t("whatsapp.unavailableBody")}
-        />
       ) : !view ? (
         <StatusPanel icon={AlertTriangle} title={t("clinicSettings.loadError")} body="" />
       ) : (
@@ -95,13 +89,22 @@ export function WhatsappSettingsContent() {
             onDisconnect={() => setConfirmDisconnect(true)}
           />
           <div className="grid gap-4 md:grid-cols-2">
-            <WhatsappQrCard
-              view={view}
-              editable={editable}
-              blocked={live === "coexistence"}
-              busy={connect.isPending}
-              onConnect={() => connect.mutate()}
-            />
+            {unavailable ? (
+              // Round 2: only the QR link needs Evolution; WhatsApp Business talks to Meta directly.
+              <StatusPanel
+                icon={MessageCircleOff}
+                title={t("whatsapp.unavailableTitle")}
+                body={t("whatsapp.unavailableBody")}
+              />
+            ) : (
+              <WhatsappQrCard
+                view={view}
+                editable={editable}
+                blocked={live === "coexistence"}
+                busy={connect.isPending}
+                onConnect={() => connect.mutate()}
+              />
+            )}
             <WhatsappBusinessCard
               view={view}
               editable={editable}

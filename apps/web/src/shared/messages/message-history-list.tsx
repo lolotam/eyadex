@@ -57,6 +57,11 @@ export function MessageHistoryRow({ item }: { item: PatientNotification }) {
           <ChannelIcon className="size-3 shrink-0" aria-hidden />
           {[t(`messageHistory.channel.${item.channel}`), detail, time].filter(Boolean).join(" · ")}
         </span>
+        {item.status === "failed" && item.failureReason && (
+          <span className="text-xs text-destructive">
+            {t(`messageHistory.failure.${item.failureReason}`)}
+          </span>
+        )}
       </div>
       <NotificationStatusBadge status={item.status} />
     </li>

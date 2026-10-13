@@ -90,9 +90,11 @@ export function WhatsappQrDialog({
               </Button>
             </>
           ) : (
-            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+            <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="size-4 animate-spin" />
-              {t("whatsapp.qr.waiting")}
+              {qr?.status === "pending" && !qr.qrDataUrl
+                ? t("whatsapp.qr.preparing")
+                : t("whatsapp.qr.waiting")}
             </p>
           )}
         </div>
