@@ -13,7 +13,8 @@ export const enNotifications = {
   notificationSettings: {
     tab: "Notifications",
     title: "Patient notifications",
-    subtitle: "Emails the clinic sends to patients about their appointments and prescriptions.",
+    subtitle:
+      "Email and WhatsApp messages the clinic sends about patients' appointments and prescriptions.",
     emailEnabled: "Send email notifications",
     emailEnabledHint: "Turn off to stop every patient email; your choices below are kept.",
     whatsappEnabled: "Send WhatsApp messages",
@@ -90,8 +91,8 @@ export const enNotifications = {
   messageHistory: {
     title: "Messages",
     empty: "No messages yet",
-    prescriptionTitle: "Prescription email",
-    prescriptionNone: "No prescription email for this visit",
+    prescriptionTitle: "Prescription messages",
+    prescriptionNone: "No prescription messages for this visit",
     loadError: "The messages could not be loaded",
     status: { queued: "Queued", sent: "Sent", skipped: "Skipped", failed: "Failed" },
     skip: {

@@ -16,9 +16,9 @@ export const arNotifications: Strings<typeof enNotifications> = {
   notificationSettings: {
     tab: "الإشعارات",
     title: "إشعارات المراجعين",
-    subtitle: "رسائل البريد التي ترسلها العيادة للمراجعين عن مواعيدهم ووصفاتهم.",
+    subtitle: "رسائل البريد وواتساب التي ترسلها العيادة للمراجعين عن مواعيدهم ووصفاتهم.",
     emailEnabled: "إرسال إشعارات البريد الإلكتروني",
-    emailEnabledHint: "أوقفه لإيقاف كل رسائل المراجعين؛ اختياراتك بالأسفل محفوظة.",
+    emailEnabledHint: "أوقفه لإيقاف رسائل البريد للمراجعين؛ اختياراتك بالأسفل محفوظة.",
     whatsappEnabled: "إرسال رسائل واتساب",
     whatsappEnabledHint: "تُرسل الرسائل نفسها إلى جوال المراجع عبر واتساب العيادة.",
     whatsappNeedsLink: "اربط واتساب أولًا (الإعدادات ← واتساب).",
@@ -91,8 +91,8 @@ export const arNotifications: Strings<typeof enNotifications> = {
   messageHistory: {
     title: "الرسائل",
     empty: "لا توجد رسائل بعد",
-    prescriptionTitle: "بريد الوصفة الطبية",
-    prescriptionNone: "لا يوجد بريد وصفة لهذه الزيارة",
+    prescriptionTitle: "رسائل الوصفة الطبية",
+    prescriptionNone: "لا توجد رسائل وصفة لهذه الزيارة",
     loadError: "تعذّر تحميل الرسائل",
     status: { queued: "في الانتظار", sent: "أُرسلت", skipped: "تم تخطيها", failed: "فشلت" },
     skip: {

@@ -13,6 +13,7 @@ import {
   type ChannelRecord,
 } from "../../domain/whatsapp-rules.ts";
 import type { EvolutionConnectResult } from "../../ports/evolution-api.ts";
+import { withWhatsappOperation } from "./whatsapp-operation.ts";
 import {
   findWhatsappChannel,
   lockWhatsappChannel,
@@ -76,8 +77,18 @@ export class WhatsappLink {
     actor: WhatsappActor,
     request: WhatsappConnectRequest,
   ): Promise<WhatsappQrResponse> {
+    if (!this.deps.evolution.configured) throw new ServiceUnavailableError({ code: "unavailable" });
+    return withWhatsappOperation(this.deps, actor.clinicId, evolutionLinkRefusal, () =>
+      this.connectReserved(actor, request),
+    );
+  }
+
+  private async connectReserved(
+    actor: WhatsappActor,
+    request: WhatsappConnectRequest,
+  ): Promise<WhatsappQrResponse> {
     const { db, clock, ids, evolution } = this.deps;
-    if (!evolution.configured) throw new ServiceUnavailableError();
+    if (!evolution.configured) throw new ServiceUnavailableError({ code: "unavailable" });
     const start = await db.withTenant(actor.clinicId, async (tx): Promise<ConnectStart> => {
       await lockWhatsappChannel(tx, actor.clinicId);
       const before = await findWhatsappChannel(tx, actor.clinicId);
@@ -124,6 +135,19 @@ export class WhatsappLink {
    * @returns الحالة والـ QR
    */
   async refresh(actor: WhatsappActor): Promise<WhatsappQrResponse> {
+    const view = await this.view(actor.clinicId);
+    if (view.transport !== "evolution" || view.status !== "pending")
+      return { status: view.status, qrDataUrl: null };
+    if (!this.deps.evolution.configured) throw new ServiceUnavailableError({ code: "unavailable" });
+    return withWhatsappOperation(
+      this.deps,
+      actor.clinicId,
+      () => null,
+      () => this.refreshReserved(actor),
+    );
+  }
+
+  private async refreshReserved(actor: WhatsappActor): Promise<WhatsappQrResponse> {
     const { db, evolution } = this.deps;
     const record = await db.withTenant(actor.clinicId, (tx) =>
       findWhatsappChannel(tx, actor.clinicId),
@@ -133,7 +157,7 @@ export class WhatsappLink {
     if (record.transport !== "evolution" || record.status !== "pending" || name === null) {
       return { status: record.status, qrDataUrl: null };
     }
-    if (!evolution.configured) throw new ServiceUnavailableError();
+    if (!evolution.configured) throw new ServiceUnavailableError({ code: "unavailable" });
     const state = await evolution.connectionState(name);
     const result: LinkResult =
       state === "open" ? { state: "open" } : await this.connectOrCreate(name);
@@ -148,6 +172,17 @@ export class WhatsappLink {
    * @returns القناة بعد فك الربط
    */
   async disconnect(actor: WhatsappActor): Promise<WhatsappChannelView> {
+    const view = await this.view(actor.clinicId);
+    if (view.status === "disconnected") return view;
+    return withWhatsappOperation(
+      this.deps,
+      actor.clinicId,
+      () => null,
+      () => this.disconnectReserved(actor),
+    );
+  }
+
+  private async disconnectReserved(actor: WhatsappActor): Promise<WhatsappChannelView> {
     const { db, clock, evolution } = this.deps;
     const before = await db.withTenant(actor.clinicId, (tx) =>
       findWhatsappChannel(tx, actor.clinicId),

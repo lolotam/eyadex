@@ -188,6 +188,8 @@ export const clinicWhatsappChannels = pgTable(
     connectedAt: timestamp("connected_at", tz),
     lastError: text("last_error"),
     nextSendAt: timestamp("next_send_at", tz),
+    operationId: uuid("operation_id"),
+    operationExpiresAt: timestamp("operation_expires_at", tz),
     createdAt: timestamp("created_at", tz).notNull(),
     updatedAt: timestamp("updated_at", tz).notNull(),
   },

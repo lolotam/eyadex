@@ -64,7 +64,21 @@ const schema = z
       z
         .string()
         .url()
-        .refine((v) => /^https?:\/\//.test(v), "http or https")
+        .refine((v) => {
+          try {
+            const url = new URL(v);
+            return (
+              (url.protocol === "http:" || url.protocol === "https:") &&
+              url.username === "" &&
+              url.password === "" &&
+              url.pathname === "/" &&
+              url.search === "" &&
+              url.hash === ""
+            );
+          } catch {
+            return false;
+          }
+        }, "http or https origin")
         .transform((v) => v.replace(/\/+$/, "")),
     ),
     EVOLUTION_API_KEY: optional(z.string().min(1)),

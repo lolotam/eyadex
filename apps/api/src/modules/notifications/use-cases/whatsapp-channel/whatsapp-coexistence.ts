@@ -16,6 +16,7 @@ import {
   saveWhatsappChannel,
 } from "../../persistence/pg-whatsapp-channel.ts";
 import { auditChannel, refuse, type WhatsappActor, type WhatsappDeps } from "./whatsapp-shared.ts";
+import { withWhatsappOperation } from "./whatsapp-operation.ts";
 
 /** The coexistence use case also seals the Meta token: `MAIL_PROVIDER_SEAL_KEY` (base64, 32 bytes). */
 export interface WhatsappCoexistenceDeps extends WhatsappDeps {
@@ -61,8 +62,21 @@ export class WhatsappCoexistence {
     actor: WhatsappActor,
     request: WhatsappCoexistenceRequest,
   ): Promise<WhatsappChannelView> {
+    if (!this.deps.evolution.configured) throw new ServiceUnavailableError({ code: "unavailable" });
+    return withWhatsappOperation(
+      this.deps,
+      actor.clinicId,
+      (record) => coexistenceRefusal(record, request.accessToken !== undefined),
+      () => this.updateReserved(actor, request),
+    );
+  }
+
+  private async updateReserved(
+    actor: WhatsappActor,
+    request: WhatsappCoexistenceRequest,
+  ): Promise<WhatsappChannelView> {
     const { db, evolution } = this.deps;
-    if (!evolution.configured) throw new ServiceUnavailableError();
+    if (!evolution.configured) throw new ServiceUnavailableError({ code: "unavailable" });
     const plan = await db.withTenant(actor.clinicId, async (tx): Promise<Plan> => {
       await lockWhatsappChannel(tx, actor.clinicId);
       const before = await findWhatsappChannel(tx, actor.clinicId);

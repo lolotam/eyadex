@@ -26,6 +26,9 @@ CREATE TABLE clinic_whatsapp_channels (
   connected_at        timestamptz NULL,
   last_error          text NULL CHECK (char_length(last_error) <= 120),
   next_send_at        timestamptz NULL,
+  -- A short reservation across the API's two transactions, never a lock held over the network.
+  operation_id        uuid NULL,
+  operation_expires_at timestamptz NULL,
   created_at          timestamptz NOT NULL,
   updated_at          timestamptz NOT NULL,
   PRIMARY KEY (clinic_id, id),

@@ -107,12 +107,14 @@ showing whether the prescription email was sent, skipped (why) or failed.
 - **Table `clinic_whatsapp_channels`** (one row per clinic, `UNIQUE (clinic_id)`; no row = not linked):
   `transport text NULL` (`evolution`/`coexistence`), `status text NOT NULL` (`disconnected`/`pending`/
   `connected`), `instance_name text NULL` (Evolution instance, `eyadex-<clinic id>`), `phone_last4 text
-  NULL` (`^[0-9]{4}$`), `risk_accepted_at timestamptz NULL`, `risk_accepted_by uuid NULL` (user id, no
+NULL` (`^[0-9]{4}$`), `risk_accepted_at timestamptz NULL`, `risk_accepted_by uuid NULL` (user id, no
   FK), `risk_version int NULL`, `sealed_credentials text NULL` (coexistence access token, sealed with
   `MAIL_PROVIDER_SEAL_KEY`, AAD = row id), `phone_number_id text NULL`, `business_account_id text NULL`,
   `templates jsonb NOT NULL DEFAULT '{}'` (kind → `{name, language}`), `connected_at timestamptz NULL`,
   `last_error text NULL` (≤120, a code), `next_send_at timestamptz NULL` (the pace), `created_at`,
-  `updated_at`. RLS forced; `eyadex_app` SELECT/INSERT/UPDATE; no platform grant.
+  `updated_at`, `operation_id uuid NULL`, `operation_expires_at timestamptz NULL` (a 60-second API
+  reservation across network calls; sends wait while it is active). RLS forced; `eyadex_app`
+  SELECT/INSERT/UPDATE; no platform grant.
 - **`clinic_notification_settings.whatsapp_enabled boolean NOT NULL DEFAULT false`**;
   `patient_notifications.route` CHECK gains `evolution` and `coexistence`, `skip_reason` gains
   `whatsapp_disconnected` and `template_missing`.

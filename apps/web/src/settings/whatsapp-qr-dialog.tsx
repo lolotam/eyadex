@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useApi } from "@/shared/api/api-provider";
+import { errorCodeOf, isWhatsappUnavailable } from "@/shared/api/api-error";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { usePersona } from "@/shared/persona/persona-provider";
 import { useQrPolling } from "./use-qr-polling";
@@ -72,7 +73,18 @@ export function WhatsappQrDialog({
           {expired ? (
             <>
               <p className="text-sm text-muted-foreground">{t("whatsapp.qr.expired")}</p>
-              <Button variant="outline" onClick={() => void refresh()}>
+              <Button
+                variant="outline"
+                onClick={() =>
+                  void refresh().catch((e: unknown) =>
+                    toast.error(
+                      isWhatsappUnavailable(e)
+                        ? t("whatsapp.unavailableTitle")
+                        : t(`errors.${errorCodeOf(e)}`),
+                    ),
+                  )
+                }
+              >
                 <RefreshCw className="size-4" />
                 {t("whatsapp.qr.refresh")}
               </Button>

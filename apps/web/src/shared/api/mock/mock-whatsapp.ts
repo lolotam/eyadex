@@ -5,11 +5,16 @@ import {
 import { ApiError, whatsappUnavailableError } from "../api-error";
 import type { WhatsappApi } from "../whatsapp-client";
 import { authorize } from "./mock-actor";
+import { writeClinicAudit } from "./mock-audit";
 import { delay, getState, persist, type MockState } from "./mock-store";
-import { MOCK_QR_DATA_URL, channelOf, channelView, whatsappState } from "./mock-whatsapp-state";
-
-// TODO(spec): the audit catalogue (packages/contracts/src/audit.ts) has no WhatsApp actions yet
-// (spec §7.1 names clinic.whatsapp_risk_accepted), so the mock writes no audit row for them.
+import {
+  MOCK_QR_DATA_URL,
+  MOCK_PHONE_LAST4,
+  MOCK_SCAN_DELAY_MS,
+  channelOf,
+  channelView,
+  whatsappState,
+} from "./mock-whatsapp-state";
 
 function requireAvailable(db: MockState) {
   if (whatsappState(db).unavailable) throw whatsappUnavailableError();
@@ -29,15 +34,26 @@ export function createMockWhatsapp(): WhatsappApi {
     async connect(persona, raw) {
       await delay();
       const db = getState();
-      const { clinic } = authorize(db, persona, "update", "clinic_settings");
+      const { clinic, actorName } = authorize(db, persona, "update", "clinic_settings");
       const parsed = whatsappConnectRequestSchema.safeParse(raw);
       if (!parsed.success) throw new ApiError("validation", undefined, { acceptRisk: "required" });
       requireAvailable(db);
       const row = channelOf(db, clinic.id);
+      if (row.transport === "coexistence" && row.status !== "disconnected")
+        throw new ApiError("validation", undefined, { transport: "coexistence_linked" });
       // The risk is recorded once, with the version the admin read.
-      if (!row.riskAcceptedAt) {
+      if ((row.riskVersion ?? 0) < parsed.data.riskVersion) {
         row.riskAcceptedAt = new Date().toISOString();
         row.riskVersion = parsed.data.riskVersion;
+        writeClinicAudit(db, {
+          clinicId: clinic.id,
+          actorName,
+          action: "clinic.whatsapp_risk_accepted",
+          entity: "clinic",
+          entityId: clinic.id,
+          before: null,
+          after: { riskVersion: parsed.data.riskVersion },
+        });
       }
       if (row.transport === "evolution" && row.status === "connected") {
         persist();
@@ -56,9 +72,26 @@ export function createMockWhatsapp(): WhatsappApi {
     async qr(persona) {
       await delay();
       const db = getState();
-      const { clinic } = authorize(db, persona, "view", "clinic_settings");
-      requireAvailable(db);
+      const { clinic, actorName } = authorize(db, persona, "update", "clinic_settings");
       const row = channelOf(db, clinic.id);
+      if (row.transport === "evolution" && row.status === "pending") {
+        requireAvailable(db);
+        if (row.pendingSince !== null && Date.now() - row.pendingSince >= MOCK_SCAN_DELAY_MS) {
+          row.status = "connected";
+          row.phoneLast4 = MOCK_PHONE_LAST4;
+          row.connectedAt = new Date().toISOString();
+          row.pendingSince = null;
+          writeClinicAudit(db, {
+            clinicId: clinic.id,
+            actorName,
+            action: "clinic.whatsapp_connected",
+            entity: "clinic",
+            entityId: clinic.id,
+            before: null,
+            after: { transport: "evolution" },
+          });
+        }
+      }
       persist();
       return {
         status: row.status,
@@ -69,8 +102,18 @@ export function createMockWhatsapp(): WhatsappApi {
     async disconnect(persona) {
       await delay();
       const db = getState();
-      const { clinic } = authorize(db, persona, "update", "clinic_settings");
+      const { clinic, actorName } = authorize(db, persona, "update", "clinic_settings");
       const row = channelOf(db, clinic.id);
+      if (row.status === "disconnected") return;
+      writeClinicAudit(db, {
+        clinicId: clinic.id,
+        actorName,
+        action: "clinic.whatsapp_disconnected",
+        entity: "clinic",
+        entityId: clinic.id,
+        before: null,
+        after: { transport: row.transport },
+      });
       row.status = "disconnected";
       row.phoneLast4 = null;
       row.connectedAt = null;
@@ -81,19 +124,39 @@ export function createMockWhatsapp(): WhatsappApi {
     async saveCoexistence(persona, raw) {
       await delay();
       const db = getState();
-      const { clinic } = authorize(db, persona, "update", "clinic_settings");
+      const { clinic, actorName } = authorize(db, persona, "update", "clinic_settings");
       const parsed = whatsappCoexistenceRequestSchema.safeParse(raw);
       if (!parsed.success) throw new ApiError("validation");
+      requireAvailable(db);
       const row = channelOf(db, clinic.id);
+      if (row.transport === "evolution" && row.status !== "disconnected")
+        throw new ApiError("validation", undefined, { transport: "evolution_linked" });
       const token = parsed.data.accessToken ?? row.accessToken;
       // Write-only: kept when omitted on an update, required the first time.
       if (!token) throw new ApiError("validation", undefined, { accessToken: "required" });
+      const tokenChanged = token !== row.accessToken;
+      const sameTemplates = Object.keys(row.templates).every((kind) => {
+        const key = kind as keyof typeof row.templates;
+        return (
+          row.templates[key]?.name === parsed.data.templates[key]?.name &&
+          row.templates[key]?.language === parsed.data.templates[key]?.language
+        );
+      });
+      if (
+        row.transport === "coexistence" &&
+        row.status === "connected" &&
+        !tokenChanged &&
+        row.phoneNumberId === parsed.data.phoneNumberId &&
+        row.businessAccountId === parsed.data.businessAccountId &&
+        sameTemplates
+      )
+        return;
+      const before = { status: row.status, templates: { ...row.templates } };
       row.accessToken = token;
       row.hasCredentials = true;
       row.phoneNumberId = parsed.data.phoneNumberId;
       row.businessAccountId = parsed.data.businessAccountId;
       row.templates = { ...parsed.data.templates };
-      // TODO(spec): the mock treats saved Meta credentials as a live link; the API may verify first.
       if (row.transport !== "coexistence" || row.status !== "connected") {
         row.transport = "coexistence";
         row.status = "connected";
@@ -102,6 +165,15 @@ export function createMockWhatsapp(): WhatsappApi {
         row.pendingSince = null;
       }
       row.lastError = null;
+      writeClinicAudit(db, {
+        clinicId: clinic.id,
+        actorName,
+        action: "clinic.whatsapp_coexistence_updated",
+        entity: "clinic",
+        entityId: clinic.id,
+        before,
+        after: { status: row.status, templates: row.templates, tokenChanged },
+      });
       persist();
     },
   };

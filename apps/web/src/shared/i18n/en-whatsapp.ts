@@ -14,6 +14,10 @@ export const enWhatsapp = {
     lastError: "The last attempt failed (code: {code})",
     inUse: "In use",
     otherActive: "Disconnect the current link first.",
+    errors: {
+      coexistence_linked: "Disconnect WhatsApp Business before linking by QR code.",
+      evolution_linked: "Disconnect the QR link before saving WhatsApp Business.",
+    },
     disconnect: "Disconnect",
     disconnectTitle: "Disconnect WhatsApp?",
     disconnectBody:

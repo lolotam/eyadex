@@ -18,6 +18,10 @@ export const arWhatsapp: Strings<typeof enWhatsapp> = {
     lastError: "فشلت آخر محاولة (الرمز: {code})",
     inUse: "مستخدم",
     otherActive: "افصل الربط الحالي أولًا.",
+    errors: {
+      coexistence_linked: "افصل واتساب للأعمال قبل الربط برمز QR.",
+      evolution_linked: "افصل الربط برمز QR قبل حفظ واتساب للأعمال.",
+    },
     disconnect: "فصل",
     disconnectTitle: "فصل واتساب؟",
     disconnectBody: "تتوقف رسائل المراجعين على واتساب حتى يُربط الرقم من جديد. البريد لا يتأثر.",

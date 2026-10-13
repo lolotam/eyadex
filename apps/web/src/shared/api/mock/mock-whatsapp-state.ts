@@ -37,7 +37,7 @@ export function whatsappState(db: MockState): WhatsappMockState {
   return db.whatsapp;
 }
 
-/** The clinic's channel (no row = disconnected); a pending QR older than the scan delay connects. */
+/** The clinic's channel (no row = disconnected). Only QR refresh can settle a pending link. */
 export function channelOf(db: MockState, clinicId: string): StoredWhatsappChannel {
   const state = whatsappState(db);
   const row = (state.channels[clinicId] ??= {
@@ -55,16 +55,6 @@ export function channelOf(db: MockState, clinicId: string): StoredWhatsappChanne
     riskVersion: null,
     pendingSince: null,
   });
-  if (
-    row.status === "pending" &&
-    row.pendingSince !== null &&
-    Date.now() - row.pendingSince >= MOCK_SCAN_DELAY_MS
-  ) {
-    row.status = "connected";
-    row.phoneLast4 = MOCK_PHONE_LAST4;
-    row.connectedAt = new Date().toISOString();
-    row.pendingSince = null;
-  }
   return row;
 }
 

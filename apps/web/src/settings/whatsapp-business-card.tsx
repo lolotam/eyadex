@@ -34,7 +34,9 @@ export function WhatsappBusinessCard({
         {editable && (
           <div className="mt-auto flex flex-col items-start gap-1">
             <Button variant="outline" disabled={blocked} onClick={onEdit}>
-              {view.hasCredentials ? t("whatsapp.business.edit") : t("whatsapp.business.set")}
+              {view.transport === "coexistence"
+                ? t("whatsapp.business.edit")
+                : t("whatsapp.business.set")}
             </Button>
             {blocked && (
               <p className="text-xs text-muted-foreground">{t("whatsapp.otherActive")}</p>

@@ -10,6 +10,7 @@ type ChannelRow = {
   instance_name: string | null;
   templates: unknown;
   next_send_at: string | null;
+  operation_expires_at: string | null;
 };
 
 /**
@@ -24,7 +25,8 @@ type ChannelRow = {
 export async function lockWhatsappChannel(tx: Tx, clinicId: string): Promise<WhatsappChannelState> {
   const [row] = (await tx.execute(
     sql`SELECT id, transport, status, instance_name, templates,
-               to_json(next_send_at) #>> '{}' AS next_send_at
+               to_json(next_send_at) #>> '{}' AS next_send_at,
+               to_json(operation_expires_at) #>> '{}' AS operation_expires_at
         FROM clinic_whatsapp_channels WHERE clinic_id = ${clinicId}
         FOR UPDATE SKIP LOCKED`,
   )) as unknown as ChannelRow[];
@@ -34,6 +36,11 @@ export async function lockWhatsappChannel(tx: Tx, clinicId: string): Promise<Wha
     )) as unknown as { one: number }[];
     return exists === undefined ? { kind: "none" } : { kind: "busy" };
   }
+  if (
+    row.operation_expires_at !== null &&
+    new Date(row.operation_expires_at).getTime() > Date.now()
+  )
+    return { kind: "busy" };
   return {
     kind: "locked",
     transport: row.transport,

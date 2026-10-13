@@ -70,6 +70,7 @@ describe("whatsapp mock", () => {
   it("coexistence: the token is required first, write-only, and kept when omitted", async () => {
     await expect(api.whatsapp.saveCoexistence(admin, coexistence())).rejects.toMatchObject({
       code: "validation",
+      details: { accessToken: "required" },
     });
     await api.whatsapp.saveCoexistence(admin, coexistence({ accessToken: TOKEN }));
     await api.whatsapp.saveCoexistence(admin, coexistence());
@@ -84,6 +85,86 @@ describe("whatsapp mock", () => {
     getState().whatsapp = { channels: {}, unavailable: true };
     const error = await api.whatsapp.connect(admin, ACCEPT).catch((e) => e);
     expect(isWhatsappUnavailable(error)).toBe(true);
+    const saveError = await api.whatsapp
+      .saveCoexistence(admin, coexistence({ accessToken: TOKEN }))
+      .catch((e) => e);
+    expect(isWhatsappUnavailable(saveError)).toBe(true);
+  });
+
+  it("refuses Evolution while coexistence is linked, without changing the channel", async () => {
+    await api.whatsapp.saveCoexistence(admin, coexistence({ accessToken: TOKEN }));
+    const before = await api.whatsapp.channel(admin);
+    await expect(api.whatsapp.connect(admin, ACCEPT)).rejects.toMatchObject({
+      code: "validation",
+      details: { transport: "coexistence_linked" },
+    });
+    expect(await api.whatsapp.channel(admin)).toEqual(before);
+  });
+
+  it.each([false, true])(
+    "refuses coexistence while Evolution is pending/connected (scanned=%s)",
+    async (scanned) => {
+      if (scanned) await connectAndScan();
+      else await api.whatsapp.connect(admin, ACCEPT);
+      const before = await api.whatsapp.channel(admin);
+      await expect(
+        api.whatsapp.saveCoexistence(admin, coexistence({ accessToken: TOKEN })),
+      ).rejects.toMatchObject({
+        code: "validation",
+        details: { transport: "evolution_linked" },
+      });
+      expect(await api.whatsapp.channel(admin)).toEqual(before);
+      await api.whatsapp.disconnect(admin);
+      await expect(
+        api.whatsapp.saveCoexistence(admin, coexistence({ accessToken: TOKEN })),
+      ).resolves.toBeUndefined();
+    },
+  );
+
+  it("a view-only member cannot refresh QR or settle a scanned link", async () => {
+    await api.whatsapp.connect(admin, ACCEPT);
+    const db = getState();
+    const member = db.members.find(
+      (m) =>
+        m.clinicId === db.clinics[0]!.id &&
+        m.roleId ===
+          db.roles.find((r) => r.systemKey === "clinic_admin" && r.clinicId === m.clinicId)?.id,
+    )!;
+    const role = db.roles.find((r) => r.id === member.roleId)!;
+    role.permissions = role.permissions.filter((key) => key !== "update:clinic_settings:clinic");
+    vi.advanceTimersByTime(MOCK_SCAN_DELAY_MS);
+    expect((await api.whatsapp.channel(admin)).status).toBe("pending");
+    await expect(api.whatsapp.qr(admin)).rejects.toMatchObject({ code: "forbidden" });
+  });
+
+  it("audits each transition once without credentials or Meta ids", async () => {
+    await connectAndScan();
+    await api.whatsapp.qr(admin);
+    await api.whatsapp.disconnect(admin);
+    await api.whatsapp.disconnect(admin);
+    await api.whatsapp.saveCoexistence(admin, coexistence({ accessToken: TOKEN }));
+    await api.whatsapp.saveCoexistence(admin, coexistence());
+    const audit = getState().clinicAudit;
+    expect(audit.map((a) => a.action).sort()).toEqual([
+      "clinic.whatsapp_coexistence_updated",
+      "clinic.whatsapp_connected",
+      "clinic.whatsapp_disconnected",
+      "clinic.whatsapp_risk_accepted",
+    ]);
+    const serialized = JSON.stringify(audit);
+    for (const value of [TOKEN, coexistence().phoneNumberId, coexistence().businessAccountId])
+      expect(serialized).not.toContain(value);
+  });
+
+  it("refuses saving WhatsApp still on after the channel drops", async () => {
+    await connectAndScan();
+    const on = { ...DEFAULT_NOTIFICATION_SETTINGS, whatsappEnabled: true };
+    await api.notifications.updateSettings(admin, on);
+    await api.whatsapp.disconnect(admin);
+    await expect(api.notifications.updateSettings(admin, on)).rejects.toMatchObject({
+      code: "validation",
+      details: { whatsappEnabled: "whatsapp_not_connected" },
+    });
   });
 
   it("refuses switching WhatsApp on while not connected, allows it once connected", async () => {

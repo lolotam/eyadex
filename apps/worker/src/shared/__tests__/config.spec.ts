@@ -160,9 +160,15 @@ describe("readConfig Evolution API (spec §7.1, N2)", () => {
     }
   });
 
-  it("refuses a URL that is not http(s), naming the key only", () => {
-    expect(() =>
-      readConfig({ ...required, ...evolution, EVOLUTION_API_URL: "ftp://evolution.test" }),
-    ).toThrow(/EVOLUTION_API_URL/);
+  it.each([
+    "ftp://evolution.test",
+    "http://evolution.test/path",
+    "http://evolution.test/?query=1",
+    "http://evolution.test/#fragment",
+    "http://fixture:fixture@evolution.test/",
+  ])("refuses a URL that is not a plain http(s) origin: %s", (url) => {
+    expect(() => readConfig({ ...required, ...evolution, EVOLUTION_API_URL: url })).toThrow(
+      /EVOLUTION_API_URL/,
+    );
   });
 });

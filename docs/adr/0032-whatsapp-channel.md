@@ -19,12 +19,16 @@ a dedicated container on the internal network (N-7). SQL 0057 adds `clinic_whats
    digits, logout, delete), implemented by `HttpEvolutionApi` (global key in the `apikey` header, 5 s
    timeout, redirects refused) and bound by `NotificationsModule.forRoot` — a test injects a fake there.
    `EVOLUTION_API_URL` + `EVOLUTION_API_KEY`: both or neither; neither = linking answers 503 (`unknown`,
-   the `ServiceUnavailableError` precedent of the blob store: the contract has no `unavailable` code); one
+   with `details: { code: "unavailable" }` when unconfigured; the contract has no `unavailable` code); one
    without the other, or a URL that is not a plain http(s) origin, stops the start naming the variable.
    Unreachable, a timeout, a 5xx, a refused key or an unknown answer are one 503; nothing of the request or
    the reply (key, QR, number) is chained, kept or logged.
 3. **No lock across the network.** Every link write is: a decision under the per-clinic
    `whatsapp_channel:` advisory lock → Evolution → a write under the lock again on the row as it is then.
+   A 60-second `operation_id` / `operation_expires_at` reservation spans those transactions so concurrent
+   link, refresh, unlink and credential changes cannot race on the shared instance. Busy requests answer
+   a generic 503; the worker defers sends during the reservation. Release checks the operation id, and a
+   crashed process's reservation expires. Database locks are released before every network request.
 4. **Linking by QR** (`POST /v1/clinic/whatsapp/connect`): the risk acceptance is recorded once per risk
    text version (`clinic.whatsapp_risk_accepted`, `{ riskVersion }`); the instance `eyadex-<clinic id>` is
    created once (integration `WHATSAPP-BAILEYS`, **`qrcode: false`**, because Evolution waits 5 s before

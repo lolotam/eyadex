@@ -119,6 +119,7 @@ describe("EvolutionWhatsappSender", () => {
     expect(call!.init.headers).toMatchObject({ apikey: "test-only-key" });
     expect(JSON.parse(String(call!.init.body))).toEqual({ number: NUMBER, text: "Hello" });
     expect(call!.init.signal).toBeInstanceOf(AbortSignal);
+    expect(call!.init.redirect).toBe("error");
   });
 
   it("sendTemplate posts name, language and one body component with text parameters in order", async () => {

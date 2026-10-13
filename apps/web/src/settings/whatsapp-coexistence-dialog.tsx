@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { NOTIFICATION_KINDS, type NotificationKind } from "@eyadex/contracts/notifications";
+import { NOTIFICATION_KINDS } from "@eyadex/contracts/notifications";
 import {
   whatsappCoexistenceRequestSchema,
   type WhatsappChannelView,
@@ -19,7 +20,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useApi } from "@/shared/api/api-provider";
-import { ApiError, errorCodeOf } from "@/shared/api/api-error";
+import { ApiError, errorCodeOf, isWhatsappUnavailable } from "@/shared/api/api-error";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { usePersona } from "@/shared/persona/persona-provider";
 import {
@@ -46,11 +47,14 @@ export function WhatsappCoexistenceDialog({
   const api = useApi();
   const { persona } = usePersona();
   const refresh = useRefreshWhatsapp();
-  const [draft, setDraft] = useState<CoexistenceDraft>(() => coexistenceDraftOf(view));
+  const { register, reset, handleSubmit } = useForm<CoexistenceDraft>({
+    defaultValues: coexistenceDraftOf(view),
+  });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const tokenStored = view.transport === "coexistence" && view.hasCredentials;
   useEffect(() => {
     if (!open) return;
-    setDraft(coexistenceDraftOf(view));
+    reset(coexistenceDraftOf(view));
     setErrors({});
     // Only on opening: a background refetch must not wipe what the admin is typing.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -64,16 +68,24 @@ export function WhatsappCoexistenceDialog({
       onClose();
     },
     onError: (e) => {
+      if (isWhatsappUnavailable(e)) {
+        toast.error(t("whatsapp.unavailableTitle"));
+        return;
+      }
+      if (e instanceof ApiError && e.details["transport"] === "evolution_linked") {
+        setErrors({ transport: "whatsapp.errors.evolution_linked" });
+        return;
+      }
       if (e instanceof ApiError && e.details["accessToken"] === "required")
         setErrors({ accessToken: "validation.required" });
       toast.error(t(`errors.${errorCodeOf(e)}`));
     },
   });
 
-  const submit = () => {
+  const submit = handleSubmit((draft) => {
     const request = toCoexistenceRequest(draft);
     const next: Record<string, string> = {};
-    if (!view.hasCredentials && !request.accessToken) next["accessToken"] = "validation.required";
+    if (!tokenStored && !request.accessToken) next["accessToken"] = "validation.required";
     const parsed = whatsappCoexistenceRequestSchema.safeParse(request);
     if (!parsed.success)
       for (const issue of parsed.error.issues) {
@@ -84,7 +96,7 @@ export function WhatsappCoexistenceDialog({
       }
     setErrors(next);
     if (Object.keys(next).length === 0 && parsed.success) mutation.mutate(parsed.data);
-  };
+  });
 
   const error = (key: string) =>
     errors[key] ? (
@@ -99,21 +111,14 @@ export function WhatsappCoexistenceDialog({
         type={type}
         dir="ltr"
         autoComplete={type === "password" ? "new-password" : "off"}
-        value={draft[name]}
-        onChange={(e) => setDraft((d) => ({ ...d, [name]: e.target.value }))}
+        {...register(name)}
       />
-      {name === "accessToken" && view.hasCredentials && (
+      {name === "accessToken" && tokenStored && (
         <p className="text-xs text-muted-foreground">{t("whatsapp.business.tokenStored")}</p>
       )}
       {error(name)}
     </div>
   );
-
-  const setTemplate = (kind: NotificationKind, part: "name" | "language", value: string) =>
-    setDraft((d) => ({
-      ...d,
-      templates: { ...d.templates, [kind]: { ...d.templates[kind], [part]: value } },
-    }));
 
   const params = (list: readonly string[]) =>
     list.map((p, i) => `{{${i + 1}}} ${tDynamic(`whatsapp.business.params.${p}`)}`).join(" · ");
@@ -126,6 +131,7 @@ export function WhatsappCoexistenceDialog({
           <DialogDescription>{t("whatsapp.business.dialogHint")}</DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-4 py-2">
+          {error("transport")}
           {field("accessToken", "password")}
           <div className="grid gap-4 sm:grid-cols-2">
             {field("phoneNumberId")}
@@ -156,8 +162,7 @@ export function WhatsappCoexistenceDialog({
                     aria-label={`${t(`notificationSettings.kinds.${kind}`)} — ${t("whatsapp.business.templateName")}`}
                     placeholder={t("whatsapp.business.templateName")}
                     dir="ltr"
-                    value={draft.templates[kind].name}
-                    onChange={(e) => setTemplate(kind, "name", e.target.value)}
+                    {...register(`templates.${kind}.name`)}
                   />
                   {error(`templates.${kind}.name`)}
                 </div>
@@ -166,8 +171,7 @@ export function WhatsappCoexistenceDialog({
                     aria-label={`${t(`notificationSettings.kinds.${kind}`)} — ${t("whatsapp.business.templateLanguage")}`}
                     placeholder={t("whatsapp.business.templateLanguage")}
                     dir="ltr"
-                    value={draft.templates[kind].language}
-                    onChange={(e) => setTemplate(kind, "language", e.target.value)}
+                    {...register(`templates.${kind}.language`)}
                   />
                   {error(`templates.${kind}.language`)}
                 </div>

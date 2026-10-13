@@ -199,7 +199,7 @@ describe("linking by QR (Evolution)", () => {
     try {
       const res = await connect(A.admin.cookie);
       expect(res.statusCode).toBe(503);
-      expect(res.json()).toMatchObject({ code: "unknown" });
+      expect(res.json()).toMatchObject({ code: "unknown", details: { code: "unavailable" } });
     } finally {
       evolution.configured = true;
     }

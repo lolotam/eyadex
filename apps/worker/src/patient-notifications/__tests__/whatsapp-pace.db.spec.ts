@@ -47,6 +47,23 @@ const harness = (fake: FakeWhatsapp) =>
   sendHarness(app, outbox, true, { whatsapp: fake, random: () => 0 });
 
 describe("WhatsApp pace (spec §7.1)", () => {
+  it("defers a send while the API changes the instance, without counting an attempt", async () => {
+    const fake = new FakeWhatsapp();
+    const h = harness(fake);
+    const w = linkedClinic();
+    owner(`UPDATE clinic_whatsapp_channels SET operation_id = ${q(randomUUID())},
+           operation_expires_at = now() + interval '1 minute' WHERE clinic_id = ${q(w.clinicId)}`);
+    const { eventId, notificationId } = queueNotification(
+      w,
+      "booked",
+      seedAppointment(w),
+      "whatsapp",
+    );
+    await drain(h.poller);
+    expect(fake.calls).toHaveLength(0);
+    expect(eventRow(eventId)).toMatchObject({ attempts: 0, last_error: null, dispatched_at: null });
+    expect(ledgerRow(notificationId)).toMatchObject({ status: "queued", attempts: 0 });
+  });
   it("the second message of a clinic waits for its turn without counting an attempt", async () => {
     const fake = new FakeWhatsapp();
     const h = harness(fake);

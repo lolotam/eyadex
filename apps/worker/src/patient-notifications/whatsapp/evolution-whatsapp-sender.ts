@@ -60,6 +60,7 @@ export class EvolutionWhatsappSender implements WhatsappSender {
           method: "POST",
           headers: { "content-type": "application/json", apikey: this.#options.apiKey },
           body: JSON.stringify(body),
+          redirect: "error",
           signal: AbortSignal.timeout(this.#options.timeoutMs ?? EVOLUTION_TIMEOUT_MS),
         },
       );

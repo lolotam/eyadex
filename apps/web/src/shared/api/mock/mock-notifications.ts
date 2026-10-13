@@ -76,13 +76,8 @@ export function createMockNotifications(): NotificationsApi {
       const parsed = notificationSettingsSchema.safeParse(raw);
       if (!parsed.success) throw new ApiError("validation");
       const before = settingsOf(db, clinic.id);
-      // N2: WhatsApp can be switched on only while the channel is connected. TODO(spec): a value
-      // already on (the channel dropped since) is kept, so the clinic can still save other changes.
-      if (
-        parsed.data.whatsappEnabled &&
-        !before.whatsappEnabled &&
-        channelOf(db, clinic.id).status !== "connected"
-      )
+      // As in the API, every save with WhatsApp on requires a connected channel.
+      if (parsed.data.whatsappEnabled && channelOf(db, clinic.id).status !== "connected")
         throw new ApiError("validation", undefined, { whatsappEnabled: "whatsapp_not_connected" });
       const state = notificationState(db);
       if (state.settings[clinic.id] && JSON.stringify(before) === JSON.stringify(parsed.data))
