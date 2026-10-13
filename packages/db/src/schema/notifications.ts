@@ -11,13 +11,14 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
 import { clinics } from "./clinics.ts";
 import { patients } from "./patients.ts";
 
-// Mirror of db/sql/0054, 0056, 0057 and 0058 (docs/specs/notifications-design.md §2, §7.1). Clinic
+// Mirror of db/sql/0054, 0056, 0057, 0058 and 0059 (docs/specs/notifications-design.md §2, §7.1, §7.2). Clinic
 // tables: forced RLS, eyadex_app only, never deleted; the platform has no privilege on any of them.
 const tz = { withTimezone: true, mode: "date" } as const;
 
@@ -88,6 +89,9 @@ export const patientNotifications = pgTable(
     createdAt: timestamp("created_at", tz).notNull(),
     sentAt: timestamp("sent_at", tz),
     updatedAt: timestamp("updated_at", tz).notNull(),
+    // 0059: WhatsApp delivery statuses, forward only (sent → delivered → read).
+    deliveredAt: timestamp("delivered_at", tz),
+    readAt: timestamp("read_at", tz),
   },
   (t) => [
     primaryKey({ name: "patient_notifications_pkey", columns: [t.clinicId, t.id] }),
@@ -119,6 +123,12 @@ export const patientNotifications = pgTable(
     ),
     check("patient_notifications_attempts_check", sql.raw("(attempts >= 0)")),
     check(
+      "patient_notifications_delivery_check",
+      sql.raw(
+        "(((delivered_at IS NULL) AND (read_at IS NULL)) OR ((channel = 'whatsapp'::text) AND (sent_at IS NOT NULL) AND (delivered_at IS NOT NULL)))",
+      ),
+    ),
+    check(
       "patient_notifications_channel_check",
       sql.raw("(channel = ANY (ARRAY['email'::text, 'whatsapp'::text]))"),
     ),
@@ -138,7 +148,7 @@ export const patientNotifications = pgTable(
     check(
       "patient_notifications_sent_check",
       sql.raw(
-        "(((route IS NULL) AND (sent_at IS NULL) AND (status <> 'sent'::text)) OR ((route IS NOT NULL) AND (sent_at IS NOT NULL) AND ((status = 'sent'::text) OR ((status = 'failed'::text) AND (channel = 'whatsapp'::text) AND (route = 'evolution'::text) AND (NOT (last_error IS DISTINCT FROM 'evolution:evo_delivery_rejected'::text))))))",
+        "(((route IS NULL) AND (sent_at IS NULL) AND (status <> 'sent'::text)) OR ((route IS NOT NULL) AND (sent_at IS NOT NULL) AND ((status = 'sent'::text) OR ((status = 'failed'::text) AND (channel = 'whatsapp'::text) AND (((route = 'evolution'::text) AND (NOT (last_error IS DISTINCT FROM 'evolution:evo_delivery_rejected'::text))) OR ((route = 'coexistence'::text) AND (last_error IS NOT NULL) AND (last_error = ANY (ARRAY['coexistence:meta_not_on_whatsapp'::text, 'coexistence:meta_rejected'::text, 'coexistence:meta_rate_limited'::text, 'coexistence:meta_template'::text]))))))))",
       ),
     ),
     check(
@@ -209,6 +219,10 @@ export const clinicWhatsappChannels = pgTable(
       foreignColumns: [clinics.id],
     }),
     unique("clinic_whatsapp_channels_one_per_clinic").on(t.clinicId),
+    // 0059: one Meta number belongs to one clinic (Meta's webhook names the number, not the clinic).
+    uniqueIndex("clinic_whatsapp_channels_phone_number_unique")
+      .on(t.phoneNumberId)
+      .where(sql.raw("phone_number_id IS NOT NULL")),
     check(
       "clinic_whatsapp_channels_business_account_id_check",
       sql.raw("(business_account_id ~ '^[0-9]{5,30}$'::text)"),

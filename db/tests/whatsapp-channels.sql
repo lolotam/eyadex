@@ -1,5 +1,6 @@
--- WhatsApp notifications (0057–0058, docs/specs/notifications-design.md §7.1): the channel table's grants
--- and CHECKs, the settings switch's default, and the ledger's widened route and skip reasons.
+-- WhatsApp notifications (0057–0059, docs/specs/notifications-design.md §7.1, §7.2): the channel table's
+-- grants and CHECKs, the settings switch's default, the ledger's widened route and skip reasons, the
+-- delivery times, one Meta number per clinic and the pre-tenant routing function.
 -- Cross-clinic isolation is in rls-isolation.sql.
 -- Runs inside one transaction and ROLLS BACK, so it is safe on any database that has the db/sql baseline.
 -- Usage: psql -v ON_ERROR_STOP=1 -f db/tests/whatsapp-channels.sql
@@ -182,6 +183,158 @@ BEGIN
       AND indexdef LIKE '%WHERE (provider_message_id IS NOT NULL)%') THEN
     RAISE EXCEPTION 'WA-LEDGER: missing tenant-prefixed partial provider-id index';
   END IF;
+END $$;
+RESET ROLE;
+
+-- 0059: the routing function is SECURITY DEFINER, owned by its own NOLOGIN role without BYPASSRLS (never
+-- the migration owner, which FORCE RLS would leave blind), pins its search_path, and only eyadex_app runs it.
+DO $$
+DECLARE f oid := 'whatsapp_clinic_for_phone_number(text)'::regprocedure; r text;
+BEGIN
+  IF NOT (SELECT prosecdef FROM pg_proc WHERE oid = f) THEN
+    RAISE EXCEPTION 'WA-ROUTE: the routing function is not SECURITY DEFINER';
+  END IF;
+  IF (SELECT provolatile FROM pg_proc WHERE oid = f) <> 's' THEN
+    RAISE EXCEPTION 'WA-ROUTE: the routing function is not STABLE';
+  END IF;
+  IF (SELECT pg_get_userbyid(proowner) FROM pg_proc WHERE oid = f) <> 'eyadex_whatsapp_routing_owner' THEN
+    RAISE EXCEPTION 'WA-ROUTE: the routing function has another owner';
+  END IF;
+  IF (SELECT rolcanlogin OR rolbypassrls OR rolsuper FROM pg_roles
+      WHERE rolname = 'eyadex_whatsapp_routing_owner') THEN
+    RAISE EXCEPTION 'WA-ROUTE: the routing owner can log in or bypass RLS';
+  END IF;
+  IF NOT (SELECT 'search_path=pg_catalog, public' = ANY (proconfig) FROM pg_proc WHERE oid = f) THEN
+    RAISE EXCEPTION 'WA-ROUTE: the routing function does not pin its search_path';
+  END IF;
+  IF NOT has_function_privilege('eyadex_app', f, 'EXECUTE') THEN
+    RAISE EXCEPTION 'WA-ROUTE: eyadex_app cannot run the routing function';
+  END IF;
+  FOREACH r IN ARRAY ARRAY['eyadex_platform','eyadex_auth','eyadex_dispatcher'] LOOP
+    IF has_function_privilege(r, f, 'EXECUTE') THEN
+      RAISE EXCEPTION 'WA-ROUTE: % can run the routing function', r;
+    END IF;
+  END LOOP;
+  IF EXISTS (SELECT 1 FROM pg_proc, aclexplode(proacl) a WHERE oid = f AND a.grantee = 0) THEN
+    RAISE EXCEPTION 'WA-ROUTE: PUBLIC can run the routing function';
+  END IF;
+  -- The owner reads the three routing columns and nothing else.
+  IF has_column_privilege('eyadex_whatsapp_routing_owner', 'clinic_whatsapp_channels',
+      'sealed_credentials', 'SELECT')
+     OR has_table_privilege('eyadex_whatsapp_routing_owner', 'clinic_whatsapp_channels', 'UPDATE') THEN
+    RAISE EXCEPTION 'WA-ROUTE: the routing owner reads more than the routing columns';
+  END IF;
+END $$;
+
+-- A second clinic, its channel written inside its own context.
+INSERT INTO clinics VALUES
+  ('00000000-0000-7000-8000-00000000059b','whatsapp-b','ب','WB','general','ar','Asia/Kuwait','active',now()+interval '30 days',10,3,now(),now());
+SET LOCAL ROLE eyadex_app;
+SELECT set_config('app.clinic_id', '00000000-0000-7000-8000-00000000059b', true);
+INSERT INTO clinic_whatsapp_channels (clinic_id, id, transport, status, instance_name, phone_number_id,
+    connected_at, created_at, updated_at)
+  VALUES ('00000000-0000-7000-8000-00000000059b', '00000000-0000-7000-8000-0000000591b1', 'evolution',
+    'connected', 'eyadex-00000000-0000-7000-8000-00000000059b', '555555555', now(), now(), now());
+
+-- Routing: only a coexistence channel answers, from any clinic context or none, and only with its id.
+DO $$
+DECLARE a uuid := '00000000-0000-7000-8000-00000000057a';
+BEGIN
+  IF whatsapp_clinic_for_phone_number('123456789') IS DISTINCT FROM a THEN
+    RAISE EXCEPTION 'WA-ROUTE: the coexistence number of A did not route to A from the context of B';
+  END IF;
+  IF whatsapp_clinic_for_phone_number('555555555') IS NOT NULL THEN
+    RAISE EXCEPTION 'WA-ROUTE: the number of an Evolution channel routed';
+  END IF;
+  IF whatsapp_clinic_for_phone_number('99999999') IS NOT NULL THEN
+    RAISE EXCEPTION 'WA-ROUTE: an unknown number routed';
+  END IF;
+  -- The function opens nothing else: B still cannot read the channel of A.
+  IF EXISTS (SELECT 1 FROM clinic_whatsapp_channels WHERE clinic_id = a) THEN
+    RAISE EXCEPTION 'WA-ROUTE: B reads the channel of A';
+  END IF;
+  -- One Meta number belongs to one clinic, whatever the transport or status of the other row.
+  BEGIN
+    UPDATE clinic_whatsapp_channels SET phone_number_id = '123456789';
+    RAISE EXCEPTION 'WA-UNIQUE: B took the Meta number of A';
+  EXCEPTION WHEN unique_violation THEN NULL; END;
+END $$;
+SELECT set_config('app.clinic_id', '', true);
+DO $$
+BEGIN
+  IF whatsapp_clinic_for_phone_number('123456789') IS DISTINCT FROM
+      '00000000-0000-7000-8000-00000000057a'::uuid THEN
+    RAISE EXCEPTION 'WA-ROUTE: the number did not route without a clinic context';
+  END IF;
+END $$;
+SELECT set_config('app.clinic_id', '00000000-0000-7000-8000-00000000057a', true);
+UPDATE clinic_whatsapp_channels SET status = 'disconnected', connected_at = NULL;
+SELECT set_config('app.clinic_id', '00000000-0000-7000-8000-00000000059b', true);
+DO $$
+BEGIN
+  BEGIN
+    UPDATE clinic_whatsapp_channels SET phone_number_id = '123456789';
+    RAISE EXCEPTION 'WA-UNIQUE: the number of a disconnected clinic was taken';
+  EXCEPTION WHEN unique_violation THEN NULL; END;
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename = 'clinic_whatsapp_channels'
+      AND indexname = 'clinic_whatsapp_channels_phone_number_unique'
+      AND indexdef LIKE 'CREATE UNIQUE INDEX%(phone_number_id)%'
+      AND indexdef LIKE '%WHERE (phone_number_id IS NOT NULL)%') THEN
+    RAISE EXCEPTION 'WA-UNIQUE: missing the partial unique index on phone_number_id';
+  END IF;
+END $$;
+
+-- Delivery times: accepted WhatsApp rows only, read after delivered; a delivery failure keeps the
+-- acceptance metadata for the delivery codes of its own transport only.
+SELECT set_config('app.clinic_id', '00000000-0000-7000-8000-00000000057a', true);
+DO $$
+DECLARE c uuid := '00000000-0000-7000-8000-00000000057a'; p uuid := '00000000-0000-7000-8000-0000000571a2';
+  n uuid := gen_random_uuid(); e uuid := gen_random_uuid(); q uuid := gen_random_uuid(); code text;
+BEGIN
+  INSERT INTO patient_notifications (clinic_id, id, patient_id, kind, channel, subject_type, subject_id,
+      subject_at, status, route, sent_at, provider_message_id, created_at, updated_at)
+    VALUES (c, n, p, 'booked', 'whatsapp', 'appointment', gen_random_uuid(), now(), 'sent', 'coexistence',
+      now(), 'wamid.fake', now(), now()),
+      (c, e, p, 'booked', 'email', 'appointment', gen_random_uuid(), now(), 'sent', 'primary', now(), NULL,
+      now(), now());
+  INSERT INTO patient_notifications (clinic_id, id, patient_id, kind, channel, subject_type, subject_id,
+      subject_at, status, created_at, updated_at)
+    VALUES (c, q, p, 'reminder_day', 'whatsapp', 'appointment', gen_random_uuid(), now(), 'queued', now(), now());
+  BEGIN
+    UPDATE patient_notifications SET read_at = now() WHERE id = n;
+    RAISE EXCEPTION 'WA-DELIVERY: read without delivered was accepted';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    UPDATE patient_notifications SET delivered_at = now() WHERE id = e;
+    RAISE EXCEPTION 'WA-DELIVERY: an email row took a delivery time';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    UPDATE patient_notifications SET delivered_at = now() WHERE id = q;
+    RAISE EXCEPTION 'WA-DELIVERY: an unsent row took a delivery time';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  UPDATE patient_notifications SET delivered_at = now(), read_at = now() WHERE id = n;
+  FOREACH code IN ARRAY ARRAY['meta_not_on_whatsapp', 'meta_rejected', 'meta_rate_limited', 'meta_template'] LOOP
+    UPDATE patient_notifications SET status = 'failed', last_error = 'coexistence:' || code WHERE id = n;
+  END LOOP;
+  IF NOT EXISTS (SELECT 1 FROM patient_notifications WHERE id = n AND route = 'coexistence'
+      AND sent_at IS NOT NULL AND delivered_at IS NOT NULL AND read_at IS NOT NULL) THEN
+    RAISE EXCEPTION 'WA-DELIVERY: a coexistence delivery failure lost its acceptance metadata';
+  END IF;
+  FOREACH code IN ARRAY ARRAY['coexistence:meta_timeout', 'coexistence:meta_two_step',
+      'evolution:evo_delivery_rejected', 'coexistence:other', 'meta_rejected'] LOOP
+    BEGIN
+      UPDATE patient_notifications SET last_error = code WHERE id = n;
+      RAISE EXCEPTION 'WA-DELIVERY: % kept the acceptance metadata', code;
+    EXCEPTION WHEN check_violation THEN NULL; END;
+  END LOOP;
+  -- An Evolution row cannot keep its acceptance metadata on a Meta delivery code.
+  UPDATE patient_notifications SET status = 'sent', last_error = NULL, route = 'evolution' WHERE id = n;
+  BEGIN
+    UPDATE patient_notifications SET status = 'failed', last_error = 'coexistence:meta_rejected' WHERE id = n;
+    RAISE EXCEPTION 'WA-DELIVERY: an Evolution row kept a Meta delivery code';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  -- A failure before acceptance names any code, without a route.
+  UPDATE patient_notifications SET status = 'failed', last_error = 'coexistence:meta_two_step' WHERE id = q;
 END $$;
 RESET ROLE;
 \echo 'WhatsApp channel tests: all passed'
