@@ -16,7 +16,8 @@ const FLAG_AT = 14;
 const SHORT_START = 16;
 const SHORT_END = 76;
 const LONG_START = 77;
-const RAW_CODE = /^[A-Z][0-9][0-9A-Z][0-9A-Z]{0,4}$/;
+// FY2027 opened the first category whose second character is a letter (QA0…), so only the first is fixed.
+const RAW_CODE = /^[A-Z][0-9A-Z][0-9A-Z][0-9A-Z]{0,4}$/;
 
 /**
  * R2-8: الكود زي ما ICD-10-CM بيكتبه: النقطة بعد التالت حرف لما الكود أطول من تلاتة بس (`F41` تفضل،
@@ -60,7 +61,8 @@ export interface Icd10Terms {
   readonly words: readonly string[];
 }
 
-const CODE_LIKE = /^[A-Za-z][0-9][0-9A-Za-z.]*$/;
+// A digit by the third character keeps title words such as "flu" out of the prefix search, while QA0 fits.
+const CODE_LIKE = /^[A-Za-z](?:[0-9]|[A-Za-z][0-9])[0-9A-Za-z.]*$/;
 
 /**
  * يفصل كلمة البحث (P2-F1): كلمة واحدة شكلها كود بتدوّر بالبادئة (`f41`، `F41.1`، `F411`)، وكل

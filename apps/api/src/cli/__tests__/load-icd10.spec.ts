@@ -56,6 +56,15 @@ describe("parseIcd10OrderFile (R2-8)", () => {
     expect(rows[4]!.titleEn).toBe("Dislocation of jaw, unspecified side, initial encounter");
   });
 
+  it("accepts the FY2027 codes whose second character is a letter", () => {
+    const qa = parseIcd10OrderFile(
+      row(1, "QA00101", 1, "Neurodev disord", "Neurodevelopmental disorder"),
+    );
+    expect(qa).toEqual([
+      { code: "QA0.0101", titleEn: "Neurodevelopmental disorder", billable: true },
+    ]);
+  });
+
   it("stops on a line that is not an order-file row, naming the line only", () => {
     expect(() => parseIcd10OrderFile(`${row(1, "F41", 0, "x")}\nnot a row`)).toThrow(
       "icd10: line 2 is not an order-file row",
