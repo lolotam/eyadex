@@ -1,6 +1,7 @@
 import {
   whatsappChannelViewSchema,
   whatsappQrResponseSchema,
+  whatsappSignupConfigSchema,
   type WhatsappCoexistenceRequest,
 } from "@eyadex/contracts/whatsapp";
 import type { WhatsappApi } from "../whatsapp-client";
@@ -31,6 +32,15 @@ export function createHttpWhatsapp(ctx: HttpContext): WhatsappApi {
     saveCoexistence: (_persona, input) =>
       transport.sendEmpty("PUT", "/v1/clinic/whatsapp/coexistence", {
         body: toCoexistenceBody(input),
+      }),
+    signupConfig: () =>
+      transport.send("GET", "/v1/clinic/whatsapp/signup-config", {
+        schema: whatsappSignupConfigSchema,
+      }),
+    embeddedSignup: (_persona, input) =>
+      transport.send("POST", "/v1/clinic/whatsapp/embedded-signup", {
+        schema: whatsappChannelViewSchema,
+        body: { code: input.code, wabaId: input.wabaId, phoneNumberId: input.phoneNumberId },
       }),
   };
 }

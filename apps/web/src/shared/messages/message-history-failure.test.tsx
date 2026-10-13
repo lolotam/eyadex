@@ -28,6 +28,8 @@ const items: PatientNotification[] = reasons.map((failureReason, i) => ({
   createdAt: "2026-10-12T08:00:00.000Z",
   sentAt: null,
   failureReason,
+  deliveredAt: null,
+  readAt: null,
 }));
 
 describe.each([

@@ -2,7 +2,9 @@ import type {
   WhatsappChannelView,
   WhatsappCoexistenceRequest,
   WhatsappConnectRequest,
+  WhatsappEmbeddedSignupRequest,
   WhatsappQrResponse,
+  WhatsappSignupConfig,
 } from "@eyadex/contracts/whatsapp";
 import type { Persona } from "@eyadex/contracts/session";
 
@@ -20,4 +22,11 @@ export interface WhatsappApi {
   disconnect(persona: Persona): Promise<void>;
   /** Meta credentials (the token is write-only: omitted = kept) and one template per kind. */
   saveCoexistence(persona: Persona, input: WhatsappCoexistenceRequest): Promise<void>;
+  /** N3: the public ids for Meta's Embedded Signup; `unavailable` when the server has none. */
+  signupConfig(persona: Persona): Promise<WhatsappSignupConfig>;
+  /** N3: the one-time code and ids from Meta's window; answers the connected channel. */
+  embeddedSignup(
+    persona: Persona,
+    input: WhatsappEmbeddedSignupRequest,
+  ): Promise<WhatsappChannelView>;
 }
