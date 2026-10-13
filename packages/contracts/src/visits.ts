@@ -36,10 +36,13 @@ export const visitNoteInputSchema = z
   .strict();
 export type VisitNoteInput = z.infer<typeof visitNoteInputSchema>;
 
-/** ICD-10-CM code shape: letter, digit, letter-or-digit, optional dot and up to four more. */
+/**
+ * ICD-10-CM code shape: a letter, two letters-or-digits (FY2027 added QA0…), optional dot and up to four
+ * more.
+ */
 export const icd10CodeSchema = z
   .string()
-  .regex(/^[A-Z][0-9][0-9A-Z](\.[0-9A-Z]{1,4})?$/, "validation.icd10");
+  .regex(/^[A-Z][0-9A-Z][0-9A-Z](\.[0-9A-Z]{1,4})?$/, "validation.icd10");
 
 /** P2-8: per diagnosis the doctor picks an ICD-10-CM code (its title kept as text) or free text. */
 export const diagnosisInputSchema = z.discriminatedUnion("kind", [
