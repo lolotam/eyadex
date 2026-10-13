@@ -127,13 +127,16 @@ export function createMockWhatsapp(): WhatsappApi {
       const { clinic, actorName } = authorize(db, persona, "update", "clinic_settings");
       const parsed = whatsappCoexistenceRequestSchema.safeParse(raw);
       if (!parsed.success) throw new ApiError("validation");
-      requireAvailable(db);
+      // Round 2: coexistence talks to Meta directly, so it works without Evolution configured.
       const row = channelOf(db, clinic.id);
       if (row.transport === "evolution" && row.status !== "disconnected")
         throw new ApiError("validation", undefined, { transport: "evolution_linked" });
       const token = parsed.data.accessToken ?? row.accessToken;
       // Write-only: kept when omitted on an update, required the first time.
       if (!token) throw new ApiError("validation", undefined, { accessToken: "required" });
+      // The demo "Meta check": a token containing `invalid` is refused, as Meta would refuse it.
+      if (token.includes("invalid"))
+        throw new ApiError("validation", undefined, { accessToken: "meta_credentials_invalid" });
       const tokenChanged = token !== row.accessToken;
       const sameTemplates = Object.keys(row.templates).every((kind) => {
         const key = kind as keyof typeof row.templates;
@@ -160,7 +163,7 @@ export function createMockWhatsapp(): WhatsappApi {
       if (row.transport !== "coexistence" || row.status !== "connected") {
         row.transport = "coexistence";
         row.status = "connected";
-        row.phoneLast4 = null;
+        row.phoneLast4 = MOCK_PHONE_LAST4;
         row.connectedAt = new Date().toISOString();
         row.pendingSince = null;
       }

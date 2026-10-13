@@ -112,5 +112,15 @@ export const arNotifications: Strings<typeof enNotifications> = {
       coexistence: "واتساب للأعمال",
     },
     channel: { email: "البريد الإلكتروني", whatsapp: "واتساب" },
+    failure: {
+      delivery_rejected: "رفض واتساب توصيل الرسالة (غالبًا لأن المراجع لم يراسل العيادة من قبل)",
+      not_on_whatsapp: "الرقم غير مسجّل على واتساب",
+      whatsapp_credentials: "بيانات ربط واتساب مرفوضة — راجع الإعدادات",
+      template: "Meta رفضت قالب الرسالة",
+      disconnected: "هاتف العيادة انفصل عن واتساب",
+      unconfirmed: "لم يصل رد في الوقت؛ لم يُعد الإرسال حتى لا تتكرر الرسالة",
+      invalid_address: "رقم الهاتف أو البريد غير صالح",
+      other: "تعذّر الإرسال",
+    },
   },
 };
