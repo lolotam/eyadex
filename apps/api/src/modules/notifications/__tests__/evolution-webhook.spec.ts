@@ -24,6 +24,21 @@ describe("Evolution webhook parser", () => {
         { kind: "rejected", clinicId, messageId: "msg" },
       ]);
   });
+  it.each([
+    ["DELIVERY_ACK", "delivered"],
+    [3, "delivered"],
+    ["READ", "read"],
+    [4, "read"],
+    ["PLAYED", "read"],
+    [5, "read"],
+  ])("reads the receipt %s as %s (N3)", (status, kind) => {
+    expect(parseEvolutionWebhook(envelope({ status, key: { id: "msg" } }))).toEqual([
+      { kind, clinicId, messageId: "msg" },
+    ]);
+  });
+  it.each(["SERVER_ACK", 2, "PENDING", 1, 6, "read"])("ignores status %s", (status) => {
+    expect(parseEvolutionWebhook(envelope({ status, keyId: "msg" }))).toEqual([]);
+  });
   it("reads arrays and Evolution's dotted lowercase event names", () => {
     expect(
       parseEvolutionWebhook(
@@ -31,11 +46,15 @@ describe("Evolution webhook parser", () => {
           [
             { status: 0, keyId: "msg" },
             { status: "READ", keyId: "other" },
+            { status: "SERVER_ACK", keyId: "third" },
           ],
           "messages.update",
         ),
       ),
-    ).toEqual([{ kind: "rejected", clinicId, messageId: "msg" }]);
+    ).toEqual([
+      { kind: "rejected", clinicId, messageId: "msg" },
+      { kind: "read", clinicId, messageId: "other" },
+    ]);
     expect(parseEvolutionWebhook(envelope({ state: "close" }, "connection.update"))).toEqual([
       { kind: "closed", clinicId },
     ]);

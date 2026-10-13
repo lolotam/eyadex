@@ -18,11 +18,14 @@ interface PublicRouteRules {
 }
 
 /**
- * Every /v1 POST route reachable WITHOUT a session, keyed `METHOD /v1/path`. A route missing here is
+ * Every /v1 route reachable WITHOUT a session (the POSTs, and Meta's webhook check), keyed `METHOD /v1/path`. A route missing here is
  * refused by `PublicRateLimitGuard` (fail closed), and the completeness test walks the controllers.
  */
 export const PUBLIC_V1_ROUTES: Readonly<Record<string, PublicRouteRules>> = {
   "POST /v1/hooks/evolution": { ip: { max: 600, windowMs: MINUTE } },
+  // Meta's app webhook (spec §7.2): status bursts from Meta's servers, and its rare subscription check.
+  "POST /v1/hooks/meta": { ip: { max: 1200, windowMs: MINUTE } },
+  "GET /v1/hooks/meta": { ip: { max: 30, windowMs: MINUTE } },
   "POST /v1/invitations/inspect": { ip: PUBLIC_LIMITS.invitationPerIp },
   "POST /v1/invitations/accept": {
     ip: PUBLIC_LIMITS.invitationPerIp,

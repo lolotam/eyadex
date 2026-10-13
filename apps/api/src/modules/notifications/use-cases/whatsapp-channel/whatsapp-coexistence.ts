@@ -7,15 +7,11 @@ import {
   coexistenceNeedsVerification,
   coexistenceRefusal,
   coexistenceUnchanged,
-  type ChannelRecord,
 } from "../../domain/whatsapp-rules.ts";
-import {
-  findWhatsappChannel,
-  lockWhatsappChannel,
-  saveWhatsappChannel,
-} from "../../persistence/pg-whatsapp-channel.ts";
-import { auditChannel, refuse, type WhatsappActor, type WhatsappDeps } from "./whatsapp-shared.ts";
+import { findWhatsappChannel, lockWhatsappChannel } from "../../persistence/pg-whatsapp-channel.ts";
+import { refuse, type WhatsappActor, type WhatsappDeps } from "./whatsapp-shared.ts";
 import { withWhatsappOperation } from "./whatsapp-operation.ts";
+import { refuseNumberInUse, saveCoexistence } from "./coexistence-save.ts";
 
 /** The coexistence use case also seals the Meta token: `MAIL_PROVIDER_SEAL_KEY` (base64, 32 bytes). */
 export interface WhatsappCoexistenceDeps extends WhatsappDeps {
@@ -34,14 +30,11 @@ type Plan =
       readonly phoneLast4: string | null;
     };
 
-// The audit keeps the shape of the change only: never the token, never a Meta id.
-const auditView = (record: ChannelRecord | null) =>
-  record === null ? null : { status: record.status, templates: record.templates };
-
 /**
  * ربط coexistence (N-6 (b)، spec §7.1): بيانات Meta Business للعيادة مباشرة من Graph v22.0،
  * وقالب Meta لكل رسالة. التوكن write-only: بيتختم بـ AAD = id الصف، ولو اتساب في التعديل بيفضل المحفوظ،
  * ومابيرجعش في أي رد ولا سجل. البيانات بتتحقق من Meta بس لما الربط أو التوكن أو أرقام Meta تتغيّر.
+ * رقم Meta بتاع عيادة تانية = `number_in_use` (N3).
  */
 export class WhatsappCoexistence {
   readonly #sealer: SecretSealer;
@@ -89,6 +82,7 @@ export class WhatsappCoexistence {
       if (coexistenceUnchanged(before, request, tokenChanged)) {
         return { unchanged: true, view: channelView(before) };
       }
+      await refuseNumberInUse(tx, actor.clinicId, request.phoneNumberId);
       return {
         unchanged: false,
         token,
@@ -105,51 +99,16 @@ export class WhatsappCoexistence {
           businessAccountId: request.businessAccountId,
         })
       : plan.phoneLast4;
-    return this.save(actor, request, plan.token, plan.tokenChanged, phoneLast4);
-  }
-
-  // The second transaction, decided again under the lock on the row as it is now.
-  private save(
-    actor: WhatsappActor,
-    request: WhatsappCoexistenceRequest,
-    token: string,
-    tokenChanged: boolean,
-    phoneLast4: string | null,
-  ): Promise<WhatsappChannelView> {
-    const { db, clock, ids } = this.deps;
-    return db.withTenant(actor.clinicId, async (tx) => {
-      await lockWhatsappChannel(tx, actor.clinicId);
-      const current = await findWhatsappChannel(tx, actor.clinicId);
-      refuse(coexistenceRefusal(current, true));
-      const id = current?.id ?? ids.newId();
-      const now = clock.now();
-      const stillLinked = current?.transport === "coexistence" && current.status === "connected";
-      const record: ChannelRecord = {
-        id,
-        transport: "coexistence",
-        status: "connected",
-        instanceName: null,
-        phoneLast4,
-        riskAcceptedAt: current?.riskAcceptedAt ?? null,
-        riskAcceptedBy: current?.riskAcceptedBy ?? null,
-        riskVersion: current?.riskVersion ?? null,
-        sealedCredentials: this.#sealer.seal(token, id),
+    return saveCoexistence(
+      { ...this.deps, sealer: this.#sealer },
+      actor,
+      {
         phoneNumberId: request.phoneNumberId,
         businessAccountId: request.businessAccountId,
         templates: request.templates,
-        connectedAt: stillLinked ? current.connectedAt : now,
-        lastError: null,
-      };
-      await saveWhatsappChannel(tx, actor.clinicId, record, now);
-      await auditChannel(
-        tx,
-        this.deps,
-        actor,
-        "clinic.whatsapp_coexistence_updated",
-        { tokenChanged, before: auditView(current), after: auditView(record) },
-        now,
-      );
-      return channelView(record);
-    });
+      },
+      { token: plan.token, tokenChanged: plan.tokenChanged, phoneLast4 },
+      "manual",
+    );
   }
 }

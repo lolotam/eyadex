@@ -41,7 +41,7 @@ import {
   type BlobStore,
 } from "./modules/medical/index.ts";
 import { ClinicAuditModule, PlatformAuditModule } from "./modules/audit/index.ts";
-import { whatsappModule, type WhatsappDependencies } from "./app-whatsapp.ts";
+import { whatsappHooks, whatsappModule, type WhatsappDependencies } from "./app-whatsapp.ts";
 import { PlatformModule } from "./modules/platform/index.ts";
 import { SettingsModule } from "./modules/settings/index.ts";
 import { EnvelopeExceptionFilter } from "./shared/exception.filter.ts";
@@ -266,6 +266,7 @@ export async function startApi(
   }
   // The attachment upload is the only multipart route; every other route keeps refusing the type.
   await registerAttachmentUploads(app.getHttpAdapter().getInstance());
+  whatsappHooks(app.getHttpAdapter().getInstance());
   // A route without exactly one access declaration fails the boot, not just its requests (RBAC-04).
   assertRouteAccess(app.get(ModulesContainer));
   app.setGlobalPrefix("v1");

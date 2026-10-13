@@ -47,6 +47,9 @@ const BODY: WhatsappCoexistenceRequest = {
   businessAccountId: "987654321",
   templates: { ...NONE, booked: { name: "booking_confirmed", language: "ar" } },
 };
+// One Meta number belongs to one clinic (0059): each test clinic links its own shaped placeholder id.
+const freshNumber = () => `1${BigInt(`0x${randomBytes(8).toString("hex")}`)}`.slice(0, 18);
+const bodyFor = (): WhatsappCoexistenceRequest => ({ ...BODY, phoneNumberId: freshNumber() });
 
 const coexistence = (cookie: string, body: unknown) =>
   send(h, cookie, "PUT", "/v1/clinic/whatsapp/coexistence", body);
@@ -89,24 +92,25 @@ describe("PUT /v1/clinic/whatsapp/coexistence", () => {
   });
 
   it("seals the token to the row, verifies Meta directly and never returns the token", async () => {
+    const B = bodyFor();
     const A = await clinicWithMembers(h);
     const clinicId = A.admin.clinicId;
-    const res = await coexistence(A.admin.cookie, BODY);
+    const res = await coexistence(A.admin.cookie, B);
     expect(res.statusCode).toBe(200);
     expect(res.body).not.toContain(TOKEN);
     expect(whatsappChannelViewSchema.parse(res.json())).toMatchObject({
       transport: "coexistence",
       status: "connected",
       hasCredentials: true,
-      phoneNumberId: BODY.phoneNumberId,
-      businessAccountId: BODY.businessAccountId,
-      templates: BODY.templates,
+      phoneNumberId: B.phoneNumberId,
+      businessAccountId: B.businessAccountId,
+      templates: B.templates,
     });
     const view = await send(h, A.admin.cookie, "GET", "/v1/clinic/whatsapp");
     expect(view.statusCode).toBe(200);
     expect(whatsappChannelViewSchema.parse(view.json())).toMatchObject({
-      phoneNumberId: BODY.phoneNumberId,
-      businessAccountId: BODY.businessAccountId,
+      phoneNumberId: B.phoneNumberId,
+      businessAccountId: B.businessAccountId,
     });
     for (const response of [res, view]) {
       expect(response.json()).not.toHaveProperty("accessToken");
@@ -118,21 +122,22 @@ describe("PUT /v1/clinic/whatsapp/coexistence", () => {
     expect(opened(row)).toBe(TOKEN);
     expect(meta.calls.at(-1)).toEqual({
       accessToken: TOKEN,
-      phoneNumberId: BODY.phoneNumberId,
-      businessAccountId: BODY.businessAccountId,
+      phoneNumberId: B.phoneNumberId,
+      businessAccountId: B.businessAccountId,
     });
     expect(evolution.createdCount(`eyadex-${clinicId}`)).toBe(0);
     expect(res.json().phoneLast4).toBe("0001");
   });
 
   it("keeps the stored token when omitted, and verifies only for changed credentials", async () => {
+    const B = bodyFor();
     const A = await clinicWithMembers(h);
     const clinicId = A.admin.clinicId;
-    await coexistence(A.admin.cookie, BODY);
+    await coexistence(A.admin.cookie, B);
     const initial = meta.calls.length;
-    const { accessToken: _omitted, ...withoutToken } = BODY;
+    const { accessToken: _omitted, ...withoutToken } = B;
     const templates = {
-      ...BODY.templates,
+      ...B.templates,
       cancelled: { name: "booking_cancelled", language: "en" },
     };
     const kept = await coexistence(A.admin.cookie, { ...withoutToken, templates });
@@ -149,30 +154,32 @@ describe("PUT /v1/clinic/whatsapp/coexistence", () => {
     const audit = JSON.stringify(await auditOf(clinicId, "clinic.whatsapp_coexistence_updated"));
     expect(audit).not.toContain(TOKEN);
     expect(audit).not.toContain(TOKEN_2);
-    expect(audit).not.toContain("123456789");
+    expect(audit).not.toContain(B.phoneNumberId);
   });
 
   it("is refused while an Evolution number is being linked, and replaces it once unlinked", async () => {
+    const B = bodyFor();
     const A = await clinicWithMembers(h);
     const clinicId = A.admin.clinicId;
     const link = { acceptRisk: true, riskVersion: WHATSAPP_RISK_VERSION };
     await send(h, A.admin.cookie, "POST", "/v1/clinic/whatsapp/connect", link);
-    const refused = await coexistence(A.admin.cookie, BODY);
+    const refused = await coexistence(A.admin.cookie, B);
     expect(refused.statusCode).toBe(400);
     expect(refused.json()).toMatchObject({
       details: [{ path: ["transport"], code: "evolution_linked" }],
     });
     await send(h, A.admin.cookie, "POST", "/v1/clinic/whatsapp/disconnect", {});
-    expect((await coexistence(A.admin.cookie, BODY)).statusCode).toBe(200);
+    expect((await coexistence(A.admin.cookie, B)).statusCode).toBe(200);
     expect(evolution.createdCount(`eyadex-${clinicId}`)).toBe(1);
     expect(evolution.instances.get(`eyadex-${clinicId}`)?.integration.kind).toBe("baileys");
   });
 
   it("coexistence save and view work with Evolution unavailable", async () => {
+    const B = bodyFor();
     const A = await clinicWithMembers(h);
     evolution.configured = false;
     try {
-      expect((await coexistence(A.admin.cookie, BODY)).statusCode).toBe(200);
+      expect((await coexistence(A.admin.cookie, B)).statusCode).toBe(200);
       expect((await send(h, A.admin.cookie, "GET", "/v1/clinic/whatsapp")).json()).toMatchObject({
         transport: "coexistence",
         status: "connected",
@@ -182,17 +189,18 @@ describe("PUT /v1/clinic/whatsapp/coexistence", () => {
     }
   });
   it("invalid or unavailable Meta verification leaves credentials unchanged", async () => {
+    const B = bodyFor();
     const A = await clinicWithMembers(h);
-    await coexistence(A.admin.cookie, BODY);
+    await coexistence(A.admin.cookie, B);
     for (const error of [
       new ApiError("validation", [{ path: ["accessToken"], code: "meta_credentials_invalid" }]),
       new ServiceUnavailableError(),
     ]) {
       meta.error = error;
       try {
-        expect(
-          (await coexistence(A.admin.cookie, { ...BODY, accessToken: TOKEN_2 })).statusCode,
-        ).toBe(error.status);
+        expect((await coexistence(A.admin.cookie, { ...B, accessToken: TOKEN_2 })).statusCode).toBe(
+          error.status,
+        );
         expect(opened(await sealedRow(A.admin.clinicId))).toBe(TOKEN);
       } finally {
         meta.error = null;
@@ -200,11 +208,12 @@ describe("PUT /v1/clinic/whatsapp/coexistence", () => {
     }
   });
   it("changing a Meta id verifies again", async () => {
+    const B = bodyFor();
     const A = await clinicWithMembers(h);
-    await coexistence(A.admin.cookie, BODY);
+    await coexistence(A.admin.cookie, B);
     const initial = meta.calls.length;
     expect(
-      (await coexistence(A.admin.cookie, { ...BODY, phoneNumberId: "30000" })).statusCode,
+      (await coexistence(A.admin.cookie, { ...B, phoneNumberId: freshNumber() })).statusCode,
     ).toBe(200);
     expect(meta.calls.length).toBe(initial + 1);
   });
@@ -233,7 +242,7 @@ describe("queueing on both channels (spec §7.1)", () => {
     });
 
   it("a booking queues an email and a WhatsApp row, each with its id-only event, while linked", async () => {
-    expect((await coexistence(C.admin.cookie, BODY)).statusCode).toBe(200);
+    expect((await coexistence(C.admin.cookie, bodyFor())).statusCode).toBe(200);
     expect((await settings(true)).statusCode).toBe(200);
     const id = await booked();
     const rows = await ledger(id);
@@ -256,5 +265,23 @@ describe("queueing on both channels (spec §7.1)", () => {
     expect(res.statusCode).toBe(200);
     const id = await booked();
     expect((await ledger(id)).map((r) => r["channel"])).toEqual(["email"]);
+  });
+});
+
+describe("without the Meta app (N3: all four META_ variables unset)", () => {
+  it("Embedded Signup and Meta's webhook answer 404; the manual form still works", async () => {
+    const A = await clinicWithMembers(h);
+    const config = await send(h, A.admin.cookie, "GET", "/v1/clinic/whatsapp/signup-config");
+    expect(config.statusCode).toBe(404);
+    expect(config.json()).toMatchObject({ details: [{ code: "unavailable" }] });
+    const signup = await send(h, A.admin.cookie, "POST", "/v1/clinic/whatsapp/embedded-signup", {
+      code: "x",
+      wabaId: "12345",
+      phoneNumberId: "12345",
+    });
+    expect(signup.statusCode).toBe(404);
+    for (const method of ["GET", "POST"] as const)
+      expect((await h.app.inject({ method, url: "/v1/hooks/meta" })).statusCode).toBe(404);
+    expect((await coexistence(A.admin.cookie, bodyFor())).statusCode).toBe(200);
   });
 });

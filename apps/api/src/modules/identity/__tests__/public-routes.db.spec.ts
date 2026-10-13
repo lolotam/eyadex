@@ -10,7 +10,8 @@ import { PublicRateLimitGuard } from "../auth/public-rate-limit.guard.ts";
 import { PUBLIC_V1_ROUTES } from "../auth/public-rate-limits.ts";
 import { accessRulesOf } from "../access/access-rules.ts";
 
-// Completeness: every @Public() /v1 POST is listed with a limit and guarded by the limiter.
+// Completeness: every @Public() /v1 POST, and every public GET but the health check, is listed with a
+// limit and guarded by the limiter.
 let h: Harness;
 
 beforeAll(async () => {
@@ -27,7 +28,7 @@ const join = (...parts: string[]) =>
     .filter((p) => p !== "")
     .join("/")}`;
 
-describe("sessionless /v1 POST routes", () => {
+describe("sessionless /v1 routes", () => {
   it("every one has a limit and the limiter guard", () => {
     const found: string[] = [];
     for (const module of h.app.get(ModulesContainer).values()) {
@@ -38,7 +39,8 @@ describe("sessionless /v1 POST routes", () => {
         for (const name of Object.getOwnPropertyNames(type.prototype)) {
           const handler = (type.prototype as Record<string, unknown>)[name];
           if (typeof handler !== "function" || name === "constructor") continue;
-          if (Reflect.getMetadata(METHOD_METADATA, handler) !== RequestMethod.POST) continue;
+          const method = Reflect.getMetadata(METHOD_METADATA, handler) as RequestMethod;
+          if (method !== RequestMethod.POST && method !== RequestMethod.GET) continue;
           const guards = [...classGuards, ...(Reflect.getMetadata(GUARDS_METADATA, handler) ?? [])];
           if (accessRulesOf(handler)[0]?.kind !== "public") continue;
           const path = join(
@@ -46,18 +48,22 @@ describe("sessionless /v1 POST routes", () => {
             Reflect.getMetadata(PATH_METADATA, type),
             Reflect.getMetadata(PATH_METADATA, handler),
           );
-          found.push(path);
-          expect(PUBLIC_V1_ROUTES[`POST ${path}`], path).toBeDefined();
+          if (method === RequestMethod.GET && path === "/v1/health") continue;
+          const verb = method === RequestMethod.GET ? "GET" : "POST";
+          found.push(`${verb} ${path}`);
+          expect(PUBLIC_V1_ROUTES[`${verb} ${path}`], path).toBeDefined();
           expect(guards, path).toContain(PublicRateLimitGuard);
         }
       }
     }
     expect(found.sort()).toEqual([
-      "/v1/hooks/evolution",
-      "/v1/invitations/accept",
-      "/v1/invitations/inspect",
-      "/v1/platform/invitations/accept",
-      "/v1/platform/invitations/inspect",
+      "GET /v1/hooks/meta",
+      "POST /v1/hooks/evolution",
+      "POST /v1/hooks/meta",
+      "POST /v1/invitations/accept",
+      "POST /v1/invitations/inspect",
+      "POST /v1/platform/invitations/accept",
+      "POST /v1/platform/invitations/inspect",
     ]);
   });
 

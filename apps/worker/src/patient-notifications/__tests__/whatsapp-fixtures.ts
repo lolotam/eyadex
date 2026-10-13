@@ -36,6 +36,15 @@ export class FakeMetaSender implements MetaSender {
 }
 export const META_TOKEN = randomBytes(24).toString("hex");
 
+/**
+ * The clinic's Meta number id in these tests: one per clinic, because 0059 lets one Meta number belong to
+ * one clinic only (the test database keeps every clinic of the run). Digits of the clinic id, never a real id.
+ */
+export const metaNumberFor = (clinicId: string): string =>
+  BigInt(`0x${clinicId.replaceAll("-", "")}`)
+    .toString()
+    .slice(0, 20);
+
 /** The clinic's channel row as the API writes it (0057: connected_at set exactly when connected). */
 export function seedChannel(
   clinicId: string,
@@ -55,7 +64,8 @@ export function seedChannel(
            ${q(status)}, ${q(`eyadex-${clinicId}`)}, '0001',
            ${q(JSON.stringify(o.templates ?? {}))}::jsonb,
            ${transport === "coexistence" ? q(new SecretSealer(PROVIDER_KEY).seal(META_TOKEN, id)) : "NULL"},
-           ${transport === "coexistence" ? "'10000'" : "NULL"}, ${status === "connected" ? "now()" : "NULL"},
+           ${transport === "coexistence" ? q(metaNumberFor(clinicId)) : "NULL"},
+           ${status === "connected" ? "now()" : "NULL"},
            ${o.nextSendAt ? q(o.nextSendAt.toISOString()) : "NULL"}, now(), now())`);
   return id;
 }

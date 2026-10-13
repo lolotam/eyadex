@@ -23,6 +23,8 @@ export function notificationFailureReason(
   if (code === "meta_template" || /^(?:template(?:_|:|$)|.*:template(?:_|:|$))/.test(code))
     return "template";
   if (code === "evo_not_connected") return "disconnected";
+  // N3: the WhatsApp Business app on the number has two-step verification on (Meta error 2388001).
+  if (code === "meta_two_step") return "whatsapp_two_step";
   if (
     ["evo_timeout", "meta_timeout", "route_timeout", "resend_timeout", "resend_network"].includes(
       code.split(":")[0] ?? "",

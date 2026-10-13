@@ -10,6 +10,11 @@ import { NotificationSettingsController } from "./http/notification-settings.con
 import { WhatsappController } from "./http/whatsapp.controller.ts";
 import { EvolutionWebhookController } from "./http/evolution-webhook.controller.ts";
 import { EvolutionWebhookGuard } from "./http/evolution-webhook.guard.ts";
+import { MetaWebhookController } from "./http/meta-webhook.controller.ts";
+import { MetaWebhookGuard } from "./http/meta-webhook.guard.ts";
+import { metaConfigFromEnv, type MetaAppConfig } from "./persistence/meta-config.ts";
+import { MetaWebhook } from "./use-cases/meta-webhook/meta-webhook.ts";
+import { WhatsappEmbeddedSignup } from "./use-cases/whatsapp-channel/whatsapp-embedded-signup.ts";
 import { AuthModule, PublicRateLimitGuard } from "../identity/index.ts";
 import { HttpMetaApi } from "./persistence/http-meta-api.ts";
 import type { MetaApi } from "./ports/meta-api.ts";
@@ -22,8 +27,11 @@ import {
   WHATSAPP_COEXISTENCE,
   WHATSAPP_LINK,
   META_API,
+  META_CONFIG,
+  META_WEBHOOK,
   EVOLUTION_WEBHOOK,
   EVOLUTION_WEBHOOK_SECRET,
+  WHATSAPP_EMBEDDED_SIGNUP,
 } from "./ports/tokens.ts";
 import { NotificationSettingsChanges } from "./use-cases/notification-settings/notification-settings.ts";
 import { WhatsappCoexistence } from "./use-cases/whatsapp-channel/whatsapp-coexistence.ts";
@@ -34,7 +42,8 @@ import { WhatsappLink } from "./use-cases/whatsapp-channel/whatsapp-link.ts";
  * الموديول صاحب تلات جداول بس (`clinic_notification_settings` و `patient_notifications` و
  * `clinic_whatsapp_channels`)؛ المواعيد والطب بيحطوا الرسائل في الطابور ويقروا تاريخها من adapters بيصدّرها
  * `index.ts`، مربوطة بـ ports بتاعتهم. الإرسال نفسه شغل الـ worker. محتاج `MAIL_PROVIDER_SEAL_KEY` (ختم توكن
- * coexistence)، و `EVOLUTION_API_URL` + `EVOLUTION_API_KEY` مع بعض أو ولا واحد فيهم.
+ * coexistence)، و `EVOLUTION_API_URL` + `EVOLUTION_API_KEY` مع بعض أو ولا واحد فيهم، و (N3) `META_APP_ID` +
+ * `META_APP_SECRET` + `META_WHATSAPP_CONFIG_ID` + `META_WEBHOOK_VERIFY_TOKEN` مع بعض أو ولا واحد فيهم.
  */
 @Module({})
 export class NotificationsModule {
@@ -49,7 +58,12 @@ export class NotificationsModule {
     return {
       module: NotificationsModule,
       imports: [DatabaseModule, TenancyModule, AuthModule],
-      controllers: [NotificationSettingsController, WhatsappController, EvolutionWebhookController],
+      controllers: [
+        NotificationSettingsController,
+        WhatsappController,
+        EvolutionWebhookController,
+        MetaWebhookController,
+      ],
       providers: [
         { provide: EVOLUTION_API, useFactory: () => evolution ?? evolutionApiFromEnv(process.env) },
         { provide: META_API, useFactory: () => meta ?? new HttpMetaApi() },
@@ -57,8 +71,15 @@ export class NotificationsModule {
           provide: EVOLUTION_WEBHOOK_SECRET,
           useFactory: () => process.env["EVOLUTION_WEBHOOK_SECRET"] || null,
         },
+        { provide: META_CONFIG, useFactory: () => metaConfigFromEnv(process.env) },
         EvolutionWebhookGuard,
+        MetaWebhookGuard,
         PublicRateLimitGuard,
+        {
+          provide: META_WEBHOOK,
+          inject: [DATABASE, CLOCK],
+          useFactory: (db: Database, clock: Clock) => new MetaWebhook({ db, clock }),
+        },
         {
           provide: EVOLUTION_WEBHOOK,
           inject: [DATABASE, CLOCK],
@@ -87,6 +108,26 @@ export class NotificationsModule {
               ids: systemUuidV7(),
               evolution: api,
               meta: metaApi,
+              sealKey: mailProviderSealKey(process.env),
+            }),
+        },
+        {
+          provide: WHATSAPP_EMBEDDED_SIGNUP,
+          inject: [DATABASE, CLOCK, EVOLUTION_API, META_API, META_CONFIG],
+          useFactory: (
+            db: Database,
+            clock: Clock,
+            api: EvolutionApi,
+            metaApi: MetaApi,
+            app: MetaAppConfig | null,
+          ) =>
+            new WhatsappEmbeddedSignup({
+              db,
+              clock,
+              ids: systemUuidV7(),
+              evolution: api,
+              meta: metaApi,
+              app,
               sealKey: mailProviderSealKey(process.env),
             }),
         },

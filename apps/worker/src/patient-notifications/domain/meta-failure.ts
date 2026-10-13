@@ -26,6 +26,8 @@ export function classifyMetaResponse(status: number, body: unknown): WhatsappRes
   )
     return { sent: false, error: "meta_template" };
   if (code === 131026) return { sent: false, error: "meta_not_on_whatsapp" };
+  // N3: two-step verification is on in the WhatsApp Business app; final until the clinic turns it off.
+  if (code === 2388001) return { sent: false, error: "meta_two_step" };
   if ([4, 80007, 130429, 131048, 131056].includes(code as number))
     return { sent: false, error: "meta_rate_limited" };
   if (status >= 500) return { sent: false, error: "meta_5xx" };
