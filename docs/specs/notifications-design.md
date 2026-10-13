@@ -192,6 +192,65 @@ events: ["MESSAGES_UPDATE", "CONNECTION_UPDATE"]}`. These request field names ar
   `meta_unreachable`; other 4xx or invalid acceptance responses -> final `meta_rejected`.
   The worker's app transaction budget is 30 s to encompass the 15 s Meta request and ledger settlement.
 
+### 7.2 N3 — delivery statuses and Embedded Signup (owner decisions 2026-10-13)
+
+Owner answers: the Meta app is a verified Tech Provider; show **delivered, read and failed**; keep
+the manual credentials form as an «متقدّم» fallback; no history or contact sync (privacy).
+
+- **Ledger (0059):** `patient_notifications.delivered_at timestamptz NULL`, `read_at timestamptz NULL`
+  (only on `channel = 'whatsapp'` rows that were sent: CHECK `read_at IS NULL OR delivered_at IS NOT
+NULL`, both NULL unless `sent_at` is set). The order only moves forward: sent → delivered → read; a
+  late `delivered` after `read` changes nothing; replays are no-ops. A provider `failed` after a send
+  moves the row to `failed` with `last_error = <transport>:<code>` and keeps `route`/`sent_at`
+  (widen `patient_notifications_sent_check` for any WhatsApp delivery failure, not only Evolution's).
+  Contract: history rows gain `deliveredAt` and `readAt` (ISO or null).
+- **Unique number (0059):** a partial UNIQUE index on `clinic_whatsapp_channels (phone_number_id)
+WHERE phone_number_id IS NOT NULL`: one Meta number belongs to one clinic. Saving a number another
+  clinic holds answers `validation`, path `["phoneNumberId"]`, code `number_in_use` (never names the
+  other clinic).
+- **Routing without a tenant:** Meta's webhook carries `value.metadata.phone_number_id`, not a clinic.
+  0059 adds `whatsapp_clinic_for_phone_number(text) RETURNS uuid`, `SECURITY DEFINER`, `STABLE`,
+  `SET search_path = pg_catalog, public`, owned by the owner role, `EXECUTE` granted to `eyadex_app`
+  only (revoked from PUBLIC). It returns only the clinic id of a `coexistence` channel with that number,
+  or NULL. Every status update then runs inside `withTenant(clinicId)` and matches
+  `(clinic_id, provider_message_id)` on WhatsApp/coexistence rows only.
+- **`GET /v1/hooks/meta`** (verification): `hub.mode = subscribe` and `hub.verify_token` equal to
+  `META_WEBHOOK_VERIFY_TOKEN` (constant-time) answer `hub.challenge` as `text/plain` 200; anything
+  else 403. **`POST /v1/hooks/meta`:** no session/CSRF/origin guard (exact-route exemption as the
+  Evolution hook); the raw body's HMAC-SHA256 with `META_APP_SECRET` must equal
+  `X-Hub-Signature-256` (`sha256=<hex>`, constant-time) before parsing, else 401. Body never logged.
+  Zod-parse `entry[].changes[].value.statuses[]` (`id`, `status` sent/delivered/read/failed,
+  `timestamp`, `errors[0].code`); ignore everything else (`messages`, unknown fields) with 200.
+  Map failure codes: 131026 → `meta_not_on_whatsapp`, 131047/131049/131051 and others →
+  `meta_rejected`, 131048/131056/130429 → `meta_rate_limited` (already sent: final), 132000-132015 →
+  `meta_template`. Answer 200 after processing; 500 only on a database error so Meta redelivers.
+- **Evolution statuses:** the existing hook also maps `MESSAGES_UPDATE` status `DELIVERY_ACK` (or 3)
+  → delivered and `READ` / `PLAYED` (or 4/5) → read, with the same forward-only rule.
+- **Embedded Signup (coexistence only):**
+  - `GET /v1/clinic/whatsapp/signup-config` (`view:clinic_settings:clinic`) → `{appId, configId,
+graphVersion}` or 404 `unavailable` when `META_APP_ID`/`META_WHATSAPP_CONFIG_ID` are unset. Both
+    are public identifiers; the secret never leaves the API.
+  - Web: load `https://connect.facebook.net/en_US/sdk.js` on that tab only, `FB.init({appId, version})`,
+    `FB.login(cb, {config_id, response_type: "code", override_default_response_type: true, extras:
+{feature: "whatsapp_embedded_signup", sessionInfoVersion: "3", featureType:
+"whatsapp_business_app_onboarding", setup: {}}})`; the callback stays synchronous. Listen to
+    `message` events only from an origin ending in `facebook.com`, type `WA_EMBEDDED_SIGNUP`, keeping
+    `waba_id`, `phone_number_id`, `business_id` (also nested under `data`); wait up to 2.5 s after the
+    callback for late IDs. CANCEL/ERROR close quietly with a message.
+  - `POST /v1/clinic/whatsapp/embedded-signup` (`update:clinic_settings:clinic`), body `{code,
+wabaId, phoneNumberId}` (digits 5–30, code ≤ 1024). API: `GET /v22.0/oauth/access_token?
+client_id&client_secret&code` (no redirect_uri; the URL is never logged), then the same checks as the
+    manual form (read the number, `subscribed_apps`), then seal and store the token exactly as
+    `PUT /coexistence` does (same row rules, audit `clinic.whatsapp_coexistence_updated` with
+    `{via: "embedded_signup"}`, templates unchanged). Never `/register`, never `smb_app_data`.
+    Errors: Meta refuses the code → `validation` `["code"]` `meta_code_invalid`; two-step verification
+    (error 2388001) → `validation` `["phoneNumberId"]` `meta_two_step_enabled`; network/5xx → 503.
+  - The manual form stays, under «متقدّم».
+- **API-only env:** `META_APP_ID`, `META_APP_SECRET` (secret), `META_WHATSAPP_CONFIG_ID`,
+  `META_WEBHOOK_VERIFY_TOKEN` (secret, ≥ 32 chars). The hook needs the secret and the token; the
+  signup needs all four. All unset = both features off (404/`unavailable`); a partial set stops the
+  start with `ConfigurationError` naming the missing variable.
+
 ## 8. Checklist for every N slice
 
 - Each new clinic table (`clinic_notification_settings`, `patient_notifications`, N2's
@@ -204,4 +263,4 @@ events: ["MESSAGES_UPDATE", "CONNECTION_UPDATE"]}`. These request field names ar
 ## 9. Out of this phase
 
 Patient replies (two-way chat), SMS, custom message templates per clinic, marketing messages,
-an unsubscribe link (opt-out is staff-managed), read receipts.
+an unsubscribe link (opt-out is staff-managed). Read receipts moved in with N3 (§7.2).
