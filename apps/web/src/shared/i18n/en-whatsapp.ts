@@ -17,6 +17,8 @@ export const enWhatsapp = {
     errors: {
       coexistence_linked: "Disconnect WhatsApp Business before linking by QR code.",
       evolution_linked: "Disconnect the QR link before saving WhatsApp Business.",
+      meta_credentials_invalid:
+        "Meta refused these credentials — check the token, phone number id and business account id",
     },
     disconnect: "Disconnect",
     disconnectTitle: "Disconnect WhatsApp?",
@@ -43,6 +45,7 @@ export const enWhatsapp = {
         scan: "Point the phone at this code.",
       },
       waiting: "Waiting for the scan…",
+      preparing: "Preparing the QR code…",
       image: "QR code to link the clinic's WhatsApp",
       expired: "The code expired before it was scanned.",
       refresh: "Refresh QR",
@@ -61,6 +64,8 @@ export const enWhatsapp = {
         businessAccountId: "Business account id",
       },
       tokenStored: "A token is stored; leave this empty to keep it.",
+      tokenHelp:
+        "Use a permanent (system-user) token from Meta Business. The number keeps working in the WhatsApp Business app (coexistence).",
       templatesTitle: "Message templates",
       templatesHelp:
         "Meta must approve each template (utility category; Meta charges per message). Leave a message empty and it is not sent on WhatsApp.",

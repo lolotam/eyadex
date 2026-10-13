@@ -21,6 +21,7 @@ export const arWhatsapp: Strings<typeof enWhatsapp> = {
     errors: {
       coexistence_linked: "افصل واتساب للأعمال قبل الربط برمز QR.",
       evolution_linked: "افصل الربط برمز QR قبل حفظ واتساب للأعمال.",
+      meta_credentials_invalid: "Meta رفضت بيانات الدخول — تأكد من التوكن ورقم الهاتف ورقم حساب الأعمال",
     },
     disconnect: "فصل",
     disconnectTitle: "فصل واتساب؟",
@@ -45,6 +46,7 @@ export const arWhatsapp: Strings<typeof enWhatsapp> = {
         scan: "وجّه الجوال نحو هذا الرمز.",
       },
       waiting: "بانتظار المسح…",
+      preparing: "جارٍ تجهيز رمز QR…",
       image: "رمز QR لربط واتساب العيادة",
       expired: "انتهت صلاحية الرمز قبل مسحه.",
       refresh: "تحديث الرمز",
@@ -62,6 +64,8 @@ export const arWhatsapp: Strings<typeof enWhatsapp> = {
         businessAccountId: "معرّف حساب الأعمال",
       },
       tokenStored: "يوجد رمز محفوظ؛ اترك الحقل فارغًا للإبقاء عليه.",
+      tokenHelp:
+        "استخدم رمزًا دائمًا (مستخدم النظام) من Meta Business. يبقى الرقم يعمل في تطبيق واتساب للأعمال (التشغيل المشترك).",
       templatesTitle: "قوالب الرسائل",
       templatesHelp:
         "يجب أن توافق Meta على كل قالب (فئة الخدمات؛ وتحاسب Meta على كل رسالة). اترك الرسالة فارغة فلا تُرسل على واتساب.",
