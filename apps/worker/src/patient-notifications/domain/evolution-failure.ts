@@ -1,6 +1,9 @@
 import type { WhatsappResult } from "../ports/whatsapp-sender.ts";
 
-/** أكواد فشل Evolution اللي إعادة المحاولة عمرها ما هتصلّحها: الرقم مش على واتساب. */
+/**
+ * أكواد فشل Evolution اللي مابتتعادش: إعادة المحاولة مش هتصلّحها (رقم مش على واتساب، رفض، مفتاح غلط،
+ * التليفون مفصول)، أو ممكن تبعت الرسالة مرتين (`evo_timeout`، لأن Evolution مالوش مفتاح idempotency).
+ */
 const FINAL = new Set([
   "evo_not_on_whatsapp",
   "evo_timeout",
