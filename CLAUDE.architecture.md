@@ -129,7 +129,7 @@ Any module may use identity's access guards and request types through `identity/
 5. `branch` scope: the record's branch is in the user's branches.
 6. **RLS** as the last line of defence (`app.clinic_id` set by `withTenant`).
 
-Three named pre-tenant / onboarding paths (`db/sql/0014`, `0027`), and no others:
+Four named pre-tenant / onboarding paths (`db/sql/0014`, `0027`, `0059`), and no others:
 
 - **Onboarding** runs as `eyadex_platform` inside `withNewTenant()` (app.clinic_id = the new clinic):
   it may insert the clinic, its system roles and the first-admin invitation; RLS still pins every
@@ -146,6 +146,9 @@ Three named pre-tenant / onboarding paths (`db/sql/0014`, `0027`), and no others
   clinic id of a pending, unexpired invitation; the API then continues inside `withTenant()`.
 - **Resolving a signed-in user's clinic** (ADR-0009): `membership_clinic_for_user(user_id)`, the same
   shape, returns only the clinic id of the user's one membership; the guard continues in `withTenant()`.
+- **Routing Meta's status webhook** (spec §7.2): `whatsapp_clinic_for_phone_number(phone_number_id)`, the
+  same shape (its own NOLOGIN owner, `eyadex_app` only), returns only the clinic id of the coexistence
+  channel holding that Meta number; each status is then applied inside that clinic's `withTenant()`.
 
 Grants are the platform-privacy guarantee: `eyadex_platform` has **no** privilege on
 `patients`, and reads audit rows only through a view that excludes `patient_access` entries.

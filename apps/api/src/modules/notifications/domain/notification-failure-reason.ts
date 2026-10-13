@@ -7,16 +7,19 @@ import type {
  * يحوّل كود الدفتر إلى سبب عام دون تسريب تفاصيل المزود إلى تاريخ الرسائل.
  * @param status حالة الرسالة
  * @param lastError كود الفشل المحفوظ
+ * @param accepted الصف محتفظ بمسار القبول (N3): Meta قبل الرسالة وبعدين قال إنها ماتسلّمتش
  * @returns السبب للفشل فقط، أو null لبقية الحالات
  */
 export function notificationFailureReason(
   status: NotificationStatus,
   lastError: string | null,
+  accepted = false,
 ): NotificationFailureReason | null {
   if (status !== "failed") return null;
   const code =
     lastError?.replace(/^(?:evolution|coexistence|primary|fallback|platform):/, "") ?? "";
   if (code === "evo_delivery_rejected") return "delivery_rejected";
+  if (accepted && ["meta_rejected", "meta_rate_limited"].includes(code)) return "delivery_rejected";
   if (["evo_not_on_whatsapp", "meta_not_on_whatsapp"].includes(code)) return "not_on_whatsapp";
   if (["evo_unauthorized", "meta_unauthorized", "seal_unreadable"].includes(code))
     return "whatsapp_credentials";

@@ -41,4 +41,13 @@ describe("notificationFailureReason", () => {
   it.each(["queued", "sent", "skipped"] as const)("%s never exposes a failure reason", (status) => {
     expect(notificationFailureReason(status, "evolution:evo_delivery_rejected")).toBeNull();
   });
+  it.each([
+    ["coexistence:meta_rejected", "delivery_rejected"],
+    ["coexistence:meta_rate_limited", "delivery_rejected"],
+    ["coexistence:meta_not_on_whatsapp", "not_on_whatsapp"],
+    ["coexistence:meta_template", "template"],
+    ["evolution:evo_delivery_rejected", "delivery_rejected"],
+  ])("accepted then failed (N3): %s → %s", (code, reason) =>
+    expect(notificationFailureReason("failed", code, true)).toBe(reason),
+  );
 });

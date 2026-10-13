@@ -95,7 +95,8 @@ export async function notificationsOf(
     route: row.route,
     createdAt: iso(row.created_at),
     sentAt: row.sent_at === null ? null : iso(row.sent_at),
-    failureReason: notificationFailureReason(row.status, row.last_error),
+    // A failed row keeps its route only when the provider had accepted it (0059's sent_check).
+    failureReason: notificationFailureReason(row.status, row.last_error, row.route !== null),
     deliveredAt: row.delivered_at === null ? null : iso(row.delivered_at),
     readAt: row.read_at === null ? null : iso(row.read_at),
   }));
