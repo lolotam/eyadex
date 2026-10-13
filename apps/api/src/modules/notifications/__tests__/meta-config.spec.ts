@@ -68,7 +68,7 @@ describe("MetaWebhookGuard", () => {
       );
   });
 
-  it("lets the GET through to its token check, and refuses an unsigned POST with 401", () => {
+  it("lets the GET through to its token check, and answers 401 to a signed POST with no captured raw body", () => {
     expect(new MetaWebhookGuard(config).canActivate(context("GET"))).toBe(true);
     // No raw body was captured for this fake request: nothing a signature could match.
     const signed = `sha256=${createHmac("sha256", config.appSecret).update(raw).digest("hex")}`;

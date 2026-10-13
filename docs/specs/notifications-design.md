@@ -210,7 +210,9 @@ WHERE phone_number_id IS NOT NULL`: one Meta number belongs to one clinic. Savin
   other clinic).
 - **Routing without a tenant:** Meta's webhook carries `value.metadata.phone_number_id`, not a clinic.
   0059 adds `whatsapp_clinic_for_phone_number(text) RETURNS uuid`, `SECURITY DEFINER`, `STABLE`,
-  `SET search_path = pg_catalog, public`, owned by the owner role, `EXECUTE` granted to `eyadex_app`
+  `SET search_path = pg_catalog, public`, owned by its own NOLOGIN, NOBYPASSRLS role
+  `eyadex_whatsapp_routing_owner` with a column grant and its own policy (under FORCE RLS the migration
+  owner would read no rows without a tenant), `EXECUTE` granted to `eyadex_app`
   only (revoked from PUBLIC). It returns only the clinic id of a `coexistence` channel with that number,
   or NULL. Every status update then runs inside `withTenant(clinicId)` and matches
   `(clinic_id, provider_message_id)` on WhatsApp/coexistence rows only.

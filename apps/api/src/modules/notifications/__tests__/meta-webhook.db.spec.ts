@@ -267,10 +267,9 @@ describe("POST /v1/hooks/meta (statuses)", () => {
     expect(h.logs.join("\n")).not.toContain(marker);
   });
 
-  it("refuses a body over the limit without a 2xx", async () => {
+  it("refuses a body over the limit with 413", async () => {
     const raw = JSON.stringify({ pad: "x".repeat(1024 * 1024) });
     const res = await post(raw);
-    expect(res.statusCode).toBeGreaterThanOrEqual(400);
-    expect(res.statusCode).toBeLessThan(500);
+    expect(res.statusCode).toBe(413);
   });
 });

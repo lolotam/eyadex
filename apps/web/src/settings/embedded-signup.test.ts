@@ -114,9 +114,9 @@ describe("the signup flow", () => {
     expect(h.outcomes).toEqual([{ kind: "missing_ids" }]);
   });
 
-  it("CANCEL closes quietly", () => {
+  it.each(["CANCEL", "ERROR"])("%s closes quietly", (event) => {
     const h = harness(null);
-    h.post(FB_ORIGIN, { type: "WA_EMBEDDED_SIGNUP", event: "CANCEL", data: {} });
+    h.post(FB_ORIGIN, { type: "WA_EMBEDDED_SIGNUP", event, data: {} });
     h.answer();
     expect(h.outcomes).toEqual([{ kind: "cancelled" }]);
   });
