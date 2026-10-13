@@ -21,6 +21,19 @@
 >   Phase B (NestJS API + worker, PostgreSQL RLS, Drizzle).
 > - **V1.1 (2026-10-06)** — §2.1: the orchestrator fixes review findings itself (max 5 rounds);
 >   the loop lives in `.claude/skills/eyadex-delivery-loop/SKILL.md`.
+> - **V1.2 (2026-10-13)** — §0.1: every reply to the owner is in Egyptian Arabic (owner rule).
+
+## 0.1 Talking to the owner (binding, owner rule 2026-10-13)
+
+- **Every message to the owner is in Egyptian colloquial Arabic, always**: answers, questions,
+  status lines, progress updates, summaries and reports, even when the owner writes in English.
+  An English reply is a mistake. Switch only if the owner asks for English in that same message.
+- Keep English words to a minimum: write the idea in plain Arabic first. Identifiers, file paths,
+  commands, model names, error codes and UI labels stay verbatim (in code formatting or «») inside
+  the Arabic sentence; never translate them.
+- This covers conversation only. Code, comments, commit messages, PR titles and bodies, and
+  English project docs keep English unless the owner asks otherwise. Journey files and reports
+  written for the owner are in Arabic.
 
 ## 0. What this project is
 
