@@ -5,7 +5,7 @@ import type {
 } from "@eyadex/contracts/whatsapp";
 import { SecretSealer } from "@eyadex/secrets";
 
-import { ApiError } from "../../../../shared/errors.ts";
+import { ApiError, ServiceUnavailableError } from "../../../../shared/errors.ts";
 import { coexistenceRefusal } from "../../domain/whatsapp-rules.ts";
 import type { MetaAppConfig } from "../../persistence/meta-config.ts";
 import { findWhatsappChannel, lockWhatsappChannel } from "../../persistence/pg-whatsapp-channel.ts";
@@ -63,12 +63,18 @@ export class WhatsappEmbeddedSignup {
   ): Promise<WhatsappChannelView> {
     const { app } = this.deps;
     if (app === null) throw unavailable();
-    return withWhatsappOperation(
-      this.deps,
-      actor.clinicId,
-      (record) => coexistenceRefusal(record, true),
-      () => this.completeReserved(actor, request, app),
-    );
+    try {
+      return await withWhatsappOperation(
+        this.deps,
+        actor.clinicId,
+        (record) => coexistenceRefusal(record, true),
+        () => this.completeReserved(actor, request, app),
+      );
+    } catch (error) {
+      if (error instanceof ServiceUnavailableError)
+        throw new ServiceUnavailableError({ code: "unavailable" });
+      throw error;
+    }
   }
 
   private async completeReserved(

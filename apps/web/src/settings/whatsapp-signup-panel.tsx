@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -30,6 +30,9 @@ export function WhatsappSignupPanel({
   const { persona } = usePersona();
   const refresh = useRefreshWhatsapp();
   const [error, setError] = useState<string | null>(null);
+  const [linking, setLinking] = useState(false);
+  const flow = useRef<(() => void) | null>(null);
+  const mounted = useRef(false);
   const [demoCode, setDemoCode] = useState("demo");
   const config = useQuery({
     queryKey: ["clinic", "whatsapp", "signup-config", persona.clinicId],
@@ -39,12 +42,19 @@ export function WhatsappSignupPanel({
   useEffect(() => {
     if (API_MODE === "http" && config.data) void loadFacebookSdk(config.data).catch(() => {});
   }, [config.data]);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      flow.current?.();
+    };
+  }, []);
 
   const signup = useMutation({
     mutationFn: (input: WhatsappEmbeddedSignupRequest) =>
       api.whatsapp.embeddedSignup(persona, input),
-    onSuccess: () => {
-      refresh();
+    onSuccess: (view) => {
+      refresh(view);
       toast.success(t("whatsapp.qr.connected"));
       onConnected();
     },
@@ -52,6 +62,7 @@ export function WhatsappSignupPanel({
   });
 
   const settle = (outcome: SignupOutcome) => {
+    setLinking(false);
     if (outcome.kind === "ready") signup.mutate(outcome.request);
     else if (outcome.kind === "cancelled") toast(t("whatsapp.signup.cancelled"));
     else if (outcome.kind === "missing_ids") setError("whatsapp.signup.missingIds");
@@ -65,9 +76,17 @@ export function WhatsappSignupPanel({
       signup.mutate({ code: demoCode.trim() || "demo", ...DEMO_IDS });
       return;
     }
+    setLinking(true);
     void loadFacebookSdk(config.data)
-      .then((fb) => runEmbeddedSignup(fb, config.data!, window, settle))
-      .catch(() => setError("whatsapp.unavailableTitle"));
+      .then((fb) => {
+        if (!mounted.current) return;
+        flow.current = runEmbeddedSignup(fb, config.data!, window, settle);
+      })
+      .catch(() => {
+        if (!mounted.current) return;
+        setLinking(false);
+        setError("whatsapp.unavailableTitle");
+      });
   };
 
   if (config.isLoading) return <Loader2 className="size-4 animate-spin text-muted-foreground" />;
@@ -87,7 +106,7 @@ export function WhatsappSignupPanel({
           <p className="text-xs text-muted-foreground">{t("whatsapp.signup.demoHint")}</p>
         </div>
       )}
-      <Button disabled={blocked || signup.isPending} onClick={start}>
+      <Button disabled={blocked || linking || signup.isPending} onClick={start}>
         {API_MODE === "http" ? t("whatsapp.signup.connect") : t("whatsapp.signup.demo")}
       </Button>
       {error && <p className="text-[0.8rem] font-medium text-destructive">{tDynamic(error)}</p>}

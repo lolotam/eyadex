@@ -22,6 +22,15 @@ function requireAvailable(db: MockState) {
   if (whatsappState(db).unavailable) throw whatsappUnavailableError();
 }
 
+function refuseNumberInUse(db: MockState, clinicId: string, phoneNumberId: string) {
+  if (
+    Object.entries(whatsappState(db).channels).some(
+      ([holder, row]) => holder !== clinicId && row.phoneNumberId === phoneNumberId,
+    )
+  )
+    throw new ApiError("validation", undefined, { phoneNumberId: "number_in_use" });
+}
+
 export function createMockWhatsapp(): WhatsappApi {
   return {
     async channel(persona) {
@@ -136,6 +145,7 @@ export function createMockWhatsapp(): WhatsappApi {
       const token = parsed.data.accessToken ?? row.accessToken;
       // Write-only: kept when omitted on an update, required the first time.
       if (!token) throw new ApiError("validation", undefined, { accessToken: "required" });
+      refuseNumberInUse(db, clinic.id, parsed.data.phoneNumberId);
       // The demo "Meta check": a token containing `invalid` is refused, as Meta would refuse it.
       if (token.includes("invalid"))
         throw new ApiError("validation", undefined, { accessToken: "meta_credentials_invalid" });
@@ -184,7 +194,7 @@ export function createMockWhatsapp(): WhatsappApi {
 
     async signupConfig(persona) {
       await delay();
-      authorize(getState(), persona, "update", "clinic_settings");
+      authorize(getState(), persona, "view", "clinic_settings");
       return { ...MOCK_SIGNUP_CONFIG };
     },
 
@@ -198,6 +208,8 @@ export function createMockWhatsapp(): WhatsappApi {
       if (row.transport === "evolution" && row.status !== "disconnected")
         throw new ApiError("validation", undefined, { transport: "evolution_linked" });
       // Demo codes (brief N3 §3): each stands for one of Meta's answers.
+      if (parsed.data.code === "cancel") return channelView(row);
+      refuseNumberInUse(db, clinic.id, parsed.data.phoneNumberId);
       if (parsed.data.code === "two_step")
         throw new ApiError("validation", undefined, { phoneNumberId: "meta_two_step_enabled" });
       if (parsed.data.code === "used")
@@ -208,7 +220,7 @@ export function createMockWhatsapp(): WhatsappApi {
       row.transport = "coexistence";
       row.status = "connected";
       row.hasCredentials = true;
-      row.accessToken = "demo-exchanged-token";
+      row.accessToken = crypto.randomUUID();
       row.phoneNumberId = parsed.data.phoneNumberId;
       row.businessAccountId = parsed.data.wabaId;
       row.phoneLast4 = MOCK_PHONE_LAST4;
@@ -222,7 +234,7 @@ export function createMockWhatsapp(): WhatsappApi {
         entity: "clinic",
         entityId: clinic.id,
         before,
-        after: { status: row.status, tokenChanged: true },
+        after: { status: row.status, tokenChanged: true, via: "embedded_signup" },
       });
       persist();
       return channelView(row);

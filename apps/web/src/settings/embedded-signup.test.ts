@@ -27,8 +27,9 @@ function harness(code: string | null) {
     },
   };
   const outcomes: SignupOutcome[] = [];
-  runEmbeddedSignup(fb, config, target, (o) => outcomes.push(o));
+  const dispose = runEmbeddedSignup(fb, config, target, (o) => outcomes.push(o));
   return {
+    dispose,
     outcomes,
     loginOptions: () => loginOptions,
     post: (origin: string, data: unknown) => listener?.({ origin, data } as MessageEvent),
@@ -124,5 +125,18 @@ describe("the signup flow", () => {
     const h = harness(null);
     h.answer();
     expect(h.outcomes).toEqual([{ kind: "closed" }]);
+  });
+
+  it("leaving the tab cancels the listener and the late-id wait", () => {
+    const h = harness("one-time");
+    h.answer();
+    h.dispose();
+    h.post(
+      FB_ORIGIN,
+      finish({ data: { waba_id: "300000000000003", phone_number_id: "400000000000004" } }),
+    );
+    vi.advanceTimersByTime(SIGNUP_IDS_WAIT_MS + 200);
+    expect(h.outcomes).toEqual([]);
+    expect(vi.getTimerCount()).toBe(0);
   });
 });

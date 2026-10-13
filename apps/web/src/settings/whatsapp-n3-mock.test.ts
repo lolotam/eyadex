@@ -25,6 +25,7 @@ describe("embedded signup (mock)", () => {
   it.each([
     ["two_step", { phoneNumberId: "meta_two_step_enabled" }],
     ["used", { phoneNumberId: "number_in_use" }],
+    ["expired", { code: "meta_code_invalid" }],
   ])("code %s is refused", async (code, details) => {
     await expect(api.whatsapp.embeddedSignup(admin, { code, ...IDS })).rejects.toMatchObject({
       code: "validation",
@@ -40,6 +41,7 @@ describe("embedded signup (mock)", () => {
       phoneLast4: "0000",
     });
     expect(view.phoneNumberId).toBe(IDS.phoneNumberId);
+    expect(getState().clinicAudit[0]?.after).toMatchObject({ via: "embedded_signup" });
   });
 
   it("NEGATIVE: a doctor may not sign up", async () => {
@@ -47,6 +49,56 @@ describe("embedded signup (mock)", () => {
       api.whatsapp.embeddedSignup(as("doctor"), { code: "demo", ...IDS }),
     ).rejects.toMatchObject({ code: expect.stringMatching(/forbidden|not_allowed/) });
   });
+
+  it("signup-config requires view, while signup requires update", async () => {
+    const db = getState();
+    const member = db.members.find((m) => m.clinicId === admin.clinicId)!;
+    db.roles.find((r) => r.id === member.roleId)!.permissions = ["view:clinic_settings:clinic"];
+    const viewer = { ...admin, memberId: member.id };
+    await expect(api.whatsapp.signupConfig(viewer)).resolves.toHaveProperty("appId");
+    await expect(
+      api.whatsapp.embeddedSignup(viewer, { code: "demo", ...IDS }),
+    ).rejects.toMatchObject({
+      code: "forbidden",
+    });
+  });
+
+  it("cancel leaves the channel and audit unchanged", async () => {
+    const before = await api.whatsapp.channel(admin);
+    const audit = [...getState().clinicAudit];
+    expect(await api.whatsapp.embeddedSignup(admin, { code: "cancel", ...IDS })).toEqual(before);
+    expect(await api.whatsapp.channel(admin)).toEqual(before);
+    expect(getState().clinicAudit).toEqual(audit);
+  });
+
+  it.each(["connected", "disconnected"] as const)(
+    "both saves refuse another clinic's %s number without changing state",
+    async (status) => {
+      await api.whatsapp.embeddedSignup(admin, { code: "demo", ...IDS });
+      if (status === "disconnected") await api.whatsapp.disconnect(admin);
+      const other = as("clinic_admin", 1);
+      const before = await api.whatsapp.channel(other);
+      const audit = [...getState().clinicAudit];
+      const held = await api.whatsapp.channel(admin);
+      for (const call of [
+        () => api.whatsapp.embeddedSignup(other, { code: "demo", ...IDS }),
+        () =>
+          api.whatsapp.saveCoexistence(other, {
+            accessToken: crypto.randomUUID(),
+            phoneNumberId: IDS.phoneNumberId,
+            businessAccountId: IDS.wabaId,
+            templates: held.templates,
+          }),
+      ]) {
+        await expect(call()).rejects.toMatchObject({
+          code: "validation",
+          details: { phoneNumberId: "number_in_use" },
+        });
+        expect(await api.whatsapp.channel(other)).toEqual(before);
+        expect(getState().clinicAudit).toEqual(audit);
+      }
+    },
+  );
 });
 
 describe("delivered/read receipts (mock)", () => {
@@ -61,7 +113,7 @@ describe("delivered/read receipts (mock)", () => {
     });
     const s = getState();
     const appt = s.appointments.find((a) => a.clinicId === clinicIdAt(0) && a.status === "booked")!;
-    s.patients.find((p) => p.id === appt.patientId)!.phone = `+9655000000${lastDigit}`;
+    s.patients.find((p) => p.id === appt.patientId)!.phone = `+0000000000${lastDigit}`;
     await api.appointments.cancel(admin, appt.id, { reason: "other", note: null });
     vi.advanceTimersByTime(MOCK_SEND_DELAY_MS);
     const wa = async () =>
@@ -83,6 +135,21 @@ describe("delivered/read receipts (mock)", () => {
 
   it("a phone ending in 9 fails with whatsapp_two_step", async () => {
     const wa = await cancelFor("9");
-    expect(await wa()).toMatchObject({ status: "failed", failureReason: "whatsapp_two_step" });
+    expect(await wa()).toMatchObject({
+      status: "failed",
+      failureReason: "whatsapp_two_step",
+      route: null,
+      sentAt: null,
+    });
+  });
+
+  it("a delivery rejection keeps the accepted route and time", async () => {
+    const wa = await cancelFor("0");
+    expect(await wa()).toMatchObject({
+      status: "failed",
+      failureReason: "delivery_rejected",
+      route: "evolution",
+      sentAt: expect.any(String),
+    });
   });
 });

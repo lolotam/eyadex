@@ -94,11 +94,11 @@ export function settleNotification(db: MockState, id: string): void {
     row.status = "failed";
     row.failureReason = "delivery_rejected";
     row.route = channelOf(db, row.clinicId).transport ?? "evolution";
+    row.sentAt = new Date().toISOString();
   } else if (row.channel === "whatsapp" && phoneEndsIn(db, row, "9")) {
     // Demo (brief N3 §3): a phone ending in 9 stands for a Business app with two-step verification on.
     row.status = "failed";
     row.failureReason = "whatsapp_two_step";
-    row.route = channelOf(db, row.clinicId).transport ?? "evolution";
   } else {
     row.status = "sent";
     row.route =

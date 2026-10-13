@@ -19,8 +19,15 @@ export function useMessageHistory(subject: "appointment" | "visit", id: string) 
         : api.notifications.visitHistory(persona, id),
     enabled: ready && persona.kind !== "platform_admin",
     retry: false,
-    // A queued row settles shortly after: look again while one is pending.
-    refetchInterval: (query) =>
-      query.state.data?.items.some((item) => item.status === "queued") ? 1500 : false,
+    // WhatsApp receipts can arrive after acceptance; keep watching until read or a final failure.
+    refetchInterval: (query) => {
+      const items = query.state.data?.items ?? [];
+      if (items.some((item) => item.status === "queued")) return 1500;
+      return items.some(
+        (item) => item.channel === "whatsapp" && item.status === "sent" && !item.readAt,
+      )
+        ? 5000
+        : false;
+    },
   });
 }

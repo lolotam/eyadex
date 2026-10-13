@@ -139,7 +139,7 @@ describe("POST /v1/clinic/whatsapp/embedded-signup", () => {
         400,
         refusal("code", "meta_code_invalid"),
       ],
-      [new ServiceUnavailableError(), "exchange", 503, {}],
+      [new ServiceUnavailableError(), "exchange", 503, { details: { code: "unavailable" } }],
       [
         new ApiError("validation", [{ path: ["phoneNumberId"], code: "meta_two_step_enabled" }]),
         "verify",
@@ -152,7 +152,7 @@ describe("POST /v1/clinic/whatsapp/embedded-signup", () => {
         400,
         refusal("phoneNumberId", "meta_credentials_invalid"),
       ],
-      [new ServiceUnavailableError(), "verify", 503, {}],
+      [new ServiceUnavailableError(), "verify", 503, { details: { code: "unavailable" } }],
     ];
     for (const [error, where, status, shape] of cases) {
       if (where === "exchange") meta.exchangeError = error;

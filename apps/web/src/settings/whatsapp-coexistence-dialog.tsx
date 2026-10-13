@@ -80,6 +80,10 @@ export function WhatsappCoexistenceDialog({
         setErrors({ phoneNumberId: "whatsapp.errors.number_in_use" });
         return;
       }
+      if (e instanceof ApiError && e.details["phoneNumberId"] === "meta_two_step_enabled") {
+        setErrors({ phoneNumberId: "whatsapp.errors.meta_two_step_enabled" });
+        return;
+      }
       if (e instanceof ApiError && e.details["accessToken"] === "meta_credentials_invalid") {
         setErrors({ accessToken: "whatsapp.errors.meta_credentials_invalid" });
         return;

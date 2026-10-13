@@ -68,14 +68,19 @@ export function runEmbeddedSignup(
   target: MessageTarget,
   onDone: (outcome: SignupOutcome) => void,
   waitMs = SIGNUP_IDS_WAIT_MS,
-): void {
+): () => void {
   let wabaId: string | null = null;
   let phoneNumberId: string | null = null;
   let done = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const dispose = () => {
+    done = true;
+    clearTimeout(timer);
+    target.removeEventListener("message", listener);
+  };
   const finish = (outcome: SignupOutcome) => {
     if (done) return;
-    done = true;
-    target.removeEventListener("message", listener);
+    dispose();
     onDone(outcome);
   };
   const listener = (e: MessageEvent) => {
@@ -93,28 +98,34 @@ export function runEmbeddedSignup(
       if (wabaId && phoneNumberId)
         return finish({ kind: "ready", request: { code, wabaId, phoneNumberId } });
       if (Date.now() >= deadline) return finish({ kind: "missing_ids" });
-      setTimeout(tick, 100);
+      timer = setTimeout(tick, 100);
     };
     tick();
   };
-  fb.login(
-    (response) => {
-      const code = response.authResponse?.code;
-      if (!code) finish({ kind: "closed" });
-      else waitForIds(code);
-    },
-    {
-      config_id: config.configId,
-      response_type: "code",
-      override_default_response_type: true,
-      extras: {
-        feature: "whatsapp_embedded_signup",
-        sessionInfoVersion: "3",
-        featureType: "whatsapp_business_app_onboarding",
-        setup: {},
+  try {
+    fb.login(
+      (response) => {
+        const code = response.authResponse?.code;
+        if (!code) finish({ kind: "closed" });
+        else waitForIds(code);
       },
-    },
-  );
+      {
+        config_id: config.configId,
+        response_type: "code",
+        override_default_response_type: true,
+        extras: {
+          feature: "whatsapp_embedded_signup",
+          sessionInfoVersion: "3",
+          featureType: "whatsapp_business_app_onboarding",
+          setup: {},
+        },
+      },
+    );
+  } catch (error) {
+    dispose();
+    throw error;
+  }
+  return dispose;
 }
 
 let sdk: Promise<FbLike> | null = null;

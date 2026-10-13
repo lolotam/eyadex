@@ -132,6 +132,16 @@ describe.each(["ar", "en"] as const)("coexistence refusals (%s)", (lang) => {
     expect(await screen.findByText(dict.whatsapp.errors.meta_credentials_invalid)).toBeTruthy();
   });
 
+  it.each(["number_in_use", "meta_two_step_enabled"] as const)(
+    "shows the %s refusal under the phone number field",
+    async (code) => {
+      save.mockRejectedValue(new ApiError("validation", undefined, { phoneNumberId: code }));
+      const dict = mount(view, lang);
+      fireEvent.click(screen.getByRole("button", { name: dict.common.save }));
+      expect(await screen.findByText(dict.whatsapp.errors[code])).toBeInTheDocument();
+    },
+  );
+
   it("shows the API's required-token refusal under the token field", async () => {
     save.mockRejectedValue(new ApiError("validation", undefined, { accessToken: "required" }));
     const dict = mount(view, lang);
