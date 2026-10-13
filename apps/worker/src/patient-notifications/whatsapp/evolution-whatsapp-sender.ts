@@ -1,5 +1,5 @@
 import { classifyEvolutionError, classifyEvolutionResponse } from "../domain/evolution-failure.ts";
-import type { FilledTemplate, WhatsappResult, WhatsappSender } from "../ports/whatsapp-sender.ts";
+import type { WhatsappResult, WhatsappSender } from "../ports/whatsapp-sender.ts";
 
 /** مهلة طلب Evolution الواحد: الدفتر والمراجع ممسوكين جوه transaction العيادة (سقفها 10 ثواني). */
 export const EVOLUTION_TIMEOUT_MS = 8_000;
@@ -14,7 +14,7 @@ export interface EvolutionOptions {
 }
 
 /**
- * Evolution API v2.3.7 (`POST /message/sendText/:instance` و`POST /message/sendTemplate/:instance`، هيدر
+ * Evolution API v2.3.7 (`POST /message/sendText/:instance`، هيدر
  * `apikey`). مفيش سطر هنا خالص: الرقم والنص وجسم الرد ماتطلعش من الدالة غير ككود قصير.
  */
 export class EvolutionWhatsappSender implements WhatsappSender {
@@ -28,26 +28,8 @@ export class EvolutionWhatsappSender implements WhatsappSender {
     return this.#post("sendText", instance, { number, text });
   }
 
-  sendTemplate(
-    instance: string,
-    number: string,
-    template: FilledTemplate,
-  ): Promise<WhatsappResult> {
-    return this.#post("sendTemplate", instance, {
-      number,
-      name: template.name,
-      language: template.language,
-      components: [
-        {
-          type: "body",
-          parameters: template.parameters.map((text) => ({ type: "text", text })),
-        },
-      ],
-    });
-  }
-
   async #post(
-    action: "sendText" | "sendTemplate",
+    action: "sendText",
     instance: string,
     body: Record<string, unknown>,
   ): Promise<WhatsappResult> {

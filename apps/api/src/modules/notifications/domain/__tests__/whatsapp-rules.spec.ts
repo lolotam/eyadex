@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   channelView,
-  coexistenceNeedsInstance,
+  coexistenceNeedsVerification,
   coexistenceRefusal,
   coexistenceUnchanged,
   evolutionLinkRefusal,
@@ -45,7 +45,7 @@ const channel = (over: Partial<ChannelRecord> = {}): ChannelRecord => ({
 const coexistence = channel({
   transport: "coexistence",
   status: "connected",
-  instanceName: instanceNameFor(CLINIC),
+  instanceName: null,
   sealedCredentials: "v1.a.b.c",
   phoneNumberId: "123456789",
   businessAccountId: "987654321",
@@ -79,6 +79,7 @@ describe("instance name and the linked number", () => {
   it("passes on a PNG data URL only", () => {
     const qr = "data:image/png;base64,iVBORw0KGgo=";
     expect(qrDataUrlOf(qr)).toBe(qr);
+    expect(qrDataUrlOf("iVBORw0KGgo=")).toBe(qr);
     for (const value of [undefined, "", "2@abc,def", "data:image/svg+xml;base64,PHN2Zz4=", 7]) {
       expect(qrDataUrlOf(value)).toBeNull();
     }
@@ -122,23 +123,23 @@ describe("transport refusals", () => {
 });
 
 describe("coexistence changes", () => {
-  it("re-creates the instance for a first link, another transport, a new token or new Meta ids", () => {
-    expect(coexistenceNeedsInstance(null, request(), true)).toBe(true);
-    expect(coexistenceNeedsInstance(channel({ transport: "evolution" }), request(), false)).toBe(
-      true,
-    );
-    expect(coexistenceNeedsInstance(coexistence, request(), true)).toBe(true);
-    expect(coexistenceNeedsInstance(coexistence, request({ phoneNumberId: "11111" }), false)).toBe(
-      true,
-    );
+  it("verifies Meta credentials for a first link, another transport, a new token or new Meta ids", () => {
+    expect(coexistenceNeedsVerification(null, request(), true)).toBe(true);
     expect(
-      coexistenceNeedsInstance({ ...coexistence, status: "disconnected" }, request(), false),
+      coexistenceNeedsVerification(channel({ transport: "evolution" }), request(), false),
+    ).toBe(true);
+    expect(coexistenceNeedsVerification(coexistence, request(), true)).toBe(true);
+    expect(
+      coexistenceNeedsVerification(coexistence, request({ phoneNumberId: "11111" }), false),
+    ).toBe(true);
+    expect(
+      coexistenceNeedsVerification({ ...coexistence, status: "disconnected" }, request(), false),
     ).toBe(true);
   });
 
-  it("keeps the instance when only the templates change, and sees nothing to do for the same body", () => {
+  it("skips verification when only the templates change, and sees nothing to do for the same body", () => {
     const other = request({ templates: { ...NONE, booked: { name: "other", language: "en" } } });
-    expect(coexistenceNeedsInstance(coexistence, other, false)).toBe(false);
+    expect(coexistenceNeedsVerification(coexistence, other, false)).toBe(false);
     expect(coexistenceUnchanged(coexistence, other, false)).toBe(false);
     expect(coexistenceUnchanged(coexistence, request(), false)).toBe(true);
     expect(coexistenceUnchanged(null, request(), false)).toBe(false);

@@ -8,6 +8,12 @@ import { mailProviderSealKey } from "../../shared/mail-provider-seal-key.ts";
 import { CLOCK, TenancyModule, type Clock } from "../tenancy/index.ts";
 import { NotificationSettingsController } from "./http/notification-settings.controller.ts";
 import { WhatsappController } from "./http/whatsapp.controller.ts";
+import { EvolutionWebhookController } from "./http/evolution-webhook.controller.ts";
+import { EvolutionWebhookGuard } from "./http/evolution-webhook.guard.ts";
+import { AuthModule, PublicRateLimitGuard } from "../identity/index.ts";
+import { HttpMetaApi } from "./persistence/http-meta-api.ts";
+import type { MetaApi } from "./ports/meta-api.ts";
+import { EvolutionWebhook } from "./use-cases/evolution-webhook/evolution-webhook.ts";
 import { evolutionApiFromEnv } from "./persistence/evolution-config.ts";
 import type { EvolutionApi } from "./ports/evolution-api.ts";
 import {
@@ -15,6 +21,9 @@ import {
   NOTIFICATION_SETTINGS_CHANGES,
   WHATSAPP_COEXISTENCE,
   WHATSAPP_LINK,
+  META_API,
+  EVOLUTION_WEBHOOK,
+  EVOLUTION_WEBHOOK_SECRET,
 } from "./ports/tokens.ts";
 import { NotificationSettingsChanges } from "./use-cases/notification-settings/notification-settings.ts";
 import { WhatsappCoexistence } from "./use-cases/whatsapp-channel/whatsapp-coexistence.ts";
@@ -32,16 +41,30 @@ export class NotificationsModule {
   /**
    * الموديول بـ Evolution من البيئة، أو اللي الاختبار بيحقنه.
    *
+   * @param meta Graph verification boundary for tests
    * @param evolution بديل للاختبارات بس
    * @returns الموديول
    */
-  static forRoot(evolution?: EvolutionApi): DynamicModule {
+  static forRoot(evolution?: EvolutionApi, meta?: MetaApi): DynamicModule {
     return {
       module: NotificationsModule,
-      imports: [DatabaseModule, TenancyModule],
-      controllers: [NotificationSettingsController, WhatsappController],
+      imports: [DatabaseModule, TenancyModule, AuthModule],
+      controllers: [NotificationSettingsController, WhatsappController, EvolutionWebhookController],
       providers: [
         { provide: EVOLUTION_API, useFactory: () => evolution ?? evolutionApiFromEnv(process.env) },
+        { provide: META_API, useFactory: () => meta ?? new HttpMetaApi() },
+        {
+          provide: EVOLUTION_WEBHOOK_SECRET,
+          useFactory: () => process.env["EVOLUTION_WEBHOOK_SECRET"] || null,
+        },
+        EvolutionWebhookGuard,
+        PublicRateLimitGuard,
+        {
+          provide: EVOLUTION_WEBHOOK,
+          inject: [DATABASE, CLOCK],
+          useFactory: (db: Database, clock: Clock) =>
+            new EvolutionWebhook({ db, clock, ids: systemUuidV7() }),
+        },
         {
           provide: NOTIFICATION_SETTINGS_CHANGES,
           inject: [DATABASE, CLOCK],
@@ -56,13 +79,14 @@ export class NotificationsModule {
         },
         {
           provide: WHATSAPP_COEXISTENCE,
-          inject: [DATABASE, CLOCK, EVOLUTION_API],
-          useFactory: (db: Database, clock: Clock, api: EvolutionApi) =>
+          inject: [DATABASE, CLOCK, EVOLUTION_API, META_API],
+          useFactory: (db: Database, clock: Clock, api: EvolutionApi, metaApi: MetaApi) =>
             new WhatsappCoexistence({
               db,
               clock,
               ids: systemUuidV7(),
               evolution: api,
+              meta: metaApi,
               sealKey: mailProviderSealKey(process.env),
             }),
         },

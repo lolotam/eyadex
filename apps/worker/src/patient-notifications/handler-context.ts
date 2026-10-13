@@ -1,3 +1,5 @@
+import type { SecretSealer } from "@eyadex/secrets";
+import type { MetaSender } from "./ports/meta-sender.ts";
 import type { ClaimedEvent, DispatchOutcome } from "@eyadex/db";
 import type { Logger } from "@eyadex/observability";
 
@@ -15,6 +17,8 @@ export interface NotificationDispatchDeps {
   readonly platform: MailSender;
   /** Evolution (spec §7.1)؛ `null` لو `EVOLUTION_API_URL`/`EVOLUTION_API_KEY` مش مضبوطين: واتساب متخطّي. */
   readonly whatsapp: WhatsappSender | null;
+  readonly meta?: MetaSender;
+  readonly whatsappSealer?: SecretSealer;
   /** فاتح سطور الوصفة (ADR-0028)؛ `null` لو مفاتيح `MEDICAL_MASTER_KEY_V<n>` مش مضبوطة في الـ worker. */
   readonly cipher: FieldOpener | null;
   readonly clock: { now(): Date };

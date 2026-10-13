@@ -1,11 +1,18 @@
-import { describe, expect, it } from "vitest";
+import { randomBytes } from "node:crypto";
+import { describe, expect, it, vi } from "vitest";
 
 import { ServiceUnavailableError } from "../../../shared/errors.ts";
 import { evolutionApiFromEnv } from "../persistence/evolution-config.ts";
 import { HttpEvolutionApi, UnconfiguredEvolutionApi } from "../persistence/http-evolution-api.ts";
 
 // A shaped placeholder, never a real key; the assertions check it never leaves the header.
-const KEY = "evolution-test-key-placeholder";
+const KEY = randomBytes(24).toString("hex");
+const WEBHOOK_SECRET = randomBytes(32).toString("hex");
+const HOOK = {
+  webhookUrl: "http://eyadex-api:3001/v1/hooks/evolution",
+  webhookSecret: WEBHOOK_SECRET,
+};
+const ENV = { EVOLUTION_WEBHOOK_URL: HOOK.webhookUrl, EVOLUTION_WEBHOOK_SECRET: WEBHOOK_SECRET };
 const NAME = "eyadex-0190a000-0000-7000-8000-0000000000aa";
 const QR = "data:image/png;base64,iVBORw0KGgo=";
 
@@ -34,7 +41,7 @@ function scripted(...answers: (Response | Error)[]) {
     return next instanceof Error ? Promise.reject(next) : Promise.resolve(next);
   }) as typeof fetch;
   const api = new HttpEvolutionApi(
-    { baseUrl: new URL("http://evolution:8080"), apiKey: KEY },
+    { baseUrl: new URL("http://evolution:8080"), apiKey: KEY, ...HOOK },
     fetchImpl,
   );
   return { api, seen };
@@ -77,9 +84,37 @@ describe("evolutionApiFromEnv (spec §7.1)", () => {
     const api = evolutionApiFromEnv({
       EVOLUTION_API_URL: "http://evolution:8080",
       EVOLUTION_API_KEY: KEY,
+      ...ENV,
     });
     expect(api).toBeInstanceOf(HttpEvolutionApi);
     expect(api.configured).toBe(true);
+  });
+
+  it("requires both webhook variables with Evolution and forbids them without it", () => {
+    const evolution = { EVOLUTION_API_URL: "http://evolution:8080", EVOLUTION_API_KEY: KEY };
+    expect(() => evolutionApiFromEnv(evolution)).toThrow(/EVOLUTION_WEBHOOK_URL/);
+    expect(() =>
+      evolutionApiFromEnv({ ...evolution, EVOLUTION_WEBHOOK_URL: HOOK.webhookUrl }),
+    ).toThrow(/EVOLUTION_WEBHOOK_SECRET/);
+    expect(() =>
+      evolutionApiFromEnv({ ...evolution, ...ENV, EVOLUTION_WEBHOOK_SECRET: "x".repeat(31) }),
+    ).toThrow(/EVOLUTION_WEBHOOK_SECRET/);
+    expect(() => evolutionApiFromEnv({ EVOLUTION_WEBHOOK_URL: HOOK.webhookUrl })).toThrow(
+      /EVOLUTION_WEBHOOK_URL/,
+    );
+    expect(() => evolutionApiFromEnv({ EVOLUTION_WEBHOOK_SECRET: WEBHOOK_SECRET })).toThrow(
+      /EVOLUTION_WEBHOOK_SECRET/,
+    );
+    for (const url of [
+      "invalid",
+      "ftp://internal/v1/hooks/evolution",
+      "http://internal/other",
+      "http://internal/v1/hooks/evolution?secret=x",
+    ]) {
+      expect(() =>
+        evolutionApiFromEnv({ ...evolution, ...ENV, EVOLUTION_WEBHOOK_URL: url }),
+      ).toThrow(/EVOLUTION_WEBHOOK_URL/);
+    }
   });
 
   it("the unconfigured port answers 503 on every call", async () => {
@@ -90,36 +125,58 @@ describe("evolutionApiFromEnv (spec §7.1)", () => {
 });
 
 describe("HttpEvolutionApi (Evolution v2 endpoints)", () => {
+  it("uses 10 s for create and 5 s for other requests", async () => {
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    try {
+      const { api } = scripted(json(201, {}), json(200, { count: 0 }));
+      await api.createInstance(NAME);
+      await api.connect(NAME);
+      expect(timeout.mock.calls.map(([ms]) => ms)).toEqual([10_000, 5_000]);
+    } finally {
+      timeout.mockRestore();
+    }
+  });
   it("creates a Baileys instance without waiting for a QR, the key in the apikey header only", async () => {
     const { api, seen } = scripted(json(201, { instance: { instanceName: NAME } }));
-    expect(await api.createInstance(NAME, { kind: "baileys" })).toBe("created");
+    expect(await api.createInstance(NAME)).toBe("created");
     expect(seen[0]).toMatchObject({
       url: "http://evolution:8080/instance/create",
       method: "POST",
-      body: { instanceName: NAME, integration: "WHATSAPP-BAILEYS", qrcode: false },
+      body: {
+        instanceName: NAME,
+        integration: "WHATSAPP-BAILEYS",
+        qrcode: false,
+        webhook: {
+          enabled: true,
+          url: HOOK.webhookUrl,
+          byEvents: false,
+          base64: false,
+          headers: { "x-eyadex-webhook": WEBHOOK_SECRET },
+          events: ["MESSAGES_UPDATE", "CONNECTION_UPDATE"],
+        },
+      },
     });
     expect(seen[0]!.headers["apikey"]).toBe(KEY);
     expect(JSON.stringify(seen[0]!.body)).not.toContain(KEY);
   });
 
-  it("creates a Business instance with the Meta token, number id and business id", async () => {
-    const { api, seen } = scripted(json(403, { message: ["in use"] }));
-    const created = await api.createInstance(NAME, {
-      kind: "business",
-      accessToken: "meta-token-placeholder-0000",
-      phoneNumberId: "123456789",
-      businessAccountId: "987654321",
-    });
-    expect(created).toBe("exists");
-    expect(seen[0]!.body).toEqual({
-      instanceName: NAME,
-      integration: "WHATSAPP-BUSINESS",
-      token: "meta-token-placeholder-0000",
-      number: "123456789",
-      businessId: "987654321",
+  it("sets the webhook on existing instances", async () => {
+    const { api, seen } = scripted(json(201, {}));
+    await api.setWebhook(NAME);
+    expect(seen[0]).toMatchObject({
+      url: `http://evolution:8080/webhook/set/${NAME}`,
+      body: {
+        webhook: {
+          enabled: true,
+          url: HOOK.webhookUrl,
+          byEvents: false,
+          base64: false,
+          headers: { "x-eyadex-webhook": WEBHOOK_SECRET },
+          events: ["MESSAGES_UPDATE", "CONNECTION_UPDATE"],
+        },
+      },
     });
   });
-
   it("reads each connect answer: QR object, nested QR, open, missing", async () => {
     const { api, seen } = scripted(
       json(200, { pairingCode: null, code: "2@x", base64: QR, count: 1 }),
@@ -134,6 +191,29 @@ describe("HttpEvolutionApi (Evolution v2 endpoints)", () => {
     expect(await api.connect(NAME)).toEqual({ state: "open" });
     expect(await api.connect(NAME)).toEqual({ state: "missing" });
     expect(seen[0]!.url).toBe(`http://evolution:8080/instance/connect/${NAME}`);
+  });
+
+  it("normalizes bare base64 and keeps code-only or count-zero pending", async () => {
+    const bare = QR.replace("data:image/png;base64,", "");
+    const { api } = scripted(
+      json(200, { base64: bare }),
+      json(200, { qrcode: { base64: bare } }),
+      json(200, { code: "fixture" }),
+      json(200, { count: 0 }),
+    );
+    expect(await api.connect(NAME)).toEqual({ state: "pending", qrDataUrl: QR });
+    expect(await api.connect(NAME)).toEqual({ state: "pending", qrDataUrl: QR });
+    expect(await api.connect(NAME)).toEqual({ state: "pending", qrDataUrl: null });
+    expect(await api.connect(NAME)).toEqual({ state: "pending", qrDataUrl: null });
+  });
+
+  it("falls back to owner and strips device and domain suffixes", async () => {
+    const { api } = scripted(
+      json(200, [{ owner: "00000000001:12@s.whatsapp.net" }]),
+      json(200, [{ ownerJid: "bad", owner: "00000000001" }]),
+    );
+    expect(await api.ownerLast4(NAME)).toBe("0001");
+    expect(await api.ownerLast4(NAME)).toBe("0001");
   });
 
   it("reads the connection state and the last four digits of the owner", async () => {
@@ -176,9 +256,7 @@ describe("HttpEvolutionApi (Evolution v2 endpoints)", () => {
     await expect(api.connect(NAME)).rejects.toBeInstanceOf(ServiceUnavailableError);
     await expect(api.connect(NAME)).rejects.toBeInstanceOf(ServiceUnavailableError);
     await expect(api.connect(NAME)).rejects.toBeInstanceOf(ServiceUnavailableError);
-    await expect(api.createInstance(NAME, { kind: "baileys" })).rejects.toBeInstanceOf(
-      ServiceUnavailableError,
-    );
+    await expect(api.createInstance(NAME)).rejects.toBeInstanceOf(ServiceUnavailableError);
   });
 
   it("never lets the reply's content into the error", async () => {

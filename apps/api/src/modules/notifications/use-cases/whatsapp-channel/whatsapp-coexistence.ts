@@ -1,13 +1,12 @@
 import type { WhatsappChannelView, WhatsappCoexistenceRequest } from "@eyadex/contracts/whatsapp";
 import { SecretSealer } from "@eyadex/secrets";
 
-import { ServiceUnavailableError } from "../../../../shared/errors.ts";
+import type { MetaApi } from "../../ports/meta-api.ts";
 import {
   channelView,
-  coexistenceNeedsInstance,
+  coexistenceNeedsVerification,
   coexistenceRefusal,
   coexistenceUnchanged,
-  instanceNameFor,
   type ChannelRecord,
 } from "../../domain/whatsapp-rules.ts";
 import {
@@ -21,6 +20,7 @@ import { withWhatsappOperation } from "./whatsapp-operation.ts";
 /** The coexistence use case also seals the Meta token: `MAIL_PROVIDER_SEAL_KEY` (base64, 32 bytes). */
 export interface WhatsappCoexistenceDeps extends WhatsappDeps {
   readonly sealKey: string;
+  readonly meta: MetaApi;
 }
 
 /** What the first transaction decided. */
@@ -30,8 +30,8 @@ type Plan =
       readonly unchanged: false;
       readonly token: string;
       readonly tokenChanged: boolean;
-      /** The instance to delete then create again through Evolution's Business integration. */
-      readonly recreate: string | null;
+      readonly verify: boolean;
+      readonly phoneLast4: string | null;
     };
 
 // The audit keeps the shape of the change only: never the token, never a Meta id.
@@ -39,9 +39,9 @@ const auditView = (record: ChannelRecord | null) =>
   record === null ? null : { status: record.status, templates: record.templates };
 
 /**
- * ربط coexistence (N-6 (b)، spec §7.1): بيانات Meta Business للعيادة من خلال تكامل Business في Evolution،
+ * ربط coexistence (N-6 (b)، spec §7.1): بيانات Meta Business للعيادة مباشرة من Graph v22.0،
  * وقالب Meta لكل رسالة. التوكن write-only: بيتختم بـ AAD = id الصف، ولو اتساب في التعديل بيفضل المحفوظ،
- * ومابيرجعش في أي رد ولا سجل. الـ instance بيتعمل من جديد بس لما الربط أو التوكن أو أرقام Meta تتغيّر.
+ * ومابيرجعش في أي رد ولا سجل. البيانات بتتحقق من Meta بس لما الربط أو التوكن أو أرقام Meta تتغيّر.
  */
 export class WhatsappCoexistence {
   readonly #sealer: SecretSealer;
@@ -62,7 +62,6 @@ export class WhatsappCoexistence {
     actor: WhatsappActor,
     request: WhatsappCoexistenceRequest,
   ): Promise<WhatsappChannelView> {
-    if (!this.deps.evolution.configured) throw new ServiceUnavailableError({ code: "unavailable" });
     return withWhatsappOperation(
       this.deps,
       actor.clinicId,
@@ -75,8 +74,7 @@ export class WhatsappCoexistence {
     actor: WhatsappActor,
     request: WhatsappCoexistenceRequest,
   ): Promise<WhatsappChannelView> {
-    const { db, evolution } = this.deps;
-    if (!evolution.configured) throw new ServiceUnavailableError({ code: "unavailable" });
+    const { db, meta } = this.deps;
     const plan = await db.withTenant(actor.clinicId, async (tx): Promise<Plan> => {
       await lockWhatsappChannel(tx, actor.clinicId);
       const before = await findWhatsappChannel(tx, actor.clinicId);
@@ -91,22 +89,23 @@ export class WhatsappCoexistence {
       if (coexistenceUnchanged(before, request, tokenChanged)) {
         return { unchanged: true, view: channelView(before) };
       }
-      const recreate = coexistenceNeedsInstance(before, request, tokenChanged)
-        ? (before?.instanceName ?? instanceNameFor(actor.clinicId))
-        : null;
-      return { unchanged: false, token, tokenChanged, recreate };
+      return {
+        unchanged: false,
+        token,
+        tokenChanged,
+        verify: coexistenceNeedsVerification(before, request, tokenChanged),
+        phoneLast4: before?.phoneLast4 ?? null,
+      };
     });
     if (plan.unchanged) return plan.view;
-    if (plan.recreate !== null) {
-      await evolution.deleteInstance(plan.recreate);
-      await evolution.createInstance(instanceNameFor(actor.clinicId), {
-        kind: "business",
-        accessToken: plan.token,
-        phoneNumberId: request.phoneNumberId,
-        businessAccountId: request.businessAccountId,
-      });
-    }
-    return this.save(actor, request, plan.token, plan.tokenChanged);
+    const phoneLast4 = plan.verify
+      ? await meta.verify({
+          accessToken: plan.token,
+          phoneNumberId: request.phoneNumberId,
+          businessAccountId: request.businessAccountId,
+        })
+      : plan.phoneLast4;
+    return this.save(actor, request, plan.token, plan.tokenChanged, phoneLast4);
   }
 
   // The second transaction, decided again under the lock on the row as it is now.
@@ -115,6 +114,7 @@ export class WhatsappCoexistence {
     request: WhatsappCoexistenceRequest,
     token: string,
     tokenChanged: boolean,
+    phoneLast4: string | null,
   ): Promise<WhatsappChannelView> {
     const { db, clock, ids } = this.deps;
     return db.withTenant(actor.clinicId, async (tx) => {
@@ -128,8 +128,8 @@ export class WhatsappCoexistence {
         id,
         transport: "coexistence",
         status: "connected",
-        instanceName: instanceNameFor(actor.clinicId),
-        phoneLast4: null,
+        instanceName: null,
+        phoneLast4,
         riskAcceptedAt: current?.riskAcceptedAt ?? null,
         riskAcceptedBy: current?.riskAcceptedBy ?? null,
         riskVersion: current?.riskVersion ?? null,

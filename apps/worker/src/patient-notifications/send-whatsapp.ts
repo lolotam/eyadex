@@ -2,6 +2,7 @@ import type { WhatsappTemplate } from "@eyadex/contracts/whatsapp";
 import type { ClaimedEvent, DispatchOutcome } from "@eyadex/db";
 
 import { afterFailure } from "../invitation-mail/domain/retry-schedule.ts";
+import { finalMetaError } from "./domain/meta-failure.ts";
 import { finalWhatsappError } from "./domain/evolution-failure.ts";
 import { notificationSkip, type WhatsappFacts } from "./domain/skip-decision.ts";
 import { whatsappNumber } from "./domain/whatsapp-address.ts";
@@ -54,7 +55,7 @@ export async function sendWhatsapp(
   const channel = state.whatsapp ?? { kind: "none" };
   const sender = deps.whatsapp;
   // Another send of this clinic holds the channel now: wait one pace. Not an attempt.
-  if (sender !== null && channel.kind === "busy") {
+  if (channel.kind === "busy") {
     return defer(ctx, event, new Date(deps.clock.now().getTime() + PACE_MS));
   }
   const locked = channel.kind === "locked" ? channel : null;
@@ -62,20 +63,19 @@ export async function sendWhatsapp(
     locked?.transport === "coexistence" ? templateFor(locked.templates, kind) : null;
   const reason = skip({
     connected:
-      sender !== null &&
       locked !== null &&
       locked.status === "connected" &&
       locked.transport !== null &&
-      locked.instanceName !== null,
+      (locked.transport === "evolution"
+        ? sender !== null && locked.instanceName !== null
+        : deps.meta !== undefined &&
+          deps.whatsappSealer !== undefined &&
+          locked.sealedCredentials !== null &&
+          locked.phoneNumberId !== null),
     templateMissing: locked?.transport === "coexistence" && template === null,
   });
   if (reason !== null) return skipped(reason);
-  if (
-    sender === null ||
-    locked === null ||
-    locked.transport === null ||
-    locked.instanceName === null
-  ) {
+  if (locked === null || locked.transport === null) {
     return skipped("whatsapp_disconnected");
   }
   const wait = paceWait(locked.nextSendAt, deps.clock.now());
@@ -87,15 +87,22 @@ export async function sendWhatsapp(
     template === null ? patientLanguage : templateLanguage(template, patientLanguage);
   const content = buildContent(state, clinicId, deps.cipher, language);
   if (content.kind === "broken") return ctx.broken(event, state, content.error);
-  const { transport, instanceName } = locked;
+  const { transport } = locked;
   const result =
-    template === null
-      ? await sender.sendText(instanceName, number, whatsappText(content))
-      : await sender.sendTemplate(instanceName, number, {
-          name: template.name,
-          language: template.language,
-          parameters: whatsappTemplateValues(content),
-        });
+    transport === "evolution"
+      ? await sender!.sendText(locked.instanceName!, number, whatsappText(content))
+      : await deps.meta!.sendTemplate(
+          {
+            phoneNumberId: locked.phoneNumberId!,
+            accessToken: deps.whatsappSealer!.open(locked.sealedCredentials!, locked.id),
+          },
+          number,
+          {
+            name: template!.name,
+            language: template!.language,
+            parameters: whatsappTemplateValues(content),
+          },
+        );
   const at = deps.clock.now();
   await locked.recordSend(
     nextSendAt(at, deps.random ?? Math.random),
@@ -103,15 +110,20 @@ export async function sendWhatsapp(
     at,
   );
   if (result.sent) {
-    await state.record({ kind: "sent", route: transport, at });
+    await state.record({ kind: "sent", route: transport, messageId: result.messageId, at });
     if (kind === "prescription") await state.auditPrescriptionSent(at);
     ctx.note(event, "sent", { route: transport });
     return DONE;
   }
+  if (transport === "evolution" && result.error === "evo_not_connected")
+    await locked.disconnect(at);
   const error = `${transport}:${result.error}`;
   const step = afterFailure(event.attempts, at);
   const nextAttemptAt =
-    step.kind === "retry" && !finalWhatsappError(result.error) ? step.nextAttemptAt : null;
+    step.kind === "retry" &&
+    !(transport === "coexistence" ? finalMetaError(result.error) : finalWhatsappError(result.error))
+      ? step.nextAttemptAt
+      : null;
   await state.record({
     kind: "failure",
     error,

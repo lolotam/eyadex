@@ -5,6 +5,8 @@ import type { WhatsappChannelState } from "../ports/notification-store.ts";
 
 type ChannelRow = {
   id: string;
+  sealed_credentials: string | null;
+  phone_number_id: string | null;
   transport: WhatsappTransport | null;
   status: WhatsappStatus;
   instance_name: string | null;
@@ -24,7 +26,7 @@ type ChannelRow = {
  */
 export async function lockWhatsappChannel(tx: Tx, clinicId: string): Promise<WhatsappChannelState> {
   const [row] = (await tx.execute(
-    sql`SELECT id, transport, status, instance_name, templates,
+    sql`SELECT id, sealed_credentials, phone_number_id, transport, status, instance_name, templates,
                to_json(next_send_at) #>> '{}' AS next_send_at,
                to_json(operation_expires_at) #>> '{}' AS operation_expires_at
         FROM clinic_whatsapp_channels WHERE clinic_id = ${clinicId}
@@ -43,11 +45,20 @@ export async function lockWhatsappChannel(tx: Tx, clinicId: string): Promise<Wha
     return { kind: "busy" };
   return {
     kind: "locked",
+    id: row.id,
+    sealedCredentials: row.sealed_credentials,
+    phoneNumberId: row.phone_number_id,
     transport: row.transport,
     status: row.status,
     instanceName: row.instance_name,
     templates: row.templates,
     nextSendAt: row.next_send_at === null ? null : new Date(row.next_send_at),
+    disconnect: async (at) => {
+      await tx.execute(sql`UPDATE clinic_whatsapp_channels
+        SET status = 'disconnected', last_error = 'evo_not_connected', connected_at = NULL,
+            updated_at = ${at.toISOString()}::timestamptz
+        WHERE clinic_id = ${clinicId} AND id = ${row.id} AND transport = 'evolution'`);
+    },
     recordSend: async (next, error, at) => {
       await tx.execute(
         sql`UPDATE clinic_whatsapp_channels

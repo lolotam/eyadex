@@ -41,7 +41,11 @@ import {
   type BlobStore,
 } from "./modules/medical/index.ts";
 import { ClinicAuditModule, PlatformAuditModule } from "./modules/audit/index.ts";
-import { NotificationsModule, type EvolutionApi } from "./modules/notifications/index.ts";
+import {
+  NotificationsModule,
+  type EvolutionApi,
+  type MetaApi,
+} from "./modules/notifications/index.ts";
 import { PlatformModule } from "./modules/platform/index.ts";
 import { SettingsModule } from "./modules/settings/index.ts";
 import { EnvelopeExceptionFilter } from "./shared/exception.filter.ts";
@@ -82,8 +86,7 @@ export interface AppDependencies {
    * `/v1/permissions/catalogue`, `/v1/branches`, `/v1/users`, `/v1/invitations`, `/v1/clinic/mail-provider`,
    * `/v1/patients`, `/v1/clinic/audit`, `/v1/services`, `/v1/schedules` (ADR-0009, 0011, 0012, 0014,
    * 0018, 0019, 0026). Needs auth mounted,
-   * DATABASE_URL, REDIS_URL, OUTBOX_SEAL_KEY,
-   * MAIL_PROVIDER_SEAL_KEY, MEDICAL_MASTER_KEY_V<MEDICAL_KEY_VERSION> and MEDICAL_INDEX_KEY (ADR-0028,
+   * DATABASE_URL, REDIS_URL, OUTBOX_SEAL_KEY, MAIL_PROVIDER_SEAL_KEY, MEDICAL_MASTER_KEY_V<MEDICAL_KEY_VERSION> and MEDICAL_INDEX_KEY (ADR-0028,
    * docs/specs/medical-keys-runbook.md). Attachments also read MEDICAL_BLOB_S3_ENDPOINT,
    * MEDICAL_BLOB_S3_BUCKET, MEDICAL_BLOB_S3_ACCESS_KEY, MEDICAL_BLOB_S3_SECRET_KEY and the optional
    * MEDICAL_BLOB_S3_REGION (docs/specs/medical-blob-runbook.md); without them the API still starts and
@@ -95,6 +98,8 @@ export interface AppDependencies {
   readonly medicalBlobStore?: BlobStore;
   /** Test-only: Evolution API (WhatsApp, spec §7.1) instead of the one EVOLUTION_API_URL/KEY configure. */
   readonly evolutionApi?: EvolutionApi;
+  /** Test-only: Meta Graph verification boundary. */
+  readonly metaApi?: MetaApi;
 }
 
 export interface AppOptions {
@@ -154,7 +159,7 @@ export function apiModule(
             PatientsModule,
             AppointmentsModule,
             MedicalModule.forRoot(deps.medicalBlobStore),
-            NotificationsModule.forRoot(deps.evolutionApi),
+            NotificationsModule.forRoot(deps.evolutionApi, deps.metaApi),
             ClinicAuditModule,
           ]
         : []),
@@ -172,18 +177,14 @@ export function apiModule(
 }
 
 /**
- * The logger Fastify itself holds. Fastify announces every address it bound with a bare string
- * ("Server listening at http://…") — one line per interface, and text that is not a catalogued event, so
- * the sanitiser would print each of them as a placeholder that says nothing. Only a bare string is dropped
- * here: every line this codebase writes passes a log object first, and a per-request logger is a real pino
- * child of the shared logger, so request lines are untouched.
+ * Drops bare framework listening announcements outside the event catalogue.
+ * Structured application events and request logs still reach the shared sanitiser.
  *
  * @param logger the shared sanitising logger
  * @returns the logger to hand Fastify as its `loggerInstance`
  */
 function frameworkLogger(logger: Logger): Logger {
-  // A child, not the root: `info` is replaced on this one object only. A per-request logger Fastify derives
-  // from it inherits the override, so `this` is honoured — that logger's bindings stay on the line.
+  // A child keeps this framework override off the root and preserves per-request bindings.
   const framework = logger.child({});
   const original = framework.info;
   framework.info = function info(this: Logger, object: unknown, message?: string) {
@@ -259,7 +260,6 @@ export async function startApi(
   app: NestFastifyApplication,
   mountAuth = false,
 ): Promise<NestFastifyApplication> {
-  // Outside the /v1 prefix: the proxy maps the browser's same-origin /api/auth/* here (ADR-0004).
   if (mountAuth) {
     await registerAuthRoutes(
       app.getHttpAdapter().getInstance(),
@@ -267,9 +267,7 @@ export async function startApi(
       app.get<AuthRateLimit>(AUTH_RATE_LIMIT).limiter,
     );
   }
-  // The attachment upload is the only multipart route; every other route keeps refusing the type.
   await registerAttachmentUploads(app.getHttpAdapter().getInstance());
-  // A route without exactly one access declaration fails the boot, not just its requests (RBAC-04).
   assertRouteAccess(app.get(ModulesContainer));
   app.setGlobalPrefix("v1");
   app.useGlobalFilters(new EnvelopeExceptionFilter());

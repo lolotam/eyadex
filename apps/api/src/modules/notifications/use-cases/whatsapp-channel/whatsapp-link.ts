@@ -121,9 +121,12 @@ export class WhatsappLink {
         staleInstance: own === null ? (before?.instanceName ?? null) : null,
       };
     });
-    if (start.linked) return LINKED;
+    if (start.linked) {
+      await evolution.setWebhook(instanceNameFor(actor.clinicId));
+      return LINKED;
+    }
     if (start.staleInstance !== null) await evolution.deleteInstance(start.staleInstance);
-    if (!start.hasInstance) await evolution.createInstance(start.instanceName, { kind: "baileys" });
+    if (!start.hasInstance) await evolution.createInstance(start.instanceName);
     return this.settle(actor, start.instanceName, await this.connectOrCreate(start.instanceName));
   }
 
@@ -188,15 +191,8 @@ export class WhatsappLink {
       findWhatsappChannel(tx, actor.clinicId),
     );
     if (before === null || before.status === "disconnected") return channelView(before);
-    let deleted = false;
-    if (evolution.configured && before.instanceName !== null) {
-      if (before.transport === "coexistence") {
-        await evolution.deleteInstance(before.instanceName);
-        deleted = true;
-      } else {
-        await evolution.logout(before.instanceName);
-      }
-    }
+    if (evolution.configured && before.transport === "evolution" && before.instanceName !== null)
+      await evolution.logout(before.instanceName);
     return db.withTenant(actor.clinicId, async (tx) => {
       await lockWhatsappChannel(tx, actor.clinicId);
       const current = await findWhatsappChannel(tx, actor.clinicId);
@@ -208,7 +204,7 @@ export class WhatsappLink {
         phoneLast4: null,
         connectedAt: null,
         lastError: null,
-        instanceName: deleted ? null : current.instanceName,
+        instanceName: current.transport === "evolution" ? current.instanceName : null,
       };
       await saveWhatsappChannel(tx, actor.clinicId, record, now);
       await auditChannel(
@@ -225,9 +221,11 @@ export class WhatsappLink {
 
   // `instance/connect`; an instance Evolution no longer knows is created once more, then asked again.
   private async connectOrCreate(name: string): Promise<LinkResult> {
+    if ((await this.deps.evolution.connectionState(name)) !== "missing")
+      await this.deps.evolution.setWebhook(name);
     const first = await this.deps.evolution.connect(name);
     if (first.state !== "missing") return first;
-    await this.deps.evolution.createInstance(name, { kind: "baileys" });
+    await this.deps.evolution.createInstance(name);
     const second = await this.deps.evolution.connect(name);
     if (second.state === "missing") throw new ServiceUnavailableError();
     return second;

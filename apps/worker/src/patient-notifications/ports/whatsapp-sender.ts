@@ -3,7 +3,8 @@
  * بيتكتب في `last_error` وفي السطور.
  */
 export type WhatsappResult =
-  { readonly sent: true } | { readonly sent: false; readonly error: string };
+  | { readonly sent: true; readonly messageId: string }
+  | { readonly sent: false; readonly error: string };
 
 /** قالب Meta متعبّي (coexistence): الاسم واللغة وقيم الجسم بالترتيب. */
 export interface FilledTemplate {
@@ -26,13 +27,4 @@ export interface WhatsappSender {
    * @returns اتبعت، أو كود الفشل
    */
   sendText(instance: string, number: string, text: string): Promise<WhatsappResult>;
-  /**
-   * قالب Meta معتمد عبر تكامل Evolution مع WhatsApp Business (`coexistence`).
-   *
-   * @param instance اسم instance العيادة في Evolution
-   * @param number رقم المراجع أرقام بس
-   * @param template القالب وقيمه بالترتيب الثابت
-   * @returns اتبعت، أو كود الفشل
-   */
-  sendTemplate(instance: string, number: string, template: FilledTemplate): Promise<WhatsappResult>;
 }

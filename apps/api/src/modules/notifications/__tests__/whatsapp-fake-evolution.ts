@@ -2,7 +2,6 @@ import type {
   EvolutionApi,
   EvolutionConnectionState,
   EvolutionConnectResult,
-  EvolutionIntegration,
 } from "../ports/evolution-api.ts";
 
 /** A PNG data URL shaped like Evolution's QR (a placeholder image, not a real link). */
@@ -10,7 +9,7 @@ export const FAKE_QR =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGD4DwABBAEAwS2OUAAAAABJRU5ErkJggg==";
 
 interface FakeInstance {
-  readonly integration: EvolutionIntegration;
+  readonly integration: { readonly kind: "baileys" };
   state: "close" | "connecting" | "open";
 }
 
@@ -21,14 +20,24 @@ interface FakeInstance {
 export class FakeEvolution implements EvolutionApi {
   configured = true;
   readonly instances = new Map<string, FakeInstance>();
-  readonly created: { readonly name: string; readonly integration: EvolutionIntegration }[] = [];
+  readonly created: {
+    readonly name: string;
+    readonly integration: { readonly kind: "baileys" };
+  }[] = [];
   readonly deleted: string[] = [];
 
-  createInstance(name: string, integration: EvolutionIntegration): Promise<"created" | "exists"> {
+  createInstance(name: string): Promise<"created" | "exists"> {
     if (this.instances.has(name)) return Promise.resolve("exists");
+    const integration = { kind: "baileys" } as const;
     this.instances.set(name, { integration, state: "close" });
     this.created.push({ name, integration });
     return Promise.resolve("created");
+  }
+
+  readonly webhooks: string[] = [];
+  setWebhook(name: string): Promise<void> {
+    this.webhooks.push(name);
+    return Promise.resolve();
   }
 
   connect(name: string): Promise<EvolutionConnectResult> {

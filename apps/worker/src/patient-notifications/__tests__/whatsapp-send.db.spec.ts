@@ -21,13 +21,19 @@ import {
   sendHarness,
   setSettings,
 } from "./notification-fixtures.ts";
-import { channelRow, FakeWhatsapp, seedChannel } from "./whatsapp-fixtures.ts";
+import {
+  channelRow,
+  FakeWhatsapp,
+  FakeMetaSender,
+  META_TOKEN,
+  seedChannel,
+} from "./whatsapp-fixtures.ts";
 
 // Spec §7.1 on real PostgreSQL with a fake Evolution boundary: what goes out, what is skipped, what fails.
 let app: ReturnType<typeof createDatabase>;
 let outbox: ReturnType<typeof createDispatcherOutbox>;
-const make = (whatsapp: WhatsappSender | null) =>
-  sendHarness(app, outbox, true, { whatsapp, random: () => 0.5 });
+const make = (whatsapp: WhatsappSender | null, meta?: FakeMetaSender) =>
+  sendHarness(app, outbox, true, { whatsapp, ...(meta ? { meta } : {}), random: () => 0.5 });
 
 beforeAll(() => {
   parkLeftovers();
@@ -67,6 +73,7 @@ describe("WhatsApp send (spec §7.1)", () => {
     expect(ledgerRow(whatsapp.notificationId)).toMatchObject({
       status: "sent",
       route: "evolution",
+      provider_message_id: "evo.fake",
       attempts: 0,
       last_error: null,
     });
@@ -83,8 +90,8 @@ describe("WhatsApp send (spec §7.1)", () => {
   });
 
   it("coexistence: the kind's Meta template with clinic, date, time, provider, branch in Arabic", async () => {
-    const fake = new FakeWhatsapp();
-    const h = make(fake);
+    const fake = new FakeMetaSender();
+    const h = make(null, fake);
     const templates = { booked: { name: "appointment_booked", language: "ar" } };
     const { w, appt } = linkedClinic("ar", { transport: "coexistence", templates });
     const { notificationId } = queueNotification(w, "booked", appt, "whatsapp");
@@ -95,6 +102,7 @@ describe("WhatsApp send (spec §7.1)", () => {
     expect(call.action).toBe("template");
     if (call.action !== "template") return;
     expect(call.number).toBe(`965${w.phone}`);
+    expect(call.credentials).toEqual({ phoneNumberId: "10000", accessToken: META_TOKEN });
     expect(call.template.name).toBe("appointment_booked");
     expect(call.template.language).toBe("ar");
     const [clinic, date, time, provider, branch, ...rest] = call.template.parameters;
@@ -106,12 +114,16 @@ describe("WhatsApp send (spec §7.1)", () => {
     ]);
     expect(date).toMatch(/\d{4}/);
     expect(time).toMatch(/\d{1,2}:\d{2}/);
-    expect(ledgerRow(notificationId)).toMatchObject({ status: "sent", route: "coexistence" });
+    expect(ledgerRow(notificationId)).toMatchObject({
+      status: "sent",
+      route: "coexistence",
+      provider_message_id: "wamid.fake",
+    });
   });
 
   it("coexistence prescription: the template's language (en_US) wins, lines on one line, audited", async () => {
-    const fake = new FakeWhatsapp();
-    const h = make(fake);
+    const fake = new FakeMetaSender();
+    const h = make(null, fake);
     const templates = { prescription: { name: "rx_lines", language: "en_US" } };
     const { w } = linkedClinic("ar", { transport: "coexistence", templates });
     const visitId = seedSignedVisit(w, [
@@ -133,7 +145,11 @@ describe("WhatsApp send (spec §7.1)", () => {
       "Dr. Huda",
       "Paracetamol — 500 mg — 3x — 5 days • Vitamin D — 1000 IU — daily — 1 month",
     ]);
-    expect(ledgerRow(notificationId)).toMatchObject({ status: "sent", route: "coexistence" });
+    expect(ledgerRow(notificationId)).toMatchObject({
+      status: "sent",
+      route: "coexistence",
+      provider_message_id: "wamid.fake",
+    });
     const audit = ownerJson<{ action: string }[]>(
       `SELECT action FROM audit_log WHERE clinic_id = ${q(w.clinicId)} AND entity_id = ${q(w.patientId)}`,
     );
@@ -141,8 +157,8 @@ describe("WhatsApp send (spec §7.1)", () => {
   });
 
   it("template_missing: coexistence without a template for the kind sends nothing", async () => {
-    const fake = new FakeWhatsapp();
-    const h = make(fake);
+    const fake = new FakeMetaSender();
+    const h = make(null, fake);
     const templates = { booked: null, reminder_day: { name: "day_before", language: "en" } };
     const { w, appt } = linkedClinic("en", { transport: "coexistence", templates });
     const { notificationId } = queueNotification(w, "booked", appt, "whatsapp");

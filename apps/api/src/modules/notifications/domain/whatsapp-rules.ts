@@ -57,8 +57,9 @@ export function instanceNameFor(clinicId: string): string {
  */
 export function last4FromOwnerJid(ownerJid: unknown): string | null {
   if (typeof ownerJid !== "string") return null;
-  const digits = /^(\d+)(?::\d+)?@/.exec(ownerJid)?.[1];
-  return digits === undefined || digits.length < 4 ? null : digits.slice(-4);
+  const digits = ownerJid.split("@")[0]?.split(":")[0];
+  if (digits === undefined || !/^\d+$/.test(digits)) return null;
+  return digits.length < 4 ? null : digits.slice(-4);
 }
 
 const QR_DATA_URL = /^data:image\/png;base64,[A-Za-z0-9+/=]+$/;
@@ -70,7 +71,9 @@ const QR_DATA_URL = /^data:image\/png;base64,[A-Za-z0-9+/=]+$/;
  * @returns الـ data URL أو `null`
  */
 export function qrDataUrlOf(value: unknown): string | null {
-  return typeof value === "string" && QR_DATA_URL.test(value) ? value : null;
+  if (typeof value !== "string" || value === "") return null;
+  const url = value.startsWith("data:image/png;base64,") ? value : `data:image/png;base64,${value}`;
+  return QR_DATA_URL.test(url) ? url : null;
 }
 
 /**
@@ -132,15 +135,15 @@ export function templatesOf(raw: unknown): WhatsappTemplates {
 }
 
 /**
- * هل حفظ coexistence محتاج instance جديد على Evolution؟ أول ربط، أو طريقة ربط تانية، أو توكن جديد، أو
+ * هل حفظ coexistence محتاج تحقق جديد من Meta؟ أول ربط، أو طريقة ربط تانية، أو توكن جديد، أو
  * أرقام Meta اتغيّرت. القوالب لوحدها مش محتاجة.
  *
  * @param record صف القناة أو `null`
  * @param request الطلب
  * @param tokenChanged التوكن في الطلب غير المحفوظ
- * @returns `true` لو لازم الـ instance يتعمل من جديد
+ * @returns `true` لو لازم التحقق من البيانات
  */
-export function coexistenceNeedsInstance(
+export function coexistenceNeedsVerification(
   record: ChannelRecord | null,
   request: WhatsappCoexistenceRequest,
   tokenChanged: boolean,
@@ -149,7 +152,6 @@ export function coexistenceNeedsInstance(
     record === null ||
     record.transport !== "coexistence" ||
     record.status !== "connected" ||
-    record.instanceName === null ||
     tokenChanged ||
     record.phoneNumberId !== request.phoneNumberId ||
     record.businessAccountId !== request.businessAccountId
@@ -176,7 +178,7 @@ export function coexistenceUnchanged(
 ): boolean {
   return (
     record !== null &&
-    !coexistenceNeedsInstance(record, request, tokenChanged) &&
+    !coexistenceNeedsVerification(record, request, tokenChanged) &&
     sameTemplates(record.templates, request.templates)
   );
 }

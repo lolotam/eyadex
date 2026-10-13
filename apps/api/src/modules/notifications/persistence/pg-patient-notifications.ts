@@ -7,6 +7,7 @@ import type { Tx } from "@eyadex/db";
 import { sql } from "drizzle-orm";
 
 import type { NotificationSubject } from "../domain/notification-rules.ts";
+import { notificationFailureReason } from "../domain/notification-failure-reason.ts";
 
 // The ledger (0056): one row per message per channel, no address and no text. Every statement runs
 // inside the caller's withTenant(clinicId) transaction and filters on clinic_id itself.
@@ -58,6 +59,7 @@ interface HistoryRow {
   route: PatientNotification["route"];
   created_at: string | Date;
   sent_at: string | Date | null;
+  last_error: string | null;
 }
 
 const iso = (value: string | Date) => new Date(value).toISOString();
@@ -74,7 +76,7 @@ export async function notificationsOf(
   subjectId: string,
 ): Promise<PatientNotification[]> {
   const rows = await tx.execute<HistoryRow>(
-    sql`SELECT id, kind, channel, status, skip_reason, route, created_at, sent_at
+    sql`SELECT id, kind, channel, status, skip_reason, route, created_at, sent_at, last_error
         FROM patient_notifications
         WHERE clinic_id = ${clinicId} AND subject_id = ${subjectId}
           AND subject_type = ${subjectType}
@@ -89,5 +91,6 @@ export async function notificationsOf(
     route: row.route,
     createdAt: iso(row.created_at),
     sentAt: row.sent_at === null ? null : iso(row.sent_at),
+    failureReason: notificationFailureReason(row.status, row.last_error),
   }));
 }

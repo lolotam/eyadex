@@ -14,6 +14,7 @@ describe("classifyEvolutionResponse", () => {
   it("2xx with a message key → sent", () => {
     expect(classifyEvolutionResponse(201, { key: { id: "3EB0ABC", fromMe: true } })).toEqual({
       sent: true,
+      messageId: "3EB0ABC",
     });
   });
 
@@ -81,12 +82,29 @@ describe("classifyEvolutionError", () => {
     expect(classifyEvolutionError("weird")).toBe("evo_unreachable");
   });
 
-  it("only a number that is not on WhatsApp is final", () => {
-    expect(finalWhatsappError("evo_not_on_whatsapp")).toBe(true);
-    for (const code of ["evo_timeout", "evo_unreachable", "evo_5xx", "evo_not_connected"]) {
-      expect(finalWhatsappError(code)).toBe(false);
-    }
+  it("ambiguous and definitive failures stop; only safe failures retry", () => {
+    for (const code of [
+      "evo_not_on_whatsapp",
+      "evo_timeout",
+      "evo_rejected",
+      "evo_unauthorized",
+      "evo_not_connected",
+      "evo_4xx",
+    ])
+      expect(finalWhatsappError(code)).toBe(true);
+    for (const code of ["evo_unreachable", "evo_5xx"]) expect(finalWhatsappError(code)).toBe(false);
   });
+  it.each(["Connection Closed", ["Connection Closed"]])(
+    "detects closed connections in either message field: %s",
+    (message) => {
+      for (const body of [{ message }, { response: { message } }]) {
+        expect(classifyEvolutionResponse(503, body)).toEqual({
+          sent: false,
+          error: "evo_not_connected",
+        });
+      }
+    },
+  );
 });
 
 type Call = { url: string; init: RequestInit };
@@ -104,49 +122,28 @@ const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
 describe("EvolutionWhatsappSender", () => {
-  const options = { url: "http://evolution.internal.test:8080", apiKey: "test-only-key" };
+  const options = {
+    url: "http://evolution.internal.test:8080",
+    apiKey: randomBytes(24).toString("hex"),
+  };
 
   it("sendText posts {number, text} to /message/sendText/:instance with the apikey header", async () => {
     const { calls, fetch } = fakeFetch(() => json(201, { key: { id: "3EB0" } }));
     const sender = new EvolutionWhatsappSender({ ...options, fetch });
-    expect(await sender.sendText("eyadex-clinic/1", NUMBER, "Hello")).toEqual({ sent: true });
+    expect(await sender.sendText("eyadex-clinic/1", NUMBER, "Hello")).toEqual({
+      sent: true,
+      messageId: "3EB0",
+    });
     expect(calls).toHaveLength(1);
     const [call] = calls;
     expect(call!.url).toBe(
       "http://evolution.internal.test:8080/message/sendText/eyadex-clinic%2F1",
     );
     expect(call!.init.method).toBe("POST");
-    expect(call!.init.headers).toMatchObject({ apikey: "test-only-key" });
+    expect(call!.init.headers).toMatchObject({ apikey: options.apiKey });
     expect(JSON.parse(String(call!.init.body))).toEqual({ number: NUMBER, text: "Hello" });
     expect(call!.init.signal).toBeInstanceOf(AbortSignal);
     expect(call!.init.redirect).toBe("error");
-  });
-
-  it("sendTemplate posts name, language and one body component with text parameters in order", async () => {
-    const { calls, fetch } = fakeFetch(() => json(201, { key: { id: "wamid.1" } }));
-    const sender = new EvolutionWhatsappSender({ ...options, fetch });
-    const result = await sender.sendTemplate("eyadex-c", NUMBER, {
-      name: "appointment_booked",
-      language: "ar",
-      parameters: ["A", "B", "C"],
-    });
-    expect(result).toEqual({ sent: true });
-    expect(calls[0]!.url).toBe("http://evolution.internal.test:8080/message/sendTemplate/eyadex-c");
-    expect(JSON.parse(String(calls[0]!.init.body))).toEqual({
-      number: NUMBER,
-      name: "appointment_booked",
-      language: "ar",
-      components: [
-        {
-          type: "body",
-          parameters: [
-            { type: "text", text: "A" },
-            { type: "text", text: "B" },
-            { type: "text", text: "C" },
-          ],
-        },
-      ],
-    });
   });
 
   it("a network failure is a code, never a throw", async () => {
@@ -180,3 +177,4 @@ describe("EvolutionWhatsappSender", () => {
     });
   });
 });
+import { randomBytes } from "node:crypto";

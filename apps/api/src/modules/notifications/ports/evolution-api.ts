@@ -1,14 +1,4 @@
 /** How an Evolution instance links the clinic's number (spec §7.1, N-6). */
-export type EvolutionIntegration =
-  | { readonly kind: "baileys" }
-  | {
-      readonly kind: "business";
-      /** Meta's access token; travels only in the create request body. */
-      readonly accessToken: string;
-      readonly phoneNumberId: string;
-      readonly businessAccountId: string;
-    };
-
 /** What `instance/connect` answered: linked, a QR to scan (maybe not generated yet), or no instance. */
 export type EvolutionConnectResult =
   | { readonly state: "open" }
@@ -31,13 +21,16 @@ export interface EvolutionApi {
    * بيعمل instance للعيادة. لو الاسم موجود بالفعل على Evolution يبقى `exists` (مش خطأ).
    *
    * @param instanceName `eyadex-<clinic id>`
-   * @param integration Baileys (QR) أو Business (coexistence)
    * @returns `created` أو `exists`
    */
-  createInstance(
-    instanceName: string,
-    integration: EvolutionIntegration,
-  ): Promise<"created" | "exists">;
+  createInstance(instanceName: string): Promise<"created" | "exists">;
+
+  /**
+   * يسجل webhook على instance قديم قبل الربط.
+   * @param instanceName اسم instance
+   * @returns اكتمال التسجيل
+   */
+  setWebhook(instanceName: string): Promise<void>;
 
   /**
    * بيبدأ الربط أو يكمّله ويرجع الـ QR (data URL لصورة PNG)، أو `open` لو الرقم مربوط.

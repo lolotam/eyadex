@@ -4,10 +4,9 @@ import type {
   EvolutionApi,
   EvolutionConnectionState,
   EvolutionConnectResult,
-  EvolutionIntegration,
 } from "../ports/evolution-api.ts";
 
-// Every call gives up after 5 s: the API answers 503 instead of holding the request.
+// Calls give up after 5 s (create: 10 s): the API answers 503 instead of holding the request.
 const TIMEOUT_MS = 5_000;
 
 type Body = Record<string, unknown> | unknown[] | null;
@@ -35,27 +34,46 @@ export class HttpEvolutionApi implements EvolutionApi {
   readonly configured = true;
 
   constructor(
-    private readonly config: { readonly baseUrl: URL; readonly apiKey: string },
+    private readonly config: {
+      readonly baseUrl: URL;
+      readonly apiKey: string;
+      readonly webhookUrl: string;
+      readonly webhookSecret: string;
+    },
     private readonly fetchImpl: typeof fetch = fetch,
   ) {}
 
-  async createInstance(
-    instanceName: string,
-    integration: EvolutionIntegration,
-  ): Promise<"created" | "exists"> {
-    // No `qrcode: true`: Evolution then waits 5 s before answering, past this adapter's timeout. The QR
-    // comes from `instance/connect` right after.
-    const body =
-      integration.kind === "baileys"
-        ? { instanceName, integration: "WHATSAPP-BAILEYS", qrcode: false }
-        : {
-            instanceName,
-            integration: "WHATSAPP-BUSINESS",
-            token: integration.accessToken,
-            number: integration.phoneNumberId,
-            businessId: integration.businessAccountId,
-          };
-    const answer = await this.request("POST", "/instance/create", body);
+  private webhook() {
+    // Evolution v2.3.7 reads byEvents/base64; webhookByEvents/webhookBase64 are persistence names.
+    return {
+      enabled: true,
+      url: this.config.webhookUrl,
+      byEvents: false,
+      base64: false,
+      headers: { "x-eyadex-webhook": this.config.webhookSecret },
+      events: ["MESSAGES_UPDATE", "CONNECTION_UPDATE"],
+    };
+  }
+
+  async setWebhook(instanceName: string): Promise<void> {
+    const answer = await this.request("POST", `/webhook/set/${encodeURIComponent(instanceName)}`, {
+      webhook: this.webhook(),
+    });
+    if (answer.status !== 200 && answer.status !== 201) throw unavailable();
+  }
+
+  async createInstance(instanceName: string): Promise<"created" | "exists"> {
+    const answer = await this.request(
+      "POST",
+      "/instance/create",
+      {
+        instanceName,
+        integration: "WHATSAPP-BAILEYS",
+        qrcode: false,
+        webhook: this.webhook(),
+      },
+      10_000,
+    );
     if (answer.status === 201 || answer.status === 200) return "created";
     // Evolution refuses a name already in use with 403 (instanceLoggedGuard).
     if (answer.status === 403) return "exists";
@@ -75,8 +93,10 @@ export class HttpEvolutionApi implements EvolutionApi {
     // Already linked: the connection state's shape.
     if (record(body["instance"])["state"] === "open") return { state: "open" };
     // `connecting` / `close`: the QR object itself, or `{ instance, qrcode }` for any other state.
-    const qr = "base64" in body || "code" in body ? body : record(body["qrcode"]);
-    return { state: "pending", qrDataUrl: qrDataUrlOf(qr["base64"]) };
+    return {
+      state: "pending",
+      qrDataUrl: qrDataUrlOf(body["base64"]) ?? qrDataUrlOf(record(body["qrcode"])["base64"]),
+    };
   }
 
   async connectionState(instanceName: string): Promise<EvolutionConnectionState> {
@@ -97,7 +117,8 @@ export class HttpEvolutionApi implements EvolutionApi {
     );
     if (answer.status === 404) return null;
     if (answer.status !== 200 || !Array.isArray(answer.body)) throw unavailable();
-    return last4FromOwnerJid(record(answer.body[0])["ownerJid"]);
+    const owner = record(answer.body[0]);
+    return last4FromOwnerJid(owner["ownerJid"]) ?? last4FromOwnerJid(owner["owner"]);
   }
 
   async logout(instanceName: string): Promise<void> {
@@ -119,7 +140,12 @@ export class HttpEvolutionApi implements EvolutionApi {
     throw unavailable();
   }
 
-  private async request(method: "GET" | "POST" | "DELETE", path: string, body?: object) {
+  private async request(
+    method: "GET" | "POST" | "DELETE",
+    path: string,
+    body?: object,
+    timeoutMs = TIMEOUT_MS,
+  ) {
     let response: Response;
     try {
       response = await this.fetchImpl(new URL(path, this.config.baseUrl), {
@@ -130,7 +156,7 @@ export class HttpEvolutionApi implements EvolutionApi {
         },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
         redirect: "error",
-        signal: AbortSignal.timeout(TIMEOUT_MS),
+        signal: AbortSignal.timeout(timeoutMs),
       });
     } catch {
       throw unavailable();
@@ -154,6 +180,10 @@ export class UnconfiguredEvolutionApi implements EvolutionApi {
   readonly configured = false;
 
   createInstance(): Promise<"created" | "exists"> {
+    return Promise.reject(unavailable());
+  }
+
+  setWebhook(): Promise<void> {
     return Promise.reject(unavailable());
   }
 

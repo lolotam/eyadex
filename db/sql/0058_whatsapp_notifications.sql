@@ -19,3 +19,18 @@ ALTER TABLE patient_notifications ADD CONSTRAINT patient_notifications_skip_reas
 
 -- No grant change: eyadex_app keeps 0054's and 0056's table-level privileges, which cover the new
 -- column, and the platform still has none.
+ALTER TABLE patient_notifications ADD COLUMN provider_message_id text NULL
+  CONSTRAINT patient_notifications_provider_message_id_check CHECK (char_length(provider_message_id) <= 200);
+CREATE INDEX patient_notifications_clinic_provider_message_idx
+  ON patient_notifications (clinic_id, provider_message_id) WHERE provider_message_id IS NOT NULL;
+
+-- A provider can accept then reject delivery. Keep the original route and acceptance time only for
+-- that specific WhatsApp/Evolution failure; every other unsent row still has neither.
+ALTER TABLE patient_notifications DROP CONSTRAINT patient_notifications_sent_check;
+ALTER TABLE patient_notifications ADD CONSTRAINT patient_notifications_sent_check CHECK (
+  (route IS NULL AND sent_at IS NULL AND status <> 'sent')
+  OR (route IS NOT NULL AND sent_at IS NOT NULL AND (
+    status = 'sent' OR (status = 'failed' AND channel = 'whatsapp' AND route = 'evolution'
+      AND last_error IS NOT DISTINCT FROM 'evolution:evo_delivery_rejected')
+  ))
+);

@@ -5,6 +5,8 @@ import { HttpEvolutionApi, UnconfiguredEvolutionApi } from "./http-evolution-api
 
 const URL_VAR = "EVOLUTION_API_URL";
 const KEY_VAR = "EVOLUTION_API_KEY";
+const WEBHOOK_URL_VAR = "EVOLUTION_WEBHOOK_URL";
+const WEBHOOK_SECRET_VAR = "EVOLUTION_WEBHOOK_SECRET";
 
 // Same wording as every other startup configuration error of the API: the variable, never its value.
 const invalid = (variables: readonly string[], reason: string): Error =>
@@ -29,18 +31,42 @@ const baseUrlFrom = (raw: string): URL => {
 };
 
 /**
- * Evolution API from `EVOLUTION_API_URL` and `EVOLUTION_API_KEY` (spec §7.1). Both unset = WhatsApp
- * unavailable (the API still starts); one without the other, or a malformed URL, stops the start and
- * names the variable.
+ * يهيئ Evolution والـ webhook معًا؛ غياب المجموعة يعطّل ربط QR فقط، وليس Meta.
  *
- * @param env the process environment
- * @returns the HTTP adapter, or the unconfigured one
+ * @param env بيئة العملية
+ * @returns المنفذ المهيّأ أو المعطّل
  */
 export function evolutionApiFromEnv(env: NodeJS.ProcessEnv): EvolutionApi {
   const url = env[URL_VAR] ?? "";
   const key = env[KEY_VAR] ?? "";
-  if (url === "" && key === "") return new UnconfiguredEvolutionApi();
+  if (url === "" && key === "") {
+    for (const name of [WEBHOOK_URL_VAR, WEBHOOK_SECRET_VAR]) {
+      if ((env[name] ?? "") !== "") throw invalid([name], "must be unset without Evolution");
+    }
+    return new UnconfiguredEvolutionApi();
+  }
   if (url === "") throw invalid([URL_VAR], `must be set with ${KEY_VAR}`);
   if (key === "") throw invalid([KEY_VAR], `must be set with ${URL_VAR}`);
-  return new HttpEvolutionApi({ baseUrl: baseUrlFrom(url), apiKey: key });
+  const baseUrl = baseUrlFrom(url);
+  const webhookUrl = env[WEBHOOK_URL_VAR] ?? "";
+  const webhookSecret = env[WEBHOOK_SECRET_VAR] ?? "";
+  if (webhookUrl === "") throw invalid([WEBHOOK_URL_VAR], "must be set with Evolution");
+  if (webhookSecret.length < 32)
+    throw invalid([WEBHOOK_SECRET_VAR], "must have at least 32 characters");
+  let hook: URL;
+  try {
+    hook = new URL(webhookUrl);
+  } catch {
+    throw invalid([WEBHOOK_URL_VAR], "must be an http or https webhook URL");
+  }
+  if (
+    !["http:", "https:"].includes(hook.protocol) ||
+    hook.username !== "" ||
+    hook.password !== "" ||
+    hook.pathname !== "/v1/hooks/evolution" ||
+    hook.search !== "" ||
+    hook.hash !== ""
+  )
+    throw invalid([WEBHOOK_URL_VAR], "must be an http or https origin plus /v1/hooks/evolution");
+  return new HttpEvolutionApi({ baseUrl, apiKey: key, webhookUrl, webhookSecret });
 }

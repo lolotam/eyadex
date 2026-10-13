@@ -141,5 +141,48 @@ BEGIN
 END $$;
 
 RESET ROLE;
+-- Ledger acceptance metadata survives only a delivery rejection, and provider ids are bounded/indexed.
+SET LOCAL ROLE eyadex_app;
+SELECT set_config('app.clinic_id', '00000000-0000-7000-8000-00000000057a', true);
+DO $$
+DECLARE c uuid := '00000000-0000-7000-8000-00000000057a'; p uuid := '00000000-0000-7000-8000-0000000571a2'; n uuid := gen_random_uuid();
+BEGIN
+  INSERT INTO patient_notifications (clinic_id, id, patient_id, kind, channel, subject_type, subject_id,
+    subject_at, status, route, sent_at, provider_message_id, created_at, updated_at)
+    VALUES (c, n, p, 'booked', 'whatsapp', 'appointment', gen_random_uuid(), now(), 'sent',
+      'evolution', now(), 'evo.fake', now(), now());
+  UPDATE patient_notifications SET status = 'failed', last_error = 'evolution:evo_delivery_rejected' WHERE id = n;
+  IF NOT EXISTS (SELECT 1 FROM patient_notifications WHERE id = n AND route = 'evolution'
+    AND sent_at IS NOT NULL AND provider_message_id = 'evo.fake') THEN
+    RAISE EXCEPTION 'WA-LEDGER: delivery rejection lost acceptance metadata';
+  END IF;
+  BEGIN
+    UPDATE patient_notifications SET provider_message_id = repeat('x', 201) WHERE id = n;
+    RAISE EXCEPTION 'WA-LEDGER: oversized provider id accepted';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    UPDATE patient_notifications SET last_error = NULL WHERE id = n;
+    RAISE EXCEPTION 'WA-LEDGER: failed acceptance metadata allowed without a rejection';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    UPDATE patient_notifications SET last_error = 'evolution:evo_timeout' WHERE id = n;
+    RAISE EXCEPTION 'WA-LEDGER: another failed code retained acceptance metadata';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    UPDATE patient_notifications SET route = 'coexistence' WHERE id = n;
+    RAISE EXCEPTION 'WA-LEDGER: another transport retained rejection metadata';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    UPDATE patient_notifications SET sent_at = NULL WHERE id = n;
+    RAISE EXCEPTION 'WA-LEDGER: only one acceptance field allowed';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename = 'patient_notifications'
+      AND indexname = 'patient_notifications_clinic_provider_message_idx'
+      AND indexdef LIKE '%(clinic_id, provider_message_id)%'
+      AND indexdef LIKE '%WHERE (provider_message_id IS NOT NULL)%') THEN
+    RAISE EXCEPTION 'WA-LEDGER: missing tenant-prefixed partial provider-id index';
+  END IF;
+END $$;
+RESET ROLE;
 \echo 'WhatsApp channel tests: all passed'
 ROLLBACK;

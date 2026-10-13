@@ -15,6 +15,7 @@ import type { ClinicProviderCredentials } from "../../mail-provider-test/ports/c
 import { OutboxPoller } from "../../shared/outbox-poller.ts";
 import { PATIENT_NOTIFICATION_REQUESTED } from "../domain/notification-event.ts";
 import { PgNotificationStore } from "../persistence/pg-notification-store.ts";
+import type { MetaSender } from "../ports/meta-sender.ts";
 import type { WhatsappSender } from "../ports/whatsapp-sender.ts";
 import { notificationDispatcher } from "../send-notification.ts";
 
@@ -177,6 +178,7 @@ export function seedSignedVisit(
 
 export interface LedgerState {
   status: string;
+  provider_message_id: string | null;
   skip_reason: string | null;
   route: string | null;
   sent_at: string | null;
@@ -186,7 +188,7 @@ export interface LedgerState {
 
 export const ledgerRow = (id: string): LedgerState =>
   ownerJson<LedgerState[]>(
-    `SELECT status, skip_reason, route, sent_at, attempts, last_error FROM patient_notifications
+    `SELECT status, provider_message_id, skip_reason, route, sent_at, attempts, last_error FROM patient_notifications
      WHERE id = ${q(id)}`,
   )[0]!;
 
@@ -195,7 +197,7 @@ export function sendHarness(
   app: Database,
   outbox: DispatcherOutbox,
   withCipher = true,
-  options: { whatsapp?: WhatsappSender | null; random?: () => number } = {},
+  options: { whatsapp?: WhatsappSender | null; meta?: MetaSender; random?: () => number } = {},
 ) {
   const platform = new FakeMail();
   const slots = { primary: new FakeMail(), fallback: new FakeMail() };
@@ -226,6 +228,8 @@ export function sendHarness(
       },
       platform,
       whatsapp: options.whatsapp ?? null,
+      ...(options.meta === undefined ? {} : { meta: options.meta }),
+      whatsappSealer: new SecretSealer(PROVIDER_KEY),
       cipher: withCipher ? cipher : null,
       clock,
       ...(options.random === undefined ? {} : { random: options.random }),

@@ -84,6 +84,7 @@ export const patientNotifications = pgTable(
     requestedBy: uuid("requested_by"),
     attempts: integer("attempts").notNull().default(0),
     lastError: text("last_error"),
+    providerMessageId: text("provider_message_id"),
     createdAt: timestamp("created_at", tz).notNull(),
     sentAt: timestamp("sent_at", tz),
     updatedAt: timestamp("updated_at", tz).notNull(),
@@ -109,6 +110,13 @@ export const patientNotifications = pgTable(
       t.createdAt.desc().nullsFirst(),
     ),
     index("patient_notifications_clinic_patient_idx").on(t.clinicId, t.patientId),
+    index("patient_notifications_clinic_provider_message_idx")
+      .on(t.clinicId, t.providerMessageId)
+      .where(sql.raw("provider_message_id IS NOT NULL")),
+    check(
+      "patient_notifications_provider_message_id_check",
+      sql.raw("(char_length(provider_message_id) <= 200)"),
+    ),
     check("patient_notifications_attempts_check", sql.raw("(attempts >= 0)")),
     check(
       "patient_notifications_channel_check",
@@ -130,7 +138,7 @@ export const patientNotifications = pgTable(
     check(
       "patient_notifications_sent_check",
       sql.raw(
-        "(((status = 'sent'::text) = (route IS NOT NULL)) AND ((status = 'sent'::text) = (sent_at IS NOT NULL)))",
+        "(((route IS NULL) AND (sent_at IS NULL) AND (status <> 'sent'::text)) OR ((route IS NOT NULL) AND (sent_at IS NOT NULL) AND ((status = 'sent'::text) OR ((status = 'failed'::text) AND (channel = 'whatsapp'::text) AND (route = 'evolution'::text) AND (NOT (last_error IS DISTINCT FROM 'evolution:evo_delivery_rejected'::text))))))",
       ),
     ),
     check(

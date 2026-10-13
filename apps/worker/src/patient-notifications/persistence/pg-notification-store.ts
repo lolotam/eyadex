@@ -161,7 +161,8 @@ export class PgNotificationStore implements NotificationStore {
     if (outcome.kind === "sent") {
       await tx.execute(
         sql`UPDATE patient_notifications SET status = 'sent', route = ${outcome.route},
-              sent_at = ${at}::timestamptz, updated_at = ${at}::timestamptz WHERE ${row}`,
+              provider_message_id = ${outcome.messageId ?? null},
+              sent_at = ${at}::timestamptz, last_error = NULL, updated_at = ${at}::timestamptz WHERE ${row}`,
       );
     } else if (outcome.kind === "skipped") {
       await tx.execute(

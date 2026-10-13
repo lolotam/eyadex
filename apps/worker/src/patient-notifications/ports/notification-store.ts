@@ -62,6 +62,9 @@ export interface LockedProviders {
 /** صف قناة واتساب العيادة ممسوك `FOR UPDATE` (0057): الطابور بيمشي رسالة واحدة في المرة لكل عيادة. */
 export interface LockedWhatsappChannel {
   readonly kind: "locked";
+  readonly id: string;
+  readonly sealedCredentials: string | null;
+  readonly phoneNumberId: string | null;
   readonly transport: WhatsappTransport | null;
   readonly status: WhatsappStatus;
   readonly instanceName: string | null;
@@ -74,8 +77,15 @@ export interface LockedWhatsappChannel {
    * @param next أول وقت مسموح بالرسالة الجاية
    * @param error كود الفشل، أو `null`
    * @param at وقت المحاولة
+   * @returns اكتمال كتابة الدور والكود
    */
   recordSend(next: Date, error: string | null, at: Date): Promise<void>;
+  /**
+   * يفصل قناة Evolution بعد إغلاق الاتصال.
+   * @param at وقت الفصل
+   * @returns اكتمال الكتابة
+   */
+  disconnect(at: Date): Promise<void>;
 }
 
 /**
@@ -87,7 +97,12 @@ export type WhatsappChannelState =
 
 /** نتيجة المحاولة اللي بتتكتب على صف الدفتر في نفس الـ transaction. */
 export type LedgerOutcome =
-  | { readonly kind: "sent"; readonly route: NotificationRoute; readonly at: Date }
+  | {
+      readonly kind: "sent";
+      readonly route: NotificationRoute;
+      readonly messageId?: string;
+      readonly at: Date;
+    }
   | { readonly kind: "skipped"; readonly reason: NotificationSkipReason; readonly at: Date }
   /** `final` = الفشل الخامس أو فشل مالوش علاج: الصف بيبقى `failed`؛ غير كده بيفضل `queued`. */
   | {

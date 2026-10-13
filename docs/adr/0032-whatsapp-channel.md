@@ -7,7 +7,7 @@
 
 N2 lets a clinic send the N1 messages over WhatsApp through its own number: an unofficial link by QR
 through Evolution API (the number can be banned, so an admin accepts that risk first), or Meta's
-Business Platform in coexistence mode through Evolution's Business integration (N-6). Evolution runs as
+Business Platform in coexistence mode directly through Graph v22.0 (owner revision, 2026-10-13). Evolution runs as
 a dedicated container on the internal network (N-7). SQL 0057 adds `clinic_whatsapp_channels`; 0058 adds
 `clinic_notification_settings.whatsapp_enabled` and widens the ledger's route and skip-reason checks.
 
@@ -17,7 +17,7 @@ a dedicated container on the internal network (N-7). SQL 0057 adds `clinic_whats
    read it, and no new arrow is needed.
 2. **Evolution through a port.** `EvolutionApi` (create, connect, connection state, the owner's last four
    digits, logout, delete), implemented by `HttpEvolutionApi` (global key in the `apikey` header, 5 s
-   timeout, redirects refused) and bound by `NotificationsModule.forRoot` — a test injects a fake there.
+   timeout (10 s on create), redirects refused) and bound by `NotificationsModule.forRoot` — a test injects a fake there.
    `EVOLUTION_API_URL` + `EVOLUTION_API_KEY`: both or neither; neither = linking answers 503 (`unknown`,
    with `details: { code: "unavailable" }` when unconfigured; the contract has no `unavailable` code); one
    without the other, or a URL that is not a plain http(s) origin, stops the start naming the variable.
@@ -36,31 +36,59 @@ a dedicated container on the internal network (N-7). SQL 0057 adds `clinic_whats
    only while an Evolution instance exists for the row's transport. `GET /v1/clinic/whatsapp/qr` reads the
    connection state and, once open, turns `pending` into `connected` with the last four digits of the
    owner (`clinic.whatsapp_connected`); it needs the update key, since a scanned QR links a number.
+   Missing base64 (only code/count) stays pending with null QR; bare base64 gains the PNG data-URL prefix.
    A linked coexistence number refuses an Evolution link (`validation`, `["transport"]`,
    `coexistence_linked`).
 5. **Unlinking** (`POST /v1/clinic/whatsapp/disconnect`) logs the Evolution number out (the instance is
-   kept for the next link) or deletes the coexistence instance, then sets `disconnected`
+   kept for the next link); coexistence unlinking makes no external call. It sets `disconnected`
    (`clinic.whatsapp_disconnected`, `{ transport }`). Without Evolution configured it only clears the row.
    `whatsapp_enabled` is left as saved; the worker skips with `whatsapp_disconnected`.
-6. **Coexistence** (`PUT /v1/clinic/whatsapp/coexistence`): the access token is write-only, sealed with
-   `MAIL_PROVIDER_SEAL_KEY` bound to the channel row id, kept when omitted (refused on a first save:
-   `["accessToken"]`, `required`). The API deletes any instance of the clinic and creates the Business one
-   (`WHATSAPP-BUSINESS`, `token`, `number` = phone number id, `businessId`) when the transport, the token or
-   the Meta ids change; templates alone change the row only. The channel is then `connected`. An Evolution
-   number being linked or linked refuses it (`["transport"]`, `evolution_linked`). The audit
-   (`clinic.whatsapp_coexistence_updated`) holds `tokenChanged` and the status and templates before and
-   after — no token, no Meta id.
+6. **Coexistence** (`PUT /v1/clinic/whatsapp/coexistence`): token write-only, sealed with
+   `MAIL_PROVIDER_SEAL_KEY` bound to the channel row id, kept when omitted (required on first save).
+   `MetaApi` / `HttpMetaApi` verifies with Graph v22.0 whenever transport, token or either id changes:
+   GET phone number (`display_phone_number,verified_name`, last four digits retained), then POST business
+   account `subscribed_apps`. No `/register`, no Evolution Business instance, no Evolution configuration
+   requirement. Templates-only edits touch the row only. Every request has a 10 s timeout and refuses
+   redirects; invalid credentials (400/401/403/190) are a token-field validation error
+   `meta_credentials_invalid`; network/5xx/timeout are 503. The channel becomes connected with no
+   `instance_name`. An Evolution number pending or linked refuses the switch (`evolution_linked`).
+   Audit retains tokenChanged, status and templates only, never token or Meta ids.
 7. **Settings and queueing.** `PUT /v1/clinic/notification-settings` refuses `whatsappEnabled: true` while
    the channel is not `connected` (`validation`, `["whatsappEnabled"]`, `whatsapp_not_connected`), also
    when it was on before and the channel dropped since. The N1 queue step adds one `whatsapp` ledger row and
    its `patient.notification_requested` event per message when WhatsApp is on, the message is on and the
    channel is `connected` — a plain read, so the ADR-0027 lock order is unchanged.
 
+8. **Evolution webhook:** API-only `EVOLUTION_WEBHOOK_URL` and `EVOLUTION_WEBHOOK_SECRET` (at least 32 chars)
+   are required with Evolution and forbidden without it. Docker's API listens on port 3000 (local API:
+   default 3001). Create registers a nested webhook using v2.3.7 request fields `byEvents` and `base64`,
+   both false, secret in `x-eyadex-webhook`, events MESSAGES_UPDATE and CONNECTION_UPDATE. Existing
+   connects also POST `/webhook/set/:instance`. The exact fields are verified in
+   [InstanceDto 2.3.7](https://github.com/evolution-foundation/evolution-api/blob/2.3.7/src/api/dto/instance.dto.ts).
+   `POST /v1/hooks/evolution` uses the shared Public declaration, an independent constant-time secret
+   guard and the public Redis limiter. Only that exact POST permits an internal host; browser session,
+   CSRF and origin checks do not apply. Wrong header is the existing bilingual 401 `unauthorized`
+   (the brief's "unauthenticated" maps to the existing contract); unconfigured is 404. Unknown events,
+   malformed input and unknown clinics are ignored with 200. Never log the body.
+   Under withTenant from `eyadex-<uuid>`, message ERROR/0 with keyId/key.id changes matching sent
+   WhatsApp/Evolution rows to failed (`evolution:evo_delivery_rejected`). Connection close disconnects
+   only Evolution, clears connected_at, stores evo_connection_closed and audits with a system actor.
+9. **Worker and ledger:** direct Meta templates use the row-bound SecretSealer, Graph v22.0, 15 s
+   timeout and no redirects. Every successful WhatsApp send stores provider_message_id (at most 200):
+   Evolution key.id / Meta messages[0].id; 0058 adds the tenant-prefixed partial index.
+   The sent CHECK allows acceptance route/time on a failed row only for Evolution delivery rejection;
+   all other unsent rows keep neither. History maps last_error to the coarse failureReason contract.
+   Evolution timeout, rejected, unauthorized, not-on-WhatsApp, other 4xx and not-connected are final.
+   Not-connected or a 5xx "Connection Closed" in either message field also disconnects the channel;
+   later rows skip. Other 5xx and unreachable retry the N1 schedule. Meta unauthorized (401/190/10/
+   200-299), template (132000-132015/132068/132069), not-on-WhatsApp (131026), timeout and other 4xx
+   are final; rate-limited (4/80007/130429/131048/131056), 5xx and unreachable retry.
+
 ## Consequences
 
-- A clinic can show WhatsApp switched on while its number is unlinked; its messages are skipped
-  (`whatsapp_disconnected`) until it links again or switches WhatsApp off.
-- Changing the coexistence token re-creates the Evolution instance (Evolution keeps the token as the
-  instance's own key), so a send in flight at that moment may fail once and retry.
-- The worker opens the token with `SecretSealer(MAIL_PROVIDER_SEAL_KEY).open(sealed, <channel row id>)`
-  and keeps the pace in `next_send_at`, the one column the API never writes.
+- Coexistence works independently of Evolution; a template edit needs no provider verification.
+- No provider text, secret or full phone number is retained in logs, audit or the ledger.
+- Evolution acceptance may later turn into failure; the original send timestamp remains evidence.
+- Timeouts are final because retrying an ambiguously accepted WhatsApp message can send it twice.
+- The worker app transaction budget is 30 s so Meta's 15 s deadline can finish and settle the ledger.
+- 0057 and 0058 are still unapplied; this revision edits them without adding 0059 or touching applied SQL.
