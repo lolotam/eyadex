@@ -61,6 +61,15 @@ describe.each(["ar", "en"] as const)("coexistence refusals (%s)", (lang) => {
     expect(await screen.findByText(dict.whatsapp.errors.evolution_linked)).toBeTruthy();
   });
 
+  it("shows Meta's credentials refusal under the token field", async () => {
+    save.mockRejectedValue(
+      new ApiError("validation", undefined, { accessToken: "meta_credentials_invalid" }),
+    );
+    const dict = mount(view, lang);
+    fireEvent.click(screen.getByRole("button", { name: dict.common.save }));
+    expect(await screen.findByText(dict.whatsapp.errors.meta_credentials_invalid)).toBeTruthy();
+  });
+
   it("shows the API's required-token refusal under the token field", async () => {
     save.mockRejectedValue(new ApiError("validation", undefined, { accessToken: "required" }));
     const dict = mount(view, lang);

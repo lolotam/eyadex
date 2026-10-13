@@ -76,6 +76,10 @@ export function WhatsappCoexistenceDialog({
         setErrors({ transport: "whatsapp.errors.evolution_linked" });
         return;
       }
+      if (e instanceof ApiError && e.details["accessToken"] === "meta_credentials_invalid") {
+        setErrors({ accessToken: "whatsapp.errors.meta_credentials_invalid" });
+        return;
+      }
       if (e instanceof ApiError && e.details["accessToken"] === "required")
         setErrors({ accessToken: "validation.required" });
       toast.error(t(`errors.${errorCodeOf(e)}`));
@@ -113,6 +117,9 @@ export function WhatsappCoexistenceDialog({
         autoComplete={type === "password" ? "new-password" : "off"}
         {...register(name)}
       />
+      {name === "accessToken" && (
+        <p className="text-xs text-muted-foreground">{t("whatsapp.business.tokenHelp")}</p>
+      )}
       {name === "accessToken" && tokenStored && (
         <p className="text-xs text-muted-foreground">{t("whatsapp.business.tokenStored")}</p>
       )}

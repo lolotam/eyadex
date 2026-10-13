@@ -85,10 +85,22 @@ describe("whatsapp mock", () => {
     getState().whatsapp = { channels: {}, unavailable: true };
     const error = await api.whatsapp.connect(admin, ACCEPT).catch((e) => e);
     expect(isWhatsappUnavailable(error)).toBe(true);
-    const saveError = await api.whatsapp
-      .saveCoexistence(admin, coexistence({ accessToken: TOKEN }))
-      .catch((e) => e);
-    expect(isWhatsappUnavailable(saveError)).toBe(true);
+    // Round 2: WhatsApp Business talks to Meta directly, so it still saves and connects.
+    await api.whatsapp.saveCoexistence(admin, coexistence({ accessToken: TOKEN }));
+    expect(await api.whatsapp.channel(admin)).toMatchObject({
+      status: "connected",
+      phoneLast4: "0000",
+    });
+  });
+
+  it("refuses a token Meta rejects with meta_credentials_invalid on accessToken", async () => {
+    await expect(
+      api.whatsapp.saveCoexistence(admin, coexistence({ accessToken: "invalid-token-0123456789" })),
+    ).rejects.toMatchObject({
+      code: "validation",
+      details: { accessToken: "meta_credentials_invalid" },
+    });
+    expect((await api.whatsapp.channel(admin)).status).toBe("disconnected");
   });
 
   it("refuses Evolution while coexistence is linked, without changing the channel", async () => {
@@ -181,7 +193,8 @@ describe("whatsapp mock", () => {
 describe("whatsapp queueing", () => {
   const subject = () => {
     const db = getState();
-    const p = db.patients.find((x) => x.clinicId === db.clinics[0]!.id)!;
+    // A phone not ending in 0: the demo fails WhatsApp delivery to those (see the next test).
+    const p = db.patients.find((x) => x.clinicId === db.clinics[0]!.id && !x.phone.endsWith("0"))!;
     return {
       clinicId: p.clinicId,
       patientId: p.id,
@@ -196,6 +209,19 @@ describe("whatsapp queueing", () => {
   it("queues nothing on WhatsApp while it is off", () => {
     queueNotification(getState(), subject());
     expect(rows()).toEqual([]);
+  });
+
+  it("fails delivery_rejected for a patient whose phone ends in 0", async () => {
+    await connectAndScan();
+    await api.notifications.updateSettings(admin, {
+      ...DEFAULT_NOTIFICATION_SETTINGS,
+      whatsappEnabled: true,
+    });
+    const s = subject();
+    getState().patients.find((p) => p.id === s.patientId)!.phone = "+96550000000";
+    queueNotification(getState(), s);
+    vi.advanceTimersByTime(MOCK_SEND_DELAY_MS);
+    expect(rows()[0]).toMatchObject({ status: "failed", failureReason: "delivery_rejected" });
   });
 
   it("sends through evolution when enabled and connected", async () => {

@@ -112,5 +112,16 @@ export const enNotifications = {
       coexistence: "WhatsApp Business",
     },
     channel: { email: "Email", whatsapp: "WhatsApp" },
+    failure: {
+      delivery_rejected:
+        "WhatsApp refused delivery (often because the patient never messaged the clinic)",
+      not_on_whatsapp: "This number is not on WhatsApp",
+      whatsapp_credentials: "WhatsApp credentials were refused — check the settings",
+      template: "Meta refused the message template",
+      disconnected: "The clinic's phone disconnected from WhatsApp",
+      unconfirmed: "No answer in time; not resent so the message is never duplicated",
+      invalid_address: "The phone number or email is not valid",
+      other: "Could not send",
+    },
   },
 };

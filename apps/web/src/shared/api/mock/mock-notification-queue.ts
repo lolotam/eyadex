@@ -56,7 +56,16 @@ function skipReason(db: MockState, row: StoredNotification): NotificationSkipRea
   return null;
 }
 
-/** The mock worker: settles one queued row as sent or skipped. */
+/**
+ * Demo rule (deterministic, brief round 2 §3): WhatsApp accepts every message, then refuses delivery to
+ * a patient whose phone ends in 0 — the row fails with `delivery_rejected`, as a real late refusal would.
+ */
+function rejectsDelivery(db: MockState, row: StoredNotification): boolean {
+  const patient = db.patients.find((p) => p.clinicId === row.clinicId && p.id === row.patientId);
+  return patient?.phone.replace(/\D/g, "").endsWith("0") ?? false;
+}
+
+/** The mock worker: settles one queued row as sent, skipped or failed. */
 export function settleNotification(db: MockState, id: string): void {
   const row = notificationState(db).ledger.find((r) => r.id === id);
   if (!row || row.status !== "queued") return;
@@ -64,6 +73,10 @@ export function settleNotification(db: MockState, id: string): void {
   if (reason) {
     row.status = "skipped";
     row.skipReason = reason;
+  } else if (row.channel === "whatsapp" && rejectsDelivery(db, row)) {
+    row.status = "failed";
+    row.failureReason = "delivery_rejected";
+    row.route = channelOf(db, row.clinicId).transport ?? "evolution";
   } else {
     row.status = "sent";
     row.route =
@@ -100,7 +113,7 @@ function queueRow(
   db: MockState,
   subject: Omit<
     StoredNotification,
-    "id" | "channel" | "status" | "skipReason" | "route" | "createdAt" | "sentAt"
+    "id" | "channel" | "status" | "skipReason" | "route" | "createdAt" | "sentAt" | "failureReason"
   >,
   channel: NotificationChannel,
 ): void {
@@ -126,6 +139,7 @@ function queueRow(
     route: null,
     createdAt: new Date().toISOString(),
     sentAt: null,
+    failureReason: null,
   };
   ledger.push(row);
   setTimeout(() => {
@@ -149,6 +163,7 @@ export function historyOf(db: MockState, clinicId: string, subjectId: string) {
       route: r.route,
       createdAt: r.createdAt,
       sentAt: r.sentAt,
+      failureReason: r.status === "failed" ? (r.failureReason ?? "other") : null,
     }));
   return { items };
 }
