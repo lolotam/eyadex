@@ -287,6 +287,11 @@ BEGIN
   UPDATE clinic_whatsapp_channels SET status = 'disconnected' WHERE clinic_id = b;
   GET DIAGNOSTICS n = ROW_COUNT;
   IF n <> 0 THEN RAISE EXCEPTION 'ISO-01 write leak: updated % WhatsApp channels of another clinic', n; END IF;
+  -- 0059: a delivery status never reaches another clinic's ledger, even by its provider message id.
+  UPDATE patient_notifications SET status = 'failed', last_error = 'coexistence:meta_rejected'
+    WHERE clinic_id = b OR provider_message_id IS NOT NULL;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 0 THEN RAISE EXCEPTION 'ISO-01 write leak: a delivery status reached % rows', n; END IF;
   -- R1-13: one active row per place in a visit's list; archiving frees the place.
   BEGIN
     INSERT INTO visit_diagnoses VALUES ('00000000-0000-7000-8000-00000000000a', gen_random_uuid(), '00000000-0000-7000-8000-0000000003a5', 0, 'text', null, 'f1.1.iv.ct.tag', now(), null);
@@ -360,6 +365,9 @@ BEGIN
   BEGIN PERFORM 1 FROM patient_notifications LIMIT 1; RAISE EXCEPTION 'PLAT-01: platform can read patient_notifications';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   BEGIN PERFORM 1 FROM clinic_whatsapp_channels LIMIT 1; RAISE EXCEPTION 'PLAT: platform can read clinic_whatsapp_channels';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  -- 0059: the pre-tenant routing of Meta's webhook is the clinic API's only.
+  BEGIN PERFORM whatsapp_clinic_for_phone_number('12345'); RAISE EXCEPTION 'PLAT: platform can route a Meta number';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   BEGIN PERFORM 1 FROM audit_log LIMIT 1; RAISE EXCEPTION 'PLAT-01: platform can read audit_log';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;

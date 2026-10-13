@@ -1,7 +1,12 @@
 import { randomBytes } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { ApiError, ServiceUnavailableError } from "../../../shared/errors.ts";
-import { metaCredentialsInvalid, metaPhoneLast4 } from "../domain/meta-verification.ts";
+import {
+  metaAccessToken,
+  metaCredentialsInvalid,
+  metaPhoneLast4,
+  metaTwoStepEnabled,
+} from "../domain/meta-verification.ts";
 import { HttpMetaApi } from "../persistence/http-meta-api.ts";
 
 const credentials = {
@@ -85,5 +90,68 @@ describe("Meta verification boundary", () => {
       5,
     );
     await expect(timed.verify(credentials)).rejects.toBeInstanceOf(ServiceUnavailableError);
+  });
+});
+
+// N3 (spec §7.2): Embedded Signup's code exchange and the two-step refusal. Shaped placeholders only.
+const app = { appId: "1234567890", appSecret: randomBytes(16).toString("hex") };
+const code = randomBytes(12).toString("hex");
+
+describe("Meta code exchange (Embedded Signup)", () => {
+  it("GETs oauth/access_token with the app and the code, no redirect_uri and no bearer", async () => {
+    const token = randomBytes(24).toString("hex");
+    const { api, calls } = scripted(json(200, { access_token: token, token_type: "bearer" }));
+    expect(await api.exchangeCode(code, app)).toBe(token);
+    expect(calls).toHaveLength(1);
+    const url = new URL(calls[0]!.url);
+    expect(url.origin + url.pathname).toBe("https://graph.facebook.com/v22.0/oauth/access_token");
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      client_id: app.appId,
+      client_secret: app.appSecret,
+      code,
+    });
+    expect(calls[0]!.init).toMatchObject({ method: "GET", redirect: "error", headers: {} });
+  });
+  it.each([400, 401, 403])("a refused code (HTTP %s) is a code field error", async (status) => {
+    const { api } = scripted(json(status, { error: { code: 100, message: app.appSecret } }));
+    const error = await api.exchangeCode(code, app).catch((e: unknown) => e);
+    expect(error).toMatchObject({
+      code: "validation",
+      details: [{ path: ["code"], code: "meta_code_invalid" }],
+    });
+    expect(JSON.stringify(error)).not.toContain(app.appSecret);
+  });
+  it.each([json(503, {}), json(200, {}), json(200, { access_token: "" })])(
+    "an unavailable or malformed answer is 503",
+    async (response) => {
+      await expect(scripted(response).api.exchangeCode(code, app)).rejects.toBeInstanceOf(
+        ServiceUnavailableError,
+      );
+    },
+  );
+  it("a network failure quoting the URL leaves as a bare 503", async () => {
+    const api = new HttpMetaApi((async (url) => {
+      throw new TypeError(`fetch failed ${String(url)}`);
+    }) as typeof fetch);
+    const error = await api.exchangeCode(code, app).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ServiceUnavailableError);
+    expect((error as Error).cause).toBeUndefined();
+    expect(JSON.stringify(error)).not.toContain(app.appSecret);
+    expect(String((error as Error).message)).not.toContain(app.appSecret);
+  });
+  it("two-step verification (2388001) wins over the 400 credentials refusal", async () => {
+    const { api } = scripted(json(400, { error: { code: 2388001, message: "fixture" } }));
+    await expect(api.verify(credentials)).rejects.toMatchObject({
+      code: "validation",
+      details: [{ path: ["phoneNumberId"], code: "meta_two_step_enabled" }],
+    });
+    expect(metaTwoStepEnabled({ error: { code: 2388001 } })).toBe(true);
+    for (const body of [null, {}, { error: { code: "2388001" } }, { error: { code: 190 } }])
+      expect(metaTwoStepEnabled(body)).toBe(false);
+  });
+  it("reads only a bounded string token", () => {
+    expect(metaAccessToken({ access_token: "abc" })).toBe("abc");
+    for (const body of [null, {}, { access_token: 1 }, { access_token: "x".repeat(4097) }])
+      expect(metaAccessToken(body)).toBeNull();
   });
 });

@@ -60,12 +60,15 @@ interface HistoryRow {
   created_at: string | Date;
   sent_at: string | Date | null;
   last_error: string | null;
+  delivered_at: string | Date | null;
+  read_at: string | Date | null;
 }
 
 const iso = (value: string | Date) => new Date(value).toISOString();
 
 /**
- * The message history of one appointment or visit, newest first (the subject index). No address, no text.
+ * The message history of one appointment or visit, newest first (the subject index). No address, no text;
+ * WhatsApp rows carry the delivery and read times their provider reported (N3).
  *
  * @returns the rows as the contract's history items
  */
@@ -76,7 +79,8 @@ export async function notificationsOf(
   subjectId: string,
 ): Promise<PatientNotification[]> {
   const rows = await tx.execute<HistoryRow>(
-    sql`SELECT id, kind, channel, status, skip_reason, route, created_at, sent_at, last_error
+    sql`SELECT id, kind, channel, status, skip_reason, route, created_at, sent_at, last_error,
+               delivered_at, read_at
         FROM patient_notifications
         WHERE clinic_id = ${clinicId} AND subject_id = ${subjectId}
           AND subject_type = ${subjectType}
@@ -91,6 +95,9 @@ export async function notificationsOf(
     route: row.route,
     createdAt: iso(row.created_at),
     sentAt: row.sent_at === null ? null : iso(row.sent_at),
-    failureReason: notificationFailureReason(row.status, row.last_error),
+    // A failed row keeps its route only when the provider had accepted it (0059's sent_check).
+    failureReason: notificationFailureReason(row.status, row.last_error, row.route !== null),
+    deliveredAt: row.delivered_at === null ? null : iso(row.delivered_at),
+    readAt: row.read_at === null ? null : iso(row.read_at),
   }));
 }

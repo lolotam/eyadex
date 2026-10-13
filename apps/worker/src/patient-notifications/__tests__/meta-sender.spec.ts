@@ -38,12 +38,17 @@ describe("Meta classification", () => {
       error: "meta_not_on_whatsapp",
     });
     expect(classifyMetaResponse(503, {})).toEqual({ sent: false, error: "meta_5xx" });
+    // N3: two-step verification on the WhatsApp Business app (Meta error 2388001), with Meta's 400.
+    expect(classifyMetaResponse(400, { error: { code: 2388001 } })).toEqual({
+      sent: false,
+      error: "meta_two_step",
+    });
     expect(classifyMetaError(new DOMException("fixture", "TimeoutError"))).toBe("meta_timeout");
     expect(classifyMetaError(new DOMException("fixture", "AbortError"))).toBe("meta_timeout");
     expect(classifyMetaError(new TypeError("fixture"))).toBe("meta_unreachable");
     expect(classifyMetaError(null)).toBe("meta_unreachable");
   });
-  it.each([132016, 132067, 132070, 199, 300, "190", undefined])(
+  it.each([132016, 132067, 132070, 199, 300, "190", "2388001", 2388000, undefined])(
     "unrecognized code %s is rejected",
     (code) => {
       expect(
@@ -74,6 +79,7 @@ describe("Meta classification", () => {
       "meta_not_on_whatsapp",
       "meta_unauthorized",
       "meta_rejected",
+      "meta_two_step",
       "unknown",
     ])
       expect(finalMetaError(code)).toBe(true);

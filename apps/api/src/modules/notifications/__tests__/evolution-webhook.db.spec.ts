@@ -147,6 +147,68 @@ describe("Evolution webhook over HTTP and real RLS", () => {
       }
     },
   );
+  it("moves sent → delivered → read on DELIVERY_ACK/READ/PLAYED, forward only (N3)", async () => {
+    for (const [delivered, read] of [
+      ["DELIVERY_ACK", "READ"],
+      [3, 5],
+    ] as const) {
+      const messageId = `evo.${randomUUID()}`;
+      const { id, subjectId } = await sentRow("sent", "evolution", "whatsapp", messageId);
+      const ack = (status: string | number) =>
+        hook(envelope("messages.update", { status, key: { id: messageId } }));
+      expect((await ack(delivered)).statusCode).toBe(200);
+      const afterDelivered = (
+        await h.owner`SELECT delivered_at, read_at FROM patient_notifications WHERE id = ${id}`
+      )[0]!;
+      expect(afterDelivered["delivered_at"]).not.toBeNull();
+      expect(afterDelivered["read_at"]).toBeNull();
+      expect((await ack(read)).statusCode).toBe(200);
+      const done = (
+        await h.owner`SELECT status, delivered_at, read_at, updated_at FROM patient_notifications WHERE id = ${id}`
+      )[0]!;
+      expect(done["status"]).toBe("sent");
+      expect(done["delivered_at"]).toEqual(afterDelivered["delivered_at"]);
+      expect(done["read_at"]).not.toBeNull();
+      // Replays and a late delivery receipt change nothing.
+      for (const status of [delivered, read, 4]) await ack(status);
+      expect(
+        (
+          await h.owner`SELECT status, delivered_at, read_at, updated_at FROM patient_notifications WHERE id = ${id}`
+        )[0],
+      ).toEqual(done);
+      const db = createDatabase({
+        url: process.env["EYADEX_TEST_APP_URL"]!,
+        role: "eyadex_app",
+        ids: systemUuidV7(),
+      });
+      try {
+        const [item] = await db.withTenant(C.clinicId, (tx) =>
+          notificationsOf(tx, C.clinicId, "appointment", subjectId),
+        );
+        expect(item?.deliveredAt).toBe((done["delivered_at"] as Date).toISOString());
+        expect(item?.readAt).toBe((done["read_at"] as Date).toISOString());
+      } finally {
+        await db.close();
+      }
+    }
+  });
+  it("a receipt never reaches a coexistence row, and a read alone sets both times", async () => {
+    const messageId = `evo.${randomUUID()}`;
+    const coexistence = await sentRow("sent", "coexistence", "whatsapp", messageId);
+    const evolutionRow = await sentRow("sent", "evolution", "whatsapp", messageId);
+    await hook(envelope("MESSAGES_UPDATE", { status: "PLAYED", keyId: messageId }));
+    const [c, e] = await Promise.all(
+      [coexistence.id, evolutionRow.id].map(
+        async (id) =>
+          (
+            await h.owner`SELECT delivered_at, read_at FROM patient_notifications WHERE id = ${id}`
+          )[0]!,
+      ),
+    );
+    expect(c).toEqual({ delivered_at: null, read_at: null });
+    expect(e?.["delivered_at"]).not.toBeNull();
+    expect(e?.["read_at"]).toEqual(e?.["delivered_at"]);
+  });
   it("does not change another tenant, another route, email or an unsent row", async () => {
     const messageId = `evo.${randomUUID()}`;
     const rows = await Promise.all([
