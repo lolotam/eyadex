@@ -112,7 +112,9 @@ export const enNotifications = {
       coexistence: "WhatsApp Business",
     },
     channel: { email: "Email", whatsapp: "WhatsApp" },
+    receipt: { delivered: "Delivered", read: "Read" },
     failure: {
+      whatsapp_two_step: "Two-step verification is on in the WhatsApp Business app — turn it off, then try again",
       delivery_rejected:
         "WhatsApp refused delivery (often because the patient never messaged the clinic)",
       not_on_whatsapp: "This number is not on WhatsApp",

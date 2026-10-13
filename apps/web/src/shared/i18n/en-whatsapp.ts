@@ -24,6 +24,9 @@ export const enWhatsapp = {
     inUse: "In use",
     otherActive: "Disconnect the current link first.",
     errors: {
+      meta_code_invalid: "The link expired, try again",
+      meta_two_step_enabled: "Two-step verification is on in the WhatsApp Business app — turn it off, then try again",
+      number_in_use: "This number is linked to another clinic",
       coexistence_linked: "Disconnect WhatsApp Business before linking by QR code.",
       evolution_linked: "Disconnect the QR link before saving WhatsApp Business.",
       meta_credentials_invalid:
@@ -60,13 +63,23 @@ export const enWhatsapp = {
       refresh: "Refresh QR",
       connected: "WhatsApp connected",
     },
+    signup: {
+      connect: "Connect WhatsApp Business",
+      demo: "Try the link",
+      demoCode: "Demo code",
+      demoHint: "Demo only: cancel, two_step, used or expired show Meta's answers; anything else connects.",
+      cancelled: "Linking was cancelled",
+      missingIds: "The number was not chosen in Meta's window — try again",
+      connectedTo: "Connected …{last4}",
+      editTemplates: "Edit templates",
+      advanced: "Advanced",
+    },
     business: {
       title: "WhatsApp Business (coexistence)",
       body: "Meta's official platform, on a number that keeps the WhatsApp Business app.",
       set: "Set up",
       edit: "Edit",
-      dialogHint:
-        "The token is never shown again. The two ids are not shown either: type them each time you save.",
+      dialogHint: "The two ids are filled in for you. Only the token is never shown again.",
       fields: {
         accessToken: "Access token",
         phoneNumberId: "Phone number id",

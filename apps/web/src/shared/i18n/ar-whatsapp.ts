@@ -28,6 +28,9 @@ export const arWhatsapp: Strings<typeof enWhatsapp> = {
     inUse: "مستخدم",
     otherActive: "افصل الربط الحالي أولًا.",
     errors: {
+      meta_code_invalid: "انتهت صلاحية الربط، حاول مرة أخرى",
+      meta_two_step_enabled: "تطبيق واتساب للأعمال مفعّل فيه التحقق بخطوتين — أوقفه ثم أعد المحاولة",
+      number_in_use: "هذا الرقم مربوط بعيادة أخرى",
       coexistence_linked: "افصل واتساب للأعمال قبل الربط برمز QR.",
       evolution_linked: "افصل الربط برمز QR قبل حفظ واتساب للأعمال.",
       meta_credentials_invalid:
@@ -62,12 +65,23 @@ export const arWhatsapp: Strings<typeof enWhatsapp> = {
       refresh: "تحديث الرمز",
       connected: "تم ربط واتساب",
     },
+    signup: {
+      connect: "ربط واتساب للأعمال",
+      demo: "تجربة الربط",
+      demoCode: "رمز التجربة",
+      demoHint: "للتجربة فقط: cancel أو two_step أو used أو expired تعرض ردود Meta؛ وأي رمز آخر يربط.",
+      cancelled: "تم إلغاء الربط",
+      missingIds: "لم يكتمل اختيار الرقم في نافذة Meta — حاول مرة أخرى",
+      connectedTo: "متصل …{last4}",
+      editTemplates: "تعديل القوالب",
+      advanced: "متقدّم",
+    },
     business: {
       title: "واتساب للأعمال (التشغيل المشترك)",
       body: "منصة Meta الرسمية، على رقم يحتفظ بتطبيق واتساب للأعمال.",
       set: "إعداد",
       edit: "تعديل",
-      dialogHint: "لا يُعرض الرمز المميز مجددًا، ولا المعرّفان كذلك: اكتبهما في كل حفظ.",
+      dialogHint: "المعرّفان معبّآن مسبقًا. الرمز المميز وحده لا يُعرض مجددًا.",
       fields: {
         accessToken: "رمز الوصول",
         phoneNumberId: "معرّف رقم الهاتف",

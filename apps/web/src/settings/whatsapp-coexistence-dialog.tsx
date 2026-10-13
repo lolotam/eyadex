@@ -76,6 +76,10 @@ export function WhatsappCoexistenceDialog({
         setErrors({ transport: "whatsapp.errors.evolution_linked" });
         return;
       }
+      if (e instanceof ApiError && e.details["phoneNumberId"] === "number_in_use") {
+        setErrors({ phoneNumberId: "whatsapp.errors.number_in_use" });
+        return;
+      }
       if (e instanceof ApiError && e.details["accessToken"] === "meta_credentials_invalid") {
         setErrors({ accessToken: "whatsapp.errors.meta_credentials_invalid" });
         return;

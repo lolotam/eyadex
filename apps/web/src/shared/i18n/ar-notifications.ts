@@ -112,7 +112,9 @@ export const arNotifications: Strings<typeof enNotifications> = {
       coexistence: "واتساب للأعمال",
     },
     channel: { email: "البريد الإلكتروني", whatsapp: "واتساب" },
+    receipt: { delivered: "تم التسليم", read: "تمت القراءة" },
     failure: {
+      whatsapp_two_step: "تطبيق واتساب للأعمال مفعّل فيه التحقق بخطوتين — أوقفه ثم أعد المحاولة",
       delivery_rejected: "رفض واتساب توصيل الرسالة (غالبًا لأن المراجع لم يراسل العيادة من قبل)",
       not_on_whatsapp: "الرقم غير مسجّل على واتساب",
       whatsapp_credentials: "بيانات ربط واتساب مرفوضة — راجع الإعدادات",
