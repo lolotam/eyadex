@@ -1,5 +1,6 @@
 import type { WhatsappTemplate } from "@eyadex/contracts/whatsapp";
 import type { ClaimedEvent, DispatchOutcome } from "@eyadex/db";
+import { SealOpenError } from "@eyadex/secrets";
 
 import { afterFailure } from "../invitation-mail/domain/retry-schedule.ts";
 import { finalMetaError } from "./domain/meta-failure.ts";
@@ -12,6 +13,7 @@ import { templateFor, templateLanguage } from "./domain/whatsapp-template.ts";
 import { DONE, type HandlerContext } from "./handler-context.ts";
 import { buildContent } from "./notification-content.ts";
 import type { ReadyNotification } from "./ports/notification-store.ts";
+import type { WhatsappResult } from "./ports/whatsapp-sender.ts";
 
 /**
  * صف واتساب (spec §7.1): نفس قرارات التخطي بتاعة الإيميل على `whatsappEnabled`، ثم القناة مش متوصلة
@@ -88,21 +90,32 @@ export async function sendWhatsapp(
   const content = buildContent(state, clinicId, deps.cipher, language);
   if (content.kind === "broken") return ctx.broken(event, state, content.error);
   const { transport } = locked;
-  const result =
+  let accessToken: string | null = null;
+  if (transport === "coexistence") {
+    try {
+      accessToken = deps.whatsappSealer!.open(locked.sealedCredentials!, locked.id);
+    } catch (error) {
+      if (!(error instanceof SealOpenError)) throw error;
+      // A seal that cannot be opened is definitive, just like an unreadable clinic-mail credential.
+    }
+  }
+  const result: WhatsappResult =
     transport === "evolution"
       ? await sender!.sendText(locked.instanceName!, number, whatsappText(content))
-      : await deps.meta!.sendTemplate(
-          {
-            phoneNumberId: locked.phoneNumberId!,
-            accessToken: deps.whatsappSealer!.open(locked.sealedCredentials!, locked.id),
-          },
-          number,
-          {
-            name: template!.name,
-            language: template!.language,
-            parameters: whatsappTemplateValues(content),
-          },
-        );
+      : accessToken === null
+        ? { sent: false, error: "seal_unreadable" }
+        : await deps.meta!.sendTemplate(
+            {
+              phoneNumberId: locked.phoneNumberId!,
+              accessToken,
+            },
+            number,
+            {
+              name: template!.name,
+              language: template!.language,
+              parameters: whatsappTemplateValues(content),
+            },
+          );
   const at = deps.clock.now();
   await locked.recordSend(
     nextSendAt(at, deps.random ?? Math.random),

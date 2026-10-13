@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { DEFAULT_NOTIFICATION_SETTINGS } from "@eyadex/contracts/notifications";
 import {
@@ -167,6 +167,36 @@ describe("linking by QR (Evolution)", () => {
       qrDataUrl: null,
     });
     expect(evolution.createdCount(instanceOf(clinicId))).toBe(1);
+  });
+
+  it("an open connection without an owner stays pending until the next poll has digits", async () => {
+    const A = await clinicWithMembers(h);
+    const clinicId = A.admin.clinicId;
+    await connect(A.admin.cookie);
+    evolution.scan(instanceOf(clinicId));
+    const owner = vi.spyOn(evolution, "ownerLast4").mockResolvedValueOnce(null);
+    try {
+      const pending = await qr(A.admin.cookie);
+      expect(pending.statusCode).toBe(200);
+      expect(pending.json()).toEqual({ status: "pending", qrDataUrl: null });
+      expect(await channelRow(clinicId)).toMatchObject({
+        status: "pending",
+        phone_last4: null,
+        connected_at: null,
+      });
+      expect(await auditOf(clinicId, "clinic.whatsapp_connected")).toHaveLength(0);
+      const connected = await qr(A.admin.cookie);
+      expect(connected.statusCode).toBe(200);
+      expect(connected.json()).toEqual({ status: "connected", qrDataUrl: null });
+      expect(whatsappChannelViewSchema.parse((await view(A.admin.cookie)).json())).toMatchObject({
+        status: "connected",
+        phoneLast4: "4321",
+      });
+      expect((await channelRow(clinicId))?.["connected_at"]).not.toBeNull();
+      expect(await auditOf(clinicId, "clinic.whatsapp_connected")).toHaveLength(1);
+    } finally {
+      owner.mockRestore();
+    }
   });
 
   it("disconnect logs the number out, clears the link and audits once", async () => {

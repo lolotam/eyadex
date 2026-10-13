@@ -241,6 +241,8 @@ export class WhatsappLink {
     const { db, clock, evolution } = this.deps;
     const open = result.state === "open";
     const last4 = open ? await evolution.ownerLast4(instanceName) : null;
+    // Evolution can report open before fetchInstances knows its owner; keep polling for the digits.
+    const connected = open && last4 !== null;
     return db.withTenant(actor.clinicId, async (tx) => {
       await lockWhatsappChannel(tx, actor.clinicId);
       const current = await findWhatsappChannel(tx, actor.clinicId);
@@ -255,14 +257,18 @@ export class WhatsappLink {
           ...current,
           transport: "evolution",
           instanceName,
-          status: open ? "connected" : "pending",
+          status: connected ? "connected" : "pending",
           phoneLast4: last4,
-          connectedAt: open ? now : null,
+          connectedAt: connected ? now : null,
           lastError: null,
         },
         now,
       );
-      if (!open) return { status: "pending", qrDataUrl: result.qrDataUrl };
+      if (!connected)
+        return {
+          status: "pending",
+          qrDataUrl: result.state === "pending" ? result.qrDataUrl : null,
+        };
       await auditChannel(
         tx,
         this.deps,

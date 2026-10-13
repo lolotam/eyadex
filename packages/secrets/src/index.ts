@@ -1,4 +1,4 @@
-export { SecretSealer } from "./secret-sealer.ts";
+export { SealOpenError, SecretSealer } from "./secret-sealer.ts";
 export {
   FieldCipher,
   fieldCipherFromEnv,

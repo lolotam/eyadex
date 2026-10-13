@@ -1,6 +1,7 @@
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { SYSTEM_ACTOR_ID } from "@eyadex/contracts/audit";
 import { createDatabase, createDispatcherOutbox } from "@eyadex/db";
+import { SecretSealer } from "@eyadex/secrets";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import {
   drain,
@@ -46,6 +47,42 @@ const queued = () => {
 };
 
 describe("WhatsApp final failures", () => {
+  it("a wrong coexistence seal key fails the ledger and finishes the event without retry", async () => {
+    const w = seedWorld();
+    setSettings(w.clinicId, { whatsapp_enabled: true });
+    seedChannel(w.clinicId, {
+      transport: "coexistence",
+      templates: { booked: { name: "booking_ok", language: "en" } },
+    });
+    const meta = new FakeMetaSender();
+    const h = sendHarness(app, outbox, true, {
+      meta,
+      whatsappSealer: new SecretSealer(randomBytes(32).toString("base64")),
+    });
+    const { notificationId, eventId } = queueNotification(
+      w,
+      "booked",
+      seedAppointment(w),
+      "whatsapp",
+    );
+    await drain(h.poller);
+    expect(ledgerRow(notificationId)).toMatchObject({
+      status: "failed",
+      attempts: 1,
+      last_error: "coexistence:seal_unreadable",
+    });
+    expect(eventRow(eventId)).toMatchObject({
+      attempts: 1,
+      last_error: "coexistence:seal_unreadable",
+      next_attempt_at: null,
+    });
+    expect(eventRow(eventId).failed_at).not.toBeNull();
+    expect(meta.calls).toHaveLength(0);
+    h.clock.t = new Date(h.clock.t.getTime() + 86_400_000);
+    expect(await h.poller.runOnce()).toBe(false);
+    expect(ledgerRow(notificationId).attempts).toBe(1);
+  });
+
   it("rolls back the disconnection and its audit together", async () => {
     const w = seedWorld();
     seedChannel(w.clinicId);

@@ -8,6 +8,8 @@ describe("notificationFailureReason", () => {
     ["coexistence:meta_not_on_whatsapp", "not_on_whatsapp"],
     ["evo_unauthorized", "whatsapp_credentials"],
     ["meta_unauthorized", "whatsapp_credentials"],
+    ["seal_unreadable", "whatsapp_credentials"],
+    ["coexistence:seal_unreadable", "whatsapp_credentials"],
     ["meta_template", "template"],
     ["template_missing", "template"],
     ["template_invalid", "template"],

@@ -197,7 +197,12 @@ export function sendHarness(
   app: Database,
   outbox: DispatcherOutbox,
   withCipher = true,
-  options: { whatsapp?: WhatsappSender | null; meta?: MetaSender; random?: () => number } = {},
+  options: {
+    whatsapp?: WhatsappSender | null;
+    meta?: MetaSender;
+    whatsappSealer?: SecretSealer;
+    random?: () => number;
+  } = {},
 ) {
   const platform = new FakeMail();
   const slots = { primary: new FakeMail(), fallback: new FakeMail() };
@@ -229,7 +234,7 @@ export function sendHarness(
       platform,
       whatsapp: options.whatsapp ?? null,
       ...(options.meta === undefined ? {} : { meta: options.meta }),
-      whatsappSealer: new SecretSealer(PROVIDER_KEY),
+      whatsappSealer: options.whatsappSealer ?? new SecretSealer(PROVIDER_KEY),
       cipher: withCipher ? cipher : null,
       clock,
       ...(options.random === undefined ? {} : { random: options.random }),
