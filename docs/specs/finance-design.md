@@ -307,6 +307,24 @@ columns>) WHERE subject_type <> 'invoice'`. Invoice notifications are unique on
    the invoice lock. This order joins the repository's documented lock order (ADR-0033), and a test
    runs a payment and an edit on the same invoice concurrently.
 
+## 8c. Proposed changes from the F1 plan review (2026-10-15) — PENDING FOCUSED APPROVAL
+
+1. **C1 — durable invoice-link retry.** R1-16 stores the link token only as a SHA-256 hash, which a retried
+   send cannot rebuild. Proposal: `invoice_links` also stores `token_sealed` (the existing `SecretSealer`,
+   AES-256-GCM, key `OUTBOX_SEAL_KEY`, context `invoice_link:<clinic>:<link>:<notification>`); lookup still
+   uses only the hash; the lookup function's owner and the platform have no grant on the sealed column; a retry
+   re-opens the sealed token and re-sends the same URL; a rotated key or expiry revokes the link and mints a new
+   one. Network sends run after the link transaction commits, never inside it.
+2. **D-P1 — browser print view instead of a server PDF.** §3.3 and FIN-5 approved an API-rendered PDF; the API
+   renders no PDF today. Proposal: `GET /invoices/:id/print` (data) and a web print view (Print / Save as PDF),
+   and a print-ready public page for `/i/<token>`. Not equivalent: no PDF file on the server, messages carry a
+   link and never a PDF attachment, and the saved PDF depends on the browser. If declined, F1 renders a PDF in
+   the API.
+3. Clarifications (no approval needed): the catalogue gains **13** finance keys (invoices 9, discounts 2,
+   prices 2); one line is capped at 10¹² minor units while aggregates are bounded by PostgreSQL `bigint`; the
+   platform loses direct `UPDATE` on `clinics.currency` / `currency_exponent` so every change goes through the
+   locked function.
+
 ## 9. Out of this phase
 
 Packages (FIN-10), doctor commission (FIN-19), government e-invoicing, a double-entry ledger,
