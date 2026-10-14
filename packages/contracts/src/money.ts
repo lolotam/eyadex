@@ -8,19 +8,29 @@ export const SUPPORTED_CURRENCIES = { KWD: 3, BHD: 3, OMR: 3, SAR: 2, AED: 2, QA
 export type CurrencyCode = keyof typeof SUPPORTED_CURRENCIES;
 export const currencyCodeSchema = z.enum(["KWD", "BHD", "OMR", "SAR", "AED", "QAR"]);
 
-/** R1-2: the largest amount one invoice line may carry, in minor units. */
+/** R1-2: the largest amount one invoice line may carry (unit price × quantity), in minor units. */
 export const MAX_LINE_MINOR = 1_000_000_000_000n;
+
+/** R1-2: the PostgreSQL `bigint` ceiling — the bound of every aggregate (totals, invoice discount). */
+export const MAX_MINOR = 9_223_372_036_854_775_807n;
+
+const MINOR_TEXT = /^(0|[1-9][0-9]{0,18})$/;
+
+// One refine (not regex + refine): Zod runs every refine even after a failed regex, and BigInt("1.5") throws.
+const minorUpTo = (max: bigint) =>
+  z
+    .string({ invalid_type_error: "validation.amount" })
+    .refine((v) => MINOR_TEXT.test(v) && BigInt(v) <= max, "validation.amount");
 
 /**
  * R1-2: an amount in minor units on the wire is a canonical decimal integer string ("12500" = 12.500 KWD),
- * never a JSON number, so no value is ever rounded through a float.
+ * never a JSON number, so no value is ever rounded through a float. This is the aggregate bound (totals,
+ * invoice discounts, response amounts).
  */
-const MINOR_TEXT = /^(0|[1-9][0-9]{0,12})$/;
+export const minorAmountSchema = minorUpTo(MAX_MINOR);
 
-// One refine (not regex + refine): Zod runs every refine even after a failed regex, and BigInt("1.5") throws.
-export const minorAmountSchema = z
-  .string({ invalid_type_error: "validation.amount" })
-  .refine((v) => MINOR_TEXT.test(v) && BigInt(v) <= MAX_LINE_MINOR, "validation.amount");
+/** The per-line bound: a unit price, a line discount amount, a service or per-doctor price. */
+export const minorLineAmountSchema = minorUpTo(MAX_LINE_MINOR);
 
 /**
  * Renders minor units with the currency's decimals, using string arithmetic only.

@@ -1,4 +1,4 @@
-import { MAX_LINE_MINOR } from "./money.ts";
+import { MAX_LINE_MINOR, MAX_MINOR } from "./money.ts";
 
 /** A discount as stored: a percentage in basis points (10000 = 100 %) or an amount in minor units. */
 export type Discount = { kind: "pct"; bp: number } | { kind: "amount"; minor: bigint };
@@ -139,9 +139,15 @@ export function computeInvoiceTotals(input: TotalsInput): Totals {
   const taxMinor = out.reduce((s, l) => s + l.taxMinor, 0n);
   return {
     lines: out,
-    subtotalMinor: out.reduce((s, l) => s + l.grossMinor, 0n),
-    discountMinor: out.reduce((s, l) => s + l.lineDiscountMinor, 0n) + invoiceDiscount,
-    taxMinor,
-    totalMinor: out.reduce((s, l) => s + l.lineTotalMinor, 0n) + taxMinor,
+    subtotalMinor: bounded(out.reduce((s, l) => s + l.grossMinor, 0n)),
+    discountMinor: bounded(out.reduce((s, l) => s + l.lineDiscountMinor, 0n) + invoiceDiscount),
+    taxMinor: bounded(taxMinor),
+    totalMinor: bounded(out.reduce((s, l) => s + l.lineTotalMinor, 0n) + taxMinor),
   };
+}
+
+// Every aggregate must fit the PostgreSQL bigint column it lands in (R1-2); lines are capped separately.
+function bounded(value: bigint): bigint {
+  if (value > MAX_MINOR) throw new TotalsError("amount_out_of_range");
+  return value;
 }

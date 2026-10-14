@@ -85,6 +85,23 @@ describe("computeInvoiceTotals — spec §8b.1 worked examples", () => {
 });
 
 describe("computeInvoiceTotals — rules", () => {
+  it("sums lines past the per-line cap and takes an invoice discount above it", () => {
+    const cap = 1_000_000_000_000n;
+    const t = computeInvoiceTotals({
+      lines: [line(1, cap), line(2, cap), line(3, cap)],
+      invoiceDiscount: amount(1_500_000_000_000n),
+      taxRateBp: 0,
+    });
+    expect(t.subtotalMinor).toBe(3_000_000_000_000n);
+    expect(t.discountMinor).toBe(1_500_000_000_000n);
+    expect(t.totalMinor).toBe(1_500_000_000_000n);
+    expect(t.lines.map((l) => l.allocatedMinor)).toEqual([
+      500_000_000_000n,
+      500_000_000_000n,
+      500_000_000_000n,
+    ]);
+  });
+
   it("adds tax to the total, never subtracts it", () => {
     const t = computeInvoiceTotals({
       lines: [line(1, 1000n)],

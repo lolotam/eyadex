@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   formatMinor,
+  MAX_LINE_MINOR,
+  MAX_MINOR,
   minorAmountSchema,
+  minorLineAmountSchema,
   parseMajorToMinor,
   SUPPORTED_CURRENCIES,
 } from "../money.ts";
@@ -38,8 +41,21 @@ describe("money (R1-2)", () => {
     expect(minorAmountSchema.safeParse("12500").success).toBe(true);
     expect(minorAmountSchema.safeParse("0").success).toBe(true);
     expect(minorAmountSchema.safeParse("1000000000000").success).toBe(true);
-    for (const bad of ["012", "-1", "1.5", "1e3", "1000000000001", 12500, ""]) {
+    for (const bad of ["012", "-1", "1.5", "1e3", 12500, ""]) {
       expect(minorAmountSchema.safeParse(bad).success).toBe(false);
     }
+  });
+
+  it("bounds aggregates by the PostgreSQL bigint ceiling, not the line cap", () => {
+    expect(minorAmountSchema.safeParse("3000000000000").success).toBe(true);
+    expect(minorAmountSchema.safeParse(MAX_MINOR.toString()).success).toBe(true);
+    expect(minorAmountSchema.safeParse("9223372036854775808").success).toBe(false);
+    expect(minorAmountSchema.safeParse("10000000000000000000").success).toBe(false);
+  });
+
+  it("keeps the per-line cap on line amounts", () => {
+    expect(minorLineAmountSchema.safeParse(MAX_LINE_MINOR.toString()).success).toBe(true);
+    expect(minorLineAmountSchema.safeParse("1000000000001").success).toBe(false);
+    expect(minorLineAmountSchema.safeParse("012").success).toBe(false);
   });
 });
