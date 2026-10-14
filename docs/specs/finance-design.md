@@ -24,7 +24,7 @@
 | FIN-2  | Module flag                       | A `finance` module the platform switches on per clinic, like `appointments` and `medical`.                                                                                                                      |
 | FIN-3  | What the platform sees            | **Revenue totals only, with no patient names or invoice rows** (e.g. "this clinic invoiced 3,000 KWD this month"). Enforced by database grants: the platform reads an aggregate view, never the invoice tables. |
 | FIN-4  | Default permissions (new clinics) | Receptionist: view/create/update invoices of their branches. Doctor: view the invoices of their own patients. Clinic admin: everything, including discount and void. Existing roles are not changed.            |
-| FIN-5  | Sending to the patient            | Print / PDF (the browser print view; no server PDF in F1), and a «ابعت» button that sends it by email or WhatsApp through the existing notifications.                                                           |
+| FIN-5  | Sending to the patient            | Print / PDF, and a «ابعت» button that sends it by email or WhatsApp through the existing notifications.                                                                                                         |
 | FIN-6  | Invoice header                    | Clinic name and logo; branch name, address and phone; commercial registration number (optional); bilingual (ar + en).                                                                                           |
 | FIN-7  | Free lines                        | Allowed on any invoice: a typed description and price (e.g. a sunscreen sold at the desk).                                                                                                                      |
 | FIN-8  | Void                              | Its own permission and a written reason; the voided invoice stays, with its number.                                                                                                                             |
@@ -98,19 +98,19 @@ roles change only by the clinic admin's hand.
 
 ### 3.3 API (REST under `/v1`, Zod contracts, error envelope, guards in CLAUDE.md §6 order)
 
-| Route                                         | Permission                                                         | Notes                                                                                                 |
-| --------------------------------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
-| `PATCH /services/:id/price`                   | `update:prices:clinic`                                             | Base price; `{priceMinor}` or null.                                                                   |
-| `PUT /services/:id/provider-prices`           | `update:prices:clinic`                                             | The whole per-doctor list for one service.                                                            |
-| `GET /invoices/draft?source=appointment&id=…` | `create:invoices:*`                                                | Pre-filled lines (service, doctor price, patient) — nothing is stored.                                |
-| `POST /invoices`                              | `create:invoices:*` (+ `create:discounts:*` if a discount is sent) | `Idempotency-Key`; issues with the next branch number.                                                |
-| `GET /invoices` / `GET /invoices/:id`         | `view:invoices:*`                                                  | Cursor list with filters: branch, patient, status, date range, number.                                |
-| `PATCH /invoices/:id`                         | `update:invoices:*` (+ discounts)                                  | FIN-A5 edit; `If-Match` version so two desks cannot overwrite each other.                             |
-| `POST /invoices/:id/void`                     | `deactivate:invoices:*`                                            | `{reason}` required.                                                                                  |
-| `GET /invoices/:id/print`                     | `view:invoices:*`                                                  | Print data (audited), like `GET /visits/:id/prescription/print`; PDF = the browser print view (D-P1). |
-| `POST /invoices/:id/send`                     | `view:invoices:*`                                                  | `{channel: email                                                                                      | whatsapp}`; queues a `patient_notifications`row of a new kind`invoice` (the N1/N2 pipeline sends it with the PDF link). |
-| `PATCH /clinic/settings/finance`              | `update:clinic_settings:clinic`                                    | Commercial registration number and logo upload (BlobStore, image ≤ 1 MB).                             |
-| Platform: clinic create/edit                  | platform                                                           | Currency, exponent and tax rate fields (currency locked once an invoice exists).                      |
+| Route                                         | Permission                                                         | Notes                                                                                                          |
+| --------------------------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| `PATCH /services/:id/price`                   | `update:prices:clinic`                                             | Base price; `{priceMinor}` or null.                                                                            |
+| `PUT /services/:id/provider-prices`           | `update:prices:clinic`                                             | The whole per-doctor list for one service.                                                                     |
+| `GET /invoices/draft?source=appointment&id=…` | `create:invoices:*`                                                | Pre-filled lines (service, doctor price, patient) — nothing is stored.                                         |
+| `POST /invoices`                              | `create:invoices:*` (+ `create:discounts:*` if a discount is sent) | `Idempotency-Key`; issues with the next branch number.                                                         |
+| `GET /invoices` / `GET /invoices/:id`         | `view:invoices:*`                                                  | Cursor list with filters: branch, patient, status, date range, number.                                         |
+| `PATCH /invoices/:id`                         | `update:invoices:*` (+ discounts)                                  | FIN-A5 edit; `If-Match` version so two desks cannot overwrite each other.                                      |
+| `POST /invoices/:id/void`                     | `deactivate:invoices:*`                                            | `{reason}` required.                                                                                           |
+| `GET /invoices/:id/pdf`                       | `view:invoices:*`                                                  | Bilingual PDF rendered by the API from the stored invoice (approved contract; D-P1 in §8c is only a proposal). |
+| `POST /invoices/:id/send`                     | `view:invoices:*`                                                  | `{channel: email                                                                                               | whatsapp}`; queues a `patient_notifications`row of a new kind`invoice` (the N1/N2 pipeline sends it with the PDF link). |
+| `PATCH /clinic/settings/finance`              | `update:clinic_settings:clinic`                                    | Commercial registration number and logo upload (BlobStore, image ≤ 1 MB).                                      |
+| Platform: clinic create/edit                  | platform                                                           | Currency, exponent and tax rate fields (currency locked once an invoice exists).                               |
 
 Error codes (new): `price_missing` (a service line without a price), `invoice_prefix_missing`,
 `invoice_already_exists` (source already billed), `invoice_void` (edit a void invoice),
@@ -247,7 +247,7 @@ These override anything looser above.
     worker sends, the send is skipped as `invoice_void`; if it was edited, the latest version is sent.
 16. **The patient's link:** the message carries a link `/i/<token>`: 32 random bytes, stored as a
     SHA-256 hash with the clinic, invoice and expiry (14 days), never logged; it shows the latest
-    version of the invoice as a print-ready page, stops working when voided, and one invoice can have several live
+    version of the invoice as a PDF, stops working when voided, and one invoice can have several live
     links (each send makes one). Opening it is audited as a patient-side view.
 17. **Monthly totals (FIN-3 and F3):** `invoiced` = Σ `total` of non-void invoices by the clinic-timezone
     month of `issued_at`, **as they stand now** (an edit or void restates its month); `collected` = Σ
