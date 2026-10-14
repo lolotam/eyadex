@@ -229,5 +229,57 @@ export const API_ERROR_MESSAGES = {
     message_ar: "لا يمكنك تغيير دورك بنفسك",
     message_en: "You cannot change your own role",
   },
+  price_missing: {
+    message_ar: "لا يوجد سعر لهذه الخدمة؛ أضف السعر من إعدادات الخدمات أولًا",
+    message_en: "This service has no price; set it in the services settings first",
+  },
+  invoice_prefix_missing: {
+    message_ar: "حدد بادئة الفواتير لهذا الفرع قبل إصدار أول فاتورة",
+    message_en: "Set this branch's invoice prefix before issuing its first invoice",
+  },
+  invoice_prefix_locked: {
+    message_ar: "لا يمكن تغيير بادئة الفواتير بعد إصدار أول فاتورة في الفرع",
+    message_en: "The invoice prefix cannot change after the branch's first invoice",
+  },
+  invoice_prefix_taken: {
+    message_ar: "هذه البادئة مستخدمة لفرع آخر في العيادة",
+    message_en: "Another branch of the clinic uses or used this prefix",
+  },
+  invoice_already_exists: {
+    message_ar: "يوجد بالفعل فاتورة لهذا الموعد أو لهذه الزيارة",
+    message_en: "An invoice already exists for this appointment or visit",
+  },
+  invoice_void: {
+    message_ar: "هذه الفاتورة ملغاة ولا يمكن تعديلها",
+    message_en: "This invoice is void and cannot be changed",
+  },
+  currency_locked: {
+    message_ar: "لا يمكن تغيير العملة بعد تسعير خدمة أو إصدار فاتورة",
+    message_en: "The currency cannot change once a price or an invoice exists",
+  },
+  currency_unsupported: {
+    message_ar: "هذه العملة غير مدعومة",
+    message_en: "This currency is not supported",
+  },
+  discount_exceeds_total: {
+    message_ar: "الخصم أكبر من قيمة الفاتورة",
+    message_en: "The discount is larger than the invoice amount",
+  },
+  discount_reason_required: {
+    message_ar: "اكتب سبب الخصم",
+    message_en: "Write the reason for the discount",
+  },
+  precondition_required: {
+    message_ar: "أعد تحميل الفاتورة ثم أعد المحاولة",
+    message_en: "Reload the invoice, then try again",
+  },
+  version_conflict: {
+    message_ar: "عدّل شخص آخر هذه الفاتورة للتو؛ أعد تحميلها ثم أعد المحاولة",
+    message_en: "Someone else just changed this invoice; reload it and try again",
+  },
+  send_request_conflict: {
+    message_ar: "طلب الإرسال هذا مستخدم لفاتورة أو قناة أخرى",
+    message_en: "This send request was already used for another invoice or channel",
+  },
   unknown: { message_ar: "حدث خطأ ما", message_en: "Something went wrong" },
 } satisfies Record<ApiErrorCode, { message_ar: string; message_en: string }>;
