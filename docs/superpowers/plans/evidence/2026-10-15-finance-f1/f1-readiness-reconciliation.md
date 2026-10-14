@@ -1,7 +1,7 @@
 # F1 readiness reconciliation (2026-10-15)
 
 Cross-check of spec `docs/specs/finance-design.md`, plan `docs/superpowers/plans/2026-10-15-finance-f1.md`
-and code on `feat/f1-finance-api` at `829bfe9` (Tasks 1, 2a, 2b). Every claim below cites its source.
+and code on `feat/f1-finance-api` at `f694a52` (Tasks 1, 2a, 2b: `daa8ae8`, `829bfe9`, `7f36ae8`, `f694a52`). Every claim below cites its source.
 Nothing here approves C1 or D-P1; both stay proposals (spec §8c). Production SQL and deploy stay owner-gated.
 
 ## 1. The 13 finance permission keys
@@ -82,8 +82,19 @@ their one caller (plan Task 4). `eyadex_platform` has no grant on any finance ta
 | `send_request_conflict`    | 400  | R2-5 ("is `validation`")      |
 
 Each has ar/en text in `api-error-messages.ts` and is `RULE_ONLY` (never derived from a framework status).
+`send_request_conflict` is 400 like `validation` (`errors.ts`: `validation: 400`).
+`discount_reason_required` is named by spec §3.3 but the request schema's `requiredText(300)` refuses an empty
+reason first (`validation`), so the use case is not expected to return it; it stays for the mock and any
+future path that checks a stored discount.
 
-## 5. Held, with the reason
+## 5. Added after review (`f694a52`)
+
+- `financeSettingsSchema` for `GET /v1/clinic/settings/finance`: currency, exponent, tax rate, CR number,
+  `hasLogo` — the web's only source for formatting and live totals (Task 8h serves it).
+- `source` + `sourceId` on `invoiceListQuerySchema`, so the «فاتورة» button finds the live invoice of its
+  appointment or visit.
+
+## 6. Held, with the reason
 
 | Item                                                        | Held by                | Where it lands               |
 | ----------------------------------------------------------- | ---------------------- | ---------------------------- |
