@@ -109,7 +109,7 @@ function allocate(nets: readonly bigint[], discount: bigint): bigint[] {
 }
 
 /**
- * The one totals function (finance spec R1-1 and R2-1), shared by the API, the mock and the print view, so a
+ * The one totals function (finance spec R1-1 and R2-1), shared by the API (and the PDF it renders) and the mock, so a
  * printed total never differs from the stored one: line discounts, then the invoice discount allocated to the
  * lines, then tax per line, and `total = Σ line_total + tax`.
  *
