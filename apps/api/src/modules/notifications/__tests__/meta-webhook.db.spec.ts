@@ -267,10 +267,11 @@ describe("POST /v1/hooks/meta (statuses)", () => {
     expect(h.logs.join("\n")).not.toContain(marker);
   });
 
-  it("refuses a body over the limit without a 2xx", async () => {
+  it("refuses a body over the limit with 400 before the signature check", async () => {
     const raw = JSON.stringify({ pad: "x".repeat(1024 * 1024) });
     const res = await post(raw);
-    expect(res.statusCode).toBeGreaterThanOrEqual(400);
-    expect(res.statusCode).toBeLessThan(500);
+    // The raw-body hook throws Fastify's 413; outside the attachment route the error filter answers it
+    // as a plain 400 (shared/errors.ts), and a signature failure would have been 401.
+    expect(res.statusCode).toBe(400);
   });
 });

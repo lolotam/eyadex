@@ -29,8 +29,8 @@ export function useMessageHistory(subject: "appointment" | "visit", id: string) 
       return items.some((item) => {
         if (item.channel !== "whatsapp" || item.status !== "sent" || item.readAt || !item.sentAt)
           return false;
-        const age = now - Date.parse(item.sentAt);
-        return age >= 0 && age < RECEIPT_POLL_WINDOW_MS;
+        // A device clock behind the server makes a fresh row look "from the future": still poll it.
+        return now - Date.parse(item.sentAt) < RECEIPT_POLL_WINDOW_MS;
       })
         ? 5000
         : false;

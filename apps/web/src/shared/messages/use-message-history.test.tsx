@@ -94,6 +94,21 @@ describe.each(["appointment", "visit"] as const)("%s receipt updates", (subject)
     client.clear();
   });
 
+  it("still polls a fresh row whose server time is ahead of the device clock", async () => {
+    const ahead = { ...sent, sentAt: "2026-10-14T08:01:10.000Z" };
+    history.mockResolvedValue({ items: [ahead] });
+    const { client } = mountHistory();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10);
+    });
+    expect(history).toHaveBeenCalledOnce();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5010);
+    });
+    expect(history).toHaveBeenCalledTimes(2);
+    client.clear();
+  });
+
   it("stops polling an unread row when its ten-minute window expires", async () => {
     const expiring = { ...sent, sentAt: "2026-10-14T07:50:15.000Z" };
     history.mockResolvedValue({ items: [expiring] });
