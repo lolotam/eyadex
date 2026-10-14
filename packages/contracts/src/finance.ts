@@ -169,8 +169,15 @@ export const invoiceListQuerySchema = z
     from: dateSchema.optional(),
     to: dateSchema.optional(),
     number: z.string().trim().min(1).max(40).optional(),
+    // The «فاتورة» button looks up the live invoice of its appointment or visit (one at most, §3.2).
+    source: invoiceSourceSchema.optional(),
+    sourceId: idSchema.optional(),
   })
-  .strict();
+  .strict()
+  .refine((q) => q.sourceId === undefined || q.source !== undefined, {
+    path: ["source"],
+    message: "validation.required",
+  });
 export type InvoiceListQuery = z.infer<typeof invoiceListQuerySchema>;
 
 export const invoiceListItemSchema = invoiceSchema.omit({ lines: true }).strict();
@@ -240,6 +247,21 @@ export const priceListResponseSchema = z
 export const sendInvoiceRequestSchema = z
   .object({ channel: notificationChannelSchema, sendRequestId: idSchema })
   .strict();
+
+/**
+ * `GET /v1/clinic/settings/finance` (finance on, any member): what the web needs to show and compute
+ * amounts — `formatMinor` takes the exponent, the invoice form takes the tax rate.
+ */
+export const financeSettingsSchema = z
+  .object({
+    currency: currencyCodeSchema,
+    currencyExponent: z.number().int(),
+    taxRateBp: z.number().int(),
+    commercialRegNo: z.string().nullable(),
+    hasLogo: z.boolean(),
+  })
+  .strict();
+export type FinanceSettings = z.infer<typeof financeSettingsSchema>;
 
 /** `PATCH /v1/clinic/settings/finance`; the logo is its own upload. */
 export const financeSettingsRequestSchema = z

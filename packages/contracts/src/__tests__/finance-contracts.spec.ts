@@ -4,6 +4,7 @@ import {
   createInvoiceRequestSchema,
   invoiceDiscountInputSchema,
   invoiceLineInputSchema,
+  invoiceListQuerySchema,
   invoicePrefixSchema,
   platformClinicFinanceRequestSchema,
   providerPricesRequestSchema,
@@ -91,6 +92,14 @@ describe("discounts (FIN-A7)", () => {
     expect(invoiceLineInputSchema.safeParse({ ...line, discount: lineDiscount }).success).toBe(
       false,
     );
+  });
+});
+
+describe("the invoice list", () => {
+  it("finds the live invoice of a source, but a source id alone names nothing", () => {
+    const byAppointment = { source: "appointment", sourceId: ID };
+    expect(invoiceListQuerySchema.safeParse(byAppointment).success).toBe(true);
+    expect(invoiceListQuerySchema.safeParse({ sourceId: ID }).success).toBe(false);
   });
 });
 
