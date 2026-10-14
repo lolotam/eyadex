@@ -33,6 +33,8 @@ const CLINIC_BOUND: ReadonlyMap<string, string> = new Map([
   ["view:visits:own", "view:visits:clinic"],
   ["view:medical:own", "view:medical:clinic"],
   ["update:medical:own", "update:medical:clinic"],
+  // Finance F1 (spec R1-12): invoices of the caller's own patients reach every branch the same way.
+  ["view:invoices:own", "view:invoices:clinic"],
 ]);
 
 // P2 R1-2 (spec §2, P2-5): the locked clinic admin does not read clinical content by default, yet it is

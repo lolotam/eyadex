@@ -55,6 +55,7 @@ export class PlatformSettingsChanges {
               default_module_patients = ${input.defaultModules.patients}::boolean,
               default_module_appointments = ${input.defaultModules.appointments}::boolean,
               default_module_medical = ${input.defaultModules.medical}::boolean,
+              default_module_finance = ${input.defaultModules.finance}::boolean,
               updated_at = ${now.toISOString()}::timestamptz
             WHERE id = 1`,
       );

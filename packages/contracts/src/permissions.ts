@@ -17,6 +17,9 @@ export const resourceSchema = z.enum([
   "visits",
   "medical",
   "medicines",
+  "invoices",
+  "discounts",
+  "prices",
 ]);
 export type PermissionResource = z.infer<typeof resourceSchema>;
 
@@ -28,7 +31,7 @@ export type PermissionScope = z.infer<typeof scopeSchema>;
 export const permissionSchema = z
   .string()
   .regex(
-    /^(view|create|update|deactivate|overbook):(branches|users|roles|patients|audit_log|clinic_settings|appointments|services|schedules|visits|medical|medicines):(clinic|branch|own)$/,
+    /^(view|create|update|deactivate|overbook):(branches|users|roles|patients|audit_log|clinic_settings|appointments|services|schedules|visits|medical|medicines|invoices|discounts|prices):(clinic|branch|own)$/,
   );
 export type Permission = string;
 
@@ -54,6 +57,9 @@ const resourceModule: Record<PermissionResource, ClinicModule | null> = {
   visits: "medical",
   medical: "medical",
   medicines: "medical",
+  invoices: "finance",
+  discounts: "finance",
+  prices: "finance",
 };
 
 type Scopes = readonly PermissionScope[];
@@ -67,7 +73,9 @@ const MANAGED = { view: CLINIC, create: CLINIC, update: CLINIC, deactivate: CLIN
  * (the files with a live appointment with the caller; D-4, slice A3, ADR-0026 A3), on visits and on
  * the medical content (the caller's own visits). On visits it is also the only create scope: the
  * caller starts a visit as its provider (P2 spec). `medical` is a visit's clinical content and the
- * medical file; `medicines` is the clinic's medicines list (P2-F2).
+ * medical file; `medicines` is the clinic's medicines list (P2-F2). Finance (F1 §3.1): `own` views the
+ * invoices of the caller's own patients; `deactivate:invoices` is void; `discounts` is changing a
+ * discount on an invoice; `prices` covers service and per-doctor prices.
  */
 const resourceGrants: Record<PermissionResource, Partial<Record<PermissionAction, Scopes>>> = {
   branches: MANAGED,
@@ -92,6 +100,14 @@ const resourceGrants: Record<PermissionResource, Partial<Record<PermissionAction
   visits: { view: ["clinic", "branch", "own"], create: ["own"] },
   medical: { view: ["clinic", "own"], update: ["clinic", "own"] },
   medicines: { view: CLINIC, update: CLINIC },
+  invoices: {
+    view: ["clinic", "branch", "own"],
+    create: BRANCHED,
+    update: BRANCHED,
+    deactivate: BRANCHED,
+  },
+  discounts: { create: BRANCHED },
+  prices: { view: CLINIC, update: CLINIC },
 };
 
 function buildCatalog(): PermissionDefinition[] {
@@ -113,6 +129,14 @@ function buildCatalog(): PermissionDefinition[] {
 }
 
 export const PERMISSION_CATALOG: readonly PermissionDefinition[] = buildCatalog();
+
+/**
+ * Resources with no view action of their own, and the resource whose view makes them reachable: a discount
+ * is a change to an invoice (finance spec R1-14), so `create:discounts` needs `view:invoices`.
+ */
+export const VIEWED_THROUGH: Readonly<Partial<Record<PermissionResource, PermissionResource>>> = {
+  discounts: "invoices",
+};
 
 /**
  * Every catalogue key as a literal type, so `@Require(...)` in the API only compiles with a real key.
@@ -170,5 +194,18 @@ export const PERMISSION_KEYS = [
   "update:medical:own",
   "view:medicines:clinic",
   "update:medicines:clinic",
+  "view:invoices:clinic",
+  "view:invoices:branch",
+  "view:invoices:own",
+  "create:invoices:clinic",
+  "create:invoices:branch",
+  "update:invoices:clinic",
+  "update:invoices:branch",
+  "deactivate:invoices:clinic",
+  "deactivate:invoices:branch",
+  "create:discounts:clinic",
+  "create:discounts:branch",
+  "view:prices:clinic",
+  "update:prices:clinic",
 ] as const;
 export type PermissionKey = (typeof PERMISSION_KEYS)[number];

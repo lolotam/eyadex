@@ -48,6 +48,8 @@ export const SYSTEM_ROLES: readonly SystemRoleTemplate[] = [
       "view:medical:own",
       "update:medical:own",
       "view:medicines:clinic",
+      // Finance F1 (FIN-4): the invoices of its own patients, read only.
+      "view:invoices:own",
     ],
   },
   {
@@ -67,6 +69,11 @@ export const SYSTEM_ROLES: readonly SystemRoleTemplate[] = [
       "view:services:clinic",
       // P2-K4: the front desk sees that a visit exists, never its content.
       "view:visits:branch",
+      // Finance F1 (FIN-4): the front desk invoices in its branches and reads prices.
+      "view:invoices:branch",
+      "create:invoices:branch",
+      "update:invoices:branch",
+      "view:prices:clinic",
     ],
   },
   {

@@ -118,7 +118,12 @@ describe("FLAG-01 / FLAG-02: locking a module hides it, re-enabling restores it 
 
     const locked = await platform("PUT", `${clinic()}/features/patients`, { enabled: false });
     expect(locked.statusCode).toBe(200);
-    expect(locked.json().modules).toEqual({ patients: false, appointments: false, medical: false });
+    expect(locked.json().modules).toEqual({
+      patients: false,
+      appointments: false,
+      medical: false,
+      finance: false,
+    });
 
     const probe = await get(h, "/v1/probe-patients", A.doctor.cookie);
     expect(probe.statusCode).toBe(403);

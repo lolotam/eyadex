@@ -44,6 +44,7 @@ describe("the appointments catalogue", () => {
       "create:visits:own",
       "view:medical:own",
       "update:medical:own",
+      "view:invoices:own",
     ]);
     const patientsOwn = PERMISSION_CATALOG.find((p) => p.key === "view:patients:own");
     expect(patientsOwn?.module).toBe("patients");
@@ -88,6 +89,10 @@ describe("new clinics' system roles (A2, A3, P2)", () => {
       "view:schedules:branch",
       "view:services:clinic",
       "view:visits:branch",
+      "view:invoices:branch",
+      "create:invoices:branch",
+      "update:invoices:branch",
+      "view:prices:clinic",
     ]);
     expect(permissionKeysSchema.safeParse(keysOf("receptionist")).success).toBe(true);
   });
@@ -101,6 +106,7 @@ describe("new clinics' system roles (A2, A3, P2)", () => {
       "view:medical:own",
       "update:medical:own",
       "view:medicines:clinic",
+      "view:invoices:own",
     ]);
     expect(permissionKeysSchema.safeParse(keysOf("doctor")).success).toBe(true);
     expect(keysOf("technician")).toEqual(["view:patients:branch"]);

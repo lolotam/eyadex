@@ -70,7 +70,7 @@ const body = (t = tag()) => ({
   expiresAt: "2099-01-01T00:00:00Z",
   maxUsers: 5,
   maxBranches: 2,
-  modules: { patients: true, appointments: true, medical: false },
+  modules: { patients: true, appointments: true, medical: false, finance: false },
   admin: { fullName: "Test Admin", email: `admin-${t}@example.test` },
 });
 const create = (b: unknown, key: string | null = randomUUID(), host = PLATFORM, c = cookie) =>
@@ -96,8 +96,8 @@ describe("POST /v1/platform/clinics (ONB-01)", () => {
           await h.owner`SELECT module, enabled FROM clinic_features WHERE clinic_id = ${clinicId}`
         ).map((r) => [r["module"], r["enabled"]]),
       );
-    const offModules = { patients: true, appointments: false, medical: false };
-    const onModules = { patients: false, appointments: true, medical: false };
+    const offModules = { patients: true, appointments: false, medical: false, finance: false };
+    const onModules = { patients: false, appointments: true, medical: false, finance: false };
     const off = await create({ ...body(), modules: offModules });
     expect(off.statusCode).toBe(201);
     expect(await flags(off.json().clinicId)).toEqual(offModules);
@@ -223,7 +223,7 @@ describe("POST /v1/platform/clinics (ONB-01)", () => {
         ...body(),
         maxUsers: 7,
         maxBranches: 4,
-        modules: { patients: true, appointments: true, medical: false },
+        modules: { patients: true, appointments: true, medical: false, finance: false },
       };
       const res = await create(b);
       expect(res.statusCode).toBe(201);

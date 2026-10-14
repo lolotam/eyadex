@@ -9,7 +9,7 @@ const settings = (medical: boolean): PlatformSettings => ({
   emailSenderName: "Eyadex",
   defaultMaxUsers: 10,
   defaultMaxBranches: 3,
-  defaultModules: { patients: true, appointments: true, medical },
+  defaultModules: { patients: true, appointments: true, medical, finance: false },
 });
 
 describe("medicalDefaultAllowed (P2 R3-6c)", () => {

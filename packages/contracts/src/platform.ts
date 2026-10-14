@@ -56,8 +56,9 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
   emailSenderName: "Eyadex",
   defaultMaxUsers: 10,
   defaultMaxBranches: 3,
-  // P2 R2-3: the medical module's release (0050) turned it on for new clinics.
-  defaultModules: { patients: true, appointments: true, medical: true },
+  // P2 R2-3: the medical module's release (0050) turned it on for new clinics. Finance starts off for new
+  // clinics (0063); the platform switches it on per clinic or in its defaults.
+  defaultModules: { patients: true, appointments: true, medical: true, finance: false },
 };
 
 /**

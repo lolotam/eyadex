@@ -40,7 +40,7 @@ const name = z.string().trim().min(2).max(120);
  * The modules a clinic can have switched on (PRD §4.8). A new module joins this list only: every
  * module map (a clinic's features, a new clinic's modules, the platform's default) follows it.
  */
-export const CLINIC_MODULES = ["patients", "appointments", "medical"] as const;
+export const CLINIC_MODULES = ["patients", "appointments", "medical", "finance"] as const;
 export type ClinicModuleKey = (typeof CLINIC_MODULES)[number];
 
 /** One on/off flag per module, keyed by the module. */
@@ -54,10 +54,12 @@ export const moduleFlagsSchema = z.object(
 /**
  * Modules that only work on top of another one (owner decision P2-14): a medical file lives inside a
  * patient file, so `medical` needs `patients`. The create form, the platform default and the
- * per-clinic switch all read this one table.
+ * per-clinic switch all read this one table. An invoice names a patient, so `finance` needs `patients`
+ * too (finance spec §2).
  */
 export const MODULE_REQUIRES: Readonly<Partial<Record<ClinicModuleKey, ClinicModuleKey>>> = {
   medical: "patients",
+  finance: "patients",
 };
 
 /** The first module switched on while the module it needs is off, or `null` when the map holds. */

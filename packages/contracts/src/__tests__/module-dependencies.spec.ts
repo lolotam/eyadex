@@ -15,10 +15,10 @@ import {
 // P2-14: one table decides it for the create form, the platform default and the per-clinic switch.
 describe("medical needs patients", () => {
   it.each([
-    [{ patients: true, appointments: false, medical: true }, null],
-    [{ patients: false, appointments: true, medical: false }, null],
+    [{ patients: true, appointments: false, medical: true, finance: false }, null],
+    [{ patients: false, appointments: true, medical: false, finance: false }, null],
     [
-      { patients: false, appointments: false, medical: true },
+      { patients: false, appointments: false, medical: true, finance: false },
       { module: "medical", requires: "patients" },
     ],
   ])("%j → %j", (flags, gap) => {
@@ -28,7 +28,7 @@ describe("medical needs patients", () => {
   it("NEGATIVE: a platform default with medical but not patients is refused on the medical flag", () => {
     const result = updatePlatformSettingsSchema.safeParse({
       ...DEFAULT_PLATFORM_SETTINGS,
-      defaultModules: { patients: false, appointments: true, medical: true },
+      defaultModules: { patients: false, appointments: true, medical: true, finance: false },
     });
     expect(result.success).toBe(false);
     expect(result.error?.issues.map((issue) => [issue.path, issue.message])).toEqual([
@@ -39,7 +39,7 @@ describe("medical needs patients", () => {
   it("reads incoherent stored defaults, but refuses writing them", () => {
     const stored = {
       ...DEFAULT_PLATFORM_SETTINGS,
-      defaultModules: { patients: false, appointments: true, medical: true },
+      defaultModules: { patients: false, appointments: true, medical: true, finance: false },
     };
     expect(platformSettingsSchema.parse(stored)).toEqual(stored);
     expect(platformSettingsResponseSchema.parse(stored)).toEqual(stored);
@@ -58,7 +58,7 @@ describe("medical needs patients", () => {
       adminEmail: "admin@example.test",
       maxUsers: 10,
       maxBranches: 3,
-      modules: { patients: false, appointments: true, medical: true },
+      modules: { patients: false, appointments: true, medical: true, finance: false },
     });
     expect(result.success).toBe(false);
     expect(result.error?.issues.map((issue) => [issue.path, issue.message])).toEqual([

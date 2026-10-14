@@ -83,7 +83,7 @@ describe("clinic access state (eyadex_app)", () => {
       access: "allowed",
       users: { used: 2, max: 4 },
       branches: { used: 2, max: 3 },
-      modules: { patients: true, appointments: false, medical: false },
+      modules: { patients: true, appointments: false, medical: false, finance: false },
     });
   });
 
