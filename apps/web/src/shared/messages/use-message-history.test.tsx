@@ -109,6 +109,17 @@ describe.each(["appointment", "visit"] as const)("%s receipt updates", (subject)
     client.clear();
   });
 
+  it("does not poll a row whose sentAt is more than ten minutes ahead", async () => {
+    const far = { ...sent, sentAt: "2026-10-14T08:10:10.001Z" };
+    history.mockResolvedValue({ items: [far] });
+    const { client } = mountHistory();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15010);
+    });
+    expect(history).toHaveBeenCalledOnce();
+    client.clear();
+  });
+
   it("stops polling an unread row when its ten-minute window expires", async () => {
     const expiring = { ...sent, sentAt: "2026-10-14T07:50:15.000Z" };
     history.mockResolvedValue({ items: [expiring] });
