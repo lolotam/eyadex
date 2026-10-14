@@ -178,8 +178,13 @@ These override anything looser above.
       lines** in proportion to `net_line`, each share rounded down, and the remaining minor units go one by
       one to the lines in `position` order. A line ends at `line_total = net_line − allocated_share` ≥ 0.
    5. Tax per line: `round_half_up(line_total × tax_rate_bp / 10000)`; `tax_minor = Σ` line taxes.
-   6. `subtotal = Σ gross_line`, `discount = Σ line_discount + invoice_discount`, `total = Σ line_total
-      - tax_minor`. Every total is ≥ 0; a negative intermediate is a validation error, never clamped.
+   6. Totals:
+      - `subtotal_minor = Σ gross_line`
+      - `discount_minor = Σ line_discount + invoice_discount`
+      - `total_minor = Σ line_total + tax_minor` (tax is **added**, never subtracted)
+
+      Every total is ≥ 0; a negative intermediate is a validation error, never clamped.
+
    7. The spec ships a table of worked examples (two equal lines with a 1-fils invoice discount, 100 %
       discount, 15 % tax with rounding) and the shared test asserts them.
 2. **Amounts on the wire are decimal integer strings** (`"12500"` = 12.500 KWD), parsed to `bigint` for
