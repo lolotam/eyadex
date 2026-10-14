@@ -323,7 +323,9 @@ columns>) WHERE subject_type <> 'invoice'`. Invoice notifications are unique on
 3. Clarifications (no approval needed): the catalogue gains **13** finance keys (invoices 9, discounts 2,
    prices 2); one line is capped at 10¹² minor units while aggregates are bounded by PostgreSQL `bigint`; the
    platform loses direct `UPDATE` on `clinics.currency` / `currency_exponent` so every change goes through the
-   locked function.
+   locked function. A discount has no view of its own, so a role holding `create:discounts` must hold
+   `view:invoices` (the write-needs-view rule reads `VIEWED_THROUGH`). The finance release grants the locked
+   admin its **seven clinic-scope** finance keys, the same set a new clinic's admin gets.
 
 ## 9. Out of this phase
 
