@@ -6,6 +6,14 @@ import type { MockState } from "./mock-store";
 export const MOCK_SCAN_DELAY_MS = 6000;
 /** The linked number the mock reports once scanned. */
 export const MOCK_PHONE_LAST4 = "0000";
+/** Fixed, fictional public ids the demo answers for `signup-config` (brief N3 §3). */
+export const MOCK_SIGNUP_CONFIG = {
+  appId: "100000000000001",
+  configId: "200000000000002",
+  graphVersion: "v21.0",
+} as const;
+/** Fictional ids the demo "Meta window" reports. */
+export const MOCK_SIGNUP_IDS = { wabaId: "300000000000003", phoneNumberId: "400000000000004" };
 /** A small valid PNG of a QR code (fictional content), the placeholder the mock shows to scan. */
 export const MOCK_QR_DATA_URL =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACEAAAAhAQAAAAB/n//CAAAAuElEQVR42l3OIU8CcQDG4d//9baDXTgpbtcYCRvpvJnAYiWx0dwFPgc0AoFMsln8AI4vgMXgBDdvhts4R2KT7eDuNjnMWp78mBMwEgB/3HkvFWTP+9/oOGnXEWUMomiCzsbtGBXBwzlyv95yzH6QtGqWcf2LD36cyB7qsFnlqDoNQWrc5ajw1UVaz54wae/91pPzuADtLst7TJZ8PhuThpHbEfZNjDgsA0yWXM9eVVw5AZa7/f8E4Bfe4TaotheGQAAAAABJRU5ErkJggg==";

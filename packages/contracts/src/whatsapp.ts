@@ -119,3 +119,29 @@ export const whatsappCoexistenceRequestSchema = z
   })
   .strict();
 export type WhatsappCoexistenceRequest = z.infer<typeof whatsappCoexistenceRequestSchema>;
+
+/**
+ * `GET /v1/clinic/whatsapp/signup-config` (N3): what the browser needs to open Meta's Embedded Signup.
+ * Both ids are public; the app secret never leaves the API. 404 `unavailable` when not configured.
+ */
+export const whatsappSignupConfigSchema = z
+  .object({
+    appId: z.string().regex(/^\d{5,30}$/),
+    configId: z.string().regex(/^\d{5,30}$/),
+    graphVersion: z.string().regex(/^v\d+\.\d+$/),
+  })
+  .strict();
+export type WhatsappSignupConfig = z.infer<typeof whatsappSignupConfigSchema>;
+
+/**
+ * `POST /v1/clinic/whatsapp/embedded-signup` (N3): the one-time code from `FB.login` and the ids from
+ * the `WA_EMBEDDED_SIGNUP` message. The API exchanges the code server-side; answers the channel view.
+ */
+export const whatsappEmbeddedSignupRequestSchema = z
+  .object({
+    code: z.string().min(1, "validation.required").max(1024, "validation.tooLong"),
+    wabaId: z.string().regex(/^\d{5,30}$/, "validation.number"),
+    phoneNumberId: z.string().regex(/^\d{5,30}$/, "validation.number"),
+  })
+  .strict();
+export type WhatsappEmbeddedSignupRequest = z.infer<typeof whatsappEmbeddedSignupRequestSchema>;

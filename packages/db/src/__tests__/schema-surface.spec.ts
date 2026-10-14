@@ -58,4 +58,17 @@ describe("@eyadex/db/schema", () => {
       expect([id.hasDefault, id.default]).toEqual([false, undefined]);
     }
   });
+
+  it("mirrors N3's delivery times and the one-clinic-per-Meta-number index (0059)", () => {
+    const ledger = getTableConfig(schema.patientNotifications).columns.map((c) => c.name);
+    expect(ledger).toEqual(expect.arrayContaining(["delivered_at", "read_at"]));
+    const unique = getTableConfig(schema.clinicWhatsappChannels).indexes.find(
+      (i) => i.config.name === "clinic_whatsapp_channels_phone_number_unique",
+    );
+    expect(unique?.config.unique).toBe(true);
+    expect(unique?.config.columns.map((c) => (c as { name?: string }).name)).toEqual([
+      "phone_number_id",
+    ]);
+    expect(unique?.config.where).toBeDefined();
+  });
 });

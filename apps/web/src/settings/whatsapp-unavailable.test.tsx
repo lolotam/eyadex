@@ -51,6 +51,7 @@ describe("WhatsApp not available on this server", () => {
     expect(await screen.findByText(ar.whatsapp.unavailableTitle)).toBeTruthy();
     expect(screen.queryByText(ar.whatsapp.qr.title)).toBeNull();
     expect(screen.getByText(ar.whatsapp.business.title)).toBeTruthy();
+    fireEvent.click(screen.getByText(ar.whatsapp.signup.advanced));
     expect(screen.getByRole("button", { name: ar.whatsapp.business.set })).toBeEnabled();
   });
 });

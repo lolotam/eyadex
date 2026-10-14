@@ -12,9 +12,29 @@ const message = z.object({
 });
 const connection = z.object({ state: z.string() });
 
+/** What one Evolution message update says about a message the clinic sent. */
+export type EvolutionMessageOutcome = "rejected" | "delivered" | "read";
+
 export type EvolutionWebhookEvent =
-  | { readonly kind: "rejected"; readonly clinicId: string; readonly messageId: string }
+  | {
+      readonly kind: EvolutionMessageOutcome;
+      readonly clinicId: string;
+      readonly messageId: string;
+    }
   | { readonly kind: "closed"; readonly clinicId: string };
+
+// Baileys' ack levels as Evolution reports them, by name or by number (N2 rejection, N3 receipts).
+// SERVER_ACK (2) and PENDING (1) say nothing the ledger does not already know.
+const OUTCOMES = new Map<string | number, EvolutionMessageOutcome>([
+  ["ERROR", "rejected"],
+  [0, "rejected"],
+  ["DELIVERY_ACK", "delivered"],
+  [3, "delivered"],
+  ["READ", "read"],
+  [4, "read"],
+  ["PLAYED", "read"],
+  [5, "read"],
+]);
 
 /**
  * يقرأ الأحداث المطلوبة فقط ويهمل الردود المجهولة؛ الجسم الخارجي لا يُسجّل.
@@ -39,8 +59,9 @@ export function parseEvolutionWebhook(body: unknown): EvolutionWebhookEvent[] {
     if (!parsedMessage.success) return [];
     const { status, keyId, key } = parsedMessage.data;
     const messageId = keyId ?? key?.id;
-    return (status === "ERROR" || status === 0) && messageId !== undefined
-      ? [{ kind: "rejected", clinicId, messageId }]
+    const outcome = status === undefined ? undefined : OUTCOMES.get(status);
+    return outcome !== undefined && messageId !== undefined
+      ? [{ kind: outcome, clinicId, messageId }]
       : [];
   });
 }

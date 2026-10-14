@@ -60,9 +60,26 @@ function skipReason(db: MockState, row: StoredNotification): NotificationSkipRea
  * Demo rule (deterministic, brief round 2 §3): WhatsApp accepts every message, then refuses delivery to
  * a patient whose phone ends in 0 — the row fails with `delivery_rejected`, as a real late refusal would.
  */
-function rejectsDelivery(db: MockState, row: StoredNotification): boolean {
+function phoneEndsIn(db: MockState, row: StoredNotification, digit: string): boolean {
   const patient = db.patients.find((p) => p.clinicId === row.clinicId && p.id === row.patientId);
-  return patient?.phone.replace(/\D/g, "").endsWith("0") ?? false;
+  return patient?.phone.replace(/\D/g, "").endsWith(digit) ?? false;
+}
+
+/** Demo (brief N3 §3): a sent WhatsApp row is delivered 3 s later and read 6 s later. */
+export const MOCK_DELIVERED_DELAY_MS = 3000;
+export const MOCK_READ_DELAY_MS = 6000;
+
+function scheduleReceipts(id: string): void {
+  const mark = (field: "deliveredAt" | "readAt") => () => {
+    const current = getState();
+    const row = notificationState(current).ledger.find((r) => r.id === id);
+    if (!row || row.status !== "sent") return;
+    if (field === "readAt" && !row.deliveredAt) row.deliveredAt = new Date().toISOString();
+    row[field] = new Date().toISOString();
+    persist();
+  };
+  setTimeout(mark("deliveredAt"), MOCK_DELIVERED_DELAY_MS);
+  setTimeout(mark("readAt"), MOCK_READ_DELAY_MS);
 }
 
 /** The mock worker: settles one queued row as sent, skipped or failed. */
@@ -73,10 +90,15 @@ export function settleNotification(db: MockState, id: string): void {
   if (reason) {
     row.status = "skipped";
     row.skipReason = reason;
-  } else if (row.channel === "whatsapp" && rejectsDelivery(db, row)) {
+  } else if (row.channel === "whatsapp" && phoneEndsIn(db, row, "0")) {
     row.status = "failed";
     row.failureReason = "delivery_rejected";
     row.route = channelOf(db, row.clinicId).transport ?? "evolution";
+    row.sentAt = new Date().toISOString();
+  } else if (row.channel === "whatsapp" && phoneEndsIn(db, row, "9")) {
+    // Demo (brief N3 §3): a phone ending in 9 stands for a Business app with two-step verification on.
+    row.status = "failed";
+    row.failureReason = "whatsapp_two_step";
   } else {
     row.status = "sent";
     row.route =
@@ -84,6 +106,7 @@ export function settleNotification(db: MockState, id: string): void {
         ? routeOf(db, row.clinicId)
         : (channelOf(db, row.clinicId).transport ?? "evolution");
     row.sentAt = new Date().toISOString();
+    if (row.channel === "whatsapp") scheduleReceipts(row.id);
   }
 }
 
@@ -113,7 +136,16 @@ function queueRow(
   db: MockState,
   subject: Omit<
     StoredNotification,
-    "id" | "channel" | "status" | "skipReason" | "route" | "createdAt" | "sentAt" | "failureReason"
+    | "id"
+    | "channel"
+    | "status"
+    | "skipReason"
+    | "route"
+    | "createdAt"
+    | "sentAt"
+    | "failureReason"
+    | "deliveredAt"
+    | "readAt"
   >,
   channel: NotificationChannel,
 ): void {
@@ -140,6 +172,8 @@ function queueRow(
     createdAt: new Date().toISOString(),
     sentAt: null,
     failureReason: null,
+    deliveredAt: null,
+    readAt: null,
   };
   ledger.push(row);
   setTimeout(() => {
@@ -164,6 +198,8 @@ export function historyOf(db: MockState, clinicId: string, subjectId: string) {
       createdAt: r.createdAt,
       sentAt: r.sentAt,
       failureReason: r.status === "failed" ? (r.failureReason ?? "other") : null,
+      deliveredAt: r.deliveredAt ?? null,
+      readAt: r.readAt ?? null,
     }));
   return { items };
 }

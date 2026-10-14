@@ -6,6 +6,13 @@ import { AREA_AUTH, type AreaAuth } from "./area-auth.ts";
 import { publicRulesFor } from "./public-rate-limits.ts";
 import { AUTH_RATE_LIMIT, type AuthRateLimit } from "./rate-limit.module.ts";
 
+// Webhooks: no browser, so no area host; each is authenticated by its own guard before this one.
+const MACHINE_ROUTES: ReadonlySet<string> = new Set([
+  "POST /v1/hooks/evolution",
+  "POST /v1/hooks/meta",
+  "GET /v1/hooks/meta",
+]);
+
 /**
  * بيعد الطلبات على `/v1` routes اللي من غير جلسة (ADR-0005/0008) قبل أي شغل داتابيز. route مش في
  * `PUBLIC_V1_ROUTES` → مرفوض؛ Redis واقع → 503، عمره ما بيعدّي.
@@ -21,11 +28,11 @@ export class PublicRateLimitGuard implements CanActivate {
     const http = context.switchToHttp();
     const request = http.getRequest<FastifyRequest>();
     const routeKey = `${request.method} ${request.routeOptions.url ?? ""}`;
-    // The machine endpoint authenticates its own header first; Evolution reaches an internal host.
-    const area =
-      routeKey === "POST /v1/hooks/evolution"
-        ? "clinic"
-        : this.areaAuth.hosts.resolve(request.headers);
+    // The machine endpoints authenticate their own header first; Evolution reaches an internal host and
+    // Meta whichever public host its app is configured with.
+    const area = MACHINE_ROUTES.has(routeKey)
+      ? "clinic"
+      : this.areaAuth.hosts.resolve(request.headers);
     if (area === null) throw new ApiError("not_found");
     const ip = this.areaAuth.hosts.clientIp(request.headers, request.socket.remoteAddress);
     const rules = publicRulesFor(routeKey, ip, request.body);

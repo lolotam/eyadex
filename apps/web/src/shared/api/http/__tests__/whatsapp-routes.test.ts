@@ -8,6 +8,20 @@ const persona = { kind: "custom", clinicId: CLINIC, memberId: USER } as const;
 const accept = { acceptRisk: true, riskVersion: WHATSAPP_RISK_VERSION } as const;
 
 describe("WhatsApp HTTP refusals", () => {
+  it("shows the signup outage copy from the API's 503 envelope", async () => {
+    const h = clientWith(() => ({
+      status: 503,
+      body: { code: "unknown", details: { code: "unavailable" } },
+    }));
+    const error = await h.api.whatsapp
+      .embeddedSignup(persona, {
+        code: crypto.randomUUID(),
+        wabaId: "300000000000003",
+        phoneNumberId: "400000000000004",
+      })
+      .catch((e: unknown) => e);
+    expect(isWhatsappUnavailable(error)).toBe(true);
+  });
   it("recognises an unconfigured server through the shared error envelope", async () => {
     const body = apiErrorEnvelopeSchema.parse({
       code: "unknown",

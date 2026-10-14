@@ -2,6 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useApi } from "@/shared/api/api-provider";
 import { usePersona } from "@/shared/persona/persona-provider";
 
+// Read receipts can be disabled or never arrive, so old messages must not keep polling forever.
+const RECEIPT_POLL_WINDOW_MS = 10 * 60 * 1000;
+
 function usePersonaKey() {
   const { persona, ready } = usePersona();
   return { persona, ready, key: [persona.kind, persona.clinicId, persona.memberId] as const };
@@ -19,8 +22,19 @@ export function useMessageHistory(subject: "appointment" | "visit", id: string) 
         : api.notifications.visitHistory(persona, id),
     enabled: ready && persona.kind !== "platform_admin",
     retry: false,
-    // A queued row settles shortly after: look again while one is pending.
-    refetchInterval: (query) =>
-      query.state.data?.items.some((item) => item.status === "queued") ? 1500 : false,
+    refetchInterval: (query) => {
+      const items = query.state.data?.items ?? [];
+      if (items.some((item) => item.status === "queued")) return 1500;
+      const now = Date.now();
+      return items.some((item) => {
+        if (item.channel !== "whatsapp" || item.status !== "sent" || item.readAt || !item.sentAt)
+          return false;
+        // A device clock behind the server makes a fresh row look "from the future": still poll it, but
+        // only within the same window either way, so bad data cannot poll forever.
+        return Math.abs(now - Date.parse(item.sentAt)) < RECEIPT_POLL_WINDOW_MS;
+      })
+        ? 5000
+        : false;
+    },
   });
 }

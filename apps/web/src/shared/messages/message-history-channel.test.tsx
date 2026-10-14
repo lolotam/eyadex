@@ -20,6 +20,8 @@ const row = (over: Partial<PatientNotification>, i: number): PatientNotification
   createdAt: "2026-10-12T08:00:00.000Z",
   sentAt: null,
   failureReason: null,
+  deliveredAt: null,
+  readAt: null,
   ...over,
 });
 

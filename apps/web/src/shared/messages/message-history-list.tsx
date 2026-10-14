@@ -11,6 +11,7 @@ import type { NotificationStatus, PatientNotification } from "@eyadex/contracts/
 import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { useSession } from "@/shared/persona/persona-provider";
+import { WhatsappReceipt } from "./whatsapp-receipt";
 
 const LOOK: Record<
   NotificationStatus,
@@ -37,11 +38,13 @@ export function NotificationStatusBadge({ status }: { status: NotificationStatus
 export function MessageHistoryRow({ item }: { item: PatientNotification }) {
   const { t, lang } = useI18n();
   const { session } = useSession();
-  const time = new Intl.DateTimeFormat(lang === "ar" ? "ar-KW" : "en-GB", {
+  const formatter = new Intl.DateTimeFormat(lang === "ar" ? "ar-KW" : "en-GB", {
     dateStyle: "medium",
     timeStyle: "short",
     timeZone: session?.clinic?.timezone ?? "Asia/Kuwait",
-  }).format(new Date(item.sentAt ?? item.createdAt));
+  });
+  const format = (iso: string) => formatter.format(new Date(iso));
+  const time = format(item.sentAt ?? item.createdAt);
   const detail =
     item.status === "skipped" && item.skipReason
       ? t(`messageHistory.skip.${item.skipReason}`)
@@ -57,6 +60,7 @@ export function MessageHistoryRow({ item }: { item: PatientNotification }) {
           <ChannelIcon className="size-3 shrink-0" aria-hidden />
           {[t(`messageHistory.channel.${item.channel}`), detail, time].filter(Boolean).join(" · ")}
         </span>
+        <WhatsappReceipt item={item} format={format} />
         {item.status === "failed" && item.failureReason && (
           <span className="text-xs text-destructive">
             {t(`messageHistory.failure.${item.failureReason}`)}

@@ -26,6 +26,7 @@ import {
   FakeWhatsapp,
   FakeMetaSender,
   META_TOKEN,
+  metaNumberFor,
   seedChannel,
 } from "./whatsapp-fixtures.ts";
 
@@ -102,7 +103,10 @@ describe("WhatsApp send (spec §7.1)", () => {
     expect(call.action).toBe("template");
     if (call.action !== "template") return;
     expect(call.number).toBe(`965${w.phone}`);
-    expect(call.credentials).toEqual({ phoneNumberId: "10000", accessToken: META_TOKEN });
+    expect(call.credentials).toEqual({
+      phoneNumberId: metaNumberFor(w.clinicId),
+      accessToken: META_TOKEN,
+    });
     expect(call.template.name).toBe("appointment_booked");
     expect(call.template.language).toBe("ar");
     const [clinic, date, time, provider, branch, ...rest] = call.template.parameters;
