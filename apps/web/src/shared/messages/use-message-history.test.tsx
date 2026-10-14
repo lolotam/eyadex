@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, renderHook } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 import type { PatientNotification } from "@eyadex/contracts/notifications";
 import { useMessageHistory } from "./use-message-history";
@@ -30,6 +30,11 @@ const sent: PatientNotification = {
   readAt: null,
 };
 
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-10-14T08:00:10.000Z"));
+});
+
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
@@ -37,19 +42,22 @@ afterEach(() => {
 });
 
 describe.each(["appointment", "visit"] as const)("%s receipt updates", (subject) => {
+  function mountHistory() {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    return { client, ...renderHook(() => useMessageHistory(subject, "subject"), { wrapper }) };
+  }
+
   it("refetches sent and delivered WhatsApp rows until read", async () => {
-    vi.useFakeTimers();
     const delivered = { ...sent, deliveredAt: "2026-10-14T08:00:04.000Z" };
     const read = { ...delivered, readAt: "2026-10-14T08:00:07.000Z" };
     history
       .mockResolvedValueOnce({ items: [sent] })
       .mockResolvedValueOnce({ items: [delivered] })
       .mockResolvedValue({ items: [read] });
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    const wrapper = ({ children }: { children: ReactNode }) => (
-      <QueryClientProvider client={client}>{children}</QueryClientProvider>
-    );
-    const { result } = renderHook(() => useMessageHistory(subject, "subject"), { wrapper });
+    const { client, result } = mountHistory();
     await act(async () => {
       await vi.advanceTimersByTimeAsync(10);
     });
@@ -67,6 +75,48 @@ describe.each(["appointment", "visit"] as const)("%s receipt updates", (subject)
       await vi.advanceTimersByTimeAsync(15000);
     });
     expect(history).toHaveBeenCalledTimes(calls);
+    client.clear();
+  });
+
+  it("does not poll an unread row sent more than ten minutes ago", async () => {
+    const old = { ...sent, sentAt: "2026-10-14T07:50:09.999Z" };
+    history.mockResolvedValue({ items: [old] });
+    const { client, result } = mountHistory();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10);
+    });
+    expect(result.current.data?.items).toEqual([old]);
+    expect(history).toHaveBeenCalledOnce();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15000);
+    });
+    expect(history).toHaveBeenCalledOnce();
+    client.clear();
+  });
+
+  it("stops polling an unread row when its ten-minute window expires", async () => {
+    const expiring = { ...sent, sentAt: "2026-10-14T07:50:15.000Z" };
+    history.mockResolvedValue({ items: [expiring] });
+    const { client } = mountHistory();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5010);
+    });
+    expect(history).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15000);
+    });
+    expect(history).toHaveBeenCalledTimes(2);
+    client.clear();
+  });
+
+  it("keeps polling queued rows every 1500 ms regardless of age", async () => {
+    const queued = { ...sent, status: "queued" as const, sentAt: null, route: null };
+    history.mockResolvedValue({ items: [queued] });
+    const { client } = mountHistory();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1510);
+    });
+    expect(history).toHaveBeenCalledTimes(2);
     client.clear();
   });
 });
