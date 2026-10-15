@@ -13,8 +13,8 @@ beforeEach(() => resetMockData());
 
 // D-9: appointments is a per-clinic module the platform switches, exactly like patients.
 describe("the appointments module flag", () => {
-  it("is the second module of the catalogue (P2 adds medical third)", () => {
-    expect(moduleSchema.options).toEqual(["patients", "appointments", "medical"]);
+  it("is the second module of the catalogue (P2 adds medical third, F1 finance fourth)", () => {
+    expect(moduleSchema.options).toEqual(["patients", "appointments", "medical", "finance"]);
   });
 
   it("the platform switches it per clinic and the clinic session follows", async () => {
@@ -25,6 +25,7 @@ describe("the appointments module flag", () => {
       appointments: false,
       // The demo clinic shows the released medical module (P2 brief §3).
       medical: true,
+      finance: false,
     });
     expect((await api.session.getContext(as("clinic_admin"))).features.appointments).toBe(false);
     await api.platform.setClinicFeature(PLATFORM, clinicId, "appointments", true);

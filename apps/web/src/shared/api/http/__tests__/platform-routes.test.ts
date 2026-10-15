@@ -38,7 +38,7 @@ const input = {
   adminEmail: "admin@example.test",
   maxUsers: 7,
   maxBranches: 4,
-  modules: { patients: false, appointments: false, medical: false },
+  modules: { patients: false, appointments: false, medical: false, finance: false },
 };
 const base = `/api/v1/platform/clinics/${CLINIC}`;
 const sub = (over: Partial<SubscriptionInput>): SubscriptionInput => ({
@@ -72,7 +72,7 @@ describe("wired platform methods", () => {
     expect(call.body).toMatchObject({
       maxUsers: 7,
       maxBranches: 4,
-      modules: { patients: false, appointments: false, medical: false },
+      modules: { patients: false, appointments: false, medical: false, finance: false },
     });
     expect(result.firstAdminInvite.token).toBeNull();
   });
@@ -138,7 +138,7 @@ describe("wired platform methods", () => {
       timezone: "Asia/Kuwait",
       defaultLanguage: "en",
       createdAt: platformDetail.createdAt,
-      features: { patients: true, appointments: false, medical: false },
+      features: { patients: true, appointments: false, medical: false, finance: false },
     });
     const branches = await h.api.platform.listClinicBranches(P, CLINIC);
     expect(branches[0]?.clinicId).toBe(CLINIC);

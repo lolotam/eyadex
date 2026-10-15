@@ -16,7 +16,7 @@ const clinic = (over: Partial<CreateClinicInput> = {}): CreateClinicInput => ({
   adminEmail: "defaults.admin@example.com",
   maxUsers: 7,
   maxBranches: 4,
-  modules: { patients: false, appointments: false, medical: false },
+  modules: { patients: false, appointments: false, medical: false, finance: false },
   ...over,
 });
 
@@ -27,7 +27,7 @@ describe("new-clinic defaults in the platform settings", () => {
     expect(await api.platformSettings.get(PLATFORM)).toMatchObject({
       defaultMaxUsers: 10,
       defaultMaxBranches: 3,
-      defaultModules: { patients: true, appointments: true, medical: true },
+      defaultModules: { patients: true, appointments: true, medical: true, finance: false },
     });
   });
 
@@ -36,16 +36,16 @@ describe("new-clinic defaults in the platform settings", () => {
     const next = { ...before, defaultMaxUsers: 25, defaultMaxBranches: 5 };
     await api.platformSettings.update(PLATFORM, {
       ...next,
-      defaultModules: { patients: false, appointments: false, medical: false },
+      defaultModules: { patients: false, appointments: false, medical: false, finance: false },
     });
     expect(await api.platformSettings.get(PLATFORM)).toMatchObject({
       defaultMaxUsers: 25,
       defaultMaxBranches: 5,
-      defaultModules: { patients: false, appointments: false, medical: false },
+      defaultModules: { patients: false, appointments: false, medical: false, finance: false },
     });
     expect(getState().platformAudit[0]?.after).toMatchObject({
       defaultMaxUsers: 25,
-      defaultModules: { patients: false, appointments: false, medical: false },
+      defaultModules: { patients: false, appointments: false, medical: false, finance: false },
     });
   });
 
@@ -54,6 +54,7 @@ describe("new-clinic defaults in the platform settings", () => {
       patients: false,
       appointments: true,
       medical: true,
+      finance: false,
     };
     const before = structuredClone(getState());
     const stored = await api.platformSettings.get(PLATFORM);
@@ -96,7 +97,7 @@ describe("a new clinic keeps the form's limits and modules", () => {
     expect(detail).toMatchObject({
       maxUsers: 7,
       maxBranches: 4,
-      features: { patients: false, appointments: false, medical: false },
+      features: { patients: false, appointments: false, medical: false, finance: false },
     });
   });
 
@@ -117,7 +118,7 @@ describe("a new clinic keeps the form's limits and modules", () => {
     await expect(
       api.platform.createClinic(
         PLATFORM,
-        clinic({ modules: { patients: false, appointments: true, medical: true } }),
+        clinic({ modules: { patients: false, appointments: true, medical: true, finance: false } }),
         crypto.randomUUID(),
       ),
     ).rejects.toMatchObject({

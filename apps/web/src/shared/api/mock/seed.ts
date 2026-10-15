@@ -144,7 +144,13 @@ export function buildSeed(): MockState {
     };
     state.clinics.push(clinic);
     // P2: the demo shows the released state, so the demo clinic has the medical module on.
-    const features: ClinicFeatures = { patients: true, appointments: true, medical: ci === 0 };
+    // Finance stays off until its screens land (Lovable brief p4-f1).
+    const features: ClinicFeatures = {
+      patients: true,
+      appointments: true,
+      medical: ci === 0,
+      finance: false,
+    };
     state.features[clinicId] = features;
 
     const branches: Branch[] = [0, 1].map((bi) => {

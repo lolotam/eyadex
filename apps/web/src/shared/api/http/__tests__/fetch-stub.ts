@@ -121,7 +121,7 @@ export const platformDetail = {
   defaultLanguage: "en",
   timezone: "Asia/Kuwait",
   createdAt: TS,
-  modules: { patients: true, appointments: false, medical: false },
+  modules: { patients: true, appointments: false, medical: false, finance: false },
   usage: { users: { used: 2, max: 10 }, branches: { used: 1, max: 3 } },
 };
 export const page = <T>(items: T[]) => ({ items, nextCursor: null, total: items.length });

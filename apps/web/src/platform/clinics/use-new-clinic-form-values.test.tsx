@@ -32,14 +32,14 @@ describe("the create form's first values (ADR-0020 amendment)", () => {
     getState().platformSettings = {
       ...DEFAULT_PLATFORM_SETTINGS,
       defaultMaxUsers: 25,
-      defaultModules: { patients: false, appointments: false, medical: false },
+      defaultModules: { patients: false, appointments: false, medical: false, finance: false },
     };
     const { result } = setup(DEFAULT_PLATFORM_SETTINGS);
     expect(result.current.values).toBeNull();
     await waitFor(() => expect(result.current.values).not.toBeNull());
     expect(result.current.values).toMatchObject({
       maxUsers: 25,
-      modules: { patients: false, appointments: false, medical: false },
+      modules: { patients: false, appointments: false, medical: false, finance: false },
     });
   });
 

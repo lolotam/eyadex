@@ -32,6 +32,7 @@ export const arRoles = {
       patients: "موديول المراجعين",
       appointments: "موديول المواعيد",
       medical: "الموديول الطبي",
+      finance: "المالية",
     },
     resources: {
       branches: "الفروع",
@@ -46,6 +47,9 @@ export const arRoles = {
       visits: "الزيارات",
       medical: "المحتوى الطبي",
       medicines: "الأدوية",
+      invoices: "الفواتير",
+      discounts: "الخصومات",
+      prices: "الأسعار",
     },
     actions: {
       view: "عرض",

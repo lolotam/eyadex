@@ -189,6 +189,7 @@ export const arAudit = {
       patients: "المراجعون",
       appointments: "المواعيد",
       medical: "الطبي",
+      finance: "المالية",
       ar: "العربية",
       en: "الإنجليزية",
       male: "ذكر",
