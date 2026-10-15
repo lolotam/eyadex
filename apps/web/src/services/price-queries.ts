@@ -44,11 +44,5 @@ export const priceText = (list: PriceList, minor: string) =>
 
 /** Major-unit text → minor string, or null when the text is not an amount in the exponent. */
 export function minorOfText(text: string, exponent: number): string | null {
-  const trimmed = text.trim();
-  if (trimmed === "") return null;
-  try {
-    return parseMajorToMinor(trimmed, exponent);
-  } catch {
-    return null;
-  }
+  return text.trim() === "" ? null : parseMajorToMinor(text, exponent);
 }
