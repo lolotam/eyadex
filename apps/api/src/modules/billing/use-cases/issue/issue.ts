@@ -28,11 +28,10 @@ import {
   liveInvoiceOf,
   readInvoice,
   recordPrefix,
-  serviceNames,
   takeNumber,
-  type StoredLine,
 } from "../../persistence/pg-invoice-store.ts";
-import { effectivePrice, lockClinicFinance } from "../../persistence/pg-price-store.ts";
+import { lockClinicFinance } from "../../persistence/pg-price-store.ts";
+import { checkServiceLines, storedLines } from "../invoice-lines.ts";
 import { loadSource, type SourceReaders } from "../invoice-source.ts";
 
 export interface IssueDeps {
@@ -128,7 +127,7 @@ export class InvoiceIssues {
     }
     const prefix = await branchPrefix(tx, actor.clinicId, branchId);
     if (prefix === null) throw new ApiError("invoice_prefix_missing");
-    const names = await this.pricedServices(tx, actor.clinicId, body);
+    const names = await checkServiceLines(tx, actor.clinicId, body.lines);
     const now = clock.now();
     const facts = await issueClinicFacts(tx, actor.clinicId, now);
     const totals = invoiceTotals(body.lines, body.invoiceDiscount, facts.taxRateBp);
@@ -154,22 +153,7 @@ export class InvoiceIssues {
       invoiceDiscount: body.invoiceDiscount,
       createdBy: actor.membershipId,
     });
-    const lines: StoredLine[] = body.lines.map((line, position) => {
-      const name = line.kind === "service" ? names.get(line.serviceId)! : null;
-      return {
-        id: ids.newId(),
-        position,
-        kind: line.kind,
-        serviceId: line.kind === "service" ? line.serviceId : null,
-        providerId: line.kind === "service" ? line.providerId : null,
-        descriptionAr: name?.nameAr ?? (line.kind === "free" ? line.descriptionAr : ""),
-        descriptionEn: name?.nameEn ?? (line.kind === "free" ? line.descriptionEn : ""),
-        quantity: line.quantity,
-        unitPriceMinor: line.unitPriceMinor,
-        discount: line.discount,
-        lineTotalMinor: totals.lines[position]!.lineTotalMinor.toString(),
-      };
-    });
+    const lines = storedLines(ids, body.lines, names, totals);
     await insertLines(tx, actor.clinicId, invoiceId, lines, now);
     await recordPrefix(tx, ids, actor.clinicId, branchId, prefix, now);
     const invoice = (await readInvoice(tx, actor.clinicId, invoiceId))!;
@@ -212,29 +196,5 @@ export class InvoiceIssues {
     const access = await this.deps.patients.access(tx, actor.clinicId, actor, patientId);
     if (!reachesBranch(reach, branchId) || !access.inPatientReach) throw new ApiError("not_found");
     return { patientId, branchId };
-  }
-
-  // A service line needs a service of the clinic and a price for it (the doctor's or the base one); the
-  // amount itself comes from the form, which may have edited it.
-  private async pricedServices(tx: Tx, clinicId: string, body: CreateInvoiceRequest) {
-    const serviceLines = body.lines.flatMap((line, position) =>
-      line.kind === "service" ? [{ line, position }] : [],
-    );
-    const names = await serviceNames(
-      tx,
-      clinicId,
-      serviceLines.map(({ line }) => line.serviceId),
-    );
-    for (const { line, position } of serviceLines) {
-      if (!names.has(line.serviceId)) {
-        throw new ApiError("validation", [
-          { path: ["lines", position, "serviceId"], code: "unknown" },
-        ]);
-      }
-      if ((await effectivePrice(tx, clinicId, line.serviceId, line.providerId)) === null) {
-        throw new ApiError("price_missing", { position });
-      }
-    }
-    return names;
   }
 }

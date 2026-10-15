@@ -13,7 +13,14 @@ import { InvoicesController } from "./http/invoices.controller.ts";
 import { PricesController } from "./http/prices.controller.ts";
 import type { BillingPatientReader } from "./ports/billing-patients.ts";
 import type { BillingAppointmentReader, BillingVisitReader } from "./ports/billing-sources.ts";
-import { INVOICE_DRAFTS, INVOICE_ISSUES, INVOICE_READS, PRICE_CHANGES } from "./ports/tokens.ts";
+import {
+  INVOICE_CHANGES,
+  INVOICE_DRAFTS,
+  INVOICE_ISSUES,
+  INVOICE_READS,
+  PRICE_CHANGES,
+} from "./ports/tokens.ts";
+import { InvoiceChanges } from "./use-cases/changes/changes.ts";
 import { InvoiceDrafts } from "./use-cases/draft/draft.ts";
 import { InvoiceIssues } from "./use-cases/issue/issue.ts";
 import { InvoiceReads } from "./use-cases/reads/reads.ts";
@@ -64,6 +71,12 @@ export class BillingModule {
           provide: INVOICE_READS,
           inject: [DATABASE],
           useFactory: (db: Database) => new InvoiceReads({ db, patients }),
+        },
+        {
+          provide: INVOICE_CHANGES,
+          inject: [DATABASE, CLOCK],
+          useFactory: (db: Database, clock: Clock) =>
+            new InvoiceChanges({ db, clock, ids: systemUuidV7(), patients }),
         },
       ],
     };

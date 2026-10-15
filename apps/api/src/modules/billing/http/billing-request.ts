@@ -45,6 +45,19 @@ export const withETag = <T extends { invoice: { version: number } }>(
 };
 
 /**
+ * The required `If-Match` header (spec §8 rule 10): the version the form saw, as the ETag quoted it.
+ * Missing is 428 `precondition_required`; one that names no version can match none, so 412.
+ *
+ * @returns the version
+ */
+export const versionOf = (raw: string | undefined): number => {
+  if (raw === undefined || raw.trim() === "") throw new ApiError("precondition_required");
+  const match = /^(?:W\/)?"?(\d{1,9})"?$/.exec(raw.trim());
+  if (match === null) throw new ApiError("version_conflict");
+  return Number(match[1]);
+};
+
+/**
  * The caller as the guard resolved it: keys after the locked modules, and branches.
  *
  * @returns the billing actor

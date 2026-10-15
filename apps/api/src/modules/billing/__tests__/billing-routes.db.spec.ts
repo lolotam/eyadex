@@ -26,6 +26,8 @@ const ROUTES: [method: "GET" | "POST" | "PATCH" | "PUT", url: string, body?: unk
   ["POST", "/v1/invoices", {}],
   ["GET", "/v1/invoices"],
   ["GET", `/v1/invoices/${ID}`],
+  ["PATCH", `/v1/invoices/${ID}`, { lines: [], invoiceDiscount: null }],
+  ["POST", `/v1/invoices/${ID}/void`, { reason: "x" }],
 ];
 
 beforeAll(async () => {
