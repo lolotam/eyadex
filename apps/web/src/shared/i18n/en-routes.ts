@@ -15,6 +15,7 @@ export const enRoutes = {
     patients: "Patients",
     appointments: "Appointments",
     visits: "Visits",
+    invoices: "Invoices",
     account: "My account",
     menu: "Menu",
   },

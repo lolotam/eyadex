@@ -17,6 +17,8 @@ export const SETTINGS_TABS = [
   { id: "email", resource: "clinic_settings", to: "/clinic/settings/email" },
   // Phase 3 N2: the clinic's WhatsApp channel.
   { id: "whatsapp", resource: "clinic_settings", to: "/clinic/settings/whatsapp" },
+  // Finance F1: currency, tax, registration, logo and prefixes; `prices` vanishes with the module.
+  { id: "finance", resource: "prices", to: "/clinic/settings/finance" },
 ] as const satisfies readonly { id: string; resource: PermissionResource; to: string }[];
 
 export type SettingsTab = (typeof SETTINGS_TABS)[number];

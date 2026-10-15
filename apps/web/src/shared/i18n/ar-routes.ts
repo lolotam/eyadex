@@ -15,6 +15,7 @@ export const arRoutes = {
     patients: "المراجعون",
     appointments: "المواعيد",
     visits: "الزيارات",
+    invoices: "الفواتير",
     account: "حسابي",
     menu: "القائمة",
   },
