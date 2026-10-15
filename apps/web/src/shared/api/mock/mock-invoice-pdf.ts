@@ -6,7 +6,8 @@ import { formatMinor } from "@eyadex/contracts/money";
  * (Latin characters only). The real layout, Arabic text and logo come from the API's renderer.
  */
 export function renderInvoicePdf(invoice: Invoice): Blob {
-  const money = (minor: string) => `${formatMinor(minor, invoice.currencyExponent)} ${invoice.currency}`;
+  const money = (minor: string) =>
+    `${formatMinor(minor, invoice.currencyExponent)} ${invoice.currency}`;
   const rows = [
     `Invoice ${invoice.number}${invoice.status === "void" ? " (VOID)" : ""}`,
     `Issued ${invoice.issuedAt.slice(0, 10)}`,

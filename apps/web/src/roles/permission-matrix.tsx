@@ -148,6 +148,8 @@ function moduleOf(
 
 /** The view scope to grant with a write: the same scope when the view offers it, else its widest. */
 function viewScope(catalog: PermissionDefinition[], resource: string, scope: string): string {
-  const scopes = catalog.filter((d) => d.resource === resource && d.action === "view").map((d) => d.scope);
+  const scopes = catalog
+    .filter((d) => d.resource === resource && d.action === "view")
+    .map((d) => d.scope);
   return scopes.includes(scope as never) ? scope : (scopes[0] ?? scope);
 }

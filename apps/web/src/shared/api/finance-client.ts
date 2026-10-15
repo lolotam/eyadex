@@ -60,10 +60,19 @@ export interface FinanceApi {
     version: number,
     input: UpdateInvoiceRequest,
   ): Promise<Invoice>;
-  voidInvoice(persona: Persona, invoiceId: string, version: number, reason: string): Promise<Invoice>;
+  voidInvoice(
+    persona: Persona,
+    invoiceId: string,
+    version: number,
+    reason: string,
+  ): Promise<Invoice>;
   /** The invoice PDF (`application/pdf`); the browser prints it. */
   pdf(persona: Persona, invoiceId: string): Promise<Blob>;
-  send(persona: Persona, invoiceId: string, input: SendInvoiceRequest): Promise<SendInvoiceResponse>;
+  send(
+    persona: Persona,
+    invoiceId: string,
+    input: SendInvoiceRequest,
+  ): Promise<SendInvoiceResponse>;
   /** Platform only: a clinic's currency and tax rate, and its monthly totals (never an invoice row). */
   platformFinance(persona: Persona, clinicId: string): Promise<PlatformClinicFinance>;
   updatePlatformFinance(

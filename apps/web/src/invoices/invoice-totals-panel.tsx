@@ -3,12 +3,14 @@ import { useI18n } from "@/shared/i18n/i18n-provider";
 import { formatBp } from "@/shared/money/use-clinic-money";
 
 type Props = {
-  totals: Pick<Totals, "subtotalMinor" | "discountMinor" | "taxMinor" | "totalMinor"> | {
-    subtotalMinor: string;
-    discountMinor: string;
-    taxMinor: string;
-    totalMinor: string;
-  };
+  totals:
+    | Pick<Totals, "subtotalMinor" | "discountMinor" | "taxMinor" | "totalMinor">
+    | {
+        subtotalMinor: string;
+        discountMinor: string;
+        taxMinor: string;
+        totalMinor: string;
+      };
   taxRateBp: number;
   format: (minor: string) => string;
 };
@@ -27,7 +29,8 @@ export function InvoiceTotalsPanel({ totals, taxRateBp, format }: Props) {
       {row(t("finance.invoice.subtotal"), totals.subtotalMinor)}
       {totals.discountMinor.toString() !== "0" &&
         row(t("finance.invoice.discounts"), totals.discountMinor)}
-      {taxRateBp > 0 && row(t("finance.invoice.tax", { rate: formatBp(taxRateBp) }), totals.taxMinor)}
+      {taxRateBp > 0 &&
+        row(t("finance.invoice.tax", { rate: formatBp(taxRateBp) }), totals.taxMinor)}
       {row(t("finance.invoice.total"), totals.totalMinor, true)}
     </dl>
   );

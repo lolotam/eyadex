@@ -3,6 +3,8 @@
 export const enFinance = {
   finance: {
     noPrice: "No price",
+    // Shown when the patient file cannot be read (404/403): the invoice stays readable without a name.
+    patientFallback: "Patient",
     loadError: "Finance details could not be loaded",
     prices: {
       column: "Price",
@@ -35,7 +37,8 @@ export const enFinance = {
       logoSaved: "Logo saved",
       logoInvalid: "Choose a PNG or JPEG image of at most 1 MB",
       prefixes: "Invoice prefixes",
-      prefixesBody: "Each branch numbers its invoices as PREFIX-YEAR-NUMBER. The prefix locks after the branch's first invoice.",
+      prefixesBody:
+        "Each branch numbers its invoices as PREFIX-YEAR-NUMBER. The prefix locks after the branch's first invoice.",
       prefix: "Prefix",
       noPrefix: "Not set",
       locked: "Locked",

@@ -34,7 +34,9 @@ export function InvoiceDiscountFields({
         variant="ghost"
         size="sm"
         className="self-start"
-        onClick={() => form.setValue(name, { kind: "pct", value: "", reason: "" }, { shouldDirty: true })}
+        onClick={() =>
+          form.setValue(name, { kind: "pct", value: "", reason: "" }, { shouldDirty: true })
+        }
       >
         <Percent className="size-4" />
         {t("finance.invoice.addDiscount")}

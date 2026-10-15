@@ -19,7 +19,7 @@ export function ClinicSettingsShell({
 }) {
   const { t } = useI18n();
   const { session } = useSession();
-  const tabs = visibleSettingsTabs(session?.permissions ?? []);
+  const tabs = visibleSettingsTabs(session?.permissions ?? [], session?.features);
   return (
     <div>
       <PageHeader title={t("settings.title")} subtitle={t("settings.subtitle")} />

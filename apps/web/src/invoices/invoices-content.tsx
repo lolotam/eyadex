@@ -83,7 +83,10 @@ export function InvoicesContent() {
           label={t("finance.list.status")}
           value={status}
           anyLabel={t("finance.list.allStatuses")}
-          options={invoiceStatusSchema.options.map((s) => ({ value: s, label: t(`finance.status.${s}`) }))}
+          options={invoiceStatusSchema.options.map((s) => ({
+            value: s,
+            label: t(`finance.status.${s}`),
+          }))}
           onChange={(v) => filtered(() => setStatus(v))}
         />
         <Input
@@ -115,7 +118,11 @@ export function InvoicesContent() {
           action={<Button onClick={() => void list.refetch()}>{t("common.tryAgain")}</Button>}
         />
       ) : !list.isLoading && items.length === 0 ? (
-        <StatusPanel icon={ReceiptText} title={t("finance.list.empty")} body={t("finance.list.emptyBody")} />
+        <StatusPanel
+          icon={ReceiptText}
+          title={t("finance.list.empty")}
+          body={t("finance.list.emptyBody")}
+        />
       ) : (
         <div className="overflow-x-auto">
           <div className="min-w-[640px]">

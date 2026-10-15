@@ -10,7 +10,10 @@ const retry = (count: number, error: unknown) => !(error instanceof ApiError) &&
 
 function useClinicPersona() {
   const { persona, ready } = usePersona();
-  return { persona, enabled: ready && persona.kind !== "platform_admin" && Boolean(persona.clinicId) };
+  return {
+    persona,
+    enabled: ready && persona.kind !== "platform_admin" && Boolean(persona.clinicId),
+  };
 }
 
 export function useInvoiceList(query: Partial<InvoiceListQuery>) {

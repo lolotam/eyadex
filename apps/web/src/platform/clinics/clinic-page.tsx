@@ -10,6 +10,7 @@ import { errorCodeOf } from "@/shared/api/api-error";
 import { API_MODE } from "@/shared/api/api-mode";
 import { ComingSoonPanel } from "@/shared/shell/coming-soon-panel";
 import { ClinicBranchesTab } from "./clinic-branches-tab";
+import { ClinicFinanceTab } from "./clinic-finance-tab";
 import { ClinicDetailsTab } from "./clinic-details-tab";
 import { ClinicModulesTab } from "./clinic-modules-tab";
 import { useClinic } from "./clinic-queries";
@@ -59,6 +60,7 @@ export function ClinicPage({ clinicId }: { clinicId: string }) {
           <TabsTrigger value="modules">{t("clinics.tabs.modules")}</TabsTrigger>
           <TabsTrigger value="users">{t("clinics.tabs.users")}</TabsTrigger>
           <TabsTrigger value="branches">{t("clinics.tabs.branches")}</TabsTrigger>
+          <TabsTrigger value="finance">{t("finance.platform.title")}</TabsTrigger>
         </TabsList>
         <TabsContent value="details">
           {served("details") ? <ClinicDetailsTab clinic={data} /> : <ComingSoonPanel />}
@@ -74,6 +76,9 @@ export function ClinicPage({ clinicId }: { clinicId: string }) {
         </TabsContent>
         <TabsContent value="branches">
           <ClinicBranchesTab clinicId={data.id} />
+        </TabsContent>
+        <TabsContent value="finance">
+          <ClinicFinanceTab clinicId={data.id} />
         </TabsContent>
       </Tabs>
     </div>

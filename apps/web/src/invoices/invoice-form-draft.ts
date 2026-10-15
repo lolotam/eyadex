@@ -56,7 +56,12 @@ function lineValues(line: InvoiceLineInput, exponent: number): LineValues {
   };
   return line.kind === "service"
     ? { kind: "service", serviceId: line.serviceId, providerId: line.providerId, ...common }
-    : { kind: "free", descriptionAr: line.descriptionAr, descriptionEn: line.descriptionEn, ...common };
+    : {
+        kind: "free",
+        descriptionAr: line.descriptionAr,
+        descriptionEn: line.descriptionEn,
+        ...common,
+      };
 }
 
 export function valuesFromDraft(draft: InvoiceDraft, exponent: number): InvoiceFormValues {
@@ -107,7 +112,10 @@ export function percentToBp(text: string): number | null {
 }
 
 /** The discount as the request carries it, or null when its value does not parse. */
-export function toDiscountInput(d: DiscountValues, exponent: number): DiscountInput | null | "invalid" {
+export function toDiscountInput(
+  d: DiscountValues,
+  exponent: number,
+): DiscountInput | null | "invalid" {
   if (d === null) return null;
   if (d.kind === "pct") {
     const bp = percentToBp(d.value);
@@ -157,7 +165,14 @@ export function toCreateRequest(
   const invoiceDiscount = toDiscountInput(values.invoiceDiscount, exponent);
   if (lines === null || invoiceDiscount === "invalid") return null;
   return source
-    ? { source: source.source, sourceId: source.sourceId, patientId: null, branchId: null, lines, invoiceDiscount }
+    ? {
+        source: source.source,
+        sourceId: source.sourceId,
+        patientId: null,
+        branchId: null,
+        lines,
+        invoiceDiscount,
+      }
     : {
         source: "manual",
         sourceId: null,
@@ -169,7 +184,11 @@ export function toCreateRequest(
 }
 
 const asDiscount = (d: DiscountInput | null): Discount | null =>
-  d === null ? null : d.kind === "pct" ? { kind: "pct", bp: d.bp } : { kind: "amount", minor: BigInt(d.minor) };
+  d === null
+    ? null
+    : d.kind === "pct"
+      ? { kind: "pct", bp: d.bp }
+      : { kind: "amount", minor: BigInt(d.minor) };
 
 /** Live totals through the shared helper; null while the form does not parse or the discount overflows. */
 export function liveTotals(

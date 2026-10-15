@@ -65,7 +65,12 @@ export function setServicePrice(db: MockState, persona: Persona, serviceId: stri
 }
 
 /** Replaces the whole doctor list; every member must be an active member of the clinic. */
-export function setProviderPrices(db: MockState, persona: Persona, serviceId: string, raw: unknown) {
+export function setProviderPrices(
+  db: MockState,
+  persona: Persona,
+  serviceId: string,
+  raw: unknown,
+) {
   const a = requireFinanceKey(db, persona, "update:prices:clinic");
   serviceIn(db, a.clinic.id, serviceId);
   const body = parse(providerPricesRequestSchema, raw);
@@ -88,8 +93,19 @@ export function updateSettings(db: MockState, persona: Persona, raw: unknown) {
   return settingsView(db, a.clinic.id);
 }
 
+/** `Blob.arrayBuffer` is missing in some test DOMs; FileReader reads the same bytes there. */
+function bytesOf(blob: Blob): Promise<ArrayBuffer> {
+  if (typeof blob.arrayBuffer === "function") return blob.arrayBuffer();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as ArrayBuffer);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsArrayBuffer(blob);
+  });
+}
+
 async function isImage(file: Blob): Promise<boolean> {
-  const head = new Uint8Array(await file.slice(0, 4).arrayBuffer());
+  const head = new Uint8Array(await bytesOf(file.slice(0, 4)));
   const png = head[0] === 0x89 && head[1] === 0x50 && head[2] === 0x4e && head[3] === 0x47;
   const jpeg = head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff;
   return png || jpeg;
@@ -135,7 +151,8 @@ export function setPrefix(db: MockState, persona: Persona, branchId: string, raw
   if (state.prefixes[branchId] === invoicePrefix) return prefixItem(db, a.clinic.id, branchId);
   if (prefixLocked(db, a.clinic.id, branchId)) throw new ApiError("invoice_prefix_locked");
   const heldByOther = db.branches.some(
-    (b) => b.clinicId === a.clinic.id && b.id !== branchId && state.prefixes[b.id] === invoicePrefix,
+    (b) =>
+      b.clinicId === a.clinic.id && b.id !== branchId && state.prefixes[b.id] === invoicePrefix,
   );
   const usedBy = state.usedPrefixes[`${a.clinic.id}:${invoicePrefix}`];
   if (heldByOther || (usedBy !== undefined && usedBy !== branchId)) {
