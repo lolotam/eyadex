@@ -71,6 +71,10 @@ export const arRoutes = {
       title: "واتساب",
       description: "ربط رقم واتساب العيادة لرسائل المراجعين.",
     },
+    clinicSettingsFinance: {
+      title: "الإعدادات المالية",
+      description: "عملة العيادة وضريبتها والسجل التجاري والشعار وبادئات الفواتير.",
+    },
     clinicSettingsEmail: {
       title: "مرسلو البريد",
       description: "مرسل بريد العيادة الأساسي والاحتياطي.",

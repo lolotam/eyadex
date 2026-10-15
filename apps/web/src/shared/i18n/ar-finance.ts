@@ -5,6 +5,7 @@ type Strings<T> = { [K in keyof T]: T[K] extends string ? string : Strings<T[K]>
 export const arFinance: Strings<typeof enFinance> = {
   finance: {
     noPrice: "بدون سعر",
+    patientFallback: "مراجع",
     loadError: "تعذّر تحميل البيانات المالية",
     prices: {
       column: "السعر",

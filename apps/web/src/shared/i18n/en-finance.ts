@@ -3,6 +3,8 @@
 export const enFinance = {
   finance: {
     noPrice: "No price",
+    // Shown when the patient file cannot be read (404/403): the invoice stays readable without a name.
+    patientFallback: "Patient",
     loadError: "Finance details could not be loaded",
     prices: {
       column: "Price",
