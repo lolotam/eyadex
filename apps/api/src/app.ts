@@ -36,6 +36,7 @@ import {
 import { PatientsModule } from "./modules/patients/index.ts";
 import { AppointmentsModule } from "./modules/appointments/index.ts";
 import { MedicalModule, registerAttachmentUploads } from "./modules/medical/index.ts";
+import { BillingModule } from "./modules/billing/index.ts";
 import { ClinicAuditModule, PlatformAuditModule } from "./modules/audit/index.ts";
 import { whatsappHooks, whatsappModule, type WhatsappDependencies } from "./app-whatsapp.ts";
 import { PlatformModule } from "./modules/platform/index.ts";
@@ -77,8 +78,8 @@ export interface AppDependencies extends WhatsappDependencies {
   /**
    * Mounts the clinic request context behind the global access guard and `GET /v1/me`, `/v1/roles`,
    * `/v1/permissions/catalogue`, `/v1/branches`, `/v1/users`, `/v1/invitations`, `/v1/clinic/mail-provider`,
-   * `/v1/patients`, `/v1/clinic/audit`, `/v1/services`, `/v1/schedules` (ADR-0009, 0011, 0012, 0014,
-   * 0018, 0019, 0026). Needs auth mounted,
+   * `/v1/patients`, `/v1/clinic/audit`, `/v1/services`, `/v1/schedules`, and finance F1's `/v1/prices`
+   * (ADR-0009, 0011, 0012, 0014, 0018, 0019, 0026; docs/specs/finance-design.md). Needs auth mounted,
    * DATABASE_URL, REDIS_URL, OUTBOX_SEAL_KEY,
    * MAIL_PROVIDER_SEAL_KEY, MEDICAL_MASTER_KEY_V<MEDICAL_KEY_VERSION> and MEDICAL_INDEX_KEY (ADR-0028,
    * docs/specs/medical-keys-runbook.md). Attachments also read MEDICAL_BLOB_S3_ENDPOINT,
@@ -148,6 +149,7 @@ export function apiModule(
             PatientsModule,
             AppointmentsModule,
             MedicalModule.forRoot(deps.medicalBlobStore),
+            BillingModule.forRoot(),
             whatsappModule(deps),
             ClinicAuditModule,
           ]

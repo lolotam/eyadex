@@ -221,24 +221,30 @@ export const providerPricesRequestSchema = z
   })
   .strict();
 
+/** One service's base price and its per-doctor prices. */
+export const servicePriceSchema = z
+  .object({
+    serviceId: idSchema,
+    priceMinor: minorAmountSchema.nullable(),
+    providerPrices: z.array(
+      z.object({ memberId: idSchema, priceMinor: minorAmountSchema }).strict(),
+    ),
+  })
+  .strict();
+export type ServicePrice = z.infer<typeof servicePriceSchema>;
+
+/** Both price writes answer the service's prices as saved. */
+export const servicePriceResponseSchema = z.object({ servicePrice: servicePriceSchema }).strict();
+
 /** `GET /v1/prices` (R1-13): `GET /services` never carries a price. */
 export const priceListResponseSchema = z
   .object({
     currency: currencyCodeSchema,
     currencyExponent: z.number().int(),
-    items: z.array(
-      z
-        .object({
-          serviceId: idSchema,
-          priceMinor: minorAmountSchema.nullable(),
-          providerPrices: z.array(
-            z.object({ memberId: idSchema, priceMinor: minorAmountSchema }).strict(),
-          ),
-        })
-        .strict(),
-    ),
+    items: z.array(servicePriceSchema),
   })
   .strict();
+export type PriceList = z.infer<typeof priceListResponseSchema>;
 
 /**
  * `POST /v1/invoices/:id/send` (R2-5): the client makes `sendRequestId` once per press of «إرسال»;

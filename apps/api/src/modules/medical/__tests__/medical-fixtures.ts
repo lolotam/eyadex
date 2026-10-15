@@ -31,7 +31,7 @@ export async function setModule(
   h: Harness,
   invalidate: AuthorizationInvalidator,
   clinicId: string,
-  module: "appointments" | "medical",
+  module: "appointments" | "medical" | "finance",
   enabled: boolean,
 ): Promise<void> {
   await h.owner`INSERT INTO clinic_features (clinic_id, id, module, enabled, updated_at)
