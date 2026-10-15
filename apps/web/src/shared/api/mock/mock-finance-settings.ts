@@ -88,8 +88,19 @@ export function updateSettings(db: MockState, persona: Persona, raw: unknown) {
   return settingsView(db, a.clinic.id);
 }
 
+/** `Blob.arrayBuffer` is missing in some test DOMs; FileReader reads the same bytes there. */
+function bytesOf(blob: Blob): Promise<ArrayBuffer> {
+  if (typeof blob.arrayBuffer === "function") return blob.arrayBuffer();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as ArrayBuffer);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsArrayBuffer(blob);
+  });
+}
+
 async function isImage(file: Blob): Promise<boolean> {
-  const head = new Uint8Array(await file.slice(0, 4).arrayBuffer());
+  const head = new Uint8Array(await bytesOf(file.slice(0, 4)));
   const png = head[0] === 0x89 && head[1] === 0x50 && head[2] === 0x4e && head[3] === 0x47;
   const jpeg = head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff;
   return png || jpeg;
