@@ -134,6 +134,11 @@ export const createClinicRequestSchema = z
     // One platform-wide default the form pre-fills (owner decision 2026-10-09), not PRD §4.8's
     // "by specialty" table: the value sent is always the super admin's.
     modules: moduleFlagsSchema.strict().superRefine(refineModuleDependencies),
+    // Finance F1 (spec §8 rule 6): the clinic's currency and tax rate; the server keeps KWD and 0 when
+    // they are left out. The list repeats money.ts's currencyCodeSchema (this file imports zod only);
+    // finance-contracts.spec.ts pins the two together.
+    currency: z.enum(["KWD", "BHD", "OMR", "SAR", "AED", "QAR"]).optional(),
+    taxRateBp: z.number().int().min(0).max(10000).optional(),
     admin: z
       .object({
         fullName: name,

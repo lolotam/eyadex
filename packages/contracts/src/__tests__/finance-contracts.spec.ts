@@ -10,6 +10,8 @@ import {
   providerPricesRequestSchema,
   sendInvoiceRequestSchema,
 } from "../finance.ts";
+import { currencyCodeSchema } from "../money.ts";
+import { createClinicRequestSchema } from "../onboarding.ts";
 
 const ID = "0198f0a0-0000-7000-8000-000000000001";
 const ID2 = "0198f0a0-0000-7000-8000-000000000002";
@@ -128,5 +130,12 @@ describe("prices, prefixes, sending and the platform", () => {
     expect(platformClinicFinanceRequestSchema.safeParse({ currency: "SAR" }).success).toBe(true);
     expect(platformClinicFinanceRequestSchema.safeParse({ currency: "USD" }).success).toBe(false);
     expect(platformClinicFinanceRequestSchema.safeParse({ taxRateBp: 10001 }).success).toBe(false);
+  });
+});
+
+describe("the create-clinic currency (spec §8 rule 6)", () => {
+  it("offers exactly the supported currencies, which onboarding.ts repeats inline", () => {
+    const currency = createClinicRequestSchema.innerType().shape.currency.unwrap();
+    expect(currency.options).toEqual(currencyCodeSchema.options);
   });
 });

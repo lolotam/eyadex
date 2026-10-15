@@ -1,4 +1,5 @@
 import { moduleSchema } from "@eyadex/contracts/clinics";
+import { SUPPORTED_CURRENCIES } from "@eyadex/contracts/money";
 import type { CreateClinicRequest } from "@eyadex/contracts/onboarding";
 import type { Tx } from "@eyadex/db";
 import { sql } from "drizzle-orm";
@@ -22,13 +23,17 @@ export async function insertNewClinic(
   now: Date,
 ): Promise<void> {
   const at = now.toISOString();
+  // Finance F1 (spec §8 rule 6): the exponent follows the currency, never typed; KWD and 0 % by default.
+  const currency = input.currency ?? "KWD";
   await tx.execute(
     sql`INSERT INTO clinics (id, slug, name_ar, name_en, specialty, default_language, timezone,
-          status, expires_at, max_users, max_branches, created_at, updated_at)
+          status, expires_at, max_users, max_branches, currency, currency_exponent, tax_rate_bp,
+          created_at, updated_at)
         VALUES (${clinicId}, ${input.slug}, ${input.nameAr}, ${input.nameEn}, ${input.specialty},
           ${input.defaultLanguage}, ${input.timezone}, ${input.status},
           ${input.expiresAt.toISOString()}::timestamptz, ${input.maxUsers},
-          ${input.maxBranches}, ${at}::timestamptz, ${at}::timestamptz)`,
+          ${input.maxBranches}, ${currency}, ${SUPPORTED_CURRENCIES[currency]},
+          ${input.taxRateBp ?? 0}, ${at}::timestamptz, ${at}::timestamptz)`,
   );
   for (const module of moduleSchema.options) {
     await tx.execute(

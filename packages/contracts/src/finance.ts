@@ -307,6 +307,17 @@ export const platformClinicFinanceRequestSchema = z
   .object({ currency: currencyCodeSchema.optional(), taxRateBp: basisPointsSchema.optional() })
   .strict()
   .refine((v) => v.currency !== undefined || v.taxRateBp !== undefined, "validation.required");
+export type PlatformClinicFinanceRequest = z.infer<typeof platformClinicFinanceRequestSchema>;
+
+/** `GET`/`PATCH /v1/platform/clinics/:id/finance`: the clinic's currency, its exponent and tax rate. */
+export const platformClinicFinanceSchema = z
+  .object({
+    currency: currencyCodeSchema,
+    currencyExponent: z.number().int(),
+    taxRateBp: z.number().int(),
+  })
+  .strict();
+export type PlatformClinicFinance = z.infer<typeof platformClinicFinanceSchema>;
 
 /** `GET /v1/platform/clinics/:id/finance-totals` (FIN-3): totals only, never an invoice row. */
 export const platformFinanceTotalsSchema = z
