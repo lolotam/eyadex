@@ -1,4 +1,5 @@
 import {
+  VIEWED_THROUGH,
   actionSchema,
   type PermissionDefinition,
   type PermissionResource,
@@ -34,16 +35,24 @@ export function PermissionMatrix({ catalog, value, onChange, readOnly }: Props) 
     })),
   ].filter((g) => g.items.length > 0);
 
-  // Writes need view on the same resource: granting a write grants view, dropping view drops writes.
+  // Writes need view on the same resource, or on the resource it is viewed through (a discount is a
+  // change to an invoice): granting a write grants that view, dropping the view drops the writes.
   function setScope(resource: PermissionResource, action: string, scope: string | null) {
     const prefix = `${action}:${resource}:`;
+    const viewedVia = VIEWED_THROUGH[resource] ?? resource;
     let next = value.filter((k) => !k.startsWith(prefix));
     if (scope) {
       next.push(`${prefix}${scope}`);
-      if (action !== "view" && !next.some((k) => k.startsWith(`view:${resource}:`)))
-        next.push(`view:${resource}:${scope}`);
+      if (action !== "view" && !next.some((k) => k.startsWith(`view:${viewedVia}:`)))
+        next.push(`view:${viewedVia}:${viewScope(catalog, viewedVia, scope)}`);
     } else if (action === "view") {
-      next = next.filter((k) => k.split(":")[1] !== resource);
+      const dependents = Object.entries(VIEWED_THROUGH)
+        .filter(([, via]) => via === resource)
+        .map(([r]) => r);
+      next = next.filter((k) => {
+        const r = k.split(":")[1];
+        return r !== resource && !dependents.includes(r ?? "");
+      });
     }
     onChange(next);
   }
@@ -135,4 +144,10 @@ function moduleOf(
   resource: PermissionResource,
 ): ClinicModule | null {
   return catalog.find((d) => d.resource === resource)?.module ?? null;
+}
+
+/** The view scope to grant with a write: the same scope when the view offers it, else its widest. */
+function viewScope(catalog: PermissionDefinition[], resource: string, scope: string): string {
+  const scopes = catalog.filter((d) => d.resource === resource && d.action === "view").map((d) => d.scope);
+  return scopes.includes(scope as never) ? scope : (scopes[0] ?? scope);
 }

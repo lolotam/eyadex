@@ -29,6 +29,8 @@ export const ROLE_TEMPLATES: Record<SystemRoleKey, RoleTemplate> = {
       "view:medical:own",
       "update:medical:own",
       "view:medicines:clinic",
+      // Finance F1: invoices of its own patients only.
+      "view:invoices:own",
     ],
   },
   receptionist: {
@@ -47,6 +49,11 @@ export const ROLE_TEMPLATES: Record<SystemRoleKey, RoleTemplate> = {
       "view:services:clinic",
       // P2-K4: the front desk sees that a visit exists, never its content.
       "view:visits:branch",
+      // Finance F1: the front desk invoices in its branches and reads the price list.
+      "view:invoices:branch",
+      "create:invoices:branch",
+      "update:invoices:branch",
+      "view:prices:clinic",
     ],
   },
   technician: {
