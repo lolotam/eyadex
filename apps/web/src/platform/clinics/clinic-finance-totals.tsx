@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { formatMinor } from "@eyadex/contracts/money";
+import { exponentOf, formatMinor } from "@eyadex/contracts/money";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { exponentOfCurrency } from "./currency-exponent";
 import { useApi } from "@/shared/api/api-provider";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { usePersona } from "@/shared/persona/persona-provider";
@@ -42,7 +41,7 @@ export function ClinicFinanceTotals({ clinicId }: { clinicId: string }) {
                     {m.month}
                   </td>
                   <td className="py-2 text-end tabular-nums" dir="ltr">
-                    {formatMinor(m.invoicedMinor, exponentOfCurrency(m.currency))} {m.currency}
+                    {formatMinor(m.invoicedMinor, exponentOf(m.currency))} {m.currency}
                   </td>
                 </tr>
               ))}

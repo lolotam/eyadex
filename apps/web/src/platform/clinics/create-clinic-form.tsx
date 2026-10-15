@@ -5,10 +5,14 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import {
-  createClinicInputSchema,
   type ClinicDetailsInput,
   type CreateClinicInput,
 } from "@eyadex/contracts/clinics";
+import {
+  createClinicFormSchema,
+  DEFAULT_NEW_CLINIC_FINANCE,
+  type CreateClinicFormValues,
+} from "@/shared/api/new-clinic-finance";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form } from "@/components/ui/form";
@@ -21,6 +25,7 @@ import { PageHeader } from "@/shared/shell/page-header";
 import { ClinicDetailsFields } from "./clinic-details-fields";
 import { clinicKeys } from "./clinic-queries";
 import { FirstAdminLinkPanel } from "./first-admin-link-panel";
+import { NewClinicFinanceCard } from "./new-clinic-finance-card";
 import { NewClinicLimitsCard } from "./new-clinic-limits-card";
 
 /** The create-clinic form, opened with its first values (limits and modules from the settings). */
@@ -32,14 +37,14 @@ export function CreateClinicForm({ initialValues }: { initialValues: CreateClini
   const queryClient = useQueryClient();
   // Generated once when the page opens: a retried submit replays instead of creating a second clinic.
   const [idempotencyKey] = useState(() => crypto.randomUUID());
-  const form = useForm<CreateClinicInput>({
-    resolver: zodResolver(createClinicInputSchema),
-    defaultValues: initialValues,
+  const form = useForm<CreateClinicFormValues>({
+    resolver: zodResolver(createClinicFormSchema),
+    defaultValues: { ...initialValues, ...DEFAULT_NEW_CLINIC_FINANCE },
   });
   const slug = form.watch("slug").trim() || "<slug>";
 
   const mutation = useMutation({
-    mutationFn: (input: CreateClinicInput) =>
+    mutationFn: (input: CreateClinicFormValues) =>
       api.platform.createClinic(persona, input, idempotencyKey),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: clinicKeys.all });
@@ -119,7 +124,8 @@ export function CreateClinicForm({ initialValues }: { initialValues: CreateClini
               />
             </CardContent>
           </Card>
-          <NewClinicLimitsCard control={form.control} />
+          <NewClinicLimitsCard control={form.control as unknown as Control<CreateClinicInput>} />
+          <NewClinicFinanceCard control={form.control} />
           <div className="flex gap-2">
             <Button type="submit" disabled={mutation.isPending}>
               {t("common.create")}
