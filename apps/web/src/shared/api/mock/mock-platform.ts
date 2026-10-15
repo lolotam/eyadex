@@ -1,3 +1,5 @@
+import { clinicFinanceOf } from "./mock-finance-state";
+import { newClinicFinanceSchema } from "../new-clinic-finance";
 import {
   NO_FEATURES,
   effectiveClinicStatus,
@@ -151,6 +153,11 @@ export function createMockPlatform(): Omit<
       };
       db.clinics.push(clinic);
       db.features[clinic.id] = { ...input.modules };
+      // Finance F1 (spec §8 rule 6): the request's currency and tax rate, else KWD and 0.
+      const finance = clinicFinanceOf(db, clinic.id);
+      const financeInput = newClinicFinanceSchema.parse(raw);
+      finance.currency = financeInput.currency ?? "KWD";
+      finance.taxRateBp = financeInput.taxRateBp ?? 0;
       const roles = buildSystemRoles(clinic.id, newId);
       let firstAdminInvite: FirstAdminInviteLink | null = null;
       db.roles.push(...roles);

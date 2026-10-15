@@ -1,5 +1,6 @@
 import {
   Building2,
+  ReceiptText,
   CalendarDays,
   ClipboardList,
   GitBranch,
@@ -29,6 +30,7 @@ export type NavPath =
   | "/clinic/patients"
   | "/clinic/appointments"
   | "/clinic/visits"
+  | "/clinic/invoices"
   | "/clinic/audit"
   | "/clinic/settings"
   | "/clinic/account";
@@ -75,6 +77,8 @@ export const CLINIC_NAV: NavItem[] = [
     icon: Stethoscope,
     permission: "create:visits:own",
   },
+  // Finance F1: the invoice list; its keys vanish with the finance module.
+  { to: "/clinic/invoices", label: "nav.invoices", icon: ReceiptText, resource: "invoices" },
   { to: "/clinic/audit", label: "nav.audit", icon: ClipboardList, resource: "audit_log" },
   // D-17: the Settings page holds the General, Services and Work schedules tabs.
   {

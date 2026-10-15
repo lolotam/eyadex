@@ -15,6 +15,7 @@ export const arSettings: Shape<typeof enSettings> = {
       notifications: "الإشعارات",
       email: "البريد",
       whatsapp: "واتساب",
+      finance: "المالية",
     },
   },
   clinicSettings: {

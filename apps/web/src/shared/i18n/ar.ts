@@ -1,3 +1,4 @@
+import { arFinance } from "./ar-finance";
 import { arNotifications } from "./ar-notifications";
 import { arWhatsapp } from "./ar-whatsapp";
 import { arClinicCreate } from "./ar-clinic-create";
@@ -152,6 +153,8 @@ export const ar: Dictionary = {
       appointmentsBody: "الخدمات وجداول العمل والإجازات؛ الحجز يأتي في المرحلة التالية.",
       medical: "الطبي",
       medicalBody: "الزيارات وملاحظات الطبيب والتشخيصات والوصفات والملف الطبي.",
+      finance: "المالية",
+      financeBody: "أسعار الخدمات والفواتير والخصومات وطباعة الفواتير.",
       saved: "تم تحديث الموديول",
     },
     members: {
@@ -177,6 +180,7 @@ export const ar: Dictionary = {
   ...arVisits,
   ...arNotifications,
   ...arWhatsapp,
+  ...arFinance,
   validation: {
     needsView: "أي صلاحية إضافة أو تعديل أو تعطيل تحتاج صلاحية العرض في نفس القسم",
     timezone: "اختر منطقة زمنية مدعومة",
@@ -189,7 +193,7 @@ export const ar: Dictionary = {
     email: "أدخل بريدًا صحيحًا",
     slug: "استخدم حروفًا إنجليزية صغيرة وأرقامًا وشرطات",
     slugReserved: "هذا العنوان محجوز لمنصة Eyadex",
-    moduleRequires: "الملف الطبي يحتاج تفعيل موديول المراجعين أولًا",
+    moduleRequires: "هذا الموديول يحتاج تفعيل موديول المراجعين أولًا",
     number: "أدخل رقمًا",
     min: "يجب ألا يقل عن 1",
     dateRequired: "اختر تاريخًا",

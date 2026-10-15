@@ -48,7 +48,14 @@ export const arAudit = {
       ...arMedicalAuditEntities,
     },
     actions: {
+      invoice: {
+        issued: "إصدار فاتورة",
+        edited: "تعديل فاتورة",
+        voided: "إلغاء فاتورة",
+        link_opened: "فتح المراجع رابط الفاتورة",
+      },
       branch: {
+        invoice_prefix_set: "تحديد بادئة فواتير الفرع",
         created: "إنشاء فرع",
         updated: "تعديل فرع",
         deactivated: "تعطيل فرع",
@@ -78,6 +85,8 @@ export const arAudit = {
         reactivated: "إعادة تفعيل دور",
       },
       service: {
+        price_set: "تعديل سعر خدمة",
+        provider_prices_set: "تعديل أسعار الدكاترة لخدمة",
         created: "إنشاء خدمة",
         updated: "تعديل خدمة",
         deactivated: "تعطيل خدمة",
@@ -100,6 +109,9 @@ export const arAudit = {
         prescription_sent: "إرسال الوصفة للمراجع بالبريد",
       },
       clinic: {
+        finance_changed: "تغيير عملة العيادة أو نسبة الضريبة",
+        commercial_reg_no_set: "تعديل رقم السجل التجاري",
+        logo_set: "تغيير شعار العيادة",
         created: "إنشاء عيادة",
         ...arAuditApiClinicActions,
         details_updated: "تعديل بيانات العيادة",

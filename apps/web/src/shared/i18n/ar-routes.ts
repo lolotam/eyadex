@@ -15,6 +15,7 @@ export const arRoutes = {
     patients: "المراجعون",
     appointments: "المواعيد",
     visits: "الزيارات",
+    invoices: "الفواتير",
     account: "حسابي",
     menu: "القائمة",
   },
@@ -38,6 +39,22 @@ export const arRoutes = {
       description: "إدارة مواقع العيادة وبيانات التواصل وحالة التشغيل.",
     },
     clinicPatients: { title: "المراجعون", description: "ملفات المراجعين وتسجيلهم." },
+    clinicInvoices: {
+      title: "الفواتير",
+      description: "فواتير العيادة: البحث والتصفية وفتح الفاتورة.",
+    },
+    clinicInvoice: {
+      title: "فاتورة",
+      description: "بنود الفاتورة وخصوماتها وضريبتها وإجماليها، مع الطباعة والإرسال والإلغاء.",
+    },
+    clinicInvoiceNew: {
+      title: "فاتورة جديدة",
+      description: "إصدار فاتورة لموعد أو زيارة أو يدويًا.",
+    },
+    clinicSettingsFinance: {
+      title: "الإعدادات المالية",
+      description: "العملة والضريبة والسجل التجاري والشعار وبادئات الفواتير.",
+    },
     clinicVisits: {
       title: "الزيارات",
       description: "ابدأ زيارة مباشرة لمراجع ليس لديه موعد.",
