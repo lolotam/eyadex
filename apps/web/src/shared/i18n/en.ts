@@ -1,3 +1,4 @@
+import { enFinance } from "./en-finance";
 import { enNotifications } from "./en-notifications";
 import { enWhatsapp } from "./en-whatsapp";
 import { enClinicCreate } from "./en-clinic-create";
@@ -180,6 +181,7 @@ export const en = {
   ...enVisits,
   ...enNotifications,
   ...enWhatsapp,
+  ...enFinance,
   validation: {
     needsView: "Any create, edit or deactivate permission needs view on the same area",
     timezone: "Choose a supported time zone",

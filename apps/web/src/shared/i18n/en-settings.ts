@@ -12,6 +12,7 @@ export const enSettings = {
       notifications: "Notifications",
       email: "Email",
       whatsapp: "WhatsApp",
+      finance: "Finance",
     },
   },
   clinicSettings: {
