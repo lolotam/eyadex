@@ -38,6 +38,22 @@ export const enRoutes = {
       description: "Manage clinic locations, contact details, and operating status.",
     },
     clinicPatients: { title: "Patients", description: "Patient files and registration." },
+    clinicInvoices: {
+      title: "Invoices",
+      description: "The clinic's invoices: search, filter and open one.",
+    },
+    clinicInvoice: {
+      title: "Invoice",
+      description: "An invoice's lines, discounts, tax and total, with PDF, send and void.",
+    },
+    clinicInvoiceNew: {
+      title: "New invoice",
+      description: "Issue an invoice for an appointment, a visit or by hand.",
+    },
+    clinicSettingsFinance: {
+      title: "Finance settings",
+      description: "Currency, tax, commercial registration, logo and invoice prefixes.",
+    },
     clinicVisits: {
       title: "Visits",
       description: "Start a walk-in visit for a patient without an appointment.",
