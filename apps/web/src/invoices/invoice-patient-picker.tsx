@@ -24,7 +24,7 @@ export function InvoicePatientPicker({
       <div className="flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm">
         <span className="truncate">{value.label}</span>
         <Button type="button" variant="ghost" size="sm" onClick={() => onChange(null)}>
-          {t("common.change")}
+          {t("finance.invoice.change")}
         </Button>
       </div>
     );

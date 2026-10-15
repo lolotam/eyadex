@@ -56,6 +56,7 @@ export const arFinance: Strings<typeof enFinance> = {
       branch: "الفرع",
       pickPatient: "اختر المراجع",
       pickBranch: "اختر الفرع",
+      change: "تغيير",
       lines: "البنود",
       serviceLine: "خدمة",
       freeLine: "بند آخر",

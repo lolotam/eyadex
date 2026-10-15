@@ -54,6 +54,7 @@ export const enFinance = {
       branch: "Branch",
       pickPatient: "Choose a patient",
       pickBranch: "Choose a branch",
+      change: "Change",
       lines: "Lines",
       serviceLine: "Service",
       freeLine: "Other item",
