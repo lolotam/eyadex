@@ -25,7 +25,8 @@ describe("the appointments module flag", () => {
       appointments: false,
       // The demo clinic shows the released medical module (P2 brief §3).
       medical: true,
-      finance: false,
+      // and the released finance module (F1).
+      finance: true,
     });
     expect((await api.session.getContext(as("clinic_admin"))).features.appointments).toBe(false);
     await api.platform.setClinicFeature(PLATFORM, clinicId, "appointments", true);
@@ -40,6 +41,7 @@ describe("the appointments module flag", () => {
     ).rejects.toMatchObject({ code: "validation" });
     expect(getState()).toEqual(before);
     await api.platform.setClinicFeature(PLATFORM, clinicId, "medical", false);
+    await api.platform.setClinicFeature(PLATFORM, clinicId, "finance", false);
     await api.platform.setClinicFeature(PLATFORM, clinicId, "patients", false);
     const disabled = structuredClone(getState());
     await expect(
