@@ -7,7 +7,7 @@ import type { Persona } from "@eyadex/contracts/session";
 import { ApiError } from "../api-error";
 import type { FinanceApi } from "../finance-client";
 import { guardFinance, holdsView, seesInvoice, type FinanceAccess } from "./mock-finance-access";
-import { clinicFinanceOf, clinicHasInvoice, clinicMonth, exponentOf, financeState } from "./mock-finance-state";
+import { clinicFinanceOf, clinicHasInvoice, clinicHasPrice, clinicMonth, exponentOf, financeState } from "./mock-finance-state";
 import * as settings from "./mock-finance-settings";
 import { renderInvoicePdf } from "./mock-invoice-pdf";
 import { draftOf, editInvoice, issueInvoice, strip, voidInvoice } from "./mock-invoice-writes";
@@ -140,7 +140,7 @@ export function createMockFinance(): FinanceApi {
         const body = parse(platformClinicFinanceRequestSchema, raw);
         const f = clinicFinanceOf(db(), clinicId);
         const before = platformView(clinicId);
-        if (body.currency && body.currency !== f.currency && clinicHasInvoice(db(), clinicId)) {
+        if (body.currency && body.currency !== f.currency && (clinicHasInvoice(db(), clinicId) || clinicHasPrice(db(), clinicId))) {
           throw new ApiError("currency_locked");
         }
         if (body.currency) f.currency = body.currency;

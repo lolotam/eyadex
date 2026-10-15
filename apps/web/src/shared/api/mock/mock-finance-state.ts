@@ -86,6 +86,14 @@ export function effectivePrice(
   return own?.priceMinor ?? price.priceMinor;
 }
 
+/** Has the clinic priced a service (base or doctor price): its currency is then locked. */
+export function clinicHasPrice(db: MockState, clinicId: string): boolean {
+  return db.services.some((s) => {
+    const p = financeState(db).prices[s.id];
+    return s.clinicId === clinicId && !!p && (p.priceMinor !== null || p.providerPrices.length > 0);
+  });
+}
+
 export const clinicHasInvoice = (db: MockState, clinicId: string): boolean =>
   financeState(db).invoices.some((i) => i.clinicId === clinicId);
 
