@@ -253,6 +253,12 @@ export const API_ERROR_MESSAGES = {
     message_ar: "هذه الفاتورة ملغاة ولا يمكن تعديلها",
     message_en: "This invoice is void and cannot be changed",
   },
+  appointment_not_billable: {
+    message_ar:
+      "لا يمكن إصدار فاتورة من موعد لم يحضره المراجع أو أُلغي؛ أصدر فاتورة يدوية عند الحاجة",
+    message_en:
+      "A no-show or cancelled appointment has no invoice of its own; issue a manual invoice",
+  },
   currency_locked: {
     message_ar: "لا يمكن تغيير العملة بعد تسعير خدمة أو إصدار فاتورة",
     message_en: "The currency cannot change once a price or an invoice exists",

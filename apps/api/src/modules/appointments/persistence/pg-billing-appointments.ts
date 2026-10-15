@@ -1,3 +1,4 @@
+import type { AppointmentStatus } from "@eyadex/contracts/appointments";
 import type { Tx } from "@eyadex/db";
 import { sql } from "drizzle-orm";
 
@@ -7,12 +8,13 @@ export interface BillingAppointmentRow {
   readonly branchId: string;
   readonly providerId: string;
   readonly serviceId: string | null;
+  readonly status: AppointmentStatus;
 }
 
 /**
  * The appointments module's adapter for the billing module's `BillingAppointmentReader` port (finance
- * R1-7): who, where, with whom and for which service; never the cancel note, so billing never names the
- * appointments table.
+ * R1-7): who, where, with whom, for which service and in which status; never the cancel note, so billing
+ * never names the appointments table.
  */
 export class PgBillingAppointments {
   async find(
@@ -25,8 +27,9 @@ export class PgBillingAppointments {
       branch_id: string;
       provider_membership_id: string;
       service_id: string | null;
+      status: AppointmentStatus;
     }>(
-      sql`SELECT patient_id, branch_id, provider_membership_id, service_id FROM appointments
+      sql`SELECT patient_id, branch_id, provider_membership_id, service_id, status FROM appointments
           WHERE clinic_id = ${clinicId} AND id = ${appointmentId}`,
     );
     return row === undefined
@@ -36,6 +39,7 @@ export class PgBillingAppointments {
           branchId: row.branch_id,
           providerId: row.provider_membership_id,
           serviceId: row.service_id,
+          status: row.status,
         };
   }
 }

@@ -258,6 +258,8 @@ export const ar: Dictionary = {
     invoice_prefix_taken: "هذه البادئة مستخدمة لفرع آخر في العيادة",
     invoice_already_exists: "يوجد بالفعل فاتورة لهذا الموعد أو لهذه الزيارة",
     invoice_void: "هذه الفاتورة ملغاة ولا يمكن تعديلها",
+    appointment_not_billable:
+      "لا يمكن إصدار فاتورة من موعد لم يحضره المراجع أو أُلغي؛ أصدر فاتورة يدوية عند الحاجة",
     currency_locked: "لا يمكن تغيير العملة بعد تسعير خدمة أو إصدار فاتورة",
     currency_unsupported: "هذه العملة غير مدعومة",
     discount_exceeds_total: "الخصم أكبر من قيمة الفاتورة",

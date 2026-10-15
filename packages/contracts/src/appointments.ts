@@ -39,6 +39,13 @@ export const canTransition = (from: AppointmentStatus, to: AppointmentStatus): b
 export const isReschedulable = (status: AppointmentStatus): boolean => status === "booked";
 
 /**
+ * Whether an appointment can carry its own invoice: a no-show or cancel fee is a manual invoice (finance
+ * FIN-9), never one drafted from the booking's service and doctor price.
+ */
+export const isBillable = (status: AppointmentStatus): boolean =>
+  status !== "no_show" && status !== "cancelled";
+
+/**
  * An instant on a whole minute: schedules and the grid work in minutes, so seconds could slip a slot past
  * the end of a shift unchecked (Codex A2 r2).
  */

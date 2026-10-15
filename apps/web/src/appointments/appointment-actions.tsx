@@ -2,7 +2,12 @@ import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { MoreVertical } from "lucide-react";
 import { toast } from "sonner";
-import { canTransition, isReschedulable, type Appointment } from "@eyadex/contracts/appointments";
+import {
+  canTransition,
+  isBillable,
+  isReschedulable,
+  type Appointment,
+} from "@eyadex/contracts/appointments";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -81,7 +86,7 @@ export function AppointmentActions({ appointment, canUpdate, onReschedule, onCan
           <DropdownMenuItem onSelect={() => setMessages(true)}>
             {t("messageHistory.title")}
           </DropdownMenuItem>
-          {appointment.status !== "cancelled" && (
+          {isBillable(appointment.status) && (
             <InvoiceSourceMenuItem appointmentId={appointment.id} />
           )}
           {cancellable && (

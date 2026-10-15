@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { CreateInvoiceRequest } from "@eyadex/contracts/finance";
 import { errorCodeOf } from "@/shared/api/api-error";
+import { financeState } from "@/shared/api/mock/mock-finance-state";
 import {
   PLATFORM,
   api,
@@ -120,6 +121,55 @@ describe("finance F1 in the mock, as the API", () => {
     const inv = await api.finance.issue(admin(), manual(), crypto.randomUUID());
     const pdf = await api.finance.pdf(admin(), inv.id);
     expect(pdf.type).toBe("application/pdf");
+  });
+
+  // PR #78 review (FIN-9): a no-show or cancel fee is a manual invoice, as the API refuses.
+  it("NEGATIVE: a no-show or cancelled appointment has no draft and no linked invoice", async () => {
+    const appointment = getState().appointments.find((x) => x.clinicId === clinicIdAt(0));
+    if (!appointment) throw new Error("seed");
+    for (const status of ["no_show", "cancelled"] as const) {
+      appointment.status = status;
+      expect(await fails(api.finance.draft(admin(), "appointment", appointment.id))).toBe(
+        "appointment_not_billable",
+      );
+      const linked = { ...manual(), source: "appointment" as const, sourceId: appointment.id };
+      expect(
+        await fails(
+          api.finance.issue(
+            admin(),
+            { ...linked, patientId: null, branchId: null },
+            crypto.randomUUID(),
+          ),
+        ),
+      ).toBe("appointment_not_billable");
+    }
+    // Outside the caller's branches it stays not_found, as the API: the status never leaks.
+    const db = getState();
+    const desk = db.members.find(
+      (m) =>
+        m.clinicId === clinicIdAt(0) &&
+        m.status === "active" &&
+        db.roles.find((r) => r.id === m.roleId)?.systemKey === "receptionist",
+    );
+    if (!desk) throw new Error("seed");
+    desk.branchIds = desk.branchIds.filter((b) => b !== appointment.branchId);
+    expect(await fails(api.finance.draft(as("receptionist"), "appointment", appointment.id))).toBe(
+      "not_found",
+    );
+  });
+
+  // PR #78 review: from/to are clinic days, as the API's `issued_at AT TIME ZONE` filter.
+  it("filters from/to on the clinic's day: 22:30 UTC is the next day in Kuwait", async () => {
+    const clinic = getState().clinics.find((c) => c.id === clinicIdAt(0));
+    expect(clinic?.timezone).toBe("Asia/Kuwait");
+    const inv = await api.finance.issue(admin(), manual(), crypto.randomUUID());
+    const stored = financeState(getState()).invoices.find((i) => i.id === inv.id);
+    if (!stored) throw new Error("issued");
+    stored.issuedAt = "2026-03-10T22:30:00.000Z";
+    const ids = async (q: { from?: string; to?: string }) =>
+      (await api.finance.listInvoices(admin(), q)).items.map((i) => i.id);
+    expect(await ids({ from: "2026-03-11", to: "2026-03-11" })).toContain(inv.id);
+    expect(await ids({ to: "2026-03-10" })).not.toContain(inv.id);
   });
 
   it("sets and clears a service price as a minor-unit string", async () => {

@@ -1,3 +1,4 @@
+import { isBillable, type AppointmentStatus } from "@eyadex/contracts/appointments";
 import type { Tx } from "@eyadex/db";
 
 import { ApiError } from "../../../shared/errors.ts";
@@ -16,7 +17,8 @@ export interface SourceReaders {
 
 /**
  * المصدر (موعد أو زيارة) جوه نطاق الفاعل، والمراجع والفرع متاخدين منه (R1-7). الزيارة خدمتها من موعدها،
- * وزيارة من غير موعد مالهاش خدمة. مصدر مش موجود أو برا الفروع = `not_found` (ISO-02).
+ * وزيارة من غير موعد مالهاش خدمة. مصدر مش موجود أو برا الفروع = `not_found` (ISO-02)؛ موعد ملغي أو
+ * المراجع محضرهوش = `appointment_not_billable`، ورسومه فاتورة يدوية (FIN-9).
  *
  * @param tx الـ transaction جوه `withTenant(clinicId)`
  * @param readers الـ ports
@@ -36,6 +38,9 @@ export async function loadSource(
 ): Promise<SourceFacts> {
   const facts = await readSource(tx, readers, clinicId, source, sourceId);
   if (facts === null || !reachesBranch(reach, facts.branchId)) throw new ApiError("not_found");
+  if (facts.status !== null && !isBillable(facts.status)) {
+    throw new ApiError("appointment_not_billable");
+  }
   return facts;
 }
 
@@ -45,7 +50,7 @@ async function readSource(
   clinicId: string,
   source: "appointment" | "visit",
   sourceId: string,
-): Promise<SourceFacts | null> {
+): Promise<(SourceFacts & { readonly status: AppointmentStatus | null }) | null> {
   if (source === "appointment") return readers.appointments.find(tx, clinicId, sourceId);
   const visit = await readers.visits.find(tx, clinicId, sourceId);
   if (visit === null) return null;
@@ -58,5 +63,7 @@ async function readSource(
     branchId: visit.branchId,
     providerId: visit.providerId,
     serviceId: appointment?.serviceId ?? null,
+    // The visit happened, so its appointment's status does not decide whether it is billed.
+    status: null,
   };
 }

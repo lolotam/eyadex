@@ -219,6 +219,19 @@ describe("issue refusals", () => {
     expect([res.statusCode, code(res)]).toEqual([422, "price_missing"]);
   });
 
+  it("refuses an invoice linked to a no-show appointment; a manual one is the way (FIN-9)", async () => {
+    const appointment = await serviceAppointment(h, C, patient, "16:00", "no_show");
+    const res = await issue(C.admin.cookie, {
+      source: "appointment",
+      sourceId: appointment,
+      patientId: null,
+      branchId: null,
+      lines: [free("1000")],
+      invoiceDiscount: null,
+    });
+    expect([res.statusCode, code(res)]).toEqual([409, "appointment_not_billable"]);
+  });
+
   it("refuses a branch with no invoice prefix yet", async () => {
     const res = await issue(C.admin.cookie, manual([free("100")], null, C.branchX));
     expect([res.statusCode, code(res)]).toEqual([409, "invoice_prefix_missing"]);

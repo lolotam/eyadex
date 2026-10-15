@@ -49,8 +49,8 @@ export const auditSince = (h: Harness, clinicId: string, since: Date) =>
           WHERE clinic_id = ${clinicId} AND created_at >= ${since} ORDER BY created_at, id`;
 
 /**
- * An appointment for the clinic's service on branch D with the doctor, booked and marked arrived by the
- * admin (so a visit can start from it).
+ * An appointment for the clinic's service on branch D with the doctor, booked by the admin and moved to
+ * `status`: arrived by default (so a visit can start from it), or a no-show or a cancel.
  *
  * @returns the appointment's id
  */
@@ -59,15 +59,20 @@ export async function serviceAppointment(
   C: FinanceClinic,
   patientId: string,
   time: string,
+  status: "arrived" | "no_show" | "cancelled" = "arrived",
 ): Promise<string> {
   const body = bookingBody(C, patientId, at(SUNDAY, time), { serviceId: C.serviceId });
   const res = await book(h, C.admin.cookie, body);
   if (res.statusCode !== 201) throw new Error(`book ${res.statusCode} ${res.body}`);
   const id = (res.json() as { appointment: { id: string } }).appointment.id;
-  const arrived = await send(h, C.admin.cookie, "POST", `/v1/appointments/${id}/status`, {
-    status: "arrived",
-  });
-  if (arrived.statusCode !== 200) throw new Error(`arrive ${arrived.statusCode} ${arrived.body}`);
+  const moved =
+    status === "cancelled"
+      ? await send(h, C.admin.cookie, "POST", `/v1/appointments/${id}/cancel`, {
+          reason: "patient_cancelled",
+          note: null,
+        })
+      : await send(h, C.admin.cookie, "POST", `/v1/appointments/${id}/status`, { status });
+  if (moved.statusCode !== 200) throw new Error(`${status} ${moved.statusCode} ${moved.body}`);
   return id;
 }
 

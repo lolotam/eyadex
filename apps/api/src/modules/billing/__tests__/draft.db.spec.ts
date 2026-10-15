@@ -83,6 +83,19 @@ describe("draft from an appointment (R1-7)", () => {
     expect([unknown.statusCode, code(unknown)]).toEqual([404, "not_found"]);
   });
 
+  // PR #78 review (FIN-9): a no-show or cancel fee is a manual invoice, never the booking's service price.
+  it("is appointment_not_billable for a no-show or a cancelled appointment", async () => {
+    const patient = await patientIn(h, C, C.branchD);
+    for (const [time, status] of [
+      ["14:00", "no_show"],
+      ["15:00", "cancelled"],
+    ] as const) {
+      const appointment = await serviceAppointment(h, C, patient, time, status);
+      const res = await draft(C.admin.cookie, "appointment", appointment);
+      expect([res.statusCode, code(res)]).toEqual([409, "appointment_not_billable"]);
+    }
+  });
+
   it("is refused to a doctor, who may only view the invoices of their own patients", async () => {
     const patient = await patientIn(h, C, C.branchD);
     const appointment = await serviceAppointment(h, C, patient, "12:00");

@@ -116,6 +116,7 @@ existing locked admin receives (R2-4, §8c.3). Existing roles change only by the
 
 Error codes (new): `price_missing` (a service line without a price), `invoice_prefix_missing`,
 `invoice_already_exists` (source already billed), `invoice_void` (edit a void invoice),
+`appointment_not_billable` (a draft or issue from a no-show or cancelled appointment; FIN-9),
 `currency_locked`, `discount_reason_required`; `pdf_busy` (503 with `Retry-After: 2`, when the API's PDF
 renderer is at capacity — owner 2026-10-15, F1-PDF-BUSY).
 

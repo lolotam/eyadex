@@ -264,6 +264,8 @@ export const en = {
     invoice_prefix_taken: "Another branch of the clinic uses or used this prefix",
     invoice_already_exists: "An invoice already exists for this appointment or visit",
     invoice_void: "This invoice is void and cannot be changed",
+    appointment_not_billable:
+      "A no-show or cancelled appointment has no invoice of its own; issue a manual invoice",
     currency_locked: "The currency cannot change once a price or an invoice exists",
     currency_unsupported: "This currency is not supported",
     discount_exceeds_total: "The discount is larger than the invoice amount",

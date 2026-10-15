@@ -1,3 +1,4 @@
+import { isBillable, type AppointmentStatus } from "@eyadex/contracts/appointments";
 import {
   createInvoiceRequestSchema,
   updateInvoiceRequestSchema,
@@ -47,7 +48,17 @@ function sourceOf(db: MockState, clinicId: string, source: "appointment" | "visi
     branchId: row.branchId,
     serviceId: appointment?.serviceId ?? null,
     providerId: row.providerMembershipId,
+    // A visit happened, so its appointment's status does not decide whether it is billed.
+    status: source === "appointment" ? (appointment?.status ?? null) : null,
   };
+}
+
+/**
+ * As the API, after the reach check so an unreachable source stays not_found: a no-show or cancelled
+ * appointment carries no invoice of its own (FIN-9); its fee is a manual invoice.
+ */
+function requireBillable(s: { status: AppointmentStatus | null }) {
+  if (s.status !== null && !isBillable(s.status)) throw new ApiError("appointment_not_billable");
 }
 
 /** GET /v1/invoices/draft: the source's service at the effective price, or "0" with priceMissing. */
@@ -60,6 +71,7 @@ export function draftOf(
   if (!holdsWrite(a, "create")) throw new ApiError("forbidden");
   const s = sourceOf(db, a.clinic.id, source, id);
   if (!writeReaches(a, "create", "invoices", s.branchId)) throw new ApiError("not_found");
+  requireBillable(s);
   const price = s.serviceId ? effectivePrice(db, s.serviceId, s.providerId) : null;
   return {
     source,
@@ -100,6 +112,7 @@ function parties(db: MockState, a: FinanceAccess, body: CreateInvoiceRequest) {
   const branch = db.branches.find((b) => b.id === named.branchId && b.clinicId === a.clinic.id);
   if (!patient || !branch || !branch.isActive) throw new ApiError("not_found");
   if (!writeReaches(a, "create", "invoices", branch.id)) throw new ApiError("forbidden");
+  if ("status" in named) requireBillable(named);
   return named;
 }
 

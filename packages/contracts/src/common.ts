@@ -80,6 +80,7 @@ export const apiErrorCodeSchema = z.enum([
   "invoice_prefix_taken",
   "invoice_already_exists",
   "invoice_void",
+  "appointment_not_billable",
   "currency_locked",
   "currency_unsupported",
   "discount_exceeds_total",

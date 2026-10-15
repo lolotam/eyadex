@@ -1,3 +1,4 @@
+import { dayInTimeZone } from "@eyadex/contracts/audit";
 import {
   invoiceListQuerySchema,
   platformClinicFinanceRequestSchema,
@@ -76,6 +77,8 @@ export function createMockFinance(): FinanceApi {
       await delay();
       const a = viewer(persona);
       const q = parse(invoiceListQuerySchema, raw);
+      // As the API: from/to are days on the clinic's clock, not UTC days.
+      const day = (iso: string) => dayInTimeZone(iso, a.clinic.timezone);
       const rows = financeState(db())
         .invoices.filter(
           (i) =>
@@ -87,8 +90,8 @@ export function createMockFinance(): FinanceApi {
             (!q.source || i.source === q.source) &&
             (!q.sourceId || i.sourceId === q.sourceId) &&
             (!q.number || i.number.includes(q.number.toUpperCase())) &&
-            (!q.from || i.issuedAt.slice(0, 10) >= q.from) &&
-            (!q.to || i.issuedAt.slice(0, 10) <= q.to),
+            (!q.from || day(i.issuedAt) >= q.from) &&
+            (!q.to || day(i.issuedAt) <= q.to),
         )
         .sort((x, y) => y.issuedAt.localeCompare(x.issuedAt) || y.id.localeCompare(x.id));
       const start = q.cursor ? rows.findIndex((r) => r.id === q.cursor) + 1 : 0;
