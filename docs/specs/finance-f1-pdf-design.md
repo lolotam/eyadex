@@ -137,3 +137,13 @@ The decision is made by measurement, not assumed.
 4. **L2 — (a) approved:** the logo is a file under a private per-render `--root` (1 MB cap kept; ≈ 25 MB).
 5. **Where it runs — approved:** measure p95 on staging first; ≤ 150 ms ⇒ in the API, else the worker path of §4.
 6. **Approved (F1-PDF-BUSY):** a new `RULE_ONLY` error `pdf_busy` (503, `Retry-After: 2`) — and `pdf_pending` (409) only if §4 moves rendering to the worker.
+7. **L1 result (probe 5, 2026-10-15) and the owner's choice ("ok do" on option 1, 2026-10-15):** no renderer or
+   font meets all 40 words in both extractors while the currency is written «د.ك» (poppler splits it around the
+   period in every form). Best: Typst 0.15.1 + **Amiri** + a post-render pass (qpdf 12.3.2) that wraps each
+   Arabic-letters-only run in `/ActualText` with its code points stored reversed — pdf.js 40/40, pdftotext
+   39/40, pages pixel-identical (scratchpad `pdf-probe5/REPORT.md`). Option 1 chosen: the invoice prints the
+   currency as «دينار كويتي» (the KWD word; other currencies get their full Arabic name) instead of «د.ك», and
+   the R2 criterion stays as written. Consequences to confirm before 8g code: the invoice's Arabic font becomes
+   Amiri (replacing item 3's IBM Plex Sans Arabic, which reached 32/40), the image gains qpdf (~1.8 MB), and CI
+   pins the pdf.js and poppler versions, since the pass relies on pdf.js ignoring `ActualText` and poppler
+   reversing it.
