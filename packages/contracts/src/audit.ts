@@ -169,6 +169,17 @@ export const CLINIC_AUDIT_ACTIONS = [
   "medicine.updated",
   "medicine.deactivated",
   "medicine.reactivated",
+  // Finance F1: prices, the clinic's finance details and branch prefixes, and the invoices.
+  "service.price_set",
+  "service.provider_prices_set",
+  "clinic.commercial_reg_no_set",
+  "clinic.logo_set",
+  "branch.invoice_prefix_set",
+  "invoice.issued",
+  "invoice.edited",
+  "invoice.voided",
+  "invoice.pdf_opened",
+  "invoice.link_opened",
 ] as const;
 
 /** Actions only the platform writes (its own log). */
@@ -186,16 +197,18 @@ export const PLATFORM_ONLY_AUDIT_ACTIONS = [
   "platform_account.joined",
   "platform_account.bootstrapped",
   "platform.settings_updated",
+  // Finance F1: the clinic's currency and tax rate, set by the platform team.
+  "clinic.finance_changed",
 ] as const;
 
 /**
  * Clinic-log actions the platform never reads: patient access, the appointments module's
  * configuration (services, schedules, staff time off) — ADR-0026 §8 — the appointments, which name
  * patients (0043 keeps their rows out of the platform's view as well), and the medical module's
- * visits, medical files, attachments and medicines list (P2 R3-4).
+ * visits, medical files, attachments and medicines list (P2 R3-4), and the invoices (finance F1, 0060).
  */
 const CLINIC_ONLY_ACTION =
-  /^(patient|service|schedule|time_off|appointment|visit|medical_profile|attachment|medicine)\./;
+  /^(patient|service|schedule|time_off|appointment|visit|medical_profile|attachment|medicine|invoice)\./;
 
 /** What the platform audit screen can show: its own events plus clinic administrative ones. */
 export const PLATFORM_AUDIT_ACTIONS = [

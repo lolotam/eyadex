@@ -86,6 +86,19 @@ describe("PATCH /v1/platform/clinics/:id/finance", () => {
       before: { currency: "KWD" },
       after: { currency: "BHD" },
     });
+    // PR #77 review: the platform log's clinic allowlist dropped both fields, so the change showed as empty.
+    const log = await call(h, {
+      method: "GET",
+      url: "/v1/platform/audit?action=clinic.finance_changed&limit=100",
+      host: PLATFORM,
+      cookie: staff.cookie,
+    });
+    expect(log.statusCode, log.body).toBe(200);
+    const items = (log.json() as { items: Record<string, unknown>[] }).items;
+    expect(items.find((i) => i["clinicId"] === C.clinicId)).toMatchObject({
+      before: { currency: "KWD", taxRateBp: 0 },
+      after: { currency: "BHD", taxRateBp: 0 },
+    });
 
     await send(h, C.admin.cookie, "PATCH", `/v1/services/${C.serviceId}/price`, {
       priceMinor: "1000",

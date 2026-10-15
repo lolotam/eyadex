@@ -84,6 +84,9 @@ const ALLOWED: Record<AuditEntity, readonly string[]> = {
     // ADR-0031: the clinic's notification settings (switches only, no address).
     "emailEnabled",
     "messages",
+    // Finance F1 (spec §8 rule 6): the currency and tax rate the platform sets.
+    "currency",
+    "taxRateBp",
   ],
   // TODO(spec): the patients slice defines what a patient-file entry may show; until then nothing.
   patient: [],
