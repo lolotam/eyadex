@@ -10,6 +10,7 @@ import { ApiError } from "../api-error";
 import { holdsWrite, seesInvoice, writeReaches, type FinanceAccess } from "./mock-finance-access";
 import {
   clinicFinanceOf,
+  clinicMonth,
   effectivePrice,
   exponentOf,
   financeState,
@@ -128,7 +129,7 @@ export function issueInvoice(
   checkServiceLines(db, a.clinic.id, body.lines);
   const finance = clinicFinanceOf(db, a.clinic.id);
   const totals = totalsOf(body.lines, body.invoiceDiscount, finance.taxRateBp);
-  const year = now.getUTCFullYear();
+  const year = Number(clinicMonth(now.toISOString(), a.clinic.timezone).slice(0, 4));
   const counterKey = `${branchId}:${year}`;
   const seq = (state.counters[counterKey] ?? 0) + 1;
   state.counters[counterKey] = seq;

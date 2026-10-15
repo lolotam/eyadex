@@ -7,7 +7,7 @@ import type { Persona } from "@eyadex/contracts/session";
 import { ApiError } from "../api-error";
 import type { FinanceApi } from "../finance-client";
 import { guardFinance, holdsView, seesInvoice, type FinanceAccess } from "./mock-finance-access";
-import { clinicFinanceOf, clinicHasInvoice, exponentOf, financeState } from "./mock-finance-state";
+import { clinicFinanceOf, clinicHasInvoice, clinicMonth, exponentOf, financeState } from "./mock-finance-state";
 import * as settings from "./mock-finance-settings";
 import { renderInvoicePdf } from "./mock-invoice-pdf";
 import { draftOf, editInvoice, issueInvoice, strip, voidInvoice } from "./mock-invoice-writes";
@@ -158,11 +158,11 @@ export function createMockFinance(): FinanceApi {
     async platformTotals(persona, clinicId) {
       await delay();
       resolvePlatformActor(db(), persona);
-      clinicOf(clinicId);
+      const { timezone } = clinicOf(clinicId);
       const sums = new Map<string, { month: string; currency: string; minor: bigint }>();
       for (const i of financeState(db()).invoices) {
         if (i.clinicId !== clinicId || i.status === "void") continue;
-        const month = i.issuedAt.slice(0, 7);
+        const month = clinicMonth(i.issuedAt, timezone);
         const k = `${month}:${i.currency}`;
         const row = sums.get(k) ?? { month, currency: i.currency, minor: 0n };
         row.minor += BigInt(i.totalMinor);
@@ -170,7 +170,7 @@ export function createMockFinance(): FinanceApi {
       }
       return {
         months: [...sums.values()]
-          .sort((x, y) => y.month.localeCompare(x.month))
+          .sort((x, y) => x.month.localeCompare(y.month))
           .map((r) => ({
             month: r.month,
             currency: r.currency as never,

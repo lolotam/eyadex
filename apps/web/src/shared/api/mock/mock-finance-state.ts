@@ -94,3 +94,11 @@ export function prefixLocked(db: MockState, clinicId: string, branchId: string):
   const prefix = financeState(db).prefixes[branchId];
   return prefix !== undefined && financeState(db).usedPrefixes[`${clinicId}:${prefix}`] === branchId;
 }
+
+/** "YYYY-MM" of an instant in the clinic's time zone (invoice years and monthly totals, FIN-3). */
+export function clinicMonth(iso: string, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit" })
+    .formatToParts(new Date(iso));
+  const get = (t: string) => parts.find((x) => x.type === t)?.value ?? "";
+  return `${get("year")}-${get("month")}`;
+}
