@@ -87,6 +87,7 @@ export const apiErrorCodeSchema = z.enum([
   "precondition_required",
   "version_conflict",
   "send_request_conflict",
+  "invoice_link_expired",
   "unknown",
 ]);
 export type ApiErrorCode = z.infer<typeof apiErrorCodeSchema>;

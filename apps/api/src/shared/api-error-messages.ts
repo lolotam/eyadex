@@ -281,5 +281,9 @@ export const API_ERROR_MESSAGES = {
     message_ar: "طلب الإرسال هذا مستخدم لفاتورة أو قناة أخرى",
     message_en: "This send request was already used for another invoice or channel",
   },
+  invoice_link_expired: {
+    message_ar: "رابط الفاتورة غير صالح أو انتهت صلاحيته؛ اطلب رابطاً جديداً من العيادة",
+    message_en: "This invoice link is no longer valid; ask the clinic for a new one",
+  },
   unknown: { message_ar: "حدث خطأ ما", message_en: "Something went wrong" },
 } satisfies Record<ApiErrorCode, { message_ar: string; message_en: string }>;

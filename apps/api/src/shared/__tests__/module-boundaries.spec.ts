@@ -153,6 +153,8 @@ const BILLING_RELATIONS = [
   "invoice_sequences",
   "used_invoice_prefixes",
   "invoice_links",
+  // 0062: the patient link lookup, SECURITY DEFINER over invoice_links.
+  "invoice_link_lookup",
   "branches",
   "clinics",
 ];

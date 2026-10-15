@@ -40,6 +40,8 @@ export interface FinanceAccessEntry {
   readonly after: InvoiceAuditSnapshot | null;
   /** طول سبب الإلغاء أو الخصم بس، عمر النص نفسه ما يتخزن. */
   readonly reasonLength?: number;
+  /** فتح من رابط المراجع (R2-7): الفاعل مش موظف، فالصف بيقول ده صراحة. */
+  readonly via?: "patient_link";
   readonly createdAt: Date;
 }
 
@@ -115,6 +117,7 @@ export async function writeFinanceAudit(tx: Tx, entry: FinanceAccessEntry): Prom
     before: entry.before,
     after: entry.after,
     ...(entry.reasonLength === undefined ? {} : { reasonLength: entry.reasonLength }),
+    ...(entry.via === undefined ? {} : { via: entry.via }),
   };
   await tx.execute(
     sql`INSERT INTO audit_log (clinic_id, id, actor_user_id, action, category, entity_type,

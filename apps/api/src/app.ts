@@ -36,7 +36,11 @@ import {
 import { PatientsModule } from "./modules/patients/index.ts";
 import { AppointmentsModule } from "./modules/appointments/index.ts";
 import { MedicalModule, registerAttachmentUploads } from "./modules/medical/index.ts";
-import { BillingModule, registerLogoUploads } from "./modules/billing/index.ts";
+import {
+  BillingModule,
+  registerLogoUploads,
+  type InvoicePdfRenderer,
+} from "./modules/billing/index.ts";
 import { ClinicAuditModule, PlatformAuditModule } from "./modules/audit/index.ts";
 import { whatsappHooks, whatsappModule, type WhatsappDependencies } from "./app-whatsapp.ts";
 import { PlatformModule } from "./modules/platform/index.ts";
@@ -90,6 +94,8 @@ export interface AppDependencies extends WhatsappDependencies {
   readonly mountClinic?: boolean;
   /** Test-only: the private bucket (attachments, the clinic logo) instead of the environment's. */
   readonly blobStore?: BlobStore;
+  /** Test-only: the invoice PDF renderer; until plan Task 8g the API has none and answers 503. */
+  readonly invoicePdf?: InvoicePdfRenderer;
 }
 
 export interface AppOptions {
@@ -149,7 +155,7 @@ export function apiModule(
             PatientsModule,
             AppointmentsModule,
             MedicalModule.forRoot(deps.blobStore),
-            BillingModule.forRoot(deps.blobStore),
+            BillingModule.forRoot(deps.blobStore, deps.invoicePdf),
             whatsappModule(deps),
             ClinicAuditModule,
           ]

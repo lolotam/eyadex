@@ -267,5 +267,6 @@ export const en = {
     precondition_required: "Reload the invoice, then try again",
     version_conflict: "Someone else just changed this invoice; reload it and try again",
     send_request_conflict: "This send request was already used for another invoice or channel",
+    invoice_link_expired: "This invoice link is no longer valid; ask the clinic for a new one",
   },
 } as const;

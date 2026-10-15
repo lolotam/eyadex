@@ -72,6 +72,8 @@ const STATUS: Partial<Record<ApiErrorCode, number>> = {
   precondition_required: 428,
   version_conflict: 412,
   send_request_conflict: 400,
+  // One answer for expired, revoked and unknown links (R1-16), like invitation_invalid (ADR-0008).
+  invoice_link_expired: 404,
   patient_inactive: 400,
   service_inactive: 400,
   role_inactive: 400,
@@ -95,6 +97,7 @@ const RULE_ONLY: ReadonlySet<ApiErrorCode> = new Set<ApiErrorCode>([
   "precondition_required",
   "version_conflict",
   "send_request_conflict",
+  "invoice_link_expired",
   "visit_empty",
   "icd10_unknown",
   "attachment_too_large",

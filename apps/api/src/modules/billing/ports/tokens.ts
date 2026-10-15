@@ -6,3 +6,4 @@ export const INVOICE_READS = Symbol("billing.InvoiceReads");
 export const INVOICE_CHANGES = Symbol("billing.InvoiceChanges");
 export const FINANCE_SETTINGS = Symbol("billing.ClinicFinanceSettings");
 export const INVOICE_SENDS = Symbol("billing.InvoiceSends");
+export const PUBLIC_INVOICE_LINKS = Symbol("billing.PublicInvoiceLinks");

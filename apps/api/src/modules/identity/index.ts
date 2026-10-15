@@ -9,6 +9,7 @@ export { AUTH_RATE_LIMIT, type AuthRateLimit } from "./auth/rate-limit.module.ts
 export { InvitationsModule } from "./invitations.module.ts";
 export { PUBLIC_V1_ROUTES } from "./auth/public-rate-limits.ts";
 export { PlatformAreaGuard } from "./auth/platform-area.guard.ts";
+export { ClinicAreaGuard } from "./auth/clinic-area.guard.ts";
 export { hashInvitationToken } from "./persistence/pg-first-admin-provisioner.ts";
 export { AccessGuard, type ClinicRequest } from "./access/access.guard.ts";
 export {

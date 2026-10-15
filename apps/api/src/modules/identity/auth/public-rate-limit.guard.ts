@@ -35,7 +35,7 @@ export class PublicRateLimitGuard implements CanActivate {
       : this.areaAuth.hosts.resolve(request.headers);
     if (area === null) throw new ApiError("not_found");
     const ip = this.areaAuth.hosts.clientIp(request.headers, request.socket.remoteAddress);
-    const rules = publicRulesFor(routeKey, ip, request.body);
+    const rules = publicRulesFor(routeKey, ip, request.body, request.params);
     if (rules === null) throw new ApiError("unknown");
     let decision;
     try {

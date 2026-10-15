@@ -11,13 +11,17 @@ import { PgBillingAppointments } from "../appointments/index.ts";
 import { PgBillingVisits } from "../medical/index.ts";
 import { PgInvoiceNotifications } from "../notifications/index.ts";
 import { PgBillingPatients } from "../patients/index.ts";
+// The public link's guards need the area hosts and the rate limiter (the invitations pattern).
+import { AuthModule, ClinicAreaGuard, PublicRateLimitGuard } from "../identity/index.ts";
 import { CLOCK, TenancyModule, type Clock } from "../tenancy/index.ts";
 import { InvoiceSendController } from "./http/invoice-send.controller.ts";
 import { InvoicesController } from "./http/invoices.controller.ts";
+import { PublicInvoiceController } from "./http/public-invoice.controller.ts";
 import { PricesController } from "./http/prices.controller.ts";
 import { SettingsController } from "./http/settings.controller.ts";
 import type { BillingInvoiceNotifier } from "./ports/billing-notifier.ts";
 import type { BillingPatientReader } from "./ports/billing-patients.ts";
+import type { InvoicePdfRenderer } from "./ports/invoice-pdf.ts";
 import type { BillingAppointmentReader, BillingVisitReader } from "./ports/billing-sources.ts";
 import {
   INVOICE_CHANGES,
@@ -27,6 +31,7 @@ import {
   INVOICE_SENDS,
   FINANCE_SETTINGS,
   PRICE_CHANGES,
+  PUBLIC_INVOICE_LINKS,
 } from "./ports/tokens.ts";
 import { ClinicFinanceSettings } from "./use-cases/settings/settings.ts";
 import { InvoiceChanges } from "./use-cases/changes/changes.ts";
@@ -35,6 +40,8 @@ import { InvoiceIssues } from "./use-cases/issue/issue.ts";
 import { InvoiceSends } from "./use-cases/invoice-send/invoice-send.ts";
 import { InvoiceReads } from "./use-cases/reads/reads.ts";
 import { PriceChanges } from "./use-cases/prices/prices.ts";
+import { PublicInvoiceLinks } from "./use-cases/public-link/public-link.ts";
+import { UnavailableInvoicePdf } from "./rendering/unavailable-invoice-pdf.ts";
 
 // Typed against the module's own ports, so no adapter can drift from what the module needs.
 const sources = {
@@ -54,19 +61,23 @@ export class BillingModule {
    * مخزن مش متظبّط بيرد 503 على رفع اللوجو وقرايته بس.
    *
    * @param blobStore مخزن بديل (الاختبارات بس)
+   * @param invoicePdf راسم بديل (الاختبارات بس)؛ غير كده `UnavailableInvoicePdf` لحد plan Task 8g
    * @returns الموديول
    */
-  static forRoot(blobStore?: BlobStore): DynamicModule {
+  static forRoot(blobStore?: BlobStore, invoicePdf?: InvoicePdfRenderer): DynamicModule {
     return {
       module: BillingModule,
-      imports: [DatabaseModule, TenancyModule],
+      imports: [DatabaseModule, TenancyModule, AuthModule],
       controllers: [
         PricesController,
         InvoicesController,
         InvoiceSendController,
+        PublicInvoiceController,
         SettingsController,
       ],
       providers: [
+        ClinicAreaGuard,
+        PublicRateLimitGuard,
         {
           provide: PRICE_CHANGES,
           inject: [DATABASE, CLOCK],
@@ -110,6 +121,17 @@ export class BillingModule {
             });
             return new InvoiceSends({ db, patients, notifier });
           },
+        },
+        {
+          provide: PUBLIC_INVOICE_LINKS,
+          inject: [DATABASE, CLOCK],
+          useFactory: (db: Database, clock: Clock) =>
+            new PublicInvoiceLinks({
+              db,
+              clock,
+              ids: systemUuidV7(),
+              pdf: invoicePdf ?? new UnavailableInvoicePdf(),
+            }),
         },
         {
           provide: INVOICE_CHANGES,

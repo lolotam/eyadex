@@ -261,5 +261,6 @@ export const ar: Dictionary = {
     precondition_required: "أعد تحميل الفاتورة ثم أعد المحاولة",
     version_conflict: "عدّل شخص آخر هذه الفاتورة للتو؛ أعد تحميلها ثم أعد المحاولة",
     send_request_conflict: "طلب الإرسال هذا مستخدم لفاتورة أو قناة أخرى",
+    invoice_link_expired: "رابط الفاتورة غير صالح أو انتهت صلاحيته؛ اطلب رابطاً جديداً من العيادة",
   },
 };

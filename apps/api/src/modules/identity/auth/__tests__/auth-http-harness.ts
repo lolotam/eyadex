@@ -67,7 +67,7 @@ export interface Harness {
 export async function openHarness(
   env: Record<string, string> = {},
   mountPlatform = false,
-  deps: Pick<AppDependencies, "blobStore" | "evolutionApi" | "metaApi"> = {},
+  deps: Pick<AppDependencies, "blobStore" | "evolutionApi" | "metaApi" | "invoicePdf"> = {},
 ): Promise<Harness> {
   Object.assign(process.env, {
     APP_URL: APP,
