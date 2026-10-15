@@ -88,9 +88,7 @@ export function createMockFinance(): FinanceApi {
       const page = rows.slice(start, start + q.limit);
       const more = start + q.limit < rows.length;
       return {
-        items: page.map(({ lines: _l, ...item }) => (void _l, strip({ ...item, lines: [] }))).map(
-          ({ lines: _x, ...rest }) => (void _x, rest),
-        ),
+        items: page.map(({ clinicId: _c, lines: _l, ...item }) => (void _c, void _l, item)),
         nextCursor: more ? (page[page.length - 1]?.id ?? null) : null,
         total: rows.length,
       };
