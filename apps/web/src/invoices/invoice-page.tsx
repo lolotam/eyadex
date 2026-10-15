@@ -33,6 +33,7 @@ import { StatusPanel } from "@/shared/shell/status-panel";
 import { InvoiceForm } from "./invoice-form";
 import { valuesFromInvoice } from "./invoice-form-draft";
 import { useInvoice, useRefreshInvoices } from "./invoice-queries";
+import { InvoicePatientName } from "./invoice-patient-name";
 import { InvoiceStatusBadge } from "./invoice-status-badge";
 import { InvoiceTotalsPanel } from "./invoice-totals-panel";
 
@@ -54,6 +55,8 @@ function InvoiceContent({ invoiceId }: { invoiceId: string }) {
   const [editing, setEditing] = useState(false);
   const [voiding, setVoiding] = useState(false);
   const [reason, setReason] = useState("");
+  // The PDF may be unavailable (503 until the server renderer ships): shown in place, page stays usable.
+  const [pdfError, setPdfError] = useState<string | null>(null);
   // One id per press; a retry of the same press (same channel) reuses it.
   const [sendIds] = useState(() => ({ email: crypto.randomUUID(), whatsapp: crypto.randomUUID() }));
   const keys = session?.permissions ?? [];
@@ -75,8 +78,9 @@ function InvoiceContent({ invoiceId }: { invoiceId: string }) {
   });
   const pdf = useMutation({
     mutationFn: () => api.finance.pdf(persona, invoiceId),
+    onMutate: () => setPdfError(null),
     onSuccess: (blob) => window.open(URL.createObjectURL(blob), "_blank", "noopener"),
-    onError: () => toast.error(t("finance.detail.pdfError")),
+    onError: (e) => setPdfError(tDynamic(`errors.${errorCodeOf(e)}`)),
   });
 
   if (query.isLoading) return <LoadingBlock />;
@@ -146,6 +150,15 @@ function InvoiceContent({ invoiceId }: { invoiceId: string }) {
           </div>
         }
       />
+      {pdfError && (
+        <p role="alert" className="mb-4 flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm">
+          <AlertCircle className="mt-0.5 size-4 shrink-0" />
+          <span>
+            <span className="font-medium">{t("finance.detail.pdfError")}</span> — {pdfError}
+          </span>
+        </p>
+      )}
+      <InvoicePatientName patientId={inv.patientId} />
       {!live && (
         <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm" role="status">
           <div className="flex items-center gap-2 font-semibold">
