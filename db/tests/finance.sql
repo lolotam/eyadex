@@ -204,5 +204,149 @@ BEGIN
 END $$;
 
 RESET ROLE;
+
+-- 0061 (plan Task 4): the platform's two functions and the closed direct path. Clinic T has invoices, U
+-- has one, V has neither price nor invoice. Written by the owner role.
+INSERT INTO clinics VALUES
+  ('00000000-0000-7000-8000-0000000f001a','fin-t','ت','T','general','ar','Asia/Kuwait','active',now()+interval '30 days',10,3,now(),now()),
+  ('00000000-0000-7000-8000-0000000f001b','fin-u','ث','U','general','ar','Asia/Kuwait','active',now()+interval '30 days',10,3,now(),now()),
+  ('00000000-0000-7000-8000-0000000f001c','fin-v','ج','V','general','ar','Asia/Riyadh','active',now()+interval '30 days',10,3,now(),now());
+DO $$
+DECLARE c uuid; s text;
+BEGIN
+  FOREACH c IN ARRAY ARRAY['00000000-0000-7000-8000-0000000f001a','00000000-0000-7000-8000-0000000f001b',
+      '00000000-0000-7000-8000-0000000f001c']::uuid[] LOOP
+    s := right(c::text, 1);
+    INSERT INTO branches VALUES (c, ('00000000-0000-7000-8000-0000000f02'||s||'2')::uuid, 'ف', 'B', true, now(), now());
+    INSERT INTO patients (clinic_id, id, file_number, full_name, phone, birth_date, gender, registration_branch_id,
+        civil_id_enc, civil_id_hmac, civil_id_last4, status, created_at, updated_at)
+      VALUES (c, ('00000000-0000-7000-8000-0000000f02'||s||'9')::uuid, '1', 'x', '+9650000002'||s, '1990-01-01', 'male',
+        ('00000000-0000-7000-8000-0000000f02'||s||'2')::uuid, 'f1.1.iv.body.tag', repeat(s, 64), '0000', 'active', now(), now());
+    INSERT INTO clinic_services VALUES (c, ('00000000-0000-7000-8000-0000000f02'||s||'f')::uuid, 'ليزر', 'Laser', 30, 'active', now(), now());
+  END LOOP;
+END $$;
+-- T: 2026-10-31T22:30Z is 1 November in Kuwait; one October invoice; one void (excluded). U: one invoice.
+INSERT INTO invoices (clinic_id, id, branch_id, patient_id, year, number_seq, number, status, source, source_id,
+    issued_at, currency, currency_exponent, subtotal_minor, discount_minor, tax_rate_bp, tax_minor, total_minor,
+    void_reason, voided_at, created_by, created_at, updated_at)
+  VALUES
+  ('00000000-0000-7000-8000-0000000f001a','00000000-0000-7000-8000-0000000f0a01','00000000-0000-7000-8000-0000000f02a2',
+   '00000000-0000-7000-8000-0000000f02a9',2026,1,'T-2026-000001','issued','manual',null,'2026-10-31T22:30Z','KWD',3,
+   1000,0,0,0,1000,null,null,gen_random_uuid(),now(),now()),
+  ('00000000-0000-7000-8000-0000000f001a','00000000-0000-7000-8000-0000000f0a02','00000000-0000-7000-8000-0000000f02a2',
+   '00000000-0000-7000-8000-0000000f02a9',2026,2,'T-2026-000002','issued','manual',null,'2026-10-15T10:00Z','KWD',3,
+   2500,0,0,0,2500,null,null,gen_random_uuid(),now(),now()),
+  ('00000000-0000-7000-8000-0000000f001a','00000000-0000-7000-8000-0000000f0a03','00000000-0000-7000-8000-0000000f02a2',
+   '00000000-0000-7000-8000-0000000f02a9',2026,3,'T-2026-000003','void','manual',null,'2026-10-15T11:00Z','KWD',3,
+   9999,0,0,0,9999,'wrong patient',now(),gen_random_uuid(),now(),now()),
+  ('00000000-0000-7000-8000-0000000f001b','00000000-0000-7000-8000-0000000f0b01','00000000-0000-7000-8000-0000000f02b2',
+   '00000000-0000-7000-8000-0000000f02b9',2026,1,'U-2026-000001','issued','manual',null,'2026-10-10T10:00Z','KWD',3,
+   777,0,0,0,777,null,null,gen_random_uuid(),now(),now());
+
+-- Grants and roles, read as the owner.
+DO $$
+BEGIN
+  IF (SELECT bool_or(rolcanlogin OR rolbypassrls) FROM pg_roles
+      WHERE rolname IN ('eyadex_finance_totals_owner', 'eyadex_finance_currency_owner'))
+     OR (SELECT count(*) FROM pg_roles
+      WHERE rolname IN ('eyadex_finance_totals_owner', 'eyadex_finance_currency_owner')) <> 2 THEN
+    RAISE EXCEPTION 'FIN-0061: a finance owner role can log in or bypass RLS';
+  END IF;
+  IF has_function_privilege('eyadex_app', 'finance_set_currency(uuid, char)', 'EXECUTE')
+     OR has_function_privilege('eyadex_app', 'finance_monthly_totals(uuid)', 'EXECUTE')
+     OR NOT has_function_privilege('eyadex_platform', 'finance_set_currency(uuid, char)', 'EXECUTE')
+     OR NOT has_function_privilege('eyadex_platform', 'finance_monthly_totals(uuid)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'FIN-0061: the functions run for the platform only';
+  END IF;
+  IF has_column_privilege('eyadex_finance_totals_owner', 'invoices', 'patient_id', 'SELECT')
+     OR has_column_privilege('eyadex_finance_currency_owner', 'invoices', 'patient_id', 'SELECT') THEN
+    RAISE EXCEPTION 'FIN-0061: a finance owner role can read a patient column';
+  END IF;
+  IF has_table_privilege('eyadex_platform', 'clinics', 'UPDATE')
+     OR has_column_privilege('eyadex_platform', 'clinics', 'currency', 'UPDATE')
+     OR has_column_privilege('eyadex_platform', 'clinics', 'currency_exponent', 'UPDATE')
+     OR has_column_privilege('eyadex_platform', 'clinics', 'commercial_reg_no', 'UPDATE')
+     OR NOT has_column_privilege('eyadex_platform', 'clinics', 'tax_rate_bp', 'UPDATE')
+     OR NOT has_column_privilege('eyadex_platform', 'clinics', 'status', 'UPDATE')
+     OR NOT has_table_privilege('eyadex_platform', 'clinics', 'SELECT')
+     OR NOT has_table_privilege('eyadex_platform', 'clinics', 'INSERT') THEN
+    RAISE EXCEPTION 'FIN-0061: the platform keeps the wrong clinics privileges';
+  END IF;
+  IF NOT has_column_privilege('eyadex_app', 'clinics', 'commercial_reg_no', 'UPDATE')
+     OR NOT has_column_privilege('eyadex_app', 'clinics', 'logo_blob_key', 'UPDATE')
+     OR has_column_privilege('eyadex_app', 'clinics', 'currency', 'UPDATE')
+     OR has_column_privilege('eyadex_app', 'clinics', 'tax_rate_bp', 'UPDATE') THEN
+    RAISE EXCEPTION 'FIN-0061: the clinic writes its CR number and logo only';
+  END IF;
+END $$;
+
+SET LOCAL ROLE eyadex_platform;
+DO $$
+DECLARE t uuid := '00000000-0000-7000-8000-0000000f001a'; u uuid := '00000000-0000-7000-8000-0000000f001b';
+  v uuid := '00000000-0000-7000-8000-0000000f001c'; got text; tb text;
+BEGIN
+  -- Totals by the clinic-timezone month; the void is excluded; each clinic sees its own only.
+  SELECT string_agg(month || '=' || invoiced_minor || ' ' || currency, ', ' ORDER BY month) INTO got
+    FROM finance_monthly_totals(t);
+  IF got IS DISTINCT FROM '2026-10-01=2500 KWD, 2026-11-01=1000 KWD' THEN
+    RAISE EXCEPTION 'FIN-0061: totals of T are %', got;
+  END IF;
+  SELECT string_agg(month || '=' || invoiced_minor, ', ') INTO got FROM finance_monthly_totals(u);
+  IF got IS DISTINCT FROM '2026-10-01=777' THEN RAISE EXCEPTION 'FIN-0061: totals of U are %', got; END IF;
+
+  -- No direct read of any finance or service table.
+  FOREACH tb IN ARRAY ARRAY['invoices','invoice_lines','clinic_services','service_provider_prices'] LOOP
+    BEGIN EXECUTE format('SELECT 1 FROM %I LIMIT 1', tb); RAISE EXCEPTION 'FIN-0061: platform reads %', tb;
+    EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  END LOOP;
+
+  -- The guarded currency change.
+  PERFORM finance_set_currency(v, 'SAR');
+  IF (SELECT (currency, currency_exponent) <> ('SAR', 2::smallint) FROM clinics WHERE id = v) THEN
+    RAISE EXCEPTION 'FIN-0061: V did not become SAR / 2';
+  END IF;
+  BEGIN PERFORM finance_set_currency(t, 'SAR'); RAISE EXCEPTION 'FIN-0061: T with invoices changed currency';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM <> 'currency_locked' THEN RAISE EXCEPTION 'FIN-0061: T raised %', SQLERRM; END IF;
+  END;
+  BEGIN PERFORM finance_set_currency(v, 'XXX'); RAISE EXCEPTION 'FIN-0061: an unsupported code accepted';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM <> 'currency_unsupported' THEN RAISE EXCEPTION 'FIN-0061: XXX raised %', SQLERRM; END IF;
+  END;
+
+  -- The direct path is closed; the platform's other clinic writes still work.
+  BEGIN UPDATE clinics SET currency = 'SAR' WHERE id = u; RAISE EXCEPTION 'FIN-0061: platform set a currency directly';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN UPDATE clinics SET status = 'suspended', currency_exponent = 2 WHERE id = u;
+    RAISE EXCEPTION 'FIN-0061: platform set an exponent directly';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  UPDATE clinics SET tax_rate_bp = 500, status = 'suspended', max_users = 12, updated_at = now() WHERE id = u;
+END $$;
+RESET ROLE;
+
+-- A price locks the currency too (as the owner: the platform has no access to services).
+UPDATE clinic_services SET price_minor = 1000 WHERE clinic_id = '00000000-0000-7000-8000-0000000f001c';
+SET LOCAL ROLE eyadex_platform;
+DO $$
+BEGIN
+  PERFORM finance_set_currency('00000000-0000-7000-8000-0000000f001c', 'KWD');
+  RAISE EXCEPTION 'FIN-0061: a priced clinic changed currency';
+EXCEPTION WHEN raise_exception THEN
+  IF SQLERRM <> 'currency_locked' THEN RAISE EXCEPTION 'FIN-0061: V raised %', SQLERRM; END IF;
+END $$;
+RESET ROLE;
+
+-- R1-17: an edit restates its month.
+UPDATE invoices SET total_minor = 3000 WHERE id = '00000000-0000-7000-8000-0000000f0a02';
+SET LOCAL ROLE eyadex_platform;
+DO $$
+BEGIN
+  IF (SELECT invoiced_minor FROM finance_monthly_totals('00000000-0000-7000-8000-0000000f001a')
+      WHERE month = '2026-10-01') <> 3000 THEN
+    RAISE EXCEPTION 'FIN-0061: an edited total did not restate its month';
+  END IF;
+END $$;
+RESET ROLE;
+
 \echo 'Finance tests: all passed'
 ROLLBACK;
