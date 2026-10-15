@@ -9,7 +9,7 @@ import { useSession } from "@/shared/persona/persona-provider";
 import { LoadingBlock } from "@/shared/shell/loading-block";
 import { PageHeader } from "@/shared/shell/page-header";
 import { StatusPanel } from "@/shared/shell/status-panel";
-import { InvoiceSourceButton } from "@/invoices/invoice-source-button";
+import { InvoiceSourceButton } from "@/shared/finance/invoice-source-button";
 import { AttachmentsPanel } from "./attachments-panel";
 import { useVisit } from "./medical-queries";
 import { VisitActions } from "./visit-actions";

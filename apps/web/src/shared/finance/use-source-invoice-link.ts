@@ -1,6 +1,8 @@
+import { useQuery } from "@tanstack/react-query";
+import { ApiError } from "@/shared/api/api-error";
+import { useApi } from "@/shared/api/api-provider";
 import { can } from "@/shared/permissions/can";
-import { useSession } from "@/shared/persona/persona-provider";
-import { useSourceInvoice } from "./invoice-queries";
+import { usePersona, useSession } from "@/shared/persona/persona-provider";
 
 export type SourceInvoiceLink =
   | { kind: "view"; invoiceId: string }
@@ -19,7 +21,23 @@ export function useSourceInvoiceLink(
   const { session } = useSession();
   const keys = session?.permissions ?? [];
   const on = active && session?.features.finance === true && can(keys, "view", "invoices");
-  const existing = useSourceInvoice(source, id, on);
+  const api = useApi();
+  const { persona, ready } = usePersona();
+  // Under the invoices key, so issuing or voiding an invoice refreshes this lookup too.
+  const existing = useQuery({
+    queryKey: ["clinic", "invoices", "source", source, id, persona.memberId],
+    queryFn: async () => {
+      const page = await api.finance.listInvoices(persona, {
+        source,
+        sourceId: id,
+        status: "issued",
+        limit: 1,
+      });
+      return page.items[0] ?? null;
+    },
+    enabled: on && ready && Boolean(persona.clinicId),
+    retry: (count, error) => !(error instanceof ApiError) && count < 2,
+  });
   if (!on || existing.isLoading || existing.isError) return null;
   if (existing.data) return { kind: "view", invoiceId: existing.data.id };
   return can(keys, "create", "invoices") ? { kind: "create", source, id } : null;

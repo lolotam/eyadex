@@ -15,7 +15,7 @@ import { errorCodeOf } from "@/shared/api/api-error";
 import { useApi } from "@/shared/api/api-provider";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { usePersona } from "@/shared/persona/persona-provider";
-import { InvoiceSourceMenuItem } from "@/invoices/invoice-source-menu-item";
+import { InvoiceSourceMenuItem } from "@/shared/finance/invoice-source-menu-item";
 import { useRefreshAppointments } from "./appointment-queries";
 import { MessageHistoryDialog } from "./message-history-dialog";
 

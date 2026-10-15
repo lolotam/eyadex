@@ -2,7 +2,9 @@ import { useState } from "react";
 import { Lock, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useBranchList } from "@/branches/branch-queries";
+import { useQuery } from "@tanstack/react-query";
+import { useApi } from "@/shared/api/api-provider";
+import { usePersona } from "@/shared/persona/persona-provider";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { LoadingBlock } from "@/shared/shell/loading-block";
 import { useInvoicePrefixes } from "./finance-queries";
@@ -12,7 +14,12 @@ import { InvoicePrefixDialog, type PrefixTarget } from "./invoice-prefix-dialog"
 export function InvoicePrefixesCard() {
   const { t, pick } = useI18n();
   const prefixes = useInvoicePrefixes(true);
-  const branches = useBranchList({ cursor: null, limit: 100, search: "", status: null });
+  const api = useApi();
+  const { persona } = usePersona();
+  const branches = useQuery({
+    queryKey: ["clinic", "branches", "prefix-names", persona.clinicId],
+    queryFn: () => api.branches.list(persona, { cursor: null, limit: 100, search: "", status: null }),
+  });
   const [target, setTarget] = useState<PrefixTarget | null>(null);
   const nameOf = (id: string) => {
     const b = branches.data?.items.find((x) => x.id === id);
