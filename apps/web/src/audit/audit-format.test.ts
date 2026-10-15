@@ -40,6 +40,21 @@ const CODED = [
   "invited",
 ];
 
+// TODO(spec): the API writes these F1 actions but the frozen AUDIT_ACTIONS catalogue does not
+// list them yet, so they have labels without a filter entry until the contract adds them.
+const FINANCE_ONLY_LABELS = [
+  "branch.invoice_prefix_set",
+  "clinic.commercial_reg_no_set",
+  "clinic.finance_changed",
+  "clinic.logo_set",
+  "invoice.edited",
+  "invoice.issued",
+  "invoice.link_opened",
+  "invoice.voided",
+  "service.price_set",
+  "service.provider_prices_set",
+].filter((action) => !(AUDIT_ACTIONS as readonly string[]).includes(action));
+
 describe("audit value translations", () => {
   for (const [lang, dict] of [
     ["ar", ar],
@@ -59,7 +74,7 @@ describe("audit value translations", () => {
       for (const [group, actions] of Object.entries(dict.audit.actions))
         for (const action of Object.keys(actions as Record<string, string>))
           labelled.push(`${group}.${action}`);
-      expect([...labelled].sort()).toEqual([...AUDIT_ACTIONS].sort());
+      expect([...labelled].sort()).toEqual([...AUDIT_ACTIONS, ...FINANCE_ONLY_LABELS].sort());
     }
   });
 
