@@ -144,12 +144,12 @@ export function buildSeed(): MockState {
     };
     state.clinics.push(clinic);
     // P2: the demo shows the released state, so the demo clinic has the medical module on.
-    // Finance stays off until its screens land (Lovable brief p4-f1).
+    // Phase 4 F1: finance on for the demo clinic only; every other clinic keeps it off.
     const features: ClinicFeatures = {
       patients: true,
       appointments: true,
       medical: ci === 0,
-      finance: false,
+      finance: ci === 0,
     };
     state.features[clinicId] = features;
 
