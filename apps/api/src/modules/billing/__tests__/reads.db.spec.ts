@@ -143,3 +143,22 @@ describe("own reach (R1-12)", () => {
     expect(ids(await list(C.doctor.cookie, `?patientId=${patient}`))).toEqual([]);
   });
 });
+
+// PR #77: the clinic log read only the entity types it knew, so every invoice row was written but never shown.
+describe("the clinic audit log", () => {
+  it("shows an issued invoice with its amounts as written", async () => {
+    const patient = await patientIn(h, C, C.branchD);
+    const invoice = await manualInvoice(h, C.admin.cookie, patient, C.branchD, "1000000");
+    const res = await send(h, C.admin.cookie, "GET", "/v1/clinic/audit?entity=invoice&limit=100");
+    expect(res.statusCode, res.body).toBe(200);
+    const items = (res.json() as { items: Record<string, unknown>[] }).items;
+    const issued = items.find((i) => i["entityId"] === invoice.id);
+    expect(issued).toMatchObject({
+      action: "invoice.issued",
+      entity: "invoice",
+      category: "patient_access",
+      before: null,
+      after: { number: invoice.number, totalMinor: "1000000", subtotalMinor: "1000000" },
+    });
+  });
+});

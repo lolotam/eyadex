@@ -14,6 +14,7 @@ import { PgBillingPatients } from "../patients/index.ts";
 // The public link's guards need the area hosts and the rate limiter (the invitations pattern).
 import { AuthModule, ClinicAreaGuard, PublicRateLimitGuard } from "../identity/index.ts";
 import { CLOCK, TenancyModule, type Clock } from "../tenancy/index.ts";
+import { InvoicePdfController } from "./http/invoice-pdf.controller.ts";
 import { InvoiceSendController } from "./http/invoice-send.controller.ts";
 import { InvoicesController } from "./http/invoices.controller.ts";
 import { PublicInvoiceController } from "./http/public-invoice.controller.ts";
@@ -27,6 +28,7 @@ import {
   INVOICE_CHANGES,
   INVOICE_DRAFTS,
   INVOICE_ISSUES,
+  INVOICE_PDFS,
   INVOICE_READS,
   INVOICE_SENDS,
   FINANCE_SETTINGS,
@@ -37,6 +39,7 @@ import { ClinicFinanceSettings } from "./use-cases/settings/settings.ts";
 import { InvoiceChanges } from "./use-cases/changes/changes.ts";
 import { InvoiceDrafts } from "./use-cases/draft/draft.ts";
 import { InvoiceIssues } from "./use-cases/issue/issue.ts";
+import { InvoicePdfs } from "./use-cases/invoice-pdf/invoice-pdf.ts";
 import { InvoiceSends } from "./use-cases/invoice-send/invoice-send.ts";
 import { InvoiceReads } from "./use-cases/reads/reads.ts";
 import { PriceChanges } from "./use-cases/prices/prices.ts";
@@ -65,6 +68,8 @@ export class BillingModule {
    * @returns الموديول
    */
   static forRoot(blobStore?: BlobStore, invoicePdf?: InvoicePdfRenderer): DynamicModule {
+    // One renderer for the invoice page and the patient's link (spec §3.3, §8 rule 16).
+    const pdf = invoicePdf ?? new UnavailableInvoicePdf();
     return {
       module: BillingModule,
       imports: [DatabaseModule, TenancyModule, AuthModule],
@@ -72,6 +77,7 @@ export class BillingModule {
         PricesController,
         InvoicesController,
         InvoiceSendController,
+        InvoicePdfController,
         PublicInvoiceController,
         SettingsController,
       ],
@@ -123,6 +129,12 @@ export class BillingModule {
           },
         },
         {
+          provide: INVOICE_PDFS,
+          inject: [DATABASE, CLOCK],
+          useFactory: (db: Database, clock: Clock) =>
+            new InvoicePdfs({ db, clock, ids: systemUuidV7(), patients, pdf }),
+        },
+        {
           provide: PUBLIC_INVOICE_LINKS,
           inject: [DATABASE, CLOCK],
           useFactory: (db: Database, clock: Clock) =>
@@ -130,7 +142,7 @@ export class BillingModule {
               db,
               clock,
               ids: systemUuidV7(),
-              pdf: invoicePdf ?? new UnavailableInvoicePdf(),
+              pdf,
             }),
         },
         {

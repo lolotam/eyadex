@@ -46,6 +46,8 @@ export const enAudit = {
       provider_time_off: "Time off",
       appointment: "Appointment",
       ...enMedicalAuditEntities,
+      invoice: "Invoice",
+      invoice_link: "Invoice link",
     },
     actions: {
       branch: {

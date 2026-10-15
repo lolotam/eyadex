@@ -96,6 +96,20 @@ const ALLOWED: Record<AuditEntity, readonly string[]> = {
   medical_profile: FIELD_NAMES_ONLY,
   attachment: FIELD_NAMES_ONLY,
   medicine: FIELD_NAMES_ONLY,
+  // Finance F1: shared/finance-audit.ts writes these fields only, each checked against its shape (an
+  // invoice number, minor-unit amounts, counts, discount kinds); a link open has no snapshot.
+  invoice: [
+    "number",
+    "status",
+    "version",
+    "subtotalMinor",
+    "discountMinor",
+    "taxMinor",
+    "totalMinor",
+    "lineCount",
+    "discounts",
+  ],
+  invoice_link: [],
   // ADR-0020: the platform team and settings writers. No link, hash or user id is ever recorded.
   platform_account: ["fullName", "email", "status"],
   platform_settings: [
@@ -129,6 +143,9 @@ function project(entity: AuditEntity, side: unknown, context: Snapshot): Snapsho
         : value;
   }
   if (Object.keys(out).length === 0) return null;
+  // An invoice snapshot is shape-checked when it is written (shared/finance-audit.ts); the scrub below
+  // would read a 7-digit amount as a phone number and mask it.
+  if (entity === "invoice") return out;
   // Defence in depth over the allowlist, at every depth (`firstAdmin.email` is nested): a secret, PEM
   // or civil ID typed into an allowed field, and a phone number written anywhere — an email's local
   // part included.
