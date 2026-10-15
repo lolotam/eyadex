@@ -3,6 +3,8 @@ import type { Tx } from "@eyadex/db";
 import { sql, type SQL } from "drizzle-orm";
 import type { z } from "zod";
 
+import { ApiError } from "../../../shared/errors.ts";
+
 type InvoiceListItem = z.infer<typeof invoiceListItemSchema>;
 
 // The opaque cursor is the last id without its dashes: ids are UUID v7, so id order is issue order.
@@ -96,6 +98,10 @@ export async function listInvoices(
     sql`SELECT count(*)::int AS total ${from} WHERE ${sql.join(where, sql` AND `)}`,
   );
   const after = query.cursor === undefined ? null : fromCursor(query.cursor);
+  // A cursor this list never made is refused, like every other list, instead of restarting at page one.
+  if (query.cursor !== undefined && after === null) {
+    throw new ApiError("validation", [{ path: ["cursor"], code: "invalid" }]);
+  }
   const page = after === null ? where : [...where, sql`i.id < ${after}::uuid`];
   const rows = await tx.execute<Row>(
     sql`SELECT i.id, i.number, i.status, i.source, i.source_id, i.branch_id, i.patient_id,

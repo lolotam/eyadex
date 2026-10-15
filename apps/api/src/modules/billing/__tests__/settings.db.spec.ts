@@ -145,6 +145,25 @@ describe("invoice prefix (spec §8 rule 9)", () => {
     });
   });
 
+  // PR #77 review: two branches claiming one free prefix at once both passed the check, and the unique
+  // index's refusal answered 500. Whichever order they run in, one wins and the other hears the domain code.
+  it("two branches claiming the same free prefix at once: one wins, the other is invoice_prefix_taken", async () => {
+    const answers = await Promise.all([
+      setPrefix(C.admin.cookie, C.branchX, "RACE"),
+      setPrefix(C.admin.cookie, C.branchR, "RACE"),
+    ]);
+    const outcomes = answers.map((res) => [
+      res.statusCode,
+      res.statusCode === 200 ? null : code(res),
+    ]);
+    expect(outcomes).toEqual(
+      expect.arrayContaining([
+        [200, null],
+        [409, "invoice_prefix_taken"],
+      ]),
+    );
+  });
+
   it("is refused to a member without the branches key", async () => {
     expect((await setPrefix(C.desk.cookie, C.branchR, "ABC")).statusCode).toBe(403);
   });

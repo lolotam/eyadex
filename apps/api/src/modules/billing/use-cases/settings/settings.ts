@@ -1,5 +1,5 @@
 import type { FinanceSettings, InvoicePrefixItem } from "@eyadex/contracts/finance";
-import type { Database, Tx } from "@eyadex/db";
+import { DatabaseError, type Database, type Tx } from "@eyadex/db";
 import type { IdGenerator } from "@eyadex/ids";
 
 import type { BlobStore } from "../../../../shared/blob/blob-store.ts";
@@ -121,20 +121,29 @@ export class ClinicFinanceSettings {
    * @returns بند الفرع بعد الحفظ
    */
   setPrefix(actor: BillingActor, branchId: string, prefix: string): Promise<InvoicePrefixItem> {
-    return this.deps.db.withTenant(actor.clinicId, async (tx) => {
-      const current = await lockBranchPrefix(tx, actor.clinicId, branchId);
-      if (current === null) throw new ApiError("not_found");
-      if (current.invoicePrefix === prefix) return current;
-      if (current.locked) throw new ApiError("invoice_prefix_locked");
-      if (await prefixTaken(tx, actor.clinicId, branchId, prefix)) {
-        throw new ApiError("invoice_prefix_taken");
-      }
-      await setBranchPrefix(tx, actor.clinicId, branchId, prefix, this.deps.clock.now());
-      await this.audit(tx, actor, "branch.invoice_prefix_set", "branch", branchId, {
-        invoicePrefix: prefix,
+    return this.deps.db
+      .withTenant(actor.clinicId, async (tx) => {
+        const current = await lockBranchPrefix(tx, actor.clinicId, branchId);
+        if (current === null) throw new ApiError("not_found");
+        if (current.invoicePrefix === prefix) return current;
+        if (current.locked) throw new ApiError("invoice_prefix_locked");
+        if (await prefixTaken(tx, actor.clinicId, branchId, prefix)) {
+          throw new ApiError("invoice_prefix_taken");
+        }
+        await setBranchPrefix(tx, actor.clinicId, branchId, prefix, this.deps.clock.now());
+        await this.audit(tx, actor, "branch.invoice_prefix_set", "branch", branchId, {
+          invoicePrefix: prefix,
+        });
+        return { branchId, invoicePrefix: prefix, locked: false };
+      })
+      .catch((error: unknown) => {
+        // Two branches claiming the same free prefix at once each lock only their own row, so both pass
+        // prefixTaken; the unique index decides, and the loser hears the domain answer, not a 500.
+        if (error instanceof DatabaseError && error.code === "23505") {
+          throw new ApiError("invoice_prefix_taken");
+        }
+        throw error;
       });
-      return { branchId, invoicePrefix: prefix, locked: false };
-    });
   }
 
   private audit(

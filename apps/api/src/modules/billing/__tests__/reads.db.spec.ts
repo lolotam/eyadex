@@ -39,6 +39,12 @@ beforeAll(async () => {
 afterAll(() => closeHarness(h));
 
 describe("list", () => {
+  // PR #77 review: a cursor the list never made restarted at page one with 200.
+  it.each(["abc", "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"])("refuses the cursor %s", async (cursor) => {
+    const res = await list(C.admin.cookie, `?cursor=${cursor}`);
+    expect([res.statusCode, code(res)]).toEqual([400, "validation"]);
+  });
+
   it("pages newest first with a cursor and the total that matches", async () => {
     const patient = await patientIn(h, C, C.branchD);
     const first = await manualInvoice(h, C.admin.cookie, patient, C.branchD);
