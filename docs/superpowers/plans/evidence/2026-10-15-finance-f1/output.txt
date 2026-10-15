@@ -1,0 +1,57 @@
+# postgres:18-alpine, db/migrate.sh 0001-0059 (57 files), one transaction each, rolled back. Run 2026-10-15.
+## currency-bypass-proof.sql
+before: platform updated currency directly -> SAR
+after column-only revoke: table UPDATE still true, column currency UPDATE still true
+effective: table UPDATE false, currency false, currency_exponent false, tax_rate_bp true, status true, SELECT true, INSERT true
+psql:/tmp/proof.sql:70: NOTICE:  ok: currency update refused
+psql:/tmp/proof.sql:70: NOTICE:  ok: currency_exponent update refused
+psql:/tmp/proof.sql:70: NOTICE:  ok: mixed update with currency refused
+after: proof-a currency=SAR tax=500 status=suspended max_users=12
+after: proof-b currency=SAR tax=1500 status=active max_users=10
+## definer-and-resend-proof.sql
+ALTER TABLE
+ALTER TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE ROLE
+CREATE ROLE
+CREATE POLICY
+CREATE POLICY
+CREATE FUNCTION
+ALTER FUNCTION
+CREATE POLICY
+CREATE POLICY
+CREATE POLICY
+CREATE POLICY
+CREATE POLICY
+CREATE FUNCTION
+ALTER FUNCTION
+INSERT 0 2
+INSERT 0 4
+totals A: 2026-10-01=2500, 2026-11-01=1000
+totals B: 2026-10-01=777
+psql:/tmp/p2.sql:91: NOTICE:  ok: direct invoices read refused
+psql:/tmp/p2.sql:91: NOTICE:  ok: direct provider prices read refused
+psql:/tmp/p2.sql:91: NOTICE:  ok: currency_locked (clinic with invoices)
+psql:/tmp/p2.sql:91: NOTICE:  ok: currency_unsupported (unsupported code)
+INSERT 0 1
+set currency C: SAR/2
+owners: eyadex_finance_totals_owner login=false bypassrls=false; eyadex_finance_currency_owner login=false bypassrls=false
+eyadex_app EXECUTE set_currency: false, owner SELECT invoices.patient_id: false
+ALTER TABLE
+CREATE INDEX
+ALTER TABLE
+CREATE INDEX
+constraint gone: true, partial index: CREATE UNIQUE INDEX patient_notifications_once ON public.patient_notifications USING btree (clinic_id, subject_id, kind, channel, subject_at) NULLS NOT DISTINCT WHERE (subject_type <> 'invoice'::text)
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+INSERT 0 1
+INSERT 0 0
+INSERT 0 1
+INSERT 0 0
+INSERT 0 1
+INSERT 0 1
+psql:/tmp/p2.sql:137: NOTICE:  ok: same send_request_id with another invoice/channel refused
+psql:/tmp/p2.sql:143: NOTICE:  ok: ON CONFLICT ON CONSTRAINT fails after the swap (constraint "pn_once" for table "pn_proof" does not exist)
+rows: reminder=1 prescription=1 invoice=2
