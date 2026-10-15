@@ -193,15 +193,22 @@ export const invoiceListResponseSchema = z
 export const invoiceDraftQuerySchema = z
   .object({ source: z.enum(["appointment", "visit"]), id: idSchema })
   .strict();
+/**
+ * `GET /v1/invoices/draft` (R1-7): at most one service line; none for a walk-in visit. `priceMissing`
+ * means the service has no doctor or base price yet: its line carries "0" and the issue refuses it
+ * with `price_missing` until a price is set.
+ */
 export const invoiceDraftSchema = z
   .object({
     source: z.enum(["appointment", "visit"]),
     sourceId: idSchema,
     patientId: idSchema,
     branchId: idSchema,
+    priceMissing: z.boolean(),
     lines: z.array(invoiceLineInputSchema),
   })
   .strict();
+export type InvoiceDraft = z.infer<typeof invoiceDraftSchema>;
 
 /** `PATCH /v1/services/:id/price`: the base price, or null for "no price yet". */
 export const servicePriceRequestSchema = z

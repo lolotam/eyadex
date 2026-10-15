@@ -109,3 +109,23 @@ export async function readPrices(
   }
   return [...prices.values()];
 }
+
+/**
+ * The price an invoice line starts from (FIN-A8): the doctor's own price for the service, else its base
+ * price, else null (`price_missing`).
+ */
+export async function effectivePrice(
+  tx: Tx,
+  clinicId: string,
+  serviceId: string,
+  memberId: string,
+): Promise<string | null> {
+  const [row] = await tx.execute<{ price_minor: string | null }>(
+    sql`SELECT coalesce(p.price_minor, s.price_minor)::text AS price_minor
+        FROM clinic_services s
+        LEFT JOIN service_provider_prices p
+          ON p.clinic_id = s.clinic_id AND p.service_id = s.id AND p.member_id = ${memberId}
+        WHERE s.clinic_id = ${clinicId} AND s.id = ${serviceId}`,
+  );
+  return row?.price_minor ?? null;
+}

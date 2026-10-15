@@ -5,3 +5,8 @@ export {
   PgVisitAppointments,
   type VisitAppointmentRow,
 } from "./persistence/pg-visit-appointments.ts";
+// The billing module's `BillingAppointmentReader` adapter, bound in billing.module.ts (finance R1-7).
+export {
+  PgBillingAppointments,
+  type BillingAppointmentRow,
+} from "./persistence/pg-billing-appointments.ts";
