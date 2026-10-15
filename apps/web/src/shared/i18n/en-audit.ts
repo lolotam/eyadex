@@ -50,19 +50,12 @@ export const enAudit = {
       invoice_link: "Invoice link",
     },
     actions: {
-      invoice: {
-        issued: "Invoice issued",
-        edited: "Invoice edited",
-        voided: "Invoice voided",
-        link_opened: "Patient opened the invoice link",
-      },
       branch: {
         invoice_prefix_set: "Branch invoice prefix set",
         created: "Branch created",
         updated: "Branch updated",
         deactivated: "Branch deactivated",
         reactivated: "Branch reactivated",
-        invoice_prefix_set: "Branch invoice prefix set",
       },
       user: {
         created: "User joined",
@@ -94,8 +87,6 @@ export const enAudit = {
         updated: "Service updated",
         deactivated: "Service deactivated",
         reactivated: "Service reactivated",
-        price_set: "Service price set",
-        provider_prices_set: "Doctor prices set for a service",
       },
       schedule: { replaced: "Work schedule saved" },
       time_off: { added: "Time off added", cancelled: "Time off cancelled" },
@@ -119,9 +110,6 @@ export const enAudit = {
         logo_set: "Clinic logo changed",
         created: "Clinic created",
         ...enAuditApiClinicActions,
-        finance_changed: "Clinic currency or tax rate changed",
-        commercial_reg_no_set: "Commercial registration number set",
-        logo_set: "Clinic logo changed",
         details_updated: "Clinic details updated",
         subscription_updated: "Subscription updated",
         feature_toggled: "Module switched",

@@ -50,19 +50,12 @@ export const arAudit = {
       invoice_link: "رابط فاتورة",
     },
     actions: {
-      invoice: {
-        issued: "إصدار فاتورة",
-        edited: "تعديل فاتورة",
-        voided: "إلغاء فاتورة",
-        link_opened: "فتح المراجع رابط الفاتورة",
-      },
       branch: {
         invoice_prefix_set: "تحديد بادئة فواتير الفرع",
         created: "إنشاء فرع",
         updated: "تعديل فرع",
         deactivated: "تعطيل فرع",
         reactivated: "إعادة تفعيل فرع",
-        invoice_prefix_set: "تعيين بادئة فواتير الفرع",
       },
       user: {
         created: "انضمام مستخدم",
@@ -94,8 +87,6 @@ export const arAudit = {
         updated: "تعديل خدمة",
         deactivated: "تعطيل خدمة",
         reactivated: "إعادة تفعيل خدمة",
-        price_set: "تعديل سعر خدمة",
-        provider_prices_set: "تعديل أسعار الأطباء لخدمة",
       },
       schedule: { replaced: "حفظ جدول العمل" },
       time_off: { added: "إضافة إجازة", cancelled: "إلغاء إجازة" },
@@ -119,9 +110,6 @@ export const arAudit = {
         logo_set: "تغيير شعار العيادة",
         created: "إنشاء عيادة",
         ...arAuditApiClinicActions,
-        finance_changed: "تغيير عملة العيادة أو ضريبتها",
-        commercial_reg_no_set: "تعديل رقم السجل التجاري",
-        logo_set: "تغيير شعار العيادة",
         details_updated: "تعديل بيانات العيادة",
         subscription_updated: "تعديل الاشتراك",
         feature_toggled: "تشغيل أو إيقاف قسم",
