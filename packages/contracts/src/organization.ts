@@ -60,6 +60,9 @@ export const clinicAuditEntitySchema = z.enum([
   "medical_profile",
   "attachment",
   "medicine",
+  // Finance F1 (0060): patient_access rows, the clinic log only, like the medical entities.
+  "invoice",
+  "invoice_link",
 ]);
 
 export const clinicAuditEntrySchema = z.object({

@@ -123,3 +123,12 @@ describe("POST /v1/invoices/:id/send (R2-5)", () => {
     expect(await rowsOf(invoice.id)).toEqual([]);
   });
 });
+
+// Plan Task 8g is postponed to the end of the project (owner, 2026-10-16): until then a PDF answers 503.
+describe("before the server PDF exists", () => {
+  it("GET /v1/invoices/:id/pdf answers 503", async () => {
+    const invoice = await invoiceOnD();
+    const res = await send(h, C.admin.cookie, "GET", `/v1/invoices/${invoice.id}/pdf`);
+    expect(res.statusCode).toBe(503);
+  });
+});

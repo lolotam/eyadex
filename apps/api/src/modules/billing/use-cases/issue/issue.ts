@@ -94,7 +94,10 @@ export class InvoiceIssues {
         );
         if (claimed.kind === "conflict") throw new ApiError("idempotency_conflict");
         if (claimed.kind === "replay") {
-          return (await readInvoice(tx, actor.clinicId, claimed.response.invoiceId))!;
+          // The first answer is given again only while its branch is still in the caller's reach.
+          const first = (await readInvoice(tx, actor.clinicId, claimed.response.invoiceId))!;
+          if (!reachesBranch(reach, first.branchId)) throw new ApiError("not_found");
+          return first;
         }
         const invoice = await this.write(tx, actor, reach, body);
         await completeClinicIdempotencyKey(tx, claim, { invoiceId: invoice.id });

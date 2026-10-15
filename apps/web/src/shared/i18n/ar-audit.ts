@@ -46,6 +46,8 @@ export const arAudit = {
       provider_time_off: "إجازة",
       appointment: "موعد",
       ...arMedicalAuditEntities,
+      invoice: "فاتورة",
+      invoice_link: "رابط فاتورة",
     },
     actions: {
       invoice: {

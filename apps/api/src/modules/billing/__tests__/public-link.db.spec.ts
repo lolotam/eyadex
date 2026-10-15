@@ -137,3 +137,27 @@ describe("GET /v1/public/invoices/:token (R1-16, R2-7)", () => {
     expect([res.statusCode, code(res)]).toEqual([404, "not_found"]);
   });
 });
+
+describe("GET /v1/invoices/:id/pdf (spec §3.3)", () => {
+  it("renders the invoice for a member who can see it, as an inline PDF, and audits the open", async () => {
+    const patient = await patientIn(h, C, C.branchD);
+    const invoice = await manualInvoice(h, C.admin.cookie, patient, C.branchD);
+    const res = await send(h, C.admin.cookie, "GET", `/v1/invoices/${invoice.id}/pdf`);
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["content-type"]).toBe("application/pdf");
+    expect(res.headers["content-disposition"]).toBe(`inline; filename="${invoice.number}.pdf"`);
+    expect(res.headers["cache-control"]).toBe("no-store");
+    expect(new Uint8Array(res.rawPayload)).toEqual(PDF);
+    expect(rendered.at(-1)).toMatchObject({ invoice: { id: invoice.id } });
+    const audit = await h.owner`SELECT actor_user_id, category FROM audit_log
+                                WHERE entity_id = ${invoice.id} AND action = 'invoice.pdf_opened'`;
+    expect(audit).toEqual([{ actor_user_id: C.admin.userId, category: "patient_access" }]);
+  });
+
+  it("is not_found for a member whose reach misses the invoice", async () => {
+    const patient = await patientIn(h, C, C.branchD);
+    const invoice = await manualInvoice(h, C.admin.cookie, patient, C.branchD);
+    const res = await send(h, C.desk.cookie, "GET", `/v1/invoices/${invoice.id}/pdf`);
+    expect([res.statusCode, code(res)]).toEqual([404, "not_found"]);
+  });
+});

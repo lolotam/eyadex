@@ -278,7 +278,7 @@ BEGIN
         'visit_notes','patient_medical_profiles','visit_diagnoses','visit_prescription_items',
         'clinic_medicines','patient_attachments','clinic_notification_settings',
         'patient_notifications','clinic_whatsapp_channels','service_provider_prices','invoice_sequences',
-        'invoices','invoice_lines','invoice_links'] LOOP
+        'invoices','invoice_lines','invoice_links','used_invoice_prefixes'] LOOP
       BEGIN
         EXECUTE format('UPDATE %I SET clinic_id = $1', t) USING b;
         RAISE EXCEPTION 'ISO-01 write leak: % rows can be moved to another clinic', t;

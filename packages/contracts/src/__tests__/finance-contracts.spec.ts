@@ -103,6 +103,17 @@ describe("the invoice list", () => {
     expect(invoiceListQuerySchema.safeParse(byAppointment).success).toBe(true);
     expect(invoiceListQuerySchema.safeParse({ sourceId: ID }).success).toBe(false);
   });
+
+  // PR #77 review: a well-shaped but impossible day reached PostgreSQL's ::date and answered 500.
+  it.each([
+    ["2026-02-28", true],
+    ["2028-02-29", true],
+    ["2026-02-29", false],
+    ["2026-02-31", false],
+    ["2026-99-99", false],
+  ])("from=%s parses: %s", (from, valid) => {
+    expect(invoiceListQuerySchema.safeParse({ from }).success).toBe(valid);
+  });
 });
 
 describe("prices, prefixes, sending and the platform", () => {
