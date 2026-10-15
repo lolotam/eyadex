@@ -2,3 +2,4 @@
 export const PRICE_CHANGES = Symbol("billing.PriceChanges");
 export const INVOICE_DRAFTS = Symbol("billing.InvoiceDrafts");
 export const INVOICE_ISSUES = Symbol("billing.InvoiceIssues");
+export const INVOICE_READS = Symbol("billing.InvoiceReads");

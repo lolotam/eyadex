@@ -10,7 +10,12 @@ import {
 import { AUTHORIZATION_INVALIDATOR, type AuthorizationInvalidator } from "../../identity/index.ts";
 import { code, send } from "../../appointments/__tests__/scheduling-fixtures.ts";
 import { patientIn } from "../../medical/__tests__/medical-fixtures.ts";
-import { financeClinic, serviceAppointment, type FinanceClinic } from "./billing-fixtures.ts";
+import {
+  financeClinic,
+  serviceAppointment,
+  setPrefixes,
+  type FinanceClinic,
+} from "./billing-fixtures.ts";
 
 // Plan Task 8c (spec §8 rules 7–9, R1-7, R1-8, R1-14): one transaction from the source to the audit row,
 // numbered without gaps per branch and clinic-timezone year.
@@ -59,8 +64,7 @@ beforeAll(async () => {
   h = await openHarness({}, true);
   invalidate = h.app.get<AuthorizationInvalidator>(AUTHORIZATION_INVALIDATOR);
   C = await financeClinic(h, invalidate);
-  await h.owner`UPDATE branches SET invoice_prefix = 'SLMD' WHERE id = ${C.branchD}`;
-  await h.owner`UPDATE branches SET invoice_prefix = 'SLMR' WHERE id = ${C.branchR}`;
+  await setPrefixes(h, C);
   patient = await patientIn(h, C, C.branchD);
 });
 

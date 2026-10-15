@@ -1,5 +1,5 @@
 import type { Tx } from "@eyadex/db";
-import { sql } from "drizzle-orm";
+import { sql, type SQL } from "drizzle-orm";
 
 import { patientScopeFor, type MemberBranches } from "../domain/patient-rules.ts";
 import { ownPatientSql, viewSees } from "../queries/own-patients.ts";
@@ -18,6 +18,13 @@ export class PgBillingPatients {
           FOR NO KEY UPDATE`,
     );
     return rows.length > 0;
+  }
+
+  // R1-12: the invoice list's `own` filter is the same predicate, over the patient its column names, so
+  // `own` keeps one meaning and billing never names the appointments or visits relations.
+  ownPatientFilter(membershipId: string, patientIdColumn: SQL): SQL {
+    return sql`EXISTS (SELECT 1 FROM patients p WHERE p.id = ${patientIdColumn}
+      AND ${ownPatientSql(membershipId)})`;
   }
 
   // R1-12: `own` is the patients module's one predicate (an appointment or a visit with the caller).

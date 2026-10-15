@@ -1,4 +1,5 @@
 import type { Tx } from "@eyadex/db";
+import type { SQL } from "drizzle-orm";
 
 import type { MemberBranches } from "../domain/billing-actor.ts";
 
@@ -33,4 +34,13 @@ export interface BillingPatientReader {
     },
     patientId: string,
   ): Promise<{ own: boolean; inPatientReach: boolean }>;
+
+  /**
+   * شرط `own` (R1-12) على عمود المراجع في استعلام القايمة: نفس شرط موديول المراجعين، جوه نفس الـ RLS.
+   *
+   * @param membershipId عضوية الفاعل
+   * @param patientIdColumn عمود المراجع في الاستعلام
+   * @returns الشرط
+   */
+  ownPatientFilter(membershipId: string, patientIdColumn: SQL): SQL;
 }

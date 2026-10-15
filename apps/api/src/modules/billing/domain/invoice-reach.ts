@@ -26,3 +26,20 @@ export function branchReach(
  */
 export const reachesBranch = (reach: MemberBranches, branchId: string): boolean =>
   reach.all || reach.branchIds.includes(branchId);
+
+/** من يقدر يشوف أنهي فواتير: كل الفروع، أو فروع العضو، أو مراجعينه (`own`، R1-12). */
+export type ViewReach = MemberBranches | { readonly own: string };
+
+/**
+ * نطاق عرض الفواتير: `clinic` = كل الفواتير، `branch` = فواتير فروع العضو، `own` = فواتير مراجعينه في أي
+ * فرع.
+ *
+ * @param actor الفاعل
+ * @returns النطاق، أو `null` لو مالوش `view:invoices` بأي نطاق
+ */
+export function viewReach(actor: BillingActor): ViewReach | null {
+  if (actor.permissions.includes("view:invoices:clinic")) return { all: true };
+  if (actor.permissions.includes("view:invoices:branch")) return actor.member;
+  if (actor.permissions.includes("view:invoices:own")) return { own: actor.membershipId };
+  return null;
+}

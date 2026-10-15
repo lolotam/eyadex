@@ -24,6 +24,8 @@ const ROUTES: [method: "GET" | "POST" | "PATCH" | "PUT", url: string, body?: unk
   ["PUT", `/v1/services/${ID}/provider-prices`, { items: [] }],
   ["GET", `/v1/invoices/draft?source=appointment&id=${ID}`],
   ["POST", "/v1/invoices", {}],
+  ["GET", "/v1/invoices"],
+  ["GET", `/v1/invoices/${ID}`],
 ];
 
 beforeAll(async () => {

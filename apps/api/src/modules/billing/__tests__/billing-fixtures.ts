@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import type { Harness } from "../../identity/auth/__tests__/auth-http-harness.ts";
 import { customRole, memberOn } from "../../identity/__tests__/user-fixtures.ts";
 import type { AuthorizationInvalidator } from "../../identity/index.ts";
@@ -67,4 +69,42 @@ export async function serviceAppointment(
   });
   if (arrived.statusCode !== 200) throw new Error(`arrive ${arrived.statusCode} ${arrived.body}`);
   return id;
+}
+
+/** Gives branches D and R their invoice prefixes (the branch form comes with plan Task 8h). */
+export async function setPrefixes(h: Harness, C: FinanceClinic): Promise<void> {
+  await h.owner`UPDATE branches SET invoice_prefix = 'SLMD' WHERE id = ${C.branchD}`;
+  await h.owner`UPDATE branches SET invoice_prefix = 'SLMR' WHERE id = ${C.branchR}`;
+}
+
+/**
+ * A manual invoice of one free line, issued by `cookie`.
+ *
+ * @returns the invoice's id and number
+ */
+export async function manualInvoice(
+  h: Harness,
+  cookie: string,
+  patientId: string,
+  branchId: string,
+  unitPriceMinor = "1000",
+): Promise<{ id: string; number: string }> {
+  const line = {
+    kind: "free",
+    descriptionAr: "جلسة",
+    descriptionEn: "Session",
+    quantity: 1,
+    unitPriceMinor,
+    discount: null,
+  };
+  const res = await send(
+    h,
+    cookie,
+    "POST",
+    "/v1/invoices",
+    { source: "manual", sourceId: null, patientId, branchId, lines: [line], invoiceDiscount: null },
+    randomUUID(),
+  );
+  if (res.statusCode !== 201) throw new Error(`issue ${res.statusCode} ${res.body}`);
+  return (res.json() as { invoice: { id: string; number: string } }).invoice;
 }
