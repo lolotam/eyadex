@@ -9,23 +9,23 @@
 
 ## 1. Requirements the renderer must meet
 
-| #   | Requirement                                                                                                           | Source                |
-| --- | --------------------------------------------------------------------------------------------------------------------- | --------------------- |
-| R1  | Arabic letters joined correctly (contextual forms, lam-alef) and mixed Arabic/Latin/number runs in Unicode bidi order | FIN-6 bilingual       |
-| R2  | One A4 portrait document, both languages, fonts embedded; selectable text (see §5 limitation L1)                      | FIN-5, FIN-6          |
-| R3  | Header: clinic name ar + en, logo, branch name, address, phone, commercial registration number (when set)             | FIN-6                 |
-| R4  | Amounts identical to the stored invoice (no recomputation in the template)                                            | R1-1, §2 shared rules |
-| R5  | No patient data in logs, argv, temp files or caches; `Cache-Control: no-store`                                        | CLAUDE.md §8, §5      |
-| R6  | Inside the API's 200 ms budget for a request, or moved to the worker (CLAUDE.md §6)                                   | CLAUDE.md §6          |
-| R7  | No network fetch at render time (fonts and logo supplied by us)                                                       | supply chain, R5      |
+| #   | Requirement                                                                                                                                                           | Source                |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| R1  | Arabic letters joined correctly (contextual forms, lam-alef) and mixed Arabic/Latin/number runs in Unicode bidi order                                                 | FIN-6 bilingual       |
+| R2  | One A4 portrait document, both languages, fonts embedded; **every Arabic and English word extracts in logical order** (pdf.js and pdftotext) — **not met yet, §5 L1** | FIN-5, FIN-6          |
+| R3  | Header: clinic name ar + en, logo, branch name, address, phone, commercial registration number (when set)                                                             | FIN-6                 |
+| R4  | Amounts identical to the stored invoice (no recomputation in the template)                                                                                            | R1-1, §2 shared rules |
+| R5  | No patient data in logs, argv, temp files or caches; `Cache-Control: no-store`                                                                                        | CLAUDE.md §8, §5      |
+| R6  | Inside the API's 200 ms budget for a request, or moved to the worker (CLAUDE.md §6)                                                                                   | CLAUDE.md §6          |
+| R7  | No network fetch at render time (fonts and logo supplied by us)                                                                                                       | supply chain, R5      |
 
 ## 2. Options
 
-| Option                                                     | Arabic (R1)                                                                                                                                                                                                                                                                                                                                                               | Footprint                                                                       | Data path (R5)                                               | Verdict                                     |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------- |
-| **A. PDFKit** (pure JS)                                    | Fontkit shapes glyphs but does **no bidi reordering**; Arabic comes out joined in reversed order unless a third-party layer (e.g. `bidi-shaper`) reorders and shapes in one pass and disables fontkit's own features ([adapter notes](https://app.unpkg.com/bidi-shaper@0.1.2/files/dist/adapters/pdfkit.d.ts)). That layer's maintenance and correctness are unverified. | npm only                                                                        | in-process                                                   | Rejected: R1 rests on an unvetted adapter   |
-| **B. Typst CLI** (Rust, static binary)                     | Native: text `dir: rtl`, `lang`, and "the bidirectional reordering algorithm" ([Typst text docs](https://typst.app/docs/reference/text/text/)); shaping is HarfBuzz-class (rustybuzz).                                                                                                                                                                                    | one pinned static binary in the API image                                       | child process; data on stdin, PDF on stdout (**tested**, §5) | **Recommended**                             |
-| **C. Headless Chromium** (Gotenberg service or Playwright) | Full browser shaping and bidi ([Gotenberg](https://computingforgeeks.com/gotenberg-html-to-pdf-api/); Chrome-based renderers handle joining and mixed order, e.g. [Printly](https://packagist.org/packages/g4t/printly))                                                                                                                                                  | a Chromium image (hundreds of MB) or a new Dokploy service on `dokploy-network` | patient data over the internal network to another container  | Fallback (copy/search text untested, §5 L1) |
+| Option                                                     | Arabic (R1)                                                                                                                                                                                                                                                                                                                                                               | Footprint                                                                       | Data path (R5)                                               | Verdict                                       |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------ | --------------------------------------------- |
+| **A. PDFKit** (pure JS)                                    | Fontkit shapes glyphs but does **no bidi reordering**; Arabic comes out joined in reversed order unless a third-party layer (e.g. `bidi-shaper`) reorders and shapes in one pass and disables fontkit's own features ([adapter notes](https://app.unpkg.com/bidi-shaper@0.1.2/files/dist/adapters/pdfkit.d.ts)). That layer's maintenance and correctness are unverified. | npm only                                                                        | in-process                                                   | Rejected: R1 rests on an unvetted adapter     |
+| **B. Typst CLI** (Rust, static binary)                     | Native: text `dir: rtl`, `lang`, and "the bidirectional reordering algorithm" ([Typst text docs](https://typst.app/docs/reference/text/text/)); shaping is HarfBuzz-class (rustybuzz).                                                                                                                                                                                    | one pinned static binary in the API image                                       | child process; data on stdin, PDF on stdout (**tested**, §5) | **Recommended**                               |
+| **C. Headless Chromium** (Gotenberg service or Playwright) | Full browser shaping and bidi ([Gotenberg](https://computingforgeeks.com/gotenberg-html-to-pdf-api/); Chrome-based renderers handle joining and mixed order, e.g. [Printly](https://packagist.org/packages/g4t/printly))                                                                                                                                                  | a Chromium image (hundreds of MB) or a new Dokploy service on `dokploy-network` | patient data over the internal network to another container  | Fallback; **fails R2 extraction too** (§5 L1) |
 
 ## 3. Proposed design (option B)
 
@@ -65,11 +65,12 @@ emptyDir, "-", "-"])` (the exact form the probe ran)
 
 - Page 210 × 297 mm, margins 15 mm, body 10 pt, table 9 pt. One document, bilingual labels side by side
   (Arabic block right-aligned `dir: rtl`, English block left-aligned) — the layout bilingual Gulf invoices use.
-- **One language per paragraph or cell.** The probe showed a mixed paragraph reordering per the Unicode bidi
-  algorithm («15 October 2026» inside an Arabic line rendered «October 2026 15»). English text, numbers and
-  amounts go in their own `dir: ltr` cells; Arabic in `dir: rtl, lang: "ar"` cells.
-- **Header (FIN-6):** logo top-start (≤ 40 × 20 mm, PNG/JPEG from BlobStore; **how the bytes reach Typst is
-  unproven** — §5 L2), clinic name ar / en, branch name, address, phone, CR number when set.
+- **One language per paragraph or cell, or explicit isolation.** A mixed RTL paragraph reorders per the Unicode
+  bidi algorithm («15 October 2026» → «October 2026 15»). Tested fixes (probe 2 §3): one language per table
+  cell, or each LTR run wrapped in `box(text(dir: ltr))` — both render and extract «15 October 2026» and
+  «15.000 KWD» intact.
+- **Header (FIN-6):** logo top-start (≤ 40 × 20 mm, PNG/JPEG from BlobStore; transport per decision L2, §7),
+  clinic name ar / en, branch name, address, phone, CR number when set.
 - **Invoice block:** number, issue date (clinic timezone), status; patient display name.
 - **Lines table** (header row repeats on every page): # · description ar / en · qty · unit price · discount
   (with reason) · line total. 50 lines max (contract) ⇒ at most 3 pages.
@@ -88,17 +89,20 @@ The decision is made by measurement, not assumed.
 
 ## 5. Probe results (`docs/superpowers/plans/evidence/2026-10-15-finance-f1/pdf-probe/README.md`)
 
-| Check                                             | Result                                                                                                         | Tag      |
-| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | -------- |
-| Exact release                                     | Typst **0.15.1** (2026-07-17), `typst-x86_64-unknown-linux-musl.tar.xz` sha256 `a6d077d0…3118c` matches GitHub | tested   |
-| Alpine                                            | `node:24-alpine` (Alpine 3.24.2, x86_64): `typst 0.15.1 (9dfd3a08)`, exit 0                                    | tested   |
-| stdin → stdout                                    | `typst compile … - -` with the document on stdin and the PDF on stdout: exit 0, `%PDF-`, no argv data          | tested   |
-| Offline                                           | compiles with `--network none` and a read-only root                                                            | tested   |
-| Arabic joining, lam-alef, bracket mirroring       | correct on the rendered page                                                                                   | observed |
-| Template injection through data                   | an injected `#panic(...)` string rendered as text                                                              | tested   |
-| A4, pages, repeated header, embedded subset fonts | 3 pages of 595.276 × 841.89 pt, header on every page, fonts embedded + subset + Unicode maps                   | tested   |
-| Timing / memory (dev host)                        | 50 lines p95 84.2 ms; RSS ≈ 32 MB                                                                              | tested   |
-| Amounts equal `computeInvoiceTotals` for E1–E5    | **not run** (the probe used fixed strings); an 8g test                                                         | —        |
+| Check                                             | Result                                                                                                                                                    | Tag      |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| Exact release                                     | Typst **0.15.1** (2026-07-17), `typst-x86_64-unknown-linux-musl.tar.xz` sha256 `a6d077d0…3118c` matches GitHub                                            | tested   |
+| Alpine                                            | `node:24-alpine` (Alpine 3.24.2, x86_64): `typst 0.15.1 (9dfd3a08)`, exit 0                                                                               | tested   |
+| stdin → stdout                                    | `typst compile … - -` with the document on stdin and the PDF on stdout: exit 0, `%PDF-`, no argv data                                                     | tested   |
+| Offline                                           | compiles with `--network none` and a read-only root                                                                                                       | tested   |
+| Arabic joining, lam-alef, bracket mirroring       | correct on the rendered page                                                                                                                              | observed |
+| Template injection through data                   | an injected `#panic(...)` string rendered as text                                                                                                         | tested   |
+| A4, pages, repeated header, embedded subset fonts | 3 pages of 595.276 × 841.89 pt, header on every page, fonts embedded + subset + Unicode maps                                                              | tested   |
+| Timing / memory (dev host)                        | 50 lines p95 84.2 ms; RSS ≈ 32 MB                                                                                                                         | tested   |
+| Amounts equal `computeInvoiceTotals` for E1–E5    | equal to spec §8b.1 for all five; every amount present in the PDF (`docs/superpowers/plans/evidence/2026-10-15-finance-f1/pdf-probe/probe2/README.md` §1) | tested   |
+| Mixed-direction isolation                         | one-language cells or `box(text(dir: ltr))` render and extract correctly (probe 2 §3)                                                                     | tested   |
+| Logo, 50 KB PNG as byte array on stdin            | 60 ms, exit 0, renders (probe 2 §2)                                                                                                                       | tested   |
+| Logo, ≈ 1 MB PNG                                  | byte array: 0.75–1.22 s, ≈ 172 MB RSS · file under `--root`: 0.24–0.41 s, ≈ 25 MB (probe 2 §2)                                                            | tested   |
 
 **Limitations found:**
 
@@ -106,27 +110,32 @@ The decision is made by measurement, not assumed.
   characters reordered in both pdf.js 6.3.289 and pdftotext («علاج» → «عالج», «الأسنان» → «األسنان», «بشرة» →
   «برشة», «التجريبية» split); words without them («استشارة», «عيادة») extract correctly. Turning optional
   ligatures off did not help. It matches open upstream issue typst/typst#4225. The printed and on-screen invoice is
-  correct. Chromium (option C) was not probed, so whether it does better is an assumption.
-- **L2 — logo transport.** Passing image bytes inside the stdin document is unproven (Typst has no base64 decoder
-  that this note relies on). Options to probe in 8g: a byte-array literal, or one `memfd` for the logo only (no
-  patient data in it).
+  correct. **Probe 2 §4: Chromium 152 with the same font fails the same words (and pdf.js returns its Arabic as
+  single glyphs); Typst with Noto Sans Arabic (variable) fails more words.** No probed renderer and font meets
+  R2's extraction criterion. Not probed: a static Noto Naskh Arabic, LuaLaTeX, PDF `ActualText`.
+- **L2 — logo transport (measured).** A byte-array literal works but costs ≈ 172 MB and ~1 s at the 1 MB cap; a
+  logo file under a private `--root` costs ≈ 25 MB and 0.24–0.41 s. Patient data stays on stdin either way.
 
 ## 6. Tests that ship with 8g
 
 - Unit: `InvoicePdfModel` builder (whitelist, formatting, tax line hidden at 0, void banner).
-- Adapter: renders the E1–E5 models; text extraction contains the invoice number, the exact totals and the
-  English descriptions (Arabic words are checked by a reviewed page image, not by extraction — L1); a model with
-  the patient name never appears in captured logs; a child that exits before reading stdin fails the request.
+- Adapter: renders the E1–E5 models; **text extraction (pdf.js) contains every Arabic and English line
+  description in logical order**, the invoice number and the exact totals (R2 — this test fails today, L1); a
+  model with the patient name never appears in captured logs; a child that exits before reading stdin fails the
+  request.
 - API db spec: `own` reach, `view` permission, module off ⇒ `module_disabled`, audit row written, headers
   (`no-store`), void invoice still renders with the banner.
 
 ## 7. Decisions requested
 
-1. Option B: Typst **0.15.1**, x86_64 musl (the production server `musalam-2` reports `uname -m` = `x86_64`), with C as
-   the fallback.
-2. **L1:** accept that copy/search of some Arabic words is imperfect (printing and viewing are correct), or
-   require correct extraction and probe Chromium (option C) before choosing.
-3. Fonts: IBM Plex Sans Arabic (Regular, SemiBold) only, vendored with checksums.
-4. **L2:** how the logo reaches the renderer (probe in 8g before any route code).
+1. Renderer: Typst **0.15.1**, x86_64 musl (production `musalam-2` is `x86_64`). Chromium is no longer an
+   extraction fallback (probe 2 §4).
+2. **L1 — the R2 extraction criterion, which no probed option meets.** The criterion stays as written; 8g code
+   stays held until the owner chooses: (a) keep it and fund a further bounded search (static Noto Naskh
+   Arabic, other Arabic fonts, LuaLaTeX, `ActualText`) before 8g; or (b) the owner changes the criterion in the
+   spec. This note does not choose.
+3. Fonts: IBM Plex Sans Arabic (Regular, SemiBold) — best extraction of the fonts probed.
+4. **L2 — logo:** (a) a file under a private per-render `--root` (keeps the 1 MB cap; ≈ 25 MB); or (b) a byte
+   array on stdin with the upload cap lowered (spec change; a 50 KB logo costs 60 ms).
 5. A staging re-measure of p95 before the route goes live (else the worker path of §4).
 6. A new `RULE_ONLY` error `pdf_busy` (503) — and `pdf_pending` (409) only if §4 moves rendering to the worker.
