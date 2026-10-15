@@ -2,6 +2,7 @@ import type { ClaimedEvent, DispatchOutcome } from "@eyadex/db";
 
 import { afterFailure } from "../invitation-mail/domain/retry-schedule.ts";
 import { renderAppointmentEmail } from "./domain/appointment-email.ts";
+import { renderInvoiceEmail } from "./domain/invoice-email.ts";
 import { renderPrescriptionEmail } from "./domain/prescription-email.ts";
 import {
   certainlyNotAccepted,
@@ -11,8 +12,8 @@ import {
 } from "./domain/route-advance.ts";
 import { onBehalfReplyTo, planRoutes } from "./domain/route-plan.ts";
 import { notificationSkip } from "./domain/skip-decision.ts";
-import { DONE, type HandlerContext } from "./handler-context.ts";
-import { buildContent } from "./notification-content.ts";
+import { DONE, type HandlerContext, type SendTarget } from "./handler-context.ts";
+import { buildContent, sendFacts, subjectMissing } from "./notification-content.ts";
 import type { ReadyNotification } from "./ports/notification-store.ts";
 import { sendAlongRoutes } from "./send-along-routes.ts";
 
@@ -22,39 +23,34 @@ import { sendAlongRoutes } from "./send-along-routes.ts";
  *
  * @param ctx الاعتماديات وطرق إنهاء الحدث
  * @param event الحدث الممسوك
- * @param clinicId العيادة
+ * @param target العيادة ورابط الفاتورة
  * @param state الصفوف الممسوكة
  * @returns نتيجة الحدث
  */
 export async function sendEmail(
   ctx: HandlerContext,
   event: ClaimedEvent,
-  clinicId: string,
+  target: SendTarget,
   state: ReadyNotification,
 ): Promise<DispatchOutcome> {
   const { deps } = ctx;
   const { kind } = state.ledger;
-  const subjectMissing =
-    kind === "prescription" ? state.visit === null : state.appointment === null;
-  if (subjectMissing) return ctx.broken(event, state, "subject_missing");
-  const reason = notificationSkip({
-    kind,
-    settings: state.settings,
-    patient: { email: state.patient.email, optedOut: state.patient.optedOut },
-    appointment: kind === "prescription" ? null : state.appointment,
-  });
+  if (subjectMissing(state)) return ctx.broken(event, state, "subject_missing");
+  const reason = notificationSkip(sendFacts(state));
   if (reason !== null || state.patient.email === null) {
     await state.record({ kind: "skipped", reason: reason ?? "no_email", at: deps.clock.now() });
     ctx.note(event, "skipped", { reason: reason ?? "no_email" });
     return DONE;
   }
   const language = state.patient.language ?? state.clinic.language;
-  const content = buildContent(state, clinicId, deps.cipher, language);
+  const content = buildContent(state, target, deps.cipher, language);
   if (content.kind === "broken") return ctx.broken(event, state, content.error);
   const email =
     content.kind === "appointment"
       ? renderAppointmentEmail(content.message)
-      : renderPrescriptionEmail(content.message);
+      : content.kind === "prescription"
+        ? renderPrescriptionEmail(content.message)
+        : renderInvoiceEmail(content.message);
   const { primary, fallback } = state.providers;
   const resume = resumeRoute(state.ledger.lastError);
   const plan = planRoutes(primary?.row ?? null, fallback?.row ?? null, resume);

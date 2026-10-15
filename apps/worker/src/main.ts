@@ -31,6 +31,7 @@ import { TEAM_INVITED } from "./platform-invite-mail/domain/team-invite.ts";
 import { teamInviteDispatcher } from "./platform-invite-mail/handle-team-invited.ts";
 import { PgTeamInviteStateReader } from "./platform-invite-mail/pg-team-invite-state.ts";
 import { PATIENT_NOTIFICATION_REQUESTED } from "./patient-notifications/domain/notification-event.ts";
+import { PgInvoiceLinks } from "./patient-notifications/persistence/pg-invoice-links.ts";
 import { PgNotificationStore } from "./patient-notifications/persistence/pg-notification-store.ts";
 import {
   PgReminderClinicFinder,
@@ -132,6 +133,14 @@ try {
     // Spec §7.1: WhatsApp rows go through the clinic's Evolution instance, or are skipped without it.
     [PATIENT_NOTIFICATION_REQUESTED]: notificationDispatcher({
       store: new PgNotificationStore(app, ids),
+      invoiceLinks: {
+        store: new PgInvoiceLinks(app, ids),
+        sealer:
+          config.INVOICE_LINK_SEAL_KEY === undefined
+            ? null
+            : new SecretSealer(config.INVOICE_LINK_SEAL_KEY),
+        appUrl: config.APP_URL,
+      },
       clinicMail,
       platform: mail,
       meta: new MetaGraphSender(),

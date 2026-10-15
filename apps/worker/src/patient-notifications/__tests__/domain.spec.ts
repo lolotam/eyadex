@@ -86,6 +86,25 @@ describe("notificationSkip (spec §3.3)", () => {
     ).toBeNull();
   });
 
+  it("an invoice has no kind switch: every automatic message off still sends it; the channel off stops it", () => {
+    const allOff = off((s) => ({
+      ...s,
+      messages: Object.fromEntries(
+        Object.keys(s.messages).map((k) => [k, false]),
+      ) as typeof s.messages,
+    }));
+    const invoice = { kind: "invoice" as const, appointment: null };
+    expect(notificationSkip(facts({ ...invoice, settings: allOff }))).toBeNull();
+    const emailOff = off((s) => ({ ...s, emailEnabled: false }));
+    expect(notificationSkip(facts({ ...invoice, settings: emailOff }))).toBe("setting_off");
+  });
+
+  it("a void invoice → invoice_void, before any other reason", () => {
+    const settings = off((s) => ({ ...s, emailEnabled: false }));
+    const invoice = { kind: "invoice" as const, appointment: null, invoiceVoid: true };
+    expect(notificationSkip(facts({ ...invoice, settings }))).toBe("invoice_void");
+  });
+
   it.each(["arrived", "completed", "no_show", "cancelled"] as const)(
     "a reminder for an appointment now %s → not_booked",
     (status) => {

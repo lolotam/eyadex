@@ -1,7 +1,7 @@
 import type {
+  MessageKind,
   MessageLanguage,
   NotificationChannel,
-  NotificationKind,
 } from "@eyadex/contracts/notifications";
 import { sql, type Database, type IdGenerator, type Tx } from "@eyadex/db";
 
@@ -13,18 +13,18 @@ import type {
   ReadyNotification,
 } from "../ports/notification-store.ts";
 import { lockWhatsappChannel } from "./pg-channel-lock.ts";
-import { readAppointment, readVisit, userOfMembership } from "./pg-subject-reads.ts";
+import { readAppointment, readInvoice, readVisit, userOfMembership } from "./pg-subject-reads.ts";
 import { readNotificationSettings } from "./settings-row.ts";
 
 const PRESCRIPTION_SENT = "patient.prescription_sent";
 
 type LedgerRow = {
   id: string;
-  kind: NotificationKind;
+  kind: MessageKind;
   channel: NotificationChannel;
   status: "queued" | "sent" | "skipped" | "failed";
   patient_id: string;
-  subject_type: "appointment" | "visit";
+  subject_type: "appointment" | "visit" | "invoice";
   subject_id: string;
   subject_at: string | null;
   requested_by: string | null;
@@ -100,6 +100,8 @@ export class PgNotificationStore implements NotificationStore {
         : null;
     const visit =
       ledger.subject_type === "visit" ? await readVisit(tx, clinicId, ledger.subject_id) : null;
+    const invoice =
+      ledger.subject_type === "invoice" ? await readInvoice(tx, clinicId, ledger.subject_id) : null;
     // The actor of a degradation audit row: whoever asked for the message, else whoever booked the
     // appointment (a reminder has no requester) or signed the visit.
     const requester =
@@ -138,6 +140,7 @@ export class PgNotificationStore implements NotificationStore {
       },
       appointment,
       visit,
+      invoice,
       providers: { primary, fallback },
       whatsapp,
       record: (outcome) => this.#record(tx, clinicId, ledger.id, outcome),
@@ -150,6 +153,12 @@ export class PgNotificationStore implements NotificationStore {
               VALUES (${clinicId}, ${this.#ids.newId()}, ${visit.signerUserId}, ${PRESCRIPTION_SENT},
                 'patient_access', 'patient', ${ledger.patient_id}, ${visit.branchId},
                 ${JSON.stringify({ visitId: visit.visitId })}::jsonb, ${at.toISOString()}::timestamptz)`,
+        );
+      },
+      revokeInvoiceLinks: async (at) => {
+        await tx.execute(
+          sql`UPDATE invoice_links SET revoked_at = ${at.toISOString()}::timestamptz
+              WHERE clinic_id = ${clinicId} AND notification_id = ${ledger.id} AND revoked_at IS NULL`,
         );
       },
     };

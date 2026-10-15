@@ -66,6 +66,7 @@ function harness() {
       providerName: "Doctor",
     },
     visit: null,
+    invoice: null,
     providers: { primary: provider("primary"), fallback: provider("fallback") },
     whatsapp: null,
     record: async (outcome) => {
@@ -75,6 +76,7 @@ function harness() {
       }
     },
     auditPrescriptionSent: async () => undefined,
+    revokeInvoiceLinks: async () => undefined,
   };
   const event: ClaimedEvent = {
     id: randomUUID(),
@@ -86,6 +88,11 @@ function harness() {
   };
   const dispatch = notificationDispatcher({
     store: { whileLocked: async (_clinicId, _notificationId, use) => use(state) },
+    invoiceLinks: {
+      store: { prepare: async () => ({ kind: "not_invoice" }) },
+      sealer: null,
+      appUrl: "https://app.example.invalid",
+    },
     clinicMail: {
       sealer,
       platformFrom: "platform@example.invalid",

@@ -1,6 +1,10 @@
 import { sql, type Tx } from "@eyadex/db";
 
-import type { AppointmentSubject, VisitSubject } from "../ports/notification-store.ts";
+import type {
+  AppointmentSubject,
+  InvoiceSubject,
+  VisitSubject,
+} from "../ports/notification-store.ts";
 
 type AppointmentRow = {
   status: AppointmentSubject["status"];
@@ -126,4 +130,36 @@ export async function userOfMembership(
     sql`SELECT user_id FROM memberships WHERE clinic_id = ${clinicId} AND id = ${membershipId}`,
   )) as unknown as { user_id: string }[];
   return row?.user_id ?? null;
+}
+
+/**
+ * الفاتورة `FOR SHARE` (spec §8 rule 15): إلغاء جاري بيخلص الأول، وتعديل بعد كده بيستنى الإرسال. الرقم
+ * والإجمالي والعملة والحالة بس؛ مفيش سطور ولا مراجع في الـ SELECT.
+ *
+ * @returns الفاتورة، أو `null` لو مش موجودة
+ */
+export async function readInvoice(
+  tx: Tx,
+  clinicId: string,
+  invoiceId: string,
+): Promise<InvoiceSubject | null> {
+  const [row] = (await tx.execute(
+    sql`SELECT number, total_minor::text AS total_minor, currency, currency_exponent, status FROM invoices
+        WHERE clinic_id = ${clinicId} AND id = ${invoiceId} FOR SHARE`,
+  )) as unknown as {
+    number: string;
+    total_minor: string;
+    currency: InvoiceSubject["currency"];
+    currency_exponent: number;
+    status: InvoiceSubject["status"];
+  }[];
+  return row === undefined
+    ? null
+    : {
+        number: row.number,
+        totalMinor: row.total_minor,
+        currency: row.currency,
+        currencyExponent: Number(row.currency_exponent),
+        status: row.status,
+      };
 }
