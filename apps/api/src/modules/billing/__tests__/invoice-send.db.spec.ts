@@ -115,6 +115,28 @@ describe("POST /v1/invoices/:id/send (R2-5)", () => {
     expect(await rowsOf(invoice.id)).toEqual([]);
   });
 
+  // PR #78 review: a press whose answer was lost, retried after a void, still answers with its first row.
+  it("a retried press after a void answers with the first row; a new press is invoice_void", async () => {
+    const invoice = await invoiceOnD();
+    const first = await press(
+      C.admin.cookie,
+      invoice.id,
+      "email",
+      "0192aaaa-0000-7000-8000-00000000d001",
+    );
+    await h.owner`UPDATE invoices SET status = 'void', void_reason = 'test', voided_at = now()
+                  WHERE id = ${invoice.id}`;
+    const retry = await press(
+      C.admin.cookie,
+      invoice.id,
+      "email",
+      "0192aaaa-0000-7000-8000-00000000d001",
+    );
+    expect([retry.statusCode, retry.json()]).toEqual([200, first.json()]);
+    const fresh = await press(C.admin.cookie, invoice.id, "email", randomUUID());
+    expect([fresh.statusCode, code(fresh)]).toEqual([409, "invoice_void"]);
+  });
+
   it("an invoice outside the caller's view reach is not_found", async () => {
     // The desk sees branch R only; the invoice is on branch D.
     const invoice = await invoiceOnD();
@@ -130,5 +152,9 @@ describe("before the server PDF exists", () => {
     const invoice = await invoiceOnD();
     const res = await send(h, C.admin.cookie, "GET", `/v1/invoices/${invoice.id}/pdf`);
     expect(res.statusCode).toBe(503);
+    // PR #78 review: a render that fails opened nothing, so nothing is audited.
+    const audit = await h.owner`SELECT 1 FROM audit_log
+                                WHERE entity_id = ${invoice.id} AND action = 'invoice.pdf_opened'`;
+    expect(audit).toHaveLength(0);
   });
 });

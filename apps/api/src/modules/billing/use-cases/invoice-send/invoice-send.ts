@@ -28,7 +28,7 @@ export class InvoiceSends {
    * @param actor الفاعل (شايل `view:invoices` بأي نطاق)
    * @param id الفاتورة
    * @param body القناة ومفتاح الضغطة
-   * @returns id صف الرسالة؛ فاتورة ملغية → `invoice_void`
+   * @returns id صف الرسالة؛ ضغطة جديدة على فاتورة ملغية → `invoice_void`
    */
   send(actor: BillingActor, id: string, body: SendInvoiceRequest): Promise<SendInvoiceResponse> {
     const reach = viewReach(actor);
@@ -41,16 +41,19 @@ export class InvoiceSends {
       ) {
         throw new ApiError("not_found");
       }
-      if (invoice.status === "void") throw new ApiError("invoice_void");
-      const notificationId = await this.deps.notifier.queueInvoice(tx, {
+      const request = {
         clinicId: actor.clinicId,
         invoiceId: id,
         patientId: invoice.patientId,
         channel: body.channel,
         sendRequestId: body.sendRequestId,
         requestedBy: actor.membershipId,
-      });
-      return { notificationId };
+      };
+      // A retried press answers with the row it queued, even if the invoice was voided since (R2-5).
+      const first = await this.deps.notifier.firstSend(tx, request);
+      if (first !== null) return { notificationId: first };
+      if (invoice.status === "void") throw new ApiError("invoice_void");
+      return { notificationId: await this.deps.notifier.queueInvoice(tx, request) };
     });
   }
 }

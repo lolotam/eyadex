@@ -43,21 +43,25 @@ export class PublicInvoiceLinks {
       const found = await readInvoice(tx, link.clinicId, link.invoiceId);
       // A void revokes its links in its own transaction; one that commits after the lookup lands here.
       if (found === null || found.status === "void") throw new ApiError("invoice_link_expired");
-      await writeFinanceAudit(tx, {
+      return found;
+    });
+    const pdf = await this.deps.pdf.render(link.clinicId, invoice);
+    // Audited only once the file exists: a render that fails opened nothing (PR #78 review).
+    await this.deps.db.withTenant(link.clinicId, (tx) =>
+      writeFinanceAudit(tx, {
         clinicId: link.clinicId,
         id: this.deps.ids.newId(),
         actorUserId: SYSTEM_ACTOR_ID,
         action: "invoice.link_opened",
         entityType: "invoice_link",
         entityId: link.linkId,
-        branchId: found.branchId,
+        branchId: invoice.branchId,
         before: null,
         after: null,
         via: "patient_link",
         createdAt: this.deps.clock.now(),
-      });
-      return found;
-    });
-    return this.deps.pdf.render(link.clinicId, invoice);
+      }),
+    );
+    return pdf;
   }
 }

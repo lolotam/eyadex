@@ -41,20 +41,24 @@ export class InvoicePdfs {
       if (found === null || !(await invoiceVisible(tx, this.deps.patients, actor, reach, found))) {
         throw new ApiError("not_found");
       }
-      await writeFinanceAudit(tx, {
+      return found;
+    });
+    const pdf = await this.deps.pdf.render(actor.clinicId, invoice);
+    // Audited only once the file exists: a render that fails opened nothing (PR #78 review).
+    await this.deps.db.withTenant(actor.clinicId, (tx) =>
+      writeFinanceAudit(tx, {
         clinicId: actor.clinicId,
         id: this.deps.ids.newId(),
         actorUserId: actor.userId,
         action: "invoice.pdf_opened",
         entityType: "invoice",
-        entityId: found.id,
-        branchId: found.branchId,
+        entityId: invoice.id,
+        branchId: invoice.branchId,
         before: null,
         after: null,
         createdAt: this.deps.clock.now(),
-      });
-      return found;
-    });
-    return { number: invoice.number, pdf: await this.deps.pdf.render(actor.clinicId, invoice) };
+      }),
+    );
+    return { number: invoice.number, pdf };
   }
 }

@@ -47,7 +47,11 @@ export class PgInvoiceNotifications {
           ON CONFLICT (clinic_id, send_request_id) WHERE send_request_id IS NOT NULL DO NOTHING
           RETURNING id`,
     );
-    if (inserted.length === 0) return this.replay(tx, request);
+    if (inserted.length === 0) {
+      const first = await this.firstSend(tx, request);
+      if (first === null) throw new ApiError("send_request_conflict");
+      return first;
+    }
     await appendOutboxEvent(
       tx,
       publishNotificationRequested(this.deps.ids.newId(), clinicId, now, { notificationId: id }),
@@ -55,16 +59,20 @@ export class PgInvoiceNotifications {
     return id;
   }
 
-  private async replay(tx: Tx, request: InvoiceSendRequest): Promise<string> {
+  /**
+   * The row a `sendRequestId` already queued, so a retried press answers with it before anything about
+   * the invoice is judged again (a void after the first press must not hide that the send was queued).
+   *
+   * @returns the first row's id, or null when the id is new; another invoice or channel is
+   *   `send_request_conflict`
+   */
+  async firstSend(tx: Tx, request: InvoiceSendRequest): Promise<string | null> {
     const [first] = await tx.execute<{ id: string; subject_id: string; channel: string }>(
       sql`SELECT id, subject_id, channel FROM patient_notifications
           WHERE clinic_id = ${request.clinicId} AND send_request_id = ${request.sendRequestId}`,
     );
-    if (
-      first === undefined ||
-      first.subject_id !== request.invoiceId ||
-      first.channel !== request.channel
-    ) {
+    if (first === undefined) return null;
+    if (first.subject_id !== request.invoiceId || first.channel !== request.channel) {
       throw new ApiError("send_request_conflict");
     }
     return first.id;
