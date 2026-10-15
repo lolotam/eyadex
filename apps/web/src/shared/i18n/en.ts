@@ -153,6 +153,8 @@ export const en = {
       appointmentsBody: "Services, work schedules and time off; booking arrives next.",
       medical: "Medical",
       medicalBody: "Visits, doctor notes, diagnoses, prescriptions and the medical file.",
+      finance: "Finance",
+      financeBody: "Service prices, invoices, discounts and invoice printing.",
       saved: "Module updated",
     },
     members: {
@@ -190,7 +192,7 @@ export const en = {
     email: "Enter a valid email",
     slug: "Use lowercase letters, numbers and dashes",
     slugReserved: "This address is reserved by Eyadex",
-    moduleRequires: "The medical module needs the Patients module switched on first",
+    moduleRequires: "This module needs the Patients module switched on first",
     number: "Enter a number",
     min: "Must be at least 1",
     dateRequired: "Pick a date",
