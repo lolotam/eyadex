@@ -126,16 +126,14 @@ The decision is made by measurement, not assumed.
 - API db spec: `own` reach, `view` permission, module off ⇒ `module_disabled`, audit row written, headers
   (`no-store`), void invoice still renders with the banner.
 
-## 7. Decisions requested
+## 7. Owner decisions (decisions page batch 14, 2026-10-15)
 
-1. Renderer: Typst **0.15.1**, x86_64 musl (production `musalam-2` is `x86_64`). Chromium is no longer an
-   extraction fallback (probe 2 §4).
-2. **L1 — the R2 extraction criterion, which no probed option meets.** The criterion stays as written; 8g code
-   stays held until the owner chooses: (a) keep it and fund a further bounded search (static Noto Naskh
-   Arabic, other Arabic fonts, LuaLaTeX, `ActualText`) before 8g; or (b) the owner changes the criterion in the
-   spec. This note does not choose.
-3. Fonts: IBM Plex Sans Arabic (Regular, SemiBold) — best extraction of the fonts probed.
-4. **L2 — logo:** (a) a file under a private per-render `--root` (keeps the 1 MB cap; ≈ 25 MB); or (b) a byte
-   array on stdin with the upload cap lowered (spec change; a 50 KB logo costs 60 ms).
-5. A staging re-measure of p95 before the route goes live (else the worker path of §4).
-6. A new `RULE_ONLY` error `pdf_busy` (503) — and `pdf_pending` (409) only if §4 moves rendering to the worker.
+1. Renderer: Typst **0.15.1**, x86_64 musl (production `musalam-2` is `x86_64`) — approved (F1-PDF-LIB).
+   Chromium is not an extraction fallback (probe 2 §4).
+2. **L1 — (a) approved:** the R2 extraction criterion stays as written, and a further bounded search (static
+   Noto Naskh Arabic, other Arabic fonts, LuaLaTeX, `ActualText`) runs **before** any 8g code and reports to the
+   owner. 8g code stays held until then.
+3. Fonts: IBM Plex Sans Arabic (Regular, SemiBold) — approved with option 1.
+4. **L2 — (a) approved:** the logo is a file under a private per-render `--root` (1 MB cap kept; ≈ 25 MB).
+5. **Where it runs — approved:** measure p95 on staging first; ≤ 150 ms ⇒ in the API, else the worker path of §4.
+6. **Approved (F1-PDF-BUSY):** a new `RULE_ONLY` error `pdf_busy` (503, `Retry-After: 2`) — and `pdf_pending` (409) only if §4 moves rendering to the worker.

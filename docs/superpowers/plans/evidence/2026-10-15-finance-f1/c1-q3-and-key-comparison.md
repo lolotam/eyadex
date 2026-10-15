@@ -61,7 +61,7 @@ production; never in a file, log or commit (CLAUDE.md §8).
 No key versioning in `SecretSealer` today (single `v1` format, packet F7), so two keys cannot be live at once;
 the drain step is what makes rotation safe.
 
-## 4. Decisions still open for C1
+## 4. C1 decisions — all four approved by the owner as recommended (2026-10-15, decisions page batch 14)
 
 | Q   | Choice                  | Recommendation                                 |
 | --- | ----------------------- | ---------------------------------------------- |

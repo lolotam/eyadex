@@ -99,23 +99,25 @@ existing locked admin receives (R2-4, §8c.3). Existing roles change only by the
 
 ### 3.3 API (REST under `/v1`, Zod contracts, error envelope, guards in CLAUDE.md §6 order)
 
-| Route                                         | Permission                                                         | Notes                                                                                                    |
-| --------------------------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
-| `PATCH /services/:id/price`                   | `update:prices:clinic`                                             | Base price; `{priceMinor}` or null.                                                                      |
-| `PUT /services/:id/provider-prices`           | `update:prices:clinic`                                             | The whole per-doctor list for one service.                                                               |
-| `GET /invoices/draft?source=appointment&id=…` | `create:invoices:*`                                                | Pre-filled lines (service, doctor price, patient) — nothing is stored.                                   |
-| `POST /invoices`                              | `create:invoices:*` (+ `create:discounts:*` if a discount is sent) | `Idempotency-Key`; issues with the next branch number.                                                   |
-| `GET /invoices` / `GET /invoices/:id`         | `view:invoices:*`                                                  | Cursor list with filters: branch, patient, status, date range, number.                                   |
-| `PATCH /invoices/:id`                         | `update:invoices:*` (+ discounts)                                  | FIN-A5 edit; `If-Match` version so two desks cannot overwrite each other.                                |
-| `POST /invoices/:id/void`                     | `deactivate:invoices:*`                                            | `{reason}` required.                                                                                     |
-| `GET /invoices/:id/pdf`                       | `view:invoices:*`                                                  | Bilingual PDF rendered by the API from the stored invoice (approved contract; D-P1 declined 2026-10-15). |
-| `POST /invoices/:id/send`                     | `view:invoices:*`                                                  | `{channel: email                                                                                         | whatsapp}`; queues a `patient_notifications`row of a new kind`invoice` (the N1/N2 pipeline sends it with the PDF link). |
-| `PATCH /clinic/settings/finance`              | `update:clinic_settings:clinic`                                    | Commercial registration number and logo upload (BlobStore, image ≤ 1 MB).                                |
-| Platform: clinic create/edit                  | platform                                                           | Currency, exponent and tax rate fields (currency locked once an invoice exists).                         |
+| Route                                         | Permission                                                         | Notes                                                                                                                            |
+| --------------------------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| `PATCH /services/:id/price`                   | `update:prices:clinic`                                             | Base price; `{priceMinor}` or null.                                                                                              |
+| `PUT /services/:id/provider-prices`           | `update:prices:clinic`                                             | The whole per-doctor list for one service.                                                                                       |
+| `GET /invoices/draft?source=appointment&id=…` | `create:invoices:*`                                                | Pre-filled lines (service, doctor price, patient) — nothing is stored.                                                           |
+| `POST /invoices`                              | `create:invoices:*` (+ `create:discounts:*` if a discount is sent) | `Idempotency-Key`; issues with the next branch number.                                                                           |
+| `GET /invoices` / `GET /invoices/:id`         | `view:invoices:*`                                                  | Cursor list with filters: branch, patient, status, date range, number, and source + source id (owner 2026-10-15, F1-ADD-FILTER). |
+| `PATCH /invoices/:id`                         | `update:invoices:*` (+ discounts)                                  | FIN-A5 edit; `If-Match` version so two desks cannot overwrite each other.                                                        |
+| `POST /invoices/:id/void`                     | `deactivate:invoices:*`                                            | `{reason}` required.                                                                                                             |
+| `GET /invoices/:id/pdf`                       | `view:invoices:*`                                                  | Bilingual PDF rendered by the API from the stored invoice (approved contract; D-P1 declined 2026-10-15).                         |
+| `POST /invoices/:id/send`                     | `view:invoices:*`                                                  | `{channel: email                                                                                                                 | whatsapp}`; queues a `patient_notifications`row of a new kind`invoice` (the N1/N2 pipeline sends it with the PDF link). |
+| `PATCH /clinic/settings/finance`              | `update:clinic_settings:clinic`                                    | Commercial registration number and logo upload (BlobStore, image ≤ 1 MB).                                                        |
+| `GET /clinic/settings/finance`                | any member, finance on                                             | Currency, exponent, tax rate, CR number, `hasLogo` (owner 2026-10-15, F1-ADD-SETTINGS).                                          |
+| Platform: clinic create/edit                  | platform                                                           | Currency, exponent and tax rate fields (currency locked once an invoice exists).                                                 |
 
 Error codes (new): `price_missing` (a service line without a price), `invoice_prefix_missing`,
 `invoice_already_exists` (source already billed), `invoice_void` (edit a void invoice),
-`currency_locked`, `discount_reason_required`.
+`currency_locked`, `discount_reason_required`; `pdf_busy` (503 with `Retry-After: 2`, when the API's PDF
+renderer is at capacity — owner 2026-10-15, F1-PDF-BUSY).
 
 ### 3.4 Web (Lovable; the mock mirrors every rule)
 
@@ -247,7 +249,8 @@ These override anything looser above.
     resends. The row references the invoice id and version only. If the invoice is voided before the
     worker sends, the send is skipped as `invoice_void`; if it was edited, the latest version is sent.
 16. **The patient's link:** the message carries a link `/i/<token>`: 32 random bytes, stored as a
-    SHA-256 hash with the clinic, invoice and expiry (14 days), never logged; it shows the latest
+    SHA-256 hash for lookup, plus a sealed copy used only by worker retries (§8c.1, owner 2026-10-15), with
+    the clinic, invoice and expiry (14 days), never logged; it shows the latest
     version of the invoice as a PDF, stops working when voided, and one invoice can have several live
     links (each send makes one). Opening it is audited as a patient-side view.
 17. **Monthly totals (FIN-3 and F3):** `invoiced` = Σ `total` of non-void invoices by the clinic-timezone
@@ -308,14 +311,18 @@ columns>) WHERE subject_type <> 'invoice'`. Invoice notifications are unique on
    the invoice lock. This order joins the repository's documented lock order (ADR-0033), and a test
    runs a payment and an edit on the same invoice concurrently.
 
-## 8c. Proposed changes from the F1 plan review (2026-10-15) — PENDING FOCUSED APPROVAL
+## 8c. Changes from the F1 plan review (2026-10-15) — decided by the owner on the decisions page (batch 14)
 
-1. **C1 — durable invoice-link retry.** R1-16 stores the link token only as a SHA-256 hash, which a retried
-   send cannot rebuild. Proposal: `invoice_links` also stores `token_sealed` (the existing `SecretSealer`,
-   AES-256-GCM, key `OUTBOX_SEAL_KEY`, context `invoice_link:<clinic>:<link>:<notification>`); lookup still
-   uses only the hash; the lookup function's owner and the platform have no grant on the sealed column; a retry
-   re-opens the sealed token and re-sends the same URL; a rotated key or expiry revokes the link and mints a new
-   one. Network sends run after the link transaction commits, never inside it.
+1. **C1 — durable invoice-link retry — APPROVED (F1-C1-Q1…Q4).** R1-16 stored the link token only as a
+   SHA-256 hash, which a retried send cannot rebuild. Now `invoice_links` also stores `token_sealed` (the
+   existing `SecretSealer`, AES-256-GCM, with a **dedicated worker-only key `INVOICE_LINK_SEAL_KEY`** — Q2;
+   context `invoice_link:<clinic>:<link>:<notification>`); lookup still uses only the hash; the lookup
+   function's owner and the platform have no grant on the sealed column; a retry re-opens the sealed token and
+   re-sends the same URL; a rotated key or expiry revokes the link and mints a new one. **The link transaction
+   commits before any network send; the send then runs in the existing ledger transaction (`whileLocked`),
+   like every other notification kind** (Q3). **A final failure that proves non-delivery (`evo_not_on_whatsapp`,
+   `meta_not_on_whatsapp`) revokes its link; an ambiguous one (`evo_timeout`, `meta_timeout`) keeps it until
+   expiry** (Q4). The key is rotated only after the invoice queue is drained.
 2. **D-P1 — DECLINED by the owner (2026-10-15): the approved server-rendered PDF stays (§3.3); design note
    `finance-f1-pdf-design.md`.** Original proposal, kept for the record: **browser print view instead of a server PDF.** §3.3 and FIN-5 approved an API-rendered PDF; the API
    renders no PDF today. Proposal: `GET /invoices/:id/print` (data) and a web print view (Print / Save as PDF),
