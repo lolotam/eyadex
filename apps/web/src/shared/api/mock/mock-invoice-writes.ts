@@ -120,7 +120,10 @@ export function issueInvoice(
   const previous = state.idempotentInvoices[ledgerKey];
   if (previous) {
     if (previous.fingerprint !== fingerprint) throw new ApiError("idempotency_conflict");
-    return strip(state.invoices.find((i) => i.id === previous.invoiceId)!);
+    const first = state.invoices.find((i) => i.id === previous.invoiceId)!;
+    // As the API: the first answer is given again only while its branch is still in the caller's reach.
+    if (!writeReaches(a, "create", "invoices", first.branchId)) throw new ApiError("not_found");
+    return strip(first);
   }
   const { patientId, branchId } = parties(db, a, body);
   if (

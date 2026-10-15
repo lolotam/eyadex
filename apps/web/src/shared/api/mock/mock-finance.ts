@@ -120,7 +120,6 @@ export function createMockFinance(): FinanceApi {
       write(() => {
         const invoice = visibleInvoice(persona, id);
         const body = parse(sendInvoiceRequestSchema, raw);
-        if (invoice.status === "void") throw new ApiError("invoice_void");
         // TODO(spec): the demo answers the send without a message-history row, since the mock ledger
         // keys rows by appointment or visit only. Delivery is the worker's in the real API.
         const sends = financeState(db()).sends;
@@ -132,6 +131,8 @@ export function createMockFinance(): FinanceApi {
           }
           return { notificationId: previous.notificationId };
         }
+        // As the API: a retried press answers first even after a void; only a new press is refused.
+        if (invoice.status === "void") throw new ApiError("invoice_void");
         const notificationId = newId();
         sends[key] = { invoiceId: id, channel: body.channel, notificationId };
         return { notificationId };

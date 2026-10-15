@@ -69,6 +69,43 @@ describe("finance F1 in the mock, as the API", () => {
     expect(await fails(api.finance.edit(admin(), inv.id, 3, body))).toBe("invoice_void");
   });
 
+  // PR #78 review: the mock replayed an issue after the caller lost the invoice's branch.
+  it("does not replay an issue whose branch left the caller's reach", async () => {
+    const db = getState();
+    const role = db.roles.find(
+      (r) => r.clinicId === clinicIdAt(0) && r.systemKey === "receptionist",
+    );
+    const member = db.members.find((m) => m.roleId === role?.id && m.status === "active");
+    const own = member?.branchIds[0];
+    if (!member || !own) throw new Error("seed");
+    const patient = db.patients.find(
+      (p) => p.clinicId === clinicIdAt(0) && p.registrationBranchId === own,
+    );
+    if (!patient) throw new Error("seed");
+    const body = { ...manual(), patientId: patient.id, branchId: own };
+    const key = crypto.randomUUID();
+    await api.finance.issue(as("receptionist"), body, key);
+    member.branchIds = db.branches
+      .filter((b) => b.clinicId === clinicIdAt(0) && b.id !== own)
+      .map((b) => b.id);
+    expect(await fails(api.finance.issue(as("receptionist"), body, key))).toBe("not_found");
+  });
+
+  it("a retried send after a void answers the first notification; a new press is invoice_void", async () => {
+    const inv = await api.finance.issue(admin(), manual(), crypto.randomUUID());
+    const sendRequestId = crypto.randomUUID();
+    const first = await api.finance.send(admin(), inv.id, { channel: "email", sendRequestId });
+    await api.finance.voidInvoice(admin(), inv.id, 1, "خطأ");
+    expect(await api.finance.send(admin(), inv.id, { channel: "email", sendRequestId })).toEqual(
+      first,
+    );
+    expect(
+      await fails(
+        api.finance.send(admin(), inv.id, { channel: "email", sendRequestId: crypto.randomUUID() }),
+      ),
+    ).toBe("invoice_void");
+  });
+
   it("a send retry with the same id replays; the same id on another channel is a conflict", async () => {
     const inv = await api.finance.issue(admin(), manual(), crypto.randomUUID());
     const sendRequestId = crypto.randomUUID();

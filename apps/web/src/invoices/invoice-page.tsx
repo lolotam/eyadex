@@ -57,8 +57,11 @@ function InvoiceContent({ invoiceId }: { invoiceId: string }) {
   const [reason, setReason] = useState("");
   // The PDF may be unavailable (503 until the server renderer ships): shown in place, page stays usable.
   const [pdfError, setPdfError] = useState<string | null>(null);
-  // One id per press; a retry of the same press (same channel) reuses it.
-  const [sendIds] = useState(() => ({ email: crypto.randomUUID(), whatsapp: crypto.randomUUID() }));
+  // One id per press: a retry after a failure reuses it, a confirmed send makes the next press a new one.
+  const [sendIds, setSendIds] = useState(() => ({
+    email: crypto.randomUUID(),
+    whatsapp: crypto.randomUUID(),
+  }));
   const keys = session?.permissions ?? [];
   const onError = (e: unknown) => toast.error(tDynamic(`errors.${errorCodeOf(e)}`));
   const voidIt = useMutation({
@@ -74,7 +77,10 @@ function InvoiceContent({ invoiceId }: { invoiceId: string }) {
   const send = useMutation({
     mutationFn: (channel: "email" | "whatsapp") =>
       api.finance.send(persona, invoiceId, { channel, sendRequestId: sendIds[channel] }),
-    onSuccess: () => toast.success(t("finance.detail.sendRequested")),
+    onSuccess: (_answer, channel) => {
+      setSendIds((ids) => ({ ...ids, [channel]: crypto.randomUUID() }));
+      toast.success(t("finance.detail.sendRequested"));
+    },
     onError,
   });
   const pdf = useMutation({
