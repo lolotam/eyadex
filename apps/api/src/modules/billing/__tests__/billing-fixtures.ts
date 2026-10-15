@@ -27,6 +27,7 @@ export async function financeClinic(h: Harness, invalidate: AuthorizationInvalid
     h,
     C.admin,
     await customRole(h, C.clinicId, [
+      "view:patients:branch",
       "view:invoices:branch",
       "create:invoices:branch",
       "update:invoices:branch",

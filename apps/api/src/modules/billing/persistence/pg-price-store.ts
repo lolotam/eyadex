@@ -112,13 +112,13 @@ export async function readPrices(
 
 /**
  * The price an invoice line starts from (FIN-A8): the doctor's own price for the service, else its base
- * price, else null (`price_missing`).
+ * price, else null (`price_missing`). With no doctor, the base price.
  */
 export async function effectivePrice(
   tx: Tx,
   clinicId: string,
   serviceId: string,
-  memberId: string,
+  memberId: string | null,
 ): Promise<string | null> {
   const [row] = await tx.execute<{ price_minor: string | null }>(
     sql`SELECT coalesce(p.price_minor, s.price_minor)::text AS price_minor

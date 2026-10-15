@@ -18,11 +18,12 @@ let C: FinanceClinic;
 let invalidate: AuthorizationInvalidator;
 
 const ID = randomUUID();
-const ROUTES: [method: "GET" | "PATCH" | "PUT", url: string, body?: unknown][] = [
+const ROUTES: [method: "GET" | "POST" | "PATCH" | "PUT", url: string, body?: unknown][] = [
   ["GET", "/v1/prices"],
   ["PATCH", `/v1/services/${ID}/price`, { priceMinor: "1000" }],
   ["PUT", `/v1/services/${ID}/provider-prices`, { items: [] }],
   ["GET", `/v1/invoices/draft?source=appointment&id=${ID}`],
+  ["POST", "/v1/invoices", {}],
 ];
 
 beforeAll(async () => {
