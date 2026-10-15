@@ -12,7 +12,10 @@ import { CursorPager } from "@/shared/table/cursor-pager";
 import { DataTable } from "@/shared/table/data-table";
 import { FilterSelect } from "@/shared/table/filter-select";
 import { useCursorPages } from "@/shared/table/use-cursor-pages";
+import { usePriceList } from "./price-queries";
+import { ProviderPricesDialog } from "./provider-prices-dialog";
 import { ServiceFormDialog } from "./service-form-dialog";
+import { ServicePriceDialog } from "./service-price-dialog";
 import { useServiceList } from "./service-queries";
 import { ServiceStatusDialog } from "./service-status-dialog";
 import { useServiceColumns } from "./use-service-columns";
@@ -27,7 +30,10 @@ export function ServicesContent() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<ClinicService | null>(null);
   const [statusTarget, setStatusTarget] = useState<ClinicService | null>(null);
+  const [pricing, setPricing] = useState<ClinicService | null>(null);
+  const [providerPricing, setProviderPricing] = useState<ClinicService | null>(null);
   const permissions = session?.permissions ?? [];
+  const prices = usePriceList(can(permissions, "view", "prices"));
   const list = useServiceList({
     cursor: pages.cursor,
     limit: PAGE_SIZE,
@@ -41,6 +47,10 @@ export function ServicesContent() {
       setFormOpen(true);
     }, []),
     onStatus: useCallback((s: ClinicService) => setStatusTarget(s), []),
+    prices: prices.data,
+    mayPrice: can(permissions, "update", "prices"),
+    onPrice: useCallback((s: ClinicService) => setPricing(s), []),
+    onProviderPrices: useCallback((s: ClinicService) => setProviderPricing(s), []),
   });
 
   if (list.isError) {
@@ -120,6 +130,16 @@ export function ServicesContent() {
         }}
       />
       <ServiceStatusDialog service={statusTarget} onClose={() => setStatusTarget(null)} />
+      {prices.data && (
+        <>
+          <ServicePriceDialog service={pricing} list={prices.data} onClose={() => setPricing(null)} />
+          <ProviderPricesDialog
+            service={providerPricing}
+            list={prices.data}
+            onClose={() => setProviderPricing(null)}
+          />
+        </>
+      )}
     </div>
   );
 }
