@@ -9,11 +9,14 @@ import { DATABASE } from "../../shared/database.provider.ts";
 // A module.ts may bind another module's adapter to a port it owns (CLAUDE.architecture.md §2.2).
 import { PgBillingAppointments } from "../appointments/index.ts";
 import { PgBillingVisits } from "../medical/index.ts";
+import { PgInvoiceNotifications } from "../notifications/index.ts";
 import { PgBillingPatients } from "../patients/index.ts";
 import { CLOCK, TenancyModule, type Clock } from "../tenancy/index.ts";
+import { InvoiceSendController } from "./http/invoice-send.controller.ts";
 import { InvoicesController } from "./http/invoices.controller.ts";
 import { PricesController } from "./http/prices.controller.ts";
 import { SettingsController } from "./http/settings.controller.ts";
+import type { BillingInvoiceNotifier } from "./ports/billing-notifier.ts";
 import type { BillingPatientReader } from "./ports/billing-patients.ts";
 import type { BillingAppointmentReader, BillingVisitReader } from "./ports/billing-sources.ts";
 import {
@@ -21,6 +24,7 @@ import {
   INVOICE_DRAFTS,
   INVOICE_ISSUES,
   INVOICE_READS,
+  INVOICE_SENDS,
   FINANCE_SETTINGS,
   PRICE_CHANGES,
 } from "./ports/tokens.ts";
@@ -28,6 +32,7 @@ import { ClinicFinanceSettings } from "./use-cases/settings/settings.ts";
 import { InvoiceChanges } from "./use-cases/changes/changes.ts";
 import { InvoiceDrafts } from "./use-cases/draft/draft.ts";
 import { InvoiceIssues } from "./use-cases/issue/issue.ts";
+import { InvoiceSends } from "./use-cases/invoice-send/invoice-send.ts";
 import { InvoiceReads } from "./use-cases/reads/reads.ts";
 import { PriceChanges } from "./use-cases/prices/prices.ts";
 
@@ -55,7 +60,12 @@ export class BillingModule {
     return {
       module: BillingModule,
       imports: [DatabaseModule, TenancyModule],
-      controllers: [PricesController, InvoicesController, SettingsController],
+      controllers: [
+        PricesController,
+        InvoicesController,
+        InvoiceSendController,
+        SettingsController,
+      ],
       providers: [
         {
           provide: PRICE_CHANGES,
@@ -89,6 +99,17 @@ export class BillingModule {
               ids: systemUuidV7(),
               blobs: blobStore ?? blobStoreFromEnv(process.env),
             }),
+        },
+        {
+          provide: INVOICE_SENDS,
+          inject: [DATABASE, CLOCK],
+          useFactory: (db: Database, clock: Clock) => {
+            const notifier: BillingInvoiceNotifier = new PgInvoiceNotifications({
+              ids: systemUuidV7(),
+              clock,
+            });
+            return new InvoiceSends({ db, patients, notifier });
+          },
         },
         {
           provide: INVOICE_CHANGES,

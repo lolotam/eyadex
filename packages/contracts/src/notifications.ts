@@ -16,6 +16,13 @@ export const NOTIFICATION_KINDS = [
 export const notificationKindSchema = z.enum(NOTIFICATION_KINDS);
 export type NotificationKind = z.infer<typeof notificationKindSchema>;
 
+/**
+ * Every kind a ledger row can carry (0062): the automatic messages plus `invoice`, which a staff member
+ * sends by hand (finance F1, spec §8 rule 15). It has no switch of its own; the channel switch applies.
+ */
+export const MESSAGE_KINDS = [...NOTIFICATION_KINDS, "invoice"] as const;
+export type MessageKind = (typeof MESSAGE_KINDS)[number];
+
 /** The two reminders: the only kinds a patient's opt-out stops (N-2). */
 export const REMINDER_KINDS: readonly NotificationKind[] = ["reminder_day", "reminder_2h"];
 
@@ -36,6 +43,8 @@ export const notificationSkipReasonSchema = z.enum([
   // for that kind.
   "whatsapp_disconnected",
   "template_missing",
+  // Finance F1 (spec §8 rule 15): the invoice was voided before the worker sent it.
+  "invoice_void",
 ]);
 export type NotificationSkipReason = z.infer<typeof notificationSkipReasonSchema>;
 

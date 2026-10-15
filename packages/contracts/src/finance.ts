@@ -255,11 +255,17 @@ export type PriceList = z.infer<typeof priceListResponseSchema>;
 
 /**
  * `POST /v1/invoices/:id/send` (R2-5): the client makes `sendRequestId` once per press of «إرسال»;
- * a retry repeats it, a new press makes a new one. What the message carries is held with C1.
+ * a retry repeats it, a new press makes a new one. The message carries a private link to the invoice
+ * (spec §8 rule 16, §8c.1 C1).
  */
 export const sendInvoiceRequestSchema = z
   .object({ channel: notificationChannelSchema, sendRequestId: idSchema })
   .strict();
+export type SendInvoiceRequest = z.infer<typeof sendInvoiceRequestSchema>;
+
+/** The queued message: a repeated `sendRequestId` answers with the row it queued the first time. */
+export const sendInvoiceResponseSchema = z.object({ notificationId: idSchema }).strict();
+export type SendInvoiceResponse = z.infer<typeof sendInvoiceResponseSchema>;
 
 /**
  * `GET /v1/clinic/settings/finance` (finance on, any member): what the web needs to show and compute

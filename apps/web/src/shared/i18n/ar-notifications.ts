@@ -103,6 +103,7 @@ export const arNotifications: Strings<typeof enNotifications> = {
       moved: "تم نقل الموعد",
       whatsapp_disconnected: "واتساب غير متصل",
       template_missing: "لا يوجد قالب واتساب",
+      invoice_void: "الفاتورة أُلغيت قبل الإرسال",
     },
     route: {
       primary: "المرسل الأساسي",

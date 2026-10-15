@@ -9,10 +9,11 @@ import type { z } from "zod";
 
 import { ApiError } from "../../../../shared/errors.ts";
 import type { BillingActor } from "../../domain/billing-actor.ts";
-import { reachesBranch, viewReach, type ViewReach } from "../../domain/invoice-reach.ts";
+import { viewReach, type ViewReach } from "../../domain/invoice-reach.ts";
 import { readInvoice } from "../../persistence/pg-invoice-store.ts";
 import type { BillingPatientReader } from "../../ports/billing-patients.ts";
 import { listInvoices } from "../../queries/invoice-list.ts";
+import { invoiceVisible } from "../invoice-visible.ts";
 
 /**
  * قراية الفواتير (spec §3.3، §8 rule 12): القايمة والفاتورة الواحدة جوه نطاق عرض الفاعل. فاتورة برا
@@ -52,11 +53,9 @@ export class InvoiceReads {
     return this.deps.db.withTenant(actor.clinicId, async (tx) => {
       const invoice = await readInvoice(tx, actor.clinicId, id);
       if (invoice === null) throw new ApiError("not_found");
-      const visible =
-        "own" in reach
-          ? (await this.deps.patients.access(tx, actor.clinicId, actor, invoice.patientId)).own
-          : reachesBranch(reach, invoice.branchId);
-      if (!visible) throw new ApiError("not_found");
+      if (!(await invoiceVisible(tx, this.deps.patients, actor, reach, invoice))) {
+        throw new ApiError("not_found");
+      }
       return invoice;
     });
   }

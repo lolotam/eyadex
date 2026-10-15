@@ -7,6 +7,8 @@ export {
   PgAppointmentNotifications,
   PgVisitNotifications,
 } from "./persistence/pg-notification-queue.ts";
+// Finance F1: billing binds the invoice queue to its own port in billing.module.ts.
+export { PgInvoiceNotifications } from "./persistence/pg-invoice-notifications.ts";
 export { PATIENT_NOTIFICATION_REQUESTED } from "./events/published.ts";
 // Meta's status webhook signs the raw bytes: startApi keeps them for that one route (spec §7.2).
 export { registerMetaWebhookBody } from "./http/meta-raw-body.ts";

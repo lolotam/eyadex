@@ -26,6 +26,28 @@ export async function invoiceOwner(
   return row === undefined ? null : { patientId: row.patient_id, branchId: row.branch_id };
 }
 
+/**
+ * The invoice row locked FOR SHARE for a send (spec §8 rule 15): a void running now finishes first, so a
+ * void invoice is never queued.
+ */
+export async function shareInvoice(
+  tx: Tx,
+  clinicId: string,
+  id: string,
+): Promise<{ patientId: string; branchId: string; status: Invoice["status"] } | null> {
+  const [row] = await tx.execute<{
+    patient_id: string;
+    branch_id: string;
+    status: Invoice["status"];
+  }>(
+    sql`SELECT patient_id, branch_id, status FROM invoices
+        WHERE clinic_id = ${clinicId} AND id = ${id} FOR SHARE`,
+  );
+  return row === undefined
+    ? null
+    : { patientId: row.patient_id, branchId: row.branch_id, status: row.status };
+}
+
 /** The invoice row locked FOR UPDATE; its status and version are judged only after this. */
 export async function lockInvoice(
   tx: Tx,
