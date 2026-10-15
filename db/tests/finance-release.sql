@@ -105,13 +105,13 @@ BEGIN
   PERFORM set_config('finance_release.before', (SELECT count(*) FROM role_permissions)::text, true);
 END $$;
 
--- A second run changes nothing.
-\ir ../sql/0063_finance_release.sql
+-- The post-deploy catch-up (0063's statement) changes nothing on a clinic the release already reached.
+\ir ../maintenance/finance-release-catch-up.sql
 
 DO $$
 BEGIN
   IF (SELECT count(*) FROM role_permissions) <> current_setting('finance_release.before')::bigint THEN
-    RAISE EXCEPTION 'FINANCE-RELEASE: a second run added keys';
+    RAISE EXCEPTION 'FINANCE-RELEASE: the catch-up added keys';
   END IF;
 END $$;
 
