@@ -39,7 +39,9 @@ function sourceOf(db: MockState, clinicId: string, source: "appointment" | "visi
   const appointment =
     source === "appointment"
       ? (row as (typeof db.appointments)[number])
-      : db.appointments.find((x) => x.id === (row as { appointmentId: string | null }).appointmentId);
+      : db.appointments.find(
+          (x) => x.id === (row as { appointmentId: string | null }).appointmentId,
+        );
   return {
     patientId: row.patientId,
     branchId: row.branchId,
@@ -83,7 +85,10 @@ export function draftOf(
 const liveInvoiceOf = (db: MockState, clinicId: string, source: string, sourceId: string) =>
   financeState(db).invoices.find(
     (i) =>
-      i.clinicId === clinicId && i.source === source && i.sourceId === sourceId && i.status !== "void",
+      i.clinicId === clinicId &&
+      i.source === source &&
+      i.sourceId === sourceId &&
+      i.status !== "void",
   );
 
 function parties(db: MockState, a: FinanceAccess, body: CreateInvoiceRequest) {
@@ -118,7 +123,10 @@ export function issueInvoice(
     return strip(state.invoices.find((i) => i.id === previous.invoiceId)!);
   }
   const { patientId, branchId } = parties(db, a, body);
-  if (carriesDiscount(body.lines, body.invoiceDiscount) && !writeReaches(a, "create", "discounts", branchId)) {
+  if (
+    carriesDiscount(body.lines, body.invoiceDiscount) &&
+    !writeReaches(a, "create", "discounts", branchId)
+  ) {
     throw new ApiError("forbidden");
   }
   if (body.sourceId !== null && liveInvoiceOf(db, a.clinic.id, body.source, body.sourceId)) {

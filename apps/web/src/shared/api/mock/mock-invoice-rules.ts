@@ -1,8 +1,4 @@
-import type {
-  DiscountInput,
-  Invoice,
-  InvoiceLineInput,
-} from "@eyadex/contracts/finance";
+import type { DiscountInput, Invoice, InvoiceLineInput } from "@eyadex/contracts/finance";
 import {
   computeInvoiceTotals,
   TotalsError,
@@ -17,7 +13,11 @@ import type { MockState } from "./mock-store";
 // lines name a clinic service that has a price; totals come from `computeInvoiceTotals` only.
 
 const toDiscount = (d: DiscountInput | null): Discount | null =>
-  d === null ? null : d.kind === "pct" ? { kind: "pct", bp: d.bp } : { kind: "amount", minor: BigInt(d.minor) };
+  d === null
+    ? null
+    : d.kind === "pct"
+      ? { kind: "pct", bp: d.bp }
+      : { kind: "amount", minor: BigInt(d.minor) };
 
 export function totalsOf(
   lines: readonly InvoiceLineInput[],

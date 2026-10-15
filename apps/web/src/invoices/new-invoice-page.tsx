@@ -16,7 +16,12 @@ import { useInvoiceDraft, useRefreshInvoices, useSourceInvoice } from "./invoice
 
 type Source = { source: "appointment" | "visit"; sourceId: string } | null;
 
-const EMPTY: InvoiceFormValues = { patientId: null, branchId: null, lines: [], invoiceDiscount: null };
+const EMPTY: InvoiceFormValues = {
+  patientId: null,
+  branchId: null,
+  lines: [],
+  invoiceDiscount: null,
+};
 
 /**
  * `/clinic/invoices/new`: a manual invoice, or one for an appointment or visit (ids only in the URL).
@@ -36,15 +41,25 @@ function NewInvoiceContent({ source }: { source: Source }) {
   const { session } = useSession();
   const money = useClinicMoney();
   const refresh = useRefreshInvoices();
-  const existing = useSourceInvoice(source?.source ?? "visit", source?.sourceId ?? "", source !== null);
+  const existing = useSourceInvoice(
+    source?.source ?? "visit",
+    source?.sourceId ?? "",
+    source !== null,
+  );
   const draft = useInvoiceDraft(source?.source ?? null, source?.sourceId ?? null);
   const found = existing.data ?? null;
   useEffect(() => {
-    if (found) void navigate({ to: "/clinic/invoices/$invoiceId", params: { invoiceId: found.id }, replace: true });
+    if (found)
+      void navigate({
+        to: "/clinic/invoices/$invoiceId",
+        params: { invoiceId: found.id },
+        replace: true,
+      });
   }, [found, navigate]);
 
   const loading =
-    money.exponent === null || (source !== null && (existing.isLoading || draft.isLoading || found));
+    money.exponent === null ||
+    (source !== null && (existing.isLoading || draft.isLoading || found));
   const failed = money.settings.error ?? draft.error;
   return (
     <div className="max-w-3xl">

@@ -51,7 +51,9 @@ export function InvoicePrefixDialog({
     <Dialog open={target !== null} onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t("finance.settings.prefixTitle", { branch: target?.name ?? "" })}</DialogTitle>
+          <DialogTitle>
+            {t("finance.settings.prefixTitle", { branch: target?.name ?? "" })}
+          </DialogTitle>
           <DialogDescription>{t("finance.settings.prefixHint")}</DialogDescription>
         </DialogHeader>
         <form

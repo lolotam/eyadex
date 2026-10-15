@@ -38,7 +38,8 @@ export const arFinance: Strings<typeof enFinance> = {
       logoSaved: "تم حفظ الشعار",
       logoInvalid: "اختر صورة PNG أو JPEG بحجم لا يزيد عن 1 ميجابايت",
       prefixes: "بادئات الفواتير",
-      prefixesBody: "كل فرع يرقّم فواتيره بالشكل البادئة-السنة-الرقم. تُقفل البادئة بعد أول فاتورة في الفرع.",
+      prefixesBody:
+        "كل فرع يرقّم فواتيره بالشكل البادئة-السنة-الرقم. تُقفل البادئة بعد أول فاتورة في الفرع.",
       prefix: "البادئة",
       noPrefix: "غير محددة",
       locked: "مقفلة",

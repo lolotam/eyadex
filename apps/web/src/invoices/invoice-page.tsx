@@ -62,7 +62,8 @@ function InvoiceContent({ invoiceId }: { invoiceId: string }) {
   const keys = session?.permissions ?? [];
   const onError = (e: unknown) => toast.error(tDynamic(`errors.${errorCodeOf(e)}`));
   const voidIt = useMutation({
-    mutationFn: (inv: Invoice) => api.finance.voidInvoice(persona, inv.id, inv.version, reason.trim()),
+    mutationFn: (inv: Invoice) =>
+      api.finance.voidInvoice(persona, inv.id, inv.version, reason.trim()),
     onSuccess: () => {
       refresh();
       setVoiding(false);
@@ -113,7 +114,12 @@ function InvoiceContent({ invoiceId }: { invoiceId: string }) {
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <InvoiceStatusBadge status={inv.status} />
-            <Button variant="outline" size="sm" disabled={pdf.isPending} onClick={() => pdf.mutate()}>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={pdf.isPending}
+              onClick={() => pdf.mutate()}
+            >
               <FileDown className="size-4" />
               {t("finance.detail.pdf")}
             </Button>
@@ -151,7 +157,10 @@ function InvoiceContent({ invoiceId }: { invoiceId: string }) {
         }
       />
       {pdfError && (
-        <p role="alert" className="mb-4 flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm">
+        <p
+          role="alert"
+          className="mb-4 flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm"
+        >
           <AlertCircle className="mt-0.5 size-4 shrink-0" />
           <span>
             <span className="font-medium">{t("finance.detail.pdfError")}</span> — {pdfError}
@@ -160,14 +169,20 @@ function InvoiceContent({ invoiceId }: { invoiceId: string }) {
       )}
       <InvoicePatientName patientId={inv.patientId} />
       {!live && (
-        <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm" role="status">
+        <div
+          className="mb-4 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm"
+          role="status"
+        >
           <div className="flex items-center gap-2 font-semibold">
             <Ban className="size-4" />
             {t("finance.detail.voidBanner")}
           </div>
           {inv.voidedAt && (
             <p className="mt-1 text-muted-foreground">
-              {t("finance.detail.voidedOn", { date: formatDate(inv.voidedAt), reason: inv.voidReason ?? "" })}
+              {t("finance.detail.voidedOn", {
+                date: formatDate(inv.voidedAt),
+                reason: inv.voidReason ?? "",
+              })}
             </p>
           )}
         </div>
@@ -182,7 +197,10 @@ function InvoiceContent({ invoiceId }: { invoiceId: string }) {
               </div>
               {l.discount && (
                 <div className="text-xs text-muted-foreground">
-                  {t("finance.detail.lineDiscount", { value: discountText(l.discount), reason: l.discount.reason })}
+                  {t("finance.detail.lineDiscount", {
+                    value: discountText(l.discount),
+                    reason: l.discount.reason,
+                  })}
                 </div>
               )}
             </div>

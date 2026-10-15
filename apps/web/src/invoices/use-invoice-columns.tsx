@@ -32,7 +32,9 @@ export function useInvoiceColumns(
       {
         id: "date",
         header: t("finance.list.date"),
-        cell: ({ row }) => <span className="whitespace-nowrap">{formatDate(row.original.issuedAt)}</span>,
+        cell: ({ row }) => (
+          <span className="whitespace-nowrap">{formatDate(row.original.issuedAt)}</span>
+        ),
       },
       {
         id: "branch",

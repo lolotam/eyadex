@@ -47,7 +47,10 @@ export function InvoicePatientPicker({
                 type="button"
                 className="flex w-full justify-between gap-2 px-3 py-2 text-start text-sm hover:bg-muted"
                 onClick={() => {
-                  onChange({ id: p.id, label: `${p.fullName} · ${formatFileNumber(p.fileNumber)}` });
+                  onChange({
+                    id: p.id,
+                    label: `${p.fullName} · ${formatFileNumber(p.fileNumber)}`,
+                  });
                   setQ("");
                 }}
               >

@@ -65,7 +65,12 @@ export function setServicePrice(db: MockState, persona: Persona, serviceId: stri
 }
 
 /** Replaces the whole doctor list; every member must be an active member of the clinic. */
-export function setProviderPrices(db: MockState, persona: Persona, serviceId: string, raw: unknown) {
+export function setProviderPrices(
+  db: MockState,
+  persona: Persona,
+  serviceId: string,
+  raw: unknown,
+) {
   const a = requireFinanceKey(db, persona, "update:prices:clinic");
   serviceIn(db, a.clinic.id, serviceId);
   const body = parse(providerPricesRequestSchema, raw);
@@ -146,7 +151,8 @@ export function setPrefix(db: MockState, persona: Persona, branchId: string, raw
   if (state.prefixes[branchId] === invoicePrefix) return prefixItem(db, a.clinic.id, branchId);
   if (prefixLocked(db, a.clinic.id, branchId)) throw new ApiError("invoice_prefix_locked");
   const heldByOther = db.branches.some(
-    (b) => b.clinicId === a.clinic.id && b.id !== branchId && state.prefixes[b.id] === invoicePrefix,
+    (b) =>
+      b.clinicId === a.clinic.id && b.id !== branchId && state.prefixes[b.id] === invoicePrefix,
   );
   const usedBy = state.usedPrefixes[`${a.clinic.id}:${invoicePrefix}`];
   if (heldByOther || (usedBy !== undefined && usedBy !== branchId)) {

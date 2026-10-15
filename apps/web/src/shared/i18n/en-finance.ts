@@ -37,7 +37,8 @@ export const enFinance = {
       logoSaved: "Logo saved",
       logoInvalid: "Choose a PNG or JPEG image of at most 1 MB",
       prefixes: "Invoice prefixes",
-      prefixesBody: "Each branch numbers its invoices as PREFIX-YEAR-NUMBER. The prefix locks after the branch's first invoice.",
+      prefixesBody:
+        "Each branch numbers its invoices as PREFIX-YEAR-NUMBER. The prefix locks after the branch's first invoice.",
       prefix: "Prefix",
       noPrefix: "Not set",
       locked: "Locked",

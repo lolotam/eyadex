@@ -18,7 +18,8 @@ export function InvoicePrefixesCard() {
   const { persona } = usePersona();
   const branches = useQuery({
     queryKey: ["clinic", "branches", "prefix-names", persona.clinicId],
-    queryFn: () => api.branches.list(persona, { cursor: null, limit: 100, search: "", status: null }),
+    queryFn: () =>
+      api.branches.list(persona, { cursor: null, limit: 100, search: "", status: null }),
   });
   const [target, setTarget] = useState<PrefixTarget | null>(null);
   const nameOf = (id: string) => {
@@ -37,7 +38,10 @@ export function InvoicePrefixesCard() {
         ) : (
           <ul className="divide-y rounded-md border">
             {(prefixes.data ?? []).map((item) => (
-              <li key={item.branchId} className="flex items-center justify-between gap-3 p-3 text-sm">
+              <li
+                key={item.branchId}
+                className="flex items-center justify-between gap-3 p-3 text-sm"
+              >
                 <div className="min-w-0">
                   <div className="truncate font-medium">{nameOf(item.branchId)}</div>
                   <div className="text-xs text-muted-foreground" dir="ltr">

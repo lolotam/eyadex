@@ -37,7 +37,9 @@ export function InvoiceLineRow(p: Props) {
   return (
     <div className="flex flex-col gap-2 rounded-md border p-3">
       <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-        <span>{t(kind === "service" ? "finance.invoice.serviceLine" : "finance.invoice.freeLine")}</span>
+        <span>
+          {t(kind === "service" ? "finance.invoice.serviceLine" : "finance.invoice.freeLine")}
+        </span>
         <Button
           type="button"
           variant="ghost"
@@ -126,14 +128,21 @@ export function InvoiceLineRow(p: Props) {
           aria-label={t("finance.invoice.unitPrice")}
           placeholder={t("finance.invoice.unitPrice")}
         />
-        <span className="min-w-24 text-end text-sm tabular-nums" aria-label={t("finance.invoice.lineTotal")}>
+        <span
+          className="min-w-24 text-end text-sm tabular-nums"
+          aria-label={t("finance.invoice.lineTotal")}
+        >
           {p.lineTotal ?? "—"}
         </span>
       </div>
       {p.priceMissing && (
         <p className="text-xs font-medium text-destructive">{tDynamic("errors.price_missing")}</p>
       )}
-      <InvoiceDiscountFields form={form} name={`lines.${index}.discount`} editable={p.mayDiscount} />
+      <InvoiceDiscountFields
+        form={form}
+        name={`lines.${index}.discount`}
+        editable={p.mayDiscount}
+      />
     </div>
   );
 }

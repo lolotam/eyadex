@@ -45,7 +45,15 @@ export function useClinicMoney() {
     [exponent],
   );
   return useMemo(
-    () => ({ settings, currency, exponent, taxRateBp: settings.data?.taxRateBp ?? 0, format, toMajor, parse }),
+    () => ({
+      settings,
+      currency,
+      exponent,
+      taxRateBp: settings.data?.taxRateBp ?? 0,
+      format,
+      toMajor,
+      parse,
+    }),
     [settings, currency, exponent, format, toMajor, parse],
   );
 }

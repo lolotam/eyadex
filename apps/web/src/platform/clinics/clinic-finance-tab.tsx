@@ -83,7 +83,10 @@ export function ClinicFinanceTab({ clinicId }: { clinicId: string }) {
           >
             <div className="flex flex-col gap-1.5">
               <Label>{t("finance.platform.currency")}</Label>
-              <Select value={currency} onValueChange={(v) => setCurrency(currencyCodeSchema.parse(v))}>
+              <Select
+                value={currency}
+                onValueChange={(v) => setCurrency(currencyCodeSchema.parse(v))}
+              >
                 <SelectTrigger aria-label={t("finance.platform.currency")}>
                   <SelectValue />
                 </SelectTrigger>

@@ -23,7 +23,10 @@ function FinanceSettingsContent() {
   }
   return (
     <div>
-      <SectionHeader title={t("finance.settings.title")} subtitle={t("finance.settings.subtitle")} />
+      <SectionHeader
+        title={t("finance.settings.title")}
+        subtitle={t("finance.settings.subtitle")}
+      />
       {query.isLoading ? (
         <LoadingBlock />
       ) : query.data ? (

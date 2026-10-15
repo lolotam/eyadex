@@ -132,7 +132,11 @@ export function ServicesContent() {
       <ServiceStatusDialog service={statusTarget} onClose={() => setStatusTarget(null)} />
       {prices.data && (
         <>
-          <ServicePriceDialog service={pricing} list={prices.data} onClose={() => setPricing(null)} />
+          <ServicePriceDialog
+            service={pricing}
+            list={prices.data}
+            onClose={() => setPricing(null)}
+          />
           <ProviderPricesDialog
             service={providerPricing}
             list={prices.data}

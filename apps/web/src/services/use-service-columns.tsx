@@ -103,5 +103,16 @@ export function useServiceColumns(h: Handlers): ColumnDef<ClinicService, unknown
       });
     }
     return cols;
-  }, [t, pick, mayUpdate, mayDeactivate, onEdit, onStatus, prices, mayPrice, onPrice, onProviderPrices]);
+  }, [
+    t,
+    pick,
+    mayUpdate,
+    mayDeactivate,
+    onEdit,
+    onStatus,
+    prices,
+    mayPrice,
+    onPrice,
+    onProviderPrices,
+  ]);
 }

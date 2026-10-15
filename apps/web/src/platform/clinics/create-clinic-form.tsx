@@ -4,10 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import {
-  type ClinicDetailsInput,
-  type CreateClinicInput,
-} from "@eyadex/contracts/clinics";
+import { type ClinicDetailsInput, type CreateClinicInput } from "@eyadex/contracts/clinics";
 import {
   createClinicFormSchema,
   DEFAULT_NEW_CLINIC_FINANCE,
