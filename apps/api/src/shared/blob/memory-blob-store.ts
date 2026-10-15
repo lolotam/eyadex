@@ -1,4 +1,4 @@
-import type { BlobStore } from "../ports/blob-store.ts";
+import type { BlobStore } from "./blob-store.ts";
 
 /**
  * The blob store the API tests bind instead of the S3 bucket: a map in memory, copies in and out so a

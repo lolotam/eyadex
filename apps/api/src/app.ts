@@ -35,15 +35,12 @@ import {
 } from "./modules/identity/index.ts";
 import { PatientsModule } from "./modules/patients/index.ts";
 import { AppointmentsModule } from "./modules/appointments/index.ts";
-import {
-  MedicalModule,
-  registerAttachmentUploads,
-  type BlobStore,
-} from "./modules/medical/index.ts";
+import { MedicalModule, registerAttachmentUploads } from "./modules/medical/index.ts";
 import { ClinicAuditModule, PlatformAuditModule } from "./modules/audit/index.ts";
 import { whatsappHooks, whatsappModule, type WhatsappDependencies } from "./app-whatsapp.ts";
 import { PlatformModule } from "./modules/platform/index.ts";
 import { SettingsModule } from "./modules/settings/index.ts";
+import type { BlobStore } from "./shared/blob/blob-store.ts";
 import { EnvelopeExceptionFilter } from "./shared/exception.filter.ts";
 import { HealthController } from "./shared/health.controller.ts";
 import { API_LOG_EVENTS } from "./shared/log-events.ts";

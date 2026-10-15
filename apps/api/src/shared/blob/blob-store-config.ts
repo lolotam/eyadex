@@ -1,6 +1,6 @@
 import { ConfigurationError } from "@eyadex/observability";
-import { ServiceUnavailableError } from "../../../shared/errors.ts";
-import type { BlobStore } from "../ports/blob-store.ts";
+import { ServiceUnavailableError } from "../errors.ts";
+import type { BlobStore } from "./blob-store.ts";
 import { S3BlobStore } from "./s3-blob-store.ts";
 
 // The four values the bucket cannot work without; the region is optional and defaults below.

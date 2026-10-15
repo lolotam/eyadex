@@ -1,7 +1,7 @@
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
-import { ServiceUnavailableError } from "../../../shared/errors.ts";
-import type { BlobStore } from "../ports/blob-store.ts";
+import { ServiceUnavailableError } from "../errors.ts";
+import type { BlobStore } from "./blob-store.ts";
 
 /** Where the private bucket answers and the credentials of the one user allowed into it. */
 export interface S3BlobStoreOptions {

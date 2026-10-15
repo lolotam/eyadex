@@ -9,7 +9,7 @@ import { customRole, memberOn } from "../../identity/__tests__/user-fixtures.ts"
 import { AUTHORIZATION_INVALIDATOR, type AuthorizationInvalidator } from "../../identity/index.ts";
 import { code, send } from "../../appointments/__tests__/scheduling-fixtures.ts";
 import { setPatientsModule } from "../../patients/__tests__/patient-fixtures.ts";
-import { MemoryBlobStore } from "../persistence/memory-blob-store.ts";
+import { MemoryBlobStore } from "../../../shared/blob/memory-blob-store.ts";
 import { filePart, pngBytes, uploaded, uploadParts } from "./attachment-fixtures.ts";
 import {
   DOCTOR_KEYS,

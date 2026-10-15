@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 
 import { describe, expect, it } from "vitest";
 
-import { ServiceUnavailableError } from "../../../../shared/errors.ts";
+import { ServiceUnavailableError } from "../../errors.ts";
 import { blobStoreFromEnv, UnconfiguredBlobStore } from "../blob-store-config.ts";
 import { S3BlobStore } from "../s3-blob-store.ts";
 

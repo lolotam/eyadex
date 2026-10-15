@@ -10,7 +10,7 @@ import {
 } from "../../identity/auth/__tests__/auth-http-harness.ts";
 import { AUTHORIZATION_INVALIDATOR, type AuthorizationInvalidator } from "../../identity/index.ts";
 import { code, send } from "../../appointments/__tests__/scheduling-fixtures.ts";
-import { MemoryBlobStore } from "../persistence/memory-blob-store.ts";
+import { MemoryBlobStore } from "../../../shared/blob/memory-blob-store.ts";
 import {
   filePart,
   pngBytes,

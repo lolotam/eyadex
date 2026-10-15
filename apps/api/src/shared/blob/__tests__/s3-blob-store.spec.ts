@@ -4,7 +4,7 @@ import type { AddressInfo } from "node:net";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { ServiceUnavailableError } from "../../../../shared/errors.ts";
+import { ServiceUnavailableError } from "../../errors.ts";
 import { BlobStoreAnswerError, S3BlobStore } from "../s3-blob-store.ts";
 
 // How the adapter reads S3 failures, against a local server that answers every request with one status
