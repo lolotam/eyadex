@@ -87,7 +87,10 @@ Each has ar/en text in `api-error-messages.ts` and is `RULE_ONLY` (never derived
 reason first (`validation`), so the use case is not expected to return it; it stays for the mock and any
 future path that checks a stored discount.
 
-## 5. Added after review (`f694a52`)
+## 5. Added after review (`f694a52`) — PENDING owner approval
+
+Spec §3.3 does not list these; they are proposed additions to the approved contract, not part of it, until the
+owner approves them (plan Task 2 "Contract additions"). If declined they are removed before Task 10.
 
 - `financeSettingsSchema` for `GET /v1/clinic/settings/finance`: currency, exponent, tax rate, CR number,
   `hasLogo` — the web's only source for formatting and live totals (Task 8h serves it).
@@ -96,18 +99,20 @@ future path that checks a stored discount.
 
 ## 6. Held, with the reason
 
-| Item                                                        | Held by                | Where it lands               |
-| ----------------------------------------------------------- | ---------------------- | ---------------------------- |
-| `invoice_link_expired`, `publicInvoiceSchema`, `/i/<token>` | C1                     | Task 9                       |
-| `invoice_links` table and `invoice_link_lookup` owner       | C1                     | 0062 part 2 / Task 9         |
-| Notification kind `invoice` in contracts + worker           | C1 (what is sent)      | Task 5 SQL + Task 9 worker   |
-| `invoicePrintSchema` (a JSON print payload)                 | D-P1 (only if adopted) | none under the server PDF    |
-| Server PDF renderer (Task 8g)                               | D-P1 decision          | Task 8g                      |
-| `invoicePrefix` on `PATCH /branches/:id`                    | API wiring             | Task 8h (same commit as API) |
-| `currency` / `taxRateBp` on `POST /platform/clinics`        | API wiring             | Task 8i (same commit as API) |
+| Item                                                                                     | Held by                                                                                        | Where it lands                  |
+| ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------- |
+| `invoice_link_expired`, the `/i/<token>` route (answers `application/pdf`, R1-16)        | C1                                                                                             | Task 9                          |
+| `invoice_links` table and `invoice_link_lookup` owner                                    | C1                                                                                             | 0062 (part 2 if split) / Task 9 |
+| Notification kind and subject `invoice` in `notifications.ts`                            | Task 5 (0062 CHECKs); not C1 itself, but Task 5 waits for C1 unless the 0062 split is approved | Task 5                          |
+| Worker handling of the `invoice` kind                                                    | C1                                                                                             | Task 9                          |
+| `invoicePrintSchema`, `publicInvoiceSchema`                                              | not built: D-P1 declined 2026-10-15                                                            | none (server PDF)               |
+| Server PDF renderer (Task 8g)                                                            | design note decisions L1, L2 (D-P1 is declined)                                                | Task 8g                         |
+| `invoicePrefix` on `PATCH /branches/:id`                                                 | API wiring                                                                                     | Task 8h (same commit as API)    |
+| `currency` / `taxRateBp` on `POST /platform/clinics`, and the platform clinic read shape | API wiring                                                                                     | Task 8i (same commit as API)    |
+| `clinics.ts` clinic read shapes                                                          | not changed: the clinic side reads `financeSettingsSchema` (§5, pending)                       | —                               |
 
 The last two wait so that a strict request schema never accepts a field the API silently drops.
 
-**Split suggestion for 0062 (not applied, needs the supervisor's nod):** the partial-index swap, kind `invoice`,
+**Split suggestion for 0062 (not applied, pending owner approval; recorded in plan Task 5 at `7e03ed1`):** the partial-index swap, kind `invoice`,
 `subject_type 'invoice'` and `send_request_id` do not depend on C1; only `invoice_links` does. Splitting 0062
 into "sends" and "links" would let the C1-independent half ship first.
