@@ -118,7 +118,7 @@ export function InvoiceForm(p: Props) {
           <div className="flex flex-col gap-1.5">
             <Label>{t("finance.invoice.branch")}</Label>
             <Select
-              value={values.branchId ?? undefined}
+              value={values.branchId ?? ""}
               onValueChange={(v) => form.setValue("branchId", v)}
             >
               <SelectTrigger aria-label={t("finance.invoice.branch")}>
