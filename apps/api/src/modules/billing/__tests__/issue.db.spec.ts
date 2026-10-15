@@ -140,6 +140,29 @@ describe("issue", () => {
     expect(seqOf(await issue(C.admin.cookie, manual([free("100")])))).toBe(seqOf(first) + 1);
   });
 
+  // PR #77 review: a replay answered the stored invoice without asking whether its branch is still reachable.
+  it("a replay after the caller lost the invoice's branch is not_found", async () => {
+    const moveDesk = async (branchId: string) => {
+      await h.owner`DELETE FROM membership_branches WHERE clinic_id = ${C.clinicId}
+                    AND membership_id = ${C.desk.memberId}`;
+      await h.owner`INSERT INTO membership_branches (clinic_id, id, membership_id, branch_id, created_at)
+                    VALUES (${C.clinicId}, ${randomUUID()}, ${C.desk.memberId}, ${branchId}, now())`;
+      await invalidate.clinicChanged(C.clinicId);
+    };
+    const onR = await patientIn(h, C, C.branchR);
+    const key = randomUUID();
+    const body = { ...manual([free("300")], null, C.branchR), patientId: onR };
+    const first = await issue(C.desk.cookie, body, key);
+    expect(first.statusCode, first.body).toBe(201);
+    await moveDesk(C.branchD);
+    try {
+      const replay = await issue(C.desk.cookie, body, key);
+      expect([replay.statusCode, code(replay)]).toEqual([404, "not_found"]);
+    } finally {
+      await moveDesk(C.branchR);
+    }
+  });
+
   it("refuses a second live invoice for the same appointment", async () => {
     await send(h, C.admin.cookie, "PATCH", `/v1/services/${C.serviceId}/price`, {
       priceMinor: "15000",

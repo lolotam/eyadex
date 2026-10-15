@@ -153,7 +153,14 @@ export type Invoice = z.infer<typeof invoiceSchema>;
 /** Every invoice write answers the invoice as saved; the version also travels as `ETag`. */
 export const invoiceWriteResponseSchema = z.object({ invoice: invoiceSchema }).strict();
 
-const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "validation.date");
+// A real calendar day: "2026-02-31" has the shape but would reach PostgreSQL's ::date and fail there.
+const dateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "validation.date")
+  .refine((v) => {
+    const day = new Date(`${v}T00:00:00Z`);
+    return !Number.isNaN(day.getTime()) && day.toISOString().startsWith(v);
+  }, "validation.date");
 
 /** `GET /v1/invoices`: newest first, opaque cursor; dates are clinic-timezone days of `issuedAt`. */
 export const invoiceListQuerySchema = z
