@@ -44,7 +44,7 @@ const archive = (cookie: string, id: string) =>
   send(h, cookie, "POST", `/v1/attachments/${id}/archive`, {});
 
 beforeAll(async () => {
-  h = await openHarness({}, true, { medicalBlobStore: new MemoryBlobStore() });
+  h = await openHarness({}, true, { blobStore: new MemoryBlobStore() });
   const invalidate = h.app.get<AuthorizationInvalidator>(AUTHORIZATION_INVALIDATOR);
   C = await medicalClinic(h, invalidate);
   other = await medicalClinic(h, invalidate);

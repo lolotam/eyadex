@@ -276,6 +276,27 @@ export const financeSettingsSchema = z
   .strict();
 export type FinanceSettings = z.infer<typeof financeSettingsSchema>;
 
+/**
+ * A branch's invoice prefix (spec §8 rule 9): null until set; `locked` once the branch has issued an
+ * invoice, after which it never changes.
+ */
+export const invoicePrefixItemSchema = z
+  .object({
+    branchId: idSchema,
+    invoicePrefix: invoicePrefixSchema.nullable(),
+    locked: z.boolean(),
+  })
+  .strict();
+export type InvoicePrefixItem = z.infer<typeof invoicePrefixItemSchema>;
+
+/** `GET /v1/invoice-prefixes`: every branch of the clinic, active or not. */
+export const invoicePrefixListSchema = z
+  .object({ items: z.array(invoicePrefixItemSchema) })
+  .strict();
+
+/** `PUT /v1/invoice-prefixes/:branchId` (`update:branches:clinic`); answers the branch's item. */
+export const invoicePrefixRequestSchema = z.object({ invoicePrefix: invoicePrefixSchema }).strict();
+
 /** `PATCH /v1/clinic/settings/finance`; the logo is its own upload. */
 export const financeSettingsRequestSchema = z
   .object({ commercialRegNo: text(40).nullable() })

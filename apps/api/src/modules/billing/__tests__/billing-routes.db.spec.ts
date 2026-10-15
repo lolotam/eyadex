@@ -28,6 +28,11 @@ const ROUTES: [method: "GET" | "POST" | "PATCH" | "PUT", url: string, body?: unk
   ["GET", `/v1/invoices/${ID}`],
   ["PATCH", `/v1/invoices/${ID}`, { lines: [], invoiceDiscount: null }],
   ["POST", `/v1/invoices/${ID}/void`, { reason: "x" }],
+  ["GET", "/v1/clinic/settings/finance"],
+  ["PATCH", "/v1/clinic/settings/finance", { commercialRegNo: null }],
+  ["GET", "/v1/clinic/logo"],
+  ["GET", "/v1/invoice-prefixes"],
+  ["PUT", `/v1/invoice-prefixes/${ID}`, { invoicePrefix: "ABC" }],
 ];
 
 beforeAll(async () => {

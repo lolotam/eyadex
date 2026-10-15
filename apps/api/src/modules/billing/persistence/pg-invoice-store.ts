@@ -46,14 +46,18 @@ export async function clinicHasInvoice(tx: Tx, clinicId: string): Promise<boolea
   return rows.length > 0;
 }
 
-/** The branch's invoice prefix, or null when the branch has none yet (or is no branch of the clinic). */
+/**
+ * The branch's prefix, or null when it has none (or is no branch of the clinic). Shared row lock after the
+ * patient's: a prefix change, which locks the branch row exclusively, waits for the issue, or the reverse.
+ */
 export async function branchPrefix(
   tx: Tx,
   clinicId: string,
   branchId: string,
 ): Promise<string | null> {
   const [row] = await tx.execute<{ invoice_prefix: string | null }>(
-    sql`SELECT invoice_prefix FROM branches WHERE clinic_id = ${clinicId} AND id = ${branchId}`,
+    sql`SELECT invoice_prefix FROM branches WHERE clinic_id = ${clinicId} AND id = ${branchId}
+        FOR SHARE`,
   );
   return row?.invoice_prefix ?? null;
 }

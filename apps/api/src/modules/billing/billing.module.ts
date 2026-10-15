@@ -2,6 +2,8 @@ import { Module, type DynamicModule } from "@nestjs/common";
 import type { Database } from "@eyadex/db";
 import { systemUuidV7 } from "@eyadex/ids";
 
+import { blobStoreFromEnv } from "../../shared/blob/blob-store-config.ts";
+import type { BlobStore } from "../../shared/blob/blob-store.ts";
 import { DatabaseModule } from "../../shared/database.module.ts";
 import { DATABASE } from "../../shared/database.provider.ts";
 // A module.ts may bind another module's adapter to a port it owns (CLAUDE.architecture.md §2.2).
@@ -11,6 +13,7 @@ import { PgBillingPatients } from "../patients/index.ts";
 import { CLOCK, TenancyModule, type Clock } from "../tenancy/index.ts";
 import { InvoicesController } from "./http/invoices.controller.ts";
 import { PricesController } from "./http/prices.controller.ts";
+import { SettingsController } from "./http/settings.controller.ts";
 import type { BillingPatientReader } from "./ports/billing-patients.ts";
 import type { BillingAppointmentReader, BillingVisitReader } from "./ports/billing-sources.ts";
 import {
@@ -18,8 +21,10 @@ import {
   INVOICE_DRAFTS,
   INVOICE_ISSUES,
   INVOICE_READS,
+  FINANCE_SETTINGS,
   PRICE_CHANGES,
 } from "./ports/tokens.ts";
+import { ClinicFinanceSettings } from "./use-cases/settings/settings.ts";
 import { InvoiceChanges } from "./use-cases/changes/changes.ts";
 import { InvoiceDrafts } from "./use-cases/draft/draft.ts";
 import { InvoiceIssues } from "./use-cases/issue/issue.ts";
@@ -40,15 +45,17 @@ const patients: BillingPatientReader = new PgBillingPatients();
 @Module({})
 export class BillingModule {
   /**
-   * الموديول بكل مساراته.
+   * الموديول بمخزن اللوجو: اللي الاختبار بيديه، وإلا الـ bucket الخاص من البيئة (`MEDICAL_BLOB_S3_*`)، وإلا
+   * مخزن مش متظبّط بيرد 503 على رفع اللوجو وقرايته بس.
    *
+   * @param blobStore مخزن بديل (الاختبارات بس)
    * @returns الموديول
    */
-  static forRoot(): DynamicModule {
+  static forRoot(blobStore?: BlobStore): DynamicModule {
     return {
       module: BillingModule,
       imports: [DatabaseModule, TenancyModule],
-      controllers: [PricesController, InvoicesController],
+      controllers: [PricesController, InvoicesController, SettingsController],
       providers: [
         {
           provide: PRICE_CHANGES,
@@ -71,6 +78,17 @@ export class BillingModule {
           provide: INVOICE_READS,
           inject: [DATABASE],
           useFactory: (db: Database) => new InvoiceReads({ db, patients }),
+        },
+        {
+          provide: FINANCE_SETTINGS,
+          inject: [DATABASE, CLOCK],
+          useFactory: (db: Database, clock: Clock) =>
+            new ClinicFinanceSettings({
+              db,
+              clock,
+              ids: systemUuidV7(),
+              blobs: blobStore ?? blobStoreFromEnv(process.env),
+            }),
         },
         {
           provide: INVOICE_CHANGES,

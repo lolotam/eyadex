@@ -39,7 +39,7 @@ let otherPatientVisit: string;
 const NAME = "تحليل الدم.png";
 
 beforeAll(async () => {
-  h = await openHarness({}, true, { medicalBlobStore: store });
+  h = await openHarness({}, true, { blobStore: store });
   C = await medicalClinic(h, h.app.get<AuthorizationInvalidator>(AUTHORIZATION_INVALIDATOR));
   patient = await patientIn(h, C, C.branchD);
   // Walk-ins make both patients the doctor's own (R1-18).

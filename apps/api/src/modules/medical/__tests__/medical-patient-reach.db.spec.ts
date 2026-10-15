@@ -58,7 +58,7 @@ const member = async (keys: readonly string[], branchIds?: string[]) =>
   );
 
 beforeAll(async () => {
-  h = await openHarness({}, true, { medicalBlobStore: new MemoryBlobStore() });
+  h = await openHarness({}, true, { blobStore: new MemoryBlobStore() });
   invalidate = h.app.get<AuthorizationInvalidator>(AUTHORIZATION_INVALIDATOR);
   C = await medicalClinic(h, invalidate);
   const readKeys = ["view:medical:clinic", "view:visits:clinic"];
