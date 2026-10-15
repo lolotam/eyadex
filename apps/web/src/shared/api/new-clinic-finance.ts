@@ -9,6 +9,12 @@ import { z } from "zod";
  */
 export type NewClinicFinance = { currency?: CurrencyCode; taxRateBp?: number };
 
+/** The two optional fields on their own (the mock reads them off the create request). */
+export const newClinicFinanceSchema = z.object({
+  currency: currencyCodeSchema.optional(),
+  taxRateBp: z.number().int().min(0).max(10000).optional(),
+});
+
 export const DEFAULT_NEW_CLINIC_FINANCE = { currency: "KWD", taxRateBp: 0 } as const;
 
 export const createClinicFormSchema = createClinicInputSchema.extend({
