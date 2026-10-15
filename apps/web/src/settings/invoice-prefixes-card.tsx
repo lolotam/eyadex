@@ -12,7 +12,7 @@ import { InvoicePrefixDialog, type PrefixTarget } from "./invoice-prefix-dialog"
 export function InvoicePrefixesCard() {
   const { t, pick } = useI18n();
   const prefixes = useInvoicePrefixes(true);
-  const branches = useBranchList({ limit: 100 });
+  const branches = useBranchList({ cursor: null, limit: 100, search: "", status: null });
   const [target, setTarget] = useState<PrefixTarget | null>(null);
   const nameOf = (id: string) => {
     const b = branches.data?.items.find((x) => x.id === id);

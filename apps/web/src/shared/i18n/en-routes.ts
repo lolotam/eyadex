@@ -71,10 +71,6 @@ export const enRoutes = {
       title: "WhatsApp",
       description: "Link the clinic's WhatsApp number for patient messages.",
     },
-    clinicSettingsFinance: {
-      title: "Finance settings",
-      description: "The clinic's currency, tax, commercial registration, logo and invoice prefixes.",
-    },
     clinicSettingsEmail: {
       title: "Email senders",
       description: "The clinic's primary and fallback mail senders.",
