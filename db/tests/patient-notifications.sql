@@ -115,7 +115,7 @@ BEGIN
   -- … and the scanner's ON CONFLICT DO NOTHING inserts nothing.
   INSERT INTO patient_notifications (clinic_id, id, patient_id, kind, channel, subject_type, subject_id, subject_at, status, created_at, updated_at)
     VALUES (c, gen_random_uuid(), p, 'reminder_day', 'email', 'appointment', appt, at1, 'queued', now(), now())
-    ON CONFLICT ON CONSTRAINT patient_notifications_once DO NOTHING;
+    ON CONFLICT (clinic_id, subject_id, kind, channel, subject_at) WHERE subject_type <> 'invoice' DO NOTHING;
   GET DIAGNOSTICS n = ROW_COUNT;
   IF n <> 0 THEN RAISE EXCEPTION 'NOTIFY-ONCE: ON CONFLICT DO NOTHING inserted a duplicate'; END IF;
   -- A reschedule (new start) gets a fresh reminder; another kind or channel is another message.
@@ -183,6 +183,60 @@ BEGIN
     RAISE EXCEPTION 'NOTIFY-CHECK: a row for an unknown patient was accepted';
   EXCEPTION WHEN foreign_key_violation THEN NULL; END;
 END $$;
+-- Invoice sends (0062, R2-5): the one-message rule above no longer covers invoices; a resend is a new row
+-- with a new send_request_id, the same id twice is one row, and an invoice row has its own shape.
+DO $q$
+DECLARE
+  c uuid := '00000000-0000-7000-8000-00000000056a';
+  p uuid := '00000000-0000-7000-8000-0000000561a2';
+  inv uuid := '00000000-0000-7000-8000-0000000561d1';
+  req1 uuid := '00000000-0000-7000-8000-0000000561d2';
+  probe text;
+BEGIN
+  -- The old constraint is gone: a writer must name the index target.
+  BEGIN
+    INSERT INTO patient_notifications (clinic_id, id, patient_id, kind, channel, subject_type, subject_id, subject_at, status, created_at, updated_at)
+      VALUES (c, gen_random_uuid(), p, 'reminder_day', 'email', 'appointment', gen_random_uuid(), now(), 'queued', now(), now())
+      ON CONFLICT ON CONSTRAINT patient_notifications_once DO NOTHING;
+    RAISE EXCEPTION 'NOTIFY-INVOICE: ON CONFLICT ON CONSTRAINT still resolves';
+  EXCEPTION WHEN undefined_object THEN NULL; END;
+  -- Two presses of «ابعت» for one invoice and channel: two rows.
+  INSERT INTO patient_notifications (clinic_id, id, patient_id, kind, channel, subject_type, subject_id, subject_at, status, send_request_id, created_at, updated_at)
+    VALUES (c, gen_random_uuid(), p, 'invoice', 'whatsapp', 'invoice', inv, NULL, 'queued', req1, now(), now());
+  INSERT INTO patient_notifications (clinic_id, id, patient_id, kind, channel, subject_type, subject_id, subject_at, status, send_request_id, created_at, updated_at)
+    VALUES (c, gen_random_uuid(), p, 'invoice', 'whatsapp', 'invoice', inv, NULL, 'queued', gen_random_uuid(), now(), now());
+  -- A retry of the first press (same id): refused by the unique index, so the use case returns the first row.
+  BEGIN
+    INSERT INTO patient_notifications (clinic_id, id, patient_id, kind, channel, subject_type, subject_id, subject_at, status, send_request_id, created_at, updated_at)
+      VALUES (c, gen_random_uuid(), p, 'invoice', 'whatsapp', 'invoice', inv, NULL, 'queued', req1, now(), now());
+    RAISE EXCEPTION 'NOTIFY-INVOICE: one send_request_id made two rows';
+  EXCEPTION WHEN unique_violation THEN NULL; END;
+  -- The same id for another invoice or channel is refused too (the API answers send_request_conflict).
+  BEGIN
+    INSERT INTO patient_notifications (clinic_id, id, patient_id, kind, channel, subject_type, subject_id, subject_at, status, send_request_id, created_at, updated_at)
+      VALUES (c, gen_random_uuid(), p, 'invoice', 'email', 'invoice', gen_random_uuid(), NULL, 'queued', req1, now(), now());
+    RAISE EXCEPTION 'NOTIFY-INVOICE: a reused send_request_id was accepted for another invoice and channel';
+  EXCEPTION WHEN unique_violation THEN NULL; END;
+  -- Shape: an invoice row has kind invoice, no start and a send_request_id; no other row has one.
+  FOREACH probe IN ARRAY ARRAY[
+      $s$INSERT INTO patient_notifications (clinic_id, id, patient_id, kind, channel, subject_type, subject_id, subject_at, status, send_request_id, created_at, updated_at)
+           VALUES ($1, gen_random_uuid(), $2, 'booked', 'email', 'invoice', gen_random_uuid(), NULL, 'queued', gen_random_uuid(), now(), now())$s$,
+      $s$INSERT INTO patient_notifications (clinic_id, id, patient_id, kind, channel, subject_type, subject_id, subject_at, status, send_request_id, created_at, updated_at)
+           VALUES ($1, gen_random_uuid(), $2, 'invoice', 'email', 'invoice', gen_random_uuid(), now(), 'queued', gen_random_uuid(), now(), now())$s$,
+      $s$INSERT INTO patient_notifications (clinic_id, id, patient_id, kind, channel, subject_type, subject_id, subject_at, status, send_request_id, created_at, updated_at)
+           VALUES ($1, gen_random_uuid(), $2, 'invoice', 'email', 'invoice', gen_random_uuid(), NULL, 'queued', NULL, now(), now())$s$,
+      $s$INSERT INTO patient_notifications (clinic_id, id, patient_id, kind, channel, subject_type, subject_id, subject_at, status, send_request_id, created_at, updated_at)
+           VALUES ($1, gen_random_uuid(), $2, 'booked', 'email', 'appointment', gen_random_uuid(), now(), 'queued', gen_random_uuid(), now(), now())$s$] LOOP
+    BEGIN
+      EXECUTE probe USING c, p;
+      RAISE EXCEPTION 'NOTIFY-INVOICE: accepted: %', probe;
+    EXCEPTION WHEN check_violation THEN NULL; END;
+  END LOOP;
+  -- R1 rule 15: a send for an invoice voided before the worker reaches it is skipped as invoice_void.
+  INSERT INTO patient_notifications (clinic_id, id, patient_id, kind, channel, subject_type, subject_id, subject_at, status, skip_reason, send_request_id, created_at, updated_at)
+    VALUES (c, gen_random_uuid(), p, 'invoice', 'email', 'invoice', inv, NULL, 'skipped', 'invoice_void', gen_random_uuid(), now(), now());
+END $q$;
+
 RESET ROLE;
 
 \echo 'patient notification tests: all passed'

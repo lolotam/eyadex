@@ -59,11 +59,19 @@ export const patientNotifications = pgTable(
     id: uuid("id").notNull(),
     patientId: uuid("patient_id").notNull(),
     kind: text("kind", {
-      enum: ["booked", "rescheduled", "cancelled", "reminder_day", "reminder_2h", "prescription"],
+      enum: [
+        "booked",
+        "rescheduled",
+        "cancelled",
+        "reminder_day",
+        "reminder_2h",
+        "prescription",
+        "invoice",
+      ],
     }).notNull(),
     channel: text("channel", { enum: ["email", "whatsapp"] }).notNull(),
-    subjectType: text("subject_type", { enum: ["appointment", "visit"] }).notNull(),
-    // An appointment or a visit, by subject_type: no foreign key.
+    subjectType: text("subject_type", { enum: ["appointment", "visit", "invoice"] }).notNull(),
+    // An appointment, a visit or an invoice, by subject_type: no foreign key.
     subjectId: uuid("subject_id").notNull(),
     subjectAt: timestamp("subject_at", tz),
     status: text("status", { enum: ["queued", "sent", "skipped", "failed"] }).notNull(),
@@ -76,6 +84,7 @@ export const patientNotifications = pgTable(
         "moved",
         "whatsapp_disconnected",
         "template_missing",
+        "invoice_void",
       ],
     }),
     route: text("route", {
@@ -92,6 +101,8 @@ export const patientNotifications = pgTable(
     // 0059: WhatsApp delivery statuses, forward only (sent → delivered → read).
     deliveredAt: timestamp("delivered_at", tz),
     readAt: timestamp("read_at", tz),
+    // 0062 (finance R2-5): one id per press of «ابعت»; set on invoice rows only.
+    sendRequestId: uuid("send_request_id"),
   },
   (t) => [
     primaryKey({ name: "patient_notifications_pkey", columns: [t.clinicId, t.id] }),
@@ -105,9 +116,14 @@ export const patientNotifications = pgTable(
       columns: [t.clinicId, t.patientId],
       foreignColumns: [patients.clinicId, patients.id],
     }),
-    unique("patient_notifications_once")
+    // 0062: a partial unique index, so an invoice can be sent again (R2-5).
+    uniqueIndex("patient_notifications_once")
+      // NULLS NOT DISTINCT in db/sql; the drift test knows this index by name (drizzle-orm 0.45).
       .on(t.clinicId, t.subjectId, t.kind, t.channel, t.subjectAt)
-      .nullsNotDistinct(),
+      .where(sql.raw("subject_type <> 'invoice'::text")),
+    uniqueIndex("patient_notifications_send_request")
+      .on(t.clinicId, t.sendRequestId)
+      .where(sql.raw("send_request_id IS NOT NULL")),
     index("patient_notifications_clinic_subject_created_idx").on(
       t.clinicId,
       t.subjectId,
@@ -135,7 +151,7 @@ export const patientNotifications = pgTable(
     check(
       "patient_notifications_kind_check",
       sql.raw(
-        "(kind = ANY (ARRAY['booked'::text, 'rescheduled'::text, 'cancelled'::text, 'reminder_day'::text, 'reminder_2h'::text, 'prescription'::text]))",
+        "(kind = ANY (ARRAY['booked'::text, 'rescheduled'::text, 'cancelled'::text, 'reminder_day'::text, 'reminder_2h'::text, 'prescription'::text, 'invoice'::text]))",
       ),
     ),
     check("patient_notifications_last_error_check", sql.raw("(char_length(last_error) <= 120)")),
@@ -154,7 +170,7 @@ export const patientNotifications = pgTable(
     check(
       "patient_notifications_skip_reason_check",
       sql.raw(
-        "(skip_reason = ANY (ARRAY['setting_off'::text, 'no_email'::text, 'opted_out'::text, 'not_booked'::text, 'moved'::text, 'whatsapp_disconnected'::text, 'template_missing'::text]))",
+        "(skip_reason = ANY (ARRAY['setting_off'::text, 'no_email'::text, 'opted_out'::text, 'not_booked'::text, 'moved'::text, 'whatsapp_disconnected'::text, 'template_missing'::text, 'invoice_void'::text]))",
       ),
     ),
     check(
@@ -170,12 +186,12 @@ export const patientNotifications = pgTable(
     check(
       "patient_notifications_subject_check",
       sql.raw(
-        "(((kind = 'prescription'::text) = (subject_type = 'visit'::text)) AND ((subject_type = 'appointment'::text) = (subject_at IS NOT NULL)))",
+        "(((kind = 'prescription'::text) = (subject_type = 'visit'::text)) AND ((kind = 'invoice'::text) = (subject_type = 'invoice'::text)) AND ((subject_type = 'appointment'::text) = (subject_at IS NOT NULL)) AND ((subject_type = 'invoice'::text) = (send_request_id IS NOT NULL)))",
       ),
     ),
     check(
       "patient_notifications_subject_type_check",
-      sql.raw("(subject_type = ANY (ARRAY['appointment'::text, 'visit'::text]))"),
+      sql.raw("(subject_type = ANY (ARRAY['appointment'::text, 'visit'::text, 'invoice'::text]))"),
     ),
   ],
 );

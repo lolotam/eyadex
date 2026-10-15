@@ -68,6 +68,8 @@ BEGIN
     INSERT INTO invoice_lines (clinic_id, id, invoice_id, position, kind, service_id, provider_id, description_ar,
         description_en, quantity, unit_price_minor, line_total_minor, created_at, updated_at)
       VALUES (c, ('00000000-0000-7000-8000-0000000004'||s||'5')::uuid, ('00000000-0000-7000-8000-0000000004'||s||'4')::uuid, 0, 'service', ('00000000-0000-7000-8000-0000000001'||s||'f')::uuid, ('00000000-0000-7000-8000-0000000001'||s||'5')::uuid, 'ليزر', 'Laser', 1, 15000, 15000, now(), now());
+    INSERT INTO invoice_links VALUES (c, ('00000000-0000-7000-8000-0000000004'||s||'6')::uuid, ('00000000-0000-7000-8000-0000000004'||s||'4')::uuid, ('00000000-0000-7000-8000-0000000003'||s||'e')::uuid, sha256(convert_to('link-'||s, 'UTF8')),
+      'v1.iv.body.tag', now() + interval '14 days', null, now());
     -- An appointment's audit row names a patient's booking: administrative, yet never the platform's (0043).
     INSERT INTO audit_log VALUES (c, ('00000000-0000-7000-8000-0000000003'||s||'4')::uuid, ('00000000-0000-7000-8000-0000000002'||s||'5')::uuid, 'appointment.booked', 'administrative', 'appointment', ('00000000-0000-7000-8000-0000000003'||s||'3')::uuid, null, '{}', now());
     INSERT INTO audit_log VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'a')::uuid, ('00000000-0000-7000-8000-0000000002'||s||'5')::uuid, 'user.invited', 'administrative', 'user', null, null, '{}', now());
@@ -101,7 +103,7 @@ BEGIN
       'patient_medical_profiles','visit_diagnoses','visit_prescription_items','clinic_medicines',
       'patient_attachments','clinic_notification_settings','patient_notifications',
       'clinic_whatsapp_channels','used_invoice_prefixes','service_provider_prices','invoice_sequences',
-      'invoices','invoice_lines'] LOOP
+      'invoices','invoice_lines','invoice_links'] LOOP
     EXECUTE format('SELECT count(*) FROM %I WHERE clinic_id = $1', t) INTO n USING other;
     IF n <> 0 THEN RAISE EXCEPTION 'ISO-01 read leak: % shows % rows of another clinic', t, n; END IF;
     EXECUTE format('SELECT count(*) FROM %I', t) INTO n;
@@ -259,6 +261,11 @@ BEGIN
     RAISE EXCEPTION 'ISO-01 write leak: invoice_lines';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   BEGIN
+    INSERT INTO invoice_links VALUES (b, gen_random_uuid(), '00000000-0000-7000-8000-0000000004b4',
+      '00000000-0000-7000-8000-0000000003be', sha256(convert_to('probe', 'UTF8')), 'v1.x', now(), null, now());
+    RAISE EXCEPTION 'ISO-01 write leak: invoice_links';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
     INSERT INTO audit_log VALUES (b, gen_random_uuid(), gen_random_uuid(), 'user.invited', 'administrative', 'user', null, null, '{}', now());
     RAISE EXCEPTION 'ISO-01 write leak: audit_log';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
@@ -271,7 +278,7 @@ BEGIN
         'visit_notes','patient_medical_profiles','visit_diagnoses','visit_prescription_items',
         'clinic_medicines','patient_attachments','clinic_notification_settings',
         'patient_notifications','clinic_whatsapp_channels','service_provider_prices','invoice_sequences',
-        'invoices','invoice_lines'] LOOP
+        'invoices','invoice_lines','invoice_links'] LOOP
       BEGIN
         EXECUTE format('UPDATE %I SET clinic_id = $1', t) USING b;
         RAISE EXCEPTION 'ISO-01 write leak: % rows can be moved to another clinic', t;
@@ -323,7 +330,7 @@ BEGIN
   END LOOP;
   -- Finance (0060): invoices and lines are never deleted (a void keeps them; a removed line is archived), and
   -- a used prefix is history that is neither edited nor removed.
-  FOREACH m IN ARRAY ARRAY['invoices','invoice_lines','invoice_sequences','used_invoice_prefixes'] LOOP
+  FOREACH m IN ARRAY ARRAY['invoices','invoice_lines','invoice_sequences','used_invoice_prefixes','invoice_links'] LOOP
     BEGIN EXECUTE format('DELETE FROM %I', m); RAISE EXCEPTION '% are hard-deletable', m;
     EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   END LOOP;
@@ -332,6 +339,9 @@ BEGIN
   UPDATE invoices SET status = 'void', voided_at = now(), void_reason = 'x' WHERE clinic_id = b;
   GET DIAGNOSTICS n = ROW_COUNT;
   IF n <> 0 THEN RAISE EXCEPTION 'ISO-01 write leak: voided % invoices of another clinic', n; END IF;
+  UPDATE invoice_links SET revoked_at = now() WHERE clinic_id = b;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 0 THEN RAISE EXCEPTION 'ISO-01 write leak: revoked % links of another clinic', n; END IF;
   DELETE FROM service_provider_prices WHERE clinic_id = b;
   GET DIAGNOSTICS n = ROW_COUNT;
   IF n <> 0 THEN RAISE EXCEPTION 'ISO-01 write leak: deleted % doctor prices of another clinic', n; END IF;
@@ -421,7 +431,7 @@ BEGIN
   BEGIN PERFORM 1 FROM clinic_whatsapp_channels LIMIT 1; RAISE EXCEPTION 'PLAT: platform can read clinic_whatsapp_channels';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   -- Finance (0060): no platform privilege on any finance table.
-  FOREACH t IN ARRAY ARRAY['used_invoice_prefixes','service_provider_prices','invoice_sequences','invoices','invoice_lines'] LOOP
+  FOREACH t IN ARRAY ARRAY['used_invoice_prefixes','service_provider_prices','invoice_sequences','invoices','invoice_lines','invoice_links'] LOOP
     BEGIN EXECUTE format('SELECT 1 FROM %I LIMIT 1', t); RAISE EXCEPTION 'PLAT-01: platform can read %', t;
     EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   END LOOP;

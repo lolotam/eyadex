@@ -53,8 +53,8 @@ const DONE: PageResult = { queued: 0, next: null };
 const CHANNELS: readonly NotificationChannel[] = ["email", "whatsapp"];
 
 /**
- * الدفتر والأحداث في transaction واحدة لكل صفحة تحت `withTenant` على `eyadex_app` (0056، RLS). القيد
- * `patient_notifications_once` هو اللي بيضمن تذكير واحد لكل بداية موعد لكل قناة مهما اتكرر الفحص أو كتر
+ * الدفتر والأحداث في transaction واحدة لكل صفحة تحت `withTenant` على `eyadex_app` (0056، RLS). الـ index
+ * الجزئي `patient_notifications_once` (0062، من غير الفواتير) هو اللي بيضمن تذكير واحد لكل بداية موعد لكل قناة مهما اتكرر الفحص أو كتر
  * عدد الـ workers؛ وتأجيل الموعد (بداية جديدة) بياخد تذكيرات جديدة. واتساب (spec §7.1) بيتسجّل بس لما
  * `whatsapp_enabled` والقناة `connected` دلوقتي؛ وقت الإرسال بيتفحص تاني.
  */
@@ -158,7 +158,8 @@ export class PgReminderQueue implements ReminderQueue {
               OR (${kind} = 'reminder_2h'
                   AND a.starts_at <= ${now}::timestamptz + interval '2 hours'
                   AND a.created_at < a.starts_at - interval '2 hours'))
-          ON CONFLICT ON CONSTRAINT patient_notifications_once DO NOTHING
+          ON CONFLICT (clinic_id, subject_id, kind, channel, subject_at) WHERE subject_type <> 'invoice'
+          DO NOTHING
           RETURNING id`,
     )) as unknown as { id: string }[];
     const row = inserted[0];

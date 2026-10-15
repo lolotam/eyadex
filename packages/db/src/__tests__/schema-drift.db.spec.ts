@@ -53,8 +53,15 @@ function isTable(value: unknown): value is PgTable {
   }
 }
 
-// information_schema spells `time` in full; Drizzle's PgTime prints the short form (0042, ADR-0026).
-const sqlTypeOf = (type: string): string => (type === "time" ? "time without time zone" : type);
+// information_schema spells `time` in full (0042, ADR-0026) and calls char(n) `character` (0060); Drizzle
+// prints the short forms.
+const sqlTypeOf = (type: string): string =>
+  type === "time" ? "time without time zone" : /^char\(\d+\)$/.test(type) ? "character" : type;
+
+// drizzle-orm 0.45 cannot declare NULLS NOT DISTINCT on an index, only on a unique constraint. 0062 turned
+// the notifications' one-message constraint into a partial unique index that keeps it, so the mirror names
+// that index here.
+const NULLS_NOT_DISTINCT_INDEXES = new Set(["patient_notifications_once"]);
 
 function mirrorShape(table: PgTable): [string, Shape] {
   const config = getTableConfig(table);
@@ -126,7 +133,15 @@ function mirrorShape(table: PgTable): [string, Shape] {
         return `${column.name ?? ""}${desc ? " DESC" : ""}${nullsNote}`;
       });
       const where = i.config.where === undefined ? undefined : expression(i.config.where);
-      return define(i.config.name ?? "", i.config.unique, i.config.method ?? "btree", cols, where);
+      const name = i.config.name ?? "";
+      return define(
+        name,
+        i.config.unique,
+        i.config.method ?? "btree",
+        cols,
+        where,
+        NULLS_NOT_DISTINCT_INDEXES.has(name),
+      );
     }),
     ...config.uniqueConstraints.map((u) =>
       define(

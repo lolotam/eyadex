@@ -348,5 +348,87 @@ BEGIN
 END $$;
 RESET ROLE;
 
+-- 0062 (plan Task 5, R2-7, C1): the patient link's lookup function, its owner and the sealed copy.
+DO $$
+BEGIN
+  IF (SELECT rolcanlogin OR rolbypassrls FROM pg_roles WHERE rolname = 'eyadex_invoice_link_owner') IS DISTINCT FROM false THEN
+    RAISE EXCEPTION 'FIN-0062: the link owner can log in, bypass RLS, or is missing';
+  END IF;
+  IF has_column_privilege('eyadex_invoice_link_owner', 'invoice_links', 'token_sealed', 'SELECT')
+     OR has_column_privilege('eyadex_invoice_link_owner', 'invoice_links', 'notification_id', 'SELECT')
+     OR NOT has_column_privilege('eyadex_invoice_link_owner', 'invoice_links', 'token_hash', 'SELECT') THEN
+    RAISE EXCEPTION 'FIN-0062: the link owner reads the wrong columns';
+  END IF;
+  IF has_table_privilege('eyadex_platform', 'invoice_links', 'SELECT')
+     OR has_table_privilege('eyadex_app', 'invoice_links', 'DELETE')
+     OR NOT has_table_privilege('eyadex_app', 'invoice_links', 'UPDATE') THEN
+    RAISE EXCEPTION 'FIN-0062: wrong invoice_links grants';
+  END IF;
+  IF NOT has_function_privilege('eyadex_app', 'invoice_link_lookup(bytea)', 'EXECUTE')
+     OR has_function_privilege('eyadex_platform', 'invoice_link_lookup(bytea)', 'EXECUTE')
+     OR has_function_privilege('eyadex_auth', 'invoice_link_lookup(bytea)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'FIN-0062: the lookup runs for the clinic API only';
+  END IF;
+END $$;
+
+-- A live link, an expired one and a revoked one for clinic T's invoice, written by the owner role.
+INSERT INTO patient_notifications (clinic_id, id, patient_id, kind, channel, subject_type, subject_id, subject_at,
+    status, send_request_id, created_at, updated_at)
+  VALUES ('00000000-0000-7000-8000-0000000f001a', '00000000-0000-7000-8000-0000000f0c01',
+    '00000000-0000-7000-8000-0000000f02a9', 'invoice', 'email', 'invoice', '00000000-0000-7000-8000-0000000f0a01',
+    NULL, 'queued', gen_random_uuid(), now(), now());
+INSERT INTO invoice_links VALUES
+  ('00000000-0000-7000-8000-0000000f001a', '00000000-0000-7000-8000-0000000f0d01', '00000000-0000-7000-8000-0000000f0a01',
+   '00000000-0000-7000-8000-0000000f0c01', sha256(convert_to('live', 'UTF8')), 'v1.iv.body.tag', now() + interval '14 days', null, now()),
+  ('00000000-0000-7000-8000-0000000f001a', '00000000-0000-7000-8000-0000000f0d02', '00000000-0000-7000-8000-0000000f0a01',
+   '00000000-0000-7000-8000-0000000f0c01', sha256(convert_to('expired', 'UTF8')), 'v1.iv.body.tag', now() - interval '1 minute', now() - interval '1 minute', now()),
+  ('00000000-0000-7000-8000-0000000f001a', '00000000-0000-7000-8000-0000000f0d03', '00000000-0000-7000-8000-0000000f0a01',
+   '00000000-0000-7000-8000-0000000f0c01', sha256(convert_to('revoked', 'UTF8')), 'v1.iv.body.tag', now() + interval '14 days', now(), now());
+DO $$
+BEGIN
+  -- One live link per notification: a second live one is refused; revoked ones never count.
+  BEGIN
+    INSERT INTO invoice_links VALUES ('00000000-0000-7000-8000-0000000f001a', gen_random_uuid(),
+      '00000000-0000-7000-8000-0000000f0a01', '00000000-0000-7000-8000-0000000f0c01',
+      sha256(convert_to('second', 'UTF8')), 'v1.iv.body.tag', now() + interval '14 days', null, now());
+    RAISE EXCEPTION 'FIN-0062: two live links for one notification';
+  EXCEPTION WHEN unique_violation THEN NULL; END;
+  BEGIN
+    INSERT INTO invoice_links VALUES ('00000000-0000-7000-8000-0000000f001a', gen_random_uuid(),
+      '00000000-0000-7000-8000-0000000f0a01', '00000000-0000-7000-8000-0000000f0c01',
+      sha256(convert_to('plain', 'UTF8')), 'plain-token', now() + interval '14 days', now(), now());
+    RAISE EXCEPTION 'FIN-0062: an unsealed token was stored';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    INSERT INTO invoice_links VALUES ('00000000-0000-7000-8000-0000000f001a', gen_random_uuid(),
+      '00000000-0000-7000-8000-0000000f0a01', '00000000-0000-7000-8000-0000000f0c01',
+      convert_to('short', 'UTF8'), 'v1.iv.body.tag', now() + interval '14 days', now(), now());
+    RAISE EXCEPTION 'FIN-0062: a token hash that is not 32 bytes was stored';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+END $$;
+
+-- The clinic API, before it knows the clinic (no app.clinic_id), finds only the live link.
+SET LOCAL ROLE eyadex_app;
+DO $$
+DECLARE r record; n bigint;
+BEGIN
+  SELECT * INTO r FROM invoice_link_lookup(sha256(convert_to('live', 'UTF8')));
+  IF r.clinic_id IS DISTINCT FROM '00000000-0000-7000-8000-0000000f001a'::uuid
+     OR r.invoice_id IS DISTINCT FROM '00000000-0000-7000-8000-0000000f0a01'::uuid
+     OR r.link_id IS DISTINCT FROM '00000000-0000-7000-8000-0000000f0d01'::uuid THEN
+    RAISE EXCEPTION 'FIN-0062: the live link resolved to %', r;
+  END IF;
+  SELECT count(*) INTO n FROM invoice_link_lookup(sha256(convert_to('expired', 'UTF8')));
+  IF n <> 0 THEN RAISE EXCEPTION 'FIN-0062: an expired link resolved'; END IF;
+  SELECT count(*) INTO n FROM invoice_link_lookup(sha256(convert_to('revoked', 'UTF8')));
+  IF n <> 0 THEN RAISE EXCEPTION 'FIN-0062: a revoked link resolved'; END IF;
+  SELECT count(*) INTO n FROM invoice_link_lookup(sha256(convert_to('unknown', 'UTF8')));
+  IF n <> 0 THEN RAISE EXCEPTION 'FIN-0062: an unknown token resolved'; END IF;
+  -- Without a clinic context the table itself shows nothing.
+  SELECT count(*) INTO n FROM invoice_links;
+  IF n <> 0 THEN RAISE EXCEPTION 'FIN-0062: invoice_links visible without a clinic'; END IF;
+END $$;
+RESET ROLE;
+
 \echo 'Finance tests: all passed'
 ROLLBACK;

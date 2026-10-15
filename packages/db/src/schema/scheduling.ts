@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   check,
   foreignKey,
   index,
@@ -32,6 +33,8 @@ export const clinicServices = pgTable(
     status: text("status", { enum: ["active", "inactive"] }).notNull(),
     createdAt: timestamp("created_at", tz).notNull(),
     updatedAt: timestamp("updated_at", tz).notNull(),
+    // 0060 (finance FIN-A8): the base price, NULL until set; capped at the line cap.
+    priceMinor: bigint("price_minor", { mode: "bigint" }),
   },
   (t) => [
     primaryKey({ name: "clinic_services_pkey", columns: [t.clinicId, t.id] }),
@@ -50,6 +53,10 @@ export const clinicServices = pgTable(
     check(
       "clinic_services_status_check",
       sql.raw("(status = ANY (ARRAY['active'::text, 'inactive'::text]))"),
+    ),
+    check(
+      "clinic_services_price_minor_check",
+      sql.raw("((price_minor >= 0) AND (price_minor <= '1000000000000'::bigint))"),
     ),
   ],
 );

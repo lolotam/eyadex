@@ -102,7 +102,9 @@ describe("every platform endpoint", () => {
       expect((await platform(method, `${randomUUID()}${suffix}`, body)).statusCode).toBe(404);
       expect((await platform(method, `not-a-uuid${suffix}`, body)).statusCode).toBe(404);
     }
-    const unknownModule = await platform("PUT", `${clinic()}/features/inventory`, { enabled: true });
+    const unknownModule = await platform("PUT", `${clinic()}/features/inventory`, {
+      enabled: true,
+    });
     expect(unknownModule.statusCode).toBe(404);
     const after = await h.owner`SELECT count(*)::int AS n FROM platform_audit_log`;
     expect(after[0]!["n"]).toBe(before[0]!["n"]);

@@ -34,7 +34,10 @@ The data layer is SQL 0053–0056: the patient file's `email`, `message_language
    settings with a plain `SELECT` (no lock); when the channel and the message are on it inserts one
    `queued` email row (`subject_at` = the appointment's start after the change, the start it had for a
    cancellation, `NULL` for the prescription; `requested_by` = the actor's membership) with
-   `ON CONFLICT ON CONSTRAINT patient_notifications_once DO NOTHING`, and only when a row was inserted it
+   `ON CONFLICT ON CONSTRAINT patient_notifications_once DO NOTHING` (2026-10-15 note: SQL 0062 turned the
+   constraint into a partial unique index without invoices, so the writers now name its target —
+   `ON CONFLICT (clinic_id, subject_id, kind, channel, subject_at) WHERE subject_type <> 'invoice'`; an
+   invoice send is unique on `(clinic_id, send_request_id)`, finance spec R2-5), and only when a row was inserted it
    appends the outbox event `patient.notification_requested`. The ledger's patient foreign key takes its
    key-share lock on the patient row there, after the appointment or visit row — already its place in
    the ADR-0027 order — so no step is added to the lock order.
