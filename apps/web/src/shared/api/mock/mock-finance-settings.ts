@@ -70,7 +70,7 @@ export function setProviderPrices(db: MockState, persona: Persona, serviceId: st
   serviceIn(db, a.clinic.id, serviceId);
   const body = parse(providerPricesRequestSchema, raw);
   const known = (id: string) =>
-    db.members.some((m) => m.id === id && m.clinicId === a.clinic.id && m.isActive);
+    db.members.some((m) => m.id === id && m.clinicId === a.clinic.id && m.status === "active");
   if (!body.items.every((i) => known(i.memberId))) throw new ApiError("validation");
   financeState(db).prices[serviceId] = { ...priceOf(db, serviceId), providerPrices: body.items };
   return priceView(db, serviceId);
