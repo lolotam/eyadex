@@ -21,7 +21,8 @@ Multi-tenant clinic-management SaaS for every clinic specialty, Kuwait first. Ar
 ## The system today (Phase B)
 
 - pnpm + Turborepo monorepo: `apps/web` (TanStack Start, yours), `apps/api` + `apps/worker` (NestJS on Fastify), `packages/contracts` (Zod, alias `@eyadex/contracts/*`), `packages/db`, `db/sql` (PostgreSQL 18 with forced Row-Level Security).
-- Built modules: branches, users and invitations, roles, patients, appointments and schedules, visits and medical files, services and prices, invoices, email and WhatsApp notifications, settings, platform area, audit log, marketing site.
+- Built modules: branches, users and invitations, roles, patients, appointments and schedules, visits and medical files, services, email and WhatsApp notifications, settings, platform area, audit log, marketing site.
+- In progress: finance F1 (service prices and invoices) is on branch `lovable` and reaches `main` with PR #78. Build on it only when the brief says so.
 - The web talks to data only through the `ApiClient` interface via `useApi()`. `VITE_API_MODE` picks the in-memory mock (default; preview and tests) or the HTTP adapter (production). Screens never import an adapter.
 - The mock must behave exactly like the API: same checks, same check order, same errors, same audit rows. See review-lessons §2.
 - Change only the parts the brief names. If the brief says web only, do not touch `apps/api`, `apps/worker` or `db/sql`.

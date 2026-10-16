@@ -25,6 +25,7 @@
 > - **V1.3 (2026-10-17)** — §2 and §2.1: small slices (about 3,000 changed lines, one story per
 >   PR), at most 3 review rounds, and only blocking findings hold a merge (owner decision after
 >   PR #78). Lovable's standing lessons live in `.lovable/review-lessons.md`.
+>   `CLAUDE.architecture.md` §9 follows the same rule.
 
 ## 0.1 Talking to the owner (binding, owner rule 2026-10-13)
 

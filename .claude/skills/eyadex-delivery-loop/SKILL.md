@@ -12,7 +12,7 @@ The owner set this loop on 2026-10-06 and tightened it on 2026-10-17 (small slic
 1. **Send one slice to Lovable.** Take the next item of PRD §5.5 (`docs/PRD-Eyadex-MVP.md`).
    - **Size the slice first.** A module is never one PR. Split it into numbered sub-slices (`F1a`, `F1b`, …), each one user story or one screen group with its own PR to `main`:
      - aim for about 3,000 changed lines and 60 files; above 5,000 lines or 100 files, split again before sending;
-     - each sub-slice is vertical: its contract, SQL, API and web together, not "all the API" then "all the web";
+     - each sub-slice is vertical in its PR: its contract, SQL, API and web together, not "all the API" then "all the web". Who writes which part follows the brief: the orchestrator (or Codex) lands the contract, SQL and API for the sub-slice on `lovable` first, and Lovable builds only the web part on top of it, as `AGENTS.md` keeps Lovable frontend-only;
      - order the sub-slices so each one merges and deploys on its own (an additive SQL file first, a destructive one only after the code that stops depending on it has shipped).
    - **Settle the product rules before Lovable starts.** Have a read-only Plan subagent list every rule the slice touches that the PRD or spec does not settle (who may see what, which branch scope applies, what happens on a no-show, duplicates, retries). Ask the owner all of them in one batch, write the answers into the spec, then send the brief. A rule question in the middle of review rounds costs a round.
    - Tool: `mcp__Lovable__send_message` with `wait=false`.
@@ -53,6 +53,7 @@ The owner set this loop on 2026-10-06 and tightened it on 2026-10-17 (small slic
    - A finding that is far-fetched or not worth its code gets a reply explaining why; it is non-blocking unless it is a security finding.
    - CodeRabbit (free plan) often posts only a rate-limit notice. That notice is not a finding, but any CodeRabbit inline comment is a claim to verify like Codex's.
 5. **Merge.** Merge only when all of these hold:
+   - Codex has finished its review of the current head (its summary's "Reviewed commit" is the head), so the last round's fixes were reviewed;
    - no blocking finding is open (non-blocking ones are answered on their threads and listed under **Follow-ups**);
    - every bot inline comment is answered;
    - CI (`verify`, `db`, `api-image`, `worker-image`) and both Socket checks are green;
@@ -66,12 +67,14 @@ The owner set this loop on 2026-10-06 and tightened it on 2026-10-17 (small slic
 
    Right after the merge, open one follow-up PR (or a session for it) with the PR's **Follow-ups** list, and add any Lovable-side lesson from this PR to `.lovable/review-lessons.md`.
 
+   A MergePilot review that lands after the merge is still read: stay subscribed to the PR until it arrives and sort its findings with the same rules. A blocking one gets an immediate hotfix PR (or a rollback, ADR-0021), and the owner is told the same hour; non-blocking ones join the follow-up PR.
+
    How to merge:
    - Use `merge_method: "merge"`, never squash or rebase, because it breaks Lovable's sync.
    - Then `git fetch origin main lovable`.
    - Check that `origin/lovable` is an ancestor of `origin/main`.
    - Push `git push origin origin/main:lovable` (fast-forward). The fetch matters: the merge happened on GitHub, so the local `origin/main` is stale until fetched.
-   - Unsubscribe from the PR.
+   - Unsubscribe from the PR once every requested bot review of the merged head has arrived and been sorted.
 
 6. **Loop.** Send the next slice (step 1).
 
