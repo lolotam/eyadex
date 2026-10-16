@@ -58,4 +58,15 @@ export interface BillingVisitReader {
     readonly providerId: string;
     readonly appointmentId: string | null;
   } | null>;
+
+  /**
+   * زيارات الموعد (الزيارة اللي اتعملت منه)، عشان المراجع ميتحاسبش مرتين على نفس الكشف: مرة على الموعد
+   * ومرة على زيارته.
+   *
+   * @param tx الـ transaction جوه `withTenant(clinicId)`
+   * @param clinicId العيادة
+   * @param appointmentId الموعد
+   * @returns ids الزيارات، أو مصفوفة فاضية
+   */
+  idsForAppointment(tx: Tx, clinicId: string, appointmentId: string): Promise<string[]>;
 }

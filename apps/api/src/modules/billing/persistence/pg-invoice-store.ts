@@ -62,16 +62,24 @@ export async function branchPrefix(
   return row?.invoice_prefix ?? null;
 }
 
-/** The live (not void) invoice already billing this appointment or visit, if any. */
+/** One appointment or visit an invoice can bill. */
+export interface InvoiceSource {
+  readonly source: "appointment" | "visit";
+  readonly sourceId: string;
+}
+
+/** The live (not void) invoice already billing any of these sources (one encounter), if any. */
 export async function liveInvoiceOf(
   tx: Tx,
   clinicId: string,
-  source: "appointment" | "visit",
-  sourceId: string,
+  sources: readonly InvoiceSource[],
 ): Promise<string | null> {
+  const any = sql.join(
+    sources.map((s) => sql`(source = ${s.source} AND source_id = ${s.sourceId})`),
+    sql` OR `,
+  );
   const [row] = await tx.execute<{ id: string }>(
-    sql`SELECT id FROM invoices WHERE clinic_id = ${clinicId} AND source = ${source}
-          AND source_id = ${sourceId} AND status <> 'void'`,
+    sql`SELECT id FROM invoices WHERE clinic_id = ${clinicId} AND status <> 'void' AND (${any})`,
   );
   return row?.id ?? null;
 }

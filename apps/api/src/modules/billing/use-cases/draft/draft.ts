@@ -5,7 +5,7 @@ import { ApiError } from "../../../../shared/errors.ts";
 import type { BillingActor } from "../../domain/billing-actor.ts";
 import { branchReach } from "../../domain/invoice-reach.ts";
 import { effectivePrice } from "../../persistence/pg-price-store.ts";
-import { loadSource, type SourceReaders } from "../invoice-source.ts";
+import { loadSource, refuseBilledEncounter, type SourceReaders } from "../invoice-source.ts";
 
 /**
  * مسودة فاتورة من موعد أو زيارة (FIN-A8، R1-7): سطر خدمة واحد بسعر الدكتور أو السعر الأساسي، ومن غير
@@ -39,6 +39,7 @@ export class InvoiceDrafts {
         source,
         sourceId,
       );
+      await refuseBilledEncounter(tx, this.deps.sources, actor.clinicId, source, sourceId);
       const base = { source, sourceId, patientId: facts.patientId, branchId: facts.branchId };
       if (facts.serviceId === null) return { ...base, priceMissing: false, lines: [] };
       const price = await effectivePrice(tx, actor.clinicId, facts.serviceId, facts.providerId);

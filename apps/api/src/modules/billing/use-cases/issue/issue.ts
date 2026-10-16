@@ -25,14 +25,13 @@ import {
   insertInvoice,
   insertLines,
   issueClinicFacts,
-  liveInvoiceOf,
   readInvoice,
   recordPrefix,
   takeNumber,
 } from "../../persistence/pg-invoice-store.ts";
 import { lockClinicFinance } from "../../persistence/pg-price-store.ts";
 import { checkServiceLines, storedLines, unknownLineDoctor } from "../invoice-lines.ts";
-import { lockSource, type SourceReaders } from "../invoice-source.ts";
+import { lockSource, refuseBilledEncounter, type SourceReaders } from "../invoice-source.ts";
 
 export interface IssueDeps {
   readonly db: Database;
@@ -120,10 +119,18 @@ export class InvoiceIssues {
     if (!(await patients.lockForInvoice(tx, actor.clinicId, patientId))) {
       throw new ApiError("not_found");
     }
-    if (body.source !== "manual" && body.sourceId !== null) {
-      if ((await liveInvoiceOf(tx, actor.clinicId, body.source, body.sourceId)) !== null) {
-        throw new ApiError("invoice_already_exists");
-      }
+    // Judged on the locked file, so a move of the patient racing this issue is seen (PR #78 review).
+    if (body.source === "manual") {
+      const access = await patients.access(tx, actor.clinicId, actor, patientId);
+      if (!access.inPatientReach) throw new ApiError("not_found");
+    } else {
+      await refuseBilledEncounter(
+        tx,
+        this.deps.sources,
+        actor.clinicId,
+        body.source,
+        body.sourceId!,
+      );
     }
     const prefix = await branchPrefix(tx, actor.clinicId, branchId);
     if (prefix === null) throw new ApiError("invoice_prefix_missing");
@@ -192,10 +199,9 @@ export class InvoiceIssues {
       );
       return { patientId: facts.patientId, branchId: facts.branchId };
     }
-    const patientId = body.patientId!;
+    // The patient's reach is judged in `write`, after the patient row is locked.
     const branchId = body.branchId!;
-    const access = await this.deps.patients.access(tx, actor.clinicId, actor, patientId);
-    if (!reachesBranch(reach, branchId) || !access.inPatientReach) throw new ApiError("not_found");
-    return { patientId, branchId };
+    if (!reachesBranch(reach, branchId)) throw new ApiError("not_found");
+    return { patientId: body.patientId!, branchId };
   }
 }

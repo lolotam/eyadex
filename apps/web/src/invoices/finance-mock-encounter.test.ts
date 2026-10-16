@@ -1,0 +1,67 @@
+import { beforeEach, describe, expect, it } from "vitest";
+import { errorCodeOf } from "@/shared/api/api-error";
+import { api, as, clinicIdAt, getState, resetMockData } from "@/shared/api/mock/mock-test-kit";
+
+// PR #78 review, as the API: an appointment and the visit made from it are one encounter, billed once.
+const fails = async (p: Promise<unknown>) =>
+  errorCodeOf(
+    await p.then(
+      () => null,
+      (e) => e,
+    ),
+  );
+
+const line = {
+  kind: "free" as const,
+  descriptionAr: "كشف",
+  descriptionEn: "Consultation",
+  quantity: 1,
+  unitPriceMinor: "1000",
+  discount: null,
+};
+const admin = () => as("clinic_admin");
+const issue = (source: "appointment" | "visit", sourceId: string) =>
+  api.finance.issue(
+    admin(),
+    { source, sourceId, patientId: null, branchId: null, lines: [line], invoiceDiscount: null },
+    crypto.randomUUID(),
+  );
+
+/** A seeded booking of the first clinic and a visit made from it. */
+function encounter() {
+  const db = getState();
+  const appointment = db.appointments.find(
+    (x) => x.clinicId === clinicIdAt(0) && x.status !== "cancelled" && x.status !== "no_show",
+  );
+  const template = db.medical.visits.find((v) => v.clinicId === clinicIdAt(0));
+  if (!appointment || !template) throw new Error("seed");
+  const visit = {
+    ...template,
+    id: crypto.randomUUID(),
+    appointmentId: appointment.id,
+    patientId: appointment.patientId,
+    branchId: appointment.branchId,
+  };
+  db.medical.visits.push(visit);
+  return { appointment: appointment.id, visit: visit.id };
+}
+
+beforeEach(() => resetMockData());
+
+describe("one encounter, one live invoice", () => {
+  it("refuses the visit once its appointment is billed, in the issue and the draft", async () => {
+    const { appointment, visit } = encounter();
+    await issue("appointment", appointment);
+    expect(await fails(issue("visit", visit))).toBe("invoice_already_exists");
+    expect(await fails(api.finance.draft(admin(), "visit", visit))).toBe("invoice_already_exists");
+  });
+
+  it("refuses the appointment once its visit is billed, in the issue and the draft", async () => {
+    const { appointment, visit } = encounter();
+    await issue("visit", visit);
+    expect(await fails(issue("appointment", appointment))).toBe("invoice_already_exists");
+    expect(await fails(api.finance.draft(admin(), "appointment", appointment))).toBe(
+      "invoice_already_exists",
+    );
+  });
+});

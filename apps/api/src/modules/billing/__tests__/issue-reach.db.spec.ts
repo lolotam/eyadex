@@ -73,3 +73,39 @@ describe("a manual invoice from a clinic-wide create key", () => {
     expect((await manual(inside, C.branchD)).statusCode).toBe(201);
   });
 });
+
+async function rowLockWaiters(n: number): Promise<void> {
+  for (let i = 0; i < 200; i += 1) {
+    const [row] = await h.owner`SELECT count(*)::int AS n FROM pg_locks
+                                WHERE locktype IN ('transactionid', 'tuple') AND NOT granted`;
+    if ((row!["n"] as number) >= n) return;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  throw new Error(`fewer than ${n} row-lock waiters`);
+}
+
+// PR #78 review (Codex P1): the reach was read before the patient row was locked, so a file moved out of
+// the caller's branches while the issue waited for that lock was still invoiced on the old reach.
+describe("a manual invoice racing a move of its patient to another branch", () => {
+  it("waits for the move and answers not_found", async () => {
+    const patient = await patientIn(h, C, C.branchD);
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    let locked!: () => void;
+    const taken = new Promise<void>((resolve) => (locked = resolve));
+    const move = h.owner.begin(async (sql) => {
+      await sql`SELECT id FROM patients WHERE clinic_id = ${C.clinicId} AND id = ${patient} FOR UPDATE`;
+      await sql`UPDATE patients SET registration_branch_id = ${C.branchR}
+                WHERE clinic_id = ${C.clinicId} AND id = ${patient}`;
+      locked();
+      await held;
+    });
+    await taken;
+    const issuing = manual(patient, C.branchD);
+    await rowLockWaiters(1);
+    release();
+    await move;
+    const res = await issuing;
+    expect([res.statusCode, code(res)]).toEqual([404, "not_found"]);
+  });
+});

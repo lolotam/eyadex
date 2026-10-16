@@ -11,7 +11,7 @@ export interface BillingVisitRow {
 
 /**
  * The medical module's adapter for the billing module's `BillingVisitReader` port (finance R1-7): the
- * visit's facts only, never a note, a diagnosis or anything clinical.
+ * visit's facts and the visits made from an appointment, never a note, a diagnosis or anything clinical.
  */
 export class PgBillingVisits {
   async find(tx: Tx, clinicId: string, visitId: string): Promise<BillingVisitRow | null> {
@@ -32,5 +32,11 @@ export class PgBillingVisits {
           providerId: row.provider_membership_id,
           appointmentId: row.appointment_id,
         };
+  }
+  async idsForAppointment(tx: Tx, clinicId: string, appointmentId: string): Promise<string[]> {
+    const rows = await tx.execute<{ id: string }>(
+      sql`SELECT id FROM visits WHERE clinic_id = ${clinicId} AND appointment_id = ${appointmentId}`,
+    );
+    return rows.map((r) => r.id);
   }
 }

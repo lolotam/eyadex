@@ -217,7 +217,9 @@ These override anything looser above.
    patient and branch from it (a mismatch is `validation`). For a source, the reach is the source's branch
    inside the caller's `create:invoices` scope, in the draft and the issue alike; the patient's file is not
    checked against `view:patients` (owner 2026-10-17, PR #78). Only a **manual** invoice, which names its
-   patient, also needs that patient inside the caller's patients view reach. `source`, `source_id`, `branch_id`,
+   patient, also needs that patient inside the caller's patients view reach. An appointment and the visit made from it
+   are one encounter: a live invoice on either refuses the other (`invoice_already_exists`), in the
+   draft and the issue, until it is voided (PR #78). `source`, `source_id`, `branch_id`,
    `patient_id`, `number` and `issued_at` never change after issue. A walk-in visit with no service gives
    a draft with no service line (the user adds lines).
 8. **Numbering:** `invoice_sequences` has `UNIQUE (clinic_id, branch_id, year)`; the first issue of a

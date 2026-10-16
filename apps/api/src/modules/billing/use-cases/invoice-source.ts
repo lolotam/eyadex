@@ -2,6 +2,7 @@ import { isBillable, type AppointmentStatus } from "@eyadex/contracts/appointmen
 import type { Tx } from "@eyadex/db";
 
 import { ApiError } from "../../../shared/errors.ts";
+import { liveInvoiceOf, type InvoiceSource } from "../persistence/pg-invoice-store.ts";
 import type { MemberBranches } from "../domain/billing-actor.ts";
 import { reachesBranch } from "../domain/invoice-reach.ts";
 import type {
@@ -62,6 +63,39 @@ export async function lockSource(
 ): Promise<SourceFacts> {
   if (source === "visit") return loadSource(tx, readers, clinicId, reach, source, sourceId);
   return judged(await readers.appointments.lockForInvoice(tx, clinicId, sourceId), reach);
+}
+
+/**
+ * الكشف الواحد بيتحاسب مرة واحدة (PR #78): الموعد وزيارته مصدرين لنفس الكشف، فلو أي واحد فيهم عليه فاتورة
+ * شغالة = `invoice_already_exists`، في المسودة والإصدار. في الإصدار بيتنادى بعد قفل صف المراجع، والموعد
+ * وزيارته لنفس المراجع، فإصدارين متزامنين بيتعملوا ورا بعض والتاني بيشوف الأول.
+ *
+ * @param tx الـ transaction جوه `withTenant(clinicId)`
+ * @param readers الـ ports
+ * @param clinicId العيادة
+ * @param source نوع المصدر
+ * @param sourceId المصدر
+ * @returns مبيرجعش حاجة؛ بيرمي لو الكشف عليه فاتورة
+ */
+export async function refuseBilledEncounter(
+  tx: Tx,
+  readers: SourceReaders,
+  clinicId: string,
+  source: "appointment" | "visit",
+  sourceId: string,
+): Promise<void> {
+  const encounter: InvoiceSource[] = [{ source, sourceId }];
+  if (source === "appointment") {
+    const visits = await readers.visits.idsForAppointment(tx, clinicId, sourceId);
+    encounter.push(...visits.map((id) => ({ source: "visit" as const, sourceId: id })));
+  } else {
+    const visit = await readers.visits.find(tx, clinicId, sourceId);
+    if (visit?.appointmentId)
+      encounter.push({ source: "appointment", sourceId: visit.appointmentId });
+  }
+  if ((await liveInvoiceOf(tx, clinicId, encounter)) !== null) {
+    throw new ApiError("invoice_already_exists");
+  }
 }
 
 function judged(

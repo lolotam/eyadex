@@ -73,6 +73,7 @@ export function draftOf(
   const s = sourceOf(db, a.clinic.id, source, id);
   if (!writeReaches(a, "create", "invoices", s.branchId)) throw new ApiError("not_found");
   requireBillable(s);
+  refuseBilledEncounter(db, a.clinic.id, source, id);
   const price = s.serviceId ? effectivePrice(db, s.serviceId, s.providerId) : null;
   return {
     source,
@@ -95,14 +96,35 @@ export function draftOf(
   };
 }
 
-const liveInvoiceOf = (db: MockState, clinicId: string, source: string, sourceId: string) =>
-  financeState(db).invoices.find(
+/**
+ * As the API: one encounter is billed once. An appointment and the visit made from it are two sources of
+ * it, so a live invoice on either answers invoice_already_exists, in the draft and the issue.
+ */
+function refuseBilledEncounter(
+  db: MockState,
+  clinicId: string,
+  source: "appointment" | "visit",
+  sourceId: string,
+) {
+  const visit = (id: string) =>
+    db.medical.visits.find((v) => v.id === id && v.clinicId === clinicId);
+  const encounter =
+    source === "appointment"
+      ? [
+          `appointment:${sourceId}`,
+          ...db.medical.visits
+            .filter((v) => v.clinicId === clinicId && v.appointmentId === sourceId)
+            .map((v) => `visit:${v.id}`),
+        ]
+      : [`visit:${sourceId}`, `appointment:${visit(sourceId)?.appointmentId ?? "-"}`];
+  const billed = financeState(db).invoices.some(
     (i) =>
       i.clinicId === clinicId &&
-      i.source === source &&
-      i.sourceId === sourceId &&
-      i.status !== "void",
+      i.status !== "void" &&
+      encounter.includes(`${i.source}:${i.sourceId}`),
   );
+  if (billed) throw new ApiError("invoice_already_exists");
+}
 
 function parties(db: MockState, a: FinanceAccess, body: CreateInvoiceRequest) {
   const named =
@@ -151,9 +173,7 @@ export function issueInvoice(
   ) {
     throw new ApiError("forbidden");
   }
-  if (body.sourceId !== null && liveInvoiceOf(db, a.clinic.id, body.source, body.sourceId)) {
-    throw new ApiError("invoice_already_exists");
-  }
+  if (body.source !== "manual") refuseBilledEncounter(db, a.clinic.id, body.source, body.sourceId!);
   const prefix = state.prefixes[branchId];
   if (!prefix) throw new ApiError("invoice_prefix_missing");
   checkServiceLines(db, a.clinic.id, body.lines);
