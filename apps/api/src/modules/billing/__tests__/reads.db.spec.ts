@@ -137,8 +137,15 @@ describe("own reach (R1-12)", () => {
                   VALUES (${C.clinicId}, ${randomUUID()}, ${C.branchD}, ${patient},
                     ${C.doctor.memberId}, 'draft', now(), now(), now())`;
     const invoice = await manualInvoice(h, C.admin.cookie, patient, C.branchR);
-    expect((await detail(C.doctor.cookie, invoice.id)).statusCode).toBe(200);
-    expect(ids(await list(C.doctor.cookie, `?patientId=${patient}`))).toEqual([invoice.id]);
+    const shown = await detail(C.doctor.cookie, invoice.id);
+    expect(shown.statusCode).toBe(200);
+    const listed = await list(C.doctor.cookie, `?patientId=${patient}`);
+    expect(ids(listed)).toEqual([invoice.id]);
+    // PR #78 review: the doctor's own branch list misses branch R, so its names come with the invoice.
+    const [branch] = await h.owner`SELECT name_ar, name_en FROM branches WHERE id = ${C.branchR}`;
+    const names = { branchNameAr: branch!["name_ar"], branchNameEn: branch!["name_en"] };
+    expect(shown.json()).toMatchObject({ invoice: names });
+    expect(listed.json()).toMatchObject({ items: [names] });
   });
 
   it("hides another doctor's patient from the doctor", async () => {

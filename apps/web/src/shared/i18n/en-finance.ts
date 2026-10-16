@@ -100,6 +100,7 @@ export const enFinance = {
       number: "Number",
       date: "Date",
       patient: "Patient",
+      source: "Source",
       branch: "Branch",
       status: "Status",
       total: "Total",

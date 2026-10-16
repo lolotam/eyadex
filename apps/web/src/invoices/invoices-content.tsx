@@ -46,7 +46,7 @@ export function InvoicesContent() {
     ...(to ? { to } : {}),
     ...(number.trim() ? { number: number.trim() } : {}),
   });
-  const columns = useInvoiceColumns(options.branches, money);
+  const columns = useInvoiceColumns(money);
   const filtered = (apply: () => void) => {
     apply();
     pages.reset();

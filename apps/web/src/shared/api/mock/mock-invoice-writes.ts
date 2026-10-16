@@ -136,7 +136,7 @@ export function issueInvoice(
     const first = state.invoices.find((i) => i.id === previous.invoiceId)!;
     // As the API: the first answer is given again only while its branch is still in the caller's reach.
     if (!writeReaches(a, "create", "invoices", first.branchId)) throw new ApiError("not_found");
-    return strip(first);
+    return strip(db, first);
   }
   const { patientId, branchId } = parties(db, a, body);
   if (
@@ -180,13 +180,15 @@ export function issueInvoice(
   };
   state.invoices.push(invoice);
   state.idempotentInvoices[ledgerKey] = { invoiceId: invoice.id, fingerprint };
-  return strip(invoice);
+  return strip(db, invoice);
 }
 
-export function strip(invoice: StoredInvoice): Invoice {
-  const { clinicId: _c, ...rest } = invoice;
-  void _c;
-  return rest;
+/** The invoice as the API answers it: without its clinic, with its branch's current names. */
+export function strip(db: MockState, invoice: StoredInvoice): Invoice {
+  const { clinicId, ...rest } = invoice;
+  const branch = db.branches.find((b) => b.id === invoice.branchId && b.clinicId === clinicId);
+  if (!branch) throw new ApiError("not_found");
+  return { ...rest, branchNameAr: branch.nameAr, branchNameEn: branch.nameEn };
 }
 
 /** The invoice for a write: hidden → not_found, seen but out of write reach → forbidden. */
@@ -232,7 +234,7 @@ export function editInvoice(
     lines: storedLines(db, body.lines, totals),
     version: invoice.version + 1,
   });
-  return strip(invoice);
+  return strip(db, invoice);
 }
 
 /** POST /v1/invoices/:id/void: the number stays taken, the source can be invoiced again. */
@@ -252,5 +254,5 @@ export function voidInvoice(
     voidedAt: now.toISOString(),
     version: invoice.version + 1,
   });
-  return strip(invoice);
+  return strip(db, invoice);
 }

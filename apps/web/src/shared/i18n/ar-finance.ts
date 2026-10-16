@@ -101,6 +101,7 @@ export const arFinance: Strings<typeof enFinance> = {
       number: "الرقم",
       date: "التاريخ",
       patient: "المراجع",
+      source: "المصدر",
       branch: "الفرع",
       status: "الحالة",
       total: "الإجمالي",

@@ -132,6 +132,10 @@ export const invoiceSchema = z
     source: invoiceSourceSchema,
     sourceId: idSchema.nullable(),
     branchId: idSchema,
+    // Read with the invoice, never stored on it: a doctor's own invoices cross branches the doctor's
+    // own branch list does not name (PR #78 review).
+    branchNameAr: z.string(),
+    branchNameEn: z.string(),
     patientId: idSchema,
     issuedAt: z.string().datetime(),
     currency: currencyCodeSchema,

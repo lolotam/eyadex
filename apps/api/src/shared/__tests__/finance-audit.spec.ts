@@ -13,6 +13,9 @@ const invoice: Invoice = {
   source: "manual",
   sourceId: null,
   branchId: "0199a000-0000-7000-8000-000000000002",
+  // A branch name is free text too, read with the invoice; it must not reach the snapshot either.
+  branchNameAr: `فرع ${PATIENT_NAME}`,
+  branchNameEn: `Branch ${PATIENT_NAME}`,
   patientId: "0199a000-0000-7000-8000-000000000003",
   issuedAt: "2026-10-15T09:00:00.000Z",
   currency: "KWD",

@@ -116,7 +116,11 @@ function InvoiceContent({ invoiceId }: { invoiceId: string }) {
       </Link>
       <PageHeader
         title={inv.number}
-        subtitle={[formatDate(inv.issuedAt), t(`finance.detail.source.${inv.source}`)].join(" · ")}
+        subtitle={[
+          formatDate(inv.issuedAt),
+          pick(inv.branchNameAr, inv.branchNameEn),
+          t(`finance.detail.source.${inv.source}`),
+        ].join(" · ")}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <InvoiceStatusBadge status={inv.status} />

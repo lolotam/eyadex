@@ -98,12 +98,15 @@ export function createMockFinance(): FinanceApi {
       const page = rows.slice(start, start + q.limit);
       const more = start + q.limit < rows.length;
       return {
-        items: page.map(({ clinicId: _c, lines: _l, ...item }) => (void _c, void _l, item)),
+        items: page.map((i) => {
+          const { lines: _l, ...item } = strip(db(), i);
+          return (void _l, item);
+        }),
         nextCursor: more ? (page[page.length - 1]?.id ?? null) : null,
         total: rows.length,
       };
     },
-    getInvoice: async (p, id) => (await delay(), strip(visibleInvoice(p, id))),
+    getInvoice: async (p, id) => (await delay(), strip(db(), visibleInvoice(p, id))),
     draft: async (p, source, id) => (
       await delay(),
       draftOf(db(), guardFinance(db(), p), source, id)
@@ -116,8 +119,7 @@ export function createMockFinance(): FinanceApi {
       write(() => voidInvoice(db(), guardFinance(db(), p), id, version, { reason }, new Date())),
     async pdf(persona, id) {
       await delay();
-      const invoice = visibleInvoice(persona, id);
-      return renderInvoicePdf(invoice);
+      return renderInvoicePdf(strip(db(), visibleInvoice(persona, id)));
     },
     send: (persona, id, raw) =>
       write(() => {

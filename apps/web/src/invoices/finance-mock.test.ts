@@ -158,6 +158,21 @@ describe("finance F1 in the mock, as the API", () => {
     );
   });
 
+  // PR #78 review: a doctor's own invoices cross branches, so the branch names come with the invoice and
+  // are read, never stored: a renamed branch shows its new name.
+  it("answers each invoice with its branch's current names, in the list and the detail", async () => {
+    const inv = await api.finance.issue(admin(), manual(), crypto.randomUUID());
+    const branch = getState().branches.find((b) => b.id === inv.branchId);
+    if (!branch) throw new Error("seed");
+    expect(inv).toMatchObject({ branchNameAr: branch.nameAr, branchNameEn: branch.nameEn });
+    branch.nameAr = "فرع جديد";
+    branch.nameEn = "New branch";
+    const renamed = { branchNameAr: "فرع جديد", branchNameEn: "New branch" };
+    expect(await api.finance.getInvoice(admin(), inv.id)).toMatchObject(renamed);
+    const { items } = await api.finance.listInvoices(admin(), {});
+    expect(items.find((i) => i.id === inv.id)).toMatchObject(renamed);
+  });
+
   // PR #78 review: from/to are clinic days, as the API's `issued_at AT TIME ZONE` filter.
   it("filters from/to on the clinic's day: 22:30 UTC is the next day in Kuwait", async () => {
     const clinic = getState().clinics.find((c) => c.id === clinicIdAt(0));

@@ -12,7 +12,8 @@ export type StoredPrice = {
   priceMinor: string | null;
   providerPrices: { memberId: string; priceMinor: string }[];
 };
-export type StoredInvoice = Invoice & { clinicId: string };
+/** As the API stores it: the branch names are read with the invoice, never kept on it. */
+export type StoredInvoice = Omit<Invoice, "branchNameAr" | "branchNameEn"> & { clinicId: string };
 
 export type FinanceMockState = {
   clinics: Record<string, StoredClinicFinance>;

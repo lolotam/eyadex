@@ -5,11 +5,11 @@ import type { InvoiceListItem } from "@/shared/api/finance-client";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { InvoiceStatusBadge } from "./invoice-status-badge";
 
-type BranchName = { id: string; nameAr: string; nameEn: string };
-
-/** Number (opens the invoice), date, branch, source, status, total in the invoice's own currency. */
+/**
+ * Number (opens the invoice), date, branch, source, status, total in the invoice's own currency. The
+ * branch name comes with the invoice: a doctor's own invoices cross branches outside its membership.
+ */
 export function useInvoiceColumns(
-  branches: readonly BranchName[],
   format: (minor: string, exponent: number, currency: string) => string,
 ): ColumnDef<InvoiceListItem, unknown>[] {
   const { t, pick, formatDate } = useI18n();
@@ -39,14 +39,11 @@ export function useInvoiceColumns(
       {
         id: "branch",
         header: t("finance.list.branch"),
-        cell: ({ row }) => {
-          const b = branches.find((x) => x.id === row.original.branchId);
-          return b ? pick(b.nameAr, b.nameEn) : "—";
-        },
+        cell: ({ row }) => pick(row.original.branchNameAr, row.original.branchNameEn),
       },
       {
         id: "source",
-        header: t("finance.list.patient"),
+        header: t("finance.list.source"),
         cell: ({ row }) => (
           <span className="text-muted-foreground">
             {t(`finance.detail.source.${row.original.source}`)}
@@ -68,6 +65,6 @@ export function useInvoiceColumns(
         ),
       },
     ],
-    [t, pick, formatDate, branches, format],
+    [t, pick, formatDate, format],
   );
 }

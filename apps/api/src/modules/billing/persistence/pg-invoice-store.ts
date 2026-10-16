@@ -214,6 +214,8 @@ interface InvoiceRaw {
   source: Invoice["source"];
   source_id: string | null;
   branch_id: string;
+  branch_name_ar: string;
+  branch_name_en: string;
   patient_id: string;
   issued_at: string;
   currency: CurrencyCode;
@@ -249,12 +251,15 @@ interface LineRaw {
  */
 export async function readInvoice(tx: Tx, clinicId: string, id: string): Promise<Invoice | null> {
   const [row] = await tx.execute<InvoiceRaw>(
-    sql`SELECT id, number, status, source, source_id, branch_id, patient_id,
-          to_char(issued_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS issued_at,
-          currency, currency_exponent, subtotal_minor::text, discount_minor::text, tax_rate_bp,
-          tax_minor::text, total_minor::text, invoice_discount, void_reason,
-          to_char(voided_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS voided_at, version
-        FROM invoices WHERE clinic_id = ${clinicId} AND id = ${id}`,
+    sql`SELECT i.id, i.number, i.status, i.source, i.source_id, i.branch_id,
+          b.name_ar AS branch_name_ar, b.name_en AS branch_name_en, i.patient_id,
+          to_char(i.issued_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS issued_at,
+          i.currency, i.currency_exponent, i.subtotal_minor::text, i.discount_minor::text,
+          i.tax_rate_bp, i.tax_minor::text, i.total_minor::text, i.invoice_discount, i.void_reason,
+          to_char(i.voided_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS voided_at,
+          i.version
+        FROM invoices i JOIN branches b ON b.clinic_id = i.clinic_id AND b.id = i.branch_id
+        WHERE i.clinic_id = ${clinicId} AND i.id = ${id}`,
   );
   if (row === undefined) return null;
   const lines = await tx.execute<LineRaw>(
@@ -271,6 +276,8 @@ export async function readInvoice(tx: Tx, clinicId: string, id: string): Promise
     source: row.source,
     sourceId: row.source_id,
     branchId: row.branch_id,
+    branchNameAr: row.branch_name_ar,
+    branchNameEn: row.branch_name_en,
     patientId: row.patient_id,
     issuedAt: row.issued_at,
     currency: row.currency,

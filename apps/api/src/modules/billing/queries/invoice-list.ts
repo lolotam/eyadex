@@ -43,6 +43,8 @@ interface Row {
   source: InvoiceListItem["source"];
   source_id: string | null;
   branch_id: string;
+  branch_name_ar: string;
+  branch_name_en: string;
   patient_id: string;
   issued_at: string;
   currency: InvoiceListItem["currency"];
@@ -65,6 +67,8 @@ const toItem = (r: Row): InvoiceListItem => ({
   source: r.source,
   sourceId: r.source_id,
   branchId: r.branch_id,
+  branchNameAr: r.branch_name_ar,
+  branchNameEn: r.branch_name_en,
   patientId: r.patient_id,
   issuedAt: r.issued_at,
   currency: r.currency,
@@ -93,7 +97,8 @@ export async function listInvoices(
   reach: SQL,
 ): Promise<{ items: InvoiceListItem[]; nextCursor: string | null; total: number }> {
   const where = filters(clinicId, query, reach);
-  const from = sql`FROM invoices i JOIN clinics c ON c.id = i.clinic_id`;
+  const from = sql`FROM invoices i JOIN clinics c ON c.id = i.clinic_id
+                   JOIN branches b ON b.clinic_id = i.clinic_id AND b.id = i.branch_id`;
   const [count] = await tx.execute<{ total: number }>(
     sql`SELECT count(*)::int AS total ${from} WHERE ${sql.join(where, sql` AND `)}`,
   );
@@ -104,7 +109,8 @@ export async function listInvoices(
   }
   const page = after === null ? where : [...where, sql`i.id < ${after}::uuid`];
   const rows = await tx.execute<Row>(
-    sql`SELECT i.id, i.number, i.status, i.source, i.source_id, i.branch_id, i.patient_id,
+    sql`SELECT i.id, i.number, i.status, i.source, i.source_id, i.branch_id,
+          b.name_ar AS branch_name_ar, b.name_en AS branch_name_en, i.patient_id,
           ${iso(sql`i.issued_at`)} AS issued_at, i.currency, i.currency_exponent,
           i.subtotal_minor::text AS subtotal_minor, i.discount_minor::text AS discount_minor,
           i.tax_rate_bp, i.tax_minor::text AS tax_minor, i.total_minor::text AS total_minor,
