@@ -24,7 +24,7 @@ import { errorCodeOf } from "@/shared/api/api-error";
 import { useApi } from "@/shared/api/api-provider";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { formatBp } from "@/shared/money/use-clinic-money";
-import { can } from "@/shared/permissions/can";
+import { canAtBranch } from "@/shared/permissions/can-at-branch";
 import { RequirePermission } from "@/shared/permissions/require-permission";
 import { usePersona, useSession } from "@/shared/persona/persona-provider";
 import { LoadingBlock } from "@/shared/shell/loading-block";
@@ -62,7 +62,6 @@ function InvoiceContent({ invoiceId }: { invoiceId: string }) {
     email: crypto.randomUUID(),
     whatsapp: crypto.randomUUID(),
   }));
-  const keys = session?.permissions ?? [];
   const onError = (e: unknown) => toast.error(tDynamic(`errors.${errorCodeOf(e)}`));
   const voidIt = useMutation({
     mutationFn: (inv: Invoice) =>
@@ -105,6 +104,10 @@ function InvoiceContent({ invoiceId }: { invoiceId: string }) {
   const discountText = (d: NonNullable<Invoice["invoiceDiscount"]>) =>
     d.kind === "pct" ? formatBp(d.bp) : format(d.minor);
   const live = inv.status === "issued";
+  // As the API: a branch-scoped write key reaches only the member's branches, while viewing can reach
+  // further (a clinic or own view key), so each action is judged at the invoice's own branch.
+  const mayAt = (action: "update" | "deactivate" | "create", resource: "invoices" | "discounts") =>
+    session ? canAtBranch(session, action, resource, inv.branchId) : false;
   return (
     <div className="max-w-3xl">
       <Link
@@ -151,13 +154,13 @@ function InvoiceContent({ invoiceId }: { invoiceId: string }) {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-            {live && can(keys, "update", "invoices") && (
+            {live && mayAt("update", "invoices") && (
               <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
                 <Pencil className="size-4" />
                 {t("finance.detail.edit")}
               </Button>
             )}
-            {live && can(keys, "deactivate", "invoices") && (
+            {live && mayAt("deactivate", "invoices") && (
               <Button variant="outline" size="sm" onClick={() => setVoiding(true)}>
                 <Ban className="size-4" />
                 {t("finance.detail.void")}
@@ -237,7 +240,7 @@ function InvoiceContent({ invoiceId }: { invoiceId: string }) {
               initial={valuesFromInvoice(inv, inv.currencyExponent)}
               source={null}
               editing={inv}
-              mayDiscount={can(keys, "create", "discounts")}
+              mayDiscount={mayAt("create", "discounts")}
               priceMissing={false}
               onReload={() => {
                 setEditing(false);

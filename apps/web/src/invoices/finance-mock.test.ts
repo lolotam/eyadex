@@ -158,6 +158,39 @@ describe("finance F1 in the mock, as the API", () => {
     );
   });
 
+  // PR #78 review: as the API, a manual invoice needs its patient inside the caller's patients view
+  // reach, even when the invoices key is clinic-wide.
+  it("NEGATIVE: a clinic-wide create key cannot invoice a patient outside the patients reach", async () => {
+    const db = getState();
+    const role = db.roles.find(
+      (r) => r.clinicId === clinicIdAt(0) && r.systemKey === "receptionist",
+    );
+    const desk = db.members.find((m) => m.roleId === role?.id && m.status === "active");
+    if (!role || !desk || desk.branchIds.length === 0) throw new Error("seed");
+    role.permissions = role.permissions.map((k) =>
+      k === "create:invoices:branch" ? "create:invoices:clinic" : k,
+    );
+    const fileIn = (inside: boolean) =>
+      db.patients.find(
+        (p) =>
+          p.clinicId === clinicIdAt(0) &&
+          p.status === "active" &&
+          desk.branchIds.includes(p.registrationBranchId) === inside,
+      );
+    const [outside, inside] = [fileIn(false), fileIn(true)];
+    if (!outside || !inside) throw new Error("seed");
+    const body = (patient: typeof inside) => ({
+      ...manual(),
+      patientId: patient.id,
+      branchId: patient.registrationBranchId,
+    });
+    expect(
+      await fails(api.finance.issue(as("receptionist"), body(outside), crypto.randomUUID())),
+    ).toBe("not_found");
+    const issued = await api.finance.issue(as("receptionist"), body(inside), crypto.randomUUID());
+    expect(issued.patientId).toBe(inside.id);
+  });
+
   // PR #78 review: a doctor's own invoices cross branches, so the branch names come with the invoice and
   // are read, never stored: a renamed branch shows its new name.
   it("answers each invoice with its branch's current names, in the list and the detail", async () => {

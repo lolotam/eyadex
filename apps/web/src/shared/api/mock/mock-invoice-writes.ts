@@ -28,6 +28,7 @@ import {
 } from "./mock-invoice-rules";
 import { actorReplayKey, requireIdempotencyKey } from "./mock-idempotency";
 import { parse } from "./mock-medical-access";
+import { inPatientViewReach } from "./mock-patient-rules";
 import { newId, type MockState } from "./mock-store";
 
 /** Who and where an appointment or visit names, or not_found outside the clinic. */
@@ -111,7 +112,12 @@ function parties(db: MockState, a: FinanceAccess, body: CreateInvoiceRequest) {
   const patient = db.patients.find((p) => p.id === named.patientId && p.clinicId === a.clinic.id);
   const branch = db.branches.find((b) => b.id === named.branchId && b.clinicId === a.clinic.id);
   if (!patient || !branch || !branch.isActive) throw new ApiError("not_found");
-  if (!writeReaches(a, "create", "invoices", branch.id)) throw new ApiError("forbidden");
+  // As the API (R1-7, ISO-02): outside the caller's write reach is not_found, and a manual invoice also
+  // needs the patient inside the caller's patients view reach (an appointment or visit already names it).
+  if (!writeReaches(a, "create", "invoices", branch.id)) throw new ApiError("not_found");
+  if (body.source === "manual" && !inPatientViewReach(db, a, patient.id)) {
+    throw new ApiError("not_found");
+  }
   if ("status" in named) requireBillable(named);
   return named;
 }
