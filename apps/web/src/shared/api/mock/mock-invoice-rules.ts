@@ -75,9 +75,9 @@ type DiscountedLine = {
 };
 
 /**
- * Every discount's kind, value and reason with the line it sits on (R1-14): a change needs
- * `create:discounts`. As the API, an undiscounted line is not part of it, so adding or removing one
- * needs no discount key.
+ * Every discount's kind, value and reason with the line it sits on and that line's position (R1-14): a
+ * change needs `create:discounts`, even a move between two identical lines. As the API, an undiscounted
+ * line is not part of it, so adding or removing one after the discounted lines needs no discount key.
  */
 export function discountsKey(
   lines: readonly DiscountedLine[],
@@ -85,8 +85,9 @@ export function discountsKey(
 ): string {
   const one = (d: DiscountInput | null) =>
     d === null ? "-" : d.kind === "pct" ? `p:${d.bp}:${d.reason}` : `a:${d.minor}:${d.reason}`;
-  const onLine = (l: DiscountedLine) =>
+  const onLine = (l: DiscountedLine, position: number) =>
     [
+      position,
       l.kind,
       l.serviceId ?? "-",
       l.providerId ?? "-",
@@ -94,7 +95,10 @@ export function discountsKey(
       l.unitPriceMinor,
       one(l.discount),
     ].join(":");
-  return [one(invoiceDiscount), ...lines.filter((l) => l.discount !== null).map(onLine)].join("|");
+  const discounted = lines.flatMap((l, position) =>
+    l.discount === null ? [] : [onLine(l, position)],
+  );
+  return [one(invoiceDiscount), ...discounted].join("|");
 }
 
 /** The stored lines: service lines copy the service's names, totals come from the helper. */

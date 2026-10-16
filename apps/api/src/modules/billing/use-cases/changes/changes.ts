@@ -19,7 +19,7 @@ import {
 } from "../../persistence/pg-invoice-changes.ts";
 import { insertLines, readInvoice } from "../../persistence/pg-invoice-store.ts";
 import type { BillingPatientReader } from "../../ports/billing-patients.ts";
-import { checkServiceLines, storedLines } from "../invoice-lines.ts";
+import { checkServiceLines, storedLines, unknownLineDoctor } from "../invoice-lines.ts";
 
 export interface ChangeDeps {
   readonly db: Database;
@@ -40,8 +40,9 @@ interface DiscountedLine {
 }
 
 // R1-14: what the discount key guards — every discount's kind, value and reason, with the line it sits
-// on, so it can neither change nor move. An undiscounted line is not part of it: adding or removing one
-// needs no discount key (PR #78 review). Built field by field, since jsonb gives the stored discount back
+// on and that line's position, so it can neither change nor move, not even between two identical lines.
+// An undiscounted line is not part of it: adding or removing one after the discounted lines needs no
+// discount key (PR #78 review). Built field by field, since jsonb gives the stored discount back
 // with its keys in another order.
 const canonical = (d: DiscountLike) =>
   d === null ? null : [d.kind, d.kind === "pct" ? d.bp : d.minor, d.reason];
@@ -51,8 +52,10 @@ const discountsOf = (invoice: {
 }) =>
   JSON.stringify([
     invoice.lines
-      .filter((line) => line.discount !== null)
-      .map((l) => [
+      .map((l, position) => ({ l, position }))
+      .filter(({ l }) => l.discount !== null)
+      .map(({ l, position }) => [
+        position,
         l.kind,
         l.serviceId ?? null,
         l.providerId ?? null,
@@ -86,6 +89,7 @@ export class InvoiceChanges {
     ifMatch: number,
     body: UpdateInvoiceRequest,
   ): Promise<Invoice> {
+    // A line doctor of no clinic fails the lines' foreign key: 400, as in issue (PR #78 review).
     return this.change(actor, "update", id, ifMatch, async (tx, before, locked, now) => {
       if (discountsOf(before) !== discountsOf(body) && !mayDiscount(actor, locked.branchId)) {
         throw new ApiError("forbidden");
@@ -114,7 +118,7 @@ export class InvoiceChanges {
         now,
       );
       return { action: "invoice.edited" };
-    });
+    }).catch(unknownLineDoctor);
   }
 
   /**

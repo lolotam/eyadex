@@ -1,12 +1,26 @@
 import type { InvoiceLineInput } from "@eyadex/contracts/finance";
 import type { Totals } from "@eyadex/contracts/invoice-totals";
-import type { Tx } from "@eyadex/db";
+import { DatabaseError, type Tx } from "@eyadex/db";
 
 import { ApiError } from "../../../shared/errors.ts";
 import { serviceNames, type StoredLine } from "../persistence/pg-invoice-store.ts";
 import { effectivePrice } from "../persistence/pg-price-store.ts";
 
 type ServiceNames = Awaited<ReturnType<typeof serviceNames>>;
+
+/**
+ * دكتور السطر لازم يبقى عضو في العيادة. الموديول مبيقراش العضويات، فالمفتاح الأجنبي بتاع `invoice_lines`
+ * هو اللي بيرفض الدكتور المجهول، والرفض ده بيرجع `validation` مش 500 (في الإصدار والتعديل).
+ *
+ * @param error الخطأ اللي طلع من الـ transaction
+ * @returns مبيرجعش: بيرمي `validation` للمفتاح الأجنبي، وأي خطأ تاني زي ما هو
+ */
+export function unknownLineDoctor(error: unknown): never {
+  if (error instanceof DatabaseError && error.code === "23503") {
+    throw new ApiError("validation", [{ path: ["lines"], code: "unknownMember" }]);
+  }
+  throw error;
+}
 
 /**
  * سطور الخدمة لازم تبقى لخدمة في العيادة ليها سعر (سعر الدكتور أو الأساسي)؛ المبلغ نفسه من الفورم، ممكن

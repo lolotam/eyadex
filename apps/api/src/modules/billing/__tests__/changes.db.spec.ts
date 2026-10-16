@@ -124,6 +124,26 @@ describe("edit (FIN-A5)", () => {
   });
 });
 
+// PR #78 review: the lines' foreign key refuses a doctor of no clinic; issue answered 400, edit 500.
+describe("edit with a line doctor who is no member of the clinic", () => {
+  it("is validation (400), not a server error", async () => {
+    await send(h, C.admin.cookie, "PATCH", `/v1/services/${C.serviceId}/price`, {
+      priceMinor: "1000",
+    });
+    const invoice = await issued(C.branchD, [free("1000")]);
+    const line = {
+      kind: "service",
+      serviceId: C.serviceId,
+      providerId: randomUUID(),
+      quantity: 1,
+      unitPriceMinor: "1000",
+      discount: null,
+    };
+    const res = await edit(C.admin.cookie, invoice.id, [line], '"1"');
+    expect([res.statusCode, code(res)]).toEqual([400, "validation"]);
+  });
+});
+
 describe("discounts on edit (R1-14)", () => {
   it("lets the desk change a line of an admin-discounted invoice without the discount key", async () => {
     const invoice = await issued(C.branchR, [free("1000", pct(1000)), free("200")]);
@@ -149,6 +169,18 @@ describe("discounts on edit (R1-14)", () => {
     expect(added.statusCode).toBe(200);
     const removed = await edit(C.desk.cookie, invoice.id, [free("1000")], '"2"');
     expect(removed.statusCode).toBe(200);
+  });
+
+  // PR #78 review (Codex P1): two identical lines compare equal, so the position decides.
+  it("refuses the desk a discount moved between two identical lines", async () => {
+    const invoice = await issued(C.branchR, [free("1000", pct(1000)), free("1000")]);
+    const res = await edit(
+      C.desk.cookie,
+      invoice.id,
+      [free("1000"), free("1000", pct(1000))],
+      '"1"',
+    );
+    expect(res.statusCode).toBe(403);
   });
 
   it("refuses the desk a discount moved onto another line", async () => {

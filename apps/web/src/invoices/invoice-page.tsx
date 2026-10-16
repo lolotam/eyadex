@@ -55,7 +55,9 @@ function InvoiceContent({ invoiceId }: { invoiceId: string }) {
   // The invoice as it was when «تعديل» was pressed: a background refetch must not hand the form a newer
   // version than the lines it shows, or a save would overwrite another user's edit (PR #78 review).
   const [editing, setEditing] = useState<Invoice | null>(null);
-  const [voiding, setVoiding] = useState(false);
+  // Likewise the invoice the void dialog was opened on: confirming sends its version, so another user's
+  // edit in the meantime answers version_conflict instead of being voided unseen (PR #78 review).
+  const [voiding, setVoiding] = useState<Invoice | null>(null);
   const [reason, setReason] = useState("");
   // The PDF may be unavailable (503 until the server renderer ships): shown in place, page stays usable.
   const [pdfError, setPdfError] = useState<string | null>(null);
@@ -70,7 +72,7 @@ function InvoiceContent({ invoiceId }: { invoiceId: string }) {
       api.finance.voidInvoice(persona, inv.id, inv.version, reason.trim()),
     onSuccess: () => {
       refresh();
-      setVoiding(false);
+      setVoiding(null);
       toast.success(t("finance.detail.voided"));
     },
     onError,
@@ -168,7 +170,7 @@ function InvoiceContent({ invoiceId }: { invoiceId: string }) {
               </Button>
             )}
             {live && mayAt("deactivate", "invoices") && (
-              <Button variant="outline" size="sm" onClick={() => setVoiding(true)}>
+              <Button variant="outline" size="sm" onClick={() => setVoiding(inv)}>
                 <Ban className="size-4" />
                 {t("finance.detail.void")}
               </Button>
@@ -262,7 +264,7 @@ function InvoiceContent({ invoiceId }: { invoiceId: string }) {
           )}
         </DialogContent>
       </Dialog>
-      <Dialog open={voiding} onOpenChange={setVoiding}>
+      <Dialog open={voiding !== null} onOpenChange={(open) => !open && setVoiding(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t("finance.detail.voidTitle", { number: inv.number })}</DialogTitle>
@@ -279,7 +281,7 @@ function InvoiceContent({ invoiceId }: { invoiceId: string }) {
             <Button
               variant="destructive"
               disabled={!reason.trim() || voidIt.isPending}
-              onClick={() => voidIt.mutate(inv)}
+              onClick={() => voiding && voidIt.mutate(voiding)}
             >
               {t("finance.detail.void")}
             </Button>

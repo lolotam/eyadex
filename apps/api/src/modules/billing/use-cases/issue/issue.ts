@@ -31,7 +31,7 @@ import {
   takeNumber,
 } from "../../persistence/pg-invoice-store.ts";
 import { lockClinicFinance } from "../../persistence/pg-price-store.ts";
-import { checkServiceLines, storedLines } from "../invoice-lines.ts";
+import { checkServiceLines, storedLines, unknownLineDoctor } from "../invoice-lines.ts";
 import { lockSource, type SourceReaders } from "../invoice-source.ts";
 
 export interface IssueDeps {
@@ -51,10 +51,7 @@ function issueFailure(error: unknown): never {
       throw new ApiError("invoice_already_exists");
     }
   }
-  if (error instanceof DatabaseError && error.code === "23503") {
-    throw new ApiError("validation", [{ path: ["lines"], code: "unknownMember" }]);
-  }
-  throw error;
+  return unknownLineDoctor(error);
 }
 
 /**

@@ -59,6 +59,12 @@ describe("invoice edits by a member without the discount key", () => {
     expect(removed.lines).toHaveLength(1);
   });
 
+  it("NEGATIVE: cannot move a discount between two identical lines", async () => {
+    const inv = await deskInvoice([line("1000", pct), line("1000")]);
+    const moved = { lines: [line("1000"), line("1000", pct)], invoiceDiscount: null };
+    expect(await fails(api.finance.edit(as("receptionist"), inv.id, 1, moved))).toBe("forbidden");
+  });
+
   it("NEGATIVE: cannot move a discount onto another line", async () => {
     const inv = await deskInvoice([line("1000", pct), line("5000")]);
     const moved = { lines: [line("1000"), line("5000", pct)], invoiceDiscount: null };

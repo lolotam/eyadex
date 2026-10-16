@@ -8,12 +8,23 @@ import { InvoicePage } from "./invoice-page";
 const OWN = "00000000-0000-7000-8000-0000000000b1";
 const OTHER = "00000000-0000-7000-8000-0000000000b2";
 
-const state = vi.hoisted(() => ({ invoice: null as unknown }));
+const state = vi.hoisted(() => ({
+  invoice: null as unknown,
+  voided: [] as number[],
+}));
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children }: { children: React.ReactNode }) => <a href="#invoices">{children}</a>,
 }));
 vi.mock("@/shared/api/api-provider", () => ({
-  useApi: () => ({ finance: { pdf: async () => new Blob(["%PDF"], { type: "application/pdf" }) } }),
+  useApi: () => ({
+    finance: {
+      pdf: async () => new Blob(["%PDF"], { type: "application/pdf" }),
+      voidInvoice: async (_p: unknown, _id: string, version: number) => {
+        state.voided.push(version);
+        return state.invoice;
+      },
+    },
+  }),
 }));
 // The form shows which version it would save against, the one thing this page decides for it.
 vi.mock("./invoice-form", () => ({
@@ -107,6 +118,21 @@ describe("the edit dialog", () => {
     state.invoice = { ...invoiceAt(OWN), version: 2 };
     view.rerender(page());
     expect(screen.getByText("editing version 1")).toBeTruthy();
+  });
+});
+
+// PR #78 review: the void dialog confirmed with whatever version a background refetch brought in.
+describe("the void dialog", () => {
+  it("confirms with the version it opened with", async () => {
+    state.voided = [];
+    const view = show(OWN);
+    fireEvent.click(screen.getByRole("button", { name: "إلغاء الفاتورة" }));
+    fireEvent.change(await screen.findByRole("textbox"), { target: { value: "issued twice" } });
+    state.invoice = { ...invoiceAt(OWN), version: 2 };
+    view.rerender(page());
+    const confirm = screen.getAllByRole("button", { name: "إلغاء الفاتورة" }).at(-1)!;
+    fireEvent.click(confirm);
+    await waitFor(() => expect(state.voided).toEqual([1]));
   });
 });
 

@@ -371,17 +371,22 @@ BEGIN
   END IF;
 END $$;
 
--- A live link, an expired one and a revoked one for clinic T's invoice, written by the owner role.
+-- A live link, an expired one and a revoked one for clinic T's invoice, written by the owner role. The
+-- expired link is on a second send and is NOT revoked, so only its expiry can keep it from resolving
+-- (PR #78 review: it was revoked too, and the test passed without the expiry filter).
 INSERT INTO patient_notifications (clinic_id, id, patient_id, kind, channel, subject_type, subject_id, subject_at,
     status, send_request_id, created_at, updated_at)
   VALUES ('00000000-0000-7000-8000-0000000f001a', '00000000-0000-7000-8000-0000000f0c01',
+    '00000000-0000-7000-8000-0000000f02a9', 'invoice', 'email', 'invoice', '00000000-0000-7000-8000-0000000f0a01',
+    NULL, 'queued', gen_random_uuid(), now(), now()),
+  ('00000000-0000-7000-8000-0000000f001a', '00000000-0000-7000-8000-0000000f0c02',
     '00000000-0000-7000-8000-0000000f02a9', 'invoice', 'email', 'invoice', '00000000-0000-7000-8000-0000000f0a01',
     NULL, 'queued', gen_random_uuid(), now(), now());
 INSERT INTO invoice_links VALUES
   ('00000000-0000-7000-8000-0000000f001a', '00000000-0000-7000-8000-0000000f0d01', '00000000-0000-7000-8000-0000000f0a01',
    '00000000-0000-7000-8000-0000000f0c01', sha256(convert_to('live', 'UTF8')), 'v1.iv.body.tag', now() + interval '14 days', null, now()),
   ('00000000-0000-7000-8000-0000000f001a', '00000000-0000-7000-8000-0000000f0d02', '00000000-0000-7000-8000-0000000f0a01',
-   '00000000-0000-7000-8000-0000000f0c01', sha256(convert_to('expired', 'UTF8')), 'v1.iv.body.tag', now() - interval '1 minute', now() - interval '1 minute', now()),
+   '00000000-0000-7000-8000-0000000f0c02', sha256(convert_to('expired', 'UTF8')), 'v1.iv.body.tag', now() - interval '1 minute', null, now()),
   ('00000000-0000-7000-8000-0000000f001a', '00000000-0000-7000-8000-0000000f0d03', '00000000-0000-7000-8000-0000000f0a01',
    '00000000-0000-7000-8000-0000000f0c01', sha256(convert_to('revoked', 'UTF8')), 'v1.iv.body.tag', now() + interval '14 days', now(), now());
 DO $$
