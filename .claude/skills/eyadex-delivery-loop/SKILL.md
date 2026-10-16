@@ -17,15 +17,15 @@ The owner set this loop on 2026-10-06 and tightened it on 2026-10-17 (small slic
    - **Settle the product rules before Lovable starts.** Have a read-only Plan subagent list every rule the slice touches that the PRD or spec does not settle (who may see what, which branch scope applies, what happens on a no-show, duplicates, retries). Ask the owner all of them in one batch, write the answers into the spec, then send the brief. A rule question in the middle of review rounds costs a round.
    - Tool: `mcp__Lovable__send_message` with `wait=false`.
    - Project id: `9e7608f6-156f-498e-b16f-25bd02b66925` (workspace `35ed546d57713f3e7a5c`).
-   - Prompt sections, in this order: **Read first** (files, ADRs, PRD sections), **Scope** (numbered), **Tests** (real PostgreSQL + Redis, the PRD §6.3 codes, every negative test must fail with its guard removed), **Hard rules**:
-     - next free `db/sql/00NN_*.sql`, never edit applied files;
-     - RLS + negative isolation test for every clinic table;
+   - The brief to Lovable is **web only** unless the owner says otherwise: the sub-slice's contract, SQL and API are already on `lovable`, written by the orchestrator (or Codex) under the backend rules below.
+   - Prompt sections, in this order: **Read first** (files, ADRs, PRD sections, the API endpoints it calls), **Scope** (numbered screens and mock methods), **Tests** (vitest against the mock for every rule the screens rely on, each failing with its guard removed), **Hard rules**:
+     - no change in `apps/api`, `apps/worker`, `packages/db` or `db/sql`;
+     - the mock mirrors the API already on `lovable`, check for check;
      - no lockfile change;
-     - Arabic JSDoc on domain/ports;
      - max 300 lines per file;
      - Prettier on every touched file;
      - `pnpm build:all`, not root `pnpm build`.
-   - Backend only unless the slice says otherwise.
+   - Backend rules for the orchestrator's part: next free `db/sql/00NN_*.sql` and never edit applied files; RLS + negative isolation test for every clinic table; Arabic JSDoc on domain/ports; tests on real PostgreSQL + Redis with the PRD §6.3 codes, every negative test failing with its guard removed.
    - Tell Lovable about any orchestrator fix since its last slice, so it keeps it.
    - Tell Lovable to read `.lovable/review-lessons.md` before writing and to tick its checklist before it reports done.
 2. **Review locally when Lovable finishes.** Lovable may say it "couldn't push", but its commit lands on branch `lovable`. Fetch `origin/lovable` into a worktree and read the diff. Run everything with Node ≥ 24:
