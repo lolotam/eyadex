@@ -30,9 +30,12 @@ let C: FinanceClinic;
 let invalidate: AuthorizationInvalidator;
 const PDF = new TextEncoder().encode("%PDF-fake");
 const rendered: { clinicId: string; invoice: Invoice }[] = [];
+// What happens elsewhere while the file is being made (a void, say); reset after each use.
+let duringRender: ((invoice: Invoice) => Promise<void>) | null = null;
 const renderer: InvoicePdfRenderer = {
   render: async (clinicId, invoice) => {
     rendered.push({ clinicId, invoice });
+    await duringRender?.(invoice);
     return PDF;
   },
 };
@@ -129,6 +132,27 @@ describe("GET /v1/public/invoices/:token (R1-16, R2-7)", () => {
     const links =
       await h.owner`SELECT revoked_at FROM invoice_links WHERE invoice_id = ${invoice.id}`;
     expect(links.map((l) => l["revoked_at"] !== null)).toEqual([true]);
+  });
+
+  // PR #78 review: the link is judged again once the file exists, so a void during the render wins.
+  it("a void that commits during the render answers invoice_link_expired and audits no open", async () => {
+    const { linkId, token } = await linked();
+    duringRender = async (invoice) => {
+      const voided = await call(h, {
+        method: "POST",
+        url: `/v1/invoices/${invoice.id}/void`,
+        host: APP,
+        cookie: C.admin.cookie,
+        body: { reason: "issued twice" },
+        headers: { "if-match": `"${invoice.version}"` },
+      });
+      expect(voided.statusCode).toBe(200);
+    };
+    const res = await open(token).finally(() => (duringRender = null));
+    expect([res.statusCode, code(res)]).toEqual([404, "invoice_link_expired"]);
+    const audit = await h.owner`SELECT id FROM audit_log
+                                WHERE clinic_id = ${C.clinicId} AND entity_id = ${linkId}`;
+    expect(audit).toEqual([]);
   });
 
   it("the platform host does not serve it", async () => {

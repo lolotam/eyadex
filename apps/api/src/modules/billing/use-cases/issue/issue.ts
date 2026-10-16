@@ -32,7 +32,7 @@ import {
 } from "../../persistence/pg-invoice-store.ts";
 import { lockClinicFinance } from "../../persistence/pg-price-store.ts";
 import { checkServiceLines, storedLines } from "../invoice-lines.ts";
-import { loadSource, type SourceReaders } from "../invoice-source.ts";
+import { lockSource, type SourceReaders } from "../invoice-source.ts";
 
 export interface IssueDeps {
   readonly db: Database;
@@ -176,7 +176,8 @@ export class InvoiceIssues {
   }
 
   // R1-7: an appointment or visit names the patient and branch; a manual invoice names them itself and
-  // they must sit inside the caller's reach. Outside it, the answer is not_found (ISO-02).
+  // they must sit inside the caller's reach. Outside it, the answer is not_found (ISO-02). The appointment
+  // is locked here, before the finance lock and the patient row, so a racing cancel or move is seen.
   private async parties(
     tx: Tx,
     actor: BillingActor,
@@ -184,7 +185,7 @@ export class InvoiceIssues {
     body: CreateInvoiceRequest,
   ): Promise<{ patientId: string; branchId: string }> {
     if (body.source !== "manual") {
-      const facts = await loadSource(
+      const facts = await lockSource(
         tx,
         this.deps.sources,
         actor.clinicId,

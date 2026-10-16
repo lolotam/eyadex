@@ -25,6 +25,17 @@ export interface BillingAppointmentReader {
    * @returns الحقايق، أو `null` لو مش موجود في العيادة
    */
   find(tx: Tx, clinicId: string, appointmentId: string): Promise<AppointmentFacts | null>;
+
+  /**
+   * نفس `find` بس صف الموعد `FOR UPDATE` (ADR-0027: صف الموعد قبل صف المراجع)، عشان إلغاء أو نقل بيحصل
+   * مع الإصدار يخلص الأول والإصدار يحكم على حالته وفرعه الجديدين.
+   *
+   * @param tx الـ transaction جوه `withTenant(clinicId)`
+   * @param clinicId العيادة
+   * @param appointmentId الموعد
+   * @returns الحقايق، أو `null` لو مش موجود في العيادة
+   */
+  lockForInvoice(tx: Tx, clinicId: string, appointmentId: string): Promise<AppointmentFacts | null>;
 }
 
 /** بيقرا زيارة للفاتورة (بيتربط بـ adapter موديول الطب في `billing.module.ts`). */

@@ -36,7 +36,38 @@ export async function loadSource(
   source: "appointment" | "visit",
   sourceId: string,
 ): Promise<SourceFacts> {
-  const facts = await readSource(tx, readers, clinicId, source, sourceId);
+  return judged(await readSource(tx, readers, clinicId, source, sourceId), reach);
+}
+
+/**
+ * زي `loadSource` للإصدار: الموعد بيتقفل `FOR UPDATE` الأول (ADR-0027: قبل صف المراجع)، فإلغاء أو نقل
+ * بيحصل مع الإصدار بيخلص قبله، والحالة والفرع بيتحكم عليهم بعد القفل. الزيارة مش محتاجة قفل: مراجعها
+ * وفرعها بيتحددوا لما تبدأ ومبيتغيروش.
+ *
+ * @param tx الـ transaction جوه `withTenant(clinicId)`
+ * @param readers الـ ports
+ * @param clinicId العيادة
+ * @param reach فروع الفاعل للفعل ده
+ * @param source نوع المصدر
+ * @param sourceId المصدر
+ * @returns حقايق المصدر
+ */
+export async function lockSource(
+  tx: Tx,
+  readers: SourceReaders,
+  clinicId: string,
+  reach: MemberBranches,
+  source: "appointment" | "visit",
+  sourceId: string,
+): Promise<SourceFacts> {
+  if (source === "visit") return loadSource(tx, readers, clinicId, reach, source, sourceId);
+  return judged(await readers.appointments.lockForInvoice(tx, clinicId, sourceId), reach);
+}
+
+function judged(
+  facts: (SourceFacts & { readonly status: AppointmentStatus | null }) | null,
+  reach: MemberBranches,
+): SourceFacts {
   if (facts === null || !reachesBranch(reach, facts.branchId)) throw new ApiError("not_found");
   if (facts.status !== null && !isBillable(facts.status)) {
     throw new ApiError("appointment_not_billable");
