@@ -199,4 +199,6 @@ Report only real defects, ranked by severity. Check first:
 - [ ] UI in Arabic and English, 1440px and 390px, loading / empty / error states
 - [ ] Each persona checked: sees and does exactly what its permissions allow
 - [ ] typecheck, lint (0 errors), tests, build green locally and in CI
-- [ ] Codex + CodeRabbit findings resolved; `roadmap.md` and PRD §5.6 status updated
+- [ ] Blocking review findings resolved; non-blocking ones answered on their threads and listed
+      under **Follow-ups** for one follow-up PR (`CLAUDE.md` §2.1); `roadmap.md` and PRD §5.6
+      status updated

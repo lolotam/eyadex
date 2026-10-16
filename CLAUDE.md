@@ -22,6 +22,10 @@
 > - **V1.1 (2026-10-06)** — §2.1: the orchestrator fixes review findings itself (max 5 rounds);
 >   the loop lives in `.claude/skills/eyadex-delivery-loop/SKILL.md`.
 > - **V1.2 (2026-10-13)** — §0.1: every reply to the owner is in Egyptian Arabic (owner rule).
+> - **V1.3 (2026-10-17)** — §2 and §2.1: small slices (about 3,000 changed lines, one story per
+>   PR), at most 3 review rounds, and only blocking findings hold a merge (owner decision after
+>   PR #78). Lovable's standing lessons live in `.lovable/review-lessons.md`.
+>   `CLAUDE.architecture.md` §9 follows the same rule.
 
 ## 0.1 Talking to the owner (binding, owner rule 2026-10-13)
 
@@ -64,7 +68,9 @@ swapping the mock adapter for an HTTP adapter must require no screen change.
 
 ## 2. Workflow — one vertical slice at a time
 
-1. Never implement a whole module. Implement **one slice** (e.g. "Users and invitations").
+1. Never implement a whole module. Implement **one slice** (e.g. "Users and invitations"): one
+   user story or one screen group, about 3,000 changed lines; above 5,000 lines or 100 files,
+   split it before starting.
 2. Order inside a slice: **contract (Zod) → SQL/migration + RLS policy → domain rules + tests →
    use case (Phase B) or mock adapter (Phase A) → UI → tests.**
 3. Do not touch modules outside the slice. If you must, say so and explain why.
@@ -77,9 +83,10 @@ swapping the mock adapter for an HTTP adapter must require no screen change.
 2. The **orchestrator agent** reviews locally: typecheck, lint (0 errors), tests, node-server
    build, and real-Chrome checks in Arabic + English at 1440px and 390px for every persona.
 3. A PR `lovable → main` is opened. **CI** (`.github/workflows/ci.yml`), **Codex**
-   (`@codex review` after every new commit), CodeRabbit and Socket must be clean. The
-   orchestrator verifies every finding and fixes the valid ones itself on `lovable` (at most 5
-   rounds per PR); the full loop is `.claude/skills/eyadex-delivery-loop/SKILL.md`.
+   (`@codex review` after every new commit), MergePilot, CodeRabbit and Socket review it. The
+   orchestrator verifies every finding and fixes the blocking ones itself on `lovable` (at most 3
+   rounds per PR); non-blocking findings go to one follow-up PR after the merge. The full loop,
+   with what counts as blocking, is `.claude/skills/eyadex-delivery-loop/SKILL.md`.
 4. Merge with a **merge commit** (never squash or rebase pushed history — it breaks Lovable's
    sync), then fast-forward `lovable` to `main`.
 5. `main` auto-deploys to Dokploy (eyadex.com, app., platform.).
