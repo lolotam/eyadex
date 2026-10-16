@@ -48,7 +48,7 @@ Multi-tenant clinic-management SaaS for every clinic specialty, Kuwait first. Ar
 - The last active clinic admin and the last active branch cannot be deactivated.
 - Subscription access needs a non-suspended status and a future expiry, decided by the server clock, never the device clock.
 - Every date shown or picked is a calendar day in the clinic's time zone.
-- Every administrative change and every patient-file open writes an append-only audit row. Civil ID, tokens and free text never go into audit values.
+- Every administrative change and every patient-file open writes an append-only audit row. Civil ID, tokens and secrets never go into audit values. Typed names and other allowed text go in only after `scrubAuditText` / `scrubAuditValue` from `@eyadex/observability/audit-text`, as the API does; leave out whatever the spec keeps out (for example a discount reason).
 - The platform area never shows patient data on any screen, list, log or export.
 
 ## Code rules
