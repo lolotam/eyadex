@@ -143,6 +143,7 @@ export const enFinance = {
       month: "Month",
       invoiced: "Invoiced",
       noTotals: "No invoices yet",
+      totalsError: "The totals could not be loaded",
     },
   },
 };

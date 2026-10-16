@@ -102,7 +102,11 @@ describe("issue", () => {
     const res = await issue(C.admin.cookie, manual([free("1000")]));
     expect(res.statusCode).toBe(201);
     expect(res.headers["etag"]).toBe('"1"');
-    expect((res.json() as Issued).invoice.number).toMatch(/^SLMD-2026-\d{6}$/);
+    // The clinic's year from the clock, not a literal: the test must not start failing on 1 January.
+    const year = new Intl.DateTimeFormat("en", { timeZone: "Asia/Kuwait", year: "numeric" }).format(
+      new Date(),
+    );
+    expect((res.json() as Issued).invoice.number).toMatch(new RegExp(`^SLMD-${year}-\\d{6}$`));
   });
 
   it("gives two concurrent issues in one branch consecutive numbers", async () => {

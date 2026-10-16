@@ -85,9 +85,14 @@ DO $$ BEGIN
   BEGIN PERFORM 1 FROM service_provider_prices; RAISE EXCEPTION 'FAIL: platform read provider prices';
   EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'ok: direct provider prices read refused'; END;
   BEGIN PERFORM finance_set_currency('00000000-0000-7000-8000-0000000f00a1', 'SAR'); RAISE EXCEPTION 'FAIL: A has invoices';
-  EXCEPTION WHEN raise_exception THEN RAISE NOTICE 'ok: % (clinic with invoices)', SQLERRM; END;
+  -- The function raises raise_exception too, so the check re-raises its own FAIL instead of passing it.
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM LIKE 'FAIL:%' THEN RAISE; END IF;
+    RAISE NOTICE 'ok: % (clinic with invoices)', SQLERRM; END;
   BEGIN PERFORM finance_set_currency('00000000-0000-7000-8000-0000000f00b1', 'XXX'); RAISE EXCEPTION 'FAIL: bad code';
-  EXCEPTION WHEN raise_exception THEN RAISE NOTICE 'ok: % (unsupported code)', SQLERRM; END;
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM LIKE 'FAIL:%' THEN RAISE; END IF;
+    RAISE NOTICE 'ok: % (unsupported code)', SQLERRM; END;
 END $$;
 RESET ROLE;
 -- clinic C: no price, no invoice -> the platform may change its currency through the function

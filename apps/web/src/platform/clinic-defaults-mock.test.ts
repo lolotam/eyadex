@@ -131,4 +131,14 @@ describe("a new clinic keeps the form's limits and modules", () => {
     });
     expect(getState()).toEqual(before);
   });
+
+  // PR #78 review: the finance fields were checked after the clinic was pushed into the store.
+  it("NEGATIVE: an unsupported currency creates no clinic", async () => {
+    const count = getState().clinics.length;
+    const bad = { ...clinic({ slug: "bad-currency" }), currency: "XXX" } as CreateClinicInput;
+    await expect(
+      api.platform.createClinic(PLATFORM, bad, crypto.randomUUID()),
+    ).rejects.toBeDefined();
+    expect(getState().clinics.length).toBe(count);
+  });
 });

@@ -27,16 +27,16 @@ export function useInvoicePrefixes(allowed: boolean) {
   });
 }
 
-/** The clinic logo as an object URL, or null when there is none yet. */
+/**
+ * The clinic logo file, or null when there is none yet. The cache keeps the Blob, not an object URL:
+ * a URL made here would outlive every refetch, so the component makes and revokes it (PR #78 review).
+ */
 export function useClinicLogo(hasLogo: boolean) {
   const api = useApi();
   const { persona, enabled } = useFinanceOn();
   return useQuery({
     queryKey: [...financeSettingsKey, "logo", persona.clinicId, hasLogo],
-    queryFn: async () => {
-      const blob = await api.finance.logo(persona);
-      return blob ? URL.createObjectURL(blob) : null;
-    },
+    queryFn: () => api.finance.logo(persona),
     enabled: enabled && hasLogo,
     retry,
     staleTime: Infinity,

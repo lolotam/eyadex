@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Invoice } from "@eyadex/contracts/finance";
 import { I18nProvider } from "@/shared/i18n/i18n-provider";
@@ -12,7 +12,13 @@ const state = vi.hoisted(() => ({ invoice: null as unknown }));
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children }: { children: React.ReactNode }) => <a href="#invoices">{children}</a>,
 }));
-vi.mock("@/shared/api/api-provider", () => ({ useApi: () => ({ finance: {} }) }));
+vi.mock("@/shared/api/api-provider", () => ({
+  useApi: () => ({ finance: { pdf: async () => new Blob(["%PDF"], { type: "application/pdf" }) } }),
+}));
+// The form shows which version it would save against, the one thing this page decides for it.
+vi.mock("./invoice-form", () => ({
+  InvoiceForm: ({ editing }: { editing: Invoice }) => <p>{`editing version ${editing.version}`}</p>,
+}));
 vi.mock("@/shared/persona/persona-provider", () => ({
   usePersona: () => ({
     persona: { kind: "clinic_admin", clinicId: "c", memberId: null },
@@ -59,15 +65,17 @@ const invoiceAt = (branchId: string): Invoice => ({
   version: 1,
 });
 
+const page = () => (
+  <QueryClientProvider client={new QueryClient()}>
+    <I18nProvider manageDocument={false}>
+      <InvoicePage invoiceId="00000000-0000-7000-8000-000000000001" />
+    </I18nProvider>
+  </QueryClientProvider>
+);
+
 function show(branchId: string) {
   state.invoice = invoiceAt(branchId);
-  render(
-    <QueryClientProvider client={new QueryClient()}>
-      <I18nProvider manageDocument={false}>
-        <InvoicePage invoiceId="00000000-0000-7000-8000-000000000001" />
-      </I18nProvider>
-    </QueryClientProvider>,
-  );
+  return render(page());
 }
 
 afterEach(cleanup);
@@ -86,5 +94,38 @@ describe("the invoice page's actions", () => {
     expect(screen.queryByRole("button", { name: "تعديل" })).toBeNull();
     expect(screen.queryByRole("button", { name: "إلغاء الفاتورة" })).toBeNull();
     expect(screen.getByRole("button", { name: "إرسال" })).toBeTruthy();
+  });
+});
+
+// PR #78 review: a background refetch while the edit dialog is open must not hand the form a newer
+// version than the lines it shows; the form keeps the invoice as it was when «تعديل» was pressed.
+describe("the edit dialog", () => {
+  it("keeps the version it opened with when the invoice is refetched", async () => {
+    const view = show(OWN);
+    fireEvent.click(screen.getByRole("button", { name: "تعديل" }));
+    expect(await screen.findByText("editing version 1")).toBeTruthy();
+    state.invoice = { ...invoiceAt(OWN), version: 2 };
+    view.rerender(page());
+    expect(screen.getByText("editing version 1")).toBeTruthy();
+  });
+});
+
+// PR #78 review: every PDF press made an object URL that lived as long as the tab.
+describe("the PDF button", () => {
+  it("opens the file and lets go of its object URL after a minute", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const made = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:invoice");
+    const revoked = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
+    const opened = vi.spyOn(window, "open").mockReturnValue(null);
+    show(OWN);
+    fireEvent.click(screen.getByRole("button", { name: "PDF / طباعة" }));
+    await waitFor(() => expect(opened).toHaveBeenCalledWith("blob:invoice", "_blank", "noopener"));
+    expect(revoked).not.toHaveBeenCalled();
+    await act(() => vi.advanceTimersByTimeAsync(60_000));
+    expect(revoked).toHaveBeenCalledWith("blob:invoice");
+    made.mockRestore();
+    revoked.mockRestore();
+    opened.mockRestore();
+    vi.useRealTimers();
   });
 });

@@ -89,3 +89,32 @@ describe("an issue racing a cancel of its appointment", () => {
     expect([res.statusCode, code(res)]).toEqual([409, "appointment_not_billable"]);
   });
 });
+
+// PR #78 review (spec §8 rule 9): a prefix change that waits for a branch's first issue must see that
+// issue once it commits. The issue holds the branch row without changing it, so the change judges
+// "locked" in a statement taken after its own lock, not in the locking statement's older snapshot.
+describe("a prefix change racing the branch's first issue", () => {
+  it("waits for the issue and answers invoice_prefix_locked", async () => {
+    await h.owner`UPDATE branches SET invoice_prefix = 'RACEX' WHERE id = ${C.branchX}`;
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    let locked!: () => void;
+    const taken = new Promise<void>((resolve) => (locked = resolve));
+    const firstIssue = h.owner.begin(async (sql) => {
+      await sql`SELECT id FROM branches WHERE clinic_id = ${C.clinicId} AND id = ${C.branchX} FOR SHARE`;
+      await sql`INSERT INTO used_invoice_prefixes (clinic_id, id, prefix, branch_id, created_at)
+                VALUES (${C.clinicId}, ${randomUUID()}, 'RACEX', ${C.branchX}, now())`;
+      locked();
+      await held;
+    });
+    await taken;
+    const changing = send(h, C.admin.cookie, "PUT", `/v1/invoice-prefixes/${C.branchX}`, {
+      invoicePrefix: "RACEY",
+    });
+    await rowLockWaiters(1);
+    release();
+    await firstIssue;
+    const res = await changing;
+    expect([res.statusCode, code(res)]).toEqual([409, "invoice_prefix_locked"]);
+  });
+});

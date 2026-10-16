@@ -65,14 +65,36 @@ export const carriesDiscount = (
   invoiceDiscount: DiscountInput | null,
 ): boolean => invoiceDiscount !== null || lines.some((l) => l.discount !== null);
 
-/** Every discount's place, kind, value and reason (R1-14): a change needs `create:discounts`. */
+type DiscountedLine = {
+  kind: string;
+  serviceId?: string | null;
+  providerId?: string | null;
+  quantity: number;
+  unitPriceMinor: string;
+  discount: DiscountInput | null;
+};
+
+/**
+ * Every discount's kind, value and reason with the line it sits on (R1-14): a change needs
+ * `create:discounts`. As the API, an undiscounted line is not part of it, so adding or removing one
+ * needs no discount key.
+ */
 export function discountsKey(
-  lines: readonly { discount: DiscountInput | null }[],
+  lines: readonly DiscountedLine[],
   invoiceDiscount: DiscountInput | null,
 ): string {
   const one = (d: DiscountInput | null) =>
     d === null ? "-" : d.kind === "pct" ? `p:${d.bp}:${d.reason}` : `a:${d.minor}:${d.reason}`;
-  return [one(invoiceDiscount), ...lines.map((l) => one(l.discount))].join("|");
+  const onLine = (l: DiscountedLine) =>
+    [
+      l.kind,
+      l.serviceId ?? "-",
+      l.providerId ?? "-",
+      l.quantity,
+      l.unitPriceMinor,
+      one(l.discount),
+    ].join(":");
+  return [one(invoiceDiscount), ...lines.filter((l) => l.discount !== null).map(onLine)].join("|");
 }
 
 /** The stored lines: service lines copy the service's names, totals come from the helper. */

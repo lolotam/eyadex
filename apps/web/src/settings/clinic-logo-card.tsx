@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { ImageIcon, Upload } from "lucide-react";
 import { toast } from "sonner";
@@ -18,6 +18,7 @@ export function ClinicLogoCard({ hasLogo, editable }: { hasLogo: boolean; editab
   const { persona } = usePersona();
   const refresh = useRefreshFinanceSettings();
   const logo = useClinicLogo(hasLogo);
+  const logoUrl = useObjectUrl(logo.data ?? null);
   const input = useRef<HTMLInputElement>(null);
   const upload = useMutation({
     mutationFn: (file: File) => api.finance.uploadLogo(persona, file),
@@ -35,9 +36,9 @@ export function ClinicLogoCard({ hasLogo, editable }: { hasLogo: boolean; editab
       </CardHeader>
       <CardContent className="flex flex-wrap items-center gap-4">
         <div className="flex size-24 items-center justify-center overflow-hidden rounded-md border bg-muted/40">
-          {logo.data ? (
+          {logoUrl ? (
             <img
-              src={logo.data}
+              src={logoUrl}
               alt={t("finance.settings.logo")}
               className="max-h-full max-w-full object-contain"
             />
@@ -78,4 +79,19 @@ export function ClinicLogoCard({ hasLogo, editable }: { hasLogo: boolean; editab
       </CardContent>
     </Card>
   );
+}
+
+/** An object URL for the file while it is shown, revoked when the file changes or the card unmounts. */
+function useObjectUrl(file: Blob | null): string | null {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!file) {
+      setUrl(null);
+      return;
+    }
+    const made = URL.createObjectURL(file);
+    setUrl(made);
+    return () => URL.revokeObjectURL(made);
+  }, [file]);
+  return url;
 }

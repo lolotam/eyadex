@@ -1,14 +1,20 @@
 import { useQuery } from "@tanstack/react-query";
 import { ApiError } from "@/shared/api/api-error";
 import { useApi } from "@/shared/api/api-provider";
-import { usePersona } from "@/shared/persona/persona-provider";
+import { canAtBranch } from "@/shared/permissions/can-at-branch";
+import { usePersona, useSession } from "@/shared/persona/persona-provider";
 
 const retry = (count: number, error: unknown) => !(error instanceof ApiError) && count < 2;
 
-/** The option lists the invoice form and filters pick from: services, doctors, branches, patients. */
+/**
+ * The option lists the invoice form and filters pick from: services, doctors, branches, patients. The
+ * form's branches are the ones the caller's `create:invoices` reaches, as the API judges an issue; the
+ * list filter keeps every branch whose patients the caller sees.
+ */
 export function useInvoiceOptions() {
   const api = useApi();
   const { persona, ready } = usePersona();
+  const { session } = useSession();
   const enabled = ready && Boolean(persona.clinicId);
   const services = useQuery({
     queryKey: ["clinic", "invoice-options", "services", persona.memberId],
@@ -29,10 +35,14 @@ export function useInvoiceOptions() {
     enabled,
     retry,
   });
+  const all = branches.data ?? [];
   return {
     services: services.data?.items ?? [],
     providers: providers.data ?? [],
-    branches: branches.data ?? [],
+    branches: all,
+    createBranches: session
+      ? all.filter((b) => canAtBranch(session, "create", "invoices", b.id))
+      : [],
   };
 }
 

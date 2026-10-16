@@ -87,7 +87,7 @@ export function AppointmentActions({ appointment, canUpdate, onReschedule, onCan
             {t("messageHistory.title")}
           </DropdownMenuItem>
           {isBillable(appointment.status) && (
-            <InvoiceSourceMenuItem appointmentId={appointment.id} />
+            <InvoiceSourceMenuItem appointmentId={appointment.id} branchId={appointment.branchId} />
           )}
           {cancellable && (
             <>

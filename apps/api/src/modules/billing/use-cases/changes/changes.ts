@@ -30,16 +30,36 @@ export interface ChangeDeps {
 
 type DiscountLike = Invoice["invoiceDiscount"] | UpdateInvoiceRequest["invoiceDiscount"];
 
-// R1-14: what the discount key guards — every discount's place, kind, value and reason. Built field by
-// field, since jsonb gives the stored discount back with its keys in another order.
+interface DiscountedLine {
+  readonly kind: string;
+  readonly serviceId?: string | null;
+  readonly providerId?: string | null;
+  readonly quantity: number;
+  readonly unitPriceMinor: string;
+  readonly discount: DiscountLike;
+}
+
+// R1-14: what the discount key guards — every discount's kind, value and reason, with the line it sits
+// on, so it can neither change nor move. An undiscounted line is not part of it: adding or removing one
+// needs no discount key (PR #78 review). Built field by field, since jsonb gives the stored discount back
+// with its keys in another order.
 const canonical = (d: DiscountLike) =>
   d === null ? null : [d.kind, d.kind === "pct" ? d.bp : d.minor, d.reason];
 const discountsOf = (invoice: {
-  readonly lines: readonly { readonly discount: DiscountLike }[];
+  readonly lines: readonly DiscountedLine[];
   readonly invoiceDiscount: DiscountLike;
 }) =>
   JSON.stringify([
-    invoice.lines.map((line) => canonical(line.discount)),
+    invoice.lines
+      .filter((line) => line.discount !== null)
+      .map((l) => [
+        l.kind,
+        l.serviceId ?? null,
+        l.providerId ?? null,
+        l.quantity,
+        l.unitPriceMinor,
+        canonical(l.discount),
+      ]),
     canonical(invoice.invoiceDiscount),
   ]);
 

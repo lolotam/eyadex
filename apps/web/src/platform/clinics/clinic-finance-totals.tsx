@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { formatMinor, SUPPORTED_CURRENCIES } from "@eyadex/contracts/money";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useApi } from "@/shared/api/api-provider";
 import { useI18n } from "@/shared/i18n/i18n-provider";
@@ -24,6 +25,14 @@ export function ClinicFinanceTotals({ clinicId }: { clinicId: string }) {
       <CardContent>
         {query.isLoading ? (
           <LoadingBlock />
+        ) : query.isError ? (
+          // A failed read is not "no invoices": say so and offer the retry (PR #78 review).
+          <div role="alert" className="flex flex-wrap items-center gap-3 text-sm">
+            <span className="text-destructive">{t("finance.platform.totalsError")}</span>
+            <Button variant="outline" size="sm" onClick={() => void query.refetch()}>
+              {t("common.retry")}
+            </Button>
+          </div>
         ) : months.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t("finance.platform.noTotals")}</p>
         ) : (

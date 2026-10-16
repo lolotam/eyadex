@@ -125,7 +125,7 @@ export function InvoiceForm(p: Props) {
                 <SelectValue placeholder={t("finance.invoice.pickBranch")} />
               </SelectTrigger>
               <SelectContent>
-                {options.branches
+                {options.createBranches
                   .filter((b) => b.isActive)
                   .map((b) => (
                     <SelectItem key={b.id} value={b.id}>

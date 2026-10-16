@@ -72,6 +72,9 @@ export async function listPrefixes(tx: Tx, clinicId: string): Promise<InvoicePre
 
 /**
  * The branch row locked FOR UPDATE, so a prefix change and an issue in the branch never interleave.
+ * Whether the prefix is locked is read by a second statement, after the lock: a first issue holds the
+ * row FOR SHARE without changing it, so the locking statement would keep the snapshot it took before
+ * that issue committed and miss its invoice (PR #78 review).
  *
  * @returns the branch's prefix item, or null when it is no branch of the clinic
  */
@@ -80,13 +83,16 @@ export async function lockBranchPrefix(
   clinicId: string,
   branchId: string,
 ): Promise<InvoicePrefixItem | null> {
-  const [row] = await tx.execute<{ invoice_prefix: string | null; locked: boolean }>(
-    sql`SELECT b.invoice_prefix, ${LOCKED} AS locked FROM branches b
-        WHERE b.clinic_id = ${clinicId} AND b.id = ${branchId} FOR UPDATE`,
+  const [row] = await tx.execute<{ invoice_prefix: string | null }>(
+    sql`SELECT invoice_prefix FROM branches
+        WHERE clinic_id = ${clinicId} AND id = ${branchId} FOR UPDATE`,
   );
-  return row === undefined
-    ? null
-    : { branchId, invoicePrefix: row.invoice_prefix, locked: row.locked };
+  if (row === undefined) return null;
+  const [state] = await tx.execute<{ locked: boolean }>(
+    sql`SELECT ${LOCKED} AS locked FROM branches b
+        WHERE b.clinic_id = ${clinicId} AND b.id = ${branchId}`,
+  );
+  return { branchId, invoicePrefix: row.invoice_prefix, locked: state!.locked };
 }
 
 /** Another branch of the clinic holds or once used this prefix. */

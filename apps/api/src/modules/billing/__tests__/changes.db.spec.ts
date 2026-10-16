@@ -141,6 +141,26 @@ describe("discounts on edit (R1-14)", () => {
     const res = await edit(C.desk.cookie, invoice.id, [free("1000", pct(1000, "loyalty"))], '"1"');
     expect(res.statusCode).toBe(403);
   });
+
+  // PR #78 review: an undiscounted line is not a discount; the desk adds and removes one freely.
+  it("lets the desk add and remove an undiscounted line without the discount key", async () => {
+    const invoice = await issued(C.branchR, [free("1000")]);
+    const added = await edit(C.desk.cookie, invoice.id, [free("1000"), free("200")], '"1"');
+    expect(added.statusCode).toBe(200);
+    const removed = await edit(C.desk.cookie, invoice.id, [free("1000")], '"2"');
+    expect(removed.statusCode).toBe(200);
+  });
+
+  it("refuses the desk a discount moved onto another line", async () => {
+    const invoice = await issued(C.branchR, [free("1000", pct(1000)), free("5000")]);
+    const res = await edit(
+      C.desk.cookie,
+      invoice.id,
+      [free("1000"), free("5000", pct(1000))],
+      '"1"',
+    );
+    expect(res.statusCode).toBe(403);
+  });
 });
 
 describe("void (FIN-8)", () => {

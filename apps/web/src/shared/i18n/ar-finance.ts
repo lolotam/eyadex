@@ -144,6 +144,7 @@ export const arFinance: Strings<typeof enFinance> = {
       month: "الشهر",
       invoiced: "الإجمالي",
       noTotals: "لا توجد فواتير بعد",
+      totalsError: "تعذّر تحميل الإجماليات",
     },
   },
 };

@@ -52,7 +52,9 @@ function InvoiceContent({ invoiceId }: { invoiceId: string }) {
   const { session } = useSession();
   const refresh = useRefreshInvoices();
   const query = useInvoice(invoiceId);
-  const [editing, setEditing] = useState(false);
+  // The invoice as it was when «تعديل» was pressed: a background refetch must not hand the form a newer
+  // version than the lines it shows, or a save would overwrite another user's edit (PR #78 review).
+  const [editing, setEditing] = useState<Invoice | null>(null);
   const [voiding, setVoiding] = useState(false);
   const [reason, setReason] = useState("");
   // The PDF may be unavailable (503 until the server renderer ships): shown in place, page stays usable.
@@ -85,7 +87,12 @@ function InvoiceContent({ invoiceId }: { invoiceId: string }) {
   const pdf = useMutation({
     mutationFn: () => api.finance.pdf(persona, invoiceId),
     onMutate: () => setPdfError(null),
-    onSuccess: (blob) => window.open(URL.createObjectURL(blob), "_blank", "noopener"),
+    onSuccess: (blob) => {
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener");
+      // The opened tab keeps its own reference; this page lets go of the file after a minute.
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    },
     onError: (e) => setPdfError(tDynamic(`errors.${errorCodeOf(e)}`)),
   });
 
@@ -155,7 +162,7 @@ function InvoiceContent({ invoiceId }: { invoiceId: string }) {
               </DropdownMenu>
             )}
             {live && mayAt("update", "invoices") && (
-              <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+              <Button variant="outline" size="sm" onClick={() => setEditing(inv)}>
                 <Pencil className="size-4" />
                 {t("finance.detail.edit")}
               </Button>
@@ -230,25 +237,25 @@ function InvoiceContent({ invoiceId }: { invoiceId: string }) {
         </p>
       )}
       <InvoiceTotalsPanel totals={inv} taxRateBp={inv.taxRateBp} format={format} />
-      <Dialog open={editing} onOpenChange={setEditing}>
+      <Dialog open={editing !== null} onOpenChange={(open) => !open && setEditing(null)}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{t("finance.invoice.editTitle", { number: inv.number })}</DialogTitle>
           </DialogHeader>
           {editing && (
             <InvoiceForm
-              initial={valuesFromInvoice(inv, inv.currencyExponent)}
+              initial={valuesFromInvoice(editing, editing.currencyExponent)}
               source={null}
-              editing={inv}
+              editing={editing}
               mayDiscount={mayAt("create", "discounts")}
               priceMissing={false}
               onReload={() => {
-                setEditing(false);
+                setEditing(null);
                 void query.refetch();
               }}
               onDone={() => {
                 refresh();
-                setEditing(false);
+                setEditing(null);
                 toast.success(t("finance.invoice.saved"));
               }}
             />

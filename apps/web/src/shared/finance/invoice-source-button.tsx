@@ -8,12 +8,14 @@ import { useSourceInvoiceLink } from "./use-source-invoice-link";
 export function InvoiceSourceButton({
   source,
   id,
+  branchId,
 }: {
   source: "appointment" | "visit";
   id: string;
+  branchId: string;
 }) {
   const { t } = useI18n();
-  const link = useSourceInvoiceLink(source, id);
+  const link = useSourceInvoiceLink({ kind: source, id, branchId });
   if (!link) return null;
   return (
     <Button variant="outline" size="sm" asChild>

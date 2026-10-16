@@ -77,7 +77,9 @@ export function VisitContent({ visitId }: { visitId: string }) {
           <div className="flex flex-wrap items-center gap-2">
             <VisitStatusBadge status={visit.status} />
             <VisitActions detail={d} settleSaves={settleSaves} />
-            {visit.status !== "cancelled" && <InvoiceSourceButton source="visit" id={visit.id} />}
+            {visit.status !== "cancelled" && (
+              <InvoiceSourceButton source="visit" id={visit.id} branchId={visit.branchId} />
+            )}
           </div>
         }
       />

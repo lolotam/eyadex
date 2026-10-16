@@ -7,10 +7,16 @@ import { useSourceInvoiceLink } from "./use-source-invoice-link";
  * The appointment menu's «فاتورة» entry (F1 §3). It mounts only while the menu is open, so the
  * calendar asks for one appointment's invoice at a time, never for every block.
  */
-export function InvoiceSourceMenuItem({ appointmentId }: { appointmentId: string }) {
+export function InvoiceSourceMenuItem({
+  appointmentId,
+  branchId,
+}: {
+  appointmentId: string;
+  branchId: string;
+}) {
   const { t } = useI18n();
   const navigate = useNavigate();
-  const link = useSourceInvoiceLink("appointment", appointmentId);
+  const link = useSourceInvoiceLink({ kind: "appointment", id: appointmentId, branchId });
   if (!link) return null;
   return (
     <DropdownMenuItem
