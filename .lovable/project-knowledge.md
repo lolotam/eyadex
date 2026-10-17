@@ -25,7 +25,7 @@ Multi-tenant clinic-management SaaS for every clinic specialty, Kuwait first. Ar
 - In progress: finance F1 (service prices and invoices) is on branch `lovable` and reaches `main` with PR #78. Build on it only when the brief says so.
 - The web talks to data only through the `ApiClient` interface via `useApi()`. `VITE_API_MODE` picks the in-memory mock (default; preview and tests) or the HTTP adapter (production). Screens never import an adapter.
 - The mock must behave exactly like the API: same checks, same check order, same errors, same audit rows. See review-lessons §2.
-- Change only `apps/web` and its tests unless the brief says otherwise. Never touch `apps/api`, `apps/worker`, `packages/*` (contracts included) or `db/sql`; if a screen needs a contract change, ask for it in your plan.
+- Change only `apps/web` and its tests unless the brief says otherwise. The only other files you may edit are your own: the "Quick rules (Lovable-maintained)" section of `AGENTS.md`, your plan files under `.lovable/plan/`, and `roadmap.md`. Never touch `apps/api`, `apps/worker`, `packages/*` (contracts included) or `db/sql`; if a screen needs a contract change, ask for it in your plan.
 
 ## Hard limits (stop and ask if a request would break one)
 

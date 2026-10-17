@@ -26,6 +26,9 @@
 >   PR), at most 3 review rounds, and only blocking findings hold a merge (owner decision after
 >   PR #78). Lovable's standing lessons live in `.lovable/review-lessons.md`.
 >   `CLAUDE.architecture.md` §9 follows the same rule.
+> - **V1.4 (2026-10-17)** — §1 and §3 describe Phase B as it is today (API, worker and
+>   `packages/db` exist; `VITE_API_MODE` picks mock or HTTP; `db/sql` stays the only way to change
+>   a database), keeping the web hard limits. Follow-up to PR #79.
 
 ## 0.1 Talking to the owner (binding, owner rule 2026-10-13)
 
@@ -57,14 +60,16 @@ developer + AI agents.
 
 ## 1. Phases — know which one you are in
 
-| Phase        | Where                                           | What exists                                                                                                                                                                      |
-| ------------ | ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **A (now)**  | `apps/web`, edited by Lovable + reviewed agents | TanStack Start frontend, typed `ApiClient` with an in-memory mock adapter, Zod contracts in `packages/contracts`, SQL baseline in `/db/sql`                                      |
-| **B (next)** | pnpm monorepo from the PosPay foundation        | the workspace foundation (`apps/web`, `packages/contracts`, `packages/config`) exists; still to come: `apps/api` + `apps/worker` (NestJS on Fastify) and `packages/db` (Drizzle) |
+| Phase       | Where                                    | What exists                                                                                                                                                                                                                                              |
+| ----------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A (done)    | `apps/web`                               | the TanStack Start frontend against an in-memory mock adapter, Zod contracts in `packages/contracts`, the SQL baseline in `db/sql`                                                                                                                       |
+| **B (now)** | pnpm monorepo from the PosPay foundation | `apps/web` (Lovable's part, reviewed by agents), `apps/api` + `apps/worker` (NestJS on Fastify), `packages/*` (`auth`, `config`, `contracts`, `db`, `ids`, `observability`, `secrets`), `db/sql` + `db/migrate.sh` (PostgreSQL 18, forced RLS; ADR-0024) |
 
-Phase A hard limits: **no Lovable Cloud, no Supabase, no database access from the frontend, no
-server functions with business logic.** All data goes through the single `ApiClient` interface;
-swapping the mock adapter for an HTTP adapter must require no screen change.
+The web picks its data source at build time with `VITE_API_MODE`: the in-memory mock (the
+default; Lovable's preview and the tests) or the HTTP adapter against `apps/api`. Web hard limits,
+still binding: **no Lovable Cloud, no Supabase, no database access from the frontend, no server
+functions with business logic.** All data goes through the single `ApiClient` interface; screens
+never import an adapter, so switching between mock and HTTP requires no screen change.
 
 ## 2. Workflow — one vertical slice at a time
 
@@ -102,7 +107,7 @@ packages/config/     shared TypeScript + ESLint presets (@eyadex/config)
 packages/ids/        UUID v7 with injected time + entropy (@eyadex/ids)
 packages/observability/ pino options + the redaction list + the request context (@eyadex/observability)
 packages/db/        the only path to PostgreSQL: withTenant/withNewTenant/withNoTenant (@eyadex/db)
-db/sql/              SQL baseline applied to production (→ Drizzle schema + migrations in Phase B)
+db/sql/              SQL baseline applied to production; the only way to change a database (ADR-0024)
 docs/                PRD, ADRs, specs
 docker/              compose init scripts (postgres roles)
 .lovable/            Lovable project metadata + plan specs for the whole repo

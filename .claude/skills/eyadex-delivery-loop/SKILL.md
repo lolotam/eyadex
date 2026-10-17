@@ -19,7 +19,7 @@ The owner set this loop on 2026-10-06 and tightened it on 2026-10-17 (small slic
    - Project id: `9e7608f6-156f-498e-b16f-25bd02b66925` (workspace `35ed546d57713f3e7a5c`).
    - The brief to Lovable is **web only** unless the owner says otherwise: the sub-slice's contract, SQL and API are already on `lovable`, written by the orchestrator (or Codex) under the backend rules below.
    - Prompt sections, in this order: **Read first** (files, ADRs, PRD sections, the API endpoints it calls), **Scope** (numbered screens and mock methods), **Tests** (vitest against the mock for every rule the screens rely on, each failing with its guard removed), **Hard rules**:
-     - change only `apps/web` and its tests; never `apps/api`, `apps/worker`, `packages/*` (contracts included) or `db/sql`. A contract the screens need is asked for in the plan, and the orchestrator adds it;
+     - change only `apps/web` and its tests, plus Lovable's own files: the "Quick rules (Lovable-maintained)" section of `AGENTS.md`, `.lovable/plan/` and `roadmap.md`; never `apps/api`, `apps/worker`, `packages/*` (contracts included) or `db/sql`. A contract the screens need is asked for in the plan, and the orchestrator adds it;
      - the mock mirrors the API already on `lovable`, check for check;
      - no lockfile change;
      - max 300 lines per file;

@@ -37,7 +37,7 @@ When reviewing a pull request, report only real defects, ranked by severity. Che
 ## Quick rules (Lovable-maintained)
 
 - The product brand is `Eyadex` in both languages and its domain is `eyadex.com`; `clinic` remains the business-domain term in code and URLs.
-- Frontend only: no Lovable Cloud, no database, no server functions with business logic — a separate backend API comes later.
+- Lovable's part is frontend only (`apps/web`): no Lovable Cloud, no Supabase, no database access, no server functions with business logic. The backend exists (`apps/api` + `apps/worker`, NestJS on Fastify; `packages/db`) and belongs to the orchestrator.
 - All data goes through the `ApiClient` interface (`apps/web/src/shared/api/api-client.ts`) via `useApi()`; screens never import an adapter; build-time `VITE_API_MODE` (default `mock`) picks mock or HTTP (`shared/api/http/`, API-schema `safeParse`) — preview and tests keep the mock.
 - Zod schemas in `packages/contracts` (alias `@eyadex/contracts/*`) are the single source of types for forms and the API client.
 - Folders are named after the business (`apps/web/src/platform`, `branches`, `users`, `roles`, `patients`, `audit`, `settings`, `shared`); never `utils/helpers/common/misc/services/models` — keeps the domain readable.
@@ -45,7 +45,7 @@ When reviewing a pull request, report only real defects, ranked by severity. Che
 - UI visibility is driven by permission strings `action:resource:scope` via `can()`, never by role names — roles are user-editable.
 - All UI text goes through i18n keys (`apps/web/src/shared/i18n`); use logical CSS (ps/pe/ms/me/start/end) only — Arabic RTL is the default.
 - Browser storage (persona, language, mock DB) is read in effects only — avoids SSR hydration mismatches.
-- `db/sql/*.sql` is the SQL baseline applied to the production database (2026-10-03); every schema change adds or edits a file here in the same PR, and is applied by the orchestrator after review. Phase B replaces it with Drizzle migrations starting from this state.
+- `db/sql/*.sql` is the SQL baseline applied to the production database (2026-10-03); every schema change adds a new numbered file here in the same PR (applied files are never edited), and is applied by the orchestrator after review. It stays the only way to change a database: drizzle-kit is inspection only (ADR-0024).
 - One component per file, max 300 lines per file.
 - The visual system uses flat clinical surfaces, compact 8px-or-less radii, thin borders, and semantic tokens; deep teal is reserved for actions, active states, and focus — keeping dense administration screens calm and scannable.
 - Marketing site (/ and /en, apps/web/src/marketing, scoped .mk styles): follow .lovable/plan/marketing-landing.md.
