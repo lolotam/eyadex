@@ -193,8 +193,12 @@ Grants are the platform-privacy guarantee: `eyadex_platform` has **no** privileg
 ## 7. Enforcement
 
 - CI: typecheck, lint (prettier + eslint), vitest, node-server build (`.github/workflows/ci.yml`).
-- Phase B adds: eslint-plugin-boundaries (import matrix), cycle check, module-map check,
-  jsdoc coverage on `domain/` and `ports/`, RLS negative tests, guard-coverage test.
+- Phase B today: import rules are tests, not a lint plugin —
+  `apps/api/src/shared/__tests__/module-boundaries.spec.ts` (module arrows, SQL ownership) and
+  `apps/web/src/shared/area-boundaries.test.ts` (area to area); the web adapter rule (§1.1) is
+  checked in review. RLS and grant negative tests run in the CI `db` job (`db/tests/*.sql`).
+- Planned, not in CI yet: eslint-plugin-boundaries (import matrix), cycle check, module-map
+  check, jsdoc coverage on `domain/` and `ports/`, guard-coverage test.
 
 ## 8. Review priorities (for Codex and every reviewer)
 
