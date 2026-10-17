@@ -126,7 +126,8 @@ Any module may use identity's access guards and request types through `identity/
   `UserDeactivated`, `RolePermissionsChanged`, `PatientRegistered`.
 - The one synchronous cross-module write: creating a clinic together with its first admin, in
   one transaction (`withNewTenant`).
-- **A new arrow requires updating this table and an ADR.** A cycle fails CI.
+- **A new arrow requires updating this table and an ADR.** A cycle is rejected in review until the
+  cycle check of §7 lands; `module-boundaries.spec.ts` catches only the arrows it names.
 
 ### 2.3 Where logic goes
 
@@ -194,7 +195,8 @@ Grants are the platform-privacy guarantee: `eyadex_platform` has **no** privileg
 
 - CI: typecheck, lint (prettier + eslint), vitest, node-server build (`.github/workflows/ci.yml`).
 - Phase B today: import rules are tests, not a lint plugin —
-  `apps/api/src/shared/__tests__/module-boundaries.spec.ts` (module arrows, SQL ownership) and
+  `apps/api/src/shared/__tests__/module-boundaries.spec.ts` (the specific arrows and SQL relations
+  it names; the rest of the §2.2 table is checked in review) and
   `apps/web/src/shared/area-boundaries.test.ts` (area to area); the web adapter rule (§1.1) is
   checked in review. RLS and grant negative tests run in the CI `db` job (`db/tests/*.sql`).
 - Planned, not in CI yet: eslint-plugin-boundaries (import matrix), cycle check, module-map
