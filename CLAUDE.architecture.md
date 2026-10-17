@@ -4,7 +4,8 @@
 > This file answers one question: **where does a line of code go, and what may it import?**
 > On conflict, this file wins for structure and dependency direction.
 >
-> **Version:** A1.0 — 2026-10-03, adapted from PosPay A1.0.
+> **Version:** A1.1 — 2026-10-17: §1–2 describe Phase B as it is today (web with mock and HTTP
+> adapters, API, worker, `packages/*`). A1.0 — 2026-10-03, adapted from PosPay A1.0.
 
 ---
 
@@ -17,21 +18,27 @@
 2. **قواعد البيزنس دوال صافية.** هل العيادة مسموح لها بالدخول؟ هل ينفع نعطّل آخر أدمن؟ حساب
    تاريخ الانتهاء من مدة؟ دي دوال من غير داتابيز، بتتختبر في ميلي ثانية.
 3. **كل use case في فولدر لوحده** (Phase B): `invite-user/`, `register-patient/`.
-4. **الحدود بالـ interfaces:** الواجهة بتتكلم مع `ApiClient` بس، والـ mock النهارده والـ HTTP بكرة
-   بينفذوه — تغيير ملف واحد مش إعادة كتابة.
+4. **الحدود بالـ interfaces:** الواجهة بتتكلم مع `ApiClient` بس، والـ mock والـ HTTP الاتنين
+   بينفذوه و`VITE_API_MODE` بيختار بينهم — تغيير ملف واحد مش إعادة كتابة.
 5. **ممنوع الاعتمادية الدائرية:** `patients` ما يستوردش `identity`. محتاج حاجة؟ port أو event.
 6. **العزل من الداتابيز نفسها:** كل جدول عيادة عليه RLS مفروض، والمنصة ما عندهاش أي صلاحية على
    جدول المراجعين. الواجهة بتخفي الزرار، لكن الحماية الحقيقية في السيرفر والداتابيز.
 
 ---
 
-## 1. Phase A — the web app (`apps/web`, this repo today)
+## 1. The web app (`apps/web`)
+
+Phase A built it against the mock; in Phase B the same screens also run against `apps/api`.
+`VITE_API_MODE` picks the adapter at build time (`shared/api/api-mode.ts`): the in-memory mock (the
+default; Lovable's preview and the tests) or the HTTP adapter. The web hard limits of `CLAUDE.md` §1
+still bind.
 
 ```
 apps/web/src/<business-area>/   one folder per area: page components, dialogs, columns, queries hooks
-apps/web/src/shared/api/        ApiClient interface + api-error + provider   (the boundary)
+apps/web/src/shared/api/        ApiClient interface + api-error + api-mode + provider   (the boundary)
 apps/web/src/shared/api/mock/   the in-memory adapter: mock-actor (auth + permission check order),
                                 mock-audit (the ONLY audit writer), per-area mock files, seed
+apps/web/src/shared/api/http/   the HTTP adapter against apps/api, + the Better Auth client
 apps/web/src/shared/permissions/ can(), RequirePermission — UI gating from permission strings
 apps/web/src/shared/i18n/       ar/en dictionaries, provider, language switch
 apps/web/src/routes/            thin TanStack routes: head() + re-export
@@ -39,7 +46,7 @@ packages/contracts/src/         Zod — the single source of types for forms AND
                                 (imported as @eyadex/contracts/<name>)
 ```
 
-### 1.1 Import matrix (Phase A)
+### 1.1 Import matrix (web)
 
 | From ↓ may import →          | contracts         | shared/api (interface) | shared/api/mock                           | another business area              | components/ui |
 | ---------------------------- | ----------------- | ---------------------- | ----------------------------------------- | ---------------------------------- | ------------- |
@@ -53,20 +60,29 @@ another page as props — a tab list (`SlotTab`, e.g. the medical tabs of the pa
 frame (the Settings shell). Nothing else of an area. `src/shared/area-boundaries.test.ts` enforces
 the area-to-area rule (ADR-0030).
 
-A screen that imports the mock directly breaks the Phase B swap and is rejected.
+A screen that imports an adapter directly (mock or HTTP) breaks the switch between them and is
+rejected. `shared/api/api-provider.tsx` builds the client; outside tests, test kits and the pure
+data the matrix allows `src/marketing`, no business area imports either adapter.
 
-## 2. Phase B — the target monorepo (PRD §4.2, from the PosPay foundation)
+## 2. Phase B — the monorepo today (PRD §4.2, from the PosPay foundation)
 
 ```
-apps/web        this app (TanStack Start), HTTP adapter replaces the mock   ✅ exists
-packages/contracts  Zod (imported as @eyadex/contracts/*) + generated OpenAPI  ✅ exists
-packages/config eslint (shared base config) + tsconfig presets                      ✅ exists
-apps/api        NestJS on Fastify: HTTP, auth handler, guards                                                        ✅ skeleton
-apps/worker     same NestJS code, BullMQ processors (emails, outbox, expiry reminders)                            ✅ skeleton
-packages/db     the only path to PostgreSQL: withTenant/withNewTenant/withNoTenant over Drizzle     ✅ runtime wrappers (schema: next)
+apps/web        the TanStack Start app above: mock or HTTP adapter, chosen by VITE_API_MODE
+apps/api        NestJS on Fastify: HTTP, Better Auth handler, guards; modules appointments, audit,
+                billing, identity, medical, notifications, patients, platform, settings, tenancy
+apps/worker     same NestJS stack, own container: the outbox poller (invitation and team emails,
+                mail-provider tests, expiry-reminder emails, patient email/WhatsApp notifications,
+                branch deactivation) + interval jobs (expiry and appointment reminder scans, the
+                retention purge); /health
+packages/contracts  Zod (imported as @eyadex/contracts/*): forms, the ApiClient and the HTTP API
+packages/config     shared ESLint base config + tsconfig presets
+packages/db     the only path to PostgreSQL: withTenant/withNewTenant/withNoTenant over Drizzle,
+                plus the Drizzle schema mirror (./schema); drizzle-kit is pull-only (ADR-0024)
 packages/auth   Better Auth config (+ two-factor). The ONLY place sessions/passwords are handled
-packages/ids    UUID v7 with injected time + entropy                                                              ✅ exists
-packages/observability  pino + redaction, request context                                                         ✅ exists
+packages/secrets    the outbox seal + the field cipher + the civil ID blind index (ADR-0028)
+packages/ids    UUID v7 with injected time + entropy
+packages/observability  pino + redaction, request context
+db/sql + db/migrate.sh  PostgreSQL 18, forced RLS: the only way to change a database (ADR-0024)
 ```
 
 The workspace is pnpm + Turborepo (`pnpm-workspace.yaml`, `turbo.json`); `pnpm typecheck`,

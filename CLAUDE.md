@@ -29,6 +29,10 @@
 > - **V1.4 (2026-10-17)** — §1 and §3 describe Phase B as it is today (API, worker and
 >   `packages/db` exist; `VITE_API_MODE` picks mock or HTTP; `db/sql` stays the only way to change
 >   a database), keeping the web hard limits. Follow-up to PR #79.
+> - **V1.5 (2026-10-17)** — §2 step 2 and §9 label their rules by part (API, web mock adapter)
+>   instead of by phase, so Phase A being done retires none of them; §3 lists `packages/auth` and
+>   `packages/secrets`. `CLAUDE.architecture.md` §1–2 and PRD §4.1, §5.3–5.4 and §8.2 follow
+>   Phase B and ADR-0024. Follow-up to PR #80.
 
 ## 0.1 Talking to the owner (binding, owner rule 2026-10-13)
 
@@ -77,7 +81,7 @@ never import an adapter, so switching between mock and HTTP requires no screen c
    user story or one screen group, about 3,000 changed lines; above 5,000 lines or 100 files,
    split it before starting.
 2. Order inside a slice: **contract (Zod) → SQL/migration + RLS policy → domain rules + tests →
-   use case (Phase B) or mock adapter (Phase A) → UI → tests.**
+   API use case, and the web mock adapter with the same checks in the same order → UI → tests.**
 3. Do not touch modules outside the slice. If you must, say so and explain why.
 4. Architectural decisions → `docs/adr/NNNN-title.md` (context, decision, consequences).
 5. A slice is not done until `CLAUDE.architecture.md` §9 (definition of done) passes.
@@ -107,6 +111,8 @@ packages/config/     shared TypeScript + ESLint presets (@eyadex/config)
 packages/ids/        UUID v7 with injected time + entropy (@eyadex/ids)
 packages/observability/ pino options + the redaction list + the request context (@eyadex/observability)
 packages/db/        the only path to PostgreSQL: withTenant/withNewTenant/withNoTenant (@eyadex/db)
+packages/auth/       Better Auth config + two-factor: the ONLY place sessions and passwords are handled (@eyadex/auth)
+packages/secrets/    the outbox seal, the field cipher and the civil ID blind index, ADR-0028 (@eyadex/secrets)
 db/sql/              SQL baseline applied to production; the only way to change a database (ADR-0024)
 docs/                PRD, ADRs, specs
 docker/              compose init scripts (postgres roles)
@@ -219,12 +225,12 @@ Banned folder names anywhere: `utils/` · `helpers/` · `common/` · `misc/` · 
 
 ## 9. Testing (required to merge)
 
-- Phase A: vitest against the mock adapter for every business rule of the slice; typecheck,
-  lint, build in CI.
+- Web (mock adapter): vitest against the mock adapter for every business rule of the slice;
+  typecheck, lint, build in CI.
 - Database (now): `db/tests/rls-isolation.sql` runs in CI (`db` job) on a fresh PostgreSQL with
   the whole `db/sql` baseline. **Every new clinic table must be added to its table list and seed
   in the same PR.** It also runs on production after every baseline change (it rolls back).
-- Phase B: unit tests for pure domain functions; integration tests per use case against real
+- API and worker: unit tests for pure domain functions; integration tests per use case against real
   PostgreSQL connected as `eyadex_app`; **RLS negative tests for every tenant table**
   (cross-clinic read = 0 rows, write = error); the mandatory list in PRD §6.3.
 
