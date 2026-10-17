@@ -21,8 +21,7 @@ Multi-tenant clinic-management SaaS for every clinic specialty, Kuwait first. Ar
 ## The system today (Phase B)
 
 - pnpm + Turborepo monorepo: `apps/web` (TanStack Start, yours), `apps/api` + `apps/worker` (NestJS on Fastify), `packages/contracts` (Zod, alias `@eyadex/contracts/*`), `packages/db`, `db/sql` (PostgreSQL 18 with forced Row-Level Security).
-- Built modules: branches, users and invitations, roles, patients, appointments and schedules, visits and medical files, services, email and WhatsApp notifications, settings, platform area, audit log, marketing site.
-- In progress: finance F1 (service prices and invoices) is on branch `lovable` and reaches `main` with PR #78. Build on it only when the brief says so.
+- Built modules: branches, users and invitations, roles, patients, appointments and schedules, visits and medical files, services, email and WhatsApp notifications, settings, platform area, audit log, marketing site, finance F1 (service prices and invoices; merged with PR #78), except the invoice PDF and its patient link: plan Task 8g is not wired yet, so the API answers 503 for both.
 - The web talks to data only through the `ApiClient` interface via `useApi()`. `VITE_API_MODE` picks the in-memory mock (default; preview and tests) or the HTTP adapter (production). Screens never import an adapter.
 - The mock must behave exactly like the API: same checks, same check order, same errors, same audit rows. See review-lessons §2.
 - Change only `apps/web` and its tests unless the brief says otherwise. The only other files you may edit are your own: the "Quick rules (Lovable-maintained)" section of `AGENTS.md`, your plan files under `.lovable/plan/`, and `roadmap.md`. Never touch `apps/api`, `apps/worker`, `packages/*` (contracts included) or `db/sql`; if a screen needs a contract change, ask for it in your plan.
