@@ -1,3 +1,4 @@
+import { arFinance } from "./ar-finance";
 import { arNotifications } from "./ar-notifications";
 import { arWhatsapp } from "./ar-whatsapp";
 import { arClinicCreate } from "./ar-clinic-create";
@@ -152,6 +153,8 @@ export const ar: Dictionary = {
       appointmentsBody: "الخدمات وجداول العمل والإجازات؛ الحجز يأتي في المرحلة التالية.",
       medical: "الطبي",
       medicalBody: "الزيارات وملاحظات الطبيب والتشخيصات والوصفات والملف الطبي.",
+      finance: "المالية",
+      financeBody: "أسعار الخدمات والفواتير والخصومات وطباعة الفواتير.",
       saved: "تم تحديث الموديول",
     },
     members: {
@@ -177,6 +180,7 @@ export const ar: Dictionary = {
   ...arVisits,
   ...arNotifications,
   ...arWhatsapp,
+  ...arFinance,
   validation: {
     needsView: "أي صلاحية إضافة أو تعديل أو تعطيل تحتاج صلاحية العرض في نفس القسم",
     timezone: "اختر منطقة زمنية مدعومة",
@@ -189,7 +193,7 @@ export const ar: Dictionary = {
     email: "أدخل بريدًا صحيحًا",
     slug: "استخدم حروفًا إنجليزية صغيرة وأرقامًا وشرطات",
     slugReserved: "هذا العنوان محجوز لمنصة Eyadex",
-    moduleRequires: "الملف الطبي يحتاج تفعيل موديول المراجعين أولًا",
+    moduleRequires: "هذا الموديول يحتاج تفعيل موديول المراجعين أولًا",
     number: "أدخل رقمًا",
     min: "يجب ألا يقل عن 1",
     dateRequired: "اختر تاريخًا",
@@ -247,5 +251,22 @@ export const ar: Dictionary = {
     validation: "بعض الحقول غير صحيحة",
     last_active_platform_account: "لا يمكن تعطيل آخر حساب نشط في المنصة",
     unknown: "حدث خطأ ما",
+    // Finance F1 (spec §3.3).
+    price_missing: "لا يوجد سعر لهذه الخدمة؛ أضف السعر من إعدادات الخدمات أولًا",
+    invoice_prefix_missing: "حدد بادئة الفواتير لهذا الفرع قبل إصدار أول فاتورة",
+    invoice_prefix_locked: "لا يمكن تغيير بادئة الفواتير بعد إصدار أول فاتورة في الفرع",
+    invoice_prefix_taken: "هذه البادئة مستخدمة لفرع آخر في العيادة",
+    invoice_already_exists: "يوجد بالفعل فاتورة لهذا الموعد أو لهذه الزيارة",
+    invoice_void: "هذه الفاتورة ملغاة ولا يمكن تعديلها",
+    appointment_not_billable:
+      "لا يمكن إصدار فاتورة من موعد لم يحضره المراجع أو أُلغي؛ أصدر فاتورة يدوية عند الحاجة",
+    currency_locked: "لا يمكن تغيير العملة بعد تسعير خدمة أو إصدار فاتورة",
+    currency_unsupported: "هذه العملة غير مدعومة",
+    discount_exceeds_total: "الخصم أكبر من قيمة الفاتورة",
+    discount_reason_required: "اكتب سبب الخصم",
+    precondition_required: "أعد تحميل الفاتورة ثم أعد المحاولة",
+    version_conflict: "عدّل شخص آخر هذه الفاتورة للتو؛ أعد تحميلها ثم أعد المحاولة",
+    send_request_conflict: "طلب الإرسال هذا مستخدم لفاتورة أو قناة أخرى",
+    invoice_link_expired: "رابط الفاتورة غير صالح أو انتهت صلاحيته؛ اطلب رابطاً جديداً من العيادة",
   },
 };

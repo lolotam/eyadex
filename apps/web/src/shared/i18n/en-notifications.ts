@@ -103,6 +103,7 @@ export const enNotifications = {
       moved: "Appointment moved",
       whatsapp_disconnected: "WhatsApp not connected",
       template_missing: "No WhatsApp template",
+      invoice_void: "Invoice voided before sending",
     },
     route: {
       primary: "Primary sender",

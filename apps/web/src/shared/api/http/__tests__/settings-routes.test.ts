@@ -37,7 +37,7 @@ const platformSettings = {
   emailSenderName: "Eyadex",
   defaultMaxUsers: 25,
   defaultMaxBranches: 5,
-  defaultModules: { patients: false, appointments: false, medical: false },
+  defaultModules: { patients: false, appointments: false, medical: false, finance: false },
 };
 
 afterEach(() => {
@@ -94,7 +94,7 @@ describe("platform console", () => {
   it("reads stored defaults even when medical is on without patients", async () => {
     const stored = {
       ...platformSettings,
-      defaultModules: { patients: false, appointments: true, medical: true },
+      defaultModules: { patients: false, appointments: true, medical: true, finance: false },
     };
     const h = clientWith(() => ({ body: stored }));
     expect(await h.api.platformSettings.get(P)).toEqual(stored);

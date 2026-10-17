@@ -21,6 +21,7 @@ import {
 } from "@eyadex/contracts/platform-clinics";
 import type { ApiClient } from "../api-client";
 import { ApiError } from "../api-error";
+import type { NewClinicFinance } from "../new-clinic-finance";
 import { toBranch } from "./http-branches";
 import type { HttpContext } from "./http-context";
 import { collectPages } from "./http-transport";
@@ -67,7 +68,9 @@ export function platformListQuery(query: ClinicListQuery) {
  * clock (ADR-0016, ADR-0020), so the body never depends on the device. Limits and modules are the
  * form's (pre-filled from the platform settings): the server never picks them (ADR-0020 amendment).
  */
-export function toCreateClinicRequest(input: CreateClinicInput): CreateClinicRequest {
+export function toCreateClinicRequest(
+  input: CreateClinicInput & NewClinicFinance,
+): CreateClinicRequest {
   const timezone = timezoneOptions.find((tz) => tz === input.timezone);
   if (!timezone) throw new ApiError("validation", undefined, { timezone: "invalid" });
   return {
@@ -82,6 +85,8 @@ export function toCreateClinicRequest(input: CreateClinicInput): CreateClinicReq
     maxBranches: input.maxBranches,
     modules: { ...input.modules },
     admin: { fullName: input.adminName, email: input.adminEmail },
+    ...(input.currency !== undefined ? { currency: input.currency } : {}),
+    ...(input.taxRateBp !== undefined ? { taxRateBp: input.taxRateBp } : {}),
   };
 }
 

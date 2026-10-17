@@ -35,15 +35,17 @@ import {
 } from "./modules/identity/index.ts";
 import { PatientsModule } from "./modules/patients/index.ts";
 import { AppointmentsModule } from "./modules/appointments/index.ts";
+import { MedicalModule, registerAttachmentUploads } from "./modules/medical/index.ts";
 import {
-  MedicalModule,
-  registerAttachmentUploads,
-  type BlobStore,
-} from "./modules/medical/index.ts";
+  BillingModule,
+  registerLogoUploads,
+  type InvoicePdfRenderer,
+} from "./modules/billing/index.ts";
 import { ClinicAuditModule, PlatformAuditModule } from "./modules/audit/index.ts";
 import { whatsappHooks, whatsappModule, type WhatsappDependencies } from "./app-whatsapp.ts";
 import { PlatformModule } from "./modules/platform/index.ts";
 import { SettingsModule } from "./modules/settings/index.ts";
+import type { BlobStore } from "./shared/blob/blob-store.ts";
 import { EnvelopeExceptionFilter } from "./shared/exception.filter.ts";
 import { HealthController } from "./shared/health.controller.ts";
 import { API_LOG_EVENTS } from "./shared/log-events.ts";
@@ -80,8 +82,8 @@ export interface AppDependencies extends WhatsappDependencies {
   /**
    * Mounts the clinic request context behind the global access guard and `GET /v1/me`, `/v1/roles`,
    * `/v1/permissions/catalogue`, `/v1/branches`, `/v1/users`, `/v1/invitations`, `/v1/clinic/mail-provider`,
-   * `/v1/patients`, `/v1/clinic/audit`, `/v1/services`, `/v1/schedules` (ADR-0009, 0011, 0012, 0014,
-   * 0018, 0019, 0026). Needs auth mounted,
+   * `/v1/patients`, `/v1/clinic/audit`, `/v1/services`, `/v1/schedules`, and finance F1's `/v1/prices`
+   * (ADR-0009, 0011, 0012, 0014, 0018, 0019, 0026; docs/specs/finance-design.md). Needs auth mounted,
    * DATABASE_URL, REDIS_URL, OUTBOX_SEAL_KEY,
    * MAIL_PROVIDER_SEAL_KEY, MEDICAL_MASTER_KEY_V<MEDICAL_KEY_VERSION> and MEDICAL_INDEX_KEY (ADR-0028,
    * docs/specs/medical-keys-runbook.md). Attachments also read MEDICAL_BLOB_S3_ENDPOINT,
@@ -90,8 +92,10 @@ export interface AppDependencies extends WhatsappDependencies {
    * only an upload or a download answers 503.
    */
   readonly mountClinic?: boolean;
-  /** Test-only: the attachments' blob store instead of the one the environment configures. */
-  readonly medicalBlobStore?: BlobStore;
+  /** Test-only: the private bucket (attachments, the clinic logo) instead of the environment's. */
+  readonly blobStore?: BlobStore;
+  /** Test-only: the invoice PDF renderer; until plan Task 8g the API has none and answers 503. */
+  readonly invoicePdf?: InvoicePdfRenderer;
 }
 
 export interface AppOptions {
@@ -150,7 +154,8 @@ export function apiModule(
             RolesModule,
             PatientsModule,
             AppointmentsModule,
-            MedicalModule.forRoot(deps.medicalBlobStore),
+            MedicalModule.forRoot(deps.blobStore),
+            BillingModule.forRoot(deps.blobStore, deps.invoicePdf),
             whatsappModule(deps),
             ClinicAuditModule,
           ]
@@ -266,6 +271,7 @@ export async function startApi(
   }
   // The attachment upload is the only multipart route; every other route keeps refusing the type.
   await registerAttachmentUploads(app.getHttpAdapter().getInstance());
+  registerLogoUploads(app.getHttpAdapter().getInstance());
   whatsappHooks(app.getHttpAdapter().getInstance());
   // A route without exactly one access declaration fails the boot, not just its requests (RBAC-04).
   assertRouteAccess(app.get(ModulesContainer));

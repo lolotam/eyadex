@@ -1,6 +1,6 @@
 import {
   REMINDER_KINDS,
-  type NotificationKind,
+  type MessageKind,
   type NotificationSettings,
   type NotificationSkipReason,
 } from "@eyadex/contracts/notifications";
@@ -14,11 +14,13 @@ export interface AppointmentNow {
 
 /** كل اللي قرار التخطي محتاجه، مقري وقت الإرسال (كل واحد ممكن يتغيّر بعد ما الرسالة اتسجّلت). */
 export interface SendFacts {
-  readonly kind: NotificationKind;
+  readonly kind: MessageKind;
   readonly settings: NotificationSettings;
   readonly patient: { readonly email: string | null; readonly optedOut: boolean };
-  /** الموعد لرسايل المواعيد؛ `null` للوصفة. */
+  /** الموعد لرسايل المواعيد؛ `null` للوصفة والفاتورة. */
   readonly appointment: AppointmentNow | null;
+  /** الفاتورة اتلغت؟ لرسالة الفاتورة بس (spec §8 rule 15). */
+  readonly invoiceVoid?: boolean;
   /** لصفوف واتساب بس (N2): حالة قناة العيادة وقت الإرسال؛ مش موجودة = صف إيميل. */
   readonly whatsapp?: WhatsappFacts;
 }
@@ -32,9 +34,9 @@ export interface WhatsappFacts {
 }
 
 /**
- * قرار وقت الإرسال (spec §3.3)، بالترتيب: العيادة قفلت القناة أو نوع الرسالة → `setting_off`؛ (إيميل)
- * المراجع مالوش إيميل → `no_email`؛ تذكير والمراجع طالب مايوصلوش تذكير → `opted_out` (الاختيار ده بيوقف
- * التذكيرين بس، N-2)؛ رسالة موعد غير الإلغاء والموعد مابقاش `booked` → `not_booked`؛ الموعد اتنقل لوقت
+ * قرار وقت الإرسال (spec §3.3)، بالترتيب: فاتورة اتلغت → `invoice_void`؛ العيادة قفلت القناة أو نوع
+ * الرسالة → `setting_off` (الفاتورة مالهاش مفتاح نوع: الموظف هو اللي طلبها)؛ (إيميل) المراجع مالوش إيميل
+ * → `no_email`؛ تذكير والمراجع طالب مايوصلوش تذكير → `opted_out` (الاختيار ده بيوقف التذكيرين بس، N-2)؛ رسالة موعد غير الإلغاء والموعد مابقاش `booked` → `not_booked`؛ الموعد اتنقل لوقت
  * تاني → `moved`. واتساب (§7.1) بعد كل دول: القناة مش متوصلة → `whatsapp_disconnected`، ثم coexistence
  * من غير قالب للنوع → `template_missing` — الرسالة اللي مابقتش مطلوبة بتتقال كده قبل عجز القناة.
  *
@@ -43,10 +45,12 @@ export interface WhatsappFacts {
  */
 export function notificationSkip(facts: SendFacts): NotificationSkipReason | null {
   const { kind, settings, patient, appointment, whatsapp } = facts;
+  if (facts.invoiceVoid === true) return "invoice_void";
   const channelOn = whatsapp === undefined ? settings.emailEnabled : settings.whatsappEnabled;
-  if (!channelOn || !settings.messages[kind]) return "setting_off";
+  const kindOn = kind === "invoice" || settings.messages[kind];
+  if (!channelOn || !kindOn) return "setting_off";
   if (whatsapp === undefined && patient.email === null) return "no_email";
-  if (patient.optedOut && REMINDER_KINDS.includes(kind)) return "opted_out";
+  if (patient.optedOut && kind !== "invoice" && REMINDER_KINDS.includes(kind)) return "opted_out";
   if (appointment !== null) {
     if (kind !== "cancelled" && appointment.status !== "booked") return "not_booked";
     if (!appointment.startUnchanged) return "moved";

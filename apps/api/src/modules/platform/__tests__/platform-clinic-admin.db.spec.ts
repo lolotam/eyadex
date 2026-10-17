@@ -102,7 +102,9 @@ describe("every platform endpoint", () => {
       expect((await platform(method, `${randomUUID()}${suffix}`, body)).statusCode).toBe(404);
       expect((await platform(method, `not-a-uuid${suffix}`, body)).statusCode).toBe(404);
     }
-    const unknownModule = await platform("PUT", `${clinic()}/features/finance`, { enabled: true });
+    const unknownModule = await platform("PUT", `${clinic()}/features/inventory`, {
+      enabled: true,
+    });
     expect(unknownModule.statusCode).toBe(404);
     const after = await h.owner`SELECT count(*)::int AS n FROM platform_audit_log`;
     expect(after[0]!["n"]).toBe(before[0]!["n"]);
@@ -118,7 +120,12 @@ describe("FLAG-01 / FLAG-02: locking a module hides it, re-enabling restores it 
 
     const locked = await platform("PUT", `${clinic()}/features/patients`, { enabled: false });
     expect(locked.statusCode).toBe(200);
-    expect(locked.json().modules).toEqual({ patients: false, appointments: false, medical: false });
+    expect(locked.json().modules).toEqual({
+      patients: false,
+      appointments: false,
+      medical: false,
+      finance: false,
+    });
 
     const probe = await get(h, "/v1/probe-patients", A.doctor.cookie);
     expect(probe.statusCode).toBe(403);
@@ -140,6 +147,7 @@ describe("FLAG-01 / FLAG-02: locking a module hides it, re-enabling restores it 
       patients: true,
       appointments: false,
       medical: false,
+      finance: false,
     });
     // A3 (D-8): the doctor's keys; view:appointments:own stays dropped, the module is off here.
     expect(await permissionsOf(A.doctor.cookie)).toEqual(["view:patients:own"]);

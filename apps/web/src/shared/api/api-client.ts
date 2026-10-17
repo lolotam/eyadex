@@ -72,6 +72,8 @@ import type { AppointmentsApi } from "./appointments-client";
 import type { MedicalApi } from "./medical-client";
 import type { NotificationsApi } from "./notifications-client";
 import type { WhatsappApi } from "./whatsapp-client";
+import type { FinanceApi } from "./finance-client";
+import type { NewClinicFinance } from "./new-clinic-finance";
 import type { SchedulingApi } from "./scheduling-client";
 
 /**
@@ -96,7 +98,7 @@ export interface ApiClient {
     /** A retry with the same key replays the first result; a changed request is a conflict. */
     createClinic(
       persona: Persona,
-      input: CreateClinicInput,
+      input: CreateClinicInput & NewClinicFinance,
       idempotencyKey: string,
     ): Promise<CreatedClinic>;
     /** Null once a clinic admin is active. */
@@ -211,6 +213,8 @@ export interface ApiClient {
   notifications: NotificationsApi;
   /** The clinic's WhatsApp channel: Evolution QR link or WhatsApp Business (phase 3 N2). */
   whatsapp: WhatsappApi;
+  /** Prices, invoice prefixes, invoices and the platform's clinic finance (phase 4 F1). */
+  finance: FinanceApi;
   audit: {
     /** Needs view:audit_log:clinic; the caller's clinic only, newest first. */
     clinicList(persona: Persona, query: ClinicAuditListQuery): Promise<Page<ClinicAuditItem>>;

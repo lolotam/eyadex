@@ -1,7 +1,13 @@
 import { z } from "zod";
 import { idSchema, stripInvisibleControls } from "./common.ts";
 import { systemRoleKeySchema } from "./organization.ts";
-import { PERMISSION_CATALOG, actionSchema, resourceSchema } from "./permissions.ts";
+import {
+  PERMISSION_CATALOG,
+  VIEWED_THROUGH,
+  actionSchema,
+  resourceSchema,
+  type PermissionResource,
+} from "./permissions.ts";
 
 // Invisible format/control characters render as nothing; they could only split a number past the audit
 // scrub or spoof a name, so they are dropped before the usual checks (as patient names, ADR-0018).
@@ -45,10 +51,12 @@ export const permissionKeysSchema = z
         }
       }
     }
-    // Any write on a resource needs view on it too, so every granted action is reachable.
+    // Any write on a resource needs view on it too, so every granted action is reachable. A resource with no
+    // view of its own (a discount is a change to an invoice) needs view on the resource it changes.
     for (const key of keys) {
-      const [action, resource] = key.split(":");
-      if (action !== "view" && !keys.some((k) => k.startsWith(`view:${resource}:`))) {
+      const [action, resource] = key.split(":") as [string, PermissionResource];
+      const viewed = VIEWED_THROUGH[resource] ?? resource;
+      if (action !== "view" && !keys.some((k) => k.startsWith(`view:${viewed}:`))) {
         ctx.addIssue({ code: "custom", message: "validation.needsView" });
         return;
       }

@@ -22,6 +22,16 @@ describe("settings tabs", () => {
     expect(ids(["update:schedules:branch"])).toEqual([]);
   });
 
+  it("Finance shows only with view:clinic_settings and the finance module on (F1 §2)", () => {
+    const keys = ["view:clinic_settings:clinic"];
+    expect(ids(keys)).not.toContain("finance");
+    expect(visibleSettingsTabs(keys, { finance: false }).map((tab) => tab.id)).not.toContain(
+      "finance",
+    );
+    expect(visibleSettingsTabs(keys, { finance: true }).map((tab) => tab.id)).toContain("finance");
+    expect(visibleSettingsTabs(["view:services:clinic"], { finance: true })).toHaveLength(1);
+  });
+
   it("the Settings entry opens the first tab the user can see", () => {
     expect(firstSettingsTab(["view:clinic_settings:clinic", "view:services:clinic"])?.to).toBe(
       "/clinic/settings",

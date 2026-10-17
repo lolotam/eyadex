@@ -52,7 +52,7 @@ export const auditLog = pgTable(
     check(
       "audit_log_patient_events_are_patient_access",
       sql.raw(
-        "((entity_type <> ALL (ARRAY['patient'::text, 'visit'::text, 'visit_addendum'::text, 'diagnosis'::text, 'prescription'::text, 'medical_profile'::text, 'attachment'::text])) OR (category = 'patient_access'::text))",
+        "((entity_type <> ALL (ARRAY['patient'::text, 'visit'::text, 'visit_addendum'::text, 'diagnosis'::text, 'prescription'::text, 'medical_profile'::text, 'attachment'::text, 'invoice'::text, 'invoice_link'::text])) OR (category = 'patient_access'::text))",
       ),
     ),
   ],

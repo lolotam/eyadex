@@ -26,7 +26,7 @@ export interface QueuedNotification {
 
 /**
  * Inserts one `queued` row on its channel; a second request for the same message (same subject, kind, channel and
- * start) conflicts on `patient_notifications_once` and inserts nothing. The patient foreign key takes its
+ * start) conflicts on the `patient_notifications_once` index (0062: partial, invoices excluded) and inserts nothing. The patient foreign key takes its
  * key-share lock here, after the appointment or visit row the caller already holds (ADR-0027).
  *
  * @returns true when the row was inserted
@@ -44,7 +44,8 @@ export async function insertQueuedNotification(
         VALUES (${row.clinicId}, ${row.id}, ${row.patientId}, ${row.kind}, ${row.channel},
           ${subject.subjectType}, ${subject.subjectId}, ${subject.subjectAt}::timestamptz, 'queued',
           ${row.requestedBy}, ${at}::timestamptz, ${at}::timestamptz)
-        ON CONFLICT ON CONSTRAINT patient_notifications_once DO NOTHING
+        ON CONFLICT (clinic_id, subject_id, kind, channel, subject_at) WHERE subject_type <> 'invoice'
+        DO NOTHING
         RETURNING id`,
   );
   return inserted.length > 0;

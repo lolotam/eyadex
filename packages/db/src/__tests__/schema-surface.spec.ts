@@ -38,6 +38,12 @@ describe("@eyadex/db/schema", () => {
       schema.clinicNotificationSettings,
       schema.patientNotifications,
       schema.clinicWhatsappChannels,
+      schema.usedInvoicePrefixes,
+      schema.serviceProviderPrices,
+      schema.invoiceSequences,
+      schema.invoices,
+      schema.invoiceLines,
+      schema.invoiceLinks,
     ];
     for (const table of clinicOwned) {
       const pk = getTableConfig(table).primaryKeys[0]?.columns.map((c) => c.name);
@@ -57,6 +63,18 @@ describe("@eyadex/db/schema", () => {
       if (id === undefined) continue;
       expect([id.hasDefault, id.default]).toEqual([false, undefined]);
     }
+  });
+
+  it("reads every money column as a JS bigint, never a lossy number (finance R1-1)", () => {
+    const tables = (Object.values(schema) as unknown[]).filter((value): value is PgTable =>
+      is(value, PgTable),
+    );
+    const money = tables.flatMap((table) =>
+      getTableConfig(table).columns.filter((c) => c.name.endsWith("_minor")),
+    );
+    expect(money.length).toBeGreaterThan(0);
+    for (const column of money)
+      expect([column.name, column.dataType]).toEqual([column.name, "bigint"]);
   });
 
   it("mirrors N3's delivery times and the one-clinic-per-Meta-number index (0059)", () => {

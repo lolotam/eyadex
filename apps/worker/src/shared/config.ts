@@ -51,6 +51,11 @@ const schema = z
     MAIL_PROVIDER_SEAL_KEY: z
       .string()
       .refine((v) => Buffer.from(v, "base64").length === 32, "32 bytes, base64"),
+    // Finance F1 (C1, spec §8c.1): seals the invoice link token for retries. Worker only; a different key from
+    // every other. Unset = invoice messages wait (stay queued) and every other kind still sends.
+    INVOICE_LINK_SEAL_KEY: optional(
+      z.string().refine((v) => Buffer.from(v, "base64").length === 32, "32 bytes, base64"),
+    ),
     RESEND_API_KEY: z.string().min(1),
     MAIL_FROM: z.string().min(3),
     OUTBOX_POLL_INTERVAL_MS: z.coerce.number().int().min(100).max(60_000).default(2_000),

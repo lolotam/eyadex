@@ -170,7 +170,9 @@ Expected for all four: `rolsuper = f`, `rolbypassrls = f`, `rolcanlogin = t`, `t
   Secrets, pasted by the owner: `DATABASE_URL` (`eyadex_app`), `DISPATCHER_DATABASE_URL`
   (`eyadex_dispatcher`), `PLATFORM_DATABASE_URL` (`eyadex_platform`: the expiry scan and platform-team
   links, ADR-0020), `OUTBOX_SEAL_KEY` and `MAIL_PROVIDER_SEAL_KEY` (the **same** values as the
-  staging api's), `RESEND_API_KEY` (a staging key). Platform SMTP is optional: all four `SMTP_*` or none.
+  staging api's), `RESEND_API_KEY` (a staging key), `INVOICE_LINK_SEAL_KEY` (finance F1, worker only, its own
+  `openssl rand -base64 32`; unset = invoice messages wait queued, everything else sends). Platform SMTP is
+  optional: all four `SMTP_*` or none.
 
 - `MAIL_FROM` must be on a domain verified in Resend; `eyadex.com` is the one in use. A staging subdomain
   sender would need its own DNS records in Resend first.
@@ -247,6 +249,7 @@ Then, in a browser:
 | `eyadex-worker-staging`   | `DATABASE_URL`, `DISPATCHER_DATABASE_URL`, `PLATFORM_DATABASE_URL`,        |
 |                           | `OUTBOX_SEAL_KEY`,                                                         |
 |                           | `MAIL_PROVIDER_SEAL_KEY`, `RESEND_API_KEY`, optional `SMTP_PASSWORD`       |
+|                           | `INVOICE_LINK_SEAL_KEY` (finance F1, worker only)                          |
 | bootstrap (§8, stdin)     | the first platform account's password                                      |
 
 Every value is new for staging. None is copied from, or derived from, a production value.

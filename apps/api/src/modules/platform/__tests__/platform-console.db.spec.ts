@@ -123,7 +123,7 @@ describe("platform settings (story 26)", () => {
       defaultMaxUsers: 10,
       defaultMaxBranches: 3,
       // R2-3: the release (0050) turned the medical default on.
-      defaultModules: { patients: true, appointments: true, medical: true },
+      defaultModules: { patients: true, appointments: true, medical: true, finance: false },
     });
     const next = {
       defaultTrialDays: 30,
@@ -131,7 +131,7 @@ describe("platform settings (story 26)", () => {
       emailSenderName: "Eyadex Team",
       defaultMaxUsers: 25,
       defaultMaxBranches: 5,
-      defaultModules: { patients: false, appointments: false, medical: false },
+      defaultModules: { patients: false, appointments: false, medical: false, finance: false },
     };
     const saved = await send("PUT", "/v1/platform/settings", { body: next });
     expect(saved.statusCode).toBe(200);
@@ -149,7 +149,7 @@ describe("platform settings (story 26)", () => {
         emailSenderName: "Eyadex",
         defaultMaxUsers: 10,
         defaultMaxBranches: 3,
-        defaultModules: { patients: true, appointments: true, medical: true },
+        defaultModules: { patients: true, appointments: true, medical: true, finance: false },
       },
       after: next,
     });
@@ -164,7 +164,7 @@ describe("platform settings (story 26)", () => {
       emailSenderName: "Eyadex Team",
       defaultMaxUsers: 25,
       defaultMaxBranches: 5,
-      defaultModules: { patients: false, appointments: false, medical: false },
+      defaultModules: { patients: false, appointments: false, medical: false, finance: false },
     };
     const { defaultModules: _drop, ...noModule } = good;
     void _drop;
@@ -207,7 +207,11 @@ describe("platform settings (story 26)", () => {
         default_module_medical = true WHERE id = 1`;
       const response = await send("GET", "/v1/platform/settings");
       expect(response.statusCode).toBe(200);
-      expect(response.json().defaultModules).toMatchObject({ patients: false, medical: true });
+      expect(response.json().defaultModules).toMatchObject({
+        patients: false,
+        medical: true,
+        finance: false,
+      });
       const rejected = await send("PUT", "/v1/platform/settings", { body: response.json() });
       expect(rejected.statusCode).toBe(400);
       expect(rejected.json().code).toBe("validation");

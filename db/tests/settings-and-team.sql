@@ -26,7 +26,8 @@ BEGIN
      OR NOT has_column_privilege('eyadex_platform', 'platform_settings', 'default_max_users', 'UPDATE')
      OR NOT has_column_privilege('eyadex_platform', 'platform_settings', 'default_max_branches', 'UPDATE')
      OR NOT has_column_privilege('eyadex_platform', 'platform_settings', 'default_module_patients', 'UPDATE')
-     OR NOT has_column_privilege('eyadex_platform', 'platform_settings', 'default_module_appointments', 'UPDATE') THEN
+     OR NOT has_column_privilege('eyadex_platform', 'platform_settings', 'default_module_appointments', 'UPDATE')
+     OR NOT has_column_privilege('eyadex_platform', 'platform_settings', 'default_module_finance', 'UPDATE') THEN
     RAISE EXCEPTION 'SETTINGS: eyadex_platform may update the values only';
   END IF;
   -- 0041 keeps no DEFAULT: every later write names its values. (The seeded values are not checked
@@ -76,7 +77,7 @@ END $$;
 -- The singleton and its bounds.
 DO $$
 BEGIN
-  BEGIN INSERT INTO platform_settings VALUES (2, 14, 7, 'Eyadex', now(), 10, 3, true, true, false);
+  BEGIN INSERT INTO platform_settings VALUES (2, 14, 7, 'Eyadex', now(), 10, 3, true, true, false, false);
     RAISE EXCEPTION 'SETTINGS: a second row was accepted';
   EXCEPTION WHEN check_violation THEN NULL; END;
   BEGIN UPDATE platform_settings SET email_sender_name = E'Eyadex\r\nBcc: x';
@@ -102,6 +103,9 @@ BEGIN
   EXCEPTION WHEN not_null_violation THEN NULL; END;
   BEGIN UPDATE platform_settings SET default_module_appointments = NULL;
     RAISE EXCEPTION 'SETTINGS: a missing appointments-module default was accepted';
+  EXCEPTION WHEN not_null_violation THEN NULL; END;
+  BEGIN UPDATE platform_settings SET default_module_finance = NULL;
+    RAISE EXCEPTION 'SETTINGS: a missing finance-module default was accepted';
   EXCEPTION WHEN not_null_violation THEN NULL; END;
 END $$;
 

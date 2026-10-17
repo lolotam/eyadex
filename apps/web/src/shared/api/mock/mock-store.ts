@@ -1,3 +1,4 @@
+import type { FinanceMockState } from "./mock-finance-state";
 import type { AppointmentStatus, CancelReason } from "@eyadex/contracts/appointments";
 import type { Clinic, ClinicFeatures, CreatedClinic } from "@eyadex/contracts/clinics";
 import type { InvitationRecord } from "@eyadex/contracts/invitations";
@@ -81,6 +82,8 @@ export type MockState = {
   notifications?: NotificationState;
   /** Phase 3 N2: each clinic's WhatsApp channel (created on use). */
   whatsapp?: { channels: Record<string, StoredWhatsappChannel>; unavailable?: boolean };
+  /** Phase 4 F1: prices, finance details, prefixes and invoices (created on use). */
+  finance?: FinanceMockState;
   platformAccounts: PlatformAccount[];
   platformSettings: PlatformSettings;
   platformAudit: PlatformAuditEntry[];
@@ -88,7 +91,7 @@ export type MockState = {
   clinicAudit: (Omit<ClinicAuditEntry, "entityId"> & { entityId: string | null })[];
 };
 
-const STORAGE_KEY = "eyadex:mock-db:v20";
+const STORAGE_KEY = "eyadex:mock-db:v21";
 /** Shared with the persona provider by name only (screens never import the mock). */
 const PERSONA_STORAGE_KEY = "eyadex:persona";
 const MOCK_RESET_EVENT = "eyadex:mock-reset";

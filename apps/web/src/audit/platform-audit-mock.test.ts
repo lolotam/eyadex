@@ -102,6 +102,7 @@ describe("platform audit log", () => {
     const clinicId = getState().clinics[0]?.id;
     if (!clinicId) throw new Error("seed");
     await api.platform.setClinicFeature(PLATFORM, clinicId, "medical", false);
+    await api.platform.setClinicFeature(PLATFORM, clinicId, "finance", false);
     await api.platform.setClinicFeature(
       { kind: "platform_admin", clinicId: null, memberId: null },
       clinicId,
@@ -132,7 +133,7 @@ describe("platform audit log", () => {
         adminEmail: "resend.admin@example.com",
         maxUsers: 10,
         maxBranches: 3,
-        modules: { patients: true, appointments: true, medical: false },
+        modules: { patients: true, appointments: true, medical: false, finance: false },
       },
       crypto.randomUUID(),
     );

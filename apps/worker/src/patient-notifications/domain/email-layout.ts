@@ -60,6 +60,8 @@ export interface NotificationBody {
   readonly details: readonly DetailLine[];
   /** قايمة تانية (أدوية الوصفة)، كل عنصر سطر. */
   readonly items?: readonly string[];
+  /** رابط واحد تحت التفاصيل (الفاتورة)؛ الرابط نفسه بيتعمل له escape زي أي نص. */
+  readonly action?: { readonly label: string; readonly url: string };
   readonly closing: string;
   readonly footer: string;
 }
@@ -85,6 +87,10 @@ export function renderNotification(body: NotificationBody): RenderedNotification
     body.items === undefined || body.items.length === 0
       ? ""
       : `<ul style="padding-inline-start:20px;">\n${body.items.map((i) => `<li style="margin:4px 0;">${e(i)}</li>`).join("\n")}\n</ul>\n`;
+  const action =
+    body.action === undefined
+      ? ""
+      : `<p><a href="${e(body.action.url)}" style="color:#0b6e4f;font-weight:600;">${e(body.action.label)}</a></p>\n`;
   const html = `<!doctype html>
 <html lang="${body.language}" dir="${dir}">
 <body style="margin:0;padding:24px;background:#f7f6f3;font-family:'IBM Plex Sans Arabic','IBM Plex Sans',Arial,sans-serif;color:#1f2933;">
@@ -92,7 +98,7 @@ export function renderNotification(body: NotificationBody): RenderedNotification
 <p style="margin:0 0 16px;font-weight:600;">${e(body.clinicName)}</p>
 <p>${e(body.greeting)}</p>
 <p>${e(body.intro)}</p>
-${rows === "" ? "" : `<table role="presentation" style="border-collapse:collapse;margin:16px 0;">\n${rows}\n</table>\n`}${items}<p>${e(body.closing)}</p>
+${rows === "" ? "" : `<table role="presentation" style="border-collapse:collapse;margin:16px 0;">\n${rows}\n</table>\n`}${items}${action}<p>${e(body.closing)}</p>
 <p style="color:#52606d;font-size:13px;">${e(body.footer)}</p>
 </div>
 </body>
@@ -104,6 +110,7 @@ ${rows === "" ? "" : `<table role="presentation" style="border-collapse:collapse
     "",
     ...body.details.map((d) => `${d.label}: ${d.value}`),
     ...(body.items ?? []).map((i) => `- ${i}`),
+    ...(body.action === undefined ? [] : ["", `${body.action.label}: ${body.action.url}`]),
     "",
     body.closing,
     "",

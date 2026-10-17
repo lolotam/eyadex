@@ -2,12 +2,14 @@ import { sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
+  char,
   check,
   foreignKey,
   index,
   integer,
   pgTable,
   primaryKey,
+  smallint,
   text,
   timestamp,
   unique,
@@ -36,6 +38,14 @@ export const clinics = pgTable(
     maxBranches: integer("max_branches").notNull(),
     createdAt: timestamp("created_at", tz).notNull(),
     updatedAt: timestamp("updated_at", tz).notNull(),
+    // 0060 (finance FIN-A3, R2-3): the currency changes only through finance_set_currency (0061).
+    currency: char("currency", { length: 3 })
+      .notNull()
+      .default(sql`'KWD'::bpchar`),
+    currencyExponent: smallint("currency_exponent").notNull().default(3),
+    taxRateBp: integer("tax_rate_bp").notNull().default(0),
+    commercialRegNo: text("commercial_reg_no"),
+    logoBlobKey: text("logo_blob_key"),
   },
   (t) => [
     unique("clinics_slug_key").on(t.slug),
@@ -48,6 +58,21 @@ export const clinics = pgTable(
     check("clinics_max_branches_check", sql.raw("(max_branches > 0)")),
     check("clinics_max_users_check", sql.raw("(max_users > 0)")),
     check("clinics_slug_check", sql.raw("(slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'::text)")),
+    check("clinics_commercial_reg_no_check", sql.raw("(length(commercial_reg_no) <= 40)")),
+    check(
+      "clinics_currency_check",
+      sql.raw(
+        "(currency = ANY (ARRAY['KWD'::bpchar, 'BHD'::bpchar, 'OMR'::bpchar, 'SAR'::bpchar, 'AED'::bpchar, 'QAR'::bpchar]))",
+      ),
+    ),
+    // PostgreSQL prints this CASE over several lines; the mirror keeps its exact text.
+    check(
+      "clinics_currency_exponent_check",
+      sql.raw(
+        "(currency_exponent =\nCASE\n    WHEN (currency = ANY (ARRAY['KWD'::bpchar, 'BHD'::bpchar, 'OMR'::bpchar])) THEN 3\n    ELSE 2\nEND)",
+      ),
+    ),
+    check("clinics_tax_rate_bp_check", sql.raw("((tax_rate_bp >= 0) AND (tax_rate_bp <= 10000))")),
     check(
       "clinics_specialty_check",
       sql.raw(
@@ -80,7 +105,9 @@ export const clinicFeatures = pgTable(
     }),
     check(
       "clinic_features_module_check",
-      sql.raw("(module = ANY (ARRAY['patients'::text, 'appointments'::text, 'medical'::text]))"),
+      sql.raw(
+        "(module = ANY (ARRAY['patients'::text, 'appointments'::text, 'medical'::text, 'finance'::text]))",
+      ),
     ),
   ],
 );

@@ -33,6 +33,7 @@ export const enRoles = {
       patients: "Patients module",
       appointments: "Appointments module",
       medical: "Medical module",
+      finance: "Finance",
     },
     resources: {
       branches: "Branches",
@@ -47,6 +48,9 @@ export const enRoles = {
       visits: "Visits",
       medical: "Medical content",
       medicines: "Medicines",
+      invoices: "Invoices",
+      discounts: "Discounts",
+      prices: "Prices",
     },
     actions: {
       view: "View",

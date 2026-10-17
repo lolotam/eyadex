@@ -49,7 +49,12 @@ describe("patients mock: access and scope", () => {
     if (!patient) throw new Error("no patient");
     const branch = branches()[0];
     if (!branch) throw new Error("no branch");
-    getState().features[clinicId()] = { patients: false, appointments: false, medical: false };
+    getState().features[clinicId()] = {
+      patients: false,
+      appointments: false,
+      medical: false,
+      finance: false,
+    };
     const admin = as("clinic_admin");
     for (const call of [
       api.patients.list(admin, ALL),
@@ -115,11 +120,21 @@ describe("patients mock: access and scope", () => {
 
   it("checks access before validating the request", async () => {
     const bad = { ...ALL, limit: -1 };
-    getState().features[clinicId()] = { patients: false, appointments: false, medical: false };
+    getState().features[clinicId()] = {
+      patients: false,
+      appointments: false,
+      medical: false,
+      finance: false,
+    };
     await expect(api.patients.list(as("doctor"), bad)).rejects.toMatchObject({
       code: "module_disabled",
     });
-    getState().features[clinicId()] = { patients: true, appointments: true, medical: false };
+    getState().features[clinicId()] = {
+      patients: true,
+      appointments: true,
+      medical: false,
+      finance: false,
+    };
     await expect(
       api.patients.create(
         as("doctor"),
@@ -144,7 +159,12 @@ describe("patients mock: access and scope", () => {
   });
 
   it("checks the account and module before the branch-options action", async () => {
-    getState().features[clinicId()] = { patients: false, appointments: false, medical: false };
+    getState().features[clinicId()] = {
+      patients: false,
+      appointments: false,
+      medical: false,
+      finance: false,
+    };
     await expect(
       api.patients.branchOptions(as("doctor"), "nope" as unknown as "view"),
     ).rejects.toMatchObject({ code: "module_disabled" });

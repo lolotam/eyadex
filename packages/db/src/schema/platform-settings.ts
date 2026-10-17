@@ -17,6 +17,7 @@ export const platformSettings = pgTable(
     defaultModulePatients: boolean("default_module_patients").notNull(),
     defaultModuleAppointments: boolean("default_module_appointments").notNull(),
     defaultModuleMedical: boolean("default_module_medical").notNull(),
+    defaultModuleFinance: boolean("default_module_finance").notNull(),
   },
   () => [
     check("platform_settings_id_check", sql.raw("(id = 1)")),

@@ -1,4 +1,4 @@
-import type { MessageLanguage, NotificationKind } from "@eyadex/contracts/notifications";
+import type { MessageKind, MessageLanguage } from "@eyadex/contracts/notifications";
 import { whatsappTemplateSchema, type WhatsappTemplate } from "@eyadex/contracts/whatsapp";
 
 /** اللي قالب موعد بيتملي بيه (N-4): العيادة والتاريخ والوقت ومقدم الخدمة والفرع، مفيش غيرهم. */
@@ -17,13 +17,21 @@ export interface PrescriptionTemplateFacts {
   readonly lines: readonly string[];
 }
 
+/** اللي قالب الفاتورة بيتملي بيه (spec §8 rule 16): العيادة والرقم والإجمالي والرابط الخاص. */
+export interface InvoiceTemplateFacts {
+  readonly clinicName: string;
+  readonly number: string;
+  readonly amount: string;
+  readonly url: string;
+}
+
 // Meta refuses a body parameter with a new line, a tab or more than four spaces in a row.
 const oneLine = (value: string) => value.replace(/\s+/g, " ").trim();
 
 /**
  * قيم قالب Meta بالترتيب الثابت في `whatsappTemplateSchema`: المواعيد {{1}} العيادة، {{2}} التاريخ،
  * {{3}} الوقت، {{4}} مقدم الخدمة، {{5}} الفرع؛ الوصفة {{1}} العيادة، {{2}} الطبيب، {{3}} الأدوية مفصولة
- * بـ " • ". كل قيمة سطر واحد.
+ * بـ " • "؛ الفاتورة {{1}} العيادة، {{2}} الرقم، {{3}} الإجمالي، {{4}} الرابط. كل قيمة سطر واحد.
  *
  * @param facts بيانات الموعد أو الوصفة
  * @returns القيم بالترتيب
@@ -31,12 +39,15 @@ const oneLine = (value: string) => value.replace(/\s+/g, " ").trim();
 export function templateParameters(
   facts:
     | ({ readonly kind: "appointment" } & AppointmentTemplateFacts)
-    | ({ readonly kind: "prescription" } & PrescriptionTemplateFacts),
+    | ({ readonly kind: "prescription" } & PrescriptionTemplateFacts)
+    | ({ readonly kind: "invoice" } & InvoiceTemplateFacts),
 ): string[] {
   const values =
     facts.kind === "appointment"
       ? [facts.clinicName, facts.date, facts.time, facts.providerName, facts.branchName]
-      : [facts.clinicName, facts.doctorName, facts.lines.join(" • ")];
+      : facts.kind === "prescription"
+        ? [facts.clinicName, facts.doctorName, facts.lines.join(" • ")]
+        : [facts.clinicName, facts.number, facts.amount, facts.url];
   return values.map(oneLine);
 }
 
@@ -48,7 +59,7 @@ export function templateParameters(
  * @param kind نوع الرسالة
  * @returns القالب، أو `null`
  */
-export function templateFor(templates: unknown, kind: NotificationKind): WhatsappTemplate | null {
+export function templateFor(templates: unknown, kind: MessageKind): WhatsappTemplate | null {
   if (typeof templates !== "object" || templates === null) return null;
   const slot: unknown = Object.hasOwn(templates, kind)
     ? (templates as Record<string, unknown>)[kind]

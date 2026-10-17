@@ -16,6 +16,10 @@ export type RequestOptions<S extends z.ZodTypeAny> = {
   form?: FormData;
   query?: Record<string, QueryValue>;
   idempotencyKey?: string;
+  /** Optimistic concurrency (invoices): sent as `If-Match`. */
+  ifMatch?: number;
+  /** A raw file body (the clinic logo), sent with its own Content-Type. */
+  blob?: Blob;
 };
 
 export type Transport = {
@@ -86,6 +90,10 @@ export function createTransport(fetchImpl: typeof fetch = (...args) => fetch(...
     const headers: Record<string, string> = { Accept: "application/json" };
     if (options.body !== undefined) headers["Content-Type"] = "application/json";
     if (options.idempotencyKey !== undefined) headers["Idempotency-Key"] = options.idempotencyKey;
+    if (options.ifMatch !== undefined) headers["If-Match"] = String(options.ifMatch);
+    if (options.blob !== undefined) {
+      headers["Content-Type"] = options.blob.type || "application/octet-stream";
+    }
     let response: Response;
     try {
       response = await fetchImpl(urlOf(path, options.query), {
@@ -94,6 +102,7 @@ export function createTransport(fetchImpl: typeof fetch = (...args) => fetch(...
         credentials: "same-origin",
         ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
         ...(options.form !== undefined ? { body: options.form } : {}),
+        ...(options.blob !== undefined ? { body: options.blob } : {}),
       });
     } catch {
       throw new ApiError("unknown");

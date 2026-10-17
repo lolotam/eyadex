@@ -11,6 +11,7 @@ interface SettingsRow {
   default_module_patients: boolean;
   default_module_appointments: boolean;
   default_module_medical: boolean;
+  default_module_finance: boolean;
 }
 
 /**
@@ -25,11 +26,11 @@ export async function readPlatformSettingsIn(tx: Tx, lock = false): Promise<Plat
     lock
       ? sql`SELECT default_trial_days, alert_days_before_expiry, email_sender_name,
               default_max_users, default_max_branches, default_module_patients,
-              default_module_appointments, default_module_medical
+              default_module_appointments, default_module_medical, default_module_finance
             FROM platform_settings WHERE id = 1 FOR UPDATE`
       : sql`SELECT default_trial_days, alert_days_before_expiry, email_sender_name,
               default_max_users, default_max_branches, default_module_patients,
-              default_module_appointments, default_module_medical
+              default_module_appointments, default_module_medical, default_module_finance
             FROM platform_settings WHERE id = 1`,
   );
   const row = rows[0];
@@ -46,6 +47,7 @@ export async function readPlatformSettingsIn(tx: Tx, lock = false): Promise<Plat
       patients: row.default_module_patients,
       appointments: row.default_module_appointments,
       medical: row.default_module_medical,
+      finance: row.default_module_finance,
     },
   };
 }

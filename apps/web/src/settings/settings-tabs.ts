@@ -17,16 +17,36 @@ export const SETTINGS_TABS = [
   { id: "email", resource: "clinic_settings", to: "/clinic/settings/email" },
   // Phase 3 N2: the clinic's WhatsApp channel.
   { id: "whatsapp", resource: "clinic_settings", to: "/clinic/settings/whatsapp" },
-] as const satisfies readonly { id: string; resource: PermissionResource; to: string }[];
+  // Finance F1 §2: shown only while the clinic's finance module is on.
+  { id: "finance", resource: "clinic_settings", to: "/clinic/settings/finance", module: "finance" },
+] as const satisfies readonly {
+  id: string;
+  resource: PermissionResource;
+  to: string;
+  module?: "finance";
+}[];
 
 export type SettingsTab = (typeof SETTINGS_TABS)[number];
 export type SettingsTabId = SettingsTab["id"];
 
-export function visibleSettingsTabs(permissions: readonly string[]): SettingsTab[] {
-  return SETTINGS_TABS.filter((tab) => can(permissions, "view", tab.resource));
+type Features = Partial<Record<"finance", boolean>>;
+
+/** The tabs a user can view; a module tab needs its module on (absent features hide it). */
+export function visibleSettingsTabs(
+  permissions: readonly string[],
+  features: Features = {},
+): SettingsTab[] {
+  return SETTINGS_TABS.filter(
+    (tab) =>
+      can(permissions, "view", tab.resource) &&
+      (!("module" in tab) || features[tab.module] === true),
+  );
 }
 
 /** Where the Settings menu entry lands: the first tab the user can see, or none. */
-export function firstSettingsTab(permissions: readonly string[]): SettingsTab | null {
-  return visibleSettingsTabs(permissions)[0] ?? null;
+export function firstSettingsTab(
+  permissions: readonly string[],
+  features: Features = {},
+): SettingsTab | null {
+  return visibleSettingsTabs(permissions, features)[0] ?? null;
 }

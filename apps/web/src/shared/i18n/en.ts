@@ -1,3 +1,4 @@
+import { enFinance } from "./en-finance";
 import { enNotifications } from "./en-notifications";
 import { enWhatsapp } from "./en-whatsapp";
 import { enClinicCreate } from "./en-clinic-create";
@@ -153,6 +154,8 @@ export const en = {
       appointmentsBody: "Services, work schedules and time off; booking arrives next.",
       medical: "Medical",
       medicalBody: "Visits, doctor notes, diagnoses, prescriptions and the medical file.",
+      finance: "Finance",
+      financeBody: "Service prices, invoices, discounts and invoice printing.",
       saved: "Module updated",
     },
     members: {
@@ -178,6 +181,7 @@ export const en = {
   ...enVisits,
   ...enNotifications,
   ...enWhatsapp,
+  ...enFinance,
   validation: {
     needsView: "Any create, edit or deactivate permission needs view on the same area",
     timezone: "Choose a supported time zone",
@@ -190,7 +194,7 @@ export const en = {
     email: "Enter a valid email",
     slug: "Use lowercase letters, numbers and dashes",
     slugReserved: "This address is reserved by Eyadex",
-    moduleRequires: "The medical module needs the Patients module switched on first",
+    moduleRequires: "This module needs the Patients module switched on first",
     number: "Enter a number",
     min: "Must be at least 1",
     dateRequired: "Pick a date",
@@ -253,5 +257,22 @@ export const en = {
     validation: "Some fields are invalid",
     last_active_platform_account: "The last active platform account cannot be deactivated",
     unknown: "Something went wrong",
+    // Finance F1 (spec §3.3).
+    price_missing: "This service has no price; set it in the services settings first",
+    invoice_prefix_missing: "Set this branch's invoice prefix before issuing its first invoice",
+    invoice_prefix_locked: "The invoice prefix cannot change after the branch's first invoice",
+    invoice_prefix_taken: "Another branch of the clinic uses or used this prefix",
+    invoice_already_exists: "An invoice already exists for this appointment or visit",
+    invoice_void: "This invoice is void and cannot be changed",
+    appointment_not_billable:
+      "A no-show or cancelled appointment has no invoice of its own; issue a manual invoice",
+    currency_locked: "The currency cannot change once a price or an invoice exists",
+    currency_unsupported: "This currency is not supported",
+    discount_exceeds_total: "The discount is larger than the invoice amount",
+    discount_reason_required: "Write the reason for the discount",
+    precondition_required: "Reload the invoice, then try again",
+    version_conflict: "Someone else just changed this invoice; reload it and try again",
+    send_request_conflict: "This send request was already used for another invoice or channel",
+    invoice_link_expired: "This invoice link is no longer valid; ask the clinic for a new one",
   },
 } as const;

@@ -6,7 +6,7 @@ import { customRole, memberOn } from "../../identity/__tests__/user-fixtures.ts"
 import type { AuthorizationInvalidator } from "../../identity/index.ts";
 import { addBranch } from "../../patients/__tests__/patient-fixtures.ts";
 
-type Method = "GET" | "POST" | "PUT";
+type Method = "GET" | "POST" | "PUT" | "PATCH";
 
 /** One request on the clinic host as `cookie`; an Idempotency-Key when given. */
 export const send = (

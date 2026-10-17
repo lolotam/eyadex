@@ -9,7 +9,7 @@ import { customRole, memberOn } from "../../identity/__tests__/user-fixtures.ts"
 import { AUTHORIZATION_INVALIDATOR, type AuthorizationInvalidator } from "../../identity/index.ts";
 import { code, send } from "../../appointments/__tests__/scheduling-fixtures.ts";
 import { setPatientsModule } from "../../patients/__tests__/patient-fixtures.ts";
-import { MemoryBlobStore } from "../persistence/memory-blob-store.ts";
+import { MemoryBlobStore } from "../../../shared/blob/memory-blob-store.ts";
 import { filePart, pngBytes, uploaded, uploadParts } from "./attachment-fixtures.ts";
 import {
   DOCTOR_KEYS,
@@ -58,7 +58,7 @@ const member = async (keys: readonly string[], branchIds?: string[]) =>
   );
 
 beforeAll(async () => {
-  h = await openHarness({}, true, { medicalBlobStore: new MemoryBlobStore() });
+  h = await openHarness({}, true, { blobStore: new MemoryBlobStore() });
   invalidate = h.app.get<AuthorizationInvalidator>(AUTHORIZATION_INVALIDATOR);
   C = await medicalClinic(h, invalidate);
   const readKeys = ["view:medical:clinic", "view:visits:clinic"];

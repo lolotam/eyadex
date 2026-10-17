@@ -38,6 +38,7 @@ import {
   PlatformClinicAdminController,
   type ClinicDetailReader,
 } from "./http/platform-clinic-admin.controller.ts";
+import { PlatformClinicFinanceController } from "./http/platform-clinic-finance.controller.ts";
 import {
   CREATE_CLINIC,
   PLATFORM_CLINIC_LIST,
@@ -70,6 +71,7 @@ import { PlatformTeamController } from "./http/platform-team.controller.ts";
   controllers: [
     PlatformClinicsController,
     PlatformClinicAdminController,
+    PlatformClinicFinanceController,
     PlatformConsoleController,
     PlatformTeamController,
   ],

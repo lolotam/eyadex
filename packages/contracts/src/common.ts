@@ -73,6 +73,22 @@ export const apiErrorCodeSchema = z.enum([
   "attachment_type",
   "attachment_patient_mismatch",
   "role_self_change",
+  // Finance F1 (spec §3.3, R1-6/8/9/10/16, R2-5).
+  "price_missing",
+  "invoice_prefix_missing",
+  "invoice_prefix_locked",
+  "invoice_prefix_taken",
+  "invoice_already_exists",
+  "invoice_void",
+  "appointment_not_billable",
+  "currency_locked",
+  "currency_unsupported",
+  "discount_exceeds_total",
+  "discount_reason_required",
+  "precondition_required",
+  "version_conflict",
+  "send_request_conflict",
+  "invoice_link_expired",
   "unknown",
 ]);
 export type ApiErrorCode = z.infer<typeof apiErrorCodeSchema>;

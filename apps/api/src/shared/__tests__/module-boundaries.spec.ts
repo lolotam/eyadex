@@ -142,6 +142,46 @@ const importsOfMedical = (module: string): string[] =>
       ([, target = ""]) => `${file.slice(modulesDir.length)}: ${target}`,
     ),
   );
+// Finance F1 (plan Task 8): billing names its own tables, the price column of clinic_services, and
+// branches and clinics for the invoice prefix and the currency; patients, appointments, visits and members
+// come through its ports, bound in billing.module.ts to the adapters their owners export from index.ts.
+const BILLING_RELATIONS = [
+  "clinic_services",
+  "service_provider_prices",
+  "invoices",
+  "invoice_lines",
+  "invoice_sequences",
+  "used_invoice_prefixes",
+  "invoice_links",
+  // 0062: the patient link lookup, SECURITY DEFINER over invoice_links.
+  "invoice_link_lookup",
+  "branches",
+  "clinics",
+];
+const billingSqlRelations = (): string[] =>
+  sourceFiles(join(modulesDir, "billing")).flatMap((file) =>
+    [...readFileSync(file, "utf8").matchAll(/\b(?:FROM|JOIN|UPDATE|INTO)\s+([a-z_][a-z0-9_]*)/g)]
+      .map(([, relation = ""]) => relation)
+      .filter((relation) => !BILLING_RELATIONS.includes(relation))
+      .map((relation) => `${file.slice(modulesDir.length)}: ${relation}`),
+  );
+const billingOwnerImports = (): string[] =>
+  sourceFiles(join(modulesDir, "billing")).flatMap((file) =>
+    [
+      ...readFileSync(file, "utf8").matchAll(
+        /from\s+["']([^"']*\/(?:patients|appointments|medical|notifications)\/[^"']*)["']/g,
+      ),
+    ]
+      .map(([, target = ""]) => target)
+      .filter(
+        (target) =>
+          !(
+            /\/(?:patients|appointments|medical|notifications)\/index\.ts$/.test(target) &&
+            file.endsWith("billing.module.ts")
+          ),
+      )
+      .map((target) => `${file.slice(modulesDir.length)}: ${target}`),
+  );
 // ADR-0031: the notifications module names only its three tables (N2 added the WhatsApp channel; the
 // outbox goes through shared/); appointments and medical reach it only through notifications/index.ts,
 // bound in their module file.
@@ -210,6 +250,15 @@ describe("module boundaries", () => {
 
   it("medical reaches patients and appointments only through their index.ts, bound in its module file", () => {
     expect(medicalOwnerImports()).toEqual([]);
+  });
+
+  it("the billing module's SQL names only its own tables; the rest comes through its ports", () => {
+    expect(existsSync(join(modulesDir, "billing", "billing.module.ts"))).toBe(true);
+    expect(billingSqlRelations()).toEqual([]);
+  });
+
+  it("billing reaches patients, appointments, medical and notifications only through their index.ts", () => {
+    expect(billingOwnerImports()).toEqual([]);
   });
 
   it("patients and appointments import nothing of medical (its adapters live with their owners)", () => {

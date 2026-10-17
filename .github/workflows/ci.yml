@@ -80,6 +80,8 @@ jobs:
         run: sh db/tests/admin-keys-backfill.sh
       - name: Medical release (0050) upgrades system roles only, matches the catch-up
         run: sh db/tests/medical-release-backfill.sh
+      - name: Finance release catch-up (0063) is the migration's role statement
+        run: sh db/tests/finance-release-catch-up.sh
       # @eyadex/db runs against the same database this job just migrated. The passwords are the
       # ci-only-* ones the runtime roles were created with above; the owner URL is for the fixtures
       # and the assertions only — the owner role never reaches the application (CLAUDE.md §5).

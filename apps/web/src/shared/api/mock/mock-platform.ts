@@ -1,3 +1,5 @@
+import { clinicFinanceOf } from "./mock-finance-state";
+import { newClinicFinanceSchema } from "../new-clinic-finance";
 import {
   NO_FEATURES,
   effectiveClinicStatus,
@@ -126,6 +128,8 @@ export function createMockPlatform(): Omit<
         throw new ApiError("reserved_slug");
       }
       const input = createClinicInputSchema.parse(raw);
+      // Every field is checked before any state changes: a refused create leaves no half-made clinic.
+      const financeInput = newClinicFinanceSchema.parse(raw);
       const db = getState();
       const replayed = replayClinicCreate(db, actor.id, idempotencyKey, input);
       if (replayed) return replayed;
@@ -151,6 +155,10 @@ export function createMockPlatform(): Omit<
       };
       db.clinics.push(clinic);
       db.features[clinic.id] = { ...input.modules };
+      // Finance F1 (spec §8 rule 6): the request's currency and tax rate, else KWD and 0.
+      const finance = clinicFinanceOf(db, clinic.id);
+      finance.currency = financeInput.currency ?? "KWD";
+      finance.taxRateBp = financeInput.taxRateBp ?? 0;
       const roles = buildSystemRoles(clinic.id, newId);
       let firstAdminInvite: FirstAdminInviteLink | null = null;
       db.roles.push(...roles);

@@ -5,12 +5,22 @@ import type { Logger } from "@eyadex/observability";
 
 import type { MailSender } from "../invitation-mail/ports/mail-sender.ts";
 import type { ClinicMailDeps } from "../invitation-mail/send-via-clinic.ts";
+import type { InvoiceLinkStore } from "./ports/invoice-links.ts";
 import type { NotificationStore, ReadyNotification } from "./ports/notification-store.ts";
 import type { WhatsappSender } from "./ports/whatsapp-sender.ts";
 import type { FieldOpener } from "./prescription-lines.ts";
 
 export interface NotificationDispatchDeps {
   readonly store: NotificationStore;
+  /**
+   * روابط الفواتير (C1): المخزن، وختم `INVOICE_LINK_SEAL_KEY` (`null` لو مش مضبوط: رسايل الفواتير بتستنى
+   * وباقي الأنواع ماشية)، وأصل منطقة العيادات اللي الرابط بيتبني عليه.
+   */
+  readonly invoiceLinks: {
+    readonly store: InvoiceLinkStore;
+    readonly sealer: SecretSealer | null;
+    readonly appUrl: string;
+  };
   /** مزودي العيادة: الختم والمصنع وعنوان المنصة للإرسال بالنيابة. */
   readonly clinicMail: ClinicMailDeps;
   /** بريد المنصة (main.ts): آخر مسار، بالنيابة عن العيادة (N-3). */
@@ -38,6 +48,12 @@ export interface HandlerContext {
   failed(event: ClaimedEvent, error: string): DispatchOutcome;
   /** فشل مالوش علاج: صف الدفتر `failed` والحدث كمان. */
   broken(event: ClaimedEvent, state: ReadyNotification, error: string): Promise<DispatchOutcome>;
+}
+
+/** الحدث اللي بيتبعت: عيادته، ورابط الفاتورة لو رسالة فاتورة (في الذاكرة بس، عمره ما بيتسجّل). */
+export interface SendTarget {
+  readonly clinicId: string;
+  readonly invoiceUrl: string | null;
 }
 
 export const DONE: DispatchOutcome = { kind: "dispatched" };

@@ -39,6 +39,10 @@ export { resolveExpiry, type ExpiryInput } from "./domain/subscription.ts";
 export { CLINIC_LIMITS, type ClinicLimits } from "./ports/clinic-limits.ts";
 export { ReaderClinicLimits } from "./queries/clinic-limits.ts";
 export { getPlatformClinicDetail } from "./queries/platform-clinic-detail.ts";
+export {
+  readPlatformClinicFinance,
+  readPlatformFinanceTotals,
+} from "./queries/platform-clinic-finance.ts";
 export { PgClinicReader } from "./persistence/pg-clinic-reader.ts";
 export { PgFilingBranches } from "./persistence/pg-filing-branches.ts";
 export { PgClinicNames } from "./persistence/pg-clinic-names.ts";

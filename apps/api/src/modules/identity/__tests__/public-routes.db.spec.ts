@@ -59,6 +59,7 @@ describe("sessionless /v1 routes", () => {
     }
     expect(found.sort()).toEqual([
       "GET /v1/hooks/meta",
+      "GET /v1/public/invoices/:token",
       "POST /v1/hooks/evolution",
       "POST /v1/hooks/meta",
       "POST /v1/invitations/accept",

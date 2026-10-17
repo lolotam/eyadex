@@ -4,7 +4,8 @@ import type {
   UpdateLimitsRequest,
   UpdateSubscriptionRequest,
 } from "@eyadex/contracts/platform-clinics";
-import type { Database, Tx } from "@eyadex/db";
+import type { PlatformClinicFinanceRequest } from "@eyadex/contracts/finance";
+import { DatabaseError, type Database, type Tx } from "@eyadex/db";
 import type { IdGenerator } from "@eyadex/ids";
 import { sql } from "drizzle-orm";
 
@@ -169,6 +170,35 @@ export class PlatformClinicChanges {
     });
   }
 
+  /**
+   * عملة العيادة ونسبة ضريبتها (spec §8 rule 6). العملة بتتغير بس جوه `finance_set_currency` (0061)، تحت
+   * قفل مالية العيادة، ومادام مفيش سعر ولا فاتورة؛ غير كده `currency_locked`. نفس القيم = مفيش صف سجل.
+   *
+   * @param actorUserId عضو فريق المنصة
+   * @param clinicId العيادة
+   * @param input العملة و/أو الضريبة
+   * @returns بيخلص لما التغيير يتحفظ
+   */
+  async updateFinance(actorUserId: string, clinicId: string, input: PlatformClinicFinanceRequest) {
+    await this.inClinic(actorUserId, clinicId, async (tx, _clinic, now) => {
+      const [row] = await tx.execute<{ currency: string; tax_rate_bp: number }>(
+        sql`SELECT currency, tax_rate_bp FROM clinics WHERE id = ${clinicId}`,
+      );
+      const before = { currency: row!.currency, taxRateBp: row!.tax_rate_bp };
+      const after = {
+        currency: input.currency ?? before.currency,
+        taxRateBp: input.taxRateBp ?? before.taxRateBp,
+      };
+      if (after.currency === before.currency && after.taxRateBp === before.taxRateBp) return null;
+      if (after.currency !== before.currency) await setCurrency(tx, clinicId, after.currency);
+      await tx.execute(
+        sql`UPDATE clinics SET tax_rate_bp = ${after.taxRateBp},
+              updated_at = ${now.toISOString()}::timestamptz WHERE id = ${clinicId}`,
+      );
+      return { action: "clinic.finance_changed", details: { before, after } };
+    });
+  }
+
   private async inClinic(
     actorUserId: string,
     clinicId: string,
@@ -201,5 +231,18 @@ export class PlatformClinicChanges {
         createdAt: now,
       });
     });
+  }
+}
+
+// The contract admits supported currencies only, so the one refusal of the function the API can reach is
+// currency_locked (a price or an invoice exists). DatabaseError keeps the SQLSTATE, never the message.
+async function setCurrency(tx: Tx, clinicId: string, currency: string): Promise<void> {
+  try {
+    await tx.execute(sql`SELECT finance_set_currency(${clinicId}::uuid, ${currency}::char(3))`);
+  } catch (error) {
+    if (error instanceof DatabaseError && error.code === "P0001") {
+      throw new ApiError("currency_locked");
+    }
+    throw error;
   }
 }

@@ -105,6 +105,7 @@ const CLINIC_BOUND = new Set([
   "view:visits:own",
   "view:medical:own",
   "update:medical:own",
+  "view:invoices:own",
 ]);
 
 /**

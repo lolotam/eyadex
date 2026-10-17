@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { mayEditBooking } from "./booking-access";
 
-const on = { patients: true, appointments: true, medical: false };
-const off = { patients: true, appointments: false, medical: false };
+const on = { patients: true, appointments: true, medical: false, finance: false };
+const off = { patients: true, appointments: false, medical: false, finance: false };
 
 describe("booking settings on the user editor", () => {
   it("need update:users and the appointments module — permissions only, never a role", () => {

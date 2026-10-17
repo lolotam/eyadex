@@ -10,7 +10,7 @@ import {
 } from "../../identity/auth/__tests__/auth-http-harness.ts";
 import { AUTHORIZATION_INVALIDATOR, type AuthorizationInvalidator } from "../../identity/index.ts";
 import { code, send } from "../../appointments/__tests__/scheduling-fixtures.ts";
-import { MemoryBlobStore } from "../persistence/memory-blob-store.ts";
+import { MemoryBlobStore } from "../../../shared/blob/memory-blob-store.ts";
 import {
   filePart,
   pngBytes,
@@ -39,7 +39,7 @@ let otherPatientVisit: string;
 const NAME = "تحليل الدم.png";
 
 beforeAll(async () => {
-  h = await openHarness({}, true, { medicalBlobStore: store });
+  h = await openHarness({}, true, { blobStore: store });
   C = await medicalClinic(h, h.app.get<AuthorizationInvalidator>(AUTHORIZATION_INVALIDATOR));
   patient = await patientIn(h, C, C.branchD);
   // Walk-ins make both patients the doctor's own (R1-18).

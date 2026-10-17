@@ -46,9 +46,12 @@ export const enAudit = {
       provider_time_off: "Time off",
       appointment: "Appointment",
       ...enMedicalAuditEntities,
+      invoice: "Invoice",
+      invoice_link: "Invoice link",
     },
     actions: {
       branch: {
+        invoice_prefix_set: "Branch invoice prefix set",
         created: "Branch created",
         updated: "Branch updated",
         deactivated: "Branch deactivated",
@@ -78,6 +81,8 @@ export const enAudit = {
         reactivated: "Role reactivated",
       },
       service: {
+        price_set: "Service price changed",
+        provider_prices_set: "Doctor prices of a service changed",
         created: "Service created",
         updated: "Service updated",
         deactivated: "Service deactivated",
@@ -100,6 +105,9 @@ export const enAudit = {
         prescription_sent: "Prescription emailed to the patient",
       },
       clinic: {
+        finance_changed: "Clinic currency or tax rate changed",
+        commercial_reg_no_set: "Commercial registration number changed",
+        logo_set: "Clinic logo changed",
         created: "Clinic created",
         ...enAuditApiClinicActions,
         details_updated: "Clinic details updated",
@@ -126,10 +134,19 @@ export const enAudit = {
       platform: {
         settings_updated: "Platform settings updated",
       },
+      invoice: {
+        issued: "Invoice issued",
+        edited: "Invoice edited",
+        voided: "Invoice voided",
+        pdf_opened: "Invoice PDF opened",
+        link_opened: "Patient opened the invoice link",
+      },
       ...enMedicalAuditActions,
     },
     fields: {
       ...enMedicalAuditFields,
+      currency: "Currency",
+      taxRateBp: "Tax rate (basis points)",
       nameAr: "Name (Arabic)",
       nameEn: "Name (English)",
       address: "Address",
@@ -189,6 +206,7 @@ export const enAudit = {
       patients: "Patients",
       appointments: "Appointments",
       medical: "Medical",
+      finance: "Finance",
       ar: "Arabic",
       en: "English",
       male: "Male",

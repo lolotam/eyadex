@@ -1,7 +1,8 @@
+import type { CurrencyCode } from "@eyadex/contracts/money";
 import type {
+  MessageKind,
   MessageLanguage,
   NotificationChannel,
-  NotificationKind,
   NotificationRoute,
   NotificationSettings,
   NotificationSkipReason,
@@ -14,7 +15,7 @@ import type { AppointmentNow } from "../domain/skip-decision.ts";
 /** صف الدفتر ممسوك `FOR UPDATE`. مفيه عنوان ولا نص (spec §2). */
 export interface LedgerRow {
   readonly id: string;
-  readonly kind: NotificationKind;
+  readonly kind: MessageKind;
   readonly channel: NotificationChannel;
   readonly patientId: string;
   readonly subjectId: string;
@@ -51,6 +52,15 @@ export interface VisitSubject {
   /** مستخدم الطبيب اللي وقّع: فاعل سطر السجل `patient.prescription_sent`. */
   readonly signerUserId: string;
   readonly lines: readonly SealedPrescriptionLine[];
+}
+
+/** الفاتورة وقت الإرسال `FOR SHARE`: آخر نسخة، واللي الرسالة بتقوله عنها بس (spec §8 rule 15). */
+export interface InvoiceSubject {
+  readonly number: string;
+  readonly totalMinor: string;
+  readonly currency: CurrencyCode;
+  readonly currencyExponent: number;
+  readonly status: "issued" | "void";
 }
 
 /** صفّي مزود العيادة ممسوكين `FOR UPDATE` (الأساسي الأول). */
@@ -134,6 +144,8 @@ export interface ReadyNotification {
   readonly appointment: AppointmentSubject | null;
   /** للوصفة؛ `null` لو الزيارة مش موجودة أو مش موقّعة أو الرسالة موعد. */
   readonly visit: VisitSubject | null;
+  /** للفاتورة؛ `null` لو الفاتورة مش موجودة أو الرسالة مش فاتورة. */
+  readonly invoice: InvoiceSubject | null;
   /** صفّي مزود الإيميل؛ فاضيين لصف واتساب (مالوش سلسلة مزودين). */
   readonly providers: LockedProviders;
   /** لصفوف واتساب بس؛ `null` لصف إيميل. */
@@ -148,6 +160,13 @@ export interface ReadyNotification {
    * والتفاصيل id الزيارة بس — مفيش اسم دوا.
    */
   auditPrescriptionSent(at: Date): Promise<void>;
+  /**
+   * بيقفل رابط الفاتورة الحي بتاع الرسالة دي (C1-Q4): فشل بيثبت إن الرسالة ماوصلتش.
+   *
+   * @param at وقت القفل
+   * @returns اكتمال الكتابة
+   */
+  revokeInvoiceLinks(at: Date): Promise<void>;
 }
 
 /** حالة صف الدفتر وقت الـ claim. */

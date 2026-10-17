@@ -46,9 +46,12 @@ export const arAudit = {
       provider_time_off: "إجازة",
       appointment: "موعد",
       ...arMedicalAuditEntities,
+      invoice: "فاتورة",
+      invoice_link: "رابط فاتورة",
     },
     actions: {
       branch: {
+        invoice_prefix_set: "تحديد بادئة فواتير الفرع",
         created: "إنشاء فرع",
         updated: "تعديل فرع",
         deactivated: "تعطيل فرع",
@@ -78,6 +81,8 @@ export const arAudit = {
         reactivated: "إعادة تفعيل دور",
       },
       service: {
+        price_set: "تعديل سعر خدمة",
+        provider_prices_set: "تعديل أسعار الدكاترة لخدمة",
         created: "إنشاء خدمة",
         updated: "تعديل خدمة",
         deactivated: "تعطيل خدمة",
@@ -100,6 +105,9 @@ export const arAudit = {
         prescription_sent: "إرسال الوصفة للمراجع بالبريد",
       },
       clinic: {
+        finance_changed: "تغيير عملة العيادة أو نسبة الضريبة",
+        commercial_reg_no_set: "تعديل رقم السجل التجاري",
+        logo_set: "تغيير شعار العيادة",
         created: "إنشاء عيادة",
         ...arAuditApiClinicActions,
         details_updated: "تعديل بيانات العيادة",
@@ -126,10 +134,19 @@ export const arAudit = {
       platform: {
         settings_updated: "تحديث إعدادات المنصة",
       },
+      invoice: {
+        issued: "إصدار فاتورة",
+        edited: "تعديل فاتورة",
+        voided: "إلغاء فاتورة",
+        pdf_opened: "فتح الفاتورة PDF",
+        link_opened: "فتح المراجع رابط الفاتورة",
+      },
       ...arMedicalAuditActions,
     },
     fields: {
       ...arMedicalAuditFields,
+      currency: "العملة",
+      taxRateBp: "نسبة الضريبة (نقطة أساس)",
       nameAr: "الاسم (عربي)",
       nameEn: "الاسم (إنجليزي)",
       address: "العنوان",
@@ -189,6 +206,7 @@ export const arAudit = {
       patients: "المراجعون",
       appointments: "المواعيد",
       medical: "الطبي",
+      finance: "المالية",
       ar: "العربية",
       en: "الإنجليزية",
       male: "ذكر",

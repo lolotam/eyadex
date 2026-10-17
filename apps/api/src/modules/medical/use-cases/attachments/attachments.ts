@@ -25,7 +25,7 @@ import {
   visitForAttachment,
   type AttachmentRow,
 } from "../../persistence/pg-attachment-store.ts";
-import type { BlobStore } from "../../ports/blob-store.ts";
+import type { BlobStore } from "../../../../shared/blob/blob-store.ts";
 import type { MedicalPatient } from "../../ports/medical-patient-reader.ts";
 import {
   attachmentBlobRef,

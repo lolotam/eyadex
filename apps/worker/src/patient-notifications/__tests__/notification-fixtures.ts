@@ -14,6 +14,7 @@ import {
 import type { ClinicProviderCredentials } from "../../mail-provider-test/ports/clinic-sender-factory.ts";
 import { OutboxPoller } from "../../shared/outbox-poller.ts";
 import { PATIENT_NOTIFICATION_REQUESTED } from "../domain/notification-event.ts";
+import { PgInvoiceLinks } from "../persistence/pg-invoice-links.ts";
 import { PgNotificationStore } from "../persistence/pg-notification-store.ts";
 import type { MetaSender } from "../ports/meta-sender.ts";
 import type { WhatsappSender } from "../ports/whatsapp-sender.ts";
@@ -21,6 +22,9 @@ import { notificationDispatcher } from "../send-notification.ts";
 
 export const q = (v: string) => `'${v.replace(/'/g, "''")}'`;
 export const PROVIDER_KEY = randomBytes(32).toString("base64");
+/** The worker's INVOICE_LINK_SEAL_KEY in these tests: random per run, never read from the environment. */
+export const INVOICE_LINK_KEY = randomBytes(32).toString("base64");
+export const APP_URL = "https://app.example.invalid";
 export const PLATFORM_FROM = "Eyadex <noreply@example.invalid>";
 export const cipher = new FieldCipher(new Map([[1, randomBytes(32)]]), 1);
 
@@ -202,6 +206,8 @@ export function sendHarness(
     meta?: MetaSender;
     whatsappSealer?: SecretSealer;
     random?: () => number;
+    /** `null` = no INVOICE_LINK_SEAL_KEY; the default is a sealer over INVOICE_LINK_KEY. */
+    invoiceSealer?: SecretSealer | null;
   } = {},
 ) {
   const platform = new FakeMail();
@@ -209,37 +215,44 @@ export function sendHarness(
   const opened: ClinicProviderCredentials[] = [];
   const clock = { t: new Date(), now: () => new Date(clock.t) };
   const { lines, logger } = captureLogs();
+  const handle = notificationDispatcher({
+    store: new PgNotificationStore(app, { newId: randomUUID }),
+    invoiceLinks: {
+      store: new PgInvoiceLinks(app, { newId: randomUUID }),
+      sealer:
+        options.invoiceSealer === undefined
+          ? new SecretSealer(INVOICE_LINK_KEY)
+          : options.invoiceSealer,
+      appUrl: APP_URL,
+    },
+    clinicMail: {
+      sealer: new SecretSealer(PROVIDER_KEY),
+      senders: {
+        open: async (c) => {
+          opened.push(c);
+          const sender =
+            c.kind === "resend" && c.apiKey === "re_fake_fallback" ? slots.fallback : slots.primary;
+          return { sender, close: () => undefined };
+        },
+      },
+      platformFrom: PLATFORM_FROM,
+    },
+    platform,
+    whatsapp: options.whatsapp ?? null,
+    ...(options.meta === undefined ? {} : { meta: options.meta }),
+    whatsappSealer: options.whatsappSealer ?? new SecretSealer(PROVIDER_KEY),
+    cipher: withCipher ? cipher : null,
+    clock,
+    ...(options.random === undefined ? {} : { random: options.random }),
+    logger,
+  });
   const poller = new OutboxPoller({
     outbox,
     types: [PATIENT_NOTIFICATION_REQUESTED],
     now: () => clock.now(),
     intervalMs: 20,
     logger,
-    handle: notificationDispatcher({
-      store: new PgNotificationStore(app, { newId: randomUUID }),
-      clinicMail: {
-        sealer: new SecretSealer(PROVIDER_KEY),
-        senders: {
-          open: async (c) => {
-            opened.push(c);
-            const sender =
-              c.kind === "resend" && c.apiKey === "re_fake_fallback"
-                ? slots.fallback
-                : slots.primary;
-            return { sender, close: () => undefined };
-          },
-        },
-        platformFrom: PLATFORM_FROM,
-      },
-      platform,
-      whatsapp: options.whatsapp ?? null,
-      ...(options.meta === undefined ? {} : { meta: options.meta }),
-      whatsappSealer: options.whatsappSealer ?? new SecretSealer(PROVIDER_KEY),
-      cipher: withCipher ? cipher : null,
-      clock,
-      ...(options.random === undefined ? {} : { random: options.random }),
-      logger,
-    }),
+    handle,
   });
-  return { platform, slots, opened, clock, lines, poller };
+  return { platform, slots, opened, clock, lines, poller, handle };
 }

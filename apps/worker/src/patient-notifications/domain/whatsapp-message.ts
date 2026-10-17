@@ -1,5 +1,6 @@
 import { renderAppointmentEmail, type AppointmentMessage } from "./appointment-email.ts";
 import { formatWhen } from "./email-layout.ts";
+import { renderInvoiceEmail, type InvoiceMessage } from "./invoice-email.ts";
 import {
   prescriptionLineText,
   renderPrescriptionEmail,
@@ -7,10 +8,11 @@ import {
 } from "./prescription-email.ts";
 import { templateParameters } from "./whatsapp-template.ts";
 
-/** محتوى رسالة جاهز لأي قناة: موعد أو وصفة، بلغة واحدة. */
+/** محتوى رسالة جاهز لأي قناة: موعد أو وصفة أو فاتورة، بلغة واحدة. */
 export type MessageContent =
   | { readonly kind: "appointment"; readonly message: AppointmentMessage }
-  | { readonly kind: "prescription"; readonly message: PrescriptionMessage };
+  | { readonly kind: "prescription"; readonly message: PrescriptionMessage }
+  | { readonly kind: "invoice"; readonly message: InvoiceMessage };
 
 /**
  * نص رسالة Evolution (spec §7.1): نفس كلام الجزء النصي من الإيميل بلغة الرسالة، من غير موضوع ولا HTML.
@@ -19,6 +21,7 @@ export type MessageContent =
  * @returns النص
  */
 export function whatsappText(content: MessageContent): string {
+  if (content.kind === "invoice") return renderInvoiceEmail(content.message).text;
   return content.kind === "appointment"
     ? renderAppointmentEmail(content.message).text
     : renderPrescriptionEmail(content.message).text;
@@ -32,6 +35,10 @@ export function whatsappText(content: MessageContent): string {
  * @returns القيم بالترتيب
  */
 export function whatsappTemplateValues(content: MessageContent): string[] {
+  if (content.kind === "invoice") {
+    const { clinicName, number, amount, url } = content.message;
+    return templateParameters({ kind: "invoice", clinicName, number, amount, url });
+  }
   if (content.kind === "prescription") {
     const { clinicName, doctorName, lines } = content.message;
     return templateParameters({

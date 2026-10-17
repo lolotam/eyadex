@@ -31,3 +31,5 @@ export {
   clinicWhatsappChannels,
   patientNotifications,
 } from "./notifications.ts";
+export { usedInvoicePrefixes, serviceProviderPrices, invoiceSequences } from "./finance.ts";
+export { invoices, invoiceLines, invoiceLinks } from "./finance-invoices.ts";

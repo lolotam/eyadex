@@ -2,7 +2,12 @@ import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { MoreVertical } from "lucide-react";
 import { toast } from "sonner";
-import { canTransition, isReschedulable, type Appointment } from "@eyadex/contracts/appointments";
+import {
+  canTransition,
+  isBillable,
+  isReschedulable,
+  type Appointment,
+} from "@eyadex/contracts/appointments";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -15,6 +20,7 @@ import { errorCodeOf } from "@/shared/api/api-error";
 import { useApi } from "@/shared/api/api-provider";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { usePersona } from "@/shared/persona/persona-provider";
+import { InvoiceSourceMenuItem } from "@/shared/finance/invoice-source-menu-item";
 import { useRefreshAppointments } from "./appointment-queries";
 import { MessageHistoryDialog } from "./message-history-dialog";
 
@@ -80,6 +86,9 @@ export function AppointmentActions({ appointment, canUpdate, onReschedule, onCan
           <DropdownMenuItem onSelect={() => setMessages(true)}>
             {t("messageHistory.title")}
           </DropdownMenuItem>
+          {isBillable(appointment.status) && (
+            <InvoiceSourceMenuItem appointmentId={appointment.id} branchId={appointment.branchId} />
+          )}
           {cancellable && (
             <>
               <DropdownMenuSeparator />
