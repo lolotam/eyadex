@@ -31,7 +31,7 @@
 >   a database), keeping the web hard limits. Follow-up to PR #79.
 > - **V1.5 (2026-10-17)** — §2 step 2 and §9 label their rules by part (API, web mock adapter)
 >   instead of by phase, so Phase A being done retires none of them; §3 lists `packages/auth` and
->   `packages/secrets`. `CLAUDE.architecture.md` §1–2 and PRD §4.1, §5.3–5.4 and §8.2 follow
+>   `packages/secrets`. `CLAUDE.architecture.md` §1–2 and §9 and PRD §4.1, §5.3–5.4 and §8.2 follow
 >   Phase B and ADR-0024. Follow-up to PR #80.
 
 ## 0.1 Talking to the owner (binding, owner rule 2026-10-13)

@@ -5,7 +5,7 @@
 > On conflict, this file wins for structure and dependency direction.
 >
 > **Version:** A1.1 — 2026-10-17: §1–2 describe Phase B as it is today (web with mock and HTTP
-> adapters, API, worker, `packages/*`). A1.0 — 2026-10-03, adapted from PosPay A1.0.
+> adapters, API, worker, `packages/*`); the §9 checklist labels rules by part, not by phase. A1.0 — 2026-10-03, adapted from PosPay A1.0.
 
 ---
 
@@ -30,7 +30,7 @@
 
 Phase A built it against the mock; in Phase B the same screens also run against `apps/api`.
 `VITE_API_MODE` picks the adapter at build time (`shared/api/api-mode.ts`): the in-memory mock (the
-default; Lovable's preview and the tests) or the HTTP adapter. The web hard limits of `CLAUDE.md` §1
+default; Lovable's preview and most tests — a test may mock `API_MODE`) or the HTTP adapter. The web hard limits of `CLAUDE.md` §1
 still bind.
 
 ```
@@ -61,7 +61,7 @@ frame (the Settings shell). Nothing else of an area. `src/shared/area-boundaries
 the area-to-area rule (ADR-0030).
 
 A screen that imports an adapter directly (mock or HTTP) breaks the switch between them and is
-rejected. `shared/api/api-provider.tsx` builds the client; outside tests, test kits and the pure
+rejected in review (no lint rule or test enforces it). `shared/api/api-provider.tsx` builds the client; outside tests, test kits and the pure
 data the matrix allows `src/marketing`, no business area imports either adapter.
 
 ## 2. Phase B — the monorepo today (PRD §4.2, from the PosPay foundation)
@@ -211,7 +211,8 @@ Report only real defects, ranked by severity. Check first:
 ## 9. Definition of done for a slice
 
 - [ ] Contract (Zod) updated; SQL in `db/sql` updated with RLS + indexes if the schema changed
-- [ ] Every rule enforced in the mock (Phase A) / API + DB (Phase B), with tests
+- [ ] Every rule enforced in the API + DB and mirrored in the web mock adapter (same checks, same
+      order), with tests
 - [ ] UI in Arabic and English, 1440px and 390px, loading / empty / error states
 - [ ] Each persona checked: sees and does exactly what its permissions allow
 - [ ] typecheck, lint (0 errors), tests, build green locally and in CI
