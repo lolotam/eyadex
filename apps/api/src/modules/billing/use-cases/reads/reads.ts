@@ -11,7 +11,9 @@ import { ApiError } from "../../../../shared/errors.ts";
 import type { BillingActor } from "../../domain/billing-actor.ts";
 import { viewReach, type ViewReach } from "../../domain/invoice-reach.ts";
 import { readInvoice } from "../../persistence/pg-invoice-store.ts";
+import type { InvoiceSource } from "../../persistence/pg-invoice-store.ts";
 import type { BillingPatientReader } from "../../ports/billing-patients.ts";
+import type { BillingVisitReader } from "../../ports/billing-sources.ts";
 import { listInvoices } from "../../queries/invoice-list.ts";
 import { invoiceVisible } from "../invoice-visible.ts";
 
@@ -21,7 +23,11 @@ import { invoiceVisible } from "../invoice-visible.ts";
  */
 export class InvoiceReads {
   constructor(
-    private readonly deps: { readonly db: Database; readonly patients: BillingPatientReader },
+    private readonly deps: {
+      readonly db: Database;
+      readonly patients: BillingPatientReader;
+      readonly visits: BillingVisitReader;
+    },
   ) {}
 
   /**
@@ -36,9 +42,20 @@ export class InvoiceReads {
     query: InvoiceListQuery,
   ): Promise<z.infer<typeof invoiceListResponseSchema>> {
     const reach = this.reachOf(actor);
-    return this.deps.db.withTenant(actor.clinicId, (tx) =>
-      listInvoices(tx, actor.clinicId, query, this.condition(reach)),
-    );
+    return this.deps.db.withTenant(actor.clinicId, async (tx) => {
+      const encounter: InvoiceSource[] = [];
+      if (query.encounter && query.sourceId !== undefined) {
+        if (query.source === "appointment") {
+          const ids = await this.deps.visits.idsForAppointment(tx, actor.clinicId, query.sourceId);
+          encounter.push(...ids.map((sourceId) => ({ source: "visit" as const, sourceId })));
+        } else if (query.source === "visit") {
+          const visit = await this.deps.visits.find(tx, actor.clinicId, query.sourceId);
+          if (visit?.appointmentId)
+            encounter.push({ source: "appointment", sourceId: visit.appointmentId });
+        }
+      }
+      return listInvoices(tx, actor.clinicId, query, this.condition(reach), encounter);
+    });
   }
 
   /**

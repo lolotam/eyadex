@@ -104,7 +104,7 @@ export class BillingModule {
         {
           provide: INVOICE_READS,
           inject: [DATABASE],
-          useFactory: (db: Database) => new InvoiceReads({ db, patients }),
+          useFactory: (db: Database) => new InvoiceReads({ db, patients, visits: sources.visits }),
         },
         {
           provide: FINANCE_SETTINGS,

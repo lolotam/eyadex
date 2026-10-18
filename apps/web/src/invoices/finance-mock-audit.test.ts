@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { CreateInvoiceRequest } from "@eyadex/contracts/finance";
 import { as, api, clinicIdAt, getState, resetMockData } from "@/shared/api/mock/mock-test-kit";
+import { invoiceAuditSnapshot as mockSnapshot } from "@/shared/api/mock/mock-finance-audit";
+import { arAudit } from "@/shared/i18n/ar-audit";
+import { enAudit } from "@/shared/i18n/en-audit";
+import { invoiceAuditSnapshot as apiSnapshot } from "../../../api/src/shared/finance-audit";
 
 const admin = () => as("clinic_admin");
 const rows = (action: string) =>
@@ -37,6 +41,60 @@ const serviceId = () => {
 beforeEach(() => resetMockData());
 
 describe("mock finance audit rows, as the API", () => {
+  it("labels every finance write snapshot field in Arabic and English", async () => {
+    await api.finance.setServicePrice(admin(), serviceId(), "2500");
+    await api.finance.setProviderPrices(admin(), serviceId(), []);
+    await api.finance.updateSettings(admin(), "CR-1");
+    const [prefix] = await api.finance.prefixes(admin());
+    await api.finance.setPrefix(admin(), prefix!.branchId, "NEWP");
+    await api.finance.updatePlatformFinance(as("platform_admin"), clinicIdAt(0), {
+      taxRateBp: 100,
+    });
+    const body = manual("5000");
+    body.lines[0]!.discount = { kind: "pct", bp: 100, reason: "staff" };
+    body.invoiceDiscount = { kind: "amount", minor: "10", reason: "staff" };
+    const invoice = await api.finance.issue(admin(), body, crypto.randomUUID());
+    await api.finance.edit(admin(), invoice.id, 1, {
+      lines: manual("7000").lines,
+      invoiceDiscount: null,
+    });
+    await api.finance.voidInvoice(admin(), invoice.id, 2, "issued twice");
+    const keys = new Set<string>();
+    const collect = (value: unknown): void => {
+      if (Array.isArray(value)) value.forEach(collect);
+      else if (value && typeof value === "object") {
+        for (const [key, nested] of Object.entries(value)) {
+          keys.add(key);
+          collect(nested);
+        }
+      }
+    };
+    collect(apiSnapshot(invoice));
+    collect(mockSnapshot(invoice));
+    for (const row of [...getState().clinicAudit, ...getState().platformAudit]) {
+      collect(row.before);
+      collect(row.after);
+    }
+    // API finance writes also carry field names only, a provider count, or access metadata.
+    for (const key of [
+      "changed",
+      "priceMinor",
+      "commercialRegNo",
+      "logo",
+      "providerCount",
+      "reasonLength",
+      "via",
+    ])
+      keys.add(key);
+    for (const key of keys) {
+      for (const dict of [arAudit, enAudit]) {
+        expect((dict.audit.fields as Record<string, string>)[key], key).toBeTruthy();
+      }
+    }
+    expect(arAudit.audit.fields.invoicePrefix).toBe("بادئة الفاتورة");
+    expect(enAudit.audit.fields.invoicePrefix).toBe("Invoice prefix");
+  });
+
   it("records issue, edit and void with exact invoice snapshots (patient access)", async () => {
     const inv = await api.finance.issue(admin(), manual("5000"), crypto.randomUUID());
     const [issued] = rows("invoice.issued");
@@ -94,17 +152,12 @@ describe("mock finance audit rows, as the API", () => {
 
 describe("opening the invoice PDF", () => {
   it("writes one invoice.pdf_opened row with no snapshot", async () => {
-    const {
-      api: client,
-      as: who,
-      getState: state,
-    } = await import("@/shared/api/mock/mock-test-kit");
-    const page = await client.finance.listInvoices(who("clinic_admin"), { limit: 1 });
-    const inv = page.items[0];
-    if (!inv) return;
-    await client.finance.pdf(who("clinic_admin"), inv.id);
-    const row = state().clinicAudit[0];
-    expect(row).toMatchObject({
+    expect.assertions(2);
+    const inv = await api.finance.issue(admin(), manual("5000"), crypto.randomUUID());
+    await api.finance.pdf(admin(), inv.id);
+    const opened = rows("invoice.pdf_opened");
+    expect(opened).toHaveLength(1);
+    expect(opened[0]).toMatchObject({
       action: "invoice.pdf_opened",
       entityId: inv.id,
       before: null,

@@ -37,7 +37,7 @@ export function PricesOnlyServices() {
     prices: prices.data,
     mayPrice: can(permissions, "update", "prices"),
     onPrice: setPricing,
-    onProviderPrices: setProviderPricing,
+    onProviderPrices: can(permissions, "view", "schedules") ? setProviderPricing : undefined,
     withDuration: false,
   });
   if (prices.isError) {

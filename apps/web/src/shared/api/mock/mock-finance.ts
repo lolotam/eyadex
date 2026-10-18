@@ -78,6 +78,28 @@ export function createMockFinance(): FinanceApi {
       await delay();
       const a = viewer(persona);
       const q = parse(invoiceListQuerySchema, raw);
+      const related =
+        q.encounter && q.source === "appointment"
+          ? db()
+              .medical.visits.filter(
+                (v) => v.clinicId === a.clinic.id && v.appointmentId === q.sourceId,
+              )
+              .map((v) => ({ source: "visit", sourceId: v.id }))
+          : q.encounter && q.source === "visit"
+            ? [
+                {
+                  source: "appointment",
+                  sourceId: db().medical.visits.find(
+                    (v) => v.clinicId === a.clinic.id && v.id === q.sourceId,
+                  )?.appointmentId,
+                },
+              ]
+            : [];
+      const matchesSource = (i: { source: string; sourceId: string | null }) =>
+        ((!q.source || i.source === q.source) && (!q.sourceId || i.sourceId === q.sourceId)) ||
+        related.some(
+          (s) => s.sourceId != null && i.source === s.source && i.sourceId === s.sourceId,
+        );
       // As the API: from/to are days on the clinic's clock, not UTC days.
       const day = (iso: string) => dayInTimeZone(iso, a.clinic.timezone);
       const rows = financeState(db())
@@ -88,8 +110,7 @@ export function createMockFinance(): FinanceApi {
             (!q.branchId || i.branchId === q.branchId) &&
             (!q.patientId || i.patientId === q.patientId) &&
             (!q.status || i.status === q.status) &&
-            (!q.source || i.source === q.source) &&
-            (!q.sourceId || i.sourceId === q.sourceId) &&
+            matchesSource(i) &&
             (!q.number || i.number.includes(q.number.toUpperCase())) &&
             (!q.from || day(i.issuedAt) >= q.from) &&
             (!q.to || day(i.issuedAt) <= q.to),

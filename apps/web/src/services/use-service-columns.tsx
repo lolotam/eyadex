@@ -17,7 +17,7 @@ type Handlers = {
   prices?: PriceList | undefined;
   mayPrice?: boolean;
   onPrice?: (service: ClinicService) => void;
-  onProviderPrices?: (service: ClinicService) => void;
+  onProviderPrices?: ((service: ClinicService) => void) | undefined;
   /** False for a prices-only role: `GET /v1/prices` carries no duration. */
   withDuration?: boolean;
 };
@@ -90,11 +90,12 @@ export function useServiceColumns(h: Handlers): ColumnDef<ClinicService, unknown
               icon: Tag,
               onSelect: () => onPrice?.(service),
             });
-            actions.push({
-              label: t("finance.prices.providers"),
-              icon: Users,
-              onSelect: () => onProviderPrices?.(service),
-            });
+            if (onProviderPrices)
+              actions.push({
+                label: t("finance.prices.providers"),
+                icon: Users,
+                onSelect: () => onProviderPrices?.(service),
+              });
           }
           if (mayDeactivate) {
             const active = service.status === "active";

@@ -10,14 +10,22 @@ const state = vi.hoisted(() => ({
   permissions: [] as string[],
   invoices: {} as Record<string, string>,
   calls: [] as string[],
+  queries: [] as object[],
 }));
 
 vi.mock("@/shared/api/api-provider", () => ({
   useApi: () => ({
     finance: {
-      listInvoices: async (_p: unknown, q: { source: string; sourceId: string }) => {
+      listInvoices: async (
+        _p: unknown,
+        q: { source: string; sourceId: string; encounter?: boolean },
+      ) => {
         state.calls.push(`${q.source}:${q.sourceId}`);
-        const id = state.invoices[`${q.source}:${q.sourceId}`];
+        state.queries.push(q);
+        const other = q.source === "appointment" ? "visit:v1" : "appointment:a1";
+        const id =
+          state.invoices[`${q.source}:${q.sourceId}`] ??
+          (q.encounter ? state.invoices[other] : undefined);
         return { items: id ? [{ id }] : [], nextCursor: null, total: id ? 1 : 0 };
       },
     },
@@ -45,10 +53,27 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 beforeEach(() => {
   state.invoices = {};
   state.calls = [];
+  state.queries = [];
 });
 afterEach(cleanup);
 
 describe("the source invoice action", () => {
+  it.each(["appointment", "visit"] as const)(
+    "finds the encounter invoice from %s in ONE request",
+    async (kind) => {
+      state.permissions = ["view:invoices:clinic", "create:invoices:branch"];
+      state.invoices = kind === "appointment" ? { "visit:v1": "inv" } : { "appointment:a1": "inv" };
+      const id = kind === "appointment" ? "a1" : "v1";
+      const { result } = renderHook(() => useSourceInvoiceLink({ kind, id, branchId: OWN }), {
+        wrapper,
+      });
+      await waitFor(() => expect(result.current).toEqual({ kind: "view", invoiceId: "inv" }));
+      expect(state.queries).toEqual([
+        { source: kind, sourceId: id, encounter: true, status: "issued", limit: 1 },
+      ]);
+    },
+  );
+
   it("offers a new invoice in the member's create branch only", async () => {
     state.permissions = ["view:invoices:clinic", "create:invoices:branch"];
     const { result } = renderHook(
