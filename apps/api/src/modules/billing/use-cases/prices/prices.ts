@@ -114,7 +114,9 @@ export class PriceChanges {
         createdAt: clock.now(),
       });
       const [saved] = await readPrices(tx, actor.clinicId, serviceId);
-      return saved!;
+      // The service row was checked under the finance lock above, so it is still there.
+      if (saved === undefined) throw new ApiError("not_found");
+      return saved;
     });
   }
 }
