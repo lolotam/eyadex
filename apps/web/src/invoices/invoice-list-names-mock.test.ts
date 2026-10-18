@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { CreateInvoiceRequest } from "@eyadex/contracts/finance";
 import { invoiceListResponseSchema } from "@eyadex/contracts/finance";
-import { errorCodeOf } from "@/shared/api/api-error";
+import { ApiError, errorCodeOf } from "@/shared/api/api-error";
 import { isOwnPatient } from "@/shared/api/mock/mock-own-scope";
 import { as, api, clinicIdAt, getState, resetMockData } from "@/shared/api/mock/mock-test-kit";
 
@@ -125,6 +125,12 @@ describe("patient names in the invoice list (mock = API)", () => {
     await issueFor(p);
     const db = getState();
     db.patients = db.patients.filter((x) => x.id !== p.id);
-    expect(await fails(api.finance.listInvoices(admin(), {}))).toBe("unknown");
+    // `fails` maps a success to "unknown" too, so assert the rejection itself.
+    const error = await api.finance.listInvoices(admin(), {}).then(
+      () => null,
+      (e: unknown) => e,
+    );
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({ code: "unknown" });
   });
 });
