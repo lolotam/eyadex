@@ -1,4 +1,4 @@
-import type { PermissionDefinition } from "@eyadex/contracts/roles";
+import type { PermissionDefinition } from "@eyadex/contracts/permissions";
 
 // Widest first: a write granted alone must never get a narrower view than the catalog offers.
 const WIDEST_FIRST = ["clinic", "branch", "own"] as const;

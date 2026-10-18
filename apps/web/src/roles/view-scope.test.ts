@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PermissionDefinition } from "@eyadex/contracts/roles";
+import type { PermissionDefinition } from "@eyadex/contracts/permissions";
 import { viewScope } from "./view-scope";
 
 const def = (scope: string) =>
