@@ -6,6 +6,7 @@ import { invoiceStatusSchema } from "@eyadex/contracts/finance";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { errorCodeOf } from "@/shared/api/api-error";
+import { useDebouncedValue } from "@/shared/forms/use-debounced-value";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { can } from "@/shared/permissions/can";
 import { useSession } from "@/shared/persona/persona-provider";
@@ -36,6 +37,8 @@ export function InvoicesContent() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [number, setNumber] = useState("");
+  // The request waits until typing stops; the shown page stays while the next one loads.
+  const searchedNumber = useDebouncedValue(number.trim());
   const list = useInvoiceList({
     limit: PAGE_SIZE,
     ...(pages.cursor ? { cursor: pages.cursor } : {}),
@@ -44,7 +47,7 @@ export function InvoicesContent() {
     ...(status ? { status: invoiceStatusSchema.parse(status) } : {}),
     ...(from ? { from } : {}),
     ...(to ? { to } : {}),
-    ...(number.trim() ? { number: number.trim() } : {}),
+    ...(searchedNumber ? { number: searchedNumber } : {}),
   });
   const columns = useInvoiceColumns(money);
   const filtered = (apply: () => void) => {
