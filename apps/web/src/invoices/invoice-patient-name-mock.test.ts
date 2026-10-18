@@ -37,10 +37,18 @@ describe("the invoice detail's patient name", () => {
     expect(getState().clinicAudit.length).toBe(rows);
   });
 
-  it("list rows never carry it", async () => {
-    await api.finance.issue(as("clinic_admin"), manual(), crypto.randomUUID());
+  it("list rows carry it too (finance-design §8c item 4)", async () => {
+    const body = manual();
+    await api.finance.issue(as("clinic_admin"), body, crypto.randomUUID());
     const page = await api.finance.listInvoices(as("clinic_admin"), { limit: 5 });
-    expect(page.items.every((i) => !("patientName" in i))).toBe(true);
+    const patient = getState().patients.find((p) => p.id === body.patientId);
+    expect(page.items.length).toBeGreaterThan(0);
+    expect(page.items.every((i) => typeof i.patientName === "string" && i.patientName !== "")).toBe(
+      true,
+    );
+    expect(page.items.find((i) => i.patientId === body.patientId)?.patientName).toBe(
+      patient?.fullName,
+    );
   });
 
   it("NEGATIVE: another clinic is refused, and no name leaks", async () => {

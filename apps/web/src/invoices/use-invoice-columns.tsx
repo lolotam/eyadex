@@ -6,7 +6,7 @@ import { useI18n } from "@/shared/i18n/i18n-provider";
 import { InvoiceStatusBadge } from "./invoice-status-badge";
 
 /**
- * Number (opens the invoice), date, branch, source, status, total in the invoice's own currency. The
+ * Number (opens the invoice), patient name (plain text, never a file link), date, branch, source, status, total in the invoice's own currency. The
  * branch name comes with the invoice: a doctor's own invoices cross branches outside its membership.
  */
 export function useInvoiceColumns(
@@ -27,6 +27,15 @@ export function useInvoiceColumns(
           >
             {row.original.number}
           </Link>
+        ),
+      },
+      {
+        id: "patient",
+        header: t("finance.list.patient"),
+        cell: ({ row }) => (
+          <span className="block max-w-48 truncate text-start" title={row.original.patientName}>
+            {row.original.patientName}
+          </span>
         ),
       },
       {
