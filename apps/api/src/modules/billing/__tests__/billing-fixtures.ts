@@ -10,7 +10,7 @@ import {
   SUNDAY,
 } from "../../appointments/__tests__/appointment-fixtures.ts";
 import { send } from "../../appointments/__tests__/scheduling-fixtures.ts";
-import { medicalClinic, setModule } from "../../medical/__tests__/medical-fixtures.ts";
+import { medicalClinic, patientIn, setModule } from "../../medical/__tests__/medical-fixtures.ts";
 
 /**
  * The medical clinic with the finance module on. The admin holds the seven clinic-scope finance keys from
@@ -42,6 +42,13 @@ export async function financeClinic(h: Harness, invalidate: AuthorizationInvalid
 }
 
 export type FinanceClinic = Awaited<ReturnType<typeof financeClinic>>;
+
+/** A fictional Arabic display name stored directly for invoice read assertions. */
+export async function namedPatient(h: Harness, C: FinanceClinic, branchId: string, name: string) {
+  const id = await patientIn(h, C, branchId);
+  await h.owner`UPDATE patients SET full_name = ${name} WHERE clinic_id = ${C.clinicId} AND id = ${id}`;
+  return id;
+}
 
 /** The clinic's audit rows written since `since`, oldest first. */
 export const auditSince = (h: Harness, clinicId: string, since: Date) =>

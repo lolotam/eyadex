@@ -40,7 +40,7 @@ export const invoiceSchema = z
     branchNameAr: z.string(),
     branchNameEn: z.string(),
     patientId: idSchema,
-    // Detail only: optional so existing invoice writes and stored clients remain compatible.
+    // Optional on detail so existing invoice writes and stored clients remain compatible.
     patientName: z.string().optional(),
     issuedAt: z.string().datetime(),
     currency: currencyCodeSchema,
@@ -63,5 +63,6 @@ export type Invoice = z.infer<typeof invoiceSchema>;
 export const invoiceWriteResponseSchema = z.object({ invoice: invoiceSchema }).strict();
 
 export const invoiceListItemSchema = invoiceSchema
-  .omit({ lines: true, patientName: true })
+  .omit({ lines: true })
+  .extend({ patientName: z.string() })
   .strict();

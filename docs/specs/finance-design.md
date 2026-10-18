@@ -341,6 +341,14 @@ columns>) WHERE subject_type <> 'invoice'`. Invoice notifications are unique on
    locked function. A discount has no view of its own, so a role holding `create:discounts` must hold
    `view:invoices` (the write-needs-view rule reads `VIEWED_THROUGH`). The finance release grants the locked
    admin its **seven clinic-scope** finance keys, the same set a new clinic's admin gets.
+4. **The invoice list names the patient (owner decision 2026-10-16, F1 follow-up).** A holder of
+   `view:invoices` sees the patient's display name on every row of `GET /v1/invoices`, inside the reach
+   rule 12 already gives (clinic, branch or `own`; nothing widens). The list reads the names in one batch
+   through the patients port (`BillingPatientReader.displayNames`, like the invoice page's `displayName`),
+   in the same transaction as the page. It is not a file open: **no `patient_access` audit row is written,
+   neither per row nor per page.** `view:patients` is not required, and the platform still sees no invoice
+   row and no name (FIN-3, §8 of `CLAUDE.md`). Tests: names across a page boundary, no audit row, a wrong
+   branch and a foreign `own` patient leak no name anywhere in the body, the platform is refused.
 
 ## 9. Out of this phase
 

@@ -5,6 +5,7 @@ import type { z } from "zod";
 
 import { ApiError } from "../../../shared/errors.ts";
 import type { InvoiceSource } from "../persistence/pg-invoice-store.ts";
+import type { BillingPatientReader } from "../ports/billing-patients.ts";
 
 type InvoiceListItem = z.infer<typeof invoiceListItemSchema>;
 
@@ -76,7 +77,7 @@ interface Row {
   version: number;
 }
 
-const toItem = (r: Row): InvoiceListItem => ({
+const toItem = (r: Row, patientName: string): InvoiceListItem => ({
   id: r.id,
   number: r.number,
   status: r.status,
@@ -86,6 +87,7 @@ const toItem = (r: Row): InvoiceListItem => ({
   branchNameAr: r.branch_name_ar,
   branchNameEn: r.branch_name_en,
   patientId: r.patient_id,
+  patientName,
   issuedAt: r.issued_at,
   currency: r.currency,
   currencyExponent: r.currency_exponent,
@@ -111,6 +113,7 @@ export async function listInvoices(
   clinicId: string,
   query: InvoiceListQuery,
   reach: SQL,
+  patients: Pick<BillingPatientReader, "displayNames">,
   encounter: readonly InvoiceSource[] = [],
 ): Promise<{ items: InvoiceListItem[]; nextCursor: string | null; total: number }> {
   const where = filters(clinicId, query, reach, encounter);
@@ -135,7 +138,17 @@ export async function listInvoices(
         ${from} WHERE ${sql.join(page, sql` AND `)}
         ORDER BY i.id DESC LIMIT ${query.limit + 1}`,
   );
-  const items = rows.slice(0, query.limit).map(toItem);
+  const pageRows = rows.slice(0, query.limit);
+  const names = await patients.displayNames(
+    tx,
+    clinicId,
+    pageRows.map((row) => row.patient_id),
+  );
+  const items = pageRows.map((row) => {
+    const name = names.get(row.patient_id);
+    if (name === undefined) throw new ApiError("unknown");
+    return toItem(row, name);
+  });
   const last = items.at(-1);
   return {
     items,
