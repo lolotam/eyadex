@@ -1,18 +1,20 @@
 import { useState } from "react";
-import { Lock, Pencil } from "lucide-react";
+import { AlertCircle, Lock, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import { useApi } from "@/shared/api/api-provider";
 import { usePersona } from "@/shared/persona/persona-provider";
 import { useI18n } from "@/shared/i18n/i18n-provider";
+import { errorCodeOf } from "@/shared/api/api-error";
 import { LoadingBlock } from "@/shared/shell/loading-block";
+import { StatusPanel } from "@/shared/shell/status-panel";
 import { useInvoicePrefixes } from "./finance-queries";
 import { InvoicePrefixDialog, type PrefixTarget } from "./invoice-prefix-dialog";
 
 /** One row per branch: its prefix, or "Not set"; a locked prefix is read-only (spec §8 rule 9). */
 export function InvoicePrefixesCard() {
-  const { t, pick } = useI18n();
+  const { t, tDynamic, pick } = useI18n();
   const prefixes = useInvoicePrefixes(true);
   const api = useApi();
   const { persona } = usePersona();
@@ -33,7 +35,16 @@ export function InvoicePrefixesCard() {
         <CardDescription>{t("finance.settings.prefixesBody")}</CardDescription>
       </CardHeader>
       <CardContent>
-        {prefixes.isLoading ? (
+        {prefixes.isError ? (
+          <StatusPanel
+            icon={AlertCircle}
+            title={t("finance.loadError")}
+            body={tDynamic(`errors.${errorCodeOf(prefixes.error)}`)}
+            action={
+              <Button onClick={() => void prefixes.refetch()}>{t("common.tryAgain")}</Button>
+            }
+          />
+        ) : prefixes.isLoading ? (
           <LoadingBlock />
         ) : (
           <ul className="divide-y rounded-md border">
