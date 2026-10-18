@@ -48,6 +48,8 @@ const PATIENT_ACCESS: ReadonlySet<string> = new Set([
   "prescription",
   "medical_profile",
   "attachment",
+  "invoice",
+  "invoice_link",
 ]);
 
 /** Append-only clinic audit primitive shared by every clinic-area mock namespace. */
@@ -58,11 +60,19 @@ export function writeClinicAudit(
     actorName: string;
     action: string;
     entity: ClinicAuditEntry["entity"];
+    /** An invoice snapshot is shape-checked by its writer and stored as is (as the API). */
+    exact?: boolean;
   } & Subject,
 ): void {
   const entityId =
     entry.entityId === undefined ? (entry.after ?? entry.before)?.id : entry.entityId;
   if (entityId === undefined) return;
+  const side = (snap: Fields | null) =>
+    snap === null
+      ? null
+      : entry.exact
+        ? structuredClone(snap)
+        : scrubbed(withNames(db, entry.clinicId, snap));
   db.clinicAudit.unshift({
     id: newId(),
     clinicId: entry.clinicId,
@@ -71,8 +81,8 @@ export function writeClinicAudit(
     entity: entry.entity,
     category: PATIENT_ACCESS.has(entry.entity) ? "patient_access" : "administrative",
     entityId,
-    before: entry.before ? scrubbed(withNames(db, entry.clinicId, entry.before)) : null,
-    after: entry.after ? scrubbed(withNames(db, entry.clinicId, entry.after)) : null,
+    before: side(entry.before),
+    after: side(entry.after),
     createdAt: new Date().toISOString(),
   });
 }

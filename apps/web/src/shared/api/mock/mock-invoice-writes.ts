@@ -27,6 +27,7 @@ import {
   totalsOf,
 } from "./mock-invoice-rules";
 import { actorReplayKey, requireIdempotencyKey } from "./mock-idempotency";
+import { auditInvoice } from "./mock-finance-audit";
 import { parse } from "./mock-medical-access";
 import { inPatientViewReach } from "./mock-patient-rules";
 import { newId, type MockState } from "./mock-store";
@@ -206,7 +207,9 @@ export function issueInvoice(
   };
   state.invoices.push(invoice);
   state.idempotentInvoices[ledgerKey] = { invoiceId: invoice.id, fingerprint };
-  return strip(db, invoice);
+  const answer = strip(db, invoice);
+  auditInvoice(db, a, "invoice.issued", null, answer);
+  return answer;
 }
 
 /** The invoice as the API answers it: without its clinic, with its branch's current names. */
@@ -254,13 +257,16 @@ export function editInvoice(
   }
   checkServiceLines(db, a.clinic.id, body.lines);
   const totals = totalsOf(body.lines, body.invoiceDiscount, invoice.taxRateBp);
+  const before = strip(db, invoice);
   Object.assign(invoice, {
     ...totalsFields(totals),
     invoiceDiscount: body.invoiceDiscount,
     lines: storedLines(db, body.lines, totals),
     version: invoice.version + 1,
   });
-  return strip(db, invoice);
+  const after = strip(db, invoice);
+  auditInvoice(db, a, "invoice.edited", before, after);
+  return after;
 }
 
 /** POST /v1/invoices/:id/void: the number stays taken, the source can be invoiced again. */
@@ -274,11 +280,14 @@ export function voidInvoice(
 ): Invoice {
   const invoice = lockedInvoice(db, a, id, "deactivate", version);
   const body = parse(voidInvoiceRequestSchema, raw);
+  const before = strip(db, invoice);
   Object.assign(invoice, {
     status: "void",
     voidReason: body.reason,
     voidedAt: now.toISOString(),
     version: invoice.version + 1,
   });
-  return strip(db, invoice);
+  const after = strip(db, invoice);
+  auditInvoice(db, a, "invoice.voided", before, after);
+  return after;
 }
