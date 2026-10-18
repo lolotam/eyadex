@@ -18,6 +18,8 @@ type Handlers = {
   mayPrice?: boolean;
   onPrice?: (service: ClinicService) => void;
   onProviderPrices?: (service: ClinicService) => void;
+  /** False for a prices-only role: `GET /v1/prices` carries no duration. */
+  withDuration?: boolean;
 };
 
 export function useServiceColumns(h: Handlers): ColumnDef<ClinicService, unknown>[] {
@@ -38,6 +40,9 @@ export function useServiceColumns(h: Handlers): ColumnDef<ClinicService, unknown
           </div>
         ),
       },
+      ...(h.withDuration === false
+        ? []
+        : [
       {
         id: "duration",
         header: t("services.columns.duration"),
@@ -47,6 +52,7 @@ export function useServiceColumns(h: Handlers): ColumnDef<ClinicService, unknown
           </span>
         ),
       },
+          ] satisfies ColumnDef<ClinicService, unknown>[]),
       ...(prices
         ? [
             {
@@ -114,5 +120,6 @@ export function useServiceColumns(h: Handlers): ColumnDef<ClinicService, unknown
     mayPrice,
     onPrice,
     onProviderPrices,
+    h.withDuration,
   ]);
 }
