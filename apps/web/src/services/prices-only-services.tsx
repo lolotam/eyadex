@@ -14,7 +14,7 @@ import { usePriceList } from "./price-queries";
 import { servicesOfPriceList } from "./services-of-price-list";
 import { ProviderPricesDialog } from "./provider-prices-dialog";
 import { ServicePriceDialog } from "./service-price-dialog";
-import { ServicesLoadNotice } from "./services-load-notice";
+import { LoadNotice } from "@/shared/shell/load-notice";
 import { useServiceColumns } from "./use-service-columns";
 
 /** Item 8 (owner decision b): services read from `GET /v1/prices` only; no service writes. */
@@ -54,7 +54,9 @@ export function PricesOnlyServices() {
   return (
     <div>
       <SectionHeader title={t("services.title")} subtitle={t("services.subtitle")} />
-      {prices.isError && <ServicesLoadNotice onRetry={() => void prices.refetch()} />}
+      {prices.isError && (
+        <LoadNotice title={t("services.loadError")} onRetry={() => void prices.refetch()} />
+      )}
       <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border bg-card p-3">
         <FilterSelect
           label={t("services.columns.status")}

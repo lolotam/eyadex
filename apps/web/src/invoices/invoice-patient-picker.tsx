@@ -19,7 +19,9 @@ export function InvoicePatientPicker({
 }) {
   const { t } = useI18n();
   const [q, setQ] = useState("");
-  const search = usePatientSearch(useDebouncedValue(q), q);
+  const debounced = useDebouncedValue(q);
+  const search = usePatientSearch(debounced, q);
+  const current = q.trim() === debounced.trim() && !search.isPlaceholderData;
   if (value) {
     return (
       <div className="flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm">
@@ -40,7 +42,7 @@ export function InvoicePatientPicker({
         aria-label={t("finance.invoice.pickPatient")}
         placeholder={t("finance.invoice.pickPatient")}
       />
-      {q.trim().length >= 2 && (search.data?.items.length ?? 0) > 0 && (
+      {current && q.trim().length >= 2 && (search.data?.items.length ?? 0) > 0 && (
         <ul className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border bg-popover shadow-sm">
           {search.data!.items.map((p) => (
             <li key={p.id}>

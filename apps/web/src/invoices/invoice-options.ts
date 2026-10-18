@@ -68,7 +68,8 @@ export function usePatientSearch(q: string, raw = q) {
     queryFn: () =>
       api.patients.list(persona, { cursor: null, limit: 10, q, branchId: null, status: "active" }),
     enabled: ready && Boolean(persona.clinicId) && q.trim().length >= 2,
-    placeholderData: (previous) => (raw.trim().length >= 2 ? previous : undefined),
+    placeholderData: (previous) =>
+      raw.trim().length >= 2 && raw.trim() === q.trim() ? previous : undefined,
     retry,
   });
 }

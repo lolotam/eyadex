@@ -8,6 +8,7 @@ import { usePersona } from "@/shared/persona/persona-provider";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { errorCodeOf } from "@/shared/api/api-error";
 import { LoadingBlock } from "@/shared/shell/loading-block";
+import { LoadNotice } from "@/shared/shell/load-notice";
 import { StatusPanel } from "@/shared/shell/status-panel";
 import { useInvoicePrefixes } from "./finance-queries";
 import { InvoicePrefixDialog, type PrefixTarget } from "./invoice-prefix-dialog";
@@ -35,7 +36,10 @@ export function InvoicePrefixesCard() {
         <CardDescription>{t("finance.settings.prefixesBody")}</CardDescription>
       </CardHeader>
       <CardContent>
-        {prefixes.isError ? (
+        {prefixes.isError && prefixes.data !== undefined && (
+          <LoadNotice title={t("finance.loadError")} onRetry={() => void prefixes.refetch()} />
+        )}
+        {prefixes.isError && prefixes.data === undefined ? (
           <StatusPanel
             icon={AlertCircle}
             title={t("finance.loadError")}

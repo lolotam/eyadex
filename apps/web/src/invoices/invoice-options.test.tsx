@@ -66,15 +66,15 @@ describe("the invoice form's services", () => {
 });
 
 describe("invoice patient search placeholders", () => {
-  it("retains results for a pending search only while the raw input has two trimmed characters", async () => {
+  it("discards placeholders when raw input differs from the debounced query or is too short", async () => {
     const { result, rerender } = renderHook(({ q, raw }) => usePatientSearch(q, raw), {
       initialProps: { q: "ab", raw: "ab" },
       wrapper,
     });
     await waitFor(() => expect(result.current.data?.items).toHaveLength(1));
     rerender({ q: "", raw: "cd" });
-    expect(result.current.isPlaceholderData).toBe(true);
-    expect(result.current.data?.items).toHaveLength(1);
+    expect(result.current.isPlaceholderData).toBe(false);
+    expect(result.current.data).toBeUndefined();
     rerender({ q: "", raw: " a " });
     expect(result.current.isPlaceholderData).toBe(false);
     expect(result.current.data).toBeUndefined();

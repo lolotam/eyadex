@@ -98,7 +98,7 @@ function NewInvoiceContent({ source }: { source: Source }) {
           priceMissing={draft.data?.priceMissing ?? false}
           onDone={(invoice) => {
             refresh();
-            if (can(session?.permissions ?? [], "view", "invoices")) {
+            if (session && canAtBranch(session, "view", "invoices", invoice.branchId)) {
               void navigate({
                 to: "/clinic/invoices/$invoiceId",
                 params: { invoiceId: invoice.id },

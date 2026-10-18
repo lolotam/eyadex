@@ -81,7 +81,11 @@ async function issue() {
 
 beforeEach(() => {
   state.permissions = ["create:invoices:branch"];
-  state.issue.mockReset().mockResolvedValue({ id: "invoice", number: "INV-2026-000001" });
+  state.issue.mockReset().mockResolvedValue({
+    id: "invoice",
+    number: "INV-2026-000001",
+    branchId: "branch",
+  });
   state.navigate.mockReset();
   state.success.mockReset();
   window.localStorage.clear();
@@ -126,22 +130,41 @@ describe("navigation after issuing an invoice", () => {
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["clinic", "invoices"] });
   });
 
-  it.each(["branch", "clinic", "own"])(
-    "keeps the detail navigation for a caller with %s view scope",
-    async (scope) => {
-      state.permissions.push(`view:invoices:${scope}`);
-      const back = vi.spyOn(window.history, "back");
-      const invalidate = show();
-      await issue();
-      await waitFor(() =>
-        expect(state.navigate).toHaveBeenCalledExactlyOnceWith({
-          to: "/clinic/invoices/$invoiceId",
-          params: { invoiceId: "invoice" },
-        }),
-      );
-      expect(back).not.toHaveBeenCalled();
-      expect(state.success).not.toHaveBeenCalled();
-      expect(invalidate).toHaveBeenCalledWith({ queryKey: ["clinic", "invoices"] });
-    },
-  );
+  it.each([
+    ["branch", "branch"],
+    ["clinic", "other"],
+  ])("keeps the detail navigation for a caller with %s view scope", async (scope, branchId) => {
+    state.permissions.push(`view:invoices:${scope}`);
+    state.issue.mockResolvedValue({ id: "invoice", number: "INV-2026-000001", branchId });
+    const back = vi.spyOn(window.history, "back");
+    const invalidate = show();
+    await issue();
+    await waitFor(() =>
+      expect(state.navigate).toHaveBeenCalledExactlyOnceWith({
+        to: "/clinic/invoices/$invoiceId",
+        params: { invoiceId: "invoice" },
+      }),
+    );
+    expect(back).not.toHaveBeenCalled();
+    expect(state.success).not.toHaveBeenCalled();
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["clinic", "invoices"] });
+  });
+
+  it.each(["another branch", "own"])("uses the fallback for view scope in %s", async (scope) => {
+    state.permissions.push(`view:invoices:${scope === "own" ? "own" : "branch"}`);
+    if (scope === "another branch") {
+      state.issue.mockResolvedValue({
+        id: "invoice",
+        number: "INV-2026-000001",
+        branchId: "other",
+      });
+    }
+    vi.spyOn(window.history, "length", "get").mockReturnValue(2);
+    const back = vi.spyOn(window.history, "back").mockImplementation(() => undefined);
+    show();
+    await issue();
+    await waitFor(() => expect(back).toHaveBeenCalledTimes(1));
+    expect(state.navigate).not.toHaveBeenCalled();
+    expect(state.success).toHaveBeenCalledWith("تم إصدار الفاتورة INV-2026-000001");
+  });
 });

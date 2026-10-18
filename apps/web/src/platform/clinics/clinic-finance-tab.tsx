@@ -20,6 +20,7 @@ import { useI18n } from "@/shared/i18n/i18n-provider";
 import { useOncePerOpen } from "@/shared/forms/use-once-per-open";
 import { usePersona } from "@/shared/persona/persona-provider";
 import { LoadingBlock } from "@/shared/shell/loading-block";
+import { LoadNotice } from "@/shared/shell/load-notice";
 import { StatusPanel } from "@/shared/shell/status-panel";
 import { ClinicFinanceTotals } from "./clinic-finance-totals";
 
@@ -59,17 +60,21 @@ export function ClinicFinanceTab({ clinicId }: { clinicId: string }) {
     onError: (e) => setError(tDynamic(`errors.${errorCodeOf(e)}`)),
   });
   if (query.isLoading) return <LoadingBlock />;
-  if (query.isError) {
+  if (query.isError && query.data === undefined) {
     return (
       <StatusPanel
         icon={AlertCircle}
         title={t("finance.loadError")}
         body={tDynamic(`errors.${errorCodeOf(query.error)}`)}
+        action={<Button onClick={() => void query.refetch()}>{t("common.tryAgain")}</Button>}
       />
     );
   }
   return (
     <div className="grid max-w-3xl gap-4">
+      {query.isError && (
+        <LoadNotice title={t("finance.loadError")} onRetry={() => void query.refetch()} />
+      )}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">{t("finance.platform.title")}</CardTitle>

@@ -23,9 +23,20 @@ export function ClinicFinanceTotals({ clinicId }: { clinicId: string }) {
         <CardTitle className="text-base">{t("finance.platform.totals")}</CardTitle>
       </CardHeader>
       <CardContent>
+        {query.isError && query.data !== undefined && (
+          <div
+            role="alert"
+            className="mb-3 flex flex-wrap items-center gap-3 text-sm text-muted-foreground"
+          >
+            <span>{t("finance.platform.totalsError")}</span>
+            <Button variant="ghost" size="sm" onClick={() => void query.refetch()}>
+              {t("common.retry")}
+            </Button>
+          </div>
+        )}
         {query.isLoading ? (
           <LoadingBlock />
-        ) : query.isError ? (
+        ) : query.isError && query.data === undefined ? (
           // A failed read is not "no invoices": say so and offer the retry (PR #78 review).
           <div role="alert" className="flex flex-wrap items-center gap-3 text-sm">
             <span className="text-destructive">{t("finance.platform.totalsError")}</span>

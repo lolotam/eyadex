@@ -39,9 +39,17 @@ export function InvoicesContent() {
   const [number, setNumber] = useState("");
   // The request waits until typing stops; the shown page stays while the next one loads.
   const searchedNumber = useDebouncedValue(number.trim());
+  const searchPending = number.trim() !== searchedNumber;
+  const [pageNumber, setPageNumber] = useState(searchedNumber);
+  const searchChanged = pageNumber !== searchedNumber;
+  // A cursor belongs to one effective search; never send it with a different number.
+  if (searchChanged) {
+    setPageNumber(searchedNumber);
+    pages.reset();
+  }
   const list = useInvoiceList({
     limit: PAGE_SIZE,
-    ...(pages.cursor ? { cursor: pages.cursor } : {}),
+    ...(!searchChanged && pages.cursor ? { cursor: pages.cursor } : {}),
     ...(branchId ? { branchId } : {}),
     ...(patient ? { patientId: patient.id } : {}),
     ...(status ? { status: invoiceStatusSchema.parse(status) } : {}),
@@ -110,7 +118,7 @@ export function InvoicesContent() {
           maxLength={40}
           aria-label={t("finance.list.searchNumber")}
           placeholder={t("finance.list.searchNumber")}
-          onChange={(e) => filtered(() => setNumber(e.target.value))}
+          onChange={(e) => setNumber(e.target.value)}
         />
       </div>
       {list.isError ? (
@@ -136,8 +144,8 @@ export function InvoicesContent() {
       <CursorPager
         count={items.length}
         total={list.data?.total ?? 0}
-        canPrevious={pages.canPrevious}
-        canNext={Boolean(list.data?.nextCursor)}
+        canPrevious={!searchPending && pages.canPrevious}
+        canNext={!searchPending && Boolean(list.data?.nextCursor)}
         onPrevious={pages.previous}
         onNext={() => pages.next(list.data?.nextCursor ?? null)}
       />
