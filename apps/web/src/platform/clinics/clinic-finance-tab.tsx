@@ -37,9 +37,8 @@ export function ClinicFinanceTab({ clinicId }: { clinicId: string }) {
   const [currency, setCurrency] = useState<CurrencyCode>("KWD");
   const [taxText, setTaxText] = useState("0");
   const [error, setError] = useState<string | null>(null);
-  // Once per clinic and once more after each save (lesson 4.2): a refetch alone never resets input.
-  const [generation, setGeneration] = useState(0);
-  useOncePerOpen(query.data ? `${clinicId}:${generation}` : null, () => {
+  // Once per clinic (lesson 4.2): a refetch, the one after a save included, never resets input.
+  useOncePerOpen(query.data ? clinicId : null, () => {
     if (!query.data) return;
     setCurrency(query.data.currency);
     setTaxText(String(query.data.taxRateBp));
