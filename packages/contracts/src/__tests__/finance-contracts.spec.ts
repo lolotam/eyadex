@@ -98,6 +98,33 @@ describe("discounts (FIN-A7)", () => {
 });
 
 describe("the invoice list", () => {
+  it.each([true, false, "true", "false"])("parses encounter=%s with a source pair", (encounter) => {
+    expect(
+      invoiceListQuerySchema.parse({ source: "appointment", sourceId: ID, encounter }).encounter,
+    ).toBe(encounter === true || encounter === "true");
+  });
+
+  it("round-trips defaults and accepts encounter=false without a source pair", () => {
+    const defaults = invoiceListQuerySchema.parse({});
+    expect(defaults.encounter).toBe(false);
+    expect(invoiceListQuerySchema.parse(defaults)).toEqual(defaults);
+    for (const encounter of [false, "false"]) {
+      expect(invoiceListQuerySchema.parse({ encounter })).toEqual(defaults);
+    }
+  });
+
+  it("requires an appointment or visit pair only for encounter=true", () => {
+    for (const query of [
+      { encounter: true },
+      { encounter: "true" },
+      { encounter: true, source: "appointment" },
+      { encounter: true, sourceId: ID },
+      { encounter: true, source: "manual", sourceId: ID },
+      { encounter: "yes", source: "visit", sourceId: ID },
+    ])
+      expect(invoiceListQuerySchema.safeParse(query).success).toBe(false);
+  });
+
   it("finds the live invoice of a source, but a source id alone names nothing", () => {
     const byAppointment = { source: "appointment", sourceId: ID };
     expect(invoiceListQuerySchema.safeParse(byAppointment).success).toBe(true);

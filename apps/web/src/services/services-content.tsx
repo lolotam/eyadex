@@ -18,6 +18,7 @@ import { ServiceFormDialog } from "./service-form-dialog";
 import { ServicePriceDialog } from "./service-price-dialog";
 import { useServiceList } from "./service-queries";
 import { ServiceStatusDialog } from "./service-status-dialog";
+import { LoadNotice } from "@/shared/shell/load-notice";
 import { useServiceColumns } from "./use-service-columns";
 
 const PAGE_SIZE = 20;
@@ -53,7 +54,7 @@ export function ServicesContent() {
     onProviderPrices: useCallback((s: ClinicService) => setProviderPricing(s), []),
   });
 
-  if (list.isError) {
+  if (list.isError && list.data === undefined) {
     return (
       <StatusPanel
         icon={AlertCircle}
@@ -84,6 +85,9 @@ export function ServicesContent() {
           )
         }
       />
+      {list.isError && (
+        <LoadNotice title={t("services.loadError")} onRetry={() => void list.refetch()} />
+      )}
       <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border bg-card p-3">
         <FilterSelect
           label={t("services.columns.status")}

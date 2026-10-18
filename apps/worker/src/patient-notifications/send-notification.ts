@@ -6,17 +6,18 @@ import { parseNotificationEvent } from "./domain/notification-event.ts";
 import { DONE, type HandlerContext, type NotificationDispatchDeps } from "./handler-context.ts";
 import type { ReadyNotification } from "./ports/notification-store.ts";
 import { sendEmail } from "./send-email.ts";
+import { sendReadiness } from "./send-readiness.ts";
 import { sendWhatsapp } from "./send-whatsapp.ts";
 
 export type { NotificationDispatchDeps } from "./handler-context.ts";
 
-// With no INVOICE_LINK_SEAL_KEY an invoice message waits, unattempted, for the key to be set.
+// With no INVOICE_LINK_SEAL_KEY a sendable invoice waits, unattempted, for the key to be set.
 const NO_KEY_WAIT_MS = 3_600_000;
 
 /**
  * بيبعت حدث `patient.notification_requested` واحد (spec §3.3، §7.1): يمسك صف الدفتر ويعيد قراءة كل حاجة
  * وقت الإرسال، وبعدين يسلّم الصف لقناته: الإيميل (مسارات العيادة ثم المنصة) أو واتساب (رقم العيادة، بطابور
- * لكل عيادة). رسالة الفاتورة بتعمل رابطها الأول في transaction لوحدها (C1، Tx 1) قبل أي إرسال. مفيش
+ * لكل عيادة). رسالة الفاتورة بتحسم التخطي وبعدين بتعمل رابطها في transaction لوحدها (C1، Tx 1) قبل أي إرسال. مفيش
  * تحويل من قناة لقناة. السطر المسجّل فيه أكواد بس: مفيش إيميل ولا رقم ولا اسم ولا دوا ولا رابط.
  *
  * @param deps الدفتر والمزودون وواتساب والمفاتيح والساعة ومسجل الأكواد
@@ -52,6 +53,16 @@ export function notificationDispatcher(deps: NotificationDispatchDeps) {
     const parsed = parseNotificationEvent(event.payload, event.clinicId);
     if (parsed === null) return failed(event, "invalid_payload");
     try {
+      const stopped = await deps.store.whileLocked(
+        parsed.clinicId,
+        parsed.notificationId,
+        async (state) => {
+          if (state.kind !== "ready" || state.ledger.kind !== "invoice") return null;
+          const readiness = await sendReadiness(ctx, event, state);
+          return readiness.kind === "stop" ? readiness.outcome : null;
+        },
+      );
+      if (stopped !== null) return stopped;
       const { invoiceLinks } = deps;
       const link = await invoiceLinks.store.prepare(
         parsed.clinicId,

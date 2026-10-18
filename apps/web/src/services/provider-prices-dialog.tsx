@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -24,6 +24,7 @@ import {
 import { errorCodeOf } from "@/shared/api/api-error";
 import { useApi } from "@/shared/api/api-provider";
 import { useI18n } from "@/shared/i18n/i18n-provider";
+import { useOncePerOpen } from "@/shared/forms/use-once-per-open";
 import { usePersona } from "@/shared/persona/persona-provider";
 import { minorOfText, priceOf, useRefreshPrices } from "./price-queries";
 
@@ -50,7 +51,7 @@ export function ProviderPricesDialog({
     queryFn: () => api.scheduling.listProviders(persona),
     enabled: service !== null,
   });
-  useEffect(() => {
+  useOncePerOpen(service?.id ?? null, () => {
     if (!service) return;
     setRows(
       priceOf(list, service.id).providerPrices.map((p) => ({
@@ -58,7 +59,7 @@ export function ProviderPricesDialog({
         text: formatMinor(p.priceMinor, exp),
       })),
     );
-  }, [service, list, exp]);
+  });
   const parsed = rows.map((r) => ({ memberId: r.memberId, priceMinor: minorOfText(r.text, exp) }));
   const valid = parsed.every((r) => r.memberId !== "" && r.priceMinor !== null);
   const save = useMutation({

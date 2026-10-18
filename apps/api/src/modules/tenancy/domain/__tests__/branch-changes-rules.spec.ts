@@ -31,6 +31,15 @@ describe("branch create limit", () => {
 });
 
 describe("branchAuditSnapshot", () => {
+  it("keeps an optional invoice prefix while old snapshots keep their shape", () => {
+    const branch = { nameAr: "فرع", nameEn: "Branch", address: null, phone: null, isActive: true };
+    expect(branchAuditSnapshot({ ...branch, invoicePrefix: "123456" })).toEqual({
+      ...branch,
+      invoicePrefix: "123456",
+    });
+    expect(branchAuditSnapshot(branch)).toEqual(branch);
+  });
+
   it("keeps the allowlisted fields only", () => {
     const row = {
       nameAr: "ف",

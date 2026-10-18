@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { useInvoiceOptions } from "./invoice-options";
+import { useInvoiceOptions, usePatientSearch } from "./invoice-options";
 
 const OWN = "00000000-0000-7000-8000-0000000000b1";
 const OTHER = "00000000-0000-7000-8000-0000000000b2";
@@ -10,8 +10,20 @@ const branch = (id: string) => ({ id, nameAr: id, nameEn: id, isActive: true });
 
 vi.mock("@/shared/api/api-provider", () => ({
   useApi: () => ({
-    scheduling: { listServices: async () => ({ items: [] }), listProviders: async () => [] },
-    patients: { branchOptions: async () => [branch(OWN), branch(OTHER)] },
+    scheduling: {
+      // 150 services in pages of 100: the second page must be read too.
+      listServices: async (_p: unknown, q: { cursor: string | null; limit: number }) => {
+        const start = q.cursor ? Number(q.cursor) : 0;
+        const all = Array.from({ length: 150 }, (_, i) => ({ id: `s${i}` }));
+        const end = Math.min(start + q.limit, all.length);
+        return { items: all.slice(start, end), nextCursor: end < all.length ? String(end) : null };
+      },
+      listProviders: async () => [],
+    },
+    patients: {
+      branchOptions: async () => [branch(OWN), branch(OTHER)],
+      list: async () => ({ items: [{ id: "patient" }], nextCursor: null, total: 1 }),
+    },
   }),
 }));
 vi.mock("@/shared/persona/persona-provider", () => ({
@@ -43,5 +55,28 @@ describe("the invoice form's branches", () => {
     const { result } = renderHook(() => useInvoiceOptions(), { wrapper });
     await waitFor(() => expect(result.current.branches).toHaveLength(2));
     expect(result.current.createBranches.map((b) => b.id)).toEqual([OWN]);
+  });
+});
+
+describe("the invoice form's services", () => {
+  it("reads every page, not only the first 100", async () => {
+    const { result } = renderHook(() => useInvoiceOptions(), { wrapper });
+    await waitFor(() => expect(result.current.services).toHaveLength(150));
+  });
+});
+
+describe("invoice patient search placeholders", () => {
+  it("discards placeholders when raw input differs from the debounced query or is too short", async () => {
+    const { result, rerender } = renderHook(({ q, raw }) => usePatientSearch(q, raw), {
+      initialProps: { q: "ab", raw: "ab" },
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.data?.items).toHaveLength(1));
+    rerender({ q: "", raw: "cd" });
+    expect(result.current.isPlaceholderData).toBe(false);
+    expect(result.current.data).toBeUndefined();
+    rerender({ q: "", raw: " a " });
+    expect(result.current.isPlaceholderData).toBe(false);
+    expect(result.current.data).toBeUndefined();
   });
 });

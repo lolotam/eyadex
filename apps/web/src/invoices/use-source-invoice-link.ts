@@ -10,38 +10,54 @@ export type SourceInvoiceLink =
   | { kind: "create"; source: "appointment" | "visit"; id: string }
   | null;
 
+type Source = { kind: "appointment" | "visit"; id: string; branchId: string };
+
 /**
- * F1 §3: what the «فاتورة» control of an appointment or visit offers — the live invoice when one
- * exists, else a new one (needs `create:invoices` reaching the source's branch, as the API's draft
- * judges it), else nothing. Hidden while finance is off.
+ * F1 §3: what the «فاتورة» control offers. One invoice covers an encounter (an appointment and its
+ * visits), looked up together by the API. A caller with a view key gets the live invoice
+ * the list lets them see; a caller with only a create key never looks and gets the new-invoice flow
+ * when that key reaches the record's branch (the draft refuses an already billed encounter).
  */
 export function useSourceInvoiceLink(
-  source: { kind: "appointment" | "visit"; id: string; branchId: string },
+  source: Source & { appointmentId?: string | null },
   active = true,
 ): SourceInvoiceLink {
   const { session } = useSession();
   const keys = session?.permissions ?? [];
-  const on = active && session?.features.finance === true && can(keys, "view", "invoices");
+  const finance = active && session?.features.finance === true;
+  const viewer = finance && can(keys, "view", "invoices");
   const api = useApi();
   const { persona, ready } = usePersona();
   // Under the invoices key, so issuing or voiding an invoice refreshes this lookup too.
   const existing = useQuery({
-    queryKey: ["clinic", "invoices", "source", source.kind, source.id, persona.memberId],
+    queryKey: [
+      "clinic",
+      "invoices",
+      "source",
+      source.kind,
+      source.id,
+      "encounter",
+      persona.memberId,
+    ],
     queryFn: async () => {
       const page = await api.finance.listInvoices(persona, {
         source: source.kind,
         sourceId: source.id,
+        encounter: true,
         status: "issued",
         limit: 1,
       });
       return page.items[0] ?? null;
     },
-    enabled: on && ready && Boolean(persona.clinicId),
+    enabled: viewer && ready && Boolean(persona.clinicId),
     retry: (count, error) => !(error instanceof ApiError) && count < 2,
   });
-  if (!on || existing.isLoading || existing.isError) return null;
-  if (existing.data) return { kind: "view", invoiceId: existing.data.id };
-  return session && canAtBranch(session, "create", "invoices", source.branchId)
+  if (!finance || !session) return null;
+  if (viewer) {
+    if (existing.isLoading || existing.isError) return null;
+    if (existing.data) return { kind: "view", invoiceId: existing.data.id };
+  }
+  return canAtBranch(session, "create", "invoices", source.branchId)
     ? { kind: "create", source: source.kind, id: source.id }
     : null;
 }

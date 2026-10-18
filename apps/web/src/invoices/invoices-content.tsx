@@ -6,6 +6,7 @@ import { invoiceStatusSchema } from "@eyadex/contracts/finance";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { errorCodeOf } from "@/shared/api/api-error";
+import { useDebouncedValue } from "@/shared/forms/use-debounced-value";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { can } from "@/shared/permissions/can";
 import { useSession } from "@/shared/persona/persona-provider";
@@ -36,15 +37,25 @@ export function InvoicesContent() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [number, setNumber] = useState("");
+  // The request waits until typing stops; the shown page stays while the next one loads.
+  const searchedNumber = useDebouncedValue(number.trim());
+  const searchPending = number.trim() !== searchedNumber;
+  const [pageNumber, setPageNumber] = useState(searchedNumber);
+  const searchChanged = pageNumber !== searchedNumber;
+  // A cursor belongs to one effective search; never send it with a different number.
+  if (searchChanged) {
+    setPageNumber(searchedNumber);
+    pages.reset();
+  }
   const list = useInvoiceList({
     limit: PAGE_SIZE,
-    ...(pages.cursor ? { cursor: pages.cursor } : {}),
+    ...(!searchChanged && pages.cursor ? { cursor: pages.cursor } : {}),
     ...(branchId ? { branchId } : {}),
     ...(patient ? { patientId: patient.id } : {}),
     ...(status ? { status: invoiceStatusSchema.parse(status) } : {}),
     ...(from ? { from } : {}),
     ...(to ? { to } : {}),
-    ...(number.trim() ? { number: number.trim() } : {}),
+    ...(searchedNumber ? { number: searchedNumber } : {}),
   });
   const columns = useInvoiceColumns(money);
   const filtered = (apply: () => void) => {
@@ -107,7 +118,7 @@ export function InvoicesContent() {
           maxLength={40}
           aria-label={t("finance.list.searchNumber")}
           placeholder={t("finance.list.searchNumber")}
-          onChange={(e) => filtered(() => setNumber(e.target.value))}
+          onChange={(e) => setNumber(e.target.value)}
         />
       </div>
       {list.isError ? (
@@ -133,8 +144,8 @@ export function InvoicesContent() {
       <CursorPager
         count={items.length}
         total={list.data?.total ?? 0}
-        canPrevious={pages.canPrevious}
-        canNext={Boolean(list.data?.nextCursor)}
+        canPrevious={!searchPending && pages.canPrevious}
+        canNext={!searchPending && Boolean(list.data?.nextCursor)}
         onPrevious={pages.previous}
         onNext={() => pages.next(list.data?.nextCursor ?? null)}
       />

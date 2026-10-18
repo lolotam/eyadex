@@ -21,3 +21,14 @@ export interface BlobStore {
    */
   get(key: string): Promise<Buffer>;
 }
+
+/** رد غير متوقع من المخزن؛ التفاصيل ثابتة عشان ما تسرّبش المفتاح أو اسم الحاوية. */
+export class BlobStoreAnswerError extends Error {
+  constructor(
+    readonly operation: "upload" | "download",
+    readonly detail: string,
+  ) {
+    super(`Blob store ${operation}: ${detail}`);
+    this.name = "BlobStoreAnswerError";
+  }
+}

@@ -88,6 +88,38 @@ beforeAll(async () => {
 afterAll(() => closeHarness(h));
 
 describe("edit (FIN-A5)", () => {
+  it("keeps an unchanged archived service after its price is cleared but refuses changing it", async () => {
+    await send(h, C.admin.cookie, "PATCH", `/v1/services/${C.serviceId}/price`, {
+      priceMinor: "1000",
+    });
+    const service = {
+      kind: "service",
+      serviceId: C.serviceId,
+      providerId: null,
+      quantity: 1,
+      unitPriceMinor: "1000",
+      discount: null,
+    };
+    const invoice = await issued(C.branchD, [service, free("200")]);
+    await send(h, C.admin.cookie, "PATCH", `/v1/services/${C.serviceId}/price`, {
+      priceMinor: null,
+    });
+    await h.owner`UPDATE clinic_services SET status = 'inactive' WHERE clinic_id = ${C.clinicId} AND id = ${C.serviceId}`;
+    try {
+      const changedOther = await edit(C.admin.cookie, invoice.id, [service, free("300")], '"1"');
+      expect(changedOther.statusCode, changedOther.body).toBe(200);
+      const changedService = await edit(
+        C.admin.cookie,
+        invoice.id,
+        [{ ...service, quantity: 2 }, free("300")],
+        '"2"',
+      );
+      expect([changedService.statusCode, code(changedService)]).toEqual([422, "price_missing"]);
+    } finally {
+      await h.owner`UPDATE clinic_services SET status = 'active' WHERE clinic_id = ${C.clinicId} AND id = ${C.serviceId}`;
+    }
+  });
+
   it("recomputes the totals, keeps the number and answers version 2 as ETag", async () => {
     const invoice = await issued(C.branchD, [free("1000")]);
     const since = new Date();

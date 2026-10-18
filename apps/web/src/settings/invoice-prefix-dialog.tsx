@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { invoicePrefixSchema } from "@eyadex/contracts/finance";
@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { errorCodeOf } from "@/shared/api/api-error";
 import { useApi } from "@/shared/api/api-provider";
 import { useI18n } from "@/shared/i18n/i18n-provider";
+import { useOncePerOpen } from "@/shared/forms/use-once-per-open";
 import { usePersona } from "@/shared/persona/persona-provider";
 import { useRefreshFinanceSettings } from "./finance-queries";
 
@@ -33,10 +34,10 @@ export function InvoicePrefixDialog({
   const refresh = useRefreshFinanceSettings();
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
+  useOncePerOpen(target?.branchId ?? null, () => {
     setValue(target?.prefix ?? "");
     setError(null);
-  }, [target]);
+  });
   const save = useMutation({
     mutationFn: (prefix: string) => api.finance.setPrefix(persona, target!.branchId, prefix),
     onSuccess: () => {

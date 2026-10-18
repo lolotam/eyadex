@@ -52,7 +52,14 @@ describe("base price (FIN-A8)", () => {
       currency: "KWD",
       currencyExponent: 3,
       items: expect.arrayContaining([
-        { serviceId: C.serviceId, priceMinor: "15500", providerPrices: [] },
+        expect.objectContaining({
+          serviceId: C.serviceId,
+          priceMinor: "15500",
+          providerPrices: [],
+          nameAr: expect.any(String),
+          nameEn: expect.any(String),
+          status: expect.stringMatching(/^(active|inactive)$/),
+        }),
       ]),
     });
     const cleared = await setPrice(C.admin.cookie, C.serviceId, null);

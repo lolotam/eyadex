@@ -4,6 +4,7 @@ import { sql, type SQL } from "drizzle-orm";
 import type { z } from "zod";
 
 import { ApiError } from "../../../shared/errors.ts";
+import type { InvoiceSource } from "../persistence/pg-invoice-store.ts";
 
 type InvoiceListItem = z.infer<typeof invoiceListItemSchema>;
 
@@ -19,13 +20,28 @@ const iso = (column: SQL) =>
   sql`to_char(${column} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`;
 const escapeLike = (text: string) => text.replace(/[\\%_]/g, (c) => `\\${c}`);
 
-function filters(clinicId: string, query: InvoiceListQuery, reach: SQL): SQL[] {
+function filters(
+  clinicId: string,
+  query: InvoiceListQuery,
+  reach: SQL,
+  encounter: readonly InvoiceSource[],
+): SQL[] {
   const where = [sql`i.clinic_id = ${clinicId}`, reach];
   if (query.branchId !== undefined) where.push(sql`i.branch_id = ${query.branchId}`);
   if (query.patientId !== undefined) where.push(sql`i.patient_id = ${query.patientId}`);
   if (query.status !== undefined) where.push(sql`i.status = ${query.status}`);
-  if (query.source !== undefined) where.push(sql`i.source = ${query.source}`);
-  if (query.sourceId !== undefined) where.push(sql`i.source_id = ${query.sourceId}`);
+  if (encounter.length > 0) {
+    const sources = [{ source: query.source!, sourceId: query.sourceId! }, ...encounter];
+    where.push(
+      sql`(${sql.join(
+        sources.map((s) => sql`(i.source = ${s.source} AND i.source_id = ${s.sourceId}::uuid)`),
+        sql` OR `,
+      )})`,
+    );
+  } else {
+    if (query.source !== undefined) where.push(sql`i.source = ${query.source}`);
+    if (query.sourceId !== undefined) where.push(sql`i.source_id = ${query.sourceId}`);
+  }
   if (query.number !== undefined) {
     where.push(sql`i.number ILIKE ${`%${escapeLike(query.number)}%`}`);
   }
@@ -95,8 +111,9 @@ export async function listInvoices(
   clinicId: string,
   query: InvoiceListQuery,
   reach: SQL,
+  encounter: readonly InvoiceSource[] = [],
 ): Promise<{ items: InvoiceListItem[]; nextCursor: string | null; total: number }> {
-  const where = filters(clinicId, query, reach);
+  const where = filters(clinicId, query, reach, encounter);
   const from = sql`FROM invoices i JOIN clinics c ON c.id = i.clinic_id
                    JOIN branches b ON b.clinic_id = i.clinic_id AND b.id = i.branch_id`;
   const [count] = await tx.execute<{ total: number }>(

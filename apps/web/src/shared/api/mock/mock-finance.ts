@@ -17,6 +17,7 @@ import {
   financeState,
 } from "./mock-finance-state";
 import * as settings from "./mock-finance-settings";
+import { writeClinicAudit } from "./mock-audit";
 import { renderInvoicePdf } from "./mock-invoice-pdf";
 import { draftOf, editInvoice, issueInvoice, strip, voidInvoice } from "./mock-invoice-writes";
 import { parse } from "./mock-medical-access";
@@ -77,6 +78,28 @@ export function createMockFinance(): FinanceApi {
       await delay();
       const a = viewer(persona);
       const q = parse(invoiceListQuerySchema, raw);
+      const related =
+        q.encounter && q.source === "appointment"
+          ? db()
+              .medical.visits.filter(
+                (v) => v.clinicId === a.clinic.id && v.appointmentId === q.sourceId,
+              )
+              .map((v) => ({ source: "visit", sourceId: v.id }))
+          : q.encounter && q.source === "visit"
+            ? [
+                {
+                  source: "appointment",
+                  sourceId: db().medical.visits.find(
+                    (v) => v.clinicId === a.clinic.id && v.id === q.sourceId,
+                  )?.appointmentId,
+                },
+              ]
+            : [];
+      const matchesSource = (i: { source: string; sourceId: string | null }) =>
+        ((!q.source || i.source === q.source) && (!q.sourceId || i.sourceId === q.sourceId)) ||
+        related.some(
+          (s) => s.sourceId != null && i.source === s.source && i.sourceId === s.sourceId,
+        );
       // As the API: from/to are days on the clinic's clock, not UTC days.
       const day = (iso: string) => dayInTimeZone(iso, a.clinic.timezone);
       const rows = financeState(db())
@@ -87,8 +110,7 @@ export function createMockFinance(): FinanceApi {
             (!q.branchId || i.branchId === q.branchId) &&
             (!q.patientId || i.patientId === q.patientId) &&
             (!q.status || i.status === q.status) &&
-            (!q.source || i.source === q.source) &&
-            (!q.sourceId || i.sourceId === q.sourceId) &&
+            matchesSource(i) &&
             (!q.number || i.number.includes(q.number.toUpperCase())) &&
             (!q.from || day(i.issuedAt) >= q.from) &&
             (!q.to || day(i.issuedAt) <= q.to),
@@ -106,7 +128,15 @@ export function createMockFinance(): FinanceApi {
         total: rows.length,
       };
     },
-    getInvoice: async (p, id) => (await delay(), strip(db(), visibleInvoice(p, id))),
+    // The detail alone carries the name, read here so the page writes no patient-access row.
+    getInvoice: async (p, id) => {
+      await delay();
+      const invoice = visibleInvoice(p, id);
+      const patient = db().patients.find(
+        (x) => x.clinicId === invoice.clinicId && x.id === invoice.patientId,
+      );
+      return { ...strip(db(), invoice), ...(patient ? { patientName: patient.fullName } : {}) };
+    },
     draft: async (p, source, id) => (
       await delay(),
       draftOf(db(), guardFinance(db(), p), source, id)
@@ -119,7 +149,20 @@ export function createMockFinance(): FinanceApi {
       write(() => voidInvoice(db(), guardFinance(db(), p), id, version, { reason }, new Date())),
     async pdf(persona, id) {
       await delay();
-      return renderInvoicePdf(strip(db(), visibleInvoice(persona, id)));
+      const file = renderInvoicePdf(strip(db(), visibleInvoice(persona, id)));
+      // As the API: one `invoice.pdf_opened` row, only once the file exists, with no snapshot.
+      const a = viewer(persona);
+      writeClinicAudit(db(), {
+        clinicId: a.clinic.id,
+        actorName: a.actorName,
+        action: "invoice.pdf_opened",
+        entity: "invoice",
+        entityId: id,
+        before: null,
+        after: null,
+      });
+      persist();
+      return file;
     },
     send: (persona, id, raw) =>
       write(() => {

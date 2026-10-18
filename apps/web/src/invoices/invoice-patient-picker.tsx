@@ -3,6 +3,7 @@ import { Search } from "lucide-react";
 import { formatFileNumber } from "@eyadex/contracts/patients";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useDebouncedValue } from "@/shared/forms/use-debounced-value";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { usePatientSearch } from "./invoice-options";
 
@@ -18,7 +19,9 @@ export function InvoicePatientPicker({
 }) {
   const { t } = useI18n();
   const [q, setQ] = useState("");
-  const search = usePatientSearch(q);
+  const debounced = useDebouncedValue(q);
+  const search = usePatientSearch(debounced, q);
+  const current = q.trim() === debounced.trim() && !search.isPlaceholderData;
   if (value) {
     return (
       <div className="flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm">
@@ -39,7 +42,7 @@ export function InvoicePatientPicker({
         aria-label={t("finance.invoice.pickPatient")}
         placeholder={t("finance.invoice.pickPatient")}
       />
-      {(search.data?.items.length ?? 0) > 0 && (
+      {current && q.trim().length >= 2 && (search.data?.items.length ?? 0) > 0 && (
         <ul className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border bg-popover shadow-sm">
           {search.data!.items.map((p) => (
             <li key={p.id}>

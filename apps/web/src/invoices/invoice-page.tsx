@@ -33,6 +33,7 @@ import { StatusPanel } from "@/shared/shell/status-panel";
 import { InvoiceForm } from "./invoice-form";
 import { valuesFromInvoice } from "./invoice-form-draft";
 import { useInvoice, useRefreshInvoices } from "./invoice-queries";
+import { closePdfTab, openPdfTab, showPdf } from "./invoice-pdf-tab";
 import { InvoicePatientName } from "./invoice-patient-name";
 import { InvoiceStatusBadge } from "./invoice-status-badge";
 import { InvoiceTotalsPanel } from "./invoice-totals-panel";
@@ -87,15 +88,13 @@ function InvoiceContent({ invoiceId }: { invoiceId: string }) {
     onError,
   });
   const pdf = useMutation({
-    mutationFn: () => api.finance.pdf(persona, invoiceId),
+    mutationFn: (_tab: Window | null) => api.finance.pdf(persona, invoiceId),
     onMutate: () => setPdfError(null),
-    onSuccess: (blob) => {
-      const url = URL.createObjectURL(blob);
-      window.open(url, "_blank", "noopener");
-      // The opened tab keeps its own reference; this page lets go of the file after a minute.
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    onSuccess: (blob, tab) => showPdf(tab, blob, `${invoiceId}.pdf`),
+    onError: (e, tab) => {
+      closePdfTab(tab);
+      setPdfError(tDynamic(`errors.${errorCodeOf(e)}`));
     },
-    onError: (e) => setPdfError(tDynamic(`errors.${errorCodeOf(e)}`)),
   });
 
   if (query.isLoading) return <LoadingBlock />;
@@ -140,7 +139,7 @@ function InvoiceContent({ invoiceId }: { invoiceId: string }) {
               variant="outline"
               size="sm"
               disabled={pdf.isPending}
-              onClick={() => pdf.mutate()}
+              onClick={() => pdf.mutate(openPdfTab())}
             >
               <FileDown className="size-4" />
               {t("finance.detail.pdf")}
@@ -189,7 +188,7 @@ function InvoiceContent({ invoiceId }: { invoiceId: string }) {
           </span>
         </p>
       )}
-      <InvoicePatientName patientId={inv.patientId} />
+      <InvoicePatientName name={inv.patientName} />
       {!live && (
         <div
           className="mb-4 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm"
@@ -249,7 +248,11 @@ function InvoiceContent({ invoiceId }: { invoiceId: string }) {
               initial={valuesFromInvoice(editing, editing.currencyExponent)}
               source={null}
               editing={editing}
-              mayDiscount={mayAt("create", "discounts")}
+              mayDiscountAt={(branchId) =>
+                !!session &&
+                branchId !== null &&
+                canAtBranch(session, "create", "discounts", branchId)
+              }
               priceMissing={false}
               onReload={() => {
                 setEditing(null);

@@ -52,6 +52,7 @@ export interface BranchAuditSnapshot {
   readonly address: string | null;
   readonly phone: string | null;
   readonly isActive: boolean;
+  readonly invoicePrefix?: string | null;
 }
 
 /**
@@ -67,5 +68,6 @@ export function branchAuditSnapshot(branch: BranchAuditSnapshot): BranchAuditSna
     address: branch.address,
     phone: branch.phone,
     isActive: branch.isActive,
+    ...(branch.invoicePrefix === undefined ? {} : { invoicePrefix: branch.invoicePrefix }),
   };
 }

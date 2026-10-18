@@ -138,14 +138,17 @@ describe("the void dialog", () => {
 
 // PR #78 review: every PDF press made an object URL that lived as long as the tab.
 describe("the PDF button", () => {
-  it("opens the file and lets go of its object URL after a minute", async () => {
+  it("opens the tab inside the click, points it at the file, then revokes the URL", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const made = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:invoice");
     const revoked = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
-    const opened = vi.spyOn(window, "open").mockReturnValue(null);
+    const tab = { closed: false, opener: null, location: { href: "" } };
+    const opened = vi.spyOn(window, "open").mockReturnValue(tab as unknown as Window);
     show(OWN);
     fireEvent.click(screen.getByRole("button", { name: "PDF / طباعة" }));
-    await waitFor(() => expect(opened).toHaveBeenCalledWith("blob:invoice", "_blank", "noopener"));
+    // Synchronous: the tab exists before the download resolves.
+    expect(opened).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(tab.location.href).toBe("blob:invoice"));
     expect(revoked).not.toHaveBeenCalled();
     await act(() => vi.advanceTimersByTimeAsync(60_000));
     expect(revoked).toHaveBeenCalledWith("blob:invoice");

@@ -2,6 +2,10 @@ import { z } from "zod";
 import { idSchema, stripInvisibleControls } from "./common.ts";
 import { currencyCodeSchema, minorAmountSchema, minorLineAmountSchema } from "./money.ts";
 import { notificationChannelSchema } from "./notifications.ts";
+import { invoiceSourceSchema } from "./finance-invoice.ts";
+
+export * from "./finance-invoice.ts";
+export * from "./finance-list.ts";
 
 // Finance F1 contracts (docs/specs/finance-design.md §3, R1, R2). Amounts travel as decimal integer
 // strings of minor units: a line is capped at 10¹² (minorLineAmountSchema), an aggregate at the
@@ -66,9 +70,6 @@ export type InvoiceLineInput = z.infer<typeof invoiceLineInputSchema>;
 
 const linesSchema = z.array(invoiceLineInputSchema).min(1, "validation.required").max(50);
 
-export const invoiceSourceSchema = z.enum(["appointment", "visit", "manual"]);
-export type InvoiceSource = z.infer<typeof invoiceSourceSchema>;
-
 /**
  * `POST /v1/invoices` (`Idempotency-Key`). A manual invoice names its patient and branch; an
  * appointment or visit invoice names only its source, and the API derives both from it (R1-7).
@@ -101,104 +102,6 @@ export type UpdateInvoiceRequest = z.infer<typeof updateInvoiceRequestSchema>;
 
 /** `POST /v1/invoices/:id/void` with `If-Match` (FIN-8). */
 export const voidInvoiceRequestSchema = z.object({ reason: requiredText(300) }).strict();
-
-const discountSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("pct"), bp: z.number().int(), reason: z.string() }).strict(),
-  z.object({ kind: z.literal("amount"), minor: minorAmountSchema, reason: z.string() }).strict(),
-]);
-
-export const invoiceLineSchema = z
-  .object({
-    position: z.number().int().nonnegative(),
-    kind: z.enum(["service", "free"]),
-    serviceId: idSchema.nullable(),
-    providerId: idSchema.nullable(),
-    descriptionAr: z.string(),
-    descriptionEn: z.string(),
-    quantity: z.number().int(),
-    unitPriceMinor: minorAmountSchema,
-    discount: discountSchema.nullable(),
-    lineTotalMinor: minorAmountSchema,
-  })
-  .strict();
-
-export const invoiceStatusSchema = z.enum(["issued", "void"]);
-
-export const invoiceSchema = z
-  .object({
-    id: idSchema,
-    number: z.string(),
-    status: invoiceStatusSchema,
-    source: invoiceSourceSchema,
-    sourceId: idSchema.nullable(),
-    branchId: idSchema,
-    // Read with the invoice, never stored on it: a doctor's own invoices cross branches the doctor's
-    // own branch list does not name (PR #78 review).
-    branchNameAr: z.string(),
-    branchNameEn: z.string(),
-    patientId: idSchema,
-    issuedAt: z.string().datetime(),
-    currency: currencyCodeSchema,
-    currencyExponent: z.number().int(),
-    subtotalMinor: minorAmountSchema,
-    discountMinor: minorAmountSchema,
-    taxRateBp: z.number().int(),
-    taxMinor: minorAmountSchema,
-    totalMinor: minorAmountSchema,
-    invoiceDiscount: discountSchema.nullable(),
-    lines: z.array(invoiceLineSchema),
-    voidReason: z.string().nullable(),
-    voidedAt: z.string().datetime().nullable(),
-    version: z.number().int().positive(),
-  })
-  .strict();
-export type Invoice = z.infer<typeof invoiceSchema>;
-
-/** Every invoice write answers the invoice as saved; the version also travels as `ETag`. */
-export const invoiceWriteResponseSchema = z.object({ invoice: invoiceSchema }).strict();
-
-// A real calendar day: "2026-02-31" has the shape but would reach PostgreSQL's ::date and fail there.
-const dateSchema = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "validation.date")
-  .refine((v) => {
-    const day = new Date(`${v}T00:00:00Z`);
-    return !Number.isNaN(day.getTime()) && day.toISOString().startsWith(v);
-  }, "validation.date");
-
-/** `GET /v1/invoices`: newest first, opaque cursor; dates are clinic-timezone days of `issuedAt`. */
-export const invoiceListQuerySchema = z
-  .object({
-    cursor: z
-      .string()
-      .regex(/^[A-Za-z0-9_-]{1,64}$/)
-      .optional(),
-    limit: z.coerce.number().int().min(1).max(100).default(50),
-    branchId: idSchema.optional(),
-    patientId: idSchema.optional(),
-    status: invoiceStatusSchema.optional(),
-    from: dateSchema.optional(),
-    to: dateSchema.optional(),
-    number: z.string().trim().min(1).max(40).optional(),
-    // The «فاتورة» button looks up the live invoice of its appointment or visit (one at most, §3.2).
-    source: invoiceSourceSchema.optional(),
-    sourceId: idSchema.optional(),
-  })
-  .strict()
-  .refine((q) => q.sourceId === undefined || q.source !== undefined, {
-    path: ["source"],
-    message: "validation.required",
-  });
-export type InvoiceListQuery = z.infer<typeof invoiceListQuerySchema>;
-
-export const invoiceListItemSchema = invoiceSchema.omit({ lines: true }).strict();
-export const invoiceListResponseSchema = z
-  .object({
-    items: z.array(invoiceListItemSchema),
-    nextCursor: z.string().nullable(),
-    total: z.number().int().nonnegative(),
-  })
-  .strict();
 
 /** `GET /v1/invoices/draft`: pre-filled lines for the «فاتورة» button; nothing is stored. */
 export const invoiceDraftQuerySchema = z
@@ -254,12 +157,23 @@ export type ServicePrice = z.infer<typeof servicePriceSchema>;
 /** Both price writes answer the service's prices as saved. */
 export const servicePriceResponseSchema = z.object({ servicePrice: servicePriceSchema }).strict();
 
-/** `GET /v1/prices` (R1-13): `GET /services` never carries a price. */
+/**
+ * `GET /v1/prices` (R1-13): `GET /services` never carries a price. Each item also names its service, so a
+ * role that holds only the price keys can still read a service list; the names are optional only so
+ * older clients and write answers stay valid, the API always sends them here.
+ */
+export const priceListItemSchema = servicePriceSchema
+  .extend({
+    nameAr: z.string().optional(),
+    nameEn: z.string().optional(),
+    status: z.enum(["active", "inactive"]).optional(),
+  })
+  .strict();
 export const priceListResponseSchema = z
   .object({
     currency: currencyCodeSchema,
     currencyExponent: z.number().int(),
-    items: z.array(servicePriceSchema),
+    items: z.array(priceListItemSchema),
   })
   .strict();
 export type PriceList = z.infer<typeof priceListResponseSchema>;

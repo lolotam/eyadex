@@ -217,3 +217,12 @@ export function liveTotals(
     return null;
   }
 }
+
+/** The form without any discount: what is left when the picked branch is out of the discount key's reach. */
+export function withoutDiscounts(values: InvoiceFormValues): InvoiceFormValues {
+  return {
+    ...values,
+    lines: values.lines.map((l) => ({ ...l, discount: null })),
+    invoiceDiscount: null,
+  };
+}

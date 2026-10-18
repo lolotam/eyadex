@@ -18,8 +18,21 @@ export function useInvoiceOptions() {
   const enabled = ready && Boolean(persona.clinicId);
   const services = useQuery({
     queryKey: ["clinic", "invoice-options", "services", persona.memberId],
-    queryFn: () =>
-      api.scheduling.listServices(persona, { cursor: null, limit: 100, status: "active" }),
+    // Lesson 5.3: every page (100 at most each), never only the first.
+    queryFn: async () => {
+      const items = [];
+      let cursor: string | null = null;
+      do {
+        const page = await api.scheduling.listServices(persona, {
+          cursor,
+          limit: 100,
+          status: "active",
+        });
+        items.push(...page.items);
+        cursor = page.nextCursor;
+      } while (cursor);
+      return { items };
+    },
     enabled,
     retry,
   });
@@ -47,7 +60,7 @@ export function useInvoiceOptions() {
 }
 
 /** Patients matching the search text (sent as the patients list query, as the patients page does). */
-export function usePatientSearch(q: string) {
+export function usePatientSearch(q: string, raw = q) {
   const api = useApi();
   const { persona, ready } = usePersona();
   return useQuery({
@@ -55,6 +68,8 @@ export function usePatientSearch(q: string) {
     queryFn: () =>
       api.patients.list(persona, { cursor: null, limit: 10, q, branchId: null, status: "active" }),
     enabled: ready && Boolean(persona.clinicId) && q.trim().length >= 2,
+    placeholderData: (previous) =>
+      raw.trim().length >= 2 && raw.trim() === q.trim() ? previous : undefined,
     retry,
   });
 }

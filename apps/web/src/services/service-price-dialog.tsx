@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { formatMinor } from "@eyadex/contracts/money";
@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { errorCodeOf } from "@/shared/api/api-error";
 import { useApi } from "@/shared/api/api-provider";
 import { useI18n } from "@/shared/i18n/i18n-provider";
+import { useOncePerOpen } from "@/shared/forms/use-once-per-open";
 import { usePersona } from "@/shared/persona/persona-provider";
 import { minorOfText, priceOf, useRefreshPrices } from "./price-queries";
 
@@ -34,10 +35,10 @@ export function ServicePriceDialog({
   const { persona } = usePersona();
   const refresh = useRefreshPrices();
   const [text, setText] = useState("");
-  useEffect(() => {
+  useOncePerOpen(service?.id ?? null, () => {
     const minor = service ? priceOf(list, service.id).priceMinor : null;
     setText(minor === null ? "" : formatMinor(minor, list.currencyExponent));
-  }, [service, list]);
+  });
   const minor = minorOfText(text, list.currencyExponent);
   const valid = text.trim() === "" || minor !== null;
   const save = useMutation({

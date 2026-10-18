@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle } from "lucide-react";
 import { toast } from "sonner";
@@ -17,8 +17,10 @@ import {
 import { errorCodeOf } from "@/shared/api/api-error";
 import { useApi } from "@/shared/api/api-provider";
 import { useI18n } from "@/shared/i18n/i18n-provider";
+import { useOncePerOpen } from "@/shared/forms/use-once-per-open";
 import { usePersona } from "@/shared/persona/persona-provider";
 import { LoadingBlock } from "@/shared/shell/loading-block";
+import { LoadNotice } from "@/shared/shell/load-notice";
 import { StatusPanel } from "@/shared/shell/status-panel";
 import { ClinicFinanceTotals } from "./clinic-finance-totals";
 
@@ -36,11 +38,12 @@ export function ClinicFinanceTab({ clinicId }: { clinicId: string }) {
   const [currency, setCurrency] = useState<CurrencyCode>("KWD");
   const [taxText, setTaxText] = useState("0");
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
+  // Once per clinic (lesson 4.2): a refetch, the one after a save included, never resets input.
+  useOncePerOpen(query.data ? clinicId : null, () => {
     if (!query.data) return;
     setCurrency(query.data.currency);
     setTaxText(String(query.data.taxRateBp));
-  }, [query.data]);
+  });
   const taxRateBp = /^\d{1,5}$/.test(taxText) ? Number(taxText) : NaN;
   const validTax = Number.isInteger(taxRateBp) && taxRateBp >= 0 && taxRateBp <= 10000;
   const save = useMutation({
@@ -57,17 +60,21 @@ export function ClinicFinanceTab({ clinicId }: { clinicId: string }) {
     onError: (e) => setError(tDynamic(`errors.${errorCodeOf(e)}`)),
   });
   if (query.isLoading) return <LoadingBlock />;
-  if (query.isError) {
+  if (query.isError && query.data === undefined) {
     return (
       <StatusPanel
         icon={AlertCircle}
         title={t("finance.loadError")}
         body={tDynamic(`errors.${errorCodeOf(query.error)}`)}
+        action={<Button onClick={() => void query.refetch()}>{t("common.tryAgain")}</Button>}
       />
     );
   }
   return (
     <div className="grid max-w-3xl gap-4">
+      {query.isError && (
+        <LoadNotice title={t("finance.loadError")} onRetry={() => void query.refetch()} />
+      )}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">{t("finance.platform.title")}</CardTitle>

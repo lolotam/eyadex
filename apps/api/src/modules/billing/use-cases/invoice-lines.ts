@@ -1,12 +1,27 @@
-import type { InvoiceLineInput } from "@eyadex/contracts/finance";
+import type { Invoice, InvoiceLineInput } from "@eyadex/contracts/finance";
 import type { Totals } from "@eyadex/contracts/invoice-totals";
 import { DatabaseError, type Tx } from "@eyadex/db";
 
 import { ApiError } from "../../../shared/errors.ts";
-import { serviceNames, type StoredLine } from "../persistence/pg-invoice-store.ts";
-import { effectivePrice } from "../persistence/pg-price-store.ts";
+import type { StoredLine } from "../persistence/pg-invoice-store.ts";
+import { invoiceServiceFacts } from "../persistence/pg-invoice-services.ts";
 
-type ServiceNames = Awaited<ReturnType<typeof serviceNames>>;
+type ServiceNames = ReadonlyMap<string, { nameAr: string; nameEn: string }>;
+
+const discountKey = (discount: InvoiceLineInput["discount"]) =>
+  discount === null
+    ? null
+    : [discount.kind, discount.kind === "pct" ? discount.bp : discount.minor, discount.reason];
+const serviceKey = (
+  line: Extract<InvoiceLineInput, { kind: "service" }> | Invoice["lines"][number],
+) =>
+  JSON.stringify([
+    line.serviceId,
+    line.providerId,
+    line.quantity,
+    line.unitPriceMinor,
+    discountKey(line.discount),
+  ]);
 
 /**
  * دكتور السطر لازم يبقى عضو في العيادة. الموديول مبيقراش العضويات، فالمفتاح الأجنبي بتاع `invoice_lines`
@@ -23,36 +38,53 @@ export function unknownLineDoctor(error: unknown): never {
 }
 
 /**
- * سطور الخدمة لازم تبقى لخدمة في العيادة ليها سعر (سعر الدكتور أو الأساسي)؛ المبلغ نفسه من الفورم، ممكن
- * يكون اتعدّل. خدمة مش موجودة = `validation`، من غير سعر = `price_missing`.
+ * سطور الخدمة الجديدة أو المتغيّرة لازم يبقى ليها سعر حالي (سعر الدكتور أو الأساسي)؛ المبلغ من الفورم.
+ * السطر المحفوظ المطابق بيحتفظ بسعره حتى لو السعر الحالي اتمسح. خدمة مش موجودة = `validation`،
+ * وسطر محتاج سعر ومفيش سعر = `price_missing`.
  *
  * @param tx الـ transaction جوه `withTenant(clinicId)`
  * @param clinicId العيادة
  * @param lines السطور بترتيبها
+ * @param previous سطور الفاتورة قبل التعديل؛ كل سطر محفوظ يعفي نسخة واحدة مطابقة من السعر الحالي
  * @returns أسماء الخدمات اللي سطورها هتنسخها
  */
 export async function checkServiceLines(
   tx: Tx,
   clinicId: string,
   lines: readonly InvoiceLineInput[],
+  previous: readonly Invoice["lines"][number][] = [],
 ): Promise<ServiceNames> {
   const serviceLines = lines.flatMap((line, position) =>
     line.kind === "service" ? [{ line, position }] : [],
   );
-  const names = await serviceNames(
+  const facts = await invoiceServiceFacts(
     tx,
     clinicId,
     serviceLines.map(({ line }) => line.serviceId),
   );
+  const unchanged = new Map<string, Invoice["lines"][number][]>();
+  for (const line of previous) {
+    if (line.kind !== "service") continue;
+    const key = serviceKey(line);
+    unchanged.set(key, [...(unchanged.get(key) ?? []), line]);
+  }
+  const names = new Map<string, { nameAr: string; nameEn: string }>();
   for (const { line, position } of serviceLines) {
-    if (!names.has(line.serviceId)) {
+    const old = unchanged.get(serviceKey(line))?.shift();
+    const fact = facts.get(line.serviceId);
+    if (fact === undefined) {
       throw new ApiError("validation", [
         { path: ["lines", position, "serviceId"], code: "unknown" },
       ]);
     }
-    if ((await effectivePrice(tx, clinicId, line.serviceId, line.providerId)) === null) {
+    const price =
+      line.providerId === null
+        ? fact.priceMinor
+        : (fact.providerPrices.get(line.providerId) ?? fact.priceMinor);
+    if (old === undefined && price === null) {
       throw new ApiError("price_missing", { position });
     }
+    names.set(line.serviceId, fact);
   }
   return names;
 }

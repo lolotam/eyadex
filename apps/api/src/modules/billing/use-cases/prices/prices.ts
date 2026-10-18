@@ -12,6 +12,7 @@ import {
   readPrices,
   replaceProviderPrices,
   serviceExists,
+  serviceLabels,
   setBasePrice,
 } from "../../persistence/pg-price-store.ts";
 
@@ -45,10 +46,12 @@ export class PriceChanges {
    * @returns العملة والأسعار
    */
   list(clinicId: string): Promise<PriceList> {
-    return this.deps.db.withTenant(clinicId, async (tx) => ({
-      ...(await clinicCurrency(tx, clinicId)),
-      items: await readPrices(tx, clinicId),
-    }));
+    return this.deps.db.withTenant(clinicId, async (tx) => {
+      const currency = await clinicCurrency(tx, clinicId);
+      const prices = await readPrices(tx, clinicId);
+      const labels = await serviceLabels(tx, clinicId);
+      return { ...currency, items: prices.map((p) => ({ ...p, ...labels.get(p.serviceId) })) };
+    });
   }
 
   /**
@@ -111,7 +114,9 @@ export class PriceChanges {
         createdAt: clock.now(),
       });
       const [saved] = await readPrices(tx, actor.clinicId, serviceId);
-      return saved!;
+      // The service row was checked under the finance lock above, so it is still there.
+      if (saved === undefined) throw new ApiError("not_found");
+      return saved;
     });
   }
 }

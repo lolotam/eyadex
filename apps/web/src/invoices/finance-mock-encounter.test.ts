@@ -49,6 +49,46 @@ function encounter() {
 beforeEach(() => resetMockData());
 
 describe("one encounter, one live invoice", () => {
+  it.each(["appointment", "visit"] as const)(
+    "finds the opposite source from %s with encounter only",
+    async (source) => {
+      const pair = encounter();
+      const other = source === "appointment" ? "visit" : "appointment";
+      const invoice = await issue(other, pair[other]);
+      const query = { source, sourceId: pair[source], status: "issued" as const };
+      expect((await api.finance.listInvoices(admin(), query)).items).toEqual([]);
+      expect(
+        (await api.finance.listInvoices(admin(), { ...query, encounter: false })).items,
+      ).toEqual([]);
+      const page = await api.finance.listInvoices(admin(), { ...query, encounter: true });
+      expect(page.items.map((i) => i.id)).toEqual([invoice.id]);
+      expect(page.total).toBe(1);
+      await api.finance.voidInvoice(admin(), invoice.id, 1, "issued twice");
+      expect(
+        (await api.finance.listInvoices(admin(), { ...query, encounter: true })).items,
+      ).toEqual([]);
+    },
+  );
+
+  it("keeps branch reach on an encounter lookup", async () => {
+    const pair = encounter();
+    const invoice = await issue("visit", pair.visit);
+    const db = getState();
+    const desk = as("receptionist");
+    const role = db.roles.find(
+      (r) => r.clinicId === clinicIdAt(0) && r.systemKey === "receptionist",
+    )!;
+    const member = db.members.find((m) => m.roleId === role.id && m.status === "active")!;
+    role.permissions = ["view:invoices:branch"];
+    member.allBranches = false;
+    member.branchIds = [];
+    const query = { source: "appointment" as const, sourceId: pair.appointment, encounter: true };
+    expect((await api.finance.listInvoices(desk, query)).items).toEqual([]);
+    expect((await api.finance.listInvoices(admin(), query)).items.map((i) => i.id)).toEqual([
+      invoice.id,
+    ]);
+  });
+
   it("refuses the visit once its appointment is billed, in the issue and the draft", async () => {
     const { appointment, visit } = encounter();
     await issue("appointment", appointment);

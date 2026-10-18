@@ -20,7 +20,7 @@ import { errorCodeOf } from "@/shared/api/api-error";
 import { useApi } from "@/shared/api/api-provider";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { usePersona } from "@/shared/persona/persona-provider";
-import { InvoiceSourceMenuItem } from "@/shared/finance/invoice-source-menu-item";
+import { useEncounterSlots } from "@/shared/shell/encounter-slots";
 import { useRefreshAppointments } from "./appointment-queries";
 import { MessageHistoryDialog } from "./message-history-dialog";
 
@@ -40,6 +40,7 @@ export function AppointmentActions({ appointment, canUpdate, onReschedule, onCan
   const { persona } = usePersona();
   const { t } = useI18n();
   const refresh = useRefreshAppointments();
+  const slots = useEncounterSlots();
   const [messages, setMessages] = useState(false);
   const status = useMutation({
     mutationFn: (to: (typeof MOVES)[number]) =>
@@ -86,9 +87,8 @@ export function AppointmentActions({ appointment, canUpdate, onReschedule, onCan
           <DropdownMenuItem onSelect={() => setMessages(true)}>
             {t("messageHistory.title")}
           </DropdownMenuItem>
-          {isBillable(appointment.status) && (
-            <InvoiceSourceMenuItem appointmentId={appointment.id} branchId={appointment.branchId} />
-          )}
+          {isBillable(appointment.status) &&
+            slots.appointmentMenu?.({ id: appointment.id, branchId: appointment.branchId })}
           {cancellable && (
             <>
               <DropdownMenuSeparator />

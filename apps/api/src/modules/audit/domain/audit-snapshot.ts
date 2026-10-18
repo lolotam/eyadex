@@ -30,7 +30,7 @@ const FIELD_NAMES_ONLY = ["changed"] as const;
 // person, invitation, mail-provider and platform snapshots); a key not listed here is never shown,
 // whatever a writer stores. No token, hash, password, credential or civil ID is on any list.
 const ALLOWED: Record<AuditEntity, readonly string[]> = {
-  branch: ["nameAr", "nameEn", "address", "phone", "isActive"],
+  branch: ["nameAr", "nameEn", "address", "phone", "isActive", "invoicePrefix"],
   user: PERSON,
   invitation: PERSON,
   role: ["nameAr", "nameEn", "isActive", "permissionKeys"],
