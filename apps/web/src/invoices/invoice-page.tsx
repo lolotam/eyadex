@@ -249,7 +249,7 @@ function InvoiceContent({ invoiceId }: { invoiceId: string }) {
               initial={valuesFromInvoice(editing, editing.currencyExponent)}
               source={null}
               editing={editing}
-              mayDiscount={mayAt("create", "discounts")}
+              mayDiscountAt={() => mayAt("create", "discounts")}
               priceMissing={false}
               onReload={() => {
                 setEditing(null);
