@@ -256,8 +256,11 @@ Every value is new for staging. None is copied from, or derived from, a producti
 
 ## 11. Promotion, every time
 
-1. Pick a `main` SHA with green CI.
+1. Pick a `main` SHA with green CI, or, for the pre-merge check, a PR merge candidate with green CI
+   whose head contains the SHA staging runs (ADR-0021, owner decision 2026-10-18).
 2. If it brings new `db/sql` files: `pg_dump -Fc` the staging database, then §3b with that SHA.
+   A pre-merge candidate never reaches this step: it is promoted only when it brings no new
+   `db/sql` file (ADR-0021).
 3. `git push origin <sha>:refs/heads/staging`. Dokploy rebuilds the three applications.
 4. `sh docker/smoke-test.sh staging-app.eyadex.com staging-platform.eyadex.com`.
 5. Production gets the same migration only after staging has run it cleanly.
