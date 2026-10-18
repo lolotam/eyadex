@@ -6,16 +6,16 @@ import { useSourceInvoiceLink } from "./use-source-invoice-link";
 
 /** The visit page's «فاتورة» / «عرض الفاتورة» button (F1 §3). */
 export function InvoiceSourceButton({
-  source,
-  id,
+  visitId,
+  appointmentId,
   branchId,
 }: {
-  source: "appointment" | "visit";
-  id: string;
+  visitId: string;
+  appointmentId: string | null;
   branchId: string;
 }) {
   const { t } = useI18n();
-  const link = useSourceInvoiceLink({ kind: source, id, branchId });
+  const link = useSourceInvoiceLink({ kind: "visit", id: visitId, appointmentId, branchId });
   if (!link) return null;
   return (
     <Button variant="outline" size="sm" asChild>
