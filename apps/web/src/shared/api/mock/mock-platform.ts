@@ -12,6 +12,7 @@ import {
   subscriptionInputSchema,
 } from "@eyadex/contracts/clinics";
 import type { ApiClient } from "../api-client";
+import { parse } from "./mock-medical-access";
 import { ApiError } from "../api-error";
 import { resolvePlatformActor, writePlatformAudit } from "./mock-platform-actor";
 import { delay, getState, newId, persist, type MockState } from "./mock-store";
@@ -127,11 +128,12 @@ export function createMockPlatform(): Omit<
       ) {
         throw new ApiError("reserved_slug");
       }
-      const input = createClinicInputSchema.parse(raw);
-      // Every field is checked before any state changes: a refused create leaves no half-made clinic.
-      const financeInput = newClinicFinanceSchema.parse(raw);
+      // Every field is checked before any state changes: a refused create leaves no half-made clinic,
+      // and a bad body is `validation` as the API answers it.
+      const input = parse(createClinicInputSchema, raw);
+      const financeInput = parse(newClinicFinanceSchema, raw);
       const db = getState();
-      const replayed = replayClinicCreate(db, actor.id, idempotencyKey, input);
+      const replayed = replayClinicCreate(db, actor.id, idempotencyKey, input, financeInput);
       if (replayed) return replayed;
       if (db.clinics.some((c) => c.slug === input.slug)) throw new ApiError("slug_taken");
       enforceEmailFree(db, input.adminEmail);
@@ -204,7 +206,7 @@ export function createMockPlatform(): Omit<
         { ...clinicDetails(clinic), ...clinicSubscription(clinic), email: input.adminEmail },
       );
       if (!firstAdminInvite) throw new ApiError("not_found");
-      rememberClinicCreate(db, actor.id, idempotencyKey, input, { clinic, firstAdminInvite });
+      rememberClinicCreate(db, actor.id, idempotencyKey, input, financeInput, { clinic, firstAdminInvite });
       persist();
       return { clinic, firstAdminInvite };
     },
