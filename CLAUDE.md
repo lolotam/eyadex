@@ -170,8 +170,9 @@ Banned folder names anywhere: `utils/` · `helpers/` · `common/` · `misc/` · 
   displayed in the clinic timezone. Bilingual names: `name_ar` / `name_en`.
 - **No hard deletes** of users, branches, roles or patient files: deactivate / archive.
 - Runtime database roles (PRD §4.5): `eyadex_app` (API + worker, tenant tables under RLS),
-  `eyadex_auth` (identity tables only), `eyadex_platform` (platform module; **no grant on
-  `patients` or patient-access audit rows**), `eyadex_dispatcher` (outbox only).
+  `eyadex_auth` (identity tables only), `eyadex_platform` (platform module and the worker's
+  cross-clinic scans, ADR-0020; **no grant on `patients` or patient-access audit rows**),
+  `eyadex_dispatcher` (the worker's outbox and retention purge only).
   **No runtime role has `BYPASSRLS`.** The owner role runs migrations only.
 - **No runtime role has `TEMPORARY` on the database** (`db/sql/0022`): nothing creates a
   temporary object at runtime, and a temporary function could hide `set_config`. Only the
