@@ -13,7 +13,7 @@ import type { FieldOpener } from "./prescription-lines.ts";
 export interface NotificationDispatchDeps {
   readonly store: NotificationStore;
   /**
-   * روابط الفواتير (C1): المخزن، وختم `INVOICE_LINK_SEAL_KEY` (`null` لو مش مضبوط: رسايل الفواتير بتستنى
+   * روابط الفواتير (C1): المخزن، وختم `INVOICE_LINK_SEAL_KEY` (`null` لو مش مضبوط: الفواتير الجاهزة للإرسال بتستنى
    * وباقي الأنواع ماشية)، وأصل منطقة العيادات اللي الرابط بيتبني عليه.
    */
   readonly invoiceLinks: {

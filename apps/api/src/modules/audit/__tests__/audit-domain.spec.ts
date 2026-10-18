@@ -32,6 +32,15 @@ describe("audit cursor", () => {
 });
 
 describe("audit snapshots", () => {
+  it("keeps the branch's invoice prefix on both sides without allowing arbitrary fields", () => {
+    expect(
+      auditSnapshots("branch", {
+        before: { invoicePrefix: null },
+        after: { invoicePrefix: "123456", internal: "hidden" },
+      }),
+    ).toEqual({ before: { invoicePrefix: null }, after: { invoicePrefix: "123456" } });
+  });
+
   it("keeps only the entity's allowlisted keys from before/after", () => {
     const details = {
       reason: "branch_deactivated",

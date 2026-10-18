@@ -82,9 +82,12 @@ describe("an issue racing a cancel of its appointment", () => {
       },
       randomUUID(),
     );
-    await rowLockWaiters(1);
-    release();
-    await cancel;
+    try {
+      await rowLockWaiters(1);
+    } finally {
+      release();
+      await cancel;
+    }
     const res = await issuing;
     expect([res.statusCode, code(res)]).toEqual([409, "appointment_not_billable"]);
   });
@@ -111,9 +114,12 @@ describe("a prefix change racing the branch's first issue", () => {
     const changing = send(h, C.admin.cookie, "PUT", `/v1/invoice-prefixes/${C.branchX}`, {
       invoicePrefix: "RACEY",
     });
-    await rowLockWaiters(1);
-    release();
-    await firstIssue;
+    try {
+      await rowLockWaiters(1);
+    } finally {
+      release();
+      await firstIssue;
+    }
     const res = await changing;
     expect([res.statusCode, code(res)]).toEqual([409, "invoice_prefix_locked"]);
   });

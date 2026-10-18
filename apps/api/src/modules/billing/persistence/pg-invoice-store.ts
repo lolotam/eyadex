@@ -132,24 +132,6 @@ export async function recordPrefix(
   );
 }
 
-/** The services' names, which a service line copies when it is written. */
-export async function serviceNames(
-  tx: Tx,
-  clinicId: string,
-  serviceIds: readonly string[],
-): Promise<ReadonlyMap<string, { nameAr: string; nameEn: string }>> {
-  const unique = [...new Set(serviceIds)];
-  if (unique.length === 0) return new Map();
-  const rows = await tx.execute<{ id: string; name_ar: string; name_en: string }>(
-    sql`SELECT id, name_ar, name_en FROM clinic_services WHERE clinic_id = ${clinicId}
-        AND id IN (${sql.join(
-          unique.map((id) => sql`${id}::uuid`),
-          sql`, `,
-        )})`,
-  );
-  return new Map(rows.map((r) => [r.id, { nameAr: r.name_ar, nameEn: r.name_en }]));
-}
-
 /** An invoice row as the issue writes it. */
 export interface NewInvoiceRow {
   readonly id: string;

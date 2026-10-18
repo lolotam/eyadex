@@ -1,7 +1,9 @@
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
 import { ServiceUnavailableError } from "../errors.ts";
-import type { BlobStore } from "./blob-store.ts";
+import { BlobStoreAnswerError, type BlobStore } from "./blob-store.ts";
+
+export { BlobStoreAnswerError } from "./blob-store.ts";
 
 /** Where the private bucket answers and the credentials of the one user allowed into it. */
 export interface S3BlobStoreOptions {
@@ -17,15 +19,6 @@ export interface S3BlobStoreOptions {
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 const CONTENT_TYPE = "application/octet-stream";
-
-/** The store answered something this adapter does not accept: never treated as a success. */
-export class BlobStoreAnswerError extends Error {
-  constructor(operation: "upload" | "download", detail: string) {
-    // The detail is a status or "not found", never an S3 message: those can echo the key or the bucket.
-    super(`Blob store ${operation}: ${detail}`);
-    this.name = "BlobStoreAnswerError";
-  }
-}
 
 const statusOf = (error: unknown): number | undefined => {
   if (typeof error !== "object" || error === null) return undefined;

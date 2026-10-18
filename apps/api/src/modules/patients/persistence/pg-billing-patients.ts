@@ -10,6 +10,13 @@ import { ownPatientSql, viewSees } from "../queries/own-patients.ts";
  * own rules, so billing never names the patients table.
  */
 export class PgBillingPatients {
+  async displayName(tx: Tx, clinicId: string, patientId: string): Promise<string | null> {
+    const [row] = await tx.execute<{ full_name: string }>(
+      sql`SELECT full_name FROM patients WHERE clinic_id = ${clinicId} AND id = ${patientId}`,
+    );
+    return row?.full_name ?? null;
+  }
+
   // Spec §8 rule 8: the patient row after the clinic's finance lock and before any invoice row. This lock
   // mode serialises money operations on one patient, yet leaves the invoice's foreign key free.
   async lockForInvoice(tx: Tx, clinicId: string, patientId: string): Promise<boolean> {

@@ -24,7 +24,7 @@ import {
   sendHarness,
   setSettings,
 } from "./notification-fixtures.ts";
-import { FakeWhatsapp, seedChannel } from "./whatsapp-fixtures.ts";
+import { FakeMetaSender, FakeWhatsapp, seedChannel } from "./whatsapp-fixtures.ts";
 
 // Plan Task 9 (C1, spec §8 rules 15–16, §8c.1) on real PostgreSQL with fake mail and WhatsApp boundaries:
 // the link commits before any send, a retry re-sends the same link, and the token is never logged.
@@ -184,6 +184,40 @@ describe("the invoice link (C1)", () => {
 });
 
 describe("the invoice at send time (spec §8 rule 15)", () => {
+  describe.each([false, true])("skip with missing link key: %s", (missingKey) => {
+    it.each([
+      ["email", "setting_off"],
+      ["whatsapp", "setting_off"],
+      ["email", "no_email"],
+      ["whatsapp", "whatsapp_disconnected"],
+      ["whatsapp", "template_missing"],
+    ] as const)("%s skip %s is recorded before preparing any link", async (channel, reason) => {
+      const h = make({
+        ...(missingKey ? { invoiceSealer: null } : {}),
+        meta: new FakeMetaSender(),
+      });
+      const w = seedWorld("en");
+      setSettings(w.clinicId, {
+        email_enabled: reason !== "setting_off",
+        whatsapp_enabled: reason !== "setting_off",
+      });
+      if (reason === "no_email") {
+        owner(`UPDATE patients SET email = NULL WHERE id = ${q(w.patientId)}`);
+      }
+      if (reason === "template_missing") seedChannel(w.clinicId, { transport: "coexistence" });
+      const { notificationId } = queueInvoice(w, seedInvoice(w).id, channel);
+      await drain(h.poller);
+      expect(ledgerRow(notificationId)).toMatchObject({
+        status: "skipped",
+        skip_reason: reason,
+        attempts: 0,
+      });
+      expect(linksOf(notificationId).length).toBe(0);
+      expect(h.platform.sent).toEqual([]);
+      expect(h.lines.join("\n")).toContain(`"reason":"${reason}"`);
+    });
+  });
+
   it("voided before the worker sends: skipped as invoice_void, no link minted", async () => {
     const h = make();
     const w = seedWorld("en");

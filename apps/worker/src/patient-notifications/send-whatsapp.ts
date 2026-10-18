@@ -1,4 +1,3 @@
-import type { WhatsappTemplate } from "@eyadex/contracts/whatsapp";
 import type { ClaimedEvent, DispatchOutcome } from "@eyadex/db";
 import { SealOpenError } from "@eyadex/secrets";
 
@@ -6,15 +5,15 @@ import { afterFailure } from "../invitation-mail/domain/retry-schedule.ts";
 import { finalMetaError } from "./domain/meta-failure.ts";
 import { finalWhatsappError } from "./domain/evolution-failure.ts";
 import { revokesInvoiceLink } from "./domain/invoice-link.ts";
-import { notificationSkip, type WhatsappFacts } from "./domain/skip-decision.ts";
 import { whatsappNumber } from "./domain/whatsapp-address.ts";
-import { nextSendAt, PACE_MS, paceWait } from "./domain/whatsapp-pace.ts";
+import { nextSendAt } from "./domain/whatsapp-pace.ts";
 import { whatsappTemplateValues, whatsappText } from "./domain/whatsapp-message.ts";
-import { templateFor, templateLanguage } from "./domain/whatsapp-template.ts";
+import { templateLanguage } from "./domain/whatsapp-template.ts";
 import { DONE, type HandlerContext, type SendTarget } from "./handler-context.ts";
-import { buildContent, sendFacts, subjectMissing } from "./notification-content.ts";
+import { buildContent } from "./notification-content.ts";
 import type { ReadyNotification } from "./ports/notification-store.ts";
 import type { WhatsappResult } from "./ports/whatsapp-sender.ts";
+import { sendReadiness } from "./send-readiness.ts";
 
 /**
  * صف واتساب (spec §7.1): نفس قرارات التخطي بتاعة الإيميل على `whatsappEnabled`، ثم القناة مش متوصلة
@@ -37,44 +36,11 @@ export async function sendWhatsapp(
 ): Promise<DispatchOutcome> {
   const { deps } = ctx;
   const { kind } = state.ledger;
-  if (subjectMissing(state)) return ctx.broken(event, state, "subject_missing");
-  const skip = (whatsapp: WhatsappFacts) => notificationSkip({ ...sendFacts(state), whatsapp });
-  const skipped = async (reason: NonNullable<ReturnType<typeof skip>>) => {
-    await state.record({ kind: "skipped", reason, at: deps.clock.now() });
-    ctx.note(event, "skipped", { reason });
-    return DONE;
-  };
-  // What does not depend on the channel first: a message no longer wanted says so, whatever the link.
-  const unwanted = skip({ connected: true, templateMissing: false });
-  if (unwanted !== null) return skipped(unwanted);
-  const channel = state.whatsapp ?? { kind: "none" };
+  const readiness = await sendReadiness(ctx, event, state);
+  if (readiness.kind === "stop") return readiness.outcome;
+  const { channel: locked, template } = readiness;
+  if (locked === null || locked.transport === null) throw new Error("whatsapp channel not ready");
   const sender = deps.whatsapp;
-  // Another send of this clinic holds the channel now: wait one pace. Not an attempt.
-  if (channel.kind === "busy") {
-    return defer(ctx, event, new Date(deps.clock.now().getTime() + PACE_MS));
-  }
-  const locked = channel.kind === "locked" ? channel : null;
-  const template: WhatsappTemplate | null =
-    locked?.transport === "coexistence" ? templateFor(locked.templates, kind) : null;
-  const reason = skip({
-    connected:
-      locked !== null &&
-      locked.status === "connected" &&
-      locked.transport !== null &&
-      (locked.transport === "evolution"
-        ? sender !== null && locked.instanceName !== null
-        : deps.meta !== undefined &&
-          deps.whatsappSealer !== undefined &&
-          locked.sealedCredentials !== null &&
-          locked.phoneNumberId !== null),
-    templateMissing: locked?.transport === "coexistence" && template === null,
-  });
-  if (reason !== null) return skipped(reason);
-  if (locked === null || locked.transport === null) {
-    return skipped("whatsapp_disconnected");
-  }
-  const wait = paceWait(locked.nextSendAt, deps.clock.now());
-  if (wait !== null) return defer(ctx, event, wait);
   const number = whatsappNumber(state.patient.phone);
   if (number === null) return ctx.broken(event, state, "invalid_phone");
   const patientLanguage = state.patient.language ?? state.clinic.language;
@@ -141,9 +107,4 @@ export async function sendWhatsapp(
   if (nextAttemptAt === null) return ctx.failed(event, error);
   ctx.note(event, "retry", { error, attempt: event.attempts + 1 });
   return { kind: "retry", error, nextAttemptAt };
-}
-
-function defer(ctx: HandlerContext, event: ClaimedEvent, until: Date): DispatchOutcome {
-  ctx.note(event, "deferred", { until: until.toISOString() });
-  return { kind: "deferred", nextAttemptAt: until };
 }

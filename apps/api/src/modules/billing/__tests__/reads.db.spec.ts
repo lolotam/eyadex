@@ -106,6 +106,24 @@ describe("list", () => {
 });
 
 describe("detail", () => {
+  it("returns only the patient's display name without opening their file or leaking it on the list", async () => {
+    const patient = await patientIn(h, C, C.branchD);
+    const invoice = await manualInvoice(h, C.admin.cookie, patient, C.branchD);
+    const rowsBefore =
+      await h.owner`SELECT id FROM audit_log WHERE clinic_id = ${C.clinicId} AND category = 'patient_access'`;
+    const [name] =
+      await h.owner`SELECT full_name FROM patients WHERE clinic_id = ${C.clinicId} AND id = ${patient}`;
+    const res = await detail(C.admin.cookie, invoice.id);
+    expect(res.json()).toMatchObject({ invoice: { patientName: name!["full_name"] } });
+    const noReach = await detail(C.doctor.cookie, invoice.id);
+    expect([noReach.statusCode, code(noReach)]).toEqual([404, "not_found"]);
+    const listed = await list(C.admin.cookie, `?patientId=${patient}`);
+    expect((listed.json() as Page).items[0]).not.toHaveProperty("patientName");
+    const rowsAfter =
+      await h.owner`SELECT id FROM audit_log WHERE clinic_id = ${C.clinicId} AND category = 'patient_access'`;
+    expect(rowsAfter).toHaveLength(rowsBefore.length);
+  });
+
   it("answers the invoice with its version as ETag", async () => {
     const patient = await patientIn(h, C, C.branchD);
     const invoice = await manualInvoice(h, C.admin.cookie, patient, C.branchD);

@@ -2,7 +2,7 @@ import type { FinanceSettings, InvoicePrefixItem } from "@eyadex/contracts/finan
 import { DatabaseError, type Database, type Tx } from "@eyadex/db";
 import type { IdGenerator } from "@eyadex/ids";
 
-import type { BlobStore } from "../../../../shared/blob/blob-store.ts";
+import { BlobStoreAnswerError, type BlobStore } from "../../../../shared/blob/blob-store.ts";
 import { writeClinicAudit } from "../../../../shared/clinic-audit.ts";
 import { ApiError } from "../../../../shared/errors.ts";
 import type { Clock } from "../../../tenancy/index.ts";
@@ -96,8 +96,19 @@ export class ClinicFinanceSettings {
   async logo(clinicId: string): Promise<{ bytes: Buffer; type: LogoType }> {
     const key = await this.deps.db.withTenant(clinicId, (tx) => logoKey(tx, clinicId));
     if (key === null) throw new ApiError("not_found");
-    const bytes = await this.deps.blobs.get(key);
-    return { bytes, type: logoType(bytes) ?? "image/png" };
+    try {
+      const bytes = await this.deps.blobs.get(key);
+      return { bytes, type: logoType(bytes) ?? "image/png" };
+    } catch (error) {
+      if (
+        error instanceof BlobStoreAnswerError &&
+        error.operation === "download" &&
+        error.detail === "not found"
+      ) {
+        throw new ApiError("not_found");
+      }
+      throw error;
+    }
   }
 
   /**
@@ -132,7 +143,8 @@ export class ClinicFinanceSettings {
         }
         await setBranchPrefix(tx, actor.clinicId, branchId, prefix, this.deps.clock.now());
         await this.audit(tx, actor, "branch.invoice_prefix_set", "branch", branchId, {
-          invoicePrefix: prefix,
+          before: { invoicePrefix: current.invoicePrefix },
+          after: { invoicePrefix: prefix },
         });
         return { branchId, invoicePrefix: prefix, locked: false };
       })

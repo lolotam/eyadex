@@ -94,7 +94,7 @@ export class InvoiceChanges {
       if (discountsOf(before) !== discountsOf(body) && !mayDiscount(actor, locked.branchId)) {
         throw new ApiError("forbidden");
       }
-      const names = await checkServiceLines(tx, actor.clinicId, body.lines);
+      const names = await checkServiceLines(tx, actor.clinicId, body.lines, before.lines);
       const totals = invoiceTotals(body.lines, body.invoiceDiscount, locked.taxRateBp);
       await archiveLines(tx, actor.clinicId, id, now);
       await insertLines(

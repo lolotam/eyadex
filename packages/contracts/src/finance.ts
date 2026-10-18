@@ -2,6 +2,13 @@ import { z } from "zod";
 import { idSchema, stripInvisibleControls } from "./common.ts";
 import { currencyCodeSchema, minorAmountSchema, minorLineAmountSchema } from "./money.ts";
 import { notificationChannelSchema } from "./notifications.ts";
+import {
+  invoiceListItemSchema,
+  invoiceSourceSchema,
+  invoiceStatusSchema,
+} from "./finance-invoice.ts";
+
+export * from "./finance-invoice.ts";
 
 // Finance F1 contracts (docs/specs/finance-design.md §3, R1, R2). Amounts travel as decimal integer
 // strings of minor units: a line is capped at 10¹² (minorLineAmountSchema), an aggregate at the
@@ -66,9 +73,6 @@ export type InvoiceLineInput = z.infer<typeof invoiceLineInputSchema>;
 
 const linesSchema = z.array(invoiceLineInputSchema).min(1, "validation.required").max(50);
 
-export const invoiceSourceSchema = z.enum(["appointment", "visit", "manual"]);
-export type InvoiceSource = z.infer<typeof invoiceSourceSchema>;
-
 /**
  * `POST /v1/invoices` (`Idempotency-Key`). A manual invoice names its patient and branch; an
  * appointment or visit invoice names only its source, and the API derives both from it (R1-7).
@@ -101,61 +105,6 @@ export type UpdateInvoiceRequest = z.infer<typeof updateInvoiceRequestSchema>;
 
 /** `POST /v1/invoices/:id/void` with `If-Match` (FIN-8). */
 export const voidInvoiceRequestSchema = z.object({ reason: requiredText(300) }).strict();
-
-const discountSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("pct"), bp: z.number().int(), reason: z.string() }).strict(),
-  z.object({ kind: z.literal("amount"), minor: minorAmountSchema, reason: z.string() }).strict(),
-]);
-
-export const invoiceLineSchema = z
-  .object({
-    position: z.number().int().nonnegative(),
-    kind: z.enum(["service", "free"]),
-    serviceId: idSchema.nullable(),
-    providerId: idSchema.nullable(),
-    descriptionAr: z.string(),
-    descriptionEn: z.string(),
-    quantity: z.number().int(),
-    unitPriceMinor: minorAmountSchema,
-    discount: discountSchema.nullable(),
-    lineTotalMinor: minorAmountSchema,
-  })
-  .strict();
-
-export const invoiceStatusSchema = z.enum(["issued", "void"]);
-
-export const invoiceSchema = z
-  .object({
-    id: idSchema,
-    number: z.string(),
-    status: invoiceStatusSchema,
-    source: invoiceSourceSchema,
-    sourceId: idSchema.nullable(),
-    branchId: idSchema,
-    // Read with the invoice, never stored on it: a doctor's own invoices cross branches the doctor's
-    // own branch list does not name (PR #78 review).
-    branchNameAr: z.string(),
-    branchNameEn: z.string(),
-    patientId: idSchema,
-    issuedAt: z.string().datetime(),
-    currency: currencyCodeSchema,
-    currencyExponent: z.number().int(),
-    subtotalMinor: minorAmountSchema,
-    discountMinor: minorAmountSchema,
-    taxRateBp: z.number().int(),
-    taxMinor: minorAmountSchema,
-    totalMinor: minorAmountSchema,
-    invoiceDiscount: discountSchema.nullable(),
-    lines: z.array(invoiceLineSchema),
-    voidReason: z.string().nullable(),
-    voidedAt: z.string().datetime().nullable(),
-    version: z.number().int().positive(),
-  })
-  .strict();
-export type Invoice = z.infer<typeof invoiceSchema>;
-
-/** Every invoice write answers the invoice as saved; the version also travels as `ETag`. */
-export const invoiceWriteResponseSchema = z.object({ invoice: invoiceSchema }).strict();
 
 // A real calendar day: "2026-02-31" has the shape but would reach PostgreSQL's ::date and fail there.
 const dateSchema = z
@@ -191,7 +140,6 @@ export const invoiceListQuerySchema = z
   });
 export type InvoiceListQuery = z.infer<typeof invoiceListQuerySchema>;
 
-export const invoiceListItemSchema = invoiceSchema.omit({ lines: true }).strict();
 export const invoiceListResponseSchema = z
   .object({
     items: z.array(invoiceListItemSchema),

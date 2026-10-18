@@ -6,6 +6,16 @@ import type { MemberBranches } from "../domain/billing-actor.ts";
 /** ملف المراجع زي ما المالية محتاجاه (بيتربط بـ adapter موديول المراجعين في `billing.module.ts`). */
 export interface BillingPatientReader {
   /**
+   * اسم العرض لصفحة الفاتورة بعد فحص نطاق الفاتورة؛ دي مش فتحة ملف ومابتكتبش سجل وصول.
+   *
+   * @param tx الـ transaction جوه `withTenant(clinicId)`
+   * @param clinicId العيادة
+   * @param patientId المراجع
+   * @returns الاسم فقط، أو `null` لو المراجع مش موجود في العيادة
+   */
+  displayName(tx: Tx, clinicId: string, patientId: string): Promise<string | null>;
+
+  /**
    * بيقفل صف المراجع لعملية فلوس (spec §8 rule 8): بعد قفل مالية العيادة وقبل أي فاتورة.
    *
    * @param tx الـ transaction جوه `withTenant(clinicId)`

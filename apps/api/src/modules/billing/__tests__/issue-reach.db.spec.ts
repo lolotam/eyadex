@@ -102,9 +102,12 @@ describe("a manual invoice racing a move of its patient to another branch", () =
     });
     await taken;
     const issuing = manual(patient, C.branchD);
-    await rowLockWaiters(1);
-    release();
-    await move;
+    try {
+      await rowLockWaiters(1);
+    } finally {
+      release();
+      await move;
+    }
     const res = await issuing;
     expect([res.statusCode, code(res)]).toEqual([404, "not_found"]);
   });

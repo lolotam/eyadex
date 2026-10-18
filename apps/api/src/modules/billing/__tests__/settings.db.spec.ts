@@ -123,6 +123,22 @@ describe("logo", () => {
 });
 
 describe("invoice prefix (spec §8 rule 9)", () => {
+  it("shows both prefix values in the branch audit snapshots", async () => {
+    await setPrefix(C.admin.cookie, C.branchX, "OLD123");
+    const changed = await setPrefix(C.admin.cookie, C.branchX, "NEW456");
+    expect(changed.statusCode).toBe(200);
+    const res = await send(h, C.admin.cookie, "GET", "/v1/clinic/audit?entity=branch&limit=100");
+    const rows = (res.json() as { items: Record<string, unknown>[] }).items;
+    expect(rows).toContainEqual(
+      expect.objectContaining({
+        entityId: C.branchX,
+        action: "branch.invoice_prefix_set",
+        before: { invoicePrefix: "OLD123" },
+        after: { invoicePrefix: "NEW456" },
+      }),
+    );
+  });
+
   it("is set per branch and refused when another branch holds it", async () => {
     const set = await setPrefix(C.admin.cookie, C.branchR, "DESK");
     expect(set.json()).toEqual({ branchId: C.branchR, invoicePrefix: "DESK", locked: false });

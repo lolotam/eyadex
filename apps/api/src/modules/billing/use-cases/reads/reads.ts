@@ -56,7 +56,13 @@ export class InvoiceReads {
       if (!(await invoiceVisible(tx, this.deps.patients, actor, reach, invoice))) {
         throw new ApiError("not_found");
       }
-      return invoice;
+      const patientName = await this.deps.patients.displayName(
+        tx,
+        actor.clinicId,
+        invoice.patientId,
+      );
+      if (patientName === null) throw new ApiError("not_found");
+      return { ...invoice, patientName };
     });
   }
 

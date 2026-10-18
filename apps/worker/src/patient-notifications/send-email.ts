@@ -11,11 +11,11 @@ import {
   resumeRoute,
 } from "./domain/route-advance.ts";
 import { onBehalfReplyTo, planRoutes } from "./domain/route-plan.ts";
-import { notificationSkip } from "./domain/skip-decision.ts";
 import { DONE, type HandlerContext, type SendTarget } from "./handler-context.ts";
-import { buildContent, sendFacts, subjectMissing } from "./notification-content.ts";
+import { buildContent } from "./notification-content.ts";
 import type { ReadyNotification } from "./ports/notification-store.ts";
 import { sendAlongRoutes } from "./send-along-routes.ts";
+import { sendReadiness } from "./send-readiness.ts";
 
 /**
  * صف إيميل (spec §3.3): يتخطّى بسبب مكتوب لو الرسالة مابقتش مطلوبة، وإلا يبني الإيميل بلغة المراجع ويبعته
@@ -35,13 +35,11 @@ export async function sendEmail(
 ): Promise<DispatchOutcome> {
   const { deps } = ctx;
   const { kind } = state.ledger;
-  if (subjectMissing(state)) return ctx.broken(event, state, "subject_missing");
-  const reason = notificationSkip(sendFacts(state));
-  if (reason !== null || state.patient.email === null) {
-    await state.record({ kind: "skipped", reason: reason ?? "no_email", at: deps.clock.now() });
-    ctx.note(event, "skipped", { reason: reason ?? "no_email" });
-    return DONE;
-  }
+  const readiness = await sendReadiness(ctx, event, state);
+  if (readiness.kind === "stop") return readiness.outcome;
+  // The readiness step skips a row with no address; this only narrows the type.
+  const to = state.patient.email;
+  if (to === null) throw new Error("email row passed readiness without an address");
   const language = state.patient.language ?? state.clinic.language;
   const content = buildContent(state, target, deps.cipher, language);
   if (content.kind === "broken") return ctx.broken(event, state, content.error);
@@ -70,7 +68,7 @@ export async function sendEmail(
     },
     plan,
     state.providers,
-    { to: state.patient.email, ...email, idempotencyKey: event.id },
+    { to, ...email, idempotencyKey: event.id },
     {
       fromName: language === "ar" ? state.clinic.nameAr : state.clinic.nameEn,
       replyTo: onBehalfReplyTo(primary?.row ?? null, fallback?.row ?? null),
