@@ -17,6 +17,7 @@ import {
   financeState,
 } from "./mock-finance-state";
 import * as settings from "./mock-finance-settings";
+import { writeClinicAudit } from "./mock-audit";
 import { renderInvoicePdf } from "./mock-invoice-pdf";
 import { draftOf, editInvoice, issueInvoice, strip, voidInvoice } from "./mock-invoice-writes";
 import { parse } from "./mock-medical-access";
@@ -127,7 +128,20 @@ export function createMockFinance(): FinanceApi {
       write(() => voidInvoice(db(), guardFinance(db(), p), id, version, { reason }, new Date())),
     async pdf(persona, id) {
       await delay();
-      return renderInvoicePdf(strip(db(), visibleInvoice(persona, id)));
+      const file = renderInvoicePdf(strip(db(), visibleInvoice(persona, id)));
+      // As the API: one `invoice.pdf_opened` row, only once the file exists, with no snapshot.
+      const a = viewer(persona);
+      writeClinicAudit(db(), {
+        clinicId: a.clinic.id,
+        actorName: a.actorName,
+        action: "invoice.pdf_opened",
+        entity: "invoice",
+        entityId: id,
+        before: null,
+        after: null,
+      });
+      persist();
+      return file;
     },
     send: (persona, id, raw) =>
       write(() => {

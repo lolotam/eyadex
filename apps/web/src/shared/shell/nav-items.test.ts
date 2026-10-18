@@ -17,12 +17,21 @@ describe("clinic navigation", () => {
     expect(settingsEntry()?.anyOf).toEqual([
       "clinic_settings",
       "services",
+      "prices",
       "schedules",
       "medicines",
     ]);
-    expect(settingsEntry()?.anyOf).toEqual([...new Set(SETTINGS_TABS.map((tab) => tab.resource))]);
+    // Item 8: a tab reached through a second key (`alsoVia`) counts for the menu too.
+    expect(settingsEntry()?.anyOf).toEqual([
+      ...new Set(
+        SETTINGS_TABS.flatMap((tab) =>
+          "alsoVia" in tab ? [tab.resource, tab.alsoVia] : [tab.resource],
+        ),
+      ),
+    ]);
     const shows = (keys: string[]) =>
       navItemsFor(CLINIC_NAV, keys).some((item) => item.to === "/clinic/settings");
+    expect(shows(["view:prices:clinic"])).toBe(true);
     expect(shows(["view:services:clinic"])).toBe(true);
     expect(shows(["view:schedules:branch"])).toBe(true);
     expect(shows(["view:clinic_settings:clinic"])).toBe(true);
