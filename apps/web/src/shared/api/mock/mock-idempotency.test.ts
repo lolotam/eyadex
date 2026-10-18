@@ -195,4 +195,24 @@ describe("clinic create idempotency is scoped by the platform account", () => {
     const again = await api.platform.createClinic(PLATFORM, clinic("a"), key);
     expect(again.clinic.nameEn).toBe("Renamed Clinic");
   });
+
+  // PR #78 follow-up: the finance fields are part of the request a key stands for.
+  it("NEGATIVE: the same key with another currency or tax rate is idempotency_conflict", async () => {
+    const key = crypto.randomUUID();
+    await api.platform.createClinic(PLATFORM, { ...clinic("a"), taxRateBp: 500 } as never, key);
+    await expect(
+      api.platform.createClinic(PLATFORM, { ...clinic("a"), taxRateBp: 0 } as never, key),
+    ).rejects.toMatchObject({ code: "idempotency_conflict" });
+  });
+
+  it("NEGATIVE: a bad body is validation and creates nothing", async () => {
+    const before = getState().clinics.length;
+    await expect(
+      api.platform.createClinic(PLATFORM, { ...clinic("a"), taxRateBp: 20000 } as never, crypto.randomUUID()),
+    ).rejects.toMatchObject({ code: "validation" });
+    await expect(
+      api.platform.createClinic(PLATFORM, { ...clinic("a"), maxUsers: "x" } as never, crypto.randomUUID()),
+    ).rejects.toMatchObject({ code: "validation" });
+    expect(getState().clinics.length).toBe(before);
+  });
 });
