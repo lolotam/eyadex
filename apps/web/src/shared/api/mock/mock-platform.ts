@@ -1,5 +1,4 @@
 import { clinicFinanceOf } from "./mock-finance-state";
-import { newClinicFinanceSchema } from "../new-clinic-finance";
 import {
   NO_FEATURES,
   effectiveClinicStatus,
@@ -20,7 +19,7 @@ import { buildSystemRoles } from "./seed-roles";
 import { INVITATION_TTL_DAYS, type InvitationRecord } from "@eyadex/contracts/invitations";
 import { invitationAuditSnapshot, issueInviteToken } from "./mock-invite-tokens";
 import { writeClinicAudit } from "./mock-audit";
-import { rememberClinicCreate, replayClinicCreate } from "./mock-clinic-replay";
+import { parseClinicFinance, rememberClinicCreate, replayClinicCreate } from "./mock-clinic-replay";
 import { moduleDependencyGap } from "@eyadex/contracts/onboarding";
 import { enforceEmailFree, toUserView, userUsage } from "./mock-user-rules";
 
@@ -131,11 +130,7 @@ export function createMockPlatform(): Omit<
       // Every field is checked before any state changes: a refused create leaves no half-made clinic,
       // and a bad body is `validation` as the API answers it.
       const input = parse(createClinicInputSchema, raw);
-      const parsedFinance = parse(newClinicFinanceSchema, raw);
-      const financeInput = {
-        ...(parsedFinance.currency ? { currency: parsedFinance.currency } : {}),
-        ...(parsedFinance.taxRateBp !== undefined ? { taxRateBp: parsedFinance.taxRateBp } : {}),
-      };
+      const financeInput = parseClinicFinance(raw);
       const db = getState();
       const replayed = replayClinicCreate(db, actor.id, idempotencyKey, input, financeInput);
       if (replayed) return replayed;

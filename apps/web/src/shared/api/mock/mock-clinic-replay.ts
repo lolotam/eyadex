@@ -1,7 +1,17 @@
 import type { CreateClinicInput, CreatedClinic } from "@eyadex/contracts/clinics";
 import { ApiError } from "../api-error";
-import type { NewClinicFinance } from "../new-clinic-finance";
+import { newClinicFinanceSchema, type NewClinicFinance } from "../new-clinic-finance";
+import { parse } from "./mock-medical-access";
 import type { MockState } from "./mock-store";
+
+/** The create body's finance fields, parsed (`validation` when bad) with unset ones left out. */
+export function parseClinicFinance(raw: unknown): NewClinicFinance {
+  const f = parse(newClinicFinanceSchema, raw);
+  return {
+    ...(f.currency ? { currency: f.currency } : {}),
+    ...(f.taxRateBp !== undefined ? { taxRateBp: f.taxRateBp } : {}),
+  };
+}
 
 /** The same key must carry the same request: a changed one is a conflict, never the old answer. */
 function fingerprintOf(input: CreateClinicInput, finance: NewClinicFinance): string {
