@@ -90,7 +90,7 @@ function NewInvoiceContent({ source }: { source: Source }) {
           source={source}
           editing={null}
           mayDiscountAt={(branchId) =>
-            session !== null &&
+            !!session &&
             branchId !== null &&
             canAtBranch(session, "create", "discounts", branchId)
           }

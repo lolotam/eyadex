@@ -10,7 +10,16 @@ const branch = (id: string) => ({ id, nameAr: id, nameEn: id, isActive: true });
 
 vi.mock("@/shared/api/api-provider", () => ({
   useApi: () => ({
-    scheduling: { listServices: async () => ({ items: [] }), listProviders: async () => [] },
+    scheduling: {
+      // 150 services in pages of 100: the second page must be read too.
+      listServices: async (_p: unknown, q: { cursor: string | null; limit: number }) => {
+        const start = q.cursor ? Number(q.cursor) : 0;
+        const all = Array.from({ length: 150 }, (_, i) => ({ id: `s${i}` }));
+        const end = Math.min(start + q.limit, all.length);
+        return { items: all.slice(start, end), nextCursor: end < all.length ? String(end) : null };
+      },
+      listProviders: async () => [],
+    },
     patients: { branchOptions: async () => [branch(OWN), branch(OTHER)] },
   }),
 }));
@@ -43,5 +52,12 @@ describe("the invoice form's branches", () => {
     const { result } = renderHook(() => useInvoiceOptions(), { wrapper });
     await waitFor(() => expect(result.current.branches).toHaveLength(2));
     expect(result.current.createBranches.map((b) => b.id)).toEqual([OWN]);
+  });
+});
+
+describe("the invoice form's services", () => {
+  it("reads every page, not only the first 100", async () => {
+    const { result } = renderHook(() => useInvoiceOptions(), { wrapper });
+    await waitFor(() => expect(result.current.services).toHaveLength(150));
   });
 });
