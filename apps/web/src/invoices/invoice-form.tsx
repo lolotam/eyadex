@@ -23,6 +23,7 @@ import {
   toCreateRequest,
   toDiscountInput,
   toLineInputs,
+  withoutDiscounts,
   type InvoiceFormValues,
 } from "./invoice-form-draft";
 import { InvoiceLineRow } from "./invoice-line-row";
@@ -36,7 +37,8 @@ type Props = {
   source: { source: "appointment" | "visit"; sourceId: string } | null;
   /** Editing this invoice (If-Match: its version); null = issuing a new one. */
   editing: Invoice | null;
-  mayDiscount: boolean;
+  /** `create:discounts` reaching this branch (lesson 1.2); judged again when the branch changes. */
+  mayDiscountAt: (branchId: string | null) => boolean;
   priceMissing: boolean;
   onDone: (invoice: Invoice) => void;
   onReload?: () => void;
@@ -54,6 +56,7 @@ export function InvoiceForm(p: Props) {
   const form = useForm<InvoiceFormValues>({ defaultValues: p.initial });
   const lines = useFieldArray({ control: form.control, name: "lines" });
   const values = form.watch();
+  const mayDiscount = p.mayDiscountAt(values.branchId);
   const exponent = money.exponent ?? 0;
   const taxRateBp = p.editing?.taxRateBp ?? money.taxRateBp;
   const totals = liveTotals(values, exponent, taxRateBp);
@@ -119,7 +122,10 @@ export function InvoiceForm(p: Props) {
             <Label>{t("finance.invoice.branch")}</Label>
             <Select
               value={values.branchId ?? ""}
-              onValueChange={(v) => form.setValue("branchId", v)}
+              onValueChange={(v) => {
+                if (p.mayDiscountAt(v)) form.setValue("branchId", v);
+                else form.reset({ ...withoutDiscounts(form.getValues()), branchId: v });
+              }}
             >
               <SelectTrigger aria-label={t("finance.invoice.branch")}>
                 <SelectValue placeholder={t("finance.invoice.pickBranch")} />
@@ -151,7 +157,7 @@ export function InvoiceForm(p: Props) {
               index={index}
               services={options.services}
               providers={options.providers}
-              mayDiscount={p.mayDiscount}
+              mayDiscount={mayDiscount}
               lineTotal={lineTotal}
               priceMissing={missingAt(index)}
               onRemove={() => lines.remove(index)}
@@ -199,10 +205,10 @@ export function InvoiceForm(p: Props) {
           </div>
         )}
       </section>
-      {(p.mayDiscount || values.invoiceDiscount !== null) && (
+      {(mayDiscount || values.invoiceDiscount !== null) && (
         <section className="flex flex-col gap-2">
           <h3 className="text-sm font-semibold">{t("finance.invoice.invoiceDiscount")}</h3>
-          <InvoiceDiscountFields form={form} name="invoiceDiscount" editable={p.mayDiscount} />
+          <InvoiceDiscountFields form={form} name="invoiceDiscount" editable={mayDiscount} />
         </section>
       )}
       {totals === "discount_exceeds_total" ? (

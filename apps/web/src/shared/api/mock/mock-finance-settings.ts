@@ -18,6 +18,7 @@ import {
   prefixLocked,
   priceOf,
 } from "./mock-finance-state";
+import { auditFinanceSetting } from "./mock-finance-audit";
 import { parse } from "./mock-medical-access";
 import type { MockState } from "./mock-store";
 
@@ -61,6 +62,7 @@ export function setServicePrice(db: MockState, persona: Persona, serviceId: stri
   const body = parse(servicePriceRequestSchema, raw);
   const state = financeState(db);
   state.prices[serviceId] = { ...priceOf(db, serviceId), priceMinor: body.priceMinor };
+  auditFinanceSetting(db, a, "service.price_set", "clinic_service", serviceId);
   return priceView(db, serviceId);
 }
 
@@ -78,6 +80,7 @@ export function setProviderPrices(
     db.members.some((m) => m.id === id && m.clinicId === a.clinic.id && m.status === "active");
   if (!body.items.every((i) => known(i.memberId))) throw new ApiError("validation");
   financeState(db).prices[serviceId] = { ...priceOf(db, serviceId), providerPrices: body.items };
+  auditFinanceSetting(db, a, "service.provider_prices_set", "clinic_service", serviceId);
   return priceView(db, serviceId);
 }
 
@@ -90,6 +93,7 @@ export function updateSettings(db: MockState, persona: Persona, raw: unknown) {
   if (!a.keys.includes("update:clinic_settings:clinic")) throw new ApiError("forbidden");
   const body = parse(financeSettingsRequestSchema, raw);
   clinicFinanceOf(db, a.clinic.id).commercialRegNo = body.commercialRegNo;
+  auditFinanceSetting(db, a, "clinic.commercial_reg_no_set", "clinic", a.clinic.id);
   return settingsView(db, a.clinic.id);
 }
 
@@ -119,6 +123,7 @@ export async function uploadLogo(db: MockState, persona: Persona, file: Blob) {
   }
   mockLogos.set(a.clinic.id, file);
   clinicFinanceOf(db, a.clinic.id).hasLogo = true;
+  auditFinanceSetting(db, a, "clinic.logo_set", "clinic", a.clinic.id);
   return settingsView(db, a.clinic.id);
 }
 
@@ -158,6 +163,11 @@ export function setPrefix(db: MockState, persona: Persona, branchId: string, raw
   if (heldByOther || (usedBy !== undefined && usedBy !== branchId)) {
     throw new ApiError("invoice_prefix_taken");
   }
+  const before = state.prefixes[branchId] ?? null;
   state.prefixes[branchId] = invoicePrefix;
+  auditFinanceSetting(db, a, "branch.invoice_prefix_set", "branch", branchId, {
+    before: { invoicePrefix: before },
+    after: { invoicePrefix },
+  });
   return prefixItem(db, a.clinic.id, branchId);
 }

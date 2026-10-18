@@ -1,10 +1,26 @@
 import type { CreateClinicInput, CreatedClinic } from "@eyadex/contracts/clinics";
 import { ApiError } from "../api-error";
+import { newClinicFinanceSchema, type NewClinicFinance } from "../new-clinic-finance";
+import { parse } from "./mock-medical-access";
 import type { MockState } from "./mock-store";
 
+/** The create body's finance fields, parsed (`validation` when bad) with unset ones left out. */
+export function parseClinicFinance(raw: unknown): NewClinicFinance {
+  const f = parse(newClinicFinanceSchema, raw);
+  return {
+    ...(f.currency ? { currency: f.currency } : {}),
+    ...(f.taxRateBp !== undefined ? { taxRateBp: f.taxRateBp } : {}),
+  };
+}
+
 /** The same key must carry the same request: a changed one is a conflict, never the old answer. */
-function fingerprintOf(input: CreateClinicInput): string {
-  return JSON.stringify({ ...input, adminEmail: input.adminEmail.trim().toLowerCase() });
+function fingerprintOf(input: CreateClinicInput, finance: NewClinicFinance): string {
+  return JSON.stringify({
+    ...input,
+    adminEmail: input.adminEmail.trim().toLowerCase(),
+    currency: finance.currency ?? "KWD",
+    taxRateBp: finance.taxRateBp ?? 0,
+  });
 }
 
 /**
@@ -22,10 +38,12 @@ export function replayClinicCreate(
   accountId: string,
   key: string,
   input: CreateClinicInput,
+  finance: NewClinicFinance,
 ): CreatedClinic | null {
   const previous = db.idempotentClinics?.[ledgerKey(accountId, key)];
   if (!previous) return null;
-  if (previous.fingerprint !== fingerprintOf(input)) throw new ApiError("idempotency_conflict");
+  if (previous.fingerprint !== fingerprintOf(input, finance))
+    throw new ApiError("idempotency_conflict");
   const clinic = db.clinics.find((c) => c.id === previous.created.clinic.id);
   if (!clinic) throw new ApiError("not_found");
   return { clinic, firstAdminInvite: previous.created.firstAdminInvite };
@@ -36,10 +54,11 @@ export function rememberClinicCreate(
   accountId: string,
   key: string,
   input: CreateClinicInput,
+  finance: NewClinicFinance,
   created: CreatedClinic,
 ): void {
   db.idempotentClinics = {
     ...db.idempotentClinics,
-    [ledgerKey(accountId, key)]: { created, fingerprint: fingerprintOf(input) },
+    [ledgerKey(accountId, key)]: { created, fingerprint: fingerprintOf(input, finance) },
   };
 }

@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useI18n } from "@/shared/i18n/i18n-provider";
+import { viewScope } from "./view-scope";
 
 type Props = {
   catalog: PermissionDefinition[];
@@ -144,12 +145,4 @@ function moduleOf(
   resource: PermissionResource,
 ): ClinicModule | null {
   return catalog.find((d) => d.resource === resource)?.module ?? null;
-}
-
-/** The view scope to grant with a write: the same scope when the view offers it, else its widest. */
-function viewScope(catalog: PermissionDefinition[], resource: string, scope: string): string {
-  const scopes = catalog
-    .filter((d) => d.resource === resource && d.action === "view")
-    .map((d) => d.scope);
-  return scopes.includes(scope as never) ? scope : (scopes[0] ?? scope);
 }

@@ -106,7 +106,15 @@ export function createMockFinance(): FinanceApi {
         total: rows.length,
       };
     },
-    getInvoice: async (p, id) => (await delay(), strip(db(), visibleInvoice(p, id))),
+    // The detail alone carries the name, read here so the page writes no patient-access row.
+    getInvoice: async (p, id) => {
+      await delay();
+      const invoice = visibleInvoice(p, id);
+      const patient = db().patients.find(
+        (x) => x.clinicId === invoice.clinicId && x.id === invoice.patientId,
+      );
+      return { ...strip(db(), invoice), ...(patient ? { patientName: patient.fullName } : {}) };
+    },
     draft: async (p, source, id) => (
       await delay(),
       draftOf(db(), guardFinance(db(), p), source, id)

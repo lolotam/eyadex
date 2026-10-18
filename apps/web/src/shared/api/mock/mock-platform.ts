@@ -1,5 +1,4 @@
 import { clinicFinanceOf } from "./mock-finance-state";
-import { newClinicFinanceSchema } from "../new-clinic-finance";
 import {
   NO_FEATURES,
   effectiveClinicStatus,
@@ -12,6 +11,8 @@ import {
   subscriptionInputSchema,
 } from "@eyadex/contracts/clinics";
 import type { ApiClient } from "../api-client";
+import { parse } from "./mock-medical-access";
+import { addMonths, clinicDetails, clinicSubscription } from "./mock-clinic-snapshot";
 import { ApiError } from "../api-error";
 import { resolvePlatformActor, writePlatformAudit } from "./mock-platform-actor";
 import { delay, getState, newId, persist, type MockState } from "./mock-store";
@@ -19,7 +20,7 @@ import { buildSystemRoles } from "./seed-roles";
 import { INVITATION_TTL_DAYS, type InvitationRecord } from "@eyadex/contracts/invitations";
 import { invitationAuditSnapshot, issueInviteToken } from "./mock-invite-tokens";
 import { writeClinicAudit } from "./mock-audit";
-import { rememberClinicCreate, replayClinicCreate } from "./mock-clinic-replay";
+import { parseClinicFinance, rememberClinicCreate, replayClinicCreate } from "./mock-clinic-replay";
 import { moduleDependencyGap } from "@eyadex/contracts/onboarding";
 import { enforceEmailFree, toUserView, userUsage } from "./mock-user-rules";
 
@@ -59,26 +60,6 @@ function audit(
     before,
     after,
   });
-}
-
-/** Allowlisted clinic fields for the platform log (names, settings, subscription). */
-function clinicDetails(c: Clinic) {
-  return {
-    nameAr: c.nameAr,
-    nameEn: c.nameEn,
-    specialty: c.specialty,
-    defaultLanguage: c.defaultLanguage,
-    timezone: c.timezone,
-  };
-}
-function clinicSubscription({ status, expiresAt, maxUsers, maxBranches }: Clinic) {
-  return { status, expiresAt: expiresAt.slice(0, 10), maxUsers, maxBranches };
-}
-
-function addMonths(date: Date, months: number): Date {
-  const next = new Date(date);
-  next.setMonth(next.getMonth() + months);
-  return next;
 }
 
 export function createMockPlatform(): Omit<
@@ -127,11 +108,12 @@ export function createMockPlatform(): Omit<
       ) {
         throw new ApiError("reserved_slug");
       }
-      const input = createClinicInputSchema.parse(raw);
-      // Every field is checked before any state changes: a refused create leaves no half-made clinic.
-      const financeInput = newClinicFinanceSchema.parse(raw);
+      // Every field is checked before any state changes: a refused create leaves no half-made clinic,
+      // and a bad body is `validation` as the API answers it.
+      const input = parse(createClinicInputSchema, raw);
+      const financeInput = parseClinicFinance(raw);
       const db = getState();
-      const replayed = replayClinicCreate(db, actor.id, idempotencyKey, input);
+      const replayed = replayClinicCreate(db, actor.id, idempotencyKey, input, financeInput);
       if (replayed) return replayed;
       if (db.clinics.some((c) => c.slug === input.slug)) throw new ApiError("slug_taken");
       enforceEmailFree(db, input.adminEmail);
@@ -204,7 +186,10 @@ export function createMockPlatform(): Omit<
         { ...clinicDetails(clinic), ...clinicSubscription(clinic), email: input.adminEmail },
       );
       if (!firstAdminInvite) throw new ApiError("not_found");
-      rememberClinicCreate(db, actor.id, idempotencyKey, input, { clinic, firstAdminInvite });
+      rememberClinicCreate(db, actor.id, idempotencyKey, input, financeInput, {
+        clinic,
+        firstAdminInvite,
+      });
       persist();
       return { clinic, firstAdminInvite };
     },

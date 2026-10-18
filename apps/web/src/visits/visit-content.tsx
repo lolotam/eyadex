@@ -9,7 +9,7 @@ import { useSession } from "@/shared/persona/persona-provider";
 import { LoadingBlock } from "@/shared/shell/loading-block";
 import { PageHeader } from "@/shared/shell/page-header";
 import { StatusPanel } from "@/shared/shell/status-panel";
-import { InvoiceSourceButton } from "@/shared/finance/invoice-source-button";
+import { useEncounterSlots } from "@/shared/shell/encounter-slots";
 import { AttachmentsPanel } from "./attachments-panel";
 import { useVisit } from "./medical-queries";
 import { VisitActions } from "./visit-actions";
@@ -25,6 +25,7 @@ import { VisitStatusBadge } from "./visit-status-badge";
 /** The visit: header, the notes, diagnoses, prescription, addenda and attachments, by `can`. */
 export function VisitContent({ visitId }: { visitId: string }) {
   const { t, pick, formatDate } = useI18n();
+  const slots = useEncounterSlots();
   const { session } = useSession();
   const query = useVisit(visitId);
   // The page owns the note's flush and every section save, so Sign sends the pending note text and
@@ -77,9 +78,12 @@ export function VisitContent({ visitId }: { visitId: string }) {
           <div className="flex flex-wrap items-center gap-2">
             <VisitStatusBadge status={visit.status} />
             <VisitActions detail={d} settleSaves={settleSaves} />
-            {visit.status !== "cancelled" && (
-              <InvoiceSourceButton source="visit" id={visit.id} branchId={visit.branchId} />
-            )}
+            {visit.status !== "cancelled" &&
+              slots.visitActions?.({
+                id: visit.id,
+                appointmentId: visit.appointmentId,
+                branchId: visit.branchId,
+              })}
           </div>
         }
       />
