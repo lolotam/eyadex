@@ -70,15 +70,9 @@ describe("mock finance audit rows, as the API", () => {
     });
     expect(rows("service.provider_prices_set")).toHaveLength(1);
     expect(rows("clinic.commercial_reg_no_set")).toHaveLength(1);
-    const branch = getState().branches.find(
-      (b) =>
-        b.clinicId === clinicIdAt(0) &&
-        !getState().clinicAudit.some(() => false) &&
-        b.isActive,
-    );
     const items = await api.finance.prefixes(admin());
     const free = items.find((i) => !i.locked) ?? items[0];
-    await api.finance.setPrefix(admin(), free?.branchId ?? branch!.id, "NEWP");
+    await api.finance.setPrefix(admin(), free?.branchId ?? "", "NEWP");
     expect(rows("branch.invoice_prefix_set")[0]?.after).toEqual({ invoicePrefix: "NEWP" });
   });
 
