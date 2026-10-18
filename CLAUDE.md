@@ -33,6 +33,13 @@
 >   instead of by phase, so Phase A being done retires none of them; §3 lists `packages/auth` and
 >   `packages/secrets`. `CLAUDE.architecture.md` §1–2 and §9 and PRD §4.1, §5.3–5.4 and §8.2 follow
 >   Phase B and ADR-0024. Follow-up to PR #80.
+> - **V1.6 (2026-10-18)** — §9: each integration test connects as its use case's own runtime role
+>   (`eyadex_app` for tenant paths, `eyadex_platform`, `eyadex_auth`, `eyadex_dispatcher`
+>   otherwise). `CLAUDE.architecture.md` A1.2: §2.2 gains the `billing` row, §8 and `AGENTS.md` name
+>   both web adapters, and it records PR #81's §2.2 cycle rule (rejected in review until the §7
+>   check lands) and §7 split (checks that run today vs planned). PRD 1.3: §4.1 describes the worker
+>   as it runs (outbox poller + interval jobs, no BullMQ; owner decision 2026-10-18) and §5.4 step 5
+>   keeps the mock. Follow-up to PR #81.
 
 ## 0.1 Talking to the owner (binding, owner rule 2026-10-13)
 
@@ -163,8 +170,9 @@ Banned folder names anywhere: `utils/` · `helpers/` · `common/` · `misc/` · 
   displayed in the clinic timezone. Bilingual names: `name_ar` / `name_en`.
 - **No hard deletes** of users, branches, roles or patient files: deactivate / archive.
 - Runtime database roles (PRD §4.5): `eyadex_app` (API + worker, tenant tables under RLS),
-  `eyadex_auth` (identity tables only), `eyadex_platform` (platform module; **no grant on
-  `patients` or patient-access audit rows**), `eyadex_dispatcher` (outbox only).
+  `eyadex_auth` (identity tables only), `eyadex_platform` (platform module and the worker's
+  cross-clinic scans, ADR-0020; **no grant on `patients` or patient-access audit rows**),
+  `eyadex_dispatcher` (the worker's outbox and retention purge only).
   **No runtime role has `BYPASSRLS`.** The owner role runs migrations only.
 - **No runtime role has `TEMPORARY` on the database** (`db/sql/0022`): nothing creates a
   temporary object at runtime, and a temporary function could hide `set_config`. Only the
@@ -231,7 +239,10 @@ Banned folder names anywhere: `utils/` · `helpers/` · `common/` · `misc/` · 
   the whole `db/sql` baseline. **Every new clinic table must be added to its table list and seed
   in the same PR.** It also runs on production after every baseline change (it rolls back).
 - API and worker: unit tests for pure domain functions; integration tests per use case against real
-  PostgreSQL connected as `eyadex_app`; **RLS negative tests for every tenant table**
+  PostgreSQL, connected as the runtime role that use case runs as: `eyadex_app` for tenant paths,
+  `eyadex_platform` for platform paths (the platform module, the worker's cross-clinic scans),
+  `eyadex_auth` for Better Auth, `eyadex_dispatcher` for the outbox and the retention purge (no use
+  case runs as the owner role); **RLS negative tests for every tenant table**
   (cross-clinic read = 0 rows, write = error); the mandatory list in PRD §6.3.
 
 ## 10. Git & delivery
