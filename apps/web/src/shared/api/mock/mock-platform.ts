@@ -12,6 +12,7 @@ import {
 } from "@eyadex/contracts/clinics";
 import type { ApiClient } from "../api-client";
 import { parse } from "./mock-medical-access";
+import { addMonths, clinicDetails, clinicSubscription } from "./mock-clinic-snapshot";
 import { ApiError } from "../api-error";
 import { resolvePlatformActor, writePlatformAudit } from "./mock-platform-actor";
 import { delay, getState, newId, persist, type MockState } from "./mock-store";
@@ -59,26 +60,6 @@ function audit(
     before,
     after,
   });
-}
-
-/** Allowlisted clinic fields for the platform log (names, settings, subscription). */
-function clinicDetails(c: Clinic) {
-  return {
-    nameAr: c.nameAr,
-    nameEn: c.nameEn,
-    specialty: c.specialty,
-    defaultLanguage: c.defaultLanguage,
-    timezone: c.timezone,
-  };
-}
-function clinicSubscription({ status, expiresAt, maxUsers, maxBranches }: Clinic) {
-  return { status, expiresAt: expiresAt.slice(0, 10), maxUsers, maxBranches };
-}
-
-function addMonths(date: Date, months: number): Date {
-  const next = new Date(date);
-  next.setMonth(next.getMonth() + months);
-  return next;
 }
 
 export function createMockPlatform(): Omit<
