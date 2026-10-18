@@ -72,6 +72,26 @@ export async function replaceProviderPrices(
 }
 
 /**
+ * The name and status of every service of the clinic, for the price list.
+ *
+ * @returns a map from service id to its names and status
+ */
+export async function serviceLabels(
+  tx: Tx,
+  clinicId: string,
+): Promise<ReadonlyMap<string, { nameAr: string; nameEn: string; status: "active" | "inactive" }>> {
+  const rows = await tx.execute<{
+    id: string;
+    name_ar: string;
+    name_en: string;
+    status: "active" | "inactive";
+  }>(sql`SELECT id, name_ar, name_en, status FROM clinic_services WHERE clinic_id = ${clinicId}`);
+  return new Map(
+    rows.map((r) => [r.id, { nameAr: r.name_ar, nameEn: r.name_en, status: r.status }]),
+  );
+}
+
+/**
  * Every service's prices, or one service's when `serviceId` is given; per-doctor prices by member id.
  *
  * @returns the prices, services in creation order

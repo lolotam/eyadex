@@ -202,12 +202,23 @@ export type ServicePrice = z.infer<typeof servicePriceSchema>;
 /** Both price writes answer the service's prices as saved. */
 export const servicePriceResponseSchema = z.object({ servicePrice: servicePriceSchema }).strict();
 
-/** `GET /v1/prices` (R1-13): `GET /services` never carries a price. */
+/**
+ * `GET /v1/prices` (R1-13): `GET /services` never carries a price. Each item also names its service, so a
+ * role that holds only the price keys can still read a service list; the names are optional only so
+ * older clients and write answers stay valid, the API always sends them here.
+ */
+export const priceListItemSchema = servicePriceSchema
+  .extend({
+    nameAr: z.string().optional(),
+    nameEn: z.string().optional(),
+    status: z.enum(["active", "inactive"]).optional(),
+  })
+  .strict();
 export const priceListResponseSchema = z
   .object({
     currency: currencyCodeSchema,
     currencyExponent: z.number().int(),
-    items: z.array(servicePriceSchema),
+    items: z.array(priceListItemSchema),
   })
   .strict();
 export type PriceList = z.infer<typeof priceListResponseSchema>;
