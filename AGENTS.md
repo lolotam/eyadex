@@ -30,7 +30,7 @@ When reviewing a pull request, report only real defects, ranked by severity. Che
 - a clinic table without forced RLS and a negative isolation test in the same PR
 - a token, secret, password or real phone number in code, tests, logs or audit snapshots
 - a mock or API method that skips the permission check order (`CLAUDE.architecture.md` §3)
-- a screen importing `apps/web/src/shared/api/mock/*`, or business logic inside a React component
+- a screen importing an adapter (`apps/web/src/shared/api/mock/*` or `apps/web/src/shared/api/http/*`), or business logic inside a React component
 - hardcoded UI strings, left/right CSS, checks on role names instead of permissions, hard deletes
 - the word "كاشير"/"Cashier", or "المريض/المرضى" in Arabic UI copy (use "المراجع/المراجعون")
 
