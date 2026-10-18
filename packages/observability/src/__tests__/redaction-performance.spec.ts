@@ -17,19 +17,23 @@ const NEAR_CAP = 64_000;
 
 const MAX_ATTEMPTS = 10;
 const REGRESSION_MULTIPLIER = 5;
+const REGRESSION_ATTEMPTS = 2;
 
 // Best-of-3 consecutive still failed at 153.9 ms / 151.1 ms on PR #78. Yielding makes retries stall-tolerant:
-// a real quadratic regression is slow on every attempt, a stall is not. The cutoff avoids repeating seconds
-// of genuinely slow work.
+// one stall must not fail the run. Only two consecutive attempts over 5x budget trigger the cutoff: a real
+// quadratic regression is slow on every attempt, so two in a row avoid burning seconds on more retries.
 const elapsed = async (work: () => void, budget: number): Promise<number> => {
   work();
   let best = Number.POSITIVE_INFINITY;
+  let slowAttempts = 0;
   for (let run = 0; run < MAX_ATTEMPTS; run += 1) {
     const start = performance.now();
     work();
     const took = performance.now() - start;
     best = Math.min(best, took);
-    if (best < budget || took > REGRESSION_MULTIPLIER * budget) return best;
+    if (best < budget) return best;
+    slowAttempts = took > REGRESSION_MULTIPLIER * budget ? slowAttempts + 1 : 0;
+    if (slowAttempts >= REGRESSION_ATTEMPTS) return best;
     if (run + 1 < MAX_ATTEMPTS) await new Promise((resolve) => setTimeout(resolve, 0));
   }
   return best;
