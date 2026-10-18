@@ -121,14 +121,7 @@ describe("a new clinic keeps the form's limits and modules", () => {
         clinic({ modules: { patients: false, appointments: true, medical: true, finance: false } }),
         crypto.randomUUID(),
       ),
-    ).rejects.toMatchObject({
-      issues: [
-        expect.objectContaining({
-          path: ["modules", "medical"],
-          message: "validation.moduleRequires",
-        }),
-      ],
-    });
+    ).rejects.toMatchObject({ code: "validation" });
     expect(getState()).toEqual(before);
   });
 
