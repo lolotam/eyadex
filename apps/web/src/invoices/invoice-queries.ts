@@ -39,16 +39,17 @@ export function useInvoice(invoiceId: string) {
   });
 }
 
-/** The live (issued) invoice of an appointment or visit, or null. */
+/** The live (issued) invoice of an appointment's or visit's encounter, or null. */
 export function useSourceInvoice(source: "appointment" | "visit", sourceId: string, on = true) {
   const api = useApi();
   const { persona, enabled } = useClinicPersona();
   return useQuery({
-    queryKey: [...invoiceKeys.all, "source", source, sourceId, persona.memberId],
+    queryKey: [...invoiceKeys.all, "source", "encounter", source, sourceId, persona.memberId],
     queryFn: async () => {
       const page = await api.finance.listInvoices(persona, {
         source,
         sourceId,
+        encounter: true,
         status: "issued",
         limit: 1,
       });

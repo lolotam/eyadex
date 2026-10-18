@@ -71,6 +71,25 @@ describe("opening a source invoice form", () => {
     );
   });
 
+  it("redirects an appointment to the invoice issued for its visit", async () => {
+    const invoices = [{ id: "visit-invoice", source: "visit", sourceId: "visit" }];
+    state.list.mockImplementation(async (_persona, query) => ({
+      items: invoices.filter(
+        (invoice) =>
+          (invoice.source === query.source && invoice.sourceId === query.sourceId) ||
+          (query.encounter === true && query.sourceId === "appointment"),
+      ),
+    }));
+    show();
+    await waitFor(() =>
+      expect(state.navigate).toHaveBeenCalledWith({
+        to: "/clinic/invoices/$invoiceId",
+        params: { invoiceId: "visit-invoice" },
+        replace: true,
+      }),
+    );
+  });
+
   it("keeps the mounted form and its typed value after a failed background lookup", async () => {
     const client = show();
     const input = await screen.findByRole("textbox");

@@ -14,7 +14,7 @@ beforeEach(() => resetMockData());
 // Item 8: the screen, its tab and the menu entry agree for every key combination.
 describe("who reaches the services screen", () => {
   it("prices only: the prices-only screen", () => {
-    expect(servicesScreenOf(PRICES)).toBe("prices");
+    expect(servicesScreenOf(PRICES, undefined, true)).toBe("prices");
     expect(settingsInNav(PRICES)).toBe(true);
   });
   it("services only: the full screen", () => {
@@ -26,6 +26,13 @@ describe("who reaches the services screen", () => {
   it("NEGATIVE: neither key: no screen, no tab, no menu entry", () => {
     expect(servicesScreenOf(["view:patients:clinic"])).toBe("none");
     expect(settingsInNav(["view:patients:clinic"])).toBe(false);
+  });
+  it("NEGATIVE: prices-only access needs finance enabled", () => {
+    expect(servicesScreenOf(PRICES, undefined, false)).toBe("none");
+  });
+  it("services access is independent of finance", () => {
+    expect(servicesScreenOf(SERVICES, undefined, false)).toBe("full");
+    expect(servicesScreenOf([...SERVICES, ...PRICES], undefined, false)).toBe("full");
   });
 });
 
