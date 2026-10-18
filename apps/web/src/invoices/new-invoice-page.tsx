@@ -4,7 +4,8 @@ import { AlertCircle } from "lucide-react";
 import { errorCodeOf } from "@/shared/api/api-error";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { useClinicMoney } from "@/shared/money/use-clinic-money";
-import { can } from "@/shared/permissions/can";
+import { canAtBranch } from "@/shared/permissions/can-at-branch";
+import { Button } from "@/components/ui/button";
 import { RequirePermission } from "@/shared/permissions/require-permission";
 import { useSession } from "@/shared/persona/persona-provider";
 import { LoadingBlock } from "@/shared/shell/loading-block";
@@ -60,7 +61,7 @@ function NewInvoiceContent({ source }: { source: Source }) {
   const loading =
     money.exponent === null ||
     (source !== null && (existing.isLoading || draft.isLoading || found));
-  const failed = money.settings.error ?? draft.error;
+  const failed = money.settings.error ?? existing.error ?? draft.error;
   return (
     <div className="max-w-3xl">
       <PageHeader title={t("finance.invoice.newTitle")} subtitle="" />
@@ -69,6 +70,17 @@ function NewInvoiceContent({ source }: { source: Source }) {
           icon={AlertCircle}
           title={t("finance.invoice.draftError")}
           body={tDynamic(`errors.${errorCodeOf(failed)}`)}
+          action={
+            <Button
+              onClick={() => {
+                void money.settings.refetch();
+                if (existing.isError) void existing.refetch();
+                if (draft.isError) void draft.refetch();
+              }}
+            >
+              {t("common.tryAgain")}
+            </Button>
+          }
         />
       ) : loading ? (
         <LoadingBlock />
@@ -77,7 +89,11 @@ function NewInvoiceContent({ source }: { source: Source }) {
           initial={draft.data ? valuesFromDraft(draft.data, money.exponent!) : EMPTY}
           source={source}
           editing={null}
-          mayDiscount={can(session?.permissions ?? [], "create", "discounts")}
+          mayDiscountAt={(branchId) =>
+            session !== null &&
+            branchId !== null &&
+            canAtBranch(session, "create", "discounts", branchId)
+          }
           priceMissing={draft.data?.priceMissing ?? false}
           onDone={(invoice) => {
             refresh();
