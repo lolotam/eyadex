@@ -52,8 +52,20 @@ The owner set this loop on 2026-10-06 and tightened it on 2026-10-17 (small slic
    - **At most 3 fix rounds per PR.**
    - A finding that is far-fetched or not worth its code gets a reply explaining why; it is non-blocking unless it is a security finding.
    - CodeRabbit (free plan) often posts only a rate-limit notice. That notice is not a finding, but any CodeRabbit inline comment is a claim to verify like Codex's.
+   - **Staging check (owner decision 2026-10-18).** Every slice is tried on staging against the real API and worker before it merges. Docs-only and test-only PRs skip this check.
+     - When the merge candidate is green and Codex has reviewed its head, promote that head to staging, following `docs/specs/staging-runbook.md` §11 and the ADR-0021 pre-merge rules. The head must contain the SHA staging runs, so the push is a fast-forward.
+     - A PR that adds `db/sql` files is not promoted by these steps. Write its staging plan (which files run, in the release order, which `db/tests` files run with them, and how to undo them if the PR is dropped) and ask the owner before anything runs on staging.
+     - Push the head to `staging` and wait until the staging web, API and worker run that commit and are healthy; then run `docker/smoke-test.sh` as in the runbook.
+     - A new head after the check is promoted and checked again. After the merge, promote the merge commit. If the PR is dropped, move `staging` back with `--force-with-lease` (runbook §12).
+     - Check every screen the slice changed on `staging-app.eyadex.com` (and `staging-platform.eyadex.com` when the slice touches the platform), in Arabic and English, at 1440px and 390px, as each persona the slice names plus one role without the permission.
+     - Run every API endpoint and worker job the slice changed at least once on staging, through its screen or with a direct call in the owner's session. For a worker job, also confirm the row or message it produced. Health and the smoke test alone do not count.
+     - The agent never types a password: the owner signs in on the browser pane, and the agent works inside that session.
+     - A failure is a blocking finding and gets a fix round.
+     - Write the result in the PR body under **Staging check**: the commit, what was checked, what passed.
+     - The mock adapter stays as it is: Lovable's preview and the tests use it, and the parity rules (`.lovable/review-lessons.md` §2) still hold.
 5. **Merge.** Merge only when all of these hold:
    - Codex has finished its review of the current head (its summary's "Reviewed commit" is the head), so the last round's fixes were reviewed;
+   - the staging check passed on the current head (step 4), unless the PR is docs-only or test-only;
    - no blocking finding is open (non-blocking ones are answered on their threads and listed under **Follow-ups**);
    - every bot inline comment is answered;
    - CI (`verify`, `db`, `api-image`, `worker-image`) and both Socket checks are green;

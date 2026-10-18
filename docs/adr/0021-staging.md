@@ -112,6 +112,11 @@ service holds its password.
 - **Promotion** = fast-forward `staging` to a `main` SHA whose CI is green:
   `git push origin <sha>:refs/heads/staging` (refused unless it is a fast-forward). Promote only SHAs
   that are on `main`; the branch carries no commits of its own.
+- **Pre-merge check (owner decision 2026-10-18).** A pull request's merge candidate may also be promoted, so that every slice is tried against the real API before it merges. Rules:
+  - its CI is green, and its head contains the SHA staging runs, so the push is still a fast-forward;
+  - after the PR merges, promote its merge commit on `main`;
+  - the candidate brings no new `db/sql` file, so staging's schema and migration ledger never hold an unmerged migration. A PR with SQL gets its own staging plan (which files, which tests, how to undo them), which the owner approves before anything runs;
+  - a new head after the check is promoted again; if the PR is dropped, or a new head no longer contains the SHA staging runs, move `staging` back to a `main` SHA with `--force-with-lease` (runbook §12).
 - **Migrations** run on the staging database with the same `db/migrate.sh`, by the orchestrator, before
   the new containers start (CLAUDE.md §5.1): `--status`, `--dry-run`, apply, `--status`, then
   `db/tests/*.sql`. Staging gets every migration first; production follows after staging has run it.

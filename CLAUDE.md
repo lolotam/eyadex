@@ -40,6 +40,8 @@
 >   check lands) and §7 split (checks that run today vs planned). PRD 1.3: §4.1 describes the worker
 >   as it runs (outbox poller + interval jobs, no BullMQ; owner decision 2026-10-18) and §5.4 step 5
 >   keeps the mock. Follow-up to PR #81.
+> - **V1.7 (2026-10-18)** — §2.1 step 3: every slice is tried on staging against the real API before
+>   it merges; the mock adapter stays (owner decision, EY-1.3 item 5). Steps are in the loop skill.
 
 ## 0.1 Talking to the owner (binding, owner rule 2026-10-13)
 
@@ -101,7 +103,9 @@ never import an adapter, so switching between mock and HTTP requires no screen c
 3. A PR `lovable → main` is opened. **CI** (`.github/workflows/ci.yml`), **Codex**
    (`@codex review` after every new commit), MergePilot, CodeRabbit and Socket review it. The
    orchestrator verifies every finding and fixes the blocking ones itself on `lovable` (at most 3
-   rounds per PR); non-blocking findings go to one follow-up PR after the merge. The full loop,
+   rounds per PR); non-blocking findings go to one follow-up PR after the merge. Before the
+   merge, the slice's head is deployed to staging and its screens are checked there against the
+   real API (docs-only and test-only PRs skip this); the mock adapter stays. The full loop,
    with what counts as blocking, is `.claude/skills/eyadex-delivery-loop/SKILL.md`.
 4. Merge with a **merge commit** (never squash or rebase pushed history — it breaks Lovable's
    sync), then fast-forward `lovable` to `main`.
