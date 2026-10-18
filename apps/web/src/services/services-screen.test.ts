@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { as, api, getState, resetMockData } from "@/shared/api/mock/mock-test-kit";
 import { visibleSettingsTabs } from "@/settings/settings-tabs";
-import { navItemsFor, NAV_ITEMS } from "@/shared/shell/nav-items";
+import { navItemsFor, CLINIC_NAV } from "@/shared/shell/nav-items";
 import { servicesScreenOf } from "./services-screen";
 import { servicesOfPriceList } from "./services-of-price-list";
 
@@ -9,7 +9,7 @@ const PRICES = ["view:prices:clinic", "update:prices:clinic"];
 const SERVICES = ["view:services:clinic"];
 const tabs = (keys: string[]) => visibleSettingsTabs(keys, { finance: true }).map((t) => t.id);
 const settingsInNav = (keys: string[]) =>
-  navItemsFor(NAV_ITEMS, keys).some((i) => i.to === "/clinic/settings");
+  navItemsFor(CLINIC_NAV, keys).some((i) => i.to === "/clinic/settings");
 
 beforeEach(() => resetMockData());
 

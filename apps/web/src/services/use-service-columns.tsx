@@ -42,17 +42,17 @@ export function useServiceColumns(h: Handlers): ColumnDef<ClinicService, unknown
       },
       ...(h.withDuration === false
         ? []
-        : [
-      {
-        id: "duration",
-        header: t("services.columns.duration"),
-        cell: ({ row }) => (
-          <span className="whitespace-nowrap">
-            {t("services.minutes", { count: row.original.durationMinutes })}
-          </span>
-        ),
-      },
-          ] satisfies ColumnDef<ClinicService, unknown>[]),
+        : ([
+            {
+              id: "duration",
+              header: t("services.columns.duration"),
+              cell: ({ row }) => (
+                <span className="whitespace-nowrap">
+                  {t("services.minutes", { count: row.original.durationMinutes })}
+                </span>
+              ),
+            },
+          ] satisfies ColumnDef<ClinicService, unknown>[])),
       ...(prices
         ? [
             {

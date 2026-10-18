@@ -94,14 +94,21 @@ describe("mock finance audit rows, as the API", () => {
 
 describe("opening the invoice PDF", () => {
   it("writes one invoice.pdf_opened row with no snapshot", async () => {
-    const { api: client, as: who, getState: state } = await import(
-      "@/shared/api/mock/mock-test-kit"
-    );
+    const {
+      api: client,
+      as: who,
+      getState: state,
+    } = await import("@/shared/api/mock/mock-test-kit");
     const page = await client.finance.listInvoices(who("clinic_admin"), { limit: 1 });
     const inv = page.items[0];
     if (!inv) return;
     await client.finance.pdf(who("clinic_admin"), inv.id);
     const row = state().clinicAudit[0];
-    expect(row).toMatchObject({ action: "invoice.pdf_opened", entityId: inv.id, before: null, after: null });
+    expect(row).toMatchObject({
+      action: "invoice.pdf_opened",
+      entityId: inv.id,
+      before: null,
+      after: null,
+    });
   });
 });
