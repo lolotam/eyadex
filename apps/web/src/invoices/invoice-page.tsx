@@ -88,7 +88,7 @@ function InvoiceContent({ invoiceId }: { invoiceId: string }) {
     onError,
   });
   const pdf = useMutation({
-    mutationFn: (tab: Window | null) => api.finance.pdf(persona, invoiceId),
+    mutationFn: (_tab: Window | null) => api.finance.pdf(persona, invoiceId),
     onMutate: () => setPdfError(null),
     onSuccess: (blob, tab) => showPdf(tab, blob, `${invoiceId}.pdf`),
     onError: (e, tab) => {
