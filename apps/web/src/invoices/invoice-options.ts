@@ -1,4 +1,4 @@
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { ApiError } from "@/shared/api/api-error";
 import { useApi } from "@/shared/api/api-provider";
 import { canAtBranch } from "@/shared/permissions/can-at-branch";
@@ -60,7 +60,7 @@ export function useInvoiceOptions() {
 }
 
 /** Patients matching the search text (sent as the patients list query, as the patients page does). */
-export function usePatientSearch(q: string) {
+export function usePatientSearch(q: string, raw = q) {
   const api = useApi();
   const { persona, ready } = usePersona();
   return useQuery({
@@ -68,7 +68,7 @@ export function usePatientSearch(q: string) {
     queryFn: () =>
       api.patients.list(persona, { cursor: null, limit: 10, q, branchId: null, status: "active" }),
     enabled: ready && Boolean(persona.clinicId) && q.trim().length >= 2,
-    placeholderData: keepPreviousData,
+    placeholderData: (previous) => (raw.trim().length >= 2 ? previous : undefined),
     retry,
   });
 }

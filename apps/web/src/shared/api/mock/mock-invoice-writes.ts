@@ -255,7 +255,7 @@ export function editInvoice(
   ) {
     throw new ApiError("forbidden");
   }
-  checkServiceLines(db, a.clinic.id, body.lines);
+  checkServiceLines(db, a.clinic.id, body.lines, invoice.lines);
   const totals = totalsOf(body.lines, body.invoiceDiscount, invoice.taxRateBp);
   const before = strip(db, invoice);
   Object.assign(invoice, {

@@ -43,7 +43,7 @@ export const invoiceListQuerySchema = z
   })
   .refine(
     (q) =>
-      q.encounter === undefined ||
+      q.encounter !== true ||
       ((q.source === "appointment" || q.source === "visit") && q.sourceId !== undefined),
     {
       path: ["encounter"],

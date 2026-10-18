@@ -91,12 +91,16 @@ describe("encounter invoice lookup", () => {
     },
   );
 
-  it.each([
-    "encounter=true",
-    "encounter=false",
-    `encounter=true&source=manual&sourceId=${randomUUID()}`,
-  ])("refuses %s without an encounter source pair", async (query) => {
-    const res = await list(C.admin.cookie, query);
-    expect([res.statusCode, code(res)]).toEqual([400, "validation"]);
+  it.each(["encounter=true", `encounter=true&source=manual&sourceId=${randomUUID()}`])(
+    "refuses %s without an encounter source pair",
+    async (query) => {
+      const res = await list(C.admin.cookie, query);
+      expect([res.statusCode, code(res)]).toEqual([400, "validation"]);
+    },
+  );
+
+  it("accepts encounter=false alone, as the defaulted query parses back", async () => {
+    const res = await list(C.admin.cookie, "encounter=false");
+    expect(res.statusCode).toBe(200);
   });
 });

@@ -10,7 +10,7 @@ import { effectivePrice } from "./mock-finance-state";
 import type { MockState } from "./mock-store";
 
 // The API's invoice line and totals rules (invoice-lines.ts, the shared totals helper): service
-// lines name a clinic service that has a price; totals come from `computeInvoiceTotals` only.
+// new or changed lines need a current price; totals come from `computeInvoiceTotals` only.
 
 const toDiscount = (d: DiscountInput | null): Discount | null =>
   d === null
@@ -43,18 +43,41 @@ export function totalsOf(
   }
 }
 
-/** Unknown service → validation; a service with no provider or base price → price_missing. */
+const discountKey = (discount: DiscountInput | null) =>
+  discount === null
+    ? null
+    : [discount.kind, discount.kind === "pct" ? discount.bp : discount.minor, discount.reason];
+const serviceKey = (
+  line: Extract<InvoiceLineInput, { kind: "service" }> | Invoice["lines"][number],
+) =>
+  JSON.stringify([
+    line.serviceId,
+    line.providerId,
+    line.quantity,
+    line.unitPriceMinor,
+    discountKey(line.discount),
+  ]);
+
+/** As the API: each stored service line exempts one unchanged copy from needing a current price. */
 export function checkServiceLines(
   db: MockState,
   clinicId: string,
   lines: readonly InvoiceLineInput[],
+  previous: readonly Invoice["lines"][number][] = [],
 ): void {
+  const unchanged = new Map<string, Invoice["lines"][number][]>();
+  for (const line of previous) {
+    if (line.kind !== "service") continue;
+    const key = serviceKey(line);
+    unchanged.set(key, [...(unchanged.get(key) ?? []), line]);
+  }
   lines.forEach((line, position) => {
     if (line.kind !== "service") return;
+    const old = unchanged.get(serviceKey(line))?.shift();
     if (!db.services.some((s) => s.clinicId === clinicId && s.id === line.serviceId)) {
       throw new ApiError("validation");
     }
-    if (effectivePrice(db, line.serviceId, line.providerId) === null) {
+    if (old === undefined && effectivePrice(db, line.serviceId, line.providerId) === null) {
       throw new ApiError("price_missing", undefined, { position });
     }
   });

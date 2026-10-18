@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 
 /**
  * Lessons 4.1/4.2: runs `init` once each time a dialog opens for `openKey` (null = closed). A
@@ -7,7 +7,9 @@ import { useEffect, useRef } from "react";
 export function useOncePerOpen(openKey: string | null, init: () => void): void {
   const seen = useRef<string | null>(null);
   const latest = useRef(init);
-  latest.current = init;
+  useLayoutEffect(() => {
+    latest.current = init;
+  });
   useEffect(() => {
     if (openKey === null) {
       seen.current = null;

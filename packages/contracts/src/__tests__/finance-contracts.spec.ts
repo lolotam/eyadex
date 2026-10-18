@@ -104,11 +104,19 @@ describe("the invoice list", () => {
     ).toBe(encounter === true || encounter === "true");
   });
 
-  it("defaults encounter to false and refuses a flag without an appointment or visit pair", () => {
-    expect(invoiceListQuerySchema.parse({}).encounter).toBe(false);
+  it("round-trips defaults and accepts encounter=false without a source pair", () => {
+    const defaults = invoiceListQuerySchema.parse({});
+    expect(defaults.encounter).toBe(false);
+    expect(invoiceListQuerySchema.parse(defaults)).toEqual(defaults);
+    for (const encounter of [false, "false"]) {
+      expect(invoiceListQuerySchema.parse({ encounter })).toEqual(defaults);
+    }
+  });
+
+  it("requires an appointment or visit pair only for encounter=true", () => {
     for (const query of [
       { encounter: true },
-      { encounter: false },
+      { encounter: "true" },
       { encounter: true, source: "appointment" },
       { encounter: true, sourceId: ID },
       { encounter: true, source: "manual", sourceId: ID },
