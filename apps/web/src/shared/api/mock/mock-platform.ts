@@ -131,7 +131,11 @@ export function createMockPlatform(): Omit<
       // Every field is checked before any state changes: a refused create leaves no half-made clinic,
       // and a bad body is `validation` as the API answers it.
       const input = parse(createClinicInputSchema, raw);
-      const financeInput = parse(newClinicFinanceSchema, raw);
+      const parsedFinance = parse(newClinicFinanceSchema, raw);
+      const financeInput = {
+        ...(parsedFinance.currency ? { currency: parsedFinance.currency } : {}),
+        ...(parsedFinance.taxRateBp !== undefined ? { taxRateBp: parsedFinance.taxRateBp } : {}),
+      };
       const db = getState();
       const replayed = replayClinicCreate(db, actor.id, idempotencyKey, input, financeInput);
       if (replayed) return replayed;
