@@ -206,7 +206,10 @@ export function createMockPlatform(): Omit<
         { ...clinicDetails(clinic), ...clinicSubscription(clinic), email: input.adminEmail },
       );
       if (!firstAdminInvite) throw new ApiError("not_found");
-      rememberClinicCreate(db, actor.id, idempotencyKey, input, financeInput, { clinic, firstAdminInvite });
+      rememberClinicCreate(db, actor.id, idempotencyKey, input, financeInput, {
+        clinic,
+        firstAdminInvite,
+      });
       persist();
       return { clinic, firstAdminInvite };
     },

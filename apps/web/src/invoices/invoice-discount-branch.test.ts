@@ -40,7 +40,11 @@ describe("discounts follow the invoice's branch", () => {
     const values: InvoiceFormValues = {
       patientId: "p",
       branchId: "b",
-      lines: [{ discount: { kind: "pct", value: "10", reason: "r" } } as InvoiceFormValues["lines"][number]],
+      lines: [
+        {
+          discount: { kind: "pct", value: "10", reason: "r" },
+        } as InvoiceFormValues["lines"][number],
+      ],
       invoiceDiscount: { kind: "amount", value: "1", reason: "r" },
     };
     const out = withoutDiscounts(values);

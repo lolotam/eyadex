@@ -40,9 +40,7 @@ export function InvoicePrefixesCard() {
             icon={AlertCircle}
             title={t("finance.loadError")}
             body={tDynamic(`errors.${errorCodeOf(prefixes.error)}`)}
-            action={
-              <Button onClick={() => void prefixes.refetch()}>{t("common.tryAgain")}</Button>
-            }
+            action={<Button onClick={() => void prefixes.refetch()}>{t("common.tryAgain")}</Button>}
           />
         ) : prefixes.isLoading ? (
           <LoadingBlock />

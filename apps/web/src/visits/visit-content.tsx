@@ -78,13 +78,12 @@ export function VisitContent({ visitId }: { visitId: string }) {
           <div className="flex flex-wrap items-center gap-2">
             <VisitStatusBadge status={visit.status} />
             <VisitActions detail={d} settleSaves={settleSaves} />
-            {visit.status !== "cancelled" && (
+            {visit.status !== "cancelled" &&
               slots.visitActions?.({
                 id: visit.id,
                 appointmentId: visit.appointmentId,
                 branchId: visit.branchId,
-              })
-            )}
+              })}
           </div>
         }
       />

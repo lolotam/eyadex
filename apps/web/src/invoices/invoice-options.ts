@@ -23,7 +23,11 @@ export function useInvoiceOptions() {
       const items = [];
       let cursor: string | null = null;
       do {
-        const page = await api.scheduling.listServices(persona, { cursor, limit: 100, status: "active" });
+        const page = await api.scheduling.listServices(persona, {
+          cursor,
+          limit: 100,
+          status: "active",
+        });
         items.push(...page.items);
         cursor = page.nextCursor;
       } while (cursor);

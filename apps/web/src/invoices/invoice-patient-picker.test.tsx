@@ -16,7 +16,10 @@ vi.mock("@/shared/api/api-provider", () => ({
   }),
 }));
 vi.mock("@/shared/persona/persona-provider", () => ({
-  usePersona: () => ({ persona: { kind: "clinic_admin", clinicId: "c", memberId: null }, ready: true }),
+  usePersona: () => ({
+    persona: { kind: "clinic_admin", clinicId: "c", memberId: null },
+    ready: true,
+  }),
   useSession: () => ({ session: null }),
 }));
 

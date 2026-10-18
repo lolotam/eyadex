@@ -32,7 +32,8 @@ export function replayClinicCreate(
 ): CreatedClinic | null {
   const previous = db.idempotentClinics?.[ledgerKey(accountId, key)];
   if (!previous) return null;
-  if (previous.fingerprint !== fingerprintOf(input, finance)) throw new ApiError("idempotency_conflict");
+  if (previous.fingerprint !== fingerprintOf(input, finance))
+    throw new ApiError("idempotency_conflict");
   const clinic = db.clinics.find((c) => c.id === previous.created.clinic.id);
   if (!clinic) throw new ApiError("not_found");
   return { clinic, firstAdminInvite: previous.created.firstAdminInvite };

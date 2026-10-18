@@ -18,10 +18,19 @@ const discountSnapshot = (scope: "invoice" | "line", d: Discount) =>
  */
 export function invoiceAuditSnapshot(invoice: Invoice): Record<string, unknown> {
   const discounts = [
-    ...invoice.lines.flatMap((l) => (l.discount === null ? [] : [discountSnapshot("line", l.discount)])),
-    ...(invoice.invoiceDiscount === null ? [] : [discountSnapshot("invoice", invoice.invoiceDiscount)]),
+    ...invoice.lines.flatMap((l) =>
+      l.discount === null ? [] : [discountSnapshot("line", l.discount)],
+    ),
+    ...(invoice.invoiceDiscount === null
+      ? []
+      : [discountSnapshot("invoice", invoice.invoiceDiscount)]),
   ];
-  const amounts = [invoice.subtotalMinor, invoice.discountMinor, invoice.taxMinor, invoice.totalMinor];
+  const amounts = [
+    invoice.subtotalMinor,
+    invoice.discountMinor,
+    invoice.taxMinor,
+    invoice.totalMinor,
+  ];
   // Like the API: the scrub is skipped only because every string is checked against its shape.
   if (!NUMBER.test(invoice.number) || !amounts.every((x) => MINOR.test(x))) {
     throw new Error("finance audit snapshot holds a value outside its shape");
@@ -90,5 +99,12 @@ export function auditFinanceSetting(
     after: null,
   },
 ): void {
-  writeClinicAudit(db, { clinicId: a.clinic.id, actorName: a.actorName, action, entity, entityId, ...sides });
+  writeClinicAudit(db, {
+    clinicId: a.clinic.id,
+    actorName: a.actorName,
+    action,
+    entity,
+    entityId,
+    ...sides,
+  });
 }

@@ -208,10 +208,18 @@ describe("clinic create idempotency is scoped by the platform account", () => {
   it("NEGATIVE: a bad body is validation and creates nothing", async () => {
     const before = getState().clinics.length;
     await expect(
-      api.platform.createClinic(PLATFORM, { ...clinic("a"), taxRateBp: 20000 } as never, crypto.randomUUID()),
+      api.platform.createClinic(
+        PLATFORM,
+        { ...clinic("a"), taxRateBp: 20000 } as never,
+        crypto.randomUUID(),
+      ),
     ).rejects.toMatchObject({ code: "validation" });
     await expect(
-      api.platform.createClinic(PLATFORM, { ...clinic("a"), maxUsers: "x" } as never, crypto.randomUUID()),
+      api.platform.createClinic(
+        PLATFORM,
+        { ...clinic("a"), maxUsers: "x" } as never,
+        crypto.randomUUID(),
+      ),
     ).rejects.toMatchObject({ code: "validation" });
     expect(getState().clinics.length).toBe(before);
   });

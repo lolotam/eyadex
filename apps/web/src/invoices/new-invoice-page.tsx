@@ -90,9 +90,7 @@ function NewInvoiceContent({ source }: { source: Source }) {
           source={source}
           editing={null}
           mayDiscountAt={(branchId) =>
-            !!session &&
-            branchId !== null &&
-            canAtBranch(session, "create", "discounts", branchId)
+            !!session && branchId !== null && canAtBranch(session, "create", "discounts", branchId)
           }
           priceMissing={draft.data?.priceMissing ?? false}
           onDone={(invoice) => {

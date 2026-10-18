@@ -40,9 +40,17 @@ describe("mock finance audit rows, as the API", () => {
   it("records issue, edit and void with exact invoice snapshots (patient access)", async () => {
     const inv = await api.finance.issue(admin(), manual("5000"), crypto.randomUUID());
     const [issued] = rows("invoice.issued");
-    expect(issued).toMatchObject({ entity: "invoice", entityId: inv.id, category: "patient_access" });
+    expect(issued).toMatchObject({
+      entity: "invoice",
+      entityId: inv.id,
+      category: "patient_access",
+    });
     expect(issued?.before).toBeNull();
-    expect(issued?.after).toMatchObject({ number: inv.number, totalMinor: inv.totalMinor, version: 1 });
+    expect(issued?.after).toMatchObject({
+      number: inv.number,
+      totalMinor: inv.totalMinor,
+      version: 1,
+    });
     const body = { lines: manual("7000").lines, invoiceDiscount: null };
     await api.finance.edit(admin(), inv.id, 1, body);
     expect(rows("invoice.edited")[0]?.before).toMatchObject({ version: 1 });

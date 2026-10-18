@@ -6,7 +6,11 @@ import { createContext, useContext, type ReactNode } from "react";
  */
 export type EncounterSlots = {
   appointmentMenu?: (appointment: { id: string; branchId: string }) => ReactNode;
-  visitActions?: (visit: { id: string; appointmentId: string | null; branchId: string }) => ReactNode;
+  visitActions?: (visit: {
+    id: string;
+    appointmentId: string | null;
+    branchId: string;
+  }) => ReactNode;
 };
 
 const SlotsContext = createContext<EncounterSlots>({});
