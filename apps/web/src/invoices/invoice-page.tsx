@@ -188,7 +188,7 @@ function InvoiceContent({ invoiceId }: { invoiceId: string }) {
           </span>
         </p>
       )}
-      <InvoicePatientName patientId={inv.patientId} />
+      <InvoicePatientName name={inv.patientName} />
       {!live && (
         <div
           className="mb-4 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm"
