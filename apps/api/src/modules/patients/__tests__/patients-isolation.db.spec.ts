@@ -11,6 +11,7 @@ import {
 import type { Database } from "@eyadex/db";
 
 import { DATABASE } from "../../../shared/database.provider.ts";
+import { PgBillingPatients } from "../persistence/pg-billing-patients.ts";
 import {
   closeHarness,
   openHarness,
@@ -144,6 +145,24 @@ describe("RBAC-02: a receptionist scoped to branch R", () => {
 });
 
 describe("ISO-02: another clinic", () => {
+  it("billing display names exclude foreign-clinic ids and honour the explicit clinic filter", async () => {
+    const db = h.app.get<Database>(DATABASE);
+    const reader = new PgBillingPatients();
+    const own = await db.withTenant(A.clinicId, (tx) =>
+      reader.displayNames(tx, A.clinicId, [inR, inR]),
+    );
+    expect(own.size).toBe(1);
+    expect(own.get(inR)).toBe("Test Patient");
+    const foreign = await db.withTenant(B.clinicId, (tx) =>
+      reader.displayNames(tx, B.clinicId, [inR]),
+    );
+    expect(foreign.size).toBe(0);
+    const mismatchedClinic = await db.withTenant(A.clinicId, (tx) =>
+      reader.displayNames(tx, B.clinicId, [inR]),
+    );
+    expect(mismatchedClinic.size).toBe(0);
+  });
+
   it("its admin cannot open, update, archive or list clinic A's files", async () => {
     expect((await openPatient(h, B.admin.cookie, inR)).statusCode).toBe(404);
     expect((await updatePatient(h, B.admin.cookie, inR, patientBody(B.branchR))).statusCode).toBe(

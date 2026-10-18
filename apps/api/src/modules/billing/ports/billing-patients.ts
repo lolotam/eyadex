@@ -16,6 +16,20 @@ export interface BillingPatientReader {
   displayName(tx: Tx, clinicId: string, patientId: string): Promise<string | null>;
 
   /**
+   * أسماء العرض لصفحة الفواتير بعد فحص نطاقها؛ دي مش فتحة ملف ومابتكتبش أي سجل تدقيق.
+   *
+   * @param tx الـ transaction جوه `withTenant(clinicId)`
+   * @param clinicId العيادة
+   * @param patientIds مراجعو الصفحة، وممكن يتكرروا
+   * @returns الأسماء بمعرّفات المراجعين الموجودين في العيادة فقط
+   */
+  displayNames(
+    tx: Tx,
+    clinicId: string,
+    patientIds: readonly string[],
+  ): Promise<ReadonlyMap<string, string>>;
+
+  /**
    * بيقفل صف المراجع لعملية فلوس (spec §8 rule 8): بعد قفل مالية العيادة وقبل أي فاتورة.
    *
    * @param tx الـ transaction جوه `withTenant(clinicId)`

@@ -54,7 +54,14 @@ export class InvoiceReads {
             encounter.push({ source: "appointment", sourceId: visit.appointmentId });
         }
       }
-      return listInvoices(tx, actor.clinicId, query, this.condition(reach), encounter);
+      return listInvoices(
+        tx,
+        actor.clinicId,
+        query,
+        this.condition(reach),
+        this.deps.patients,
+        encounter,
+      );
     });
   }
 

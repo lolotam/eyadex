@@ -10,6 +10,20 @@ import { ownPatientSql, viewSees } from "../queries/own-patients.ts";
  * own rules, so billing never names the patients table.
  */
 export class PgBillingPatients {
+  async displayNames(
+    tx: Tx,
+    clinicId: string,
+    patientIds: readonly string[],
+  ): Promise<ReadonlyMap<string, string>> {
+    const unique = [...new Set(patientIds)];
+    if (unique.length === 0) return new Map();
+    const rows = await tx.execute<{ id: string; full_name: string }>(
+      sql`SELECT id, full_name FROM patients WHERE clinic_id = ${clinicId}
+          AND id = ANY(string_to_array(${unique.join(",")}, ',')::uuid[])`,
+    );
+    return new Map(rows.map((row) => [row.id, row.full_name]));
+  }
+
   async displayName(tx: Tx, clinicId: string, patientId: string): Promise<string | null> {
     const [row] = await tx.execute<{ full_name: string }>(
       sql`SELECT full_name FROM patients WHERE clinic_id = ${clinicId} AND id = ${patientId}`,

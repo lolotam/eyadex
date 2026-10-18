@@ -38,6 +38,13 @@ function visibleInvoice(persona: Persona, id: string) {
   return invoice;
 }
 
+/** The patient's display name for an invoice, same clinic only; as the API, a missing one is `unknown`. */
+function patientNameOf(clinicId: string, patientId: string): string {
+  const patient = getState().patients.find((x) => x.clinicId === clinicId && x.id === patientId);
+  if (!patient) throw new ApiError("unknown");
+  return patient.fullName;
+}
+
 function clinicOf(clinicId: string) {
   const clinic = getState().clinics.find((c) => c.id === clinicId);
   if (!clinic) throw new ApiError("not_found");
@@ -122,7 +129,8 @@ export function createMockFinance(): FinanceApi {
       return {
         items: page.map((i) => {
           const { lines: _l, ...item } = strip(db(), i);
-          return (void _l, item);
+          // As the API's patients port: a name read, not a file open, so no patient-access row.
+          return (void _l, { ...item, patientName: patientNameOf(a.clinic.id, i.patientId) });
         }),
         nextCursor: more ? (page[page.length - 1]?.id ?? null) : null,
         total: rows.length,
