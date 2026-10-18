@@ -52,16 +52,14 @@ The owner set this loop on 2026-10-06 and tightened it on 2026-10-17 (small slic
    - **At most 3 fix rounds per PR.**
    - A finding that is far-fetched or not worth its code gets a reply explaining why; it is non-blocking unless it is a security finding.
    - CodeRabbit (free plan) often posts only a rate-limit notice. That notice is not a finding, but any CodeRabbit inline comment is a claim to verify like Codex's.
-     **Staging check (owner decision 2026-10-18).** Every slice is tried on staging against the real API and worker before it merges. Docs-only and test-only PRs skip this check.
-   - When the merge candidate is green and Codex has reviewed its head, deploy that head to staging. Push it to the `staging` branch as a fast-forward (`--force-with-lease` only to move staging back, ADR-0021). Wait until the staging web, API and worker run that commit and are healthy.
-   - If the PR adds `db/sql` files, staging gets them in the PR's release order, after a backup of the staging database. Ask the owner before applying them.
-   - Check every screen the slice changed on `staging-app.eyadex.com` (and `staging-platform.eyadex.com` when the slice touches the platform):
-     - in Arabic and English, at 1440px and 390px;
-     - as each persona the slice names, plus one role without the permission.
-   - The agent never types a password: the owner signs in on the browser pane, and the agent works inside that session.
-   - A failure is a blocking finding and gets a fix round.
-   - Write the result in the PR body under **Staging check**: the commit, what was checked, what passed.
-   - The mock adapter stays as it is: Lovable's preview and the tests use it, and the parity rules (`.lovable/review-lessons.md` §2) still hold.
+   - **Staging check (owner decision 2026-10-18).** Every slice is tried on staging against the real API and worker before it merges. Docs-only and test-only PRs skip this check.
+     - When the merge candidate is green and Codex has reviewed its head, deploy that head to staging. Push it to the `staging` branch as a fast-forward (`--force-with-lease` only to move staging back, ADR-0021). Wait until the staging web, API and worker run that commit and are healthy.
+     - If the PR adds `db/sql` files, staging gets them in the PR's release order, after a backup of the staging database. Ask the owner before applying them.
+     - Check every screen the slice changed on `staging-app.eyadex.com` (and `staging-platform.eyadex.com` when the slice touches the platform), in Arabic and English, at 1440px and 390px, as each persona the slice names plus one role without the permission.
+     - The agent never types a password: the owner signs in on the browser pane, and the agent works inside that session.
+     - A failure is a blocking finding and gets a fix round.
+     - Write the result in the PR body under **Staging check**: the commit, what was checked, what passed.
+     - The mock adapter stays as it is: Lovable's preview and the tests use it, and the parity rules (`.lovable/review-lessons.md` §2) still hold.
 5. **Merge.** Merge only when all of these hold:
    - Codex has finished its review of the current head (its summary's "Reviewed commit" is the head), so the last round's fixes were reviewed;
    - the staging check passed on the current head (step 4), unless the PR is docs-only or test-only;
