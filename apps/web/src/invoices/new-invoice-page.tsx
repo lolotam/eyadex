@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { AlertCircle } from "lucide-react";
+import { toast } from "sonner";
 import { errorCodeOf } from "@/shared/api/api-error";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { useClinicMoney } from "@/shared/money/use-clinic-money";
@@ -97,7 +98,16 @@ function NewInvoiceContent({ source }: { source: Source }) {
           priceMissing={draft.data?.priceMissing ?? false}
           onDone={(invoice) => {
             refresh();
-            void navigate({ to: "/clinic/invoices/$invoiceId", params: { invoiceId: invoice.id } });
+            if (can(session?.permissions ?? [], "view", "invoices")) {
+              void navigate({
+                to: "/clinic/invoices/$invoiceId",
+                params: { invoiceId: invoice.id },
+              });
+            } else {
+              toast.success(t("finance.invoice.issued", { number: invoice.number }));
+              if (window.history.length > 1) window.history.back();
+              else void navigate({ to: "/clinic" });
+            }
           }}
         />
       )}
