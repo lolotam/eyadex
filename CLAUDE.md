@@ -240,8 +240,8 @@ Banned folder names anywhere: `utils/` · `helpers/` · `common/` · `misc/` · 
 - API and worker: unit tests for pure domain functions; integration tests per use case against real
   PostgreSQL, connected as the runtime role that use case runs as: `eyadex_app` for tenant paths,
   `eyadex_platform` for platform paths (the platform module, the worker's cross-clinic scans),
-  `eyadex_auth` for Better Auth, `eyadex_dispatcher` for the outbox and the retention purge (the
-  owner role only sets a test up and cleans it up); **RLS negative tests for every tenant table**
+  `eyadex_auth` for Better Auth, `eyadex_dispatcher` for the outbox and the retention purge (no use
+  case runs as the owner role); **RLS negative tests for every tenant table**
   (cross-clinic read = 0 rows, write = error); the mandatory list in PRD §6.3.
 
 ## 10. Git & delivery
