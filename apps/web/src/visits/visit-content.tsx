@@ -9,7 +9,7 @@ import { useSession } from "@/shared/persona/persona-provider";
 import { LoadingBlock } from "@/shared/shell/loading-block";
 import { PageHeader } from "@/shared/shell/page-header";
 import { StatusPanel } from "@/shared/shell/status-panel";
-import { InvoiceSourceButton } from "@/shared/finance/invoice-source-button";
+import { useEncounterSlots } from "@/shared/shell/encounter-slots";
 import { AttachmentsPanel } from "./attachments-panel";
 import { useVisit } from "./medical-queries";
 import { VisitActions } from "./visit-actions";
@@ -78,7 +78,11 @@ export function VisitContent({ visitId }: { visitId: string }) {
             <VisitStatusBadge status={visit.status} />
             <VisitActions detail={d} settleSaves={settleSaves} />
             {visit.status !== "cancelled" && (
-              <InvoiceSourceButton source="visit" id={visit.id} branchId={visit.branchId} />
+              slots.visitActions?.({
+                id: visit.id,
+                appointmentId: visit.appointmentId,
+                branchId: visit.branchId,
+              })
             )}
           </div>
         }
