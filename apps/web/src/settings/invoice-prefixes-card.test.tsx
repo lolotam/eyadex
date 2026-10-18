@@ -16,7 +16,7 @@ vi.mock("./finance-queries", () => ({
   useInvoicePrefixes: () => ({
     isError: true,
     isLoading: false,
-    error: new ApiError("network"),
+    error: new ApiError("unknown"),
     refetch,
   }),
   useRefreshFinanceSettings: () => () => undefined,
