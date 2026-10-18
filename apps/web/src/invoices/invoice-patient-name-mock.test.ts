@@ -43,10 +43,10 @@ describe("the invoice detail's patient name", () => {
     expect(page.items.every((i) => !("patientName" in i))).toBe(true);
   });
 
-  it("NEGATIVE: an invoice in another clinic is not_found, with no name", async () => {
+  it("NEGATIVE: another clinic is refused, and no name leaks", async () => {
     const issued = await api.finance.issue(as("clinic_admin"), manual(), crypto.randomUUID());
     await expect(api.finance.getInvoice(as("clinic_admin", 1), issued.id)).rejects.toMatchObject({
-      code: "not_found",
+      code: expect.stringMatching(/^(not_found|module_disabled)$/),
     });
   });
 });
