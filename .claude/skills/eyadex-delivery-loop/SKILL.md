@@ -53,8 +53,10 @@ The owner set this loop on 2026-10-06 and tightened it on 2026-10-17 (small slic
    - A finding that is far-fetched or not worth its code gets a reply explaining why; it is non-blocking unless it is a security finding.
    - CodeRabbit (free plan) often posts only a rate-limit notice. That notice is not a finding, but any CodeRabbit inline comment is a claim to verify like Codex's.
    - **Staging check (owner decision 2026-10-18).** Every slice is tried on staging against the real API and worker before it merges. Docs-only and test-only PRs skip this check.
-     - When the merge candidate is green and Codex has reviewed its head, deploy that head to staging. Push it to the `staging` branch as a fast-forward (`--force-with-lease` only to move staging back, ADR-0021). Wait until the staging web, API and worker run that commit and are healthy.
-     - If the PR adds `db/sql` files, staging gets them in the PR's release order, after a backup of the staging database. Ask the owner before applying them.
+     - When the merge candidate is green and Codex has reviewed its head, promote that head to staging, following `docs/specs/staging-runbook.md` §11 and the ADR-0021 pre-merge rules. The head must contain the SHA staging runs, so the push is a fast-forward.
+     - If the PR adds `db/sql` files, migrate first. Ask the owner, back up the staging database, and apply the files that must precede the new code (the PR's release order), with the `db/tests` files, **before** the push. Files the release order puts after the deploy (the destructive ones) are applied once the new containers are healthy. Once staging has applied a file, it is frozen: a later fix is a new numbered file.
+     - Push the head to `staging` and wait until the staging web, API and worker run that commit and are healthy; then run `docker/smoke-test.sh` as in the runbook.
+     - A new head after the check is promoted and checked again. After the merge, promote the merge commit. If the PR is dropped, move `staging` back with `--force-with-lease` (runbook §12).
      - Check every screen the slice changed on `staging-app.eyadex.com` (and `staging-platform.eyadex.com` when the slice touches the platform), in Arabic and English, at 1440px and 390px, as each persona the slice names plus one role without the permission.
      - The agent never types a password: the owner signs in on the browser pane, and the agent works inside that session.
      - A failure is a blocking finding and gets a fix round.
