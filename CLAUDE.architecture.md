@@ -129,7 +129,8 @@ Any module may use identity's access guards and request types through `identity/
   `ClinicReactivated`, `SubscriptionChanged`, `ClinicFeatureChanged`, `UserInvited`,
   `UserDeactivated`, `RolePermissionsChanged`, `PatientRegistered`.
 - The one synchronous cross-module write: creating a clinic together with its first admin, in
-  one transaction (`withNewTenant`).
+  one transaction (`withNewTenant`). The one exception: billing writes its own finance columns on
+  `clinic_services`, `branches` and `clinics` directly (see the paragraph above).
 - **A new arrow requires updating this table and an ADR.** A cycle is rejected in review until the
   cycle check of §7 lands; `module-boundaries.spec.ts` catches only the arrows it names.
 
