@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { AlertCircle, ListChecks } from "lucide-react";
 import { serviceStatusSchema, type ClinicService } from "@eyadex/contracts/services";
-import type { PriceList } from "@eyadex/contracts/finance";
 import { Button } from "@/components/ui/button";
 import { errorCodeOf } from "@/shared/api/api-error";
 import { useI18n } from "@/shared/i18n/i18n-provider";
@@ -12,26 +11,12 @@ import { StatusPanel } from "@/shared/shell/status-panel";
 import { DataTable } from "@/shared/table/data-table";
 import { FilterSelect } from "@/shared/table/filter-select";
 import { usePriceList } from "./price-queries";
+import { servicesOfPriceList } from "./services-of-price-list";
 import { ProviderPricesDialog } from "./provider-prices-dialog";
 import { ServicePriceDialog } from "./service-price-dialog";
 import { useServiceColumns } from "./use-service-columns";
 
-/**
- * Item 8 (owner decision b): a role with `view:prices` but no `view:services` reads the services from
- * `GET /v1/prices` only — name, status and price, no duration, no service writes.
- */
-export function servicesOfPriceList(list: PriceList | undefined): ClinicService[] {
-  return (list?.items ?? []).map((p) => ({
-    id: p.serviceId,
-    nameAr: p.nameAr ?? "",
-    nameEn: p.nameEn ?? "",
-    status: p.status ?? "active",
-    // Not in the price list and never shown here (the duration column is off).
-    durationMinutes: 0,
-    createdAt: new Date(0).toISOString(),
-  }));
-}
-
+/** Item 8 (owner decision b): services read from `GET /v1/prices` only; no service writes. */
 export function PricesOnlyServices() {
   const { t, tDynamic } = useI18n();
   const { session } = useSession();

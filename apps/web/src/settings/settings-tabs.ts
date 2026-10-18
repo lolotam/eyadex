@@ -8,7 +8,8 @@ import { can } from "@/shared/permissions/can";
  */
 export const SETTINGS_TABS = [
   { id: "general", resource: "clinic_settings", to: "/clinic/settings" },
-  { id: "services", resource: "services", to: "/clinic/settings/services" },
+  // Item 8: a prices-only role reaches the services tab too (prices-only screen).
+  { id: "services", resource: "services", to: "/clinic/settings/services", alsoVia: "prices" },
   { id: "schedules", resource: "schedules", to: "/clinic/settings/schedules" },
   // P2-F2: the clinic medicines list; its keys vanish with the medical module.
   { id: "medicines", resource: "medicines", to: "/clinic/settings/medicines" },
@@ -24,6 +25,7 @@ export const SETTINGS_TABS = [
   resource: PermissionResource;
   to: string;
   module?: "finance";
+  alsoVia?: PermissionResource;
 }[];
 
 export type SettingsTab = (typeof SETTINGS_TABS)[number];
@@ -38,7 +40,8 @@ export function visibleSettingsTabs(
 ): SettingsTab[] {
   return SETTINGS_TABS.filter(
     (tab) =>
-      can(permissions, "view", tab.resource) &&
+      (can(permissions, "view", tab.resource) ||
+        ("alsoVia" in tab && can(permissions, "view", tab.alsoVia))) &&
       (!("module" in tab) || features[tab.module] === true),
   );
 }

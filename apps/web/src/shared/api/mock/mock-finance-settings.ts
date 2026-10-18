@@ -52,7 +52,15 @@ export function listPrices(db: MockState, persona: Persona) {
   return {
     currency: f.currency,
     currencyExponent: exponentOf(f.currency),
-    items: db.services.filter((s) => s.clinicId === a.clinic.id).map((s) => priceView(db, s.id)),
+    // As the API (5f20ec56): each item also carries the service's names and status.
+    items: db.services
+      .filter((s) => s.clinicId === a.clinic.id)
+      .map((s) => ({
+        ...priceView(db, s.id),
+        nameAr: s.nameAr,
+        nameEn: s.nameEn,
+        status: s.status,
+      })),
   };
 }
 

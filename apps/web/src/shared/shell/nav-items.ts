@@ -85,7 +85,7 @@ export const CLINIC_NAV: NavItem[] = [
     to: "/clinic/settings",
     label: "nav.settings",
     icon: Settings,
-    anyOf: ["clinic_settings", "services", "schedules", "medicines"],
+    anyOf: ["clinic_settings", "services", "prices", "schedules", "medicines"],
   },
   { to: "/clinic/account", label: "nav.account", icon: UserCircle },
 ];
