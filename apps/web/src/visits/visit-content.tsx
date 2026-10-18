@@ -25,6 +25,7 @@ import { VisitStatusBadge } from "./visit-status-badge";
 /** The visit: header, the notes, diagnoses, prescription, addenda and attachments, by `can`. */
 export function VisitContent({ visitId }: { visitId: string }) {
   const { t, pick, formatDate } = useI18n();
+  const slots = useEncounterSlots();
   const { session } = useSession();
   const query = useVisit(visitId);
   // The page owns the note's flush and every section save, so Sign sends the pending note text and
