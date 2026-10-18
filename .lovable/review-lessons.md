@@ -34,6 +34,11 @@ a patient). (PR #78: the mock issued a manual invoice for a patient outside the 
 permission.** A user editor that calls `GET /v1/roles` fails for a role with users permissions but
 no roles permissions. Read what you need through the endpoint the action owns. (PR #46.)
 
+1.7 **A lookup that only a view key may run must not block a create-only role.** If a page runs a
+lookup under `view:invoices` before it shows the form, skip the lookup for a role that cannot view and
+let the server decide. Likewise a dialog that lists doctors needs `view:schedules`: offer the action
+only to a role that holds the key its helper read needs. (Follow-ups to #78.)
+
 ## 2. Mock adapter = API, rule for rule
 
 2.1 The mock is a copy of the API's behavior, not a simplified one. Same validation, same error
@@ -72,6 +77,10 @@ change what the user is confirming or editing. Edit, void and every confirm dial
 
 4.2 **A refetch never overwrites unsaved input.** Initialise form values once per open, not on every
 query result. (PR #78: price dialog.)
+
+4.6 **A failed background refetch never replaces a mounted form with an error panel.** Show the error
+panel only while there is no successful answer yet; after that, keep the form and its typed values.
+(Follow-ups to #78.)
 
 4.3 When a filter's options change (another branch, another week), reset or re-validate the selected
 value. When new data is loading, keep the user's current selection. (PR #67.)
@@ -134,6 +143,10 @@ numbers, even fake ones. Build them at runtime (`"x".repeat(32)`) or use obvious
 
 9.2 Every rule you add gets a test that would fail without it.
 
+9.3 **A test never ends with `if (!x) return`.** Create the data the test needs, or fail: a guard like
+that turns a missing fixture into a green test. Every key a new audit snapshot carries needs an ar and
+an en label in `ar-audit.ts` / `en-audit.ts`. (Follow-ups to #78.)
+
 ---
 
 ## Checklist — tick every line before you report "done"
@@ -144,7 +157,7 @@ numbers, even fake ones. Build them at runtime (`"x".repeat(32)`) or use obvious
 - [ ] The mock enforces the same checks, validation order, idempotency fingerprint and audit rows as the API.
 - [ ] Dates use the clinic's time zone; no business decision uses the device clock.
 - [ ] Dialogs capture the record and version on open; refetches do not overwrite input.
-- [ ] Every query has an error state with retry; no endless spinner; option lists load all pages.
+- [ ] Every query has an error state with retry (never over a mounted form); no endless spinner; option lists load all pages.
 - [ ] No internal error code reaches the UI; every string is an i18n key in ar and en.
 - [ ] `window.open` happens before any `await`; every object URL is revoked.
 - [ ] Polling stops.
