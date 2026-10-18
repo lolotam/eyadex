@@ -259,6 +259,10 @@ Every value is new for staging. None is copied from, or derived from, a producti
 1. Pick a `main` SHA with green CI, or, for the pre-merge check, a PR merge candidate with green CI
    whose head contains the SHA staging runs (ADR-0021, owner decision 2026-10-18).
 2. If it brings new `db/sql` files: `pg_dump -Fc` the staging database, then §3b with that SHA.
+   `db/migrate.sh` applies every pending file it finds. When the release order splits the files
+   (additive ones before the deploy, destructive ones after it), run §3b from a copy of `db/` that
+   holds only the files due now, and apply the rest after step 4 passes. For a pre-merge candidate,
+   the destructive files wait for the merge commit (ADR-0021).
 3. `git push origin <sha>:refs/heads/staging`. Dokploy rebuilds the three applications.
 4. `sh docker/smoke-test.sh staging-app.eyadex.com staging-platform.eyadex.com`.
 5. Production gets the same migration only after staging has run it cleanly.
@@ -270,5 +274,7 @@ Every value is new for staging. None is copied from, or derived from, a producti
   redeploy. This is the only branch that may move backwards (ADR-0021); never `main` or `lovable`.
 - Schema: forward-only. Fix a bad migration with a new file, or restore the dump from step 11.2
   (`pg_restore --clean`) when staging data is damaged; it is synthetic, so recreating it is also fine.
+  A dropped pre-merge candidate whose SQL staging applied: restore that dump **before** moving the
+  branch back, so the schema and the migration ledger match `main` again.
 - Turning staging off: stop the three applications first, then Redis and Postgres. Nothing in
   production depends on them.

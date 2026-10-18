@@ -115,7 +115,8 @@ service holds its password.
 - **Pre-merge check (owner decision 2026-10-18).** A pull request's merge candidate may also be promoted, so that every slice is tried against the real API before it merges. Rules:
   - its CI is green, and its head contains the SHA staging runs, so the push is still a fast-forward;
   - after the PR merges, promote its merge commit on `main`;
-  - a new head after the check is promoted again; if the PR is dropped, or a new head no longer contains the SHA staging runs, move `staging` back to a `main` SHA with `--force-with-lease` (runbook §12);
+  - before the merge, staging gets only the PR's migrations that the release order puts before the deploy (additive ones); destructive ones wait for the merge commit;
+  - a new head after the check is promoted again; if the PR is dropped, or a new head no longer contains the SHA staging runs, restore the pre-migration dump when the PR's SQL was applied, then move `staging` back to a `main` SHA with `--force-with-lease` (runbook §12), so the schema and the ledger match `main` again;
   - once staging has applied a PR's `db/sql` file, that file is frozen: a later fix is a new numbered file, because the ledger would flag the changed checksum.
 - **Migrations** run on the staging database with the same `db/migrate.sh`, by the orchestrator, before
   the new containers start (CLAUDE.md §5.1): `--status`, `--dry-run`, apply, `--status`, then
