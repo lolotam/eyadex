@@ -15,4 +15,4 @@ review:
     - AGENTS.md
 
 budget:
-  perReviewUsd: 1.0
+  perReviewUsd: 10.0
