@@ -7,6 +7,8 @@ review:
   prContextTokens: 40000
   maxPromptTokens: 180000
   batchTokens: 48000
+  contextReads: 300
+  contextTokensPerFile: 3000
   rulesFiles:
     - CLAUDE.md
     - CLAUDE.architecture.md
