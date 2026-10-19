@@ -3,10 +3,16 @@ language: ar
 review:
   maxFindings: 5
   minSeverity: medium
+  contextTokens: 120000
+  prContextTokens: 40000
+  maxPromptTokens: 180000
+  batchTokens: 48000
+  contextReads: 300
+  contextTokensPerFile: 3000
   rulesFiles:
     - CLAUDE.md
     - CLAUDE.architecture.md
     - AGENTS.md
 
 budget:
-  perReviewUsd: 1.0
+  perReviewUsd: 10.0
