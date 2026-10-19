@@ -41,7 +41,7 @@ export function visibleSettingsTabs(
   return SETTINGS_TABS.filter(
     (tab) =>
       (can(permissions, "view", tab.resource) ||
-        ("alsoVia" in tab && can(permissions, "view", tab.alsoVia))) &&
+        ("alsoVia" in tab && features.finance === true && can(permissions, "view", tab.alsoVia))) &&
       (!("module" in tab) || features[tab.module] === true),
   );
 }

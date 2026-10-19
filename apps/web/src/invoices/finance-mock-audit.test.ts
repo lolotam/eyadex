@@ -1,10 +1,13 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { CreateInvoiceRequest } from "@eyadex/contracts/finance";
 import { as, api, clinicIdAt, getState, resetMockData } from "@/shared/api/mock/mock-test-kit";
-import { invoiceAuditSnapshot as mockSnapshot } from "@/shared/api/mock/mock-finance-audit";
+import {
+  assertInvoiceAuditSnapshotShape,
+  invoiceAuditSnapshot,
+  type InvoiceAuditSnapshot,
+} from "@eyadex/contracts/finance-audit-snapshot";
 import { arAudit } from "@/shared/i18n/ar-audit";
 import { enAudit } from "@/shared/i18n/en-audit";
-import { invoiceAuditSnapshot as apiSnapshot } from "../../../api/src/shared/finance-audit";
 
 const admin = () => as("clinic_admin");
 const rows = (action: string) =>
@@ -69,8 +72,7 @@ describe("mock finance audit rows, as the API", () => {
         }
       }
     };
-    collect(apiSnapshot(invoice));
-    collect(mockSnapshot(invoice));
+    collect(invoiceAuditSnapshot(invoice));
     for (const row of [...getState().clinicAudit, ...getState().platformAudit]) {
       collect(row.before);
       collect(row.after);
@@ -96,7 +98,11 @@ describe("mock finance audit rows, as the API", () => {
   });
 
   it("records issue, edit and void with exact invoice snapshots (patient access)", async () => {
-    const inv = await api.finance.issue(admin(), manual("5000"), crypto.randomUUID());
+    const privateText = "private invoice text";
+    const request = manual("5000");
+    request.lines[0]!.discount = { kind: "pct", bp: 100, reason: privateText };
+    request.invoiceDiscount = { kind: "amount", minor: "10", reason: privateText };
+    const inv = await api.finance.issue(admin(), request, crypto.randomUUID());
     const [issued] = rows("invoice.issued");
     expect(issued).toMatchObject({
       entity: "invoice",
@@ -110,13 +116,38 @@ describe("mock finance audit rows, as the API", () => {
       version: 1,
     });
     const body = { lines: manual("7000").lines, invoiceDiscount: null };
-    await api.finance.edit(admin(), inv.id, 1, body);
+    const edited = await api.finance.edit(admin(), inv.id, 1, body);
     expect(rows("invoice.edited")[0]?.before).toMatchObject({ version: 1 });
     expect(rows("invoice.edited")[0]?.after).toMatchObject({ version: 2 });
-    await api.finance.voidInvoice(admin(), inv.id, 2, "سبب طويل نصي");
+    const result = await api.finance.voidInvoice(admin(), inv.id, 2, "سبب طويل نصي");
     const voided = rows("invoice.voided")[0];
     expect(voided?.after).toMatchObject({ status: "void" });
     expect(JSON.stringify(voided)).not.toContain("سبب طويل");
+    const snapshots = [
+      [issued?.after, inv],
+      [rows("invoice.edited")[0]?.before, inv],
+      [rows("invoice.edited")[0]?.after, edited],
+      [voided?.before, edited],
+      [voided?.after, result],
+    ] as const;
+    for (const [snapshot, invoice] of snapshots) {
+      expect(snapshot).toEqual(invoiceAuditSnapshot(invoice));
+      expect(JSON.stringify(snapshot)).not.toContain(privateText);
+      expect(Object.keys(snapshot ?? {}).sort()).toEqual([
+        "discountMinor",
+        "discounts",
+        "lineCount",
+        "number",
+        "status",
+        "subtotalMinor",
+        "taxMinor",
+        "totalMinor",
+        "version",
+      ]);
+      expect(() =>
+        assertInvoiceAuditSnapshotShape(snapshot as unknown as InvoiceAuditSnapshot),
+      ).not.toThrow();
+    }
   });
 
   it("does not scrub a 7+ digit amount or the invoice number in the snapshot", async () => {

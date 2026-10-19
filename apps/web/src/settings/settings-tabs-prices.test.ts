@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { visibleSettingsTabs } from "./settings-tabs";
+import { firstSettingsTab, visibleSettingsTabs } from "./settings-tabs";
 
 const tabs = (keys: string[]) => visibleSettingsTabs(keys, { finance: true }).map((t) => t.id);
 
@@ -11,5 +11,15 @@ describe("the services tab", () => {
   });
   it("NEGATIVE: hidden with neither key", () => {
     expect(tabs(["view:patients:clinic"])).not.toContain("services");
+  });
+  it.each([{ finance: false }, {}])("hides prices-only access without finance: %j", (features) => {
+    expect(visibleSettingsTabs(["view:prices:clinic"], features)).toEqual([]);
+    expect(firstSettingsTab(["view:prices:clinic"], features)).toBeNull();
+  });
+  it("keeps services access when finance is off", () => {
+    expect(
+      visibleSettingsTabs(["view:services:clinic"], { finance: false }).map((t) => t.id),
+    ).toContain("services");
+    expect(firstSettingsTab(["view:services:clinic"], { finance: false })?.id).toBe("services");
   });
 });

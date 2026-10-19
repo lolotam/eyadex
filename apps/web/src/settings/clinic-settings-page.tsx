@@ -15,7 +15,7 @@ export function ClinicSettingsPage() {
   const { session, isLoading } = useSession();
   if (isLoading || !session) return <LoadingBlock />;
   if (!can(session.permissions, "view", "clinic_settings")) {
-    const first = firstSettingsTab(session.permissions);
+    const first = firstSettingsTab(session.permissions, session.features);
     return first ? <Navigate to={first.to} replace /> : <ForbiddenPage />;
   }
   return (
