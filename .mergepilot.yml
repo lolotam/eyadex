@@ -3,6 +3,8 @@ language: ar
 review:
   maxFindings: 5
   minSeverity: medium
+  contextTokens: 120000
+  prContextTokens: 40000
   rulesFiles:
     - CLAUDE.md
     - CLAUDE.architecture.md
