@@ -1317,6 +1317,39 @@ BEGIN
   END;
 END $$;
 
+-- M20 'cash_closing_drawer': a closing reaches the drawer's last cash number (§4.4) — cash the drawer
+-- already handed out may not stay outside the closing.
+DO $$
+DECLARE msg text; det text;
+  c uuid := '00000000-0000-7000-8000-0000000f000a'; br uuid := '00000000-0000-7000-8000-0000000f0002';
+  pt uuid := '00000000-0000-7000-8000-0000000f0009'; mb uuid := '00000000-0000-7000-8000-0000000f0005';
+  i1 uuid := '00000000-0000-7000-8000-0000000f0401';
+  p uuid := gen_random_uuid(); a uuid := gen_random_uuid(); k uuid := gen_random_uuid();
+BEGIN
+  BEGIN
+    EXECUTE 'SET CONSTRAINTS ALL DEFERRED';
+    PERFORM set_config('app.clinic_id', '00000000-0000-7000-8000-0000000f000a', true);
+    INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+        amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+      VALUES (c, p, br, pt, i1, 2026, 20, 'SAL-R-2026-000220', 'cash', 1000, 'KWD', 3, null, now(), current_date, 1, mb, now());
+    INSERT INTO payment_allocations (clinic_id, id, invoice_id, patient_id, payment_id, credit_id, amount_minor, created_by, created_at)
+      VALUES (c, a, i1, pt, p, null, 1000, mb, now());
+    INSERT INTO cash_closings (clinic_id, id, branch_id, business_date, from_cash_seq, to_cash_seq, expected_minor,
+        counted_minor, method_totals, note, previous_closing_id, currency, currency_exponent, closed_by, closed_at, created_at)
+      VALUES (c, k, br, current_date, 0, 0, 0, 0, '[]'::jsonb, null, null, 'KWD', 3, mb, now(), now());
+    INSERT INTO branch_cash_drawers (clinic_id, id, branch_id, last_cash_seq, last_closed_seq, last_closing_id, created_at, updated_at)
+      VALUES (c, gen_random_uuid(), br, 1, 0, k, now(), now());
+    PERFORM set_config('app.clinic_id', '', true);
+    EXECUTE 'SET CONSTRAINTS ALL IMMEDIATE';
+    RAISE EXCEPTION 'FIN-0066: M20 was accepted';
+  EXCEPTION WHEN raise_exception THEN
+    GET STACKED DIAGNOSTICS msg = MESSAGE_TEXT, det = PG_EXCEPTION_DETAIL;
+    IF msg IS DISTINCT FROM 'finance_invariant' OR det IS DISTINCT FROM 'cash_closing_drawer' THEN
+      RAISE EXCEPTION 'FIN-0066: M20 raised % / %, expected finance_invariant / cash_closing_drawer', msg, det;
+    END IF;
+  END;
+END $$;
+
 -- 0066, one trigger at a time (FIN-0066-ONE): a check is only pinned when the trigger that carries it
 -- is the only one that can fire. Each case writes a correct set of rows first and fires them (that must
 -- pass), then writes ONE row of ONE table that breaks an invariant, and fires again: only the trigger of

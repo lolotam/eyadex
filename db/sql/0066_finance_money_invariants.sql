@@ -9,7 +9,8 @@
 -- cash movement checks its own number and the one before; every drawer write checks its last number and that
 -- no movement is beyond it), and issue #91 asks that a payment's allocations never release more than it.
 -- The checks take a clinic-wide advisory lock first, so two transactions that reach COMMIT together are
--- serialised and the second one re-reads what the first committed (PR #92 review).
+-- serialised and the second one re-reads what the first committed; they require READ COMMITTED, the API's
+-- isolation level (PR #92 review).
 
 -- The owner role and its read access: the 0061 pattern, a NOLOGIN, NOBYPASSRLS role reading exactly the
 -- columns the checks need.
@@ -64,8 +65,9 @@ BEGIN
   -- checking the same clinic and then re-reads what it committed; the holder only reads, so it never
   -- waits on another lock and adds no deadlock (ADR-0027 item 12).
   PERFORM pg_advisory_xact_lock(hashtextextended('finance_check:' || p_clinic::text, 0));
-  -- A repeatable-read snapshot would not see what the lock holder committed; READ COMMITTED re-reads and SERIALIZABLE aborts the second writer (PR #92 review).
-  IF current_setting('transaction_isolation') = 'repeatable read' THEN
+  -- Only READ COMMITTED re-reads after waiting for the lock; REPEATABLE READ and SERIALIZABLE keep a snapshot that would
+  -- not see what the lock holder committed (PR #92 review).
+  IF current_setting('transaction_isolation') <> 'read committed' THEN
     RAISE EXCEPTION 'finance_invariant' USING ERRCODE = 'P0001', DETAIL = 'isolation';
   END IF;
   -- §4.3 invariant 1: live(a) ≥ 0 — an allocation never releases more than it placed.
@@ -161,7 +163,7 @@ AS $$
 BEGIN
   -- The same clinic-wide check lock (see finance_check_patient).
   PERFORM pg_advisory_xact_lock(hashtextextended('finance_check:' || p_clinic::text, 0));
-  IF current_setting('transaction_isolation') = 'repeatable read' THEN
+  IF current_setting('transaction_isolation') <> 'read committed' THEN
     RAISE EXCEPTION 'finance_invariant' USING ERRCODE = 'P0001', DETAIL = 'isolation';
   END IF;
   -- The numbers are disjoint: a cash number is held by one movement, a payment or a refund.
@@ -196,7 +198,7 @@ DECLARE
 BEGIN
   -- The same clinic-wide check lock (see finance_check_patient).
   PERFORM pg_advisory_xact_lock(hashtextextended('finance_check:' || p_clinic::text, 0));
-  IF current_setting('transaction_isolation') = 'repeatable read' THEN
+  IF current_setting('transaction_isolation') <> 'read committed' THEN
     RAISE EXCEPTION 'finance_invariant' USING ERRCODE = 'P0001', DETAIL = 'isolation';
   END IF;
   SELECT last_cash_seq, last_closed_seq, last_closing_id INTO d FROM branch_cash_drawers
@@ -238,7 +240,7 @@ DECLARE
 BEGIN
   -- The same clinic-wide check lock (see finance_check_patient).
   PERFORM pg_advisory_xact_lock(hashtextextended('finance_check:' || p_clinic::text, 0));
-  IF current_setting('transaction_isolation') = 'repeatable read' THEN
+  IF current_setting('transaction_isolation') <> 'read committed' THEN
     RAISE EXCEPTION 'finance_invariant' USING ERRCODE = 'P0001', DETAIL = 'isolation';
   END IF;
   SELECT branch_id, from_cash_seq, to_cash_seq, expected_minor, previous_closing_id INTO k FROM cash_closings
@@ -249,10 +251,12 @@ BEGIN
                                     AND p.id = k.previous_closing_id), 0) THEN
     RAISE EXCEPTION 'finance_invariant' USING ERRCODE = 'P0001', DETAIL = 'cash_closing_period';
   END IF;
-  -- The drawer records this closing as its last.
+  -- The drawer records this closing as its last, and the closing reaches the drawer's last cash number
+  -- (§4.4: no cash left outside it).
   IF NOT EXISTS (SELECT 1 FROM branch_cash_drawers d
                  WHERE d.clinic_id = p_clinic AND d.branch_id = k.branch_id
-                   AND d.last_closing_id = p_closing AND d.last_closed_seq = k.to_cash_seq) THEN
+                   AND d.last_closing_id = p_closing AND d.last_closed_seq = k.to_cash_seq
+                   AND d.last_cash_seq = k.to_cash_seq) THEN
     RAISE EXCEPTION 'finance_invariant' USING ERRCODE = 'P0001', DETAIL = 'cash_closing_drawer';
   END IF;
   -- Expected = cash received − cash refunded in (from, to] (F2-Q10: no float).
