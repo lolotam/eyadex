@@ -1,6 +1,7 @@
 # ADR-0034 — Payments, refunds and the cash closing (finance F2)
 
-- Status: proposed (design awaiting the owner's approval; `docs/specs/finance-design.md` §4, owner
+- Status: accepted (owner approval 2026-10-20: the SQL plan and F2-Q1 … F2-Q19 as recommended;
+  `docs/specs/finance-design.md` §4, owner
   decisions FIN-11 … FIN-16, review rules R1-4, R1-5, R1-9, R1-17, R2-2, R2-8 and §8d)
 - Date: 2026-10-20
 
@@ -64,7 +65,8 @@ INSERT` on them and no role has `UPDATE` or `DELETE`. A correction is a new move
 - Contracts gain signed amounts for the closing (`signedMinorAmountSchema`, `formatSignedMinor`; R3-5).
 - Balances are computed by aggregation on every read; the indexes of the spec's §4.2 keep it per invoice and
   per patient. F3 may add a read model later; it would be derived and rebuildable, never the source.
-- A mistaken payment cannot be deleted; it is refunded with a reason (pending owner question F2-Q12), which
+- A mistaken payment cannot be deleted; it is refunded with a reason (F2-Q12, owner decision 2026-10-20), which
   keeps receipt numbers gap-free and the cash closing exact.
-- Rules the owner has not settled (spec §4.10, F2-Q1 … F2-Q18) are `TODO(spec)` and not implemented by
-  guess; their answers may change items 3, 5 and 6 and will amend this record.
+- The owner decided every open rule on 2026-10-20 as recommended (spec §4.10, F2-Q1 … F2-Q19): items 3, 5
+  and 6 stand as written, refunds are numbered `PREFIX-RF-YYYY-NNNNNN`, a branch closes once a day, and cash
+  closings stay out of the platform's audit.
