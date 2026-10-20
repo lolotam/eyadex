@@ -33,8 +33,8 @@ INSERT` on them and no role has `UPDATE` or `DELETE`. A correction is a new move
    release of that payment's allocation followed by a refund of the new credit, in one transaction, so every
    refund spends credit and money is never released twice.
 4. **The database enforces the patient.** Composite foreign keys carry `patient_id` through invoice,
-   payment, allocation, credit and refund, so money cannot cross patients; a deferred check (0066, if the
-   owner keeps it) re-computes the patient's invariants and each refund's sources at commit. It is
+   payment, allocation, credit and refund, so money cannot cross patients; a deferred check (0066, kept by the
+   owner, F2-Q17) re-computes the patient's invariants and each refund's sources at commit. It is
    `SECURITY DEFINER` with its own NOLOGIN owner and takes the clinic from the row, because `withTenant`
    clears `app.clinic_id` before `COMMIT` (R3-1, R3-2).
 5. **Receipts** are numbered `PREFIX-R-YYYY-NNNNNN` per branch, series and clinic-timezone year from a new
