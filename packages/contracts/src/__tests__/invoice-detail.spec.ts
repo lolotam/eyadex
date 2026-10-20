@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { invoiceListItemSchema, invoiceListResponseSchema, invoiceSchema } from "../finance.ts";
+import {
+  invoiceListItemSchema,
+  invoiceListResponseSchema,
+  invoiceObjectSchema,
+} from "../finance.ts";
 
 const item = {
   id: "0190a000-0000-7000-8000-000000000001",
@@ -28,7 +32,7 @@ const item = {
 
 describe("the invoice detail patient label", () => {
   it("keeps the detail display name optional for older responses", () => {
-    const schema = invoiceSchema.pick({ patientName: true });
+    const schema = invoiceObjectSchema.pick({ patientName: true });
     expect(schema.parse({ patientName: "Example" })).toEqual({ patientName: "Example" });
     expect(schema.parse({})).toEqual({});
   });

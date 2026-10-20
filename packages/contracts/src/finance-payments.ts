@@ -17,20 +17,23 @@ export const paymentMethodSettingSchema = z
   .object({ method: paymentMethodSchema, enabled: z.boolean() })
   .strict();
 
+/** Every reader gets every method, enabled or not, so a short list is a broken answer. */
+export const paymentMethodSettingsSchema = z
+  .array(paymentMethodSettingSchema)
+  .min(PAYMENT_METHODS.length, "validation.required")
+  .max(PAYMENT_METHODS.length, "validation.tooLong")
+  .refine(
+    (items) => new Set(items.map((i) => i.method)).size === items.length,
+    "validation.duplicate",
+  );
+
 /**
  * `PUT /v1/clinic/settings/payment-methods` replaces all four settings. Whether one stays enabled
  * is a use-case rule (`payment_methods_empty`), not a validation error.
  */
 export const paymentMethodsRequestSchema = z
   .object({
-    paymentMethods: z
-      .array(paymentMethodSettingSchema)
-      .min(PAYMENT_METHODS.length, "validation.required")
-      .max(PAYMENT_METHODS.length, "validation.tooLong")
-      .refine(
-        (items) => new Set(items.map((i) => i.method)).size === items.length,
-        "validation.duplicate",
-      ),
+    paymentMethods: paymentMethodSettingsSchema,
   })
   .strict();
 export type PaymentMethodsRequest = z.infer<typeof paymentMethodsRequestSchema>;

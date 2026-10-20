@@ -3,7 +3,7 @@ import { idSchema } from "./common.ts";
 import { currencyCodeSchema, minorAmountSchema, minorLineAmountSchema } from "./money.ts";
 import { notificationChannelSchema } from "./notifications.ts";
 import { invoiceSourceSchema } from "./finance-invoice.ts";
-import { paymentMethodSettingSchema } from "./finance-payments.ts";
+import { paymentMethodSettingsSchema } from "./finance-payments.ts";
 import { requiredText, text } from "./finance-text.ts";
 
 export * from "./finance-invoice.ts";
@@ -202,7 +202,7 @@ export const financeSettingsSchema = z
     commercialRegNo: z.string().nullable(),
     hasLogo: z.boolean(),
     // Optional so existing F1 API and mock responses remain valid until payment settings ship.
-    paymentMethods: z.array(paymentMethodSettingSchema).optional(),
+    paymentMethods: paymentMethodSettingsSchema.optional(),
   })
   .strict();
 export type FinanceSettings = z.infer<typeof financeSettingsSchema>;

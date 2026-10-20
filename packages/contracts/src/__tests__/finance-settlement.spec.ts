@@ -7,6 +7,7 @@ import {
   invoiceListQuerySchema,
   invoiceSchema,
   invoiceSettlementSchema,
+  PAYMENT_METHODS,
   platformFinanceTotalsSchema,
 } from "../finance.ts";
 
@@ -76,6 +77,85 @@ describe("invoice settlement", () => {
   });
 });
 
+describe("the invoice settlement agrees with the invoice status", () => {
+  const settlement = { state: "unpaid", paidMinor: "0", owedMinor: "1000" };
+  const { lines: _lines, ...item } = invoice;
+  const listItem = { ...item, patientName: "Synthetic patient" };
+
+  const refusals = [
+    { status: "issued", settlement: null, label: "a null settlement" },
+    { status: "void", settlement, label: "a settlement object" },
+  ];
+  const acceptances = [
+    { status: "issued", settlement, label: "a settlement object" },
+    { status: "void", settlement: null, label: "a null settlement" },
+  ];
+
+  it.each(refusals)("refuses $status invoices with $label", ({ status, settlement: value }) => {
+    const detail = invoiceSchema.safeParse({ ...invoice, status, settlement: value });
+    expect(detail.success).toBe(false);
+    if (!detail.success) {
+      expect(detail.error.issues[0]?.message).toBe("validation.invoiceSettlement");
+      expect(detail.error.issues[0]?.path).toEqual(["settlement"]);
+    }
+    const item = invoiceListItemSchema.safeParse({ ...listItem, status, settlement: value });
+    expect(item.success).toBe(false);
+    if (!item.success) {
+      expect(item.error.issues[0]?.message).toBe("validation.invoiceSettlement");
+      expect(item.error.issues[0]?.path).toEqual(["settlement"]);
+    }
+  });
+
+  it.each(acceptances)("accepts $status invoices with $label", ({ status, settlement: value }) => {
+    expect(invoiceSchema.safeParse({ ...invoice, status, settlement: value }).success).toBe(true);
+    expect(
+      invoiceListItemSchema.safeParse({ ...listItem, status, settlement: value }).success,
+    ).toBe(true);
+  });
+});
+
+describe("the finance settings carry the complete payment method list", () => {
+  const settings = {
+    currency: "KWD",
+    currencyExponent: 3,
+    taxRateBp: 0,
+    commercialRegNo: null,
+    hasLogo: false,
+  };
+  const methods = PAYMENT_METHODS.map((method) => ({ method, enabled: true }));
+
+  it("carries every method when the field is present", () => {
+    expect(
+      financeSettingsSchema.parse({ ...settings, paymentMethods: methods }).paymentMethods,
+    ).toEqual(methods);
+  });
+
+  it("refuses a partial method list", () => {
+    const result = financeSettingsSchema.safeParse({
+      ...settings,
+      paymentMethods: methods.slice(0, 1),
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error.issues[0]?.message).toBe("validation.required");
+  });
+
+  it("refuses a repeated method", () => {
+    const repeated = [methods[0], ...methods.slice(0, 3)];
+    const result = financeSettingsSchema.safeParse({ ...settings, paymentMethods: repeated });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error.issues[0]?.message).toBe("validation.duplicate");
+  });
+
+  it("refuses an unknown method", () => {
+    expect(
+      financeSettingsSchema.safeParse({
+        ...settings,
+        paymentMethods: [{ method: "card", enabled: true }],
+      }).success,
+    ).toBe(false);
+  });
+});
+
 describe("F1 response compatibility", () => {
   it("still accepts an invoice without settlement", () => {
     expect(invoiceSchema.parse(invoice)).toEqual(invoice);
@@ -90,28 +170,6 @@ describe("F1 response compatibility", () => {
       hasLogo: false,
     };
     expect(financeSettingsSchema.parse(settings)).toEqual(settings);
-  });
-
-  it("validates payment method settings when the new field is present", () => {
-    const settings = {
-      currency: "KWD",
-      currencyExponent: 3,
-      taxRateBp: 0,
-      commercialRegNo: null,
-      hasLogo: false,
-    };
-    expect(
-      financeSettingsSchema.parse({
-        ...settings,
-        paymentMethods: [{ method: "cash", enabled: true }],
-      }).paymentMethods,
-    ).toEqual([{ method: "cash", enabled: true }]);
-    expect(
-      financeSettingsSchema.safeParse({
-        ...settings,
-        paymentMethods: [{ method: "card", enabled: true }],
-      }).success,
-    ).toBe(false);
   });
 
   it("still accepts monthly totals without collections or refunds", () => {

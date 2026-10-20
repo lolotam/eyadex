@@ -47,7 +47,7 @@ export const invoiceSettlementSchema = z
   );
 export type InvoiceSettlement = z.infer<typeof invoiceSettlementSchema>;
 
-export const invoiceSchema = z
+export const invoiceObjectSchema = z
   .object({
     id: idSchema,
     number: z.string(),
@@ -79,12 +79,31 @@ export const invoiceSchema = z
     version: z.number().int().positive(),
   })
   .strict();
+
+/** The two fields the settlement rule reads, so one rule serves the invoice and its list item. */
+type SettlementStatusShape = {
+  status: z.infer<typeof invoiceStatusSchema>;
+  settlement?: z.infer<typeof invoiceSettlementSchema> | null | undefined;
+};
+
+/** An issued invoice carries its settlement; a void invoice carries none. */
+const settlementMatchesStatus = (invoice: SettlementStatusShape, ctx: z.RefinementCtx): void => {
+  if (invoice.settlement === undefined) return;
+  const issuedWithoutSettlement = invoice.status === "issued" && invoice.settlement === null;
+  const voidWithSettlement = invoice.status === "void" && invoice.settlement !== null;
+  if (!issuedWithoutSettlement && !voidWithSettlement) return;
+  ctx.addIssue({ code: "custom", path: ["settlement"], message: "validation.invoiceSettlement" });
+};
+
+/** The settlement must agree with the status, so no reader sees a void invoice carrying a balance. */
+export const invoiceSchema = invoiceObjectSchema.superRefine(settlementMatchesStatus);
 export type Invoice = z.infer<typeof invoiceSchema>;
 
 /** Every invoice write answers the invoice as saved; the version also travels as `ETag`. */
 export const invoiceWriteResponseSchema = z.object({ invoice: invoiceSchema }).strict();
 
-export const invoiceListItemSchema = invoiceSchema
+export const invoiceListItemSchema = invoiceObjectSchema
   .omit({ lines: true })
   .extend({ patientName: z.string() })
-  .strict();
+  .strict()
+  .superRefine(settlementMatchesStatus);
