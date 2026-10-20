@@ -10,6 +10,20 @@ import {
   signedMinorAmountSchema,
 } from "./money.ts";
 
+/**
+ * Reads a minor-unit amount as a bigint, or null when the text is not a canonical amount — its own schema
+ * already refuses it, and the rules below must not crash on a payload that failed there.
+ */
+const readMinor = (amount: string): bigint | null => {
+  try {
+    const value = BigInt(amount);
+    return value.toString() === amount ? value : null;
+  } catch (error) {
+    if (!(error instanceof SyntaxError)) throw error;
+    return null;
+  }
+};
+
 /** Per-method inflows and outflows stay separate so refunds do not hide the collected amount. */
 export const methodTotalSchema = z
   .object({ method: paymentMethodSchema, inMinor: minorAmountSchema, outMinor: minorAmountSchema })
@@ -43,6 +57,26 @@ export type CashMovement = z.infer<typeof cashMovementSchema>;
 /** `GET /v1/cash-closings/preview` targets one branch's drawer; it stores nothing. */
 export const cashClosingPreviewQuerySchema = z.object({ branchId: idSchema }).strict();
 
+/** The fields the preview rule reads, so it sees only the amounts it compares. */
+type PreviewAmountsShape = {
+  cashInMinor: string;
+  cashOutMinor: string;
+  expectedMinor: string;
+};
+
+/**
+ * The preview's expected amount is the inflows minus the outflows. A wrong sign would show a shortage as
+ * a surplus, so a preview that does not add up is refused at the expected amount.
+ */
+const expectedMatchesFlows = (preview: PreviewAmountsShape, ctx: z.RefinementCtx): void => {
+  const cashIn = readMinor(preview.cashInMinor);
+  const cashOut = readMinor(preview.cashOutMinor);
+  const expected = readMinor(preview.expectedMinor);
+  if (cashIn === null || cashOut === null || expected === null) return;
+  if (expected === cashIn - cashOut) return;
+  ctx.addIssue({ code: "custom", path: ["expectedMinor"], message: "validation.amount" });
+};
+
 /** The preview pins the drawer's sequence so a later write can detect intervening cash movements. */
 export const cashClosingPreviewResponseSchema = z
   .object({
@@ -59,7 +93,8 @@ export const cashClosingPreviewResponseSchema = z
     currency: currencyCodeSchema,
     currencyExponent: z.number().int(),
   })
-  .strict();
+  .strict()
+  .superRefine(expectedMatchesFlows);
 export type CashClosingPreview = z.infer<typeof cashClosingPreviewResponseSchema>;
 
 const noteSchema = text(300)
@@ -81,8 +116,28 @@ export const createCashClosingRequestSchema = z
   .strict();
 export type CreateCashClosingRequest = z.infer<typeof createCashClosingRequestSchema>;
 
+/** The fields the closing rule reads, so it sees only the amounts it compares. */
+type ClosingAmountsShape = {
+  expectedMinor: string;
+  countedMinor: string;
+  differenceMinor: string;
+};
+
+/**
+ * The saved difference is the counted amount minus the expected one. A wrong sign would show a shortage
+ * as a surplus, so a closing that does not add up is refused at the difference.
+ */
+const differenceMatchesCount = (closing: ClosingAmountsShape, ctx: z.RefinementCtx): void => {
+  const expected = readMinor(closing.expectedMinor);
+  const counted = readMinor(closing.countedMinor);
+  const difference = readMinor(closing.differenceMinor);
+  if (expected === null || counted === null || difference === null) return;
+  if (difference === counted - expected) return;
+  ctx.addIssue({ code: "custom", path: ["differenceMinor"], message: "validation.amount" });
+};
+
 /** Saved closings preserve the counted result and signed shortage or surplus for that branch day. */
-export const cashClosingSchema = z
+export const cashClosingObjectSchema = z
   .object({
     id: idSchema,
     branchId: idSchema,
@@ -101,12 +156,16 @@ export const cashClosingSchema = z
     closedAt: z.string().datetime(),
   })
   .strict();
+
+/** The difference must add up, so no reader sees a shortage recorded as a surplus. */
+export const cashClosingSchema = cashClosingObjectSchema.superRefine(differenceMatchesCount);
 export type CashClosing = z.infer<typeof cashClosingSchema>;
 
 /** Only detail carries the period's cash movements, keeping list pages compact. */
-export const cashClosingDetailSchema = cashClosingSchema
+export const cashClosingDetailSchema = cashClosingObjectSchema
   .extend({ movements: z.array(cashMovementSchema) })
-  .strict();
+  .strict()
+  .superRefine(differenceMatchesCount);
 export type CashClosingDetail = z.infer<typeof cashClosingDetailSchema>;
 
 /** Both `POST` and `GET /v1/cash-closings/:id` return the saved period and its cash movements. */

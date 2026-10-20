@@ -64,6 +64,10 @@ const closing = {
   closedBy: ID,
   closedAt: AT,
 };
+const closingCases = [
+  { name: "entity", schema: cashClosingSchema, value: closing },
+  { name: "detail", schema: cashClosingDetailSchema, value: { ...closing, movements } },
+];
 
 describe("cash closing requests", () => {
   it("accepts a zero count without requiring a note in the schema", () => {
@@ -161,5 +165,57 @@ describe("cash closing reads", () => {
         movements: [{ ...movements[0], patientId: ID }],
       }).success,
     ).toBe(false);
+  });
+});
+
+describe("the cash closing amounts add up", () => {
+  it("refuses a preview whose expected amount is not the inflows minus the outflows", () => {
+    const result = cashClosingPreviewResponseSchema.safeParse({
+      ...preview,
+      expectedMinor: "500",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toBe("validation.amount");
+      expect(result.error.issues[0]?.path).toEqual(["expectedMinor"]);
+    }
+  });
+
+  it.each(closingCases)(
+    "refuses a $name closing whose difference is not the counted amount minus the expected one",
+    ({ schema, value }) => {
+      const result = schema.safeParse({
+        ...value,
+        expectedMinor: "1000",
+        countedMinor: "900",
+        differenceMinor: "500",
+      });
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues[0]?.message).toBe("validation.amount");
+        expect(result.error.issues[0]?.path).toEqual(["differenceMinor"]);
+      }
+    },
+  );
+
+  it.each(closingCases)(
+    "accepts a $name closing whose difference is the counted amount minus the expected one",
+    ({ schema, value }) => {
+      const result = schema.safeParse({
+        ...value,
+        expectedMinor: "1000",
+        countedMinor: "900",
+        differenceMinor: "-100",
+      });
+      expect(result.success).toBe(true);
+    },
+  );
+
+  it("refuses a non-canonical amount without crashing the arithmetic rule", () => {
+    const result = cashClosingSchema.safeParse({ ...closing, countedMinor: "1.5" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.map((issue) => issue.path)).toEqual([["countedMinor"]]);
+    }
   });
 });
