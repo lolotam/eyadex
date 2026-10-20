@@ -6,13 +6,12 @@ import {
   creditBalance,
   creditRemaining,
   invoicePaid,
-  newestFirst,
-  oldestFirst,
   type PatientMoney,
   type ReleaseCause,
   type SettlementAllocation,
   type SettlementInvoice,
 } from "./settlement-balances.ts";
+import { newestFirst, oldestFirst } from "./settlement-order.ts";
 
 /** Why a money operation was refused; the API answers each code with its own message. */
 export type SettlementErrorCode =
@@ -166,8 +165,8 @@ export function planEditRelease(
   invoice: SettlementInvoice,
   newTotalMinor: bigint,
 ): Release[] {
-  if (invoice.status === "void") throw new SettlementError("invoice_void");
   if (newTotalMinor < 0n) throw new SettlementError("invalid_amount");
+  if (invoice.status === "void") throw new SettlementError("invoice_void");
   const excess = invoicePaid(money, invoice.id) - newTotalMinor;
   if (excess <= 0n) return [];
   const allocations = money.allocations.filter((allocation) => allocation.invoiceId === invoice.id);

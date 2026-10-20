@@ -3,3 +3,4 @@
 
 export * from "./settlement-balances.ts";
 export * from "./settlement-operations.ts";
+export * from "./settlement-order.ts";

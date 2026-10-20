@@ -188,6 +188,7 @@ describe("settlement rules — refusals and their order", () => {
     const f = fixture();
     refuses(() => planEditRelease(f, inv("I", 1000n), -1n), "invalid_amount");
     refuses(() => planEditRelease(f, voidInv("I", 1000n), 500n), "invoice_void");
+    refuses(() => planEditRelease(f, voidInv("I", 1000n), -1n), "invalid_amount");
   });
 
   it("releases nothing when the new total equals what is paid", () => {
@@ -217,5 +218,38 @@ describe("settlement rules — bounds and ordering", () => {
     expect(oldestFirst(rows).map((row) => row.id)).toEqual(["A", "B"]);
     expect(rows.map((row) => row.id)).toEqual(["A", "B"]);
     expect(newestFirst(rows)).not.toBe(rows);
+  });
+
+  it("orders instants of mixed precision by the instant, not by the text", () => {
+    const f = fixture();
+    pay(f, "P", "I", 2000n);
+    // The ids run against the time order, so only the fraction can decide: "A-1" is the later instant and
+    // the lower id, "A-2" the earlier one and the higher id.
+    alloc(f, "A-2", "I", { paymentId: "P", creditId: null }, 1000n, "2026-10-20T08:00:01Z");
+    alloc(f, "A-1", "I", { paymentId: "P", creditId: null }, 1000n, "2026-10-20T08:00:01.500Z");
+    expect(planEditRelease(f, inv("I", 2000n), 1500n)).toEqual([
+      { allocationId: "A-1", amountMinor: 500n, cause: "invoice_edited" },
+    ]);
+    const credits = oldestFirst([
+      { id: "C-1", createdAt: "2026-10-20T08:00:01.000001Z" },
+      { id: "C-2", createdAt: "2026-10-20T08:00:01.0000005Z" },
+    ]);
+    expect(credits.map((credit) => credit.id)).toEqual(["C-2", "C-1"]);
+  });
+
+  it("orders instants written with an offset by the instant, not by the local text", () => {
+    const rows = [
+      { id: "B-later", createdAt: "2026-10-20T08:00:00.001Z" },
+      { id: "A-earlier", createdAt: "2026-10-20T11:00:00+03:00" },
+    ];
+    expect(oldestFirst(rows).map((row) => row.id)).toEqual(["A-earlier", "B-later"]);
+  });
+
+  it("refuses a createdAt that is not an instant", () => {
+    const rows = [
+      { id: "A", createdAt: "yesterday" },
+      { id: "B", createdAt: AT1 },
+    ];
+    expect(() => newestFirst(rows)).toThrow("settlement createdAt is not an ISO-8601 instant");
   });
 });

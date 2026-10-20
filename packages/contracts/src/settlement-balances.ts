@@ -22,6 +22,7 @@ export interface SettlementAllocation {
   readonly paymentId: string | null;
   readonly creditId: string | null;
   readonly amountMinor: bigint;
+  /** An ISO-8601 instant; any fractional precision up to nanoseconds and any offset. */
   readonly createdAt: string;
 }
 
@@ -34,6 +35,7 @@ export interface SettlementCredit {
   readonly originAllocationId: string;
   readonly amountMinor: bigint;
   readonly cause: ReleaseCause;
+  /** An ISO-8601 instant; any fractional precision up to nanoseconds and any offset. */
   readonly createdAt: string;
 }
 
@@ -78,12 +80,6 @@ export type SettlementBreach =
   | "invoice_paid"
   | "refund_sources"
   | "conservation";
-
-/** A movement that carries the time and the id that order it (F2-Q18). */
-interface TimedMovement {
-  readonly createdAt: string;
-  readonly id: string;
-}
 
 /** The credits released from one allocation, the amount that shrinks it. */
 function releasedFrom(money: PatientMoney, allocationId: string): bigint {
@@ -257,42 +253,4 @@ export function settlementBreaches(
     breaches.push("conservation");
   }
   return breaches;
-}
-
-/** Newest first: `created_at` down, then `id` down (F2-Q18). */
-function newestBefore(a: TimedMovement, b: TimedMovement): number {
-  if (a.createdAt > b.createdAt) return -1;
-  if (a.createdAt < b.createdAt) return 1;
-  if (a.id > b.id) return -1;
-  if (a.id < b.id) return 1;
-  return 0;
-}
-
-/** Oldest first: `created_at` up, then `id` up (F2-Q18). */
-function oldestBefore(a: TimedMovement, b: TimedMovement): number {
-  if (a.createdAt < b.createdAt) return -1;
-  if (a.createdAt > b.createdAt) return 1;
-  if (a.id < b.id) return -1;
-  if (a.id > b.id) return 1;
-  return 0;
-}
-
-/**
- * A copy of the movements, newest first: the order money is released in (F2-Q18).
- *
- * @param items the movements
- * @returns a sorted copy; the input keeps its order
- */
-export function newestFirst<T extends TimedMovement>(items: readonly T[]): T[] {
-  return [...items].sort(newestBefore);
-}
-
-/**
- * A copy of the movements, oldest first: the order credit is spent in (F2-Q18).
- *
- * @param items the movements
- * @returns a sorted copy; the input keeps its order
- */
-export function oldestFirst<T extends TimedMovement>(items: readonly T[]): T[] {
-  return [...items].sort(oldestBefore);
 }
