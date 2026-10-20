@@ -1,22 +1,20 @@
 import { z } from "zod";
-import { idSchema, stripInvisibleControls } from "./common.ts";
+import { idSchema } from "./common.ts";
 import { currencyCodeSchema, minorAmountSchema, minorLineAmountSchema } from "./money.ts";
 import { notificationChannelSchema } from "./notifications.ts";
 import { invoiceSourceSchema } from "./finance-invoice.ts";
+import { paymentMethodSettingSchema } from "./finance-payments.ts";
+import { requiredText, text } from "./finance-text.ts";
 
 export * from "./finance-invoice.ts";
 export * from "./finance-list.ts";
+export * from "./finance-payments.ts";
+export * from "./finance-refunds.ts";
+export * from "./finance-cash-closing.ts";
 
 // Finance F1 contracts (docs/specs/finance-design.md §3, R1, R2). Amounts travel as decimal integer
 // strings of minor units: a line is capped at 10¹² (minorLineAmountSchema), an aggregate at the
 // bigint ceiling (minorAmountSchema), the same split the totals function checks.
-
-const text = (max: number) =>
-  z
-    .string()
-    .transform(stripInvisibleControls)
-    .pipe(z.string().trim().max(max, "validation.tooLong"));
-const requiredText = (max: number) => text(max).pipe(z.string().min(1, "validation.required"));
 
 /** Spec §3.2: 2–6 upper-case letters or digits, unique per clinic, locked after the first invoice. */
 export const invoicePrefixSchema = z.string().regex(/^[A-Z0-9]{2,6}$/, "validation.invoicePrefix");
@@ -203,6 +201,8 @@ export const financeSettingsSchema = z
     taxRateBp: z.number().int(),
     commercialRegNo: z.string().nullable(),
     hasLogo: z.boolean(),
+    // Optional so existing F1 API and mock responses remain valid until payment settings ship.
+    paymentMethods: z.array(paymentMethodSettingSchema).optional(),
   })
   .strict();
 export type FinanceSettings = z.infer<typeof financeSettingsSchema>;
@@ -259,6 +259,9 @@ export const platformFinanceTotalsSchema = z
           month: z.string().regex(/^\d{4}-\d{2}$/),
           currency: currencyCodeSchema,
           invoicedMinor: minorAmountSchema,
+          // Optional so existing F1 totals remain valid until the SQL computes these amounts.
+          collectedMinor: minorAmountSchema.optional(),
+          refundedMinor: minorAmountSchema.optional(),
         })
         .strict(),
     ),

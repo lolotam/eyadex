@@ -1,5 +1,7 @@
 import type { ApiErrorCode } from "@eyadex/contracts/common";
 
+import { FINANCE_ERROR_MESSAGES } from "./finance-error-messages.ts";
+
 /**
  * The bilingual text the API puts in the error envelope (CLAUDE.md §6). It is the same wording the web app
  * shows in a toast, so a user reads one sentence whether the failure came from the mock or from the API.
@@ -291,5 +293,6 @@ export const API_ERROR_MESSAGES = {
     message_ar: "رابط الفاتورة غير صالح أو انتهت صلاحيته؛ اطلب رابطاً جديداً من العيادة",
     message_en: "This invoice link is no longer valid; ask the clinic for a new one",
   },
+  ...FINANCE_ERROR_MESSAGES,
   unknown: { message_ar: "حدث خطأ ما", message_en: "Something went wrong" },
 } satisfies Record<ApiErrorCode, { message_ar: string; message_en: string }>;

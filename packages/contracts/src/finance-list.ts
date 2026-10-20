@@ -6,8 +6,8 @@ import {
   invoiceStatusSchema,
 } from "./finance-invoice.ts";
 
-// A real calendar day: "2026-02-31" has the shape but would reach PostgreSQL's ::date and fail there.
-const dateSchema = z
+/** A real calendar day: impossible dates must not reach PostgreSQL's ::date and fail there. */
+export const dateSchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "validation.date")
   .refine((v) => {

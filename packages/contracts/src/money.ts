@@ -14,6 +14,9 @@ export const MAX_LINE_MINOR = 1_000_000_000_000n;
 /** R1-2: the PostgreSQL `bigint` ceiling — the bound of every aggregate (totals, invoice discount). */
 export const MAX_MINOR = 9_223_372_036_854_775_807n;
 
+/** R3-5: a negative drawer expectation or difference may reach PostgreSQL's bigint floor. */
+export const MIN_MINOR = -9_223_372_036_854_775_808n;
+
 const MINOR_TEXT = /^(0|[1-9][0-9]{0,18})$/;
 
 // One refine (not regex + refine): Zod runs every refine even after a failed regex, and BigInt("1.5") throws.
@@ -29,6 +32,24 @@ const minorUpTo = (max: bigint) =>
  */
 export const minorAmountSchema = minorUpTo(MAX_MINOR);
 
+/** Payments, refunds and credit applications move money, so zero is not a valid amount (R3-7). */
+export const positiveMinorAmountSchema = minorAmountSchema.refine(
+  (v) => v !== "0",
+  "validation.amount",
+);
+
+/** R3-5: drawer expectations and differences may be negative, without rounding through a float. */
+export const signedMinorAmountSchema = z
+  .string({ invalid_type_error: "validation.amount" })
+  .refine(
+    (v) =>
+      /^-?(0|[1-9][0-9]{0,18})$/.test(v) &&
+      v !== "-0" &&
+      BigInt(v) >= MIN_MINOR &&
+      BigInt(v) <= MAX_MINOR,
+    "validation.amount",
+  );
+
 /** The per-line bound: a unit price, a line discount amount, a service or per-doctor price. */
 export const minorLineAmountSchema = minorUpTo(MAX_LINE_MINOR);
 
@@ -43,6 +64,19 @@ export function formatMinor(minor: string, exponent: number): string {
   if (exponent === 0) return minor;
   const padded = minor.padStart(exponent + 1, "0");
   return `${padded.slice(0, -exponent)}.${padded.slice(-exponent)}`;
+}
+
+/**
+ * Keeps a negative sign outside the padded absolute value, so a shortage of one fils is "-0.001".
+ *
+ * @param minor a canonical signed minor-unit string
+ * @param exponent the currency's minor-unit exponent
+ * @returns the signed amount with exactly `exponent` decimals
+ */
+export function formatSignedMinor(minor: string, exponent: number): string {
+  return minor.startsWith("-")
+    ? `-${formatMinor(minor.slice(1), exponent)}`
+    : formatMinor(minor, exponent);
 }
 
 /**

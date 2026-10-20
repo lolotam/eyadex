@@ -1,0 +1,184 @@
+import { describe, expect, it } from "vitest";
+
+import { apiErrorCodeSchema, webErrorCodeSchema } from "../common.ts";
+import {
+  financeSettingsSchema,
+  invoiceListItemSchema,
+  invoiceListQuerySchema,
+  invoiceSchema,
+  invoiceSettlementSchema,
+  platformFinanceTotalsSchema,
+} from "../finance.ts";
+
+const ID = "0198f0a0-0000-7000-8000-000000000001";
+const invoice = {
+  id: ID,
+  number: "SLM-2026-000001",
+  status: "issued",
+  source: "manual",
+  sourceId: null,
+  branchId: ID,
+  branchNameAr: "فرع تجريبي",
+  branchNameEn: "Synthetic branch",
+  patientId: ID,
+  issuedAt: "2026-10-20T08:00:00.000Z",
+  currency: "KWD",
+  currencyExponent: 3,
+  subtotalMinor: "1000",
+  discountMinor: "0",
+  taxRateBp: 0,
+  taxMinor: "0",
+  totalMinor: "1000",
+  invoiceDiscount: null,
+  lines: [],
+  voidReason: null,
+  voidedAt: null,
+  version: 1,
+};
+
+describe("invoice settlement", () => {
+  it.each([
+    { state: "unpaid", paidMinor: "0", owedMinor: "1000" },
+    { state: "partly_paid", paidMinor: "500", owedMinor: "500" },
+    { state: "paid", paidMinor: "1000", owedMinor: "0" },
+    { state: "paid", paidMinor: "0", owedMinor: "0" },
+  ])("accepts matching state $state, paid $paidMinor and owed $owedMinor", (settlement) => {
+    expect(invoiceSettlementSchema.parse(settlement)).toEqual(settlement);
+  });
+
+  it.each([
+    { state: "unpaid", paidMinor: "1", owedMinor: "1" },
+    { state: "unpaid", paidMinor: "0", owedMinor: "0" },
+    { state: "partly_paid", paidMinor: "0", owedMinor: "1" },
+    { state: "partly_paid", paidMinor: "1", owedMinor: "0" },
+    { state: "paid", paidMinor: "1", owedMinor: "1" },
+  ])("refuses mismatched state $state, paid $paidMinor and owed $owedMinor", (settlement) => {
+    expect(invoiceSettlementSchema.safeParse(settlement).success).toBe(false);
+  });
+
+  it("inherits settlement on the invoice list item", () => {
+    const { lines: _lines, ...item } = invoice;
+    const settlement = { state: "unpaid", paidMinor: "0", owedMinor: "1000" };
+    expect(
+      invoiceListItemSchema.parse({ ...item, patientName: "Synthetic patient", settlement })
+        .settlement,
+    ).toEqual(settlement);
+  });
+
+  it("accepts null settlement on void invoices", () => {
+    expect(
+      invoiceSchema.parse({ ...invoice, status: "void", settlement: null }).settlement,
+    ).toBeNull();
+  });
+
+  it("does not silently accept a settlement filter before the API honours it", () => {
+    expect(invoiceListQuerySchema.safeParse({ settlement: "paid" }).success).toBe(false);
+  });
+});
+
+describe("F1 response compatibility", () => {
+  it("still accepts an invoice without settlement", () => {
+    expect(invoiceSchema.parse(invoice)).toEqual(invoice);
+  });
+
+  it("still accepts finance settings without payment methods", () => {
+    const settings = {
+      currency: "KWD",
+      currencyExponent: 3,
+      taxRateBp: 0,
+      commercialRegNo: null,
+      hasLogo: false,
+    };
+    expect(financeSettingsSchema.parse(settings)).toEqual(settings);
+  });
+
+  it("validates payment method settings when the new field is present", () => {
+    const settings = {
+      currency: "KWD",
+      currencyExponent: 3,
+      taxRateBp: 0,
+      commercialRegNo: null,
+      hasLogo: false,
+    };
+    expect(
+      financeSettingsSchema.parse({
+        ...settings,
+        paymentMethods: [{ method: "cash", enabled: true }],
+      }).paymentMethods,
+    ).toEqual([{ method: "cash", enabled: true }]);
+    expect(
+      financeSettingsSchema.safeParse({
+        ...settings,
+        paymentMethods: [{ method: "card", enabled: true }],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("still accepts monthly totals without collections or refunds", () => {
+    const totals = { months: [{ month: "2026-10", currency: "KWD", invoicedMinor: "1000" }] };
+    expect(platformFinanceTotalsSchema.parse(totals)).toEqual(totals);
+  });
+
+  it("accepts F2 aggregate amounts without patient details", () => {
+    const totals = {
+      months: [
+        {
+          month: "2026-10",
+          currency: "KWD",
+          invoicedMinor: "1000",
+          collectedMinor: "500",
+          refundedMinor: "0",
+        },
+      ],
+    };
+    expect(platformFinanceTotalsSchema.parse(totals)).toEqual(totals);
+  });
+
+  it.each(["collectedMinor", "refundedMinor"])(
+    "requires canonical unsigned text for %s",
+    (field) => {
+      const month = { month: "2026-10", currency: "KWD", invoicedMinor: "1000", [field]: -1 };
+      expect(platformFinanceTotalsSchema.safeParse({ months: [month] }).success).toBe(false);
+    },
+  );
+});
+
+describe("F2 error catalogue", () => {
+  const codes = [
+    "payment_method_disabled",
+    "payment_exceeds_balance",
+    "invoice_settled",
+    "credit_insufficient",
+    "refund_exceeds_available",
+    "payment_methods_empty",
+    "cash_drawer_changed",
+    "cash_closing_exists",
+    "closing_note_required",
+  ];
+
+  it.each(codes)("includes API code %s", (code) => {
+    expect(apiErrorCodeSchema.parse(code)).toBe(code);
+  });
+
+  it.each(codes)(
+    "leaves %s to the web's unknown-code fallback until its translations ship",
+    (code) => {
+      expect(webErrorCodeSchema.safeParse(code).success).toBe(false);
+    },
+  );
+
+  it.each(["invoice_void", "version_conflict", "conflict", "not_implemented"])(
+    "keeps the existing web code %s",
+    (code) => {
+      expect(webErrorCodeSchema.parse(code)).toBe(code);
+    },
+  );
+
+  it("keeps API codes first and appends the two web-only codes", () => {
+    expect(webErrorCodeSchema.options).toEqual([
+      ...apiErrorCodeSchema.options.filter((code) => !codes.includes(code)),
+      "conflict",
+      "not_implemented",
+    ]);
+  });
+});

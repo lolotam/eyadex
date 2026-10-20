@@ -27,6 +27,26 @@ export const invoiceLineSchema = z
 
 export const invoiceStatusSchema = z.enum(["issued", "void"]);
 
+/** Derived only for issued invoices; void invoices have no settlement state. */
+export const settlementStateSchema = z.enum(["unpaid", "partly_paid", "paid"]);
+
+/** Keeps the derived state consistent with its amounts, including a paid zero-total invoice. */
+export const invoiceSettlementSchema = z
+  .object({
+    state: settlementStateSchema,
+    paidMinor: minorAmountSchema,
+    owedMinor: minorAmountSchema,
+  })
+  .strict()
+  .refine(
+    (v) =>
+      v.state === "paid"
+        ? v.owedMinor === "0"
+        : v.owedMinor !== "0" && (v.state === "unpaid" ? v.paidMinor === "0" : v.paidMinor !== "0"),
+    "validation.amount",
+  );
+export type InvoiceSettlement = z.infer<typeof invoiceSettlementSchema>;
+
 export const invoiceSchema = z
   .object({
     id: idSchema,
@@ -50,6 +70,8 @@ export const invoiceSchema = z
     taxRateBp: z.number().int(),
     taxMinor: minorAmountSchema,
     totalMinor: minorAmountSchema,
+    // Optional so existing F1 API writes and mock responses remain valid until settlement ships.
+    settlement: invoiceSettlementSchema.nullable().optional(),
     invoiceDiscount: discountSchema.nullable(),
     lines: z.array(invoiceLineSchema),
     voidReason: z.string().nullable(),
