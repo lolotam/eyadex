@@ -80,22 +80,62 @@ export const invoiceObjectSchema = z
   })
   .strict();
 
-/** The two fields the settlement rule reads, so one rule serves the invoice and its list item. */
+/** The fields the settlement rule reads, so one rule serves the invoice and its list item. */
 type SettlementStatusShape = {
   status: z.infer<typeof invoiceStatusSchema>;
+  totalMinor: string;
   settlement?: z.infer<typeof invoiceSettlementSchema> | null | undefined;
 };
 
+/**
+ * Reads a minor-unit amount as a bigint, or null when the text is not a canonical amount — its own schema
+ * already refuses it, and the rule below must not crash on a payload that failed there.
+ */
+const readMinor = (amount: string): bigint | null => {
+  try {
+    const value = BigInt(amount);
+    return value.toString() === amount ? value : null;
+  } catch (error) {
+    if (!(error instanceof SyntaxError)) throw error;
+    return null;
+  }
+};
+
 /** An issued invoice carries its settlement; a void invoice carries none. */
-const settlementMatchesStatus = (invoice: SettlementStatusShape, ctx: z.RefinementCtx): void => {
-  if (invoice.settlement === undefined) return;
+const statusAgreesWithSettlement = (invoice: SettlementStatusShape): boolean => {
   const issuedWithoutSettlement = invoice.status === "issued" && invoice.settlement === null;
   const voidWithSettlement = invoice.status === "void" && invoice.settlement !== null;
-  if (!issuedWithoutSettlement && !voidWithSettlement) return;
+  return !issuedWithoutSettlement && !voidWithSettlement;
+};
+
+/**
+ * On an issued invoice the paid plus the owed is the invoiced total (owed = total − paid), so a settlement
+ * that does not add up is refused. The amounts are canonical decimal strings, so bigint keeps them exact.
+ */
+const settlementSumsToTotal = (invoice: SettlementStatusShape): boolean => {
+  const settlement = invoice.settlement;
+  if (invoice.status !== "issued" || settlement === null || settlement === undefined) return true;
+  const paid = readMinor(settlement.paidMinor);
+  const owed = readMinor(settlement.owedMinor);
+  const total = readMinor(invoice.totalMinor);
+  if (paid === null || owed === null || total === null) return true;
+  return paid + owed === total;
+};
+
+/**
+ * The settlement must agree with the status and add up to the total, so no reader sees a void invoice
+ * carrying a balance or a balance that does not belong to the invoice.
+ */
+const settlementMatchesStatus = (invoice: SettlementStatusShape, ctx: z.RefinementCtx): void => {
+  if (invoice.settlement === undefined) return;
+  if (statusAgreesWithSettlement(invoice) && settlementSumsToTotal(invoice)) return;
   ctx.addIssue({ code: "custom", path: ["settlement"], message: "validation.invoiceSettlement" });
 };
 
-/** The settlement must agree with the status, so no reader sees a void invoice carrying a balance. */
+/**
+ * The settlement must agree with the status and add up to the total, so no reader sees a balance that
+ * does not belong to the invoice.
+ */
 export const invoiceSchema = invoiceObjectSchema.superRefine(settlementMatchesStatus);
 export type Invoice = z.infer<typeof invoiceSchema>;
 

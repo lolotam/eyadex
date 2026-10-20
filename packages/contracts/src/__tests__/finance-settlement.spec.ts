@@ -112,6 +112,39 @@ describe("the invoice settlement agrees with the invoice status", () => {
       invoiceListItemSchema.safeParse({ ...listItem, status, settlement: value }).success,
     ).toBe(true);
   });
+
+  it("refuses an issued invoice whose settlement does not add up to the total", () => {
+    const value = { state: "partly_paid", paidMinor: "900", owedMinor: "900" };
+    const detail = invoiceSchema.safeParse({ ...invoice, settlement: value });
+    expect(detail.success).toBe(false);
+    if (!detail.success) {
+      expect(detail.error.issues[0]?.message).toBe("validation.invoiceSettlement");
+      expect(detail.error.issues[0]?.path).toEqual(["settlement"]);
+    }
+    const item = invoiceListItemSchema.safeParse({ ...listItem, settlement: value });
+    expect(item.success).toBe(false);
+    if (!item.success) {
+      expect(item.error.issues[0]?.message).toBe("validation.invoiceSettlement");
+      expect(item.error.issues[0]?.path).toEqual(["settlement"]);
+    }
+  });
+
+  it("accepts an issued invoice whose settlement adds up to the total", () => {
+    const value = { state: "partly_paid", paidMinor: "400", owedMinor: "600" };
+    expect(invoiceSchema.safeParse({ ...invoice, settlement: value }).success).toBe(true);
+    expect(invoiceListItemSchema.safeParse({ ...listItem, settlement: value }).success).toBe(true);
+  });
+
+  it("keeps a total beyond the safe integers exact", () => {
+    const totalMinor = "9007199254740993";
+    const value = { state: "partly_paid", paidMinor: "9007199254740992", owedMinor: "1" };
+    expect(invoiceSchema.safeParse({ ...invoice, totalMinor, settlement: value }).success).toBe(
+      true,
+    );
+    expect(
+      invoiceListItemSchema.safeParse({ ...listItem, totalMinor, settlement: value }).success,
+    ).toBe(true);
+  });
 });
 
 describe("the finance settings carry the complete payment method list", () => {
