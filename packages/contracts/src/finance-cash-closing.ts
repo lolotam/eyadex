@@ -8,23 +8,10 @@ import {
   currencyCodeSchema,
   minorAmountSchema,
   positiveMinorAmountSchema,
+  readMinor,
   signedCashMinorAmountSchema,
   signedMinorAmountSchema,
 } from "./money.ts";
-
-/**
- * Reads a minor-unit amount as a bigint, or null when the text is not a canonical amount — its own schema
- * already refuses it, and the rules below must not crash on a payload that failed there.
- */
-const readMinor = (amount: string): bigint | null => {
-  try {
-    const value = BigInt(amount);
-    return value.toString() === amount ? value : null;
-  } catch (error) {
-    if (!(error instanceof SyntaxError)) throw error;
-    return null;
-  }
-};
 
 /** Per-method inflows and outflows stay separate so refunds do not hide the collected amount. */
 export const methodTotalSchema = z

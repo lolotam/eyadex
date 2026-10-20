@@ -175,4 +175,47 @@ describe("invoice payment history", () => {
     };
     expect(invoicePaymentsResponseSchema.parse(response)).toEqual(response);
   });
+
+  const paymentMovement = {
+    ...base,
+    kind: "payment",
+    paymentId: ID,
+    receiptNumber: "SLM-R-2026-000001",
+    method: "cash",
+    refundableMinor: "0",
+  };
+
+  it("accepts a refundable amount equal to the amount paid", () => {
+    const movement = { ...paymentMovement, refundableMinor: "1000" };
+    expect(invoicePaymentMovementSchema.parse(movement)).toEqual(movement);
+  });
+
+  it("refuses a refundable amount above the amount paid (#91)", () => {
+    const result = invoicePaymentMovementSchema.safeParse({
+      ...paymentMovement,
+      refundableMinor: "1001",
+    });
+    expect(result.success).toBe(false);
+    expect(result.error?.issues.map((issue) => issue.path)).toEqual([["refundableMinor"]]);
+  });
+
+  it("refuses a negative refundable amount", () => {
+    const result = invoicePaymentMovementSchema.safeParse({
+      ...paymentMovement,
+      refundableMinor: "-1",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("refuses the same payment movement inside the invoice history", () => {
+    const response = {
+      invoiceId: ID,
+      currency: "KWD",
+      currencyExponent: 3,
+      settlement: null,
+      creditBalanceMinor: "0",
+      movements: [{ ...paymentMovement, refundableMinor: "1001" }],
+    };
+    expect(invoicePaymentsResponseSchema.safeParse(response).success).toBe(false);
+  });
 });

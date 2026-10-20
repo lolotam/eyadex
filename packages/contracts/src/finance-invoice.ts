@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { idSchema } from "./common.ts";
-import { currencyCodeSchema, minorAmountSchema } from "./money.ts";
+import { currencyCodeSchema, minorAmountSchema, readMinor } from "./money.ts";
 
 export const invoiceSourceSchema = z.enum(["appointment", "visit", "manual"]);
 export type InvoiceSource = z.infer<typeof invoiceSourceSchema>;
@@ -85,20 +85,6 @@ type SettlementStatusShape = {
   status: z.infer<typeof invoiceStatusSchema>;
   totalMinor: string;
   settlement?: z.infer<typeof invoiceSettlementSchema> | null | undefined;
-};
-
-/**
- * Reads a minor-unit amount as a bigint, or null when the text is not a canonical amount — its own schema
- * already refuses it, and the rule below must not crash on a payload that failed there.
- */
-const readMinor = (amount: string): bigint | null => {
-  try {
-    const value = BigInt(amount);
-    return value.toString() === amount ? value : null;
-  } catch (error) {
-    if (!(error instanceof SyntaxError)) throw error;
-    return null;
-  }
 };
 
 /** An issued invoice carries its settlement; a void invoice carries none. */
