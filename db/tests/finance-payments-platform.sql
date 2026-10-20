@@ -24,13 +24,36 @@ BEGIN
        OR NOT has_table_privilege('eyadex_app', t, 'INSERT') THEN
       RAISE EXCEPTION 'FIN-F2-GRANTS: eyadex_app cannot read or write %', t;
     END IF;
-    -- Only the counters and the settings row are updated (spec §4.2).
-    IF has_table_privilege('eyadex_app', t, 'UPDATE') <> (t IN ('clinic_payment_methods','receipt_sequences','branch_cash_drawers')) THEN
-      RAISE EXCEPTION 'FIN-F2-GRANTS: eyadex_app UPDATE on % is wrong', t;
+    -- No table-level UPDATE on any money table: only the counters and the switch change, by name (PR #92 review).
+    IF has_table_privilege('eyadex_app', t, 'UPDATE') THEN
+      RAISE EXCEPTION 'FIN-F2-GRANTS: eyadex_app has a table-level UPDATE on %', t;
     END IF;
     FOREACH priv IN ARRAY ARRAY['DELETE','TRUNCATE'] LOOP
       IF has_table_privilege('eyadex_app', t, priv) THEN
         RAISE EXCEPTION 'FIN-F2-GRANTS: eyadex_app has % on %', priv, t;
+      END IF;
+    END LOOP;
+  END LOOP;
+  -- The column-level UPDATE is exactly the counters and the switch; a row's identity never moves (PR #92 review).
+  FOR t, want IN SELECT * FROM (VALUES
+      ('clinic_payment_methods', ARRAY['enabled','updated_at']::text[]),
+      ('receipt_sequences', ARRAY['next_number','updated_at']::text[]),
+      ('branch_cash_drawers', ARRAY['last_cash_seq','last_closed_seq','last_closing_id','updated_at']::text[])
+    ) AS v(t, want) LOOP
+    FOR col IN SELECT column_name FROM information_schema.columns
+               WHERE table_schema = 'public' AND table_name = t LOOP
+      SELECT has_column_privilege('eyadex_app', t, col, 'UPDATE') INTO got;
+      IF got <> (col = ANY (want)) THEN
+        RAISE EXCEPTION 'FIN-F2-GRANTS: eyadex_app updates % of % wrongly', col, t;
+      END IF;
+    END LOOP;
+  END LOOP;
+  -- No column of the other six money tables is updatable.
+  FOREACH t IN ARRAY ARRAY['payments','payment_allocations','patient_credits','refunds','refund_sources','cash_closings'] LOOP
+    FOR col IN SELECT column_name FROM information_schema.columns
+               WHERE table_schema = 'public' AND table_name = t LOOP
+      IF has_column_privilege('eyadex_app', t, col, 'UPDATE') THEN
+        RAISE EXCEPTION 'FIN-F2-GRANTS: eyadex_app updates the column % of %', col, t;
       END IF;
     END LOOP;
   END LOOP;

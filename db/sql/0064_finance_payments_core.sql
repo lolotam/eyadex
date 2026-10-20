@@ -309,9 +309,13 @@ CREATE POLICY branch_cash_drawers_tenant_isolation ON branch_cash_drawers
 
 -- Spec §4.2: money rows are append-only, so they get SELECT and INSERT only; only the counters and the
 -- settings row change. The platform reads finance as totals only (FIN-3), so it gets no privilege here.
+-- Only the counters and the switch change; a row never moves to another clinic, branch, series, year or method (PR #92 review).
 GRANT SELECT, INSERT ON payments, payment_allocations, patient_credits, refunds, refund_sources, cash_closings
   TO eyadex_app;
-GRANT SELECT, INSERT, UPDATE ON clinic_payment_methods, receipt_sequences, branch_cash_drawers TO eyadex_app;
+GRANT SELECT, INSERT ON clinic_payment_methods, receipt_sequences, branch_cash_drawers TO eyadex_app;
+GRANT UPDATE (enabled, updated_at) ON clinic_payment_methods TO eyadex_app;
+GRANT UPDATE (next_number, updated_at) ON receipt_sequences TO eyadex_app;
+GRANT UPDATE (last_cash_seq, last_closed_seq, last_closing_id, updated_at) ON branch_cash_drawers TO eyadex_app;
 REVOKE ALL ON clinic_payment_methods, receipt_sequences, payments, payment_allocations, patient_credits, refunds,
   refund_sources, cash_closings, branch_cash_drawers FROM eyadex_platform;
 

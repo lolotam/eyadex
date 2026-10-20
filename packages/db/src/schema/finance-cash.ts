@@ -150,7 +150,7 @@ export const cashClosings = pgTable(
     toCashSeq: minor("to_cash_seq").notNull(),
     expectedMinor: minor("expected_minor").notNull(),
     countedMinor: minor("counted_minor").notNull(),
-    // The difference is computed, never written (R3-3).
+    // The difference is computed, never written (spec §4.2, R3-5).
     differenceMinor: minor("difference_minor").generatedAlwaysAs(
       sql`counted_minor - expected_minor`,
     ),

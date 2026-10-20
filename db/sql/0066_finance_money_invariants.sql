@@ -8,6 +8,8 @@
 -- PR #89 review asks 0066 to prove a branch's cash numbers are disjoint and contiguous (by induction: every
 -- cash movement checks its own number and the one before; every drawer write checks its last number and that
 -- no movement is beyond it), and issue #91 asks that a payment's allocations never release more than it.
+-- The checks take a clinic-wide advisory lock first, so two transactions that reach COMMIT together are
+-- serialised and the second one re-reads what the first committed (PR #92 review).
 
 -- The owner role and its read access: the 0061 pattern, a NOLOGIN, NOBYPASSRLS role reading exactly the
 -- columns the checks need.
@@ -58,6 +60,10 @@ DECLARE
   v_sourced  numeric;
   v_refunded numeric;
 BEGIN
+  -- One clinic-wide lock serialises the commit-time checks, so a transaction waits for another that is
+  -- checking the same clinic and then re-reads what it committed; the holder only reads, so it never
+  -- waits on another lock and adds no deadlock (ADR-0027 item 12).
+  PERFORM pg_advisory_xact_lock(hashtextextended('finance_check:' || p_clinic::text, 0));
   -- §4.3 invariant 1: live(a) ≥ 0 — an allocation never releases more than it placed.
   IF EXISTS (
     SELECT 1 FROM payment_allocations a
@@ -149,6 +155,8 @@ CREATE FUNCTION finance_check_cash_movement(p_clinic uuid, p_branch uuid, p_seq 
   SET search_path = pg_catalog, public
 AS $$
 BEGIN
+  -- The same clinic-wide check lock (see finance_check_patient).
+  PERFORM pg_advisory_xact_lock(hashtextextended('finance_check:' || p_clinic::text, 0));
   -- The numbers are disjoint: a cash number is held by one movement, a payment or a refund.
   IF (SELECT count(*) FROM payments WHERE clinic_id = p_clinic AND branch_id = p_branch AND cash_seq = p_seq)
      + (SELECT count(*) FROM refunds WHERE clinic_id = p_clinic AND branch_id = p_branch AND cash_seq = p_seq)
@@ -179,6 +187,8 @@ AS $$
 DECLARE
   d record;
 BEGIN
+  -- The same clinic-wide check lock (see finance_check_patient).
+  PERFORM pg_advisory_xact_lock(hashtextextended('finance_check:' || p_clinic::text, 0));
   SELECT last_cash_seq, last_closed_seq, last_closing_id INTO d FROM branch_cash_drawers
     WHERE clinic_id = p_clinic AND branch_id = p_branch;
   -- No movement holds a number the drawer has not handed out.
@@ -216,6 +226,8 @@ AS $$
 DECLARE
   k record;
 BEGIN
+  -- The same clinic-wide check lock (see finance_check_patient).
+  PERFORM pg_advisory_xact_lock(hashtextextended('finance_check:' || p_clinic::text, 0));
   SELECT branch_id, from_cash_seq, to_cash_seq, expected_minor, previous_closing_id INTO k FROM cash_closings
     WHERE clinic_id = p_clinic AND id = p_closing;
   -- The period starts where the previous closing ended (R3-3, §4.4).

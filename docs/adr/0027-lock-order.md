@@ -2,7 +2,7 @@
 
 - Status: accepted (owner decision 2026-10-10, slice A2)
 - Date: 2026-10-10
-- Amended: 2026-10-20 (finance F2, slice 2): items 0, 7a, 9a, 9b and 9c (finance spec §4.4, ADR-0034).
+- Amended: 2026-10-20 (finance F2, slice 2): items 0, 7a, 9a, 9b, 9c and 12 (finance spec §4.4, ADR-0034).
 
 ## Context
 
@@ -48,6 +48,8 @@ no other path locks that row)
 10. a `clinic_services` row
 11. the `clinics` row: every clinic-table INSERT takes `KEY SHARE` on it through `clinic_id`, so the
     writers that lock it `FOR UPDATE` (clinic settings, platform clinic changes) take nothing after it
+12. `finance_check:<clinic>` (advisory, finance F2 0066): taken by the commit-time money checks at
+    COMMIT, after everything else; the holder only reads, so it never waits on a later lock.
 
 The rule for implicit locks: a row a write will reference through a foreign key is locked explicitly at
 its place in the list before anything later is taken, so the INSERT's `KEY SHARE` is already held. The
