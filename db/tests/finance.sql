@@ -481,6 +481,22 @@ BEGIN
     RAISE EXCEPTION 'FIN-F2: a payment named another patient''s invoice';
   EXCEPTION WHEN foreign_key_violation THEN NULL; END;
 
+  -- Money is received in the invoice's branch (F2-Q8): a payment or a refund cannot name another one.
+  BEGIN
+    INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+        amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+      VALUES (c, gen_random_uuid(), br2, pt, i1, 2026, 21, 'SAL-R-2026-000021', 'knet', 1000, 'KWD', 3, null, now(),
+        current_date, null, mb, now());
+    RAISE EXCEPTION 'FIN-F2: a payment in another branch than its invoice accepted';
+  EXCEPTION WHEN foreign_key_violation THEN NULL; END;
+  BEGIN
+    INSERT INTO refunds (clinic_id, id, branch_id, patient_id, invoice_id, year, refund_seq, refund_number, method,
+        amount_minor, currency, currency_exponent, reason, refunded_at, business_date, cash_seq, refunded_by, created_at)
+      VALUES (c, gen_random_uuid(), br2, pt, i1, 2026, 21, 'SAL-RF-2026-000021', 'knet', 1000, 'KWD', 3, 'x', now(),
+        current_date, null, mb, now());
+    RAISE EXCEPTION 'FIN-F2: a refund in another branch than its invoice accepted';
+  EXCEPTION WHEN foreign_key_violation THEN NULL; END;
+
   -- An allocation is funded by exactly one payment or one credit.
   BEGIN
     INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,

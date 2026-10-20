@@ -148,4 +148,31 @@ describe("the commit-time money checks serialise on one clinic-wide lock (PR #92
       await endHolder();
     }
   });
+
+  it("refuses money written under REPEATABLE READ (PR #92 review)", async () => {
+    // The credit still holds 300 after the case above, so 100 is otherwise valid: the only thing that
+    // refuses this transaction is the isolation level, whose snapshot would not see the lock holder.
+    const failure = await one
+      .begin("isolation level repeatable read", async (tx) => {
+        await tx`SELECT set_config('app.clinic_id', ${A.clinicId}, true)`;
+        await tx`
+          INSERT INTO payment_allocations (clinic_id, id, invoice_id, patient_id, payment_id, credit_id, amount_minor,
+              created_by, created_at)
+          VALUES (${A.clinicId}, ${newTestId()}, ${i2}, ${A.patientId}, NULL, ${creditId}, 100,
+              ${newTestId()}, now())
+        `;
+        await tx`SELECT set_config('app.clinic_id', '', true)`;
+      })
+      .then(
+        () => undefined,
+        (error: unknown) => error as { code?: string; message?: string },
+      );
+    expect(failure?.code).toBe("P0001");
+    expect(failure?.message).toBe("finance_invariant");
+    // The refused transaction stored nothing.
+    const rows = await owner<{ n: string }[]>`
+      SELECT count(*) AS n FROM payment_allocations WHERE credit_id = ${creditId} AND amount_minor = 100
+    `;
+    expect(Number(rows[0]?.n ?? -1)).toBe(0);
+  });
 });
