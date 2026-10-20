@@ -70,6 +70,41 @@ BEGIN
       VALUES (c, ('00000000-0000-7000-8000-0000000004'||s||'5')::uuid, ('00000000-0000-7000-8000-0000000004'||s||'4')::uuid, 0, 'service', ('00000000-0000-7000-8000-0000000001'||s||'f')::uuid, ('00000000-0000-7000-8000-0000000001'||s||'5')::uuid, 'ليزر', 'Laser', 1, 15000, 15000, now(), now());
     INSERT INTO invoice_links VALUES (c, ('00000000-0000-7000-8000-0000000004'||s||'6')::uuid, ('00000000-0000-7000-8000-0000000004'||s||'4')::uuid, ('00000000-0000-7000-8000-0000000003'||s||'e')::uuid, sha256(convert_to('link-'||s, 'UTF8')),
       'v1.iv.body.tag', now() + interval '14 days', null, now());
+    -- Finance F2 (0064): one row in each money table; the rows roll back, so 0066's commit-time checks never fire here.
+    INSERT INTO clinic_payment_methods (clinic_id, id, method, enabled, created_at, updated_at)
+      VALUES (c, ('00000000-0000-7000-8000-0000000005'||s||'1')::uuid, 'cash', true, now(), now());
+    INSERT INTO receipt_sequences (clinic_id, id, branch_id, series, year, next_number, created_at, updated_at)
+      VALUES (c, ('00000000-0000-7000-8000-0000000005'||s||'2')::uuid, ('00000000-0000-7000-8000-0000000001'||s||'2')::uuid, 'receipt', 2026, 2, now(), now());
+    INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+        amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+      VALUES (c, ('00000000-0000-7000-8000-0000000005'||s||'3')::uuid, ('00000000-0000-7000-8000-0000000001'||s||'2')::uuid,
+        ('00000000-0000-7000-8000-0000000001'||s||'9')::uuid, ('00000000-0000-7000-8000-0000000004'||s||'4')::uuid, 2026, 1,
+        'P'||upper(s)||'-R-2026-000001', 'cash', 15000, 'KWD', 3, null, now(), current_date, 1,
+        ('00000000-0000-7000-8000-0000000002'||s||'5')::uuid, now());
+    INSERT INTO payment_allocations (clinic_id, id, invoice_id, patient_id, payment_id, credit_id, amount_minor, created_by, created_at)
+      VALUES (c, ('00000000-0000-7000-8000-0000000005'||s||'4')::uuid, ('00000000-0000-7000-8000-0000000004'||s||'4')::uuid,
+        ('00000000-0000-7000-8000-0000000001'||s||'9')::uuid, ('00000000-0000-7000-8000-0000000005'||s||'3')::uuid, null, 15000,
+        ('00000000-0000-7000-8000-0000000002'||s||'5')::uuid, now());
+    INSERT INTO patient_credits (clinic_id, id, patient_id, origin_allocation_id, amount_minor, cause, created_by, created_at)
+      VALUES (c, ('00000000-0000-7000-8000-0000000005'||s||'5')::uuid, ('00000000-0000-7000-8000-0000000001'||s||'9')::uuid,
+        ('00000000-0000-7000-8000-0000000005'||s||'4')::uuid, 1000, 'refund', ('00000000-0000-7000-8000-0000000002'||s||'5')::uuid, now());
+    INSERT INTO refunds (clinic_id, id, branch_id, patient_id, invoice_id, year, refund_seq, refund_number, method,
+        amount_minor, currency, currency_exponent, reason, refunded_at, business_date, cash_seq, refunded_by, created_at)
+      VALUES (c, ('00000000-0000-7000-8000-0000000005'||s||'6')::uuid, ('00000000-0000-7000-8000-0000000001'||s||'2')::uuid,
+        ('00000000-0000-7000-8000-0000000001'||s||'9')::uuid, ('00000000-0000-7000-8000-0000000004'||s||'4')::uuid, 2026, 1,
+        'P'||upper(s)||'-RF-2026-000001', 'knet', 1000, 'KWD', 3, 'x', now(), current_date, null,
+        ('00000000-0000-7000-8000-0000000002'||s||'5')::uuid, now());
+    INSERT INTO refund_sources (clinic_id, id, refund_id, credit_id, patient_id, amount_minor, created_at)
+      VALUES (c, ('00000000-0000-7000-8000-0000000005'||s||'8')::uuid, ('00000000-0000-7000-8000-0000000005'||s||'6')::uuid,
+        ('00000000-0000-7000-8000-0000000005'||s||'5')::uuid, ('00000000-0000-7000-8000-0000000001'||s||'9')::uuid, 1000, now());
+    INSERT INTO cash_closings (clinic_id, id, branch_id, business_date, from_cash_seq, to_cash_seq, expected_minor,
+        counted_minor, method_totals, note, previous_closing_id, currency, currency_exponent, closed_by, closed_at, created_at)
+      VALUES (c, ('00000000-0000-7000-8000-0000000005'||s||'7')::uuid, ('00000000-0000-7000-8000-0000000001'||s||'2')::uuid,
+        current_date, 0, 1, 15000, 15000, '[]'::jsonb, null, null, 'KWD', 3,
+        ('00000000-0000-7000-8000-0000000002'||s||'5')::uuid, now(), now());
+    INSERT INTO branch_cash_drawers (clinic_id, id, branch_id, last_cash_seq, last_closed_seq, last_closing_id, created_at, updated_at)
+      VALUES (c, ('00000000-0000-7000-8000-0000000005'||s||'9')::uuid, ('00000000-0000-7000-8000-0000000001'||s||'2')::uuid, 1, 1,
+        ('00000000-0000-7000-8000-0000000005'||s||'7')::uuid, now(), now());
     -- An appointment's audit row names a patient's booking: administrative, yet never the platform's (0043).
     INSERT INTO audit_log VALUES (c, ('00000000-0000-7000-8000-0000000003'||s||'4')::uuid, ('00000000-0000-7000-8000-0000000002'||s||'5')::uuid, 'appointment.booked', 'administrative', 'appointment', ('00000000-0000-7000-8000-0000000003'||s||'3')::uuid, null, '{}', now());
     INSERT INTO audit_log VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'a')::uuid, ('00000000-0000-7000-8000-0000000002'||s||'5')::uuid, 'user.invited', 'administrative', 'user', null, null, '{}', now());
@@ -103,7 +138,8 @@ BEGIN
       'patient_medical_profiles','visit_diagnoses','visit_prescription_items','clinic_medicines',
       'patient_attachments','clinic_notification_settings','patient_notifications',
       'clinic_whatsapp_channels','used_invoice_prefixes','service_provider_prices','invoice_sequences',
-      'invoices','invoice_lines','invoice_links'] LOOP
+      'invoices','invoice_lines','invoice_links','clinic_payment_methods','receipt_sequences','payments',
+      'payment_allocations','patient_credits','refunds','refund_sources','cash_closings','branch_cash_drawers'] LOOP
     EXECUTE format('SELECT count(*) FROM %I WHERE clinic_id = $1', t) INTO n USING other;
     IF n <> 0 THEN RAISE EXCEPTION 'ISO-01 read leak: % shows % rows of another clinic', t, n; END IF;
     EXECUTE format('SELECT count(*) FROM %I', t) INTO n;
@@ -265,6 +301,63 @@ BEGIN
       '00000000-0000-7000-8000-0000000003be', sha256(convert_to('probe', 'UTF8')), 'v1.x', now(), null, now());
     RAISE EXCEPTION 'ISO-01 write leak: invoice_links';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  -- Finance F2 (0064): every money row must satisfy its own checks, so the refusal is the clinic's, not the row's.
+  BEGIN
+    INSERT INTO clinic_payment_methods (clinic_id, id, method, enabled, created_at, updated_at)
+      VALUES (b, gen_random_uuid(), 'other', true, now(), now());
+    RAISE EXCEPTION 'ISO-01 write leak: clinic_payment_methods';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    INSERT INTO receipt_sequences (clinic_id, id, branch_id, series, year, next_number, created_at, updated_at)
+      VALUES (b, gen_random_uuid(), '00000000-0000-7000-8000-0000000001b2', 'receipt', 2027, 1, now(), now());
+    RAISE EXCEPTION 'ISO-01 write leak: receipt_sequences';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+        amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+      VALUES (b, gen_random_uuid(), '00000000-0000-7000-8000-0000000001b2', '00000000-0000-7000-8000-0000000001b9',
+        '00000000-0000-7000-8000-0000000004b4', 2026, 9, 'PB-R-2026-000009', 'knet', 100, 'KWD', 3, null, now(),
+        current_date, null, '00000000-0000-7000-8000-0000000002b5', now());
+    RAISE EXCEPTION 'ISO-01 write leak: payments';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    INSERT INTO payment_allocations (clinic_id, id, invoice_id, patient_id, payment_id, credit_id, amount_minor, created_by, created_at)
+      VALUES (b, gen_random_uuid(), '00000000-0000-7000-8000-0000000004b4', '00000000-0000-7000-8000-0000000001b9',
+        '00000000-0000-7000-8000-0000000005b3', null, 100, '00000000-0000-7000-8000-0000000002b5', now());
+    RAISE EXCEPTION 'ISO-01 write leak: payment_allocations';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    INSERT INTO patient_credits (clinic_id, id, patient_id, origin_allocation_id, amount_minor, cause, created_by, created_at)
+      VALUES (b, gen_random_uuid(), '00000000-0000-7000-8000-0000000001b9', '00000000-0000-7000-8000-0000000005b4',
+        100, 'refund', '00000000-0000-7000-8000-0000000002b5', now());
+    RAISE EXCEPTION 'ISO-01 write leak: patient_credits';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    INSERT INTO refunds (clinic_id, id, branch_id, patient_id, invoice_id, year, refund_seq, refund_number, method,
+        amount_minor, currency, currency_exponent, reason, refunded_at, business_date, cash_seq, refunded_by, created_at)
+      VALUES (b, gen_random_uuid(), '00000000-0000-7000-8000-0000000001b2', '00000000-0000-7000-8000-0000000001b9',
+        '00000000-0000-7000-8000-0000000004b4', 2026, 9, 'PB-RF-2026-000009', 'knet', 100, 'KWD', 3, 'x', now(),
+        current_date, null, '00000000-0000-7000-8000-0000000002b5', now());
+    RAISE EXCEPTION 'ISO-01 write leak: refunds';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    INSERT INTO refund_sources (clinic_id, id, refund_id, credit_id, patient_id, amount_minor, created_at)
+      VALUES (b, gen_random_uuid(), '00000000-0000-7000-8000-0000000005b6', '00000000-0000-7000-8000-0000000005b5',
+        '00000000-0000-7000-8000-0000000001b9', 100, now());
+    RAISE EXCEPTION 'ISO-01 write leak: refund_sources';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    INSERT INTO cash_closings (clinic_id, id, branch_id, business_date, from_cash_seq, to_cash_seq, expected_minor,
+        counted_minor, method_totals, note, previous_closing_id, currency, currency_exponent, closed_by, closed_at, created_at)
+      VALUES (b, gen_random_uuid(), '00000000-0000-7000-8000-0000000001b2', current_date + 5, 0, 0, 0, 0, '[]'::jsonb, null,
+        '00000000-0000-7000-8000-0000000005b7', 'KWD', 3, '00000000-0000-7000-8000-0000000002b5', now(), now());
+    RAISE EXCEPTION 'ISO-01 write leak: cash_closings';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    INSERT INTO branch_cash_drawers (clinic_id, id, branch_id, last_cash_seq, last_closed_seq, last_closing_id, created_at, updated_at)
+      VALUES (b, gen_random_uuid(), '00000000-0000-7000-8000-0000000001b2', 0, 0, null, now(), now());
+    RAISE EXCEPTION 'ISO-01 write leak: branch_cash_drawers';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   BEGIN
     INSERT INTO audit_log VALUES (b, gen_random_uuid(), gen_random_uuid(), 'user.invited', 'administrative', 'user', null, null, '{}', now());
     RAISE EXCEPTION 'ISO-01 write leak: audit_log';
@@ -278,7 +371,8 @@ BEGIN
         'visit_notes','patient_medical_profiles','visit_diagnoses','visit_prescription_items',
         'clinic_medicines','patient_attachments','clinic_notification_settings',
         'patient_notifications','clinic_whatsapp_channels','service_provider_prices','invoice_sequences',
-        'invoices','invoice_lines','invoice_links','used_invoice_prefixes'] LOOP
+        'invoices','invoice_lines','invoice_links','used_invoice_prefixes','clinic_payment_methods',
+        'receipt_sequences','branch_cash_drawers'] LOOP
       BEGIN
         EXECUTE format('UPDATE %I SET clinic_id = $1', t) USING b;
         RAISE EXCEPTION 'ISO-01 write leak: % rows can be moved to another clinic', t;
@@ -336,6 +430,21 @@ BEGIN
   END LOOP;
   BEGIN UPDATE used_invoice_prefixes SET prefix = prefix; RAISE EXCEPTION 'used_invoice_prefixes are updatable';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  -- Finance F2 (0064, spec §4.2): money rows are append-only — never updated, never deleted; the counters and the
+  -- payment-methods row are updated, never deleted.
+  FOREACH m IN ARRAY ARRAY['payments','payment_allocations','patient_credits','refunds','refund_sources','cash_closings'] LOOP
+    BEGIN EXECUTE format('UPDATE %I SET created_at = created_at', m); RAISE EXCEPTION '% are updatable', m;
+    EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+    BEGIN EXECUTE format('DELETE FROM %I', m); RAISE EXCEPTION '% are hard-deletable', m;
+    EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  END LOOP;
+  FOREACH m IN ARRAY ARRAY['clinic_payment_methods','receipt_sequences','branch_cash_drawers'] LOOP
+    BEGIN EXECUTE format('DELETE FROM %I', m); RAISE EXCEPTION '% are hard-deletable', m;
+    EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  END LOOP;
+  UPDATE branch_cash_drawers SET last_cash_seq = last_cash_seq WHERE clinic_id = b;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 0 THEN RAISE EXCEPTION 'ISO-01 write leak: updated % cash drawers of another clinic', n; END IF;
   UPDATE invoices SET status = 'void', voided_at = now(), void_reason = 'x' WHERE clinic_id = b;
   GET DIAGNOSTICS n = ROW_COUNT;
   IF n <> 0 THEN RAISE EXCEPTION 'ISO-01 write leak: voided % invoices of another clinic', n; END IF;
@@ -431,7 +540,9 @@ BEGIN
   BEGIN PERFORM 1 FROM clinic_whatsapp_channels LIMIT 1; RAISE EXCEPTION 'PLAT: platform can read clinic_whatsapp_channels';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   -- Finance (0060): no platform privilege on any finance table.
-  FOREACH t IN ARRAY ARRAY['used_invoice_prefixes','service_provider_prices','invoice_sequences','invoices','invoice_lines','invoice_links'] LOOP
+  FOREACH t IN ARRAY ARRAY['used_invoice_prefixes','service_provider_prices','invoice_sequences','invoices','invoice_lines','invoice_links',
+      'clinic_payment_methods','receipt_sequences','payments','payment_allocations','patient_credits','refunds',
+      'refund_sources','cash_closings','branch_cash_drawers'] LOOP
     BEGIN EXECUTE format('SELECT 1 FROM %I LIMIT 1', t); RAISE EXCEPTION 'PLAT-01: platform can read %', t;
     EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   END LOOP;

@@ -74,6 +74,11 @@ export const SYSTEM_ROLES: readonly SystemRoleTemplate[] = [
       "create:invoices:branch",
       "update:invoices:branch",
       "view:prices:clinic",
+      // Finance F2 (F2-Q15): the front desk records payments and closes its branches' cash; refunds stay with the admin.
+      "view:payments:branch",
+      "create:payments:branch",
+      "view:cash_closings:branch",
+      "create:cash_closings:branch",
     ],
   },
   {

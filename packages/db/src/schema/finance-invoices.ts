@@ -77,6 +77,8 @@ export const invoices = pgTable(
       foreignColumns: [patients.clinicId, patients.id],
     }),
     unique("invoices_number_unique").on(t.clinicId, t.number),
+    // 0064: the money rows reach the invoice through a key that carries the patient.
+    unique("invoices_id_patient_unique").on(t.clinicId, t.id, t.patientId),
     uniqueIndex("invoices_clinic_source_live")
       .on(t.clinicId, t.source, t.sourceId)
       .where(sql.raw("status <> 'void'::text")),

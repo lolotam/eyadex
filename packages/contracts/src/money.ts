@@ -17,6 +17,9 @@ export const MAX_MINOR = 9_223_372_036_854_775_807n;
 /** R3-5: a negative drawer expectation or difference may reach PostgreSQL's bigint floor. */
 export const MIN_MINOR = -9_223_372_036_854_775_808n;
 
+/** A drawer's counted and expected amounts are bounded so counted − expected always fits `bigint` (PR #89 review; 0064 CHECKs the same bound). */
+export const MAX_CASH_MINOR = 1_000_000_000_000_000_000n;
+
 const MINOR_TEXT = /^(0|[1-9][0-9]{0,18})$/;
 
 // One refine (not regex + refine): Zod runs every refine even after a failed regex, and BigInt("1.5") throws.
@@ -47,6 +50,21 @@ export const signedMinorAmountSchema = z
       v !== "-0" &&
       BigInt(v) >= MIN_MINOR &&
       BigInt(v) <= MAX_MINOR,
+    "validation.amount",
+  );
+
+/** A counted drawer amount, bounded so the difference against the expectation always fits a bigint. */
+export const cashMinorAmountSchema = minorUpTo(MAX_CASH_MINOR);
+
+/** A drawer's expected amount: it may be negative, within the same bound as the counted amount. */
+export const signedCashMinorAmountSchema = z
+  .string({ invalid_type_error: "validation.amount" })
+  .refine(
+    (v) =>
+      /^-?(0|[1-9][0-9]{0,18})$/.test(v) &&
+      v !== "-0" &&
+      BigInt(v) >= -MAX_CASH_MINOR &&
+      BigInt(v) <= MAX_CASH_MINOR,
     "validation.amount",
   );
 

@@ -33,3 +33,11 @@ export {
 } from "./notifications.ts";
 export { usedInvoicePrefixes, serviceProviderPrices, invoiceSequences } from "./finance.ts";
 export { invoices, invoiceLines, invoiceLinks } from "./finance-invoices.ts";
+export {
+  clinicPaymentMethods,
+  receiptSequences,
+  payments,
+  paymentAllocations,
+  patientCredits,
+} from "./finance-payments.ts";
+export { refunds, refundSources, cashClosings, branchCashDrawers } from "./finance-cash.ts";

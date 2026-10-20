@@ -93,6 +93,10 @@ describe("new clinics' system roles (A2, A3, P2)", () => {
       "create:invoices:branch",
       "update:invoices:branch",
       "view:prices:clinic",
+      "view:payments:branch",
+      "create:payments:branch",
+      "view:cash_closings:branch",
+      "create:cash_closings:branch",
     ]);
     expect(permissionKeysSchema.safeParse(keysOf("receptionist")).success).toBe(true);
   });

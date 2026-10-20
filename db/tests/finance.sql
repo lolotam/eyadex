@@ -15,12 +15,15 @@ INSERT INTO patients (clinic_id, id, file_number, full_name, phone, birth_date, 
     '00000000-0000-7000-8000-0000000f0002','f1.1.iv.body.tag',repeat('f',64),'0000','active',now(),now());
 INSERT INTO clinic_services VALUES ('00000000-0000-7000-8000-0000000f000a','00000000-0000-7000-8000-0000000f000f','ليزر','Laser',30,'active',now(),now());
 
--- The catalogue holds exactly the 13 finance keys of Task 2 (an exact set, not a count), in the 0x34–0x40 ids.
+-- The catalogue holds exactly the 23 finance keys (F1 Task 2 and F2 §4.1) (an exact set, not a count), in the 0x34–0x4a ids.
 DO $$
 DECLARE expected text[] := ARRAY['view:invoices:clinic','view:invoices:branch','view:invoices:own',
   'create:invoices:clinic','create:invoices:branch','update:invoices:clinic','update:invoices:branch',
   'deactivate:invoices:clinic','deactivate:invoices:branch','create:discounts:clinic','create:discounts:branch',
-  'view:prices:clinic','update:prices:clinic'];
+  'view:prices:clinic','update:prices:clinic',
+  'view:payments:clinic','view:payments:branch','create:payments:clinic','create:payments:branch',
+  'create:refunds:clinic','create:refunds:branch',
+  'view:cash_closings:clinic','view:cash_closings:branch','create:cash_closings:clinic','create:cash_closings:branch'];
   actual text[];
 BEGIN
   SELECT array_agg(key ORDER BY id) INTO actual FROM permissions WHERE module = 'finance';
@@ -28,8 +31,8 @@ BEGIN
     RAISE EXCEPTION 'FIN: finance keys are %, expected %', actual, expected;
   END IF;
   IF (SELECT min(id::text) FROM permissions WHERE module = 'finance') <> '00000000-0000-7000-8000-0000000c0034'
-     OR (SELECT max(id::text) FROM permissions WHERE module = 'finance') <> '00000000-0000-7000-8000-0000000c0040' THEN
-    RAISE EXCEPTION 'FIN: finance key ids are not 0x34–0x40';
+     OR (SELECT max(id::text) FROM permissions WHERE module = 'finance') <> '00000000-0000-7000-8000-0000000c004a' THEN
+    RAISE EXCEPTION 'FIN: finance key ids are not 0x34–0x4a';
   END IF;
 END $$;
 
@@ -435,5 +438,1206 @@ BEGIN
 END $$;
 RESET ROLE;
 
+-- Finance F2 (spec §4.2, §4.3, §4.4; 0064, 0066): the money rows, the schema's own rules and the
+-- commit-time checks. The fixture is written by the owner role; the rules run as the clinic role.
+INSERT INTO branches VALUES ('00000000-0000-7000-8000-0000000f000a','00000000-0000-7000-8000-0000000f0012','ف','B2',true,now(),now());
+INSERT INTO patients (clinic_id, id, file_number, full_name, phone, birth_date, gender, registration_branch_id,
+    civil_id_enc, civil_id_hmac, civil_id_last4, status, created_at, updated_at)
+  VALUES ('00000000-0000-7000-8000-0000000f000a','00000000-0000-7000-8000-0000000f0019','2','x','+96500000019','1990-01-01','male',
+    '00000000-0000-7000-8000-0000000f0002','f1.1.iv.body.tag',repeat('e',64),'0000','active',now(),now());
+INSERT INTO invoices (clinic_id, id, branch_id, patient_id, year, number_seq, number, status, source, source_id,
+    issued_at, currency, currency_exponent, subtotal_minor, discount_minor, tax_rate_bp, tax_minor, total_minor,
+    created_by, created_at, updated_at)
+  VALUES
+  ('00000000-0000-7000-8000-0000000f000a','00000000-0000-7000-8000-0000000f0401','00000000-0000-7000-8000-0000000f0002','00000000-0000-7000-8000-0000000f0009',2026,101,'SAL-2026-000101','issued','manual',null,
+    now(),'KWD',3,10000,0,0,0,10000,'00000000-0000-7000-8000-0000000f0005',now(),now()),
+  ('00000000-0000-7000-8000-0000000f000a','00000000-0000-7000-8000-0000000f0402','00000000-0000-7000-8000-0000000f0002','00000000-0000-7000-8000-0000000f0009',2026,102,'SAL-2026-000102','issued','manual',null,
+    now(),'KWD',3,5000,0,0,0,5000,'00000000-0000-7000-8000-0000000f0005',now(),now()),
+  ('00000000-0000-7000-8000-0000000f000a','00000000-0000-7000-8000-0000000f0403','00000000-0000-7000-8000-0000000f0002','00000000-0000-7000-8000-0000000f0019',2026,103,'SAL-2026-000103','issued','manual',null,
+    now(),'KWD',3,5000,0,0,0,5000,'00000000-0000-7000-8000-0000000f0005',now(),now());
+
+SET LOCAL ROLE eyadex_app;
+SET LOCAL app.clinic_id = '00000000-0000-7000-8000-0000000f000a';
+
+-- The schema's own rules on the F2 money rows (0064, spec §4.2). Every row that survives its own check is
+-- undone, so 0066's commit-time checks never see it.
+DO $$
+DECLARE c uuid := '00000000-0000-7000-8000-0000000f000a';
+  br uuid := '00000000-0000-7000-8000-0000000f0002'; br2 uuid := '00000000-0000-7000-8000-0000000f0012';
+  pt uuid := '00000000-0000-7000-8000-0000000f0009';
+  mb uuid := '00000000-0000-7000-8000-0000000f0005';
+  i1 uuid := '00000000-0000-7000-8000-0000000f0401';
+  i3 uuid := '00000000-0000-7000-8000-0000000f0403';
+  p uuid := gen_random_uuid(); a1 uuid := gen_random_uuid(); c1 uuid := gen_random_uuid();
+  k uuid := gen_random_uuid(); k2 uuid := gen_random_uuid(); k3 uuid := gen_random_uuid();
+  k4 uuid := gen_random_uuid(); k5 uuid := gen_random_uuid();
+BEGIN
+  -- A payment cannot name another patient's invoice: the money carries the patient through its keys.
+  BEGIN
+    INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+        amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+      VALUES (c, gen_random_uuid(), br, pt, i3, 2026, 1, 'SAL-R-2026-000001', 'knet', 1000, 'KWD', 3, null, now(),
+        current_date, null, mb, now());
+    RAISE EXCEPTION 'FIN-F2: a payment named another patient''s invoice';
+  EXCEPTION WHEN foreign_key_violation THEN NULL; END;
+
+  -- An allocation is funded by exactly one payment or one credit.
+  BEGIN
+    INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+        amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+      VALUES (c, p, br, pt, i1, 2026, 1, 'SAL-R-2026-000002', 'knet', 1000, 'KWD', 3, null, now(), current_date, null, mb, now());
+    INSERT INTO payment_allocations (clinic_id, id, invoice_id, patient_id, payment_id, credit_id, amount_minor, created_by, created_at)
+      VALUES (c, a1, i1, pt, p, null, 1000, mb, now());
+    INSERT INTO patient_credits (clinic_id, id, patient_id, origin_allocation_id, amount_minor, cause, created_by, created_at)
+      VALUES (c, c1, pt, a1, 1000, 'refund', mb, now());
+    BEGIN
+      INSERT INTO payment_allocations (clinic_id, id, invoice_id, patient_id, payment_id, credit_id, amount_minor, created_by, created_at)
+        VALUES (c, gen_random_uuid(), i1, pt, p, c1, 1000, mb, now());
+      RAISE EXCEPTION 'FIN-F2: an allocation with two funding sources was accepted';
+    EXCEPTION WHEN check_violation THEN NULL; END;
+    RAISE EXCEPTION 'undo' USING ERRCODE = 'EYT01';
+  EXCEPTION WHEN SQLSTATE 'EYT01' THEN NULL; END;
+  BEGIN
+    INSERT INTO payment_allocations (clinic_id, id, invoice_id, patient_id, payment_id, credit_id, amount_minor, created_by, created_at)
+      VALUES (c, gen_random_uuid(), i1, pt, null, null, 1000, mb, now());
+    RAISE EXCEPTION 'FIN-F2: an allocation with no funding source was accepted';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+
+  -- Cash is exactly the cash movements: the number is there for cash and only for cash.
+  BEGIN
+    INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+        amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+      VALUES (c, gen_random_uuid(), br, pt, i1, 2026, 3, 'SAL-R-2026-000003', 'cash', 1000, 'KWD', 3, null, now(),
+        current_date, null, mb, now());
+    RAISE EXCEPTION 'FIN-F2: a cash payment without a cash number was accepted';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+        amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+      VALUES (c, gen_random_uuid(), br, pt, i1, 2026, 4, 'SAL-R-2026-000004', 'knet', 1000, 'KWD', 3, null, now(),
+        current_date, 1, mb, now());
+    RAISE EXCEPTION 'FIN-F2: a non-cash payment with a cash number was accepted';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    INSERT INTO refunds (clinic_id, id, branch_id, patient_id, invoice_id, year, refund_seq, refund_number, method,
+        amount_minor, currency, currency_exponent, reason, refunded_at, business_date, cash_seq, refunded_by, created_at)
+      VALUES (c, gen_random_uuid(), br, pt, i1, 2026, 3, 'SAL-RF-2026-000003', 'cash', 1000, 'KWD', 3, 'x', now(),
+        current_date, null, mb, now());
+    RAISE EXCEPTION 'FIN-F2: a cash refund without a cash number was accepted';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    INSERT INTO refunds (clinic_id, id, branch_id, patient_id, invoice_id, year, refund_seq, refund_number, method,
+        amount_minor, currency, currency_exponent, reason, refunded_at, business_date, cash_seq, refunded_by, created_at)
+      VALUES (c, gen_random_uuid(), br, pt, i1, 2026, 4, 'SAL-RF-2026-000004', 'knet', 1000, 'KWD', 3, 'x', now(),
+        current_date, 1, mb, now());
+    RAISE EXCEPTION 'FIN-F2: a non-cash refund with a cash number was accepted';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+
+  -- One number per receipt and one per refund.
+  BEGIN
+    INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+        amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+      VALUES (c, gen_random_uuid(), br, pt, i1, 2026, 1, 'SAL-R-2026-000001', 'knet', 1000, 'KWD', 3, null, now(),
+        current_date, null, mb, now());
+    BEGIN
+      INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+          amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+        VALUES (c, gen_random_uuid(), br, pt, i1, 2026, 2, 'SAL-R-2026-000001', 'knet', 1000, 'KWD', 3, null, now(),
+          current_date, null, mb, now());
+      RAISE EXCEPTION 'FIN-F2: a duplicate receipt number was accepted';
+    EXCEPTION WHEN unique_violation THEN NULL; END;
+    RAISE EXCEPTION 'undo' USING ERRCODE = 'EYT01';
+  EXCEPTION WHEN SQLSTATE 'EYT01' THEN NULL; END;
+  BEGIN
+    INSERT INTO refunds (clinic_id, id, branch_id, patient_id, invoice_id, year, refund_seq, refund_number, method,
+        amount_minor, currency, currency_exponent, reason, refunded_at, business_date, cash_seq, refunded_by, created_at)
+      VALUES (c, gen_random_uuid(), br, pt, i1, 2026, 1, 'SAL-RF-2026-000001', 'knet', 1000, 'KWD', 3, 'x', now(),
+        current_date, null, mb, now());
+    BEGIN
+      INSERT INTO refunds (clinic_id, id, branch_id, patient_id, invoice_id, year, refund_seq, refund_number, method,
+          amount_minor, currency, currency_exponent, reason, refunded_at, business_date, cash_seq, refunded_by, created_at)
+        VALUES (c, gen_random_uuid(), br, pt, i1, 2026, 2, 'SAL-RF-2026-000001', 'knet', 1000, 'KWD', 3, 'x', now(),
+          current_date, null, mb, now());
+      RAISE EXCEPTION 'FIN-F2: a duplicate refund number was accepted';
+    EXCEPTION WHEN unique_violation THEN NULL; END;
+    RAISE EXCEPTION 'undo' USING ERRCODE = 'EYT01';
+  EXCEPTION WHEN SQLSTATE 'EYT01' THEN NULL; END;
+
+  -- A cash number is handed out once per branch.
+  BEGIN
+    INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+        amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+      VALUES (c, gen_random_uuid(), br, pt, i1, 2026, 11, 'SAL-R-2026-000011', 'cash', 1000, 'KWD', 3, null, now(),
+        current_date, 1, mb, now());
+    BEGIN
+      INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+          amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+        VALUES (c, gen_random_uuid(), br, pt, i1, 2026, 12, 'SAL-R-2026-000012', 'cash', 1000, 'KWD', 3, null, now(),
+          current_date, 1, mb, now());
+      RAISE EXCEPTION 'FIN-F2: a cash number was handed out twice in one branch';
+    EXCEPTION WHEN unique_violation THEN NULL; END;
+    RAISE EXCEPTION 'undo' USING ERRCODE = 'EYT01';
+  EXCEPTION WHEN SQLSTATE 'EYT01' THEN NULL; END;
+
+  -- The difference is computed, and a count that differs from the expectation needs a note (F2-Q11).
+  BEGIN
+    INSERT INTO cash_closings (clinic_id, id, branch_id, business_date, from_cash_seq, to_cash_seq, expected_minor,
+        counted_minor, method_totals, note, previous_closing_id, currency, currency_exponent, closed_by, closed_at, created_at)
+      VALUES (c, k, br, current_date, 0, 0, 1000, 900, '[]'::jsonb, 'short', null, 'KWD', 3, mb, now(), now());
+    IF (SELECT difference_minor FROM cash_closings WHERE id = k) <> -100 THEN
+      RAISE EXCEPTION 'FIN-F2: the difference is not the counted amount minus the expected one';
+    END IF;
+    BEGIN
+      INSERT INTO cash_closings (clinic_id, id, branch_id, business_date, from_cash_seq, to_cash_seq, expected_minor,
+          counted_minor, method_totals, note, previous_closing_id, currency, currency_exponent, closed_by, closed_at, created_at)
+        VALUES (c, gen_random_uuid(), br, current_date + 2, 0, 0, 1000, 900, '[]'::jsonb, null, k, 'KWD', 3, mb, now(), now());
+      RAISE EXCEPTION 'FIN-F2: a difference without a note was accepted';
+    EXCEPTION WHEN check_violation THEN NULL; END;
+    INSERT INTO cash_closings (clinic_id, id, branch_id, business_date, from_cash_seq, to_cash_seq, expected_minor,
+        counted_minor, method_totals, note, previous_closing_id, currency, currency_exponent, closed_by, closed_at, created_at)
+      VALUES (c, k2, br, current_date + 1, 0, 0, 1000, 1000, '[]'::jsonb, null, k, 'KWD', 3, mb, now(), now());
+    RAISE EXCEPTION 'undo' USING ERRCODE = 'EYT01';
+  EXCEPTION WHEN SQLSTATE 'EYT01' THEN NULL; END;
+
+  -- The counted and expected amounts are bounded so the difference always fits a bigint (PR #89 review).
+  BEGIN
+    INSERT INTO cash_closings (clinic_id, id, branch_id, business_date, from_cash_seq, to_cash_seq, expected_minor,
+        counted_minor, method_totals, note, previous_closing_id, currency, currency_exponent, closed_by, closed_at, created_at)
+      VALUES (c, k, br, current_date, 0, 0, -1000000000000000000, 1000000000000000000, '[]'::jsonb, 'wide', null, 'KWD', 3, mb, now(), now());
+    IF (SELECT difference_minor FROM cash_closings WHERE id = k) <> 2000000000000000000 THEN
+      RAISE EXCEPTION 'FIN-F2: the difference of the widest amounts is wrong';
+    END IF;
+    BEGIN
+      INSERT INTO cash_closings (clinic_id, id, branch_id, business_date, from_cash_seq, to_cash_seq, expected_minor,
+          counted_minor, method_totals, note, previous_closing_id, currency, currency_exponent, closed_by, closed_at, created_at)
+        VALUES (c, gen_random_uuid(), br, current_date + 1, 0, 0, 0, 1000000000000000001, '[]'::jsonb, 'x', k, 'KWD', 3, mb, now(), now());
+      RAISE EXCEPTION 'FIN-F2: a counted amount above the bound was accepted';
+    EXCEPTION WHEN check_violation THEN NULL; END;
+    BEGIN
+      INSERT INTO cash_closings (clinic_id, id, branch_id, business_date, from_cash_seq, to_cash_seq, expected_minor,
+          counted_minor, method_totals, note, previous_closing_id, currency, currency_exponent, closed_by, closed_at, created_at)
+        VALUES (c, gen_random_uuid(), br, current_date + 2, 0, 0, -1000000000000000001, 0, '[]'::jsonb, 'x', k, 'KWD', 3, mb, now(), now());
+      RAISE EXCEPTION 'FIN-F2: an expected amount below the bound was accepted';
+    EXCEPTION WHEN check_violation THEN NULL; END;
+    BEGIN
+      INSERT INTO cash_closings (clinic_id, id, branch_id, business_date, from_cash_seq, to_cash_seq, expected_minor,
+          counted_minor, method_totals, note, previous_closing_id, currency, currency_exponent, closed_by, closed_at, created_at)
+        VALUES (c, gen_random_uuid(), br, current_date + 3, 0, 0, 1000000000000000001, 0, '[]'::jsonb, 'x', k, 'KWD', 3, mb, now(), now());
+      RAISE EXCEPTION 'FIN-F2: an expected amount above the bound was accepted';
+    EXCEPTION WHEN check_violation THEN NULL; END;
+    RAISE EXCEPTION 'undo' USING ERRCODE = 'EYT01';
+  EXCEPTION WHEN SQLSTATE 'EYT01' THEN NULL; END;
+
+  -- The closings of a branch chain by id (R3-3, F2-Q9): one chain, one day, one branch.
+  BEGIN
+    INSERT INTO cash_closings (clinic_id, id, branch_id, business_date, from_cash_seq, to_cash_seq, expected_minor,
+        counted_minor, method_totals, note, previous_closing_id, currency, currency_exponent, closed_by, closed_at, created_at)
+      VALUES (c, k, br, current_date, 0, 0, 0, 0, '[]'::jsonb, null, null, 'KWD', 3, mb, now(), now());
+    BEGIN
+      INSERT INTO cash_closings (clinic_id, id, branch_id, business_date, from_cash_seq, to_cash_seq, expected_minor,
+          counted_minor, method_totals, note, previous_closing_id, currency, currency_exponent, closed_by, closed_at, created_at)
+        VALUES (c, k2, br, current_date + 1, 0, 0, 0, 0, '[]'::jsonb, null, null, 'KWD', 3, mb, now(), now());
+      RAISE EXCEPTION 'FIN-F2: a second closing without a previous one was accepted';
+    EXCEPTION WHEN unique_violation THEN NULL; END;
+    BEGIN
+      INSERT INTO cash_closings (clinic_id, id, branch_id, business_date, from_cash_seq, to_cash_seq, expected_minor,
+          counted_minor, method_totals, note, previous_closing_id, currency, currency_exponent, closed_by, closed_at, created_at)
+        VALUES (c, k3, br2, current_date + 2, 0, 0, 0, 0, '[]'::jsonb, null, k, 'KWD', 3, mb, now(), now());
+      RAISE EXCEPTION 'FIN-F2: a closing chained to another branch''s closing was accepted';
+    EXCEPTION WHEN foreign_key_violation THEN NULL; END;
+    INSERT INTO cash_closings (clinic_id, id, branch_id, business_date, from_cash_seq, to_cash_seq, expected_minor,
+        counted_minor, method_totals, note, previous_closing_id, currency, currency_exponent, closed_by, closed_at, created_at)
+      VALUES (c, k4, br, current_date + 3, 0, 0, 0, 0, '[]'::jsonb, null, k, 'KWD', 3, mb, now(), now());
+    BEGIN
+      INSERT INTO cash_closings (clinic_id, id, branch_id, business_date, from_cash_seq, to_cash_seq, expected_minor,
+          counted_minor, method_totals, note, previous_closing_id, currency, currency_exponent, closed_by, closed_at, created_at)
+        VALUES (c, k5, br, current_date, 0, 0, 0, 0, '[]'::jsonb, null, k4, 'KWD', 3, mb, now(), now());
+      RAISE EXCEPTION 'FIN-F2: two closings of one branch on one day were accepted';
+    EXCEPTION WHEN unique_violation THEN NULL; END;
+    RAISE EXCEPTION 'undo' USING ERRCODE = 'EYT01';
+  EXCEPTION WHEN SQLSTATE 'EYT01' THEN NULL; END;
+
+  -- A closing's period cannot run backwards.
+  BEGIN
+    INSERT INTO cash_closings (clinic_id, id, branch_id, business_date, from_cash_seq, to_cash_seq, expected_minor,
+        counted_minor, method_totals, note, previous_closing_id, currency, currency_exponent, closed_by, closed_at, created_at)
+      VALUES (c, k, br, current_date, 5, 4, 0, 0, '[]'::jsonb, null, null, 'KWD', 3, mb, now(), now());
+    RAISE EXCEPTION 'FIN-F2: a closing period that runs backwards was accepted';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+END $$;
+
+-- 0066 (spec §4.3, §4.4; R3-1, R3-2, #91): the commit-time checks. The checks are deferred constraint
+-- triggers, so each case fires them with SET CONSTRAINTS ALL IMMEDIATE — and the clinic context is cleared
+-- first (R3-1: withTenant clears app.clinic_id before COMMIT, so the checks must not depend on it).
+-- payment_released (#91) and conservation follow from the checks before them, so no case can make them the
+-- first refusal; they stay as the spec's defence in depth.
+
+-- M1 accepted: the worked example S1 + S2 (§4.3) — a cash payment and a KNET one fill the invoice.
+DO $$
+DECLARE msg text; det text;
+  c uuid := '00000000-0000-7000-8000-0000000f000a'; br uuid := '00000000-0000-7000-8000-0000000f0002';
+  pt uuid := '00000000-0000-7000-8000-0000000f0009'; mb uuid := '00000000-0000-7000-8000-0000000f0005';
+  i1 uuid := '00000000-0000-7000-8000-0000000f0401';
+  p1 uuid := gen_random_uuid(); p2 uuid := gen_random_uuid();
+  a1 uuid := gen_random_uuid(); a2 uuid := gen_random_uuid();
+BEGIN
+  BEGIN
+    EXECUTE 'SET CONSTRAINTS ALL DEFERRED';
+    PERFORM set_config('app.clinic_id', '00000000-0000-7000-8000-0000000f000a', true);
+    INSERT INTO branch_cash_drawers (clinic_id, id, branch_id, last_cash_seq, last_closed_seq, last_closing_id, created_at, updated_at)
+      VALUES (c, gen_random_uuid(), br, 1, 0, null, now(), now());
+    INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+        amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+      VALUES (c, p1, br, pt, i1, 2026, 1, 'SAL-R-2026-000011', 'cash', 4000, 'KWD', 3, null, now(), current_date, 1, mb, now());
+    INSERT INTO payment_allocations (clinic_id, id, invoice_id, patient_id, payment_id, credit_id, amount_minor, created_by, created_at)
+      VALUES (c, a1, i1, pt, p1, null, 4000, mb, now());
+    INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+        amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+      VALUES (c, p2, br, pt, i1, 2026, 2, 'SAL-R-2026-000012', 'knet', 6000, 'KWD', 3, null, now(), current_date, null, mb, now());
+    INSERT INTO payment_allocations (clinic_id, id, invoice_id, patient_id, payment_id, credit_id, amount_minor, created_by, created_at)
+      VALUES (c, a2, i1, pt, p2, null, 6000, mb, now());
+    PERFORM set_config('app.clinic_id', '', true);
+    EXECUTE 'SET CONSTRAINTS ALL IMMEDIATE';
+    RAISE EXCEPTION 'undo' USING ERRCODE = 'EYT01';
+  EXCEPTION WHEN SQLSTATE 'EYT01' THEN NULL;
+    WHEN raise_exception THEN
+      GET STACKED DIAGNOSTICS msg = MESSAGE_TEXT, det = PG_EXCEPTION_DETAIL;
+      RAISE EXCEPTION 'FIN-0066: M1 was refused (% / %)', msg, det;
+  END;
+END $$;
+
+-- M2 'payment_allocated': a payment is placed in full when it is written (§4.3 invariant 2, F2-Q1).
+DO $$
+DECLARE msg text; det text;
+  c uuid := '00000000-0000-7000-8000-0000000f000a'; br uuid := '00000000-0000-7000-8000-0000000f0002';
+  pt uuid := '00000000-0000-7000-8000-0000000f0009'; mb uuid := '00000000-0000-7000-8000-0000000f0005';
+  i1 uuid := '00000000-0000-7000-8000-0000000f0401';
+  p uuid := gen_random_uuid(); a uuid := gen_random_uuid();
+BEGIN
+  BEGIN
+    EXECUTE 'SET CONSTRAINTS ALL DEFERRED';
+    PERFORM set_config('app.clinic_id', '00000000-0000-7000-8000-0000000f000a', true);
+    INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+        amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+      VALUES (c, p, br, pt, i1, 2026, 1, 'SAL-R-2026-000021', 'knet', 4000, 'KWD', 3, null, now(), current_date, null, mb, now());
+    INSERT INTO payment_allocations (clinic_id, id, invoice_id, patient_id, payment_id, credit_id, amount_minor, created_by, created_at)
+      VALUES (c, a, i1, pt, p, null, 3000, mb, now());
+    PERFORM set_config('app.clinic_id', '', true);
+    EXECUTE 'SET CONSTRAINTS ALL IMMEDIATE';
+    RAISE EXCEPTION 'FIN-0066: M2 was accepted';
+  EXCEPTION WHEN raise_exception THEN
+    GET STACKED DIAGNOSTICS msg = MESSAGE_TEXT, det = PG_EXCEPTION_DETAIL;
+    IF msg IS DISTINCT FROM 'finance_invariant' OR det IS DISTINCT FROM 'payment_allocated' THEN
+      RAISE EXCEPTION 'FIN-0066: M2 raised % / %, expected finance_invariant / payment_allocated', msg, det;
+    END IF;
+  END;
+END $$;
+
+-- M3 'invoice_paid': an issued invoice holds at most its total (§4.3 invariant 3).
+DO $$
+DECLARE msg text; det text;
+  c uuid := '00000000-0000-7000-8000-0000000f000a'; br uuid := '00000000-0000-7000-8000-0000000f0002';
+  pt uuid := '00000000-0000-7000-8000-0000000f0009'; mb uuid := '00000000-0000-7000-8000-0000000f0005';
+  i2 uuid := '00000000-0000-7000-8000-0000000f0402';
+  p uuid := gen_random_uuid(); a uuid := gen_random_uuid();
+BEGIN
+  BEGIN
+    EXECUTE 'SET CONSTRAINTS ALL DEFERRED';
+    PERFORM set_config('app.clinic_id', '00000000-0000-7000-8000-0000000f000a', true);
+    INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+        amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+      VALUES (c, p, br, pt, i2, 2026, 1, 'SAL-R-2026-000031', 'knet', 6000, 'KWD', 3, null, now(), current_date, null, mb, now());
+    INSERT INTO payment_allocations (clinic_id, id, invoice_id, patient_id, payment_id, credit_id, amount_minor, created_by, created_at)
+      VALUES (c, a, i2, pt, p, null, 6000, mb, now());
+    PERFORM set_config('app.clinic_id', '', true);
+    EXECUTE 'SET CONSTRAINTS ALL IMMEDIATE';
+    RAISE EXCEPTION 'FIN-0066: M3 was accepted';
+  EXCEPTION WHEN raise_exception THEN
+    GET STACKED DIAGNOSTICS msg = MESSAGE_TEXT, det = PG_EXCEPTION_DETAIL;
+    IF msg IS DISTINCT FROM 'finance_invariant' OR det IS DISTINCT FROM 'invoice_paid' THEN
+      RAISE EXCEPTION 'FIN-0066: M3 raised % / %, expected finance_invariant / invoice_paid', msg, det;
+    END IF;
+  END;
+END $$;
+
+-- M4 'refund_sources': a refund is covered exactly by the credits it spent (R3-2).
+DO $$
+DECLARE msg text; det text;
+  c uuid := '00000000-0000-7000-8000-0000000f000a'; br uuid := '00000000-0000-7000-8000-0000000f0002';
+  pt uuid := '00000000-0000-7000-8000-0000000f0009'; mb uuid := '00000000-0000-7000-8000-0000000f0005';
+  i1 uuid := '00000000-0000-7000-8000-0000000f0401';
+  p uuid := gen_random_uuid(); a uuid := gen_random_uuid(); cr uuid := gen_random_uuid(); f uuid := gen_random_uuid();
+BEGIN
+  BEGIN
+    EXECUTE 'SET CONSTRAINTS ALL DEFERRED';
+    PERFORM set_config('app.clinic_id', '00000000-0000-7000-8000-0000000f000a', true);
+    INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+        amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+      VALUES (c, p, br, pt, i1, 2026, 1, 'SAL-R-2026-000041', 'knet', 4000, 'KWD', 3, null, now(), current_date, null, mb, now());
+    INSERT INTO payment_allocations (clinic_id, id, invoice_id, patient_id, payment_id, credit_id, amount_minor, created_by, created_at)
+      VALUES (c, a, i1, pt, p, null, 4000, mb, now());
+    INSERT INTO patient_credits (clinic_id, id, patient_id, origin_allocation_id, amount_minor, cause, created_by, created_at)
+      VALUES (c, cr, pt, a, 1000, 'refund', mb, now());
+    INSERT INTO refunds (clinic_id, id, branch_id, patient_id, invoice_id, year, refund_seq, refund_number, method,
+        amount_minor, currency, currency_exponent, reason, refunded_at, business_date, cash_seq, refunded_by, created_at)
+      VALUES (c, f, br, pt, i1, 2026, 1, 'SAL-RF-2026-000041', 'knet', 1000, 'KWD', 3, 'x', now(), current_date, null, mb, now());
+    PERFORM set_config('app.clinic_id', '', true);
+    EXECUTE 'SET CONSTRAINTS ALL IMMEDIATE';
+    RAISE EXCEPTION 'FIN-0066: M4 was accepted';
+  EXCEPTION WHEN raise_exception THEN
+    GET STACKED DIAGNOSTICS msg = MESSAGE_TEXT, det = PG_EXCEPTION_DETAIL;
+    IF msg IS DISTINCT FROM 'finance_invariant' OR det IS DISTINCT FROM 'refund_sources' THEN
+      RAISE EXCEPTION 'FIN-0066: M4 raised % / %, expected finance_invariant / refund_sources', msg, det;
+    END IF;
+  END;
+END $$;
+
+-- M5 'refund_sources': the sources of a refund do not sum to its amount (R3-2).
+DO $$
+DECLARE msg text; det text;
+  c uuid := '00000000-0000-7000-8000-0000000f000a'; br uuid := '00000000-0000-7000-8000-0000000f0002';
+  pt uuid := '00000000-0000-7000-8000-0000000f0009'; mb uuid := '00000000-0000-7000-8000-0000000f0005';
+  i1 uuid := '00000000-0000-7000-8000-0000000f0401';
+  p uuid := gen_random_uuid(); a uuid := gen_random_uuid(); cr uuid := gen_random_uuid();
+  f uuid := gen_random_uuid(); s uuid := gen_random_uuid();
+BEGIN
+  BEGIN
+    EXECUTE 'SET CONSTRAINTS ALL DEFERRED';
+    PERFORM set_config('app.clinic_id', '00000000-0000-7000-8000-0000000f000a', true);
+    INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+        amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+      VALUES (c, p, br, pt, i1, 2026, 1, 'SAL-R-2026-000051', 'knet', 4000, 'KWD', 3, null, now(), current_date, null, mb, now());
+    INSERT INTO payment_allocations (clinic_id, id, invoice_id, patient_id, payment_id, credit_id, amount_minor, created_by, created_at)
+      VALUES (c, a, i1, pt, p, null, 4000, mb, now());
+    INSERT INTO patient_credits (clinic_id, id, patient_id, origin_allocation_id, amount_minor, cause, created_by, created_at)
+      VALUES (c, cr, pt, a, 1000, 'refund', mb, now());
+    INSERT INTO refunds (clinic_id, id, branch_id, patient_id, invoice_id, year, refund_seq, refund_number, method,
+        amount_minor, currency, currency_exponent, reason, refunded_at, business_date, cash_seq, refunded_by, created_at)
+      VALUES (c, f, br, pt, i1, 2026, 1, 'SAL-RF-2026-000051', 'knet', 1000, 'KWD', 3, 'x', now(), current_date, null, mb, now());
+    INSERT INTO refund_sources (clinic_id, id, refund_id, credit_id, patient_id, amount_minor, created_at)
+      VALUES (c, s, f, cr, pt, 600, now());
+    PERFORM set_config('app.clinic_id', '', true);
+    EXECUTE 'SET CONSTRAINTS ALL IMMEDIATE';
+    RAISE EXCEPTION 'FIN-0066: M5 was accepted';
+  EXCEPTION WHEN raise_exception THEN
+    GET STACKED DIAGNOSTICS msg = MESSAGE_TEXT, det = PG_EXCEPTION_DETAIL;
+    IF msg IS DISTINCT FROM 'finance_invariant' OR det IS DISTINCT FROM 'refund_sources' THEN
+      RAISE EXCEPTION 'FIN-0066: M5 raised % / %, expected finance_invariant / refund_sources', msg, det;
+    END IF;
+  END;
+END $$;
+
+-- M6 'allocation_live': a payment's allocations never release more than the payment (#91).
+DO $$
+DECLARE msg text; det text;
+  c uuid := '00000000-0000-7000-8000-0000000f000a'; br uuid := '00000000-0000-7000-8000-0000000f0002';
+  pt uuid := '00000000-0000-7000-8000-0000000f0009'; mb uuid := '00000000-0000-7000-8000-0000000f0005';
+  i1 uuid := '00000000-0000-7000-8000-0000000f0401';
+  p uuid := gen_random_uuid(); a uuid := gen_random_uuid();
+  cr1 uuid := gen_random_uuid(); cr2 uuid := gen_random_uuid();
+  f1 uuid := gen_random_uuid(); f2 uuid := gen_random_uuid();
+  s1 uuid := gen_random_uuid(); s2 uuid := gen_random_uuid();
+BEGIN
+  BEGIN
+    EXECUTE 'SET CONSTRAINTS ALL DEFERRED';
+    PERFORM set_config('app.clinic_id', '00000000-0000-7000-8000-0000000f000a', true);
+    INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+        amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+      VALUES (c, p, br, pt, i1, 2026, 1, 'SAL-R-2026-000061', 'knet', 1000, 'KWD', 3, null, now(), current_date, null, mb, now());
+    INSERT INTO payment_allocations (clinic_id, id, invoice_id, patient_id, payment_id, credit_id, amount_minor, created_by, created_at)
+      VALUES (c, a, i1, pt, p, null, 1000, mb, now());
+    INSERT INTO patient_credits (clinic_id, id, patient_id, origin_allocation_id, amount_minor, cause, created_by, created_at)
+      VALUES (c, cr1, pt, a, 1000, 'refund', mb, now());
+    INSERT INTO refunds (clinic_id, id, branch_id, patient_id, invoice_id, year, refund_seq, refund_number, method,
+        amount_minor, currency, currency_exponent, reason, refunded_at, business_date, cash_seq, refunded_by, created_at)
+      VALUES (c, f1, br, pt, i1, 2026, 1, 'SAL-RF-2026-000061', 'knet', 1000, 'KWD', 3, 'x', now(), current_date, null, mb, now());
+    INSERT INTO refund_sources (clinic_id, id, refund_id, credit_id, patient_id, amount_minor, created_at)
+      VALUES (c, s1, f1, cr1, pt, 1000, now());
+    INSERT INTO patient_credits (clinic_id, id, patient_id, origin_allocation_id, amount_minor, cause, created_by, created_at)
+      VALUES (c, cr2, pt, a, 500, 'refund', mb, now());
+    INSERT INTO refunds (clinic_id, id, branch_id, patient_id, invoice_id, year, refund_seq, refund_number, method,
+        amount_minor, currency, currency_exponent, reason, refunded_at, business_date, cash_seq, refunded_by, created_at)
+      VALUES (c, f2, br, pt, i1, 2026, 2, 'SAL-RF-2026-000062', 'knet', 500, 'KWD', 3, 'x', now(), current_date, null, mb, now());
+    INSERT INTO refund_sources (clinic_id, id, refund_id, credit_id, patient_id, amount_minor, created_at)
+      VALUES (c, s2, f2, cr2, pt, 500, now());
+    PERFORM set_config('app.clinic_id', '', true);
+    EXECUTE 'SET CONSTRAINTS ALL IMMEDIATE';
+    RAISE EXCEPTION 'FIN-0066: M6 was accepted';
+  EXCEPTION WHEN raise_exception THEN
+    GET STACKED DIAGNOSTICS msg = MESSAGE_TEXT, det = PG_EXCEPTION_DETAIL;
+    IF msg IS DISTINCT FROM 'finance_invariant' OR det IS DISTINCT FROM 'allocation_live' THEN
+      RAISE EXCEPTION 'FIN-0066: M6 raised % / %, expected finance_invariant / allocation_live', msg, det;
+    END IF;
+  END;
+END $$;
+
+-- M7 'credit_remaining': a credit is never spent beyond its amount (§4.3 invariant 1).
+DO $$
+DECLARE msg text; det text;
+  c uuid := '00000000-0000-7000-8000-0000000f000a'; br uuid := '00000000-0000-7000-8000-0000000f0002';
+  pt uuid := '00000000-0000-7000-8000-0000000f0009'; mb uuid := '00000000-0000-7000-8000-0000000f0005';
+  i1 uuid := '00000000-0000-7000-8000-0000000f0401'; i2 uuid := '00000000-0000-7000-8000-0000000f0402';
+  p uuid := gen_random_uuid(); a uuid := gen_random_uuid(); a2 uuid := gen_random_uuid();
+  cr uuid := gen_random_uuid(); f uuid := gen_random_uuid(); s uuid := gen_random_uuid();
+BEGIN
+  BEGIN
+    EXECUTE 'SET CONSTRAINTS ALL DEFERRED';
+    PERFORM set_config('app.clinic_id', '00000000-0000-7000-8000-0000000f000a', true);
+    INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+        amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+      VALUES (c, p, br, pt, i1, 2026, 1, 'SAL-R-2026-000071', 'knet', 1000, 'KWD', 3, null, now(), current_date, null, mb, now());
+    INSERT INTO payment_allocations (clinic_id, id, invoice_id, patient_id, payment_id, credit_id, amount_minor, created_by, created_at)
+      VALUES (c, a, i1, pt, p, null, 1000, mb, now());
+    INSERT INTO patient_credits (clinic_id, id, patient_id, origin_allocation_id, amount_minor, cause, created_by, created_at)
+      VALUES (c, cr, pt, a, 1000, 'invoice_edited', mb, now());
+    INSERT INTO payment_allocations (clinic_id, id, invoice_id, patient_id, payment_id, credit_id, amount_minor, created_by, created_at)
+      VALUES (c, a2, i2, pt, null, cr, 800, mb, now());
+    INSERT INTO refunds (clinic_id, id, branch_id, patient_id, invoice_id, year, refund_seq, refund_number, method,
+        amount_minor, currency, currency_exponent, reason, refunded_at, business_date, cash_seq, refunded_by, created_at)
+      VALUES (c, f, br, pt, i1, 2026, 1, 'SAL-RF-2026-000071', 'knet', 300, 'KWD', 3, 'x', now(), current_date, null, mb, now());
+    INSERT INTO refund_sources (clinic_id, id, refund_id, credit_id, patient_id, amount_minor, created_at)
+      VALUES (c, s, f, cr, pt, 300, now());
+    PERFORM set_config('app.clinic_id', '', true);
+    EXECUTE 'SET CONSTRAINTS ALL IMMEDIATE';
+    RAISE EXCEPTION 'FIN-0066: M7 was accepted';
+  EXCEPTION WHEN raise_exception THEN
+    GET STACKED DIAGNOSTICS msg = MESSAGE_TEXT, det = PG_EXCEPTION_DETAIL;
+    IF msg IS DISTINCT FROM 'finance_invariant' OR det IS DISTINCT FROM 'credit_remaining' THEN
+      RAISE EXCEPTION 'FIN-0066: M7 raised % / %, expected finance_invariant / credit_remaining', msg, det;
+    END IF;
+  END;
+END $$;
+
+-- M8 'invoice_paid': a lowered invoice releases the excess into credit, so the invoice cannot hold more.
+DO $$
+DECLARE msg text; det text;
+  c uuid := '00000000-0000-7000-8000-0000000f000a'; br uuid := '00000000-0000-7000-8000-0000000f0002';
+  pt uuid := '00000000-0000-7000-8000-0000000f0009'; mb uuid := '00000000-0000-7000-8000-0000000f0005';
+  i1 uuid := '00000000-0000-7000-8000-0000000f0401';
+  p uuid := gen_random_uuid(); a uuid := gen_random_uuid();
+BEGIN
+  BEGIN
+    EXECUTE 'SET CONSTRAINTS ALL DEFERRED';
+    PERFORM set_config('app.clinic_id', '00000000-0000-7000-8000-0000000f000a', true);
+    INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+        amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+      VALUES (c, p, br, pt, i1, 2026, 1, 'SAL-R-2026-000081', 'knet', 4000, 'KWD', 3, null, now(), current_date, null, mb, now());
+    INSERT INTO payment_allocations (clinic_id, id, invoice_id, patient_id, payment_id, credit_id, amount_minor, created_by, created_at)
+      VALUES (c, a, i1, pt, p, null, 4000, mb, now());
+    UPDATE invoices SET total_minor = 3000 WHERE id = i1;
+    PERFORM set_config('app.clinic_id', '', true);
+    EXECUTE 'SET CONSTRAINTS ALL IMMEDIATE';
+    RAISE EXCEPTION 'FIN-0066: M8 was accepted';
+  EXCEPTION WHEN raise_exception THEN
+    GET STACKED DIAGNOSTICS msg = MESSAGE_TEXT, det = PG_EXCEPTION_DETAIL;
+    IF msg IS DISTINCT FROM 'finance_invariant' OR det IS DISTINCT FROM 'invoice_paid' THEN
+      RAISE EXCEPTION 'FIN-0066: M8 raised % / %, expected finance_invariant / invoice_paid', msg, det;
+    END IF;
+  END;
+END $$;
+
+-- M9 'invoice_paid': a void invoice holds nothing, so it must release its money first.
+DO $$
+DECLARE msg text; det text;
+  c uuid := '00000000-0000-7000-8000-0000000f000a'; br uuid := '00000000-0000-7000-8000-0000000f0002';
+  pt uuid := '00000000-0000-7000-8000-0000000f0009'; mb uuid := '00000000-0000-7000-8000-0000000f0005';
+  i1 uuid := '00000000-0000-7000-8000-0000000f0401';
+  p uuid := gen_random_uuid(); a uuid := gen_random_uuid();
+BEGIN
+  BEGIN
+    EXECUTE 'SET CONSTRAINTS ALL DEFERRED';
+    PERFORM set_config('app.clinic_id', '00000000-0000-7000-8000-0000000f000a', true);
+    INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+        amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+      VALUES (c, p, br, pt, i1, 2026, 1, 'SAL-R-2026-000091', 'knet', 4000, 'KWD', 3, null, now(), current_date, null, mb, now());
+    INSERT INTO payment_allocations (clinic_id, id, invoice_id, patient_id, payment_id, credit_id, amount_minor, created_by, created_at)
+      VALUES (c, a, i1, pt, p, null, 4000, mb, now());
+    UPDATE invoices SET status = 'void', voided_at = now(), void_reason = 'x' WHERE id = i1;
+    PERFORM set_config('app.clinic_id', '', true);
+    EXECUTE 'SET CONSTRAINTS ALL IMMEDIATE';
+    RAISE EXCEPTION 'FIN-0066: M9 was accepted';
+  EXCEPTION WHEN raise_exception THEN
+    GET STACKED DIAGNOSTICS msg = MESSAGE_TEXT, det = PG_EXCEPTION_DETAIL;
+    IF msg IS DISTINCT FROM 'finance_invariant' OR det IS DISTINCT FROM 'invoice_paid' THEN
+      RAISE EXCEPTION 'FIN-0066: M9 raised % / %, expected finance_invariant / invoice_paid', msg, det;
+    END IF;
+  END;
+END $$;
+
+-- M10 accepted: as M9, plus the credit the void released (R2-2).
+DO $$
+DECLARE msg text; det text;
+  c uuid := '00000000-0000-7000-8000-0000000f000a'; br uuid := '00000000-0000-7000-8000-0000000f0002';
+  pt uuid := '00000000-0000-7000-8000-0000000f0009'; mb uuid := '00000000-0000-7000-8000-0000000f0005';
+  i1 uuid := '00000000-0000-7000-8000-0000000f0401';
+  p uuid := gen_random_uuid(); a uuid := gen_random_uuid(); cr uuid := gen_random_uuid();
+BEGIN
+  BEGIN
+    EXECUTE 'SET CONSTRAINTS ALL DEFERRED';
+    PERFORM set_config('app.clinic_id', '00000000-0000-7000-8000-0000000f000a', true);
+    INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+        amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+      VALUES (c, p, br, pt, i1, 2026, 1, 'SAL-R-2026-000101', 'knet', 4000, 'KWD', 3, null, now(), current_date, null, mb, now());
+    INSERT INTO payment_allocations (clinic_id, id, invoice_id, patient_id, payment_id, credit_id, amount_minor, created_by, created_at)
+      VALUES (c, a, i1, pt, p, null, 4000, mb, now());
+    UPDATE invoices SET status = 'void', voided_at = now(), void_reason = 'x' WHERE id = i1;
+    INSERT INTO patient_credits (clinic_id, id, patient_id, origin_allocation_id, amount_minor, cause, created_by, created_at)
+      VALUES (c, cr, pt, a, 4000, 'invoice_voided', mb, now());
+    PERFORM set_config('app.clinic_id', '', true);
+    EXECUTE 'SET CONSTRAINTS ALL IMMEDIATE';
+    RAISE EXCEPTION 'undo' USING ERRCODE = 'EYT01';
+  EXCEPTION WHEN SQLSTATE 'EYT01' THEN NULL;
+    WHEN raise_exception THEN
+      GET STACKED DIAGNOSTICS msg = MESSAGE_TEXT, det = PG_EXCEPTION_DETAIL;
+      RAISE EXCEPTION 'FIN-0066: M10 was refused (% / %)', msg, det;
+  END;
+END $$;
+
+-- M11 accepted: the worked example S8 (§4.3) — a refund out of a released allocation, in cash.
+DO $$
+DECLARE msg text; det text;
+  c uuid := '00000000-0000-7000-8000-0000000f000a'; br uuid := '00000000-0000-7000-8000-0000000f0002';
+  pt uuid := '00000000-0000-7000-8000-0000000f0009'; mb uuid := '00000000-0000-7000-8000-0000000f0005';
+  i1 uuid := '00000000-0000-7000-8000-0000000f0401';
+  p uuid := gen_random_uuid(); a uuid := gen_random_uuid(); cr uuid := gen_random_uuid();
+  f uuid := gen_random_uuid(); s uuid := gen_random_uuid();
+BEGIN
+  BEGIN
+    EXECUTE 'SET CONSTRAINTS ALL DEFERRED';
+    PERFORM set_config('app.clinic_id', '00000000-0000-7000-8000-0000000f000a', true);
+    INSERT INTO branch_cash_drawers (clinic_id, id, branch_id, last_cash_seq, last_closed_seq, last_closing_id, created_at, updated_at)
+      VALUES (c, gen_random_uuid(), br, 1, 0, null, now(), now());
+    INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+        amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+      VALUES (c, p, br, pt, i1, 2026, 1, 'SAL-R-2026-000011', 'knet', 4000, 'KWD', 3, null, now(), current_date, null, mb, now());
+    INSERT INTO payment_allocations (clinic_id, id, invoice_id, patient_id, payment_id, credit_id, amount_minor, created_by, created_at)
+      VALUES (c, a, i1, pt, p, null, 4000, mb, now());
+    INSERT INTO patient_credits (clinic_id, id, patient_id, origin_allocation_id, amount_minor, cause, created_by, created_at)
+      VALUES (c, cr, pt, a, 1000, 'refund', mb, now());
+    INSERT INTO refunds (clinic_id, id, branch_id, patient_id, invoice_id, year, refund_seq, refund_number, method,
+        amount_minor, currency, currency_exponent, reason, refunded_at, business_date, cash_seq, refunded_by, created_at)
+      VALUES (c, f, br, pt, i1, 2026, 1, 'SAL-RF-2026-000011', 'cash', 1000, 'KWD', 3, 'x', now(), current_date, 1, mb, now());
+    INSERT INTO refund_sources (clinic_id, id, refund_id, credit_id, patient_id, amount_minor, created_at)
+      VALUES (c, s, f, cr, pt, 1000, now());
+    PERFORM set_config('app.clinic_id', '', true);
+    EXECUTE 'SET CONSTRAINTS ALL IMMEDIATE';
+    RAISE EXCEPTION 'undo' USING ERRCODE = 'EYT01';
+  EXCEPTION WHEN SQLSTATE 'EYT01' THEN NULL;
+    WHEN raise_exception THEN
+      GET STACKED DIAGNOSTICS msg = MESSAGE_TEXT, det = PG_EXCEPTION_DETAIL;
+      RAISE EXCEPTION 'FIN-0066: M11 was refused (% / %)', msg, det;
+  END;
+END $$;
+
+-- M12 'cash_seq_taken': a cash number is held by one movement only (PR #89 review).
+DO $$
+DECLARE msg text; det text;
+  c uuid := '00000000-0000-7000-8000-0000000f000a'; br uuid := '00000000-0000-7000-8000-0000000f0002';
+  pt uuid := '00000000-0000-7000-8000-0000000f0009'; mb uuid := '00000000-0000-7000-8000-0000000f0005';
+  i1 uuid := '00000000-0000-7000-8000-0000000f0401';
+  p uuid := gen_random_uuid(); a uuid := gen_random_uuid(); cr uuid := gen_random_uuid();
+  f uuid := gen_random_uuid(); s uuid := gen_random_uuid();
+BEGIN
+  BEGIN
+    EXECUTE 'SET CONSTRAINTS ALL DEFERRED';
+    PERFORM set_config('app.clinic_id', '00000000-0000-7000-8000-0000000f000a', true);
+    INSERT INTO branch_cash_drawers (clinic_id, id, branch_id, last_cash_seq, last_closed_seq, last_closing_id, created_at, updated_at)
+      VALUES (c, gen_random_uuid(), br, 1, 0, null, now(), now());
+    INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+        amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+      VALUES (c, p, br, pt, i1, 2026, 1, 'SAL-R-2026-000121', 'cash', 1000, 'KWD', 3, null, now(), current_date, 1, mb, now());
+    INSERT INTO payment_allocations (clinic_id, id, invoice_id, patient_id, payment_id, credit_id, amount_minor, created_by, created_at)
+      VALUES (c, a, i1, pt, p, null, 1000, mb, now());
+    INSERT INTO patient_credits (clinic_id, id, patient_id, origin_allocation_id, amount_minor, cause, created_by, created_at)
+      VALUES (c, cr, pt, a, 1000, 'refund', mb, now());
+    INSERT INTO refunds (clinic_id, id, branch_id, patient_id, invoice_id, year, refund_seq, refund_number, method,
+        amount_minor, currency, currency_exponent, reason, refunded_at, business_date, cash_seq, refunded_by, created_at)
+      VALUES (c, f, br, pt, i1, 2026, 1, 'SAL-RF-2026-000121', 'cash', 1000, 'KWD', 3, 'x', now(), current_date, 1, mb, now());
+    INSERT INTO refund_sources (clinic_id, id, refund_id, credit_id, patient_id, amount_minor, created_at)
+      VALUES (c, s, f, cr, pt, 1000, now());
+    PERFORM set_config('app.clinic_id', '', true);
+    EXECUTE 'SET CONSTRAINTS ALL IMMEDIATE';
+    RAISE EXCEPTION 'FIN-0066: M12 was accepted';
+  EXCEPTION WHEN raise_exception THEN
+    GET STACKED DIAGNOSTICS msg = MESSAGE_TEXT, det = PG_EXCEPTION_DETAIL;
+    IF msg IS DISTINCT FROM 'finance_invariant' OR det IS DISTINCT FROM 'cash_seq_taken' THEN
+      RAISE EXCEPTION 'FIN-0066: M12 raised % / %, expected finance_invariant / cash_seq_taken', msg, det;
+    END IF;
+  END;
+END $$;
+
+-- M13 'cash_seq_gap': a cash number leaves a hole (PR #89 review).
+DO $$
+DECLARE msg text; det text;
+  c uuid := '00000000-0000-7000-8000-0000000f000a'; br uuid := '00000000-0000-7000-8000-0000000f0002';
+  pt uuid := '00000000-0000-7000-8000-0000000f0009'; mb uuid := '00000000-0000-7000-8000-0000000f0005';
+  i1 uuid := '00000000-0000-7000-8000-0000000f0401';
+  p uuid := gen_random_uuid(); a uuid := gen_random_uuid();
+BEGIN
+  BEGIN
+    EXECUTE 'SET CONSTRAINTS ALL DEFERRED';
+    PERFORM set_config('app.clinic_id', '00000000-0000-7000-8000-0000000f000a', true);
+    INSERT INTO branch_cash_drawers (clinic_id, id, branch_id, last_cash_seq, last_closed_seq, last_closing_id, created_at, updated_at)
+      VALUES (c, gen_random_uuid(), br, 2, 0, null, now(), now());
+    INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+        amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+      VALUES (c, p, br, pt, i1, 2026, 1, 'SAL-R-2026-000131', 'cash', 1000, 'KWD', 3, null, now(), current_date, 2, mb, now());
+    INSERT INTO payment_allocations (clinic_id, id, invoice_id, patient_id, payment_id, credit_id, amount_minor, created_by, created_at)
+      VALUES (c, a, i1, pt, p, null, 1000, mb, now());
+    PERFORM set_config('app.clinic_id', '', true);
+    EXECUTE 'SET CONSTRAINTS ALL IMMEDIATE';
+    RAISE EXCEPTION 'FIN-0066: M13 was accepted';
+  EXCEPTION WHEN raise_exception THEN
+    GET STACKED DIAGNOSTICS msg = MESSAGE_TEXT, det = PG_EXCEPTION_DETAIL;
+    IF msg IS DISTINCT FROM 'finance_invariant' OR det IS DISTINCT FROM 'cash_seq_gap' THEN
+      RAISE EXCEPTION 'FIN-0066: M13 raised % / %, expected finance_invariant / cash_seq_gap', msg, det;
+    END IF;
+  END;
+END $$;
+
+-- M14 'cash_seq_drawer': a cash number comes from the drawer (PR #89 review).
+DO $$
+DECLARE msg text; det text;
+  c uuid := '00000000-0000-7000-8000-0000000f000a'; br uuid := '00000000-0000-7000-8000-0000000f0002';
+  pt uuid := '00000000-0000-7000-8000-0000000f0009'; mb uuid := '00000000-0000-7000-8000-0000000f0005';
+  i1 uuid := '00000000-0000-7000-8000-0000000f0401';
+  p uuid := gen_random_uuid(); a uuid := gen_random_uuid();
+BEGIN
+  BEGIN
+    EXECUTE 'SET CONSTRAINTS ALL DEFERRED';
+    PERFORM set_config('app.clinic_id', '00000000-0000-7000-8000-0000000f000a', true);
+    INSERT INTO branch_cash_drawers (clinic_id, id, branch_id, last_cash_seq, last_closed_seq, last_closing_id, created_at, updated_at)
+      VALUES (c, gen_random_uuid(), br, 0, 0, null, now(), now());
+    INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+        amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+      VALUES (c, p, br, pt, i1, 2026, 1, 'SAL-R-2026-000141', 'cash', 1000, 'KWD', 3, null, now(), current_date, 1, mb, now());
+    INSERT INTO payment_allocations (clinic_id, id, invoice_id, patient_id, payment_id, credit_id, amount_minor, created_by, created_at)
+      VALUES (c, a, i1, pt, p, null, 1000, mb, now());
+    PERFORM set_config('app.clinic_id', '', true);
+    EXECUTE 'SET CONSTRAINTS ALL IMMEDIATE';
+    RAISE EXCEPTION 'FIN-0066: M14 was accepted';
+  EXCEPTION WHEN raise_exception THEN
+    GET STACKED DIAGNOSTICS msg = MESSAGE_TEXT, det = PG_EXCEPTION_DETAIL;
+    IF msg IS DISTINCT FROM 'finance_invariant' OR det IS DISTINCT FROM 'cash_seq_drawer' THEN
+      RAISE EXCEPTION 'FIN-0066: M14 raised % / %, expected finance_invariant / cash_seq_drawer', msg, det;
+    END IF;
+  END;
+END $$;
+
+-- M15 'cash_closing_expected': the expected amount is the cash received minus the cash refunded (F2-Q10).
+DO $$
+DECLARE msg text; det text;
+  c uuid := '00000000-0000-7000-8000-0000000f000a'; br uuid := '00000000-0000-7000-8000-0000000f0002';
+  pt uuid := '00000000-0000-7000-8000-0000000f0009'; mb uuid := '00000000-0000-7000-8000-0000000f0005';
+  i1 uuid := '00000000-0000-7000-8000-0000000f0401';
+  p uuid := gen_random_uuid(); a uuid := gen_random_uuid(); k uuid := gen_random_uuid();
+BEGIN
+  BEGIN
+    EXECUTE 'SET CONSTRAINTS ALL DEFERRED';
+    PERFORM set_config('app.clinic_id', '00000000-0000-7000-8000-0000000f000a', true);
+    INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+        amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+      VALUES (c, p, br, pt, i1, 2026, 1, 'SAL-R-2026-000151', 'cash', 1000, 'KWD', 3, null, now(), current_date, 1, mb, now());
+    INSERT INTO payment_allocations (clinic_id, id, invoice_id, patient_id, payment_id, credit_id, amount_minor, created_by, created_at)
+      VALUES (c, a, i1, pt, p, null, 1000, mb, now());
+    INSERT INTO cash_closings (clinic_id, id, branch_id, business_date, from_cash_seq, to_cash_seq, expected_minor,
+        counted_minor, method_totals, note, previous_closing_id, currency, currency_exponent, closed_by, closed_at, created_at)
+      VALUES (c, k, br, current_date, 0, 1, 900, 900, '[]'::jsonb, null, null, 'KWD', 3, mb, now(), now());
+    INSERT INTO branch_cash_drawers (clinic_id, id, branch_id, last_cash_seq, last_closed_seq, last_closing_id, created_at, updated_at)
+      VALUES (c, gen_random_uuid(), br, 1, 1, k, now(), now());
+    PERFORM set_config('app.clinic_id', '', true);
+    EXECUTE 'SET CONSTRAINTS ALL IMMEDIATE';
+    RAISE EXCEPTION 'FIN-0066: M15 was accepted';
+  EXCEPTION WHEN raise_exception THEN
+    GET STACKED DIAGNOSTICS msg = MESSAGE_TEXT, det = PG_EXCEPTION_DETAIL;
+    IF msg IS DISTINCT FROM 'finance_invariant' OR det IS DISTINCT FROM 'cash_closing_expected' THEN
+      RAISE EXCEPTION 'FIN-0066: M15 raised % / %, expected finance_invariant / cash_closing_expected', msg, det;
+    END IF;
+  END;
+END $$;
+
+-- M16 'cash_closing_period': a closing starts where the previous one ended (R3-3, §4.4).
+DO $$
+DECLARE msg text; det text;
+  c uuid := '00000000-0000-7000-8000-0000000f000a'; br uuid := '00000000-0000-7000-8000-0000000f0002';
+  pt uuid := '00000000-0000-7000-8000-0000000f0009'; mb uuid := '00000000-0000-7000-8000-0000000f0005';
+  i1 uuid := '00000000-0000-7000-8000-0000000f0401';
+  p uuid := gen_random_uuid(); a uuid := gen_random_uuid(); k uuid := gen_random_uuid();
+BEGIN
+  BEGIN
+    EXECUTE 'SET CONSTRAINTS ALL DEFERRED';
+    PERFORM set_config('app.clinic_id', '00000000-0000-7000-8000-0000000f000a', true);
+    INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+        amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+      VALUES (c, p, br, pt, i1, 2026, 1, 'SAL-R-2026-000161', 'cash', 1000, 'KWD', 3, null, now(), current_date, 1, mb, now());
+    INSERT INTO payment_allocations (clinic_id, id, invoice_id, patient_id, payment_id, credit_id, amount_minor, created_by, created_at)
+      VALUES (c, a, i1, pt, p, null, 1000, mb, now());
+    INSERT INTO cash_closings (clinic_id, id, branch_id, business_date, from_cash_seq, to_cash_seq, expected_minor,
+        counted_minor, method_totals, note, previous_closing_id, currency, currency_exponent, closed_by, closed_at, created_at)
+      VALUES (c, k, br, current_date, 1, 1, 0, 0, '[]'::jsonb, null, null, 'KWD', 3, mb, now(), now());
+    INSERT INTO branch_cash_drawers (clinic_id, id, branch_id, last_cash_seq, last_closed_seq, last_closing_id, created_at, updated_at)
+      VALUES (c, gen_random_uuid(), br, 1, 1, k, now(), now());
+    PERFORM set_config('app.clinic_id', '', true);
+    EXECUTE 'SET CONSTRAINTS ALL IMMEDIATE';
+    RAISE EXCEPTION 'FIN-0066: M16 was accepted';
+  EXCEPTION WHEN raise_exception THEN
+    GET STACKED DIAGNOSTICS msg = MESSAGE_TEXT, det = PG_EXCEPTION_DETAIL;
+    IF msg IS DISTINCT FROM 'finance_invariant' OR det IS DISTINCT FROM 'cash_closing_period' THEN
+      RAISE EXCEPTION 'FIN-0066: M16 raised % / %, expected finance_invariant / cash_closing_period', msg, det;
+    END IF;
+  END;
+END $$;
+
+-- M17 'cash_closing_drawer': the drawer records the closing as its last.
+DO $$
+DECLARE msg text; det text;
+  c uuid := '00000000-0000-7000-8000-0000000f000a'; br uuid := '00000000-0000-7000-8000-0000000f0002';
+  pt uuid := '00000000-0000-7000-8000-0000000f0009'; mb uuid := '00000000-0000-7000-8000-0000000f0005';
+  i1 uuid := '00000000-0000-7000-8000-0000000f0401';
+  p uuid := gen_random_uuid(); a uuid := gen_random_uuid(); k uuid := gen_random_uuid();
+BEGIN
+  BEGIN
+    EXECUTE 'SET CONSTRAINTS ALL DEFERRED';
+    PERFORM set_config('app.clinic_id', '00000000-0000-7000-8000-0000000f000a', true);
+    INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+        amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+      VALUES (c, p, br, pt, i1, 2026, 1, 'SAL-R-2026-000171', 'cash', 1000, 'KWD', 3, null, now(), current_date, 1, mb, now());
+    INSERT INTO payment_allocations (clinic_id, id, invoice_id, patient_id, payment_id, credit_id, amount_minor, created_by, created_at)
+      VALUES (c, a, i1, pt, p, null, 1000, mb, now());
+    INSERT INTO cash_closings (clinic_id, id, branch_id, business_date, from_cash_seq, to_cash_seq, expected_minor,
+        counted_minor, method_totals, note, previous_closing_id, currency, currency_exponent, closed_by, closed_at, created_at)
+      VALUES (c, k, br, current_date, 0, 1, 1000, 1000, '[]'::jsonb, null, null, 'KWD', 3, mb, now(), now());
+    INSERT INTO branch_cash_drawers (clinic_id, id, branch_id, last_cash_seq, last_closed_seq, last_closing_id, created_at, updated_at)
+      VALUES (c, gen_random_uuid(), br, 1, 0, null, now(), now());
+    PERFORM set_config('app.clinic_id', '', true);
+    EXECUTE 'SET CONSTRAINTS ALL IMMEDIATE';
+    RAISE EXCEPTION 'FIN-0066: M17 was accepted';
+  EXCEPTION WHEN raise_exception THEN
+    GET STACKED DIAGNOSTICS msg = MESSAGE_TEXT, det = PG_EXCEPTION_DETAIL;
+    IF msg IS DISTINCT FROM 'finance_invariant' OR det IS DISTINCT FROM 'cash_closing_drawer' THEN
+      RAISE EXCEPTION 'FIN-0066: M17 raised % / %, expected finance_invariant / cash_closing_drawer', msg, det;
+    END IF;
+  END;
+END $$;
+
+-- M18 accepted: two closings in a row with no cash between them (R3-3). They are two transactions in real
+-- use, and a closing's check needs the drawer to name it as its last, so the checks fire after each one.
+DO $$
+DECLARE msg text; det text;
+  c uuid := '00000000-0000-7000-8000-0000000f000a'; br uuid := '00000000-0000-7000-8000-0000000f0002';
+  pt uuid := '00000000-0000-7000-8000-0000000f0009'; mb uuid := '00000000-0000-7000-8000-0000000f0005';
+  i1 uuid := '00000000-0000-7000-8000-0000000f0401';
+  p uuid := gen_random_uuid(); a uuid := gen_random_uuid();
+  k1 uuid := gen_random_uuid(); k2 uuid := gen_random_uuid();
+BEGIN
+  BEGIN
+    EXECUTE 'SET CONSTRAINTS ALL DEFERRED';
+    PERFORM set_config('app.clinic_id', '00000000-0000-7000-8000-0000000f000a', true);
+    INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+        amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+      VALUES (c, p, br, pt, i1, 2026, 1, 'SAL-R-2026-000181', 'cash', 1000, 'KWD', 3, null, now(), current_date, 1, mb, now());
+    INSERT INTO payment_allocations (clinic_id, id, invoice_id, patient_id, payment_id, credit_id, amount_minor, created_by, created_at)
+      VALUES (c, a, i1, pt, p, null, 1000, mb, now());
+    INSERT INTO cash_closings (clinic_id, id, branch_id, business_date, from_cash_seq, to_cash_seq, expected_minor,
+        counted_minor, method_totals, note, previous_closing_id, currency, currency_exponent, closed_by, closed_at, created_at)
+      VALUES (c, k1, br, current_date, 0, 1, 1000, 1000, '[]'::jsonb, null, null, 'KWD', 3, mb, now(), now());
+    INSERT INTO branch_cash_drawers (clinic_id, id, branch_id, last_cash_seq, last_closed_seq, last_closing_id, created_at, updated_at)
+      VALUES (c, gen_random_uuid(), br, 1, 1, k1, now(), now());
+    PERFORM set_config('app.clinic_id', '', true);
+    EXECUTE 'SET CONSTRAINTS ALL IMMEDIATE';
+    PERFORM set_config('app.clinic_id', '00000000-0000-7000-8000-0000000f000a', true);
+    EXECUTE 'SET CONSTRAINTS ALL DEFERRED';
+    INSERT INTO cash_closings (clinic_id, id, branch_id, business_date, from_cash_seq, to_cash_seq, expected_minor,
+        counted_minor, method_totals, note, previous_closing_id, currency, currency_exponent, closed_by, closed_at, created_at)
+      VALUES (c, k2, br, current_date + 1, 1, 1, 0, 0, '[]'::jsonb, null, k1, 'KWD', 3, mb, now(), now());
+    UPDATE branch_cash_drawers SET last_closing_id = k2, updated_at = now() WHERE branch_id = br;
+    PERFORM set_config('app.clinic_id', '', true);
+    EXECUTE 'SET CONSTRAINTS ALL IMMEDIATE';
+    RAISE EXCEPTION 'undo' USING ERRCODE = 'EYT01';
+  EXCEPTION WHEN SQLSTATE 'EYT01' THEN NULL;
+    WHEN raise_exception THEN
+      GET STACKED DIAGNOSTICS msg = MESSAGE_TEXT, det = PG_EXCEPTION_DETAIL;
+      RAISE EXCEPTION 'FIN-0066: M18 was refused (% / %)', msg, det;
+  END;
+END $$;
+
+-- M19 'cash_drawer_closing': the drawer's closed position is its last closing's end, and no closing
+-- follows that one (R3-3). The drawer's own check is the only one that can refuse here, so the case
+-- pins it alone: step 1 is a correct cash payment, its allocation, a valid closing and the drawer
+-- that names it; step 2 moves the drawer's closed position back without moving the closing.
+DO $$
+DECLARE msg text; det text;
+  c uuid := '00000000-0000-7000-8000-0000000f000a'; br uuid := '00000000-0000-7000-8000-0000000f0002';
+  pt uuid := '00000000-0000-7000-8000-0000000f0009'; mb uuid := '00000000-0000-7000-8000-0000000f0005';
+  i1 uuid := '00000000-0000-7000-8000-0000000f0401';
+  p uuid := gen_random_uuid(); a uuid := gen_random_uuid(); k uuid := gen_random_uuid();
+BEGIN
+  BEGIN
+    EXECUTE 'SET CONSTRAINTS ALL DEFERRED';
+    PERFORM set_config('app.clinic_id', '00000000-0000-7000-8000-0000000f000a', true);
+    INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+        amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+      VALUES (c, p, br, pt, i1, 2026, 19, 'SAL-R-2026-000219', 'cash', 1000, 'KWD', 3, null, now(), current_date, 1, mb, now());
+    INSERT INTO payment_allocations (clinic_id, id, invoice_id, patient_id, payment_id, credit_id, amount_minor, created_by, created_at)
+      VALUES (c, a, i1, pt, p, null, 1000, mb, now());
+    INSERT INTO cash_closings (clinic_id, id, branch_id, business_date, from_cash_seq, to_cash_seq, expected_minor,
+        counted_minor, method_totals, note, previous_closing_id, currency, currency_exponent, closed_by, closed_at, created_at)
+      VALUES (c, k, br, current_date, 0, 1, 1000, 1000, '[]'::jsonb, null, null, 'KWD', 3, mb, now(), now());
+    INSERT INTO branch_cash_drawers (clinic_id, id, branch_id, last_cash_seq, last_closed_seq, last_closing_id, created_at, updated_at)
+      VALUES (c, gen_random_uuid(), br, 1, 1, k, now(), now());
+    PERFORM set_config('app.clinic_id', '', true);
+    EXECUTE 'SET CONSTRAINTS ALL IMMEDIATE';
+    PERFORM set_config('app.clinic_id', '00000000-0000-7000-8000-0000000f000a', true);
+    EXECUTE 'SET CONSTRAINTS ALL DEFERRED';
+    UPDATE branch_cash_drawers SET last_closed_seq = 0, updated_at = now() WHERE branch_id = br;
+    PERFORM set_config('app.clinic_id', '', true);
+    EXECUTE 'SET CONSTRAINTS ALL IMMEDIATE';
+    RAISE EXCEPTION 'FIN-0066: M19 was accepted';
+  EXCEPTION WHEN raise_exception THEN
+    GET STACKED DIAGNOSTICS msg = MESSAGE_TEXT, det = PG_EXCEPTION_DETAIL;
+    IF msg IS DISTINCT FROM 'finance_invariant' OR det IS DISTINCT FROM 'cash_drawer_closing' THEN
+      RAISE EXCEPTION 'FIN-0066: M19 raised % / %, expected finance_invariant / cash_drawer_closing', msg, det;
+    END IF;
+  END;
+END $$;
+
+-- 0066, one trigger at a time (FIN-0066-ONE): a check is only pinned when the trigger that carries it
+-- is the only one that can fire. Each case writes a correct set of rows first and fires them (that must
+-- pass), then writes ONE row of ONE table that breaks an invariant, and fires again: only the trigger of
+-- that table is pending, so only that check can refuse. The rows of the first step stay (they are the
+-- patient's money the second step breaks), so every case builds on the ones before it.
+DO $$
+DECLARE msg text; det text;
+  c uuid := '00000000-0000-7000-8000-0000000f000a'; br uuid := '00000000-0000-7000-8000-0000000f0002';
+  pt uuid := '00000000-0000-7000-8000-0000000f0009'; mb uuid := '00000000-0000-7000-8000-0000000f0005';
+  i1 uuid := '00000000-0000-7000-8000-0000000f0401';
+  p1 uuid := gen_random_uuid(); p2 uuid := gen_random_uuid();
+  a1 uuid := gen_random_uuid();
+BEGIN
+  BEGIN
+    BEGIN
+      EXECUTE 'SET CONSTRAINTS ALL DEFERRED';
+      PERFORM set_config('app.clinic_id', '00000000-0000-7000-8000-0000000f000a', true);
+      INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+          amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+        VALUES (c, p1, br, pt, i1, 2026, 11, 'SAL-R-2026-000211', 'knet', 1000, 'KWD', 3, null, now(), current_date, null, mb, now());
+      INSERT INTO payment_allocations (clinic_id, id, invoice_id, patient_id, payment_id, credit_id, amount_minor, created_by, created_at)
+        VALUES (c, a1, i1, pt, p1, null, 1000, mb, now());
+      PERFORM set_config('app.clinic_id', '', true);
+      EXECUTE 'SET CONSTRAINTS ALL IMMEDIATE';
+    EXCEPTION WHEN others THEN
+      GET STACKED DIAGNOSTICS msg = MESSAGE_TEXT, det = PG_EXCEPTION_DETAIL;
+      RAISE EXCEPTION 'FIN-0066-ONE: T1 step 1 was refused: % / %', msg, det;
+    END;
+    BEGIN
+      PERFORM set_config('app.clinic_id', '00000000-0000-7000-8000-0000000f000a', true);
+      EXECUTE 'SET CONSTRAINTS ALL DEFERRED';
+      INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+          amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+        VALUES (c, p2, br, pt, i1, 2026, 12, 'SAL-R-2026-000212', 'knet', 500, 'KWD', 3, null, now(), current_date, null, mb, now());
+      PERFORM set_config('app.clinic_id', '', true);
+      EXECUTE 'SET CONSTRAINTS ALL IMMEDIATE';
+      RAISE EXCEPTION 'FIN-0066-ONE: T1 was accepted';
+    EXCEPTION WHEN raise_exception THEN
+      GET STACKED DIAGNOSTICS msg = MESSAGE_TEXT, det = PG_EXCEPTION_DETAIL;
+      IF msg = 'FIN-0066-ONE: T1 was accepted' THEN
+        RAISE EXCEPTION 'FIN-0066-ONE: T1 was accepted';
+      END IF;
+      IF msg IS DISTINCT FROM 'finance_invariant' OR det IS DISTINCT FROM 'payment_allocated' THEN
+        RAISE EXCEPTION 'FIN-0066-ONE: T1 raised % / %, expected finance_invariant / payment_allocated', msg, det;
+      END IF;
+    END;
+  END;
+END $$;
+
+-- T2 payment_allocations_money_check: an allocation funded by a credit spends it, and a credit is never
+-- spent beyond its amount (§4.3 invariant 1).
+DO $$
+DECLARE msg text; det text;
+  c uuid := '00000000-0000-7000-8000-0000000f000a'; br uuid := '00000000-0000-7000-8000-0000000f0002';
+  pt uuid := '00000000-0000-7000-8000-0000000f0009'; mb uuid := '00000000-0000-7000-8000-0000000f0005';
+  i1 uuid := '00000000-0000-7000-8000-0000000f0401'; i2 uuid := '00000000-0000-7000-8000-0000000f0402';
+  p uuid := gen_random_uuid(); a uuid := gen_random_uuid(); cr uuid := gen_random_uuid(); a2 uuid := gen_random_uuid();
+BEGIN
+  BEGIN
+    BEGIN
+      EXECUTE 'SET CONSTRAINTS ALL DEFERRED';
+      PERFORM set_config('app.clinic_id', '00000000-0000-7000-8000-0000000f000a', true);
+      INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+          amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+        VALUES (c, p, br, pt, i1, 2026, 13, 'SAL-R-2026-000213', 'knet', 1000, 'KWD', 3, null, now(), current_date, null, mb, now());
+      INSERT INTO payment_allocations (clinic_id, id, invoice_id, patient_id, payment_id, credit_id, amount_minor, created_by, created_at)
+        VALUES (c, a, i1, pt, p, null, 1000, mb, now());
+      INSERT INTO patient_credits (clinic_id, id, patient_id, origin_allocation_id, amount_minor, cause, created_by, created_at)
+        VALUES (c, cr, pt, a, 1000, 'invoice_edited', mb, now());
+      PERFORM set_config('app.clinic_id', '', true);
+      EXECUTE 'SET CONSTRAINTS ALL IMMEDIATE';
+    EXCEPTION WHEN others THEN
+      GET STACKED DIAGNOSTICS msg = MESSAGE_TEXT, det = PG_EXCEPTION_DETAIL;
+      RAISE EXCEPTION 'FIN-0066-ONE: T2 step 1 was refused: % / %', msg, det;
+    END;
+    BEGIN
+      PERFORM set_config('app.clinic_id', '00000000-0000-7000-8000-0000000f000a', true);
+      EXECUTE 'SET CONSTRAINTS ALL DEFERRED';
+      INSERT INTO payment_allocations (clinic_id, id, invoice_id, patient_id, payment_id, credit_id, amount_minor, created_by, created_at)
+        VALUES (c, a2, i2, pt, null, cr, 1500, mb, now());
+      PERFORM set_config('app.clinic_id', '', true);
+      EXECUTE 'SET CONSTRAINTS ALL IMMEDIATE';
+      RAISE EXCEPTION 'FIN-0066-ONE: T2 was accepted';
+    EXCEPTION WHEN raise_exception THEN
+      GET STACKED DIAGNOSTICS msg = MESSAGE_TEXT, det = PG_EXCEPTION_DETAIL;
+      IF msg = 'FIN-0066-ONE: T2 was accepted' THEN
+        RAISE EXCEPTION 'FIN-0066-ONE: T2 was accepted';
+      END IF;
+      IF msg IS DISTINCT FROM 'finance_invariant' OR det IS DISTINCT FROM 'credit_remaining' THEN
+        RAISE EXCEPTION 'FIN-0066-ONE: T2 raised % / %, expected finance_invariant / credit_remaining', msg, det;
+      END IF;
+    END;
+  END;
+END $$;
+
+-- T3 patient_credits_money_check: a credit never releases more than the allocation it came from
+-- (§4.3 invariant 1).
+DO $$
+DECLARE msg text; det text;
+  c uuid := '00000000-0000-7000-8000-0000000f000a'; br uuid := '00000000-0000-7000-8000-0000000f0002';
+  pt uuid := '00000000-0000-7000-8000-0000000f0009'; mb uuid := '00000000-0000-7000-8000-0000000f0005';
+  i1 uuid := '00000000-0000-7000-8000-0000000f0401';
+  p uuid := gen_random_uuid(); a uuid := gen_random_uuid(); cr uuid := gen_random_uuid();
+BEGIN
+  BEGIN
+    BEGIN
+      EXECUTE 'SET CONSTRAINTS ALL DEFERRED';
+      PERFORM set_config('app.clinic_id', '00000000-0000-7000-8000-0000000f000a', true);
+      INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+          amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+        VALUES (c, p, br, pt, i1, 2026, 14, 'SAL-R-2026-000214', 'knet', 1000, 'KWD', 3, null, now(), current_date, null, mb, now());
+      INSERT INTO payment_allocations (clinic_id, id, invoice_id, patient_id, payment_id, credit_id, amount_minor, created_by, created_at)
+        VALUES (c, a, i1, pt, p, null, 1000, mb, now());
+      PERFORM set_config('app.clinic_id', '', true);
+      EXECUTE 'SET CONSTRAINTS ALL IMMEDIATE';
+    EXCEPTION WHEN others THEN
+      GET STACKED DIAGNOSTICS msg = MESSAGE_TEXT, det = PG_EXCEPTION_DETAIL;
+      RAISE EXCEPTION 'FIN-0066-ONE: T3 step 1 was refused: % / %', msg, det;
+    END;
+    BEGIN
+      PERFORM set_config('app.clinic_id', '00000000-0000-7000-8000-0000000f000a', true);
+      EXECUTE 'SET CONSTRAINTS ALL DEFERRED';
+      INSERT INTO patient_credits (clinic_id, id, patient_id, origin_allocation_id, amount_minor, cause, created_by, created_at)
+        VALUES (c, cr, pt, a, 1500, 'refund', mb, now());
+      PERFORM set_config('app.clinic_id', '', true);
+      EXECUTE 'SET CONSTRAINTS ALL IMMEDIATE';
+      RAISE EXCEPTION 'FIN-0066-ONE: T3 was accepted';
+    EXCEPTION WHEN raise_exception THEN
+      GET STACKED DIAGNOSTICS msg = MESSAGE_TEXT, det = PG_EXCEPTION_DETAIL;
+      IF msg = 'FIN-0066-ONE: T3 was accepted' THEN
+        RAISE EXCEPTION 'FIN-0066-ONE: T3 was accepted';
+      END IF;
+      IF msg IS DISTINCT FROM 'finance_invariant' OR det IS DISTINCT FROM 'allocation_live' THEN
+        RAISE EXCEPTION 'FIN-0066-ONE: T3 raised % / %, expected finance_invariant / allocation_live', msg, det;
+      END IF;
+    END;
+  END;
+END $$;
+
+-- T4 refunds_money_check: a refund is covered exactly by the credits it spent (R3-2).
+DO $$
+DECLARE msg text; det text;
+  c uuid := '00000000-0000-7000-8000-0000000f000a'; br uuid := '00000000-0000-7000-8000-0000000f0002';
+  pt uuid := '00000000-0000-7000-8000-0000000f0009'; mb uuid := '00000000-0000-7000-8000-0000000f0005';
+  i1 uuid := '00000000-0000-7000-8000-0000000f0401';
+  p uuid := gen_random_uuid(); a uuid := gen_random_uuid(); cr uuid := gen_random_uuid(); f uuid := gen_random_uuid();
+BEGIN
+  BEGIN
+    BEGIN
+      EXECUTE 'SET CONSTRAINTS ALL DEFERRED';
+      PERFORM set_config('app.clinic_id', '00000000-0000-7000-8000-0000000f000a', true);
+      INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+          amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+        VALUES (c, p, br, pt, i1, 2026, 15, 'SAL-R-2026-000215', 'knet', 1000, 'KWD', 3, null, now(), current_date, null, mb, now());
+      INSERT INTO payment_allocations (clinic_id, id, invoice_id, patient_id, payment_id, credit_id, amount_minor, created_by, created_at)
+        VALUES (c, a, i1, pt, p, null, 1000, mb, now());
+      INSERT INTO patient_credits (clinic_id, id, patient_id, origin_allocation_id, amount_minor, cause, created_by, created_at)
+        VALUES (c, cr, pt, a, 400, 'refund', mb, now());
+      PERFORM set_config('app.clinic_id', '', true);
+      EXECUTE 'SET CONSTRAINTS ALL IMMEDIATE';
+    EXCEPTION WHEN others THEN
+      GET STACKED DIAGNOSTICS msg = MESSAGE_TEXT, det = PG_EXCEPTION_DETAIL;
+      RAISE EXCEPTION 'FIN-0066-ONE: T4 step 1 was refused: % / %', msg, det;
+    END;
+    BEGIN
+      PERFORM set_config('app.clinic_id', '00000000-0000-7000-8000-0000000f000a', true);
+      EXECUTE 'SET CONSTRAINTS ALL DEFERRED';
+      INSERT INTO refunds (clinic_id, id, branch_id, patient_id, invoice_id, year, refund_seq, refund_number, method,
+          amount_minor, currency, currency_exponent, reason, refunded_at, business_date, cash_seq, refunded_by, created_at)
+        VALUES (c, f, br, pt, i1, 2026, 11, 'SAL-RF-2026-000211', 'knet', 400, 'KWD', 3, 'x', now(), current_date, null, mb, now());
+      PERFORM set_config('app.clinic_id', '', true);
+      EXECUTE 'SET CONSTRAINTS ALL IMMEDIATE';
+      RAISE EXCEPTION 'FIN-0066-ONE: T4 was accepted';
+    EXCEPTION WHEN raise_exception THEN
+      GET STACKED DIAGNOSTICS msg = MESSAGE_TEXT, det = PG_EXCEPTION_DETAIL;
+      IF msg = 'FIN-0066-ONE: T4 was accepted' THEN
+        RAISE EXCEPTION 'FIN-0066-ONE: T4 was accepted';
+      END IF;
+      IF msg IS DISTINCT FROM 'finance_invariant' OR det IS DISTINCT FROM 'refund_sources' THEN
+        RAISE EXCEPTION 'FIN-0066-ONE: T4 raised % / %, expected finance_invariant / refund_sources', msg, det;
+      END IF;
+    END;
+  END;
+END $$;
+
+-- T5 refund_sources_money_check: the sources of a refund must add up to its amount (R3-2).
+DO $$
+DECLARE msg text; det text;
+  c uuid := '00000000-0000-7000-8000-0000000f000a'; br uuid := '00000000-0000-7000-8000-0000000f0002';
+  pt uuid := '00000000-0000-7000-8000-0000000f0009'; mb uuid := '00000000-0000-7000-8000-0000000f0005';
+  i1 uuid := '00000000-0000-7000-8000-0000000f0401';
+  p uuid := gen_random_uuid(); a uuid := gen_random_uuid();
+  cr uuid := gen_random_uuid(); cr2 uuid := gen_random_uuid();
+  f uuid := gen_random_uuid(); s uuid := gen_random_uuid(); s2 uuid := gen_random_uuid();
+BEGIN
+  BEGIN
+    BEGIN
+      EXECUTE 'SET CONSTRAINTS ALL DEFERRED';
+      PERFORM set_config('app.clinic_id', '00000000-0000-7000-8000-0000000f000a', true);
+      INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+          amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+        VALUES (c, p, br, pt, i1, 2026, 16, 'SAL-R-2026-000216', 'knet', 1000, 'KWD', 3, null, now(), current_date, null, mb, now());
+      INSERT INTO payment_allocations (clinic_id, id, invoice_id, patient_id, payment_id, credit_id, amount_minor, created_by, created_at)
+        VALUES (c, a, i1, pt, p, null, 1000, mb, now());
+      INSERT INTO patient_credits (clinic_id, id, patient_id, origin_allocation_id, amount_minor, cause, created_by, created_at)
+        VALUES (c, cr, pt, a, 400, 'refund', mb, now());
+      INSERT INTO refunds (clinic_id, id, branch_id, patient_id, invoice_id, year, refund_seq, refund_number, method,
+          amount_minor, currency, currency_exponent, reason, refunded_at, business_date, cash_seq, refunded_by, created_at)
+        VALUES (c, f, br, pt, i1, 2026, 12, 'SAL-RF-2026-000212', 'knet', 400, 'KWD', 3, 'x', now(), current_date, null, mb, now());
+      INSERT INTO refund_sources (clinic_id, id, refund_id, credit_id, patient_id, amount_minor, created_at)
+        VALUES (c, s, f, cr, pt, 400, now());
+      INSERT INTO patient_credits (clinic_id, id, patient_id, origin_allocation_id, amount_minor, cause, created_by, created_at)
+        VALUES (c, cr2, pt, a, 100, 'refund', mb, now());
+      PERFORM set_config('app.clinic_id', '', true);
+      EXECUTE 'SET CONSTRAINTS ALL IMMEDIATE';
+    EXCEPTION WHEN others THEN
+      GET STACKED DIAGNOSTICS msg = MESSAGE_TEXT, det = PG_EXCEPTION_DETAIL;
+      RAISE EXCEPTION 'FIN-0066-ONE: T5 step 1 was refused: % / %', msg, det;
+    END;
+    BEGIN
+      PERFORM set_config('app.clinic_id', '00000000-0000-7000-8000-0000000f000a', true);
+      EXECUTE 'SET CONSTRAINTS ALL DEFERRED';
+      INSERT INTO refund_sources (clinic_id, id, refund_id, credit_id, patient_id, amount_minor, created_at)
+        VALUES (c, s2, f, cr2, pt, 100, now());
+      PERFORM set_config('app.clinic_id', '', true);
+      EXECUTE 'SET CONSTRAINTS ALL IMMEDIATE';
+      RAISE EXCEPTION 'FIN-0066-ONE: T5 was accepted';
+    EXCEPTION WHEN raise_exception THEN
+      GET STACKED DIAGNOSTICS msg = MESSAGE_TEXT, det = PG_EXCEPTION_DETAIL;
+      IF msg = 'FIN-0066-ONE: T5 was accepted' THEN
+        RAISE EXCEPTION 'FIN-0066-ONE: T5 was accepted';
+      END IF;
+      IF msg IS DISTINCT FROM 'finance_invariant' OR det IS DISTINCT FROM 'refund_sources' THEN
+        RAISE EXCEPTION 'FIN-0066-ONE: T5 raised % / %, expected finance_invariant / refund_sources', msg, det;
+      END IF;
+    END;
+  END;
+END $$;
+
+-- T6 invoices_money_check: a lowered invoice releases the excess into credit, so it cannot hold more
+-- than it was paid (§4.3 invariant 3).
+DO $$
+DECLARE msg text; det text;
+  c uuid := '00000000-0000-7000-8000-0000000f000a'; br uuid := '00000000-0000-7000-8000-0000000f0002';
+  pt uuid := '00000000-0000-7000-8000-0000000f0009'; mb uuid := '00000000-0000-7000-8000-0000000f0005';
+  i1 uuid := '00000000-0000-7000-8000-0000000f0401';
+  p uuid := gen_random_uuid(); a uuid := gen_random_uuid();
+BEGIN
+  BEGIN
+    BEGIN
+      EXECUTE 'SET CONSTRAINTS ALL DEFERRED';
+      PERFORM set_config('app.clinic_id', '00000000-0000-7000-8000-0000000f000a', true);
+      INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+          amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+        VALUES (c, p, br, pt, i1, 2026, 17, 'SAL-R-2026-000217', 'knet', 4000, 'KWD', 3, null, now(), current_date, null, mb, now());
+      INSERT INTO payment_allocations (clinic_id, id, invoice_id, patient_id, payment_id, credit_id, amount_minor, created_by, created_at)
+        VALUES (c, a, i1, pt, p, null, 4000, mb, now());
+      PERFORM set_config('app.clinic_id', '', true);
+      EXECUTE 'SET CONSTRAINTS ALL IMMEDIATE';
+    EXCEPTION WHEN others THEN
+      GET STACKED DIAGNOSTICS msg = MESSAGE_TEXT, det = PG_EXCEPTION_DETAIL;
+      RAISE EXCEPTION 'FIN-0066-ONE: T6 step 1 was refused: % / %', msg, det;
+    END;
+    BEGIN
+      PERFORM set_config('app.clinic_id', '00000000-0000-7000-8000-0000000f000a', true);
+      EXECUTE 'SET CONSTRAINTS ALL DEFERRED';
+      UPDATE invoices SET total_minor = 3000 WHERE id = i1;
+      PERFORM set_config('app.clinic_id', '', true);
+      EXECUTE 'SET CONSTRAINTS ALL IMMEDIATE';
+      RAISE EXCEPTION 'FIN-0066-ONE: T6 was accepted';
+    EXCEPTION WHEN raise_exception THEN
+      GET STACKED DIAGNOSTICS msg = MESSAGE_TEXT, det = PG_EXCEPTION_DETAIL;
+      IF msg = 'FIN-0066-ONE: T6 was accepted' THEN
+        RAISE EXCEPTION 'FIN-0066-ONE: T6 was accepted';
+      END IF;
+      IF msg IS DISTINCT FROM 'finance_invariant' OR det IS DISTINCT FROM 'invoice_paid' THEN
+        RAISE EXCEPTION 'FIN-0066-ONE: T6 raised % / %, expected finance_invariant / invoice_paid', msg, det;
+      END IF;
+    END;
+  END;
+END $$;
+
+-- T7 refunds_cash_check: a cash number is held by one movement only (PR #89 review).
+DO $$
+DECLARE msg text; det text;
+  c uuid := '00000000-0000-7000-8000-0000000f000a'; br uuid := '00000000-0000-7000-8000-0000000f0002';
+  pt uuid := '00000000-0000-7000-8000-0000000f0009'; mb uuid := '00000000-0000-7000-8000-0000000f0005';
+  i1 uuid := '00000000-0000-7000-8000-0000000f0401';
+  p uuid := gen_random_uuid(); a uuid := gen_random_uuid(); cr uuid := gen_random_uuid();
+  f uuid := gen_random_uuid(); s uuid := gen_random_uuid();
+BEGIN
+  BEGIN
+    BEGIN
+      EXECUTE 'SET CONSTRAINTS ALL DEFERRED';
+      PERFORM set_config('app.clinic_id', '00000000-0000-7000-8000-0000000f000a', true);
+      INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number, method,
+          amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq, received_by, created_at)
+        VALUES (c, p, br, pt, i1, 2026, 18, 'SAL-R-2026-000218', 'cash', 1000, 'KWD', 3, null, now(), current_date, 1, mb, now());
+      INSERT INTO payment_allocations (clinic_id, id, invoice_id, patient_id, payment_id, credit_id, amount_minor, created_by, created_at)
+        VALUES (c, a, i1, pt, p, null, 1000, mb, now());
+      INSERT INTO patient_credits (clinic_id, id, patient_id, origin_allocation_id, amount_minor, cause, created_by, created_at)
+        VALUES (c, cr, pt, a, 1000, 'refund', mb, now());
+      INSERT INTO branch_cash_drawers (clinic_id, id, branch_id, last_cash_seq, last_closed_seq, last_closing_id, created_at, updated_at)
+        VALUES (c, gen_random_uuid(), br, 1, 0, null, now(), now());
+      PERFORM set_config('app.clinic_id', '', true);
+      EXECUTE 'SET CONSTRAINTS ALL IMMEDIATE';
+    EXCEPTION WHEN others THEN
+      GET STACKED DIAGNOSTICS msg = MESSAGE_TEXT, det = PG_EXCEPTION_DETAIL;
+      RAISE EXCEPTION 'FIN-0066-ONE: T7 step 1 was refused: % / %', msg, det;
+    END;
+    BEGIN
+      PERFORM set_config('app.clinic_id', '00000000-0000-7000-8000-0000000f000a', true);
+      EXECUTE 'SET CONSTRAINTS ALL DEFERRED';
+      INSERT INTO refunds (clinic_id, id, branch_id, patient_id, invoice_id, year, refund_seq, refund_number, method,
+          amount_minor, currency, currency_exponent, reason, refunded_at, business_date, cash_seq, refunded_by, created_at)
+        VALUES (c, f, br, pt, i1, 2026, 13, 'SAL-RF-2026-000213', 'cash', 1000, 'KWD', 3, 'x', now(), current_date, 1, mb, now());
+      INSERT INTO refund_sources (clinic_id, id, refund_id, credit_id, patient_id, amount_minor, created_at)
+        VALUES (c, s, f, cr, pt, 1000, now());
+      PERFORM set_config('app.clinic_id', '', true);
+      EXECUTE 'SET CONSTRAINTS ALL IMMEDIATE';
+      RAISE EXCEPTION 'FIN-0066-ONE: T7 was accepted';
+    EXCEPTION WHEN raise_exception THEN
+      GET STACKED DIAGNOSTICS msg = MESSAGE_TEXT, det = PG_EXCEPTION_DETAIL;
+      IF msg = 'FIN-0066-ONE: T7 was accepted' THEN
+        RAISE EXCEPTION 'FIN-0066-ONE: T7 was accepted';
+      END IF;
+      IF msg IS DISTINCT FROM 'finance_invariant' OR det IS DISTINCT FROM 'cash_seq_taken' THEN
+        RAISE EXCEPTION 'FIN-0066-ONE: T7 raised % / %, expected finance_invariant / cash_seq_taken', msg, det;
+      END IF;
+    END;
+  END;
+END $$;
+
+RESET ROLE;
+RESET app.clinic_id;
+
 \echo 'Finance tests: all passed'
 ROLLBACK;
+
+
