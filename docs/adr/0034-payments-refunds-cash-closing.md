@@ -44,15 +44,15 @@ INSERT` on them and no role has `UPDATE` or `DELETE`. A correction is a new move
    closing and confirms the previous closing and the range its preview showed (`cash_drawer_changed`
    otherwise). Closings chain by `previous_closing_id`, so a day with no cash still closes (R3-3). A cash
    movement is in exactly one closing, independent of clocks.
-7. **Lock order** (joins ADR-0027 in the SQL/API slice): idempotency claim → patient row (item 7) → invoice
-   rows by id ascending (new 7a) → branch row `FOR SHARE` (item 9) → the branch's cash drawer (new 9a) → the
-   branch's receipt sequence (new 9b). A closing takes 9 → 9a only. A payment does not change the invoice
+7. **Lock order** (joins ADR-0027 in the SQL/API slice): the idempotency claim (new 0) → patient row (item 7) → invoice rows by id ascending (new 7a) → branch row `FOR SHARE` (item 9) → the branch's cash drawer (new
+   9a) → F1's invoice sequence (new 9b) or the branch's receipt sequence (new 9c). A closing takes 0 → 9 → 9a. A payment does not change the invoice
    row or its `version`. F2's rows reference no membership; F1's issue and edit, which do through their
    lines, lock those memberships (item 6) before the patient row (R3-4).
 8. **The platform sees totals only** (FIN-3): no grant on any new table; `finance_monthly_totals` is
    recreated with `collected_minor` (payments by the month of `received_at`) and `refunded_minor` (refunds by
-   the month of `refunded_at`), keeping its existing column names; the new audit entity types are excluded
-   from the platform's audit view and policies.
+   the month of `refunded_at`), keeping its existing column names; the payment, refund, credit and closing
+   audit entity types are excluded from the platform's audit view and policies; the payment-methods setting,
+   which names no patient, stays visible like other clinic settings.
 9. **Audit** writes one row per payment, credit use, credit release, refund and closing, with ids, numbers,
    methods and amounts only; references, refund reasons and closing notes are stored on their rows and appear
    in audit as their length.
