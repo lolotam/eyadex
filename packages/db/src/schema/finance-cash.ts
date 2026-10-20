@@ -19,7 +19,7 @@ import {
 import { branches } from "./branches.ts";
 import { clinics } from "./clinics.ts";
 import { invoices } from "./finance-invoices.ts";
-import { patientCredits } from "./finance-payments.ts";
+import { EXPONENT_FOLLOWS_CURRENCY, patientCredits } from "./finance-payments.ts";
 import { patients } from "./patients.ts";
 import { CURRENCIES, minor, tz } from "./finance-columns.ts";
 
@@ -67,20 +67,21 @@ export const refunds = pgTable(
       foreignColumns: [patients.clinicId, patients.id],
     }),
     foreignKey({
-      name: "refunds_clinic_id_invoice_id_branch_id_patient_id_fkey",
-      columns: [t.clinicId, t.invoiceId, t.branchId, t.patientId],
-      foreignColumns: [invoices.clinicId, invoices.id, invoices.branchId, invoices.patientId],
+      name: "refunds_invoice_fkey",
+      columns: [t.clinicId, t.invoiceId, t.branchId, t.patientId, t.currency],
+      foreignColumns: [
+        invoices.clinicId,
+        invoices.id,
+        invoices.branchId,
+        invoices.patientId,
+        invoices.currency,
+      ],
     }),
     unique("refunds_refund_number_unique").on(t.clinicId, t.refundNumber),
     unique("refunds_refund_seq_unique").on(t.clinicId, t.branchId, t.year, t.refundSeq),
     unique("refunds_cash_seq_unique").on(t.clinicId, t.branchId, t.cashSeq),
     unique("refunds_id_patient_unique").on(t.clinicId, t.id, t.patientId),
-    index("refunds_clinic_invoice_branch_patient_idx").on(
-      t.clinicId,
-      t.invoiceId,
-      t.branchId,
-      t.patientId,
-    ),
+    index("refunds_invoice_idx").on(t.clinicId, t.invoiceId, t.branchId, t.patientId, t.currency),
     index("refunds_clinic_patient_idx").on(t.clinicId, t.patientId),
     index("refunds_clinic_branch_date_idx").on(t.clinicId, t.branchId, t.businessDate),
     check("refunds_amount_minor_check", sql.raw("(amount_minor > 0)")),
@@ -91,6 +92,7 @@ export const refunds = pgTable(
     ),
     check("refunds_currency_check", sql.raw(`${CURRENCIES}`)),
     check("refunds_currency_exponent_check", sql.raw("(currency_exponent = ANY (ARRAY[2, 3]))")),
+    check("refunds_currency_exponent_match_check", sql.raw(EXPONENT_FOLLOWS_CURRENCY)),
     check(
       "refunds_method_check",
       sql.raw(
@@ -202,6 +204,7 @@ export const cashClosings = pgTable(
       "cash_closings_currency_exponent_check",
       sql.raw("(currency_exponent = ANY (ARRAY[2, 3]))"),
     ),
+    check("cash_closings_currency_exponent_match_check", sql.raw(EXPONENT_FOLLOWS_CURRENCY)),
     check(
       "cash_closings_difference_note_check",
       sql.raw("((counted_minor = expected_minor) OR (note IS NOT NULL))"),

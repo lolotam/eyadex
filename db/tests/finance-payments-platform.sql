@@ -85,13 +85,15 @@ BEGIN
   END IF;
   FOR t, want IN SELECT * FROM (VALUES
       ('invoices', ARRAY['clinic_id','id','status','total_minor']::text[]),
-      ('payments', ARRAY['clinic_id','id','branch_id','patient_id','amount_minor','cash_seq']::text[]),
+      ('payments', ARRAY['clinic_id','id','branch_id','patient_id','amount_minor','cash_seq','year','receipt_seq','receipt_number']::text[]),
       ('payment_allocations', ARRAY['clinic_id','id','patient_id','invoice_id','payment_id','credit_id','amount_minor']::text[]),
       ('patient_credits', ARRAY['clinic_id','id','patient_id','origin_allocation_id','amount_minor']::text[]),
-      ('refunds', ARRAY['clinic_id','id','branch_id','patient_id','amount_minor','cash_seq']::text[]),
+      ('refunds', ARRAY['clinic_id','id','branch_id','patient_id','amount_minor','cash_seq','year','refund_seq','refund_number']::text[]),
       ('refund_sources', ARRAY['clinic_id','refund_id','credit_id','patient_id','amount_minor']::text[]),
       ('branch_cash_drawers', ARRAY['clinic_id','branch_id','last_cash_seq','last_closed_seq','last_closing_id']::text[]),
-      ('cash_closings', ARRAY['clinic_id','id','branch_id','from_cash_seq','to_cash_seq','expected_minor','previous_closing_id']::text[])
+      ('cash_closings', ARRAY['clinic_id','id','branch_id','from_cash_seq','to_cash_seq','expected_minor','previous_closing_id']::text[]),
+      ('receipt_sequences', ARRAY['clinic_id','branch_id','series','year','next_number']::text[]),
+      ('branches', ARRAY['clinic_id','id','invoice_prefix']::text[])
     ) AS v(t, want) LOOP
     FOR col IN SELECT column_name FROM information_schema.columns
                WHERE table_schema = 'public' AND table_name = t LOOP
@@ -111,12 +113,10 @@ BEGIN
       RAISE EXCEPTION 'FIN-F2-GRANTS: the check owner can read the column % of patients', col;
     END IF;
   END LOOP;
-  FOREACH t IN ARRAY ARRAY['clinic_payment_methods','receipt_sequences'] LOOP
-    IF has_table_privilege('eyadex_finance_check_owner', t, 'SELECT')
-       OR has_column_privilege('eyadex_finance_check_owner', t, 'id', 'SELECT') THEN
-      RAISE EXCEPTION 'FIN-F2-GRANTS: the check owner reads %', t;
-    END IF;
-  END LOOP;
+  IF has_table_privilege('eyadex_finance_check_owner', 'clinic_payment_methods', 'SELECT')
+     OR has_column_privilege('eyadex_finance_check_owner', 'clinic_payment_methods', 'id', 'SELECT') THEN
+    RAISE EXCEPTION 'FIN-F2-GRANTS: the check owner reads clinic_payment_methods';
+  END IF;
   -- The totals owner reads the four money columns and nothing else (FIN-3, R1-17).
   FOR t, want IN SELECT * FROM (VALUES
       ('payments', ARRAY['clinic_id','received_at','amount_minor','currency']::text[]),
@@ -139,7 +139,10 @@ DECLARE sig text; r text; fn regprocedure; result text;
 BEGIN
   FOREACH sig IN ARRAY ARRAY['finance_check_patient(uuid, uuid)','finance_check_cash_movement(uuid, uuid, bigint)',
       'finance_check_drawer(uuid, uuid)','finance_check_closing(uuid, uuid)','finance_patient_money_trigger()',
-      'finance_cash_movement_trigger()','finance_cash_drawer_trigger()','finance_cash_closing_trigger()'] LOOP
+      'finance_cash_movement_trigger()','finance_cash_drawer_trigger()','finance_cash_closing_trigger()',
+      'finance_check_number(uuid, uuid, text, smallint, integer, text)',
+      'finance_check_number_sequence(uuid, uuid, text, smallint)','finance_payment_number_trigger()',
+      'finance_refund_number_trigger()','finance_receipt_sequence_trigger()'] LOOP
     FOREACH r IN ARRAY ARRAY['eyadex_app','eyadex_platform','eyadex_auth','eyadex_dispatcher'] LOOP
       IF has_function_privilege(r, sig, 'EXECUTE') THEN
         RAISE EXCEPTION 'FIN-F2-GRANTS: % can run %', r, sig;

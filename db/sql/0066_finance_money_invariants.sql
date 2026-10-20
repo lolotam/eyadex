@@ -11,6 +11,7 @@
 -- The checks take a clinic-wide advisory lock first, so two transactions that reach COMMIT together are
 -- serialised and the second one re-reads what the first committed; they require READ COMMITTED, the API's
 -- isolation level (PR #92 review).
+-- The owner also reads the receipt sequences and the branch prefix, to prove the numbers.
 
 -- The owner role and its read access: the 0061 pattern, a NOLOGIN, NOBYPASSRLS role reading exactly the
 -- columns the checks need.
@@ -23,17 +24,21 @@ END $$;
 GRANT USAGE ON SCHEMA public TO eyadex_finance_check_owner;
 
 GRANT SELECT (clinic_id, id, status, total_minor) ON invoices TO eyadex_finance_check_owner;
-GRANT SELECT (clinic_id, id, branch_id, patient_id, amount_minor, cash_seq) ON payments TO eyadex_finance_check_owner;
+GRANT SELECT (clinic_id, id, branch_id, patient_id, amount_minor, cash_seq, year, receipt_seq, receipt_number)
+  ON payments TO eyadex_finance_check_owner;
 GRANT SELECT (clinic_id, id, patient_id, invoice_id, payment_id, credit_id, amount_minor) ON payment_allocations
   TO eyadex_finance_check_owner;
 GRANT SELECT (clinic_id, id, patient_id, origin_allocation_id, amount_minor) ON patient_credits
   TO eyadex_finance_check_owner;
-GRANT SELECT (clinic_id, id, branch_id, patient_id, amount_minor, cash_seq) ON refunds TO eyadex_finance_check_owner;
+GRANT SELECT (clinic_id, id, branch_id, patient_id, amount_minor, cash_seq, year, refund_seq, refund_number)
+  ON refunds TO eyadex_finance_check_owner;
 GRANT SELECT (clinic_id, refund_id, credit_id, patient_id, amount_minor) ON refund_sources TO eyadex_finance_check_owner;
 GRANT SELECT (clinic_id, branch_id, last_cash_seq, last_closed_seq, last_closing_id) ON branch_cash_drawers
   TO eyadex_finance_check_owner;
 GRANT SELECT (clinic_id, id, branch_id, from_cash_seq, to_cash_seq, expected_minor, previous_closing_id)
   ON cash_closings TO eyadex_finance_check_owner;
+GRANT SELECT (clinic_id, branch_id, series, year, next_number) ON receipt_sequences TO eyadex_finance_check_owner;
+GRANT SELECT (clinic_id, id, invoice_prefix) ON branches TO eyadex_finance_check_owner;
 CREATE POLICY invoices_finance_check_read ON invoices FOR SELECT TO eyadex_finance_check_owner USING (true);
 CREATE POLICY payments_finance_check_read ON payments FOR SELECT TO eyadex_finance_check_owner USING (true);
 CREATE POLICY payment_allocations_finance_check_read ON payment_allocations FOR SELECT
@@ -47,6 +52,9 @@ CREATE POLICY branch_cash_drawers_finance_check_read ON branch_cash_drawers FOR 
   TO eyadex_finance_check_owner USING (true);
 CREATE POLICY cash_closings_finance_check_read ON cash_closings FOR SELECT
   TO eyadex_finance_check_owner USING (true);
+CREATE POLICY receipt_sequences_finance_check_read ON receipt_sequences FOR SELECT
+  TO eyadex_finance_check_owner USING (true);
+CREATE POLICY branches_finance_check_read ON branches FOR SELECT TO eyadex_finance_check_owner USING (true);
 
 -- The patient's money, checked with the row's clinic and patient (§4.3 invariants 1–4, R3-2, #91).
 CREATE FUNCTION finance_check_patient(p_clinic uuid, p_patient uuid) RETURNS void
@@ -271,6 +279,82 @@ BEGIN
 END
 $$;
 
+-- The receipt and refund numbers: gap-free per branch, series and year, and built from the prefix (EY-5.2).
+CREATE FUNCTION finance_check_number(p_clinic uuid, p_branch uuid, p_series text, p_year smallint, p_seq integer,
+    p_number text) RETURNS void
+  LANGUAGE plpgsql SECURITY DEFINER
+  SET search_path = pg_catalog, public
+AS $$
+BEGIN
+  -- The same clinic-wide check lock (see finance_check_patient).
+  PERFORM pg_advisory_xact_lock(hashtextextended('finance_check:' || p_clinic::text, 0));
+  IF current_setting('transaction_isolation') <> 'read committed' THEN
+    RAISE EXCEPTION 'finance_invariant' USING ERRCODE = 'P0001', DETAIL = 'isolation';
+  END IF;
+  -- The number is the branch prefix, the series, the year and the sequence padded to six digits (R1-9, F2-Q13).
+  IF p_number IS DISTINCT FROM (SELECT b.invoice_prefix
+                                       || CASE WHEN p_series = 'receipt' THEN '-R-' ELSE '-RF-' END
+                                       || p_year::text || '-'
+                                       || lpad(p_seq::text, greatest(6, length(p_seq::text)), '0')
+                                FROM branches b WHERE b.clinic_id = p_clinic AND b.id = p_branch) THEN
+    RAISE EXCEPTION 'finance_invariant' USING ERRCODE = 'P0001', DETAIL = 'number_format';
+  END IF;
+  -- The branch's sequence for that series and year handed this number out.
+  IF NOT EXISTS (SELECT 1 FROM receipt_sequences s
+                 WHERE s.clinic_id = p_clinic AND s.branch_id = p_branch AND s.series = p_series
+                   AND s.year = p_year AND s.next_number > p_seq) THEN
+    RAISE EXCEPTION 'finance_invariant' USING ERRCODE = 'P0001', DETAIL = 'number_sequence';
+  END IF;
+  -- Gap-free: the number before it is held too, so by induction every number down to 1 is.
+  IF p_seq > 1
+     AND NOT EXISTS (SELECT 1 FROM payments
+                     WHERE p_series = 'receipt' AND clinic_id = p_clinic AND branch_id = p_branch
+                       AND year = p_year AND receipt_seq = p_seq - 1)
+     AND NOT EXISTS (SELECT 1 FROM refunds
+                     WHERE p_series = 'refund' AND clinic_id = p_clinic AND branch_id = p_branch
+                       AND year = p_year AND refund_seq = p_seq - 1) THEN
+    RAISE EXCEPTION 'finance_invariant' USING ERRCODE = 'P0001', DETAIL = 'number_gap';
+  END IF;
+END
+$$;
+
+CREATE FUNCTION finance_check_number_sequence(p_clinic uuid, p_branch uuid, p_series text, p_year smallint)
+  RETURNS void
+  LANGUAGE plpgsql SECURITY DEFINER
+  SET search_path = pg_catalog, public
+AS $$
+DECLARE
+  v_next integer;
+BEGIN
+  -- The same clinic-wide check lock (see finance_check_patient).
+  PERFORM pg_advisory_xact_lock(hashtextextended('finance_check:' || p_clinic::text, 0));
+  IF current_setting('transaction_isolation') <> 'read committed' THEN
+    RAISE EXCEPTION 'finance_invariant' USING ERRCODE = 'P0001', DETAIL = 'isolation';
+  END IF;
+  SELECT next_number INTO v_next FROM receipt_sequences
+    WHERE clinic_id = p_clinic AND branch_id = p_branch AND series = p_series AND year = p_year;
+  -- No receipt or refund holds a number the sequence has not handed out yet.
+  IF EXISTS (SELECT 1 FROM payments
+             WHERE p_series = 'receipt' AND clinic_id = p_clinic AND branch_id = p_branch
+               AND year = p_year AND receipt_seq >= v_next)
+     OR EXISTS (SELECT 1 FROM refunds
+                WHERE p_series = 'refund' AND clinic_id = p_clinic AND branch_id = p_branch
+                  AND year = p_year AND refund_seq >= v_next) THEN
+    RAISE EXCEPTION 'finance_invariant' USING ERRCODE = 'P0001', DETAIL = 'number_sequence';
+  END IF;
+  -- The sequence's last number is held, so with each movement's own check the numbers run 1 … next_number − 1.
+  IF v_next > 1
+     AND NOT EXISTS (SELECT 1 FROM payments
+                     WHERE p_series = 'receipt' AND clinic_id = p_clinic AND branch_id = p_branch
+                       AND year = p_year AND receipt_seq = v_next - 1)
+     AND NOT EXISTS (SELECT 1 FROM refunds
+                     WHERE p_series = 'refund' AND clinic_id = p_clinic AND branch_id = p_branch
+                       AND year = p_year AND refund_seq = v_next - 1) THEN
+    RAISE EXCEPTION 'finance_invariant' USING ERRCODE = 'P0001', DETAIL = 'number_gap';
+  END IF;
+END
+$$;
+
 -- The trigger functions: each SECURITY DEFINER, owned by the same owner. A trigger function cannot be
 -- called directly, and EXECUTE is checked when the trigger is created, so the runtime roles need none.
 CREATE FUNCTION finance_patient_money_trigger() RETURNS trigger
@@ -309,6 +393,33 @@ BEGIN
   RETURN NULL;
 END
 $$;
+CREATE FUNCTION finance_payment_number_trigger() RETURNS trigger
+  LANGUAGE plpgsql SECURITY DEFINER
+  SET search_path = pg_catalog, public
+AS $$
+BEGIN
+  PERFORM finance_check_number(NEW.clinic_id, NEW.branch_id, 'receipt', NEW.year, NEW.receipt_seq, NEW.receipt_number);
+  RETURN NULL;
+END
+$$;
+CREATE FUNCTION finance_refund_number_trigger() RETURNS trigger
+  LANGUAGE plpgsql SECURITY DEFINER
+  SET search_path = pg_catalog, public
+AS $$
+BEGIN
+  PERFORM finance_check_number(NEW.clinic_id, NEW.branch_id, 'refund', NEW.year, NEW.refund_seq, NEW.refund_number);
+  RETURN NULL;
+END
+$$;
+CREATE FUNCTION finance_receipt_sequence_trigger() RETURNS trigger
+  LANGUAGE plpgsql SECURITY DEFINER
+  SET search_path = pg_catalog, public
+AS $$
+BEGIN
+  PERFORM finance_check_number_sequence(NEW.clinic_id, NEW.branch_id, NEW.series, NEW.year);
+  RETURN NULL;
+END
+$$;
 
 -- The deferred constraint triggers, created while the migration owner still owns the functions.
 CREATE CONSTRAINT TRIGGER payments_money_check AFTER INSERT ON payments
@@ -335,6 +446,12 @@ CREATE CONSTRAINT TRIGGER branch_cash_drawers_cash_check AFTER INSERT OR UPDATE 
   DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION finance_cash_drawer_trigger();
 CREATE CONSTRAINT TRIGGER cash_closings_cash_check AFTER INSERT ON cash_closings
   DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION finance_cash_closing_trigger();
+CREATE CONSTRAINT TRIGGER payments_number_check AFTER INSERT ON payments
+  DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION finance_payment_number_trigger();
+CREATE CONSTRAINT TRIGGER refunds_number_check AFTER INSERT ON refunds
+  DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION finance_refund_number_trigger();
+CREATE CONSTRAINT TRIGGER receipt_sequences_number_check AFTER INSERT OR UPDATE ON receipt_sequences
+  DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION finance_receipt_sequence_trigger();
 
 -- The functions go to their owner, then they are closed: no runtime role can call them.
 ALTER FUNCTION finance_check_patient(uuid, uuid) OWNER TO eyadex_finance_check_owner;
@@ -345,6 +462,11 @@ ALTER FUNCTION finance_patient_money_trigger() OWNER TO eyadex_finance_check_own
 ALTER FUNCTION finance_cash_movement_trigger() OWNER TO eyadex_finance_check_owner;
 ALTER FUNCTION finance_cash_drawer_trigger() OWNER TO eyadex_finance_check_owner;
 ALTER FUNCTION finance_cash_closing_trigger() OWNER TO eyadex_finance_check_owner;
+ALTER FUNCTION finance_check_number(uuid, uuid, text, smallint, integer, text) OWNER TO eyadex_finance_check_owner;
+ALTER FUNCTION finance_check_number_sequence(uuid, uuid, text, smallint) OWNER TO eyadex_finance_check_owner;
+ALTER FUNCTION finance_payment_number_trigger() OWNER TO eyadex_finance_check_owner;
+ALTER FUNCTION finance_refund_number_trigger() OWNER TO eyadex_finance_check_owner;
+ALTER FUNCTION finance_receipt_sequence_trigger() OWNER TO eyadex_finance_check_owner;
 REVOKE ALL ON FUNCTION finance_check_patient(uuid, uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION finance_check_cash_movement(uuid, uuid, bigint) FROM PUBLIC;
 REVOKE ALL ON FUNCTION finance_check_drawer(uuid, uuid) FROM PUBLIC;
@@ -353,3 +475,8 @@ REVOKE ALL ON FUNCTION finance_patient_money_trigger() FROM PUBLIC;
 REVOKE ALL ON FUNCTION finance_cash_movement_trigger() FROM PUBLIC;
 REVOKE ALL ON FUNCTION finance_cash_drawer_trigger() FROM PUBLIC;
 REVOKE ALL ON FUNCTION finance_cash_closing_trigger() FROM PUBLIC;
+REVOKE ALL ON FUNCTION finance_check_number(uuid, uuid, text, smallint, integer, text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION finance_check_number_sequence(uuid, uuid, text, smallint) FROM PUBLIC;
+REVOKE ALL ON FUNCTION finance_payment_number_trigger() FROM PUBLIC;
+REVOKE ALL ON FUNCTION finance_refund_number_trigger() FROM PUBLIC;
+REVOKE ALL ON FUNCTION finance_receipt_sequence_trigger() FROM PUBLIC;

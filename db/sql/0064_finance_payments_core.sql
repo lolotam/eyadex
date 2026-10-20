@@ -21,9 +21,11 @@ INSERT INTO permissions (id, key, action, resource, scope, module) VALUES
 
 -- Spec §4.2: every money row reaches its parents through composite foreign keys that carry patient_id,
 -- so the invoice needs a unique (clinic_id, id, patient_id) to be their target. Payments and refunds also
--- carry the invoice's branch (F2-Q8), so the invoice needs one with the branch as well.
+-- carry the invoice's branch (F2-Q8) and currency, so an invoice's branch, patient or currency cannot
+-- change once money names it.
 ALTER TABLE invoices ADD CONSTRAINT invoices_id_patient_unique UNIQUE (clinic_id, id, patient_id);
-ALTER TABLE invoices ADD CONSTRAINT invoices_id_branch_patient_unique UNIQUE (clinic_id, id, branch_id, patient_id);
+ALTER TABLE invoices ADD CONSTRAINT invoices_money_target_unique
+  UNIQUE (clinic_id, id, branch_id, patient_id, currency);
 
 -- Spec §4.2, FIN-11: the four fixed payment methods, each switched on or off by the clinic. A clinic
 -- with no row for a method has it enabled, so existing clinics need no backfill.
@@ -78,20 +80,23 @@ CREATE TABLE payments (
   PRIMARY KEY (clinic_id, id),
   FOREIGN KEY (clinic_id, branch_id) REFERENCES branches (clinic_id, id),
   FOREIGN KEY (clinic_id, patient_id) REFERENCES patients (clinic_id, id),
-  CONSTRAINT payments_clinic_id_invoice_id_branch_id_patient_id_fkey
-    FOREIGN KEY (clinic_id, invoice_id, branch_id, patient_id) REFERENCES invoices (clinic_id, id, branch_id, patient_id),
+  CONSTRAINT payments_invoice_fkey FOREIGN KEY (clinic_id, invoice_id, branch_id, patient_id, currency)
+    REFERENCES invoices (clinic_id, id, branch_id, patient_id, currency),
+  CONSTRAINT payments_currency_exponent_match_check
+    CHECK (currency_exponent = CASE WHEN currency IN ('KWD', 'BHD', 'OMR') THEN 3 ELSE 2 END),
   CONSTRAINT payments_cash_seq_method_check CHECK ((method = 'cash') = (cash_seq IS NOT NULL)),
   CONSTRAINT payments_receipt_number_unique UNIQUE (clinic_id, receipt_number),
   CONSTRAINT payments_receipt_seq_unique UNIQUE (clinic_id, branch_id, year, receipt_seq),
   CONSTRAINT payments_cash_seq_unique UNIQUE (clinic_id, branch_id, cash_seq),
-  CONSTRAINT payments_id_patient_unique UNIQUE (clinic_id, id, patient_id)
+  CONSTRAINT payments_allocation_target_unique UNIQUE (clinic_id, id, invoice_id, patient_id)
 );
-CREATE INDEX payments_clinic_invoice_branch_patient_idx ON payments (clinic_id, invoice_id, branch_id, patient_id);
+CREATE INDEX payments_invoice_idx ON payments (clinic_id, invoice_id, branch_id, patient_id, currency);
 CREATE INDEX payments_clinic_patient_idx ON payments (clinic_id, patient_id);
 CREATE INDEX payments_clinic_branch_date_idx ON payments (clinic_id, branch_id, business_date);
 
--- Spec §4.2: money placed on an invoice, funded by exactly one payment or one credit. The credit's
--- foreign key is added in block 8, once patient_credits exists.
+-- Spec §4.2: money placed on an invoice, funded by exactly one payment or one credit. A payment-funded
+-- allocation names its payment's invoice (EY-5.1 (b)); a credit-funded one may go to any invoice of the
+-- patient (FIN-13). The credit's foreign key is added in block 8, once patient_credits exists.
 CREATE TABLE payment_allocations (
   clinic_id    uuid NOT NULL REFERENCES clinics (id),
   id           uuid NOT NULL,
@@ -106,13 +111,13 @@ CREATE TABLE payment_allocations (
   FOREIGN KEY (clinic_id, patient_id) REFERENCES patients (clinic_id, id),
   CONSTRAINT payment_allocations_clinic_id_invoice_id_patient_id_fkey FOREIGN KEY (clinic_id, invoice_id, patient_id)
     REFERENCES invoices (clinic_id, id, patient_id),
-  CONSTRAINT payment_allocations_clinic_id_payment_id_patient_id_fkey FOREIGN KEY (clinic_id, payment_id, patient_id)
-    REFERENCES payments (clinic_id, id, patient_id),
+  CONSTRAINT payment_allocations_payment_fkey FOREIGN KEY (clinic_id, payment_id, invoice_id, patient_id)
+    REFERENCES payments (clinic_id, id, invoice_id, patient_id),
   CONSTRAINT payment_allocations_source_check CHECK (num_nonnulls(payment_id, credit_id) = 1),
   CONSTRAINT payment_allocations_id_patient_unique UNIQUE (clinic_id, id, patient_id)
 );
 CREATE INDEX payment_allocations_clinic_invoice_patient_idx ON payment_allocations (clinic_id, invoice_id, patient_id);
-CREATE INDEX payment_allocations_clinic_payment_patient_idx ON payment_allocations (clinic_id, payment_id, patient_id);
+CREATE INDEX payment_allocations_payment_idx ON payment_allocations (clinic_id, payment_id, invoice_id, patient_id);
 CREATE INDEX payment_allocations_clinic_credit_patient_idx ON payment_allocations (clinic_id, credit_id, patient_id);
 CREATE INDEX payment_allocations_clinic_patient_idx ON payment_allocations (clinic_id, patient_id);
 
@@ -164,15 +169,17 @@ CREATE TABLE refunds (
   PRIMARY KEY (clinic_id, id),
   FOREIGN KEY (clinic_id, branch_id) REFERENCES branches (clinic_id, id),
   FOREIGN KEY (clinic_id, patient_id) REFERENCES patients (clinic_id, id),
-  CONSTRAINT refunds_clinic_id_invoice_id_branch_id_patient_id_fkey
-    FOREIGN KEY (clinic_id, invoice_id, branch_id, patient_id) REFERENCES invoices (clinic_id, id, branch_id, patient_id),
+  CONSTRAINT refunds_invoice_fkey FOREIGN KEY (clinic_id, invoice_id, branch_id, patient_id, currency)
+    REFERENCES invoices (clinic_id, id, branch_id, patient_id, currency),
+  CONSTRAINT refunds_currency_exponent_match_check
+    CHECK (currency_exponent = CASE WHEN currency IN ('KWD', 'BHD', 'OMR') THEN 3 ELSE 2 END),
   CONSTRAINT refunds_cash_seq_method_check CHECK ((method = 'cash') = (cash_seq IS NOT NULL)),
   CONSTRAINT refunds_refund_number_unique UNIQUE (clinic_id, refund_number),
   CONSTRAINT refunds_refund_seq_unique UNIQUE (clinic_id, branch_id, year, refund_seq),
   CONSTRAINT refunds_cash_seq_unique UNIQUE (clinic_id, branch_id, cash_seq),
   CONSTRAINT refunds_id_patient_unique UNIQUE (clinic_id, id, patient_id)
 );
-CREATE INDEX refunds_clinic_invoice_branch_patient_idx ON refunds (clinic_id, invoice_id, branch_id, patient_id);
+CREATE INDEX refunds_invoice_idx ON refunds (clinic_id, invoice_id, branch_id, patient_id, currency);
 CREATE INDEX refunds_clinic_patient_idx ON refunds (clinic_id, patient_id);
 CREATE INDEX refunds_clinic_branch_date_idx ON refunds (clinic_id, branch_id, business_date);
 
@@ -224,6 +231,9 @@ CREATE TABLE cash_closings (
   FOREIGN KEY (clinic_id, branch_id) REFERENCES branches (clinic_id, id),
   CONSTRAINT cash_closings_period_check CHECK (to_cash_seq >= from_cash_seq),
   CONSTRAINT cash_closings_difference_note_check CHECK (counted_minor = expected_minor OR note IS NOT NULL),
+  -- The exponent always follows the currency, as on clinics (0060).
+  CONSTRAINT cash_closings_currency_exponent_match_check
+    CHECK (currency_exponent = CASE WHEN currency IN ('KWD', 'BHD', 'OMR') THEN 3 ELSE 2 END),
   CONSTRAINT cash_closings_branch_id_unique UNIQUE (clinic_id, branch_id, id),
   CONSTRAINT cash_closings_chain_unique UNIQUE NULLS NOT DISTINCT (clinic_id, branch_id, previous_closing_id),
   CONSTRAINT cash_closings_business_date_unique UNIQUE (clinic_id, branch_id, business_date)

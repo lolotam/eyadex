@@ -26,6 +26,10 @@ import { CURRENCIES, minor, tz } from "./finance-columns.ts";
 // Mirror of db/sql/0064 (finance spec §4.2, ADR-0034): append-only money rows; only the counters and the
 // methods row are updated.
 
+/** PostgreSQL prints this CASE over several lines; the mirror keeps its exact text (as clinics.ts does). */
+export const EXPONENT_FOLLOWS_CURRENCY =
+  "(currency_exponent =\nCASE\n    WHEN (currency = ANY (ARRAY['KWD'::bpchar, 'BHD'::bpchar, 'OMR'::bpchar])) THEN 3\n    ELSE 2\nEND)";
+
 export const clinicPaymentMethods = pgTable(
   "clinic_payment_methods",
   {
@@ -133,20 +137,21 @@ export const payments = pgTable(
       foreignColumns: [patients.clinicId, patients.id],
     }),
     foreignKey({
-      name: "payments_clinic_id_invoice_id_branch_id_patient_id_fkey",
-      columns: [t.clinicId, t.invoiceId, t.branchId, t.patientId],
-      foreignColumns: [invoices.clinicId, invoices.id, invoices.branchId, invoices.patientId],
+      name: "payments_invoice_fkey",
+      columns: [t.clinicId, t.invoiceId, t.branchId, t.patientId, t.currency],
+      foreignColumns: [
+        invoices.clinicId,
+        invoices.id,
+        invoices.branchId,
+        invoices.patientId,
+        invoices.currency,
+      ],
     }),
     unique("payments_receipt_number_unique").on(t.clinicId, t.receiptNumber),
     unique("payments_receipt_seq_unique").on(t.clinicId, t.branchId, t.year, t.receiptSeq),
     unique("payments_cash_seq_unique").on(t.clinicId, t.branchId, t.cashSeq),
-    unique("payments_id_patient_unique").on(t.clinicId, t.id, t.patientId),
-    index("payments_clinic_invoice_branch_patient_idx").on(
-      t.clinicId,
-      t.invoiceId,
-      t.branchId,
-      t.patientId,
-    ),
+    unique("payments_allocation_target_unique").on(t.clinicId, t.id, t.invoiceId, t.patientId),
+    index("payments_invoice_idx").on(t.clinicId, t.invoiceId, t.branchId, t.patientId, t.currency),
     index("payments_clinic_patient_idx").on(t.clinicId, t.patientId),
     index("payments_clinic_branch_date_idx").on(t.clinicId, t.branchId, t.businessDate),
     check("payments_amount_minor_check", sql.raw("(amount_minor > 0)")),
@@ -157,6 +162,7 @@ export const payments = pgTable(
     ),
     check("payments_currency_check", sql.raw(`${CURRENCIES}`)),
     check("payments_currency_exponent_check", sql.raw("(currency_exponent = ANY (ARRAY[2, 3]))")),
+    check("payments_currency_exponent_match_check", sql.raw(EXPONENT_FOLLOWS_CURRENCY)),
     check(
       "payments_method_check",
       sql.raw(
@@ -204,9 +210,9 @@ export const paymentAllocations = pgTable(
       foreignColumns: [invoices.clinicId, invoices.id, invoices.patientId],
     }),
     foreignKey({
-      name: "payment_allocations_clinic_id_payment_id_patient_id_fkey",
-      columns: [t.clinicId, t.paymentId, t.patientId],
-      foreignColumns: [payments.clinicId, payments.id, payments.patientId],
+      name: "payment_allocations_payment_fkey",
+      columns: [t.clinicId, t.paymentId, t.invoiceId, t.patientId],
+      foreignColumns: [payments.clinicId, payments.id, payments.invoiceId, payments.patientId],
     }),
     // The credit points back at this table; the table's config is built lazily, so the later table is fine.
     foreignKey({
@@ -220,11 +226,7 @@ export const paymentAllocations = pgTable(
       t.invoiceId,
       t.patientId,
     ),
-    index("payment_allocations_clinic_payment_patient_idx").on(
-      t.clinicId,
-      t.paymentId,
-      t.patientId,
-    ),
+    index("payment_allocations_payment_idx").on(t.clinicId, t.paymentId, t.invoiceId, t.patientId),
     index("payment_allocations_clinic_credit_patient_idx").on(t.clinicId, t.creditId, t.patientId),
     index("payment_allocations_clinic_patient_idx").on(t.clinicId, t.patientId),
     check("payment_allocations_amount_minor_check", sql.raw("(amount_minor > 0)")),

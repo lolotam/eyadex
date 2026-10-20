@@ -31,6 +31,9 @@ beforeAll(async () => {
       tax_minor, total_minor, created_by, created_at, updated_at)
     VALUES (${A.clinicId}, ${invoiceId}, ${A.branchId}, ${A.patientId}, 2026, 1, ${`F2-${invoiceId}`}, 'issued',
       'manual', NULL, now(), 'KWD', 3, 10000, 0, 0, 0, 10000, ${newTestId()}, now(), now())`;
+  // The receipts and refunds are numbered from the branch's prefix (R1-9, 0066).
+  await owner`UPDATE branches SET invoice_prefix = 'F2T'
+    WHERE clinic_id = ${A.clinicId} AND id = ${A.branchId}`;
   app = createDatabase({
     url: TEST_URLS.appUrl,
     role: "eyadex_app",
@@ -85,18 +88,34 @@ const invoiceTotal = async (id: string): Promise<string> => {
   return String(rows[0]?.total_minor ?? "-1");
 };
 
-const insertPayment = async (
+/** The branch's next receipt or refund number, exactly as the API takes it (R1-8). */
+const takeNumber = async (
   tx: Tx,
-  id: string,
-  receiptSeq: number,
-  amount: number,
-): Promise<void> => {
+  series: "receipt" | "refund",
+): Promise<{ seq: number; number: string }> => {
+  await tx.execute(sql`
+    INSERT INTO receipt_sequences (clinic_id, id, branch_id, series, year, next_number, created_at, updated_at)
+    VALUES (${A.clinicId}, ${newTestId()}, ${A.branchId}, ${series}, 2026, 1, now(), now())
+    ON CONFLICT (clinic_id, branch_id, series, year) DO NOTHING
+  `);
+  const rows = await tx.execute<{ seq: number }>(sql`
+    UPDATE receipt_sequences SET next_number = next_number + 1, updated_at = now()
+    WHERE clinic_id = ${A.clinicId} AND branch_id = ${A.branchId} AND series = ${series} AND year = 2026
+    RETURNING next_number - 1 AS seq
+  `);
+  const seq = Number(rows[0]?.seq);
+  const tag = series === "receipt" ? "R" : "RF";
+  return { seq, number: `F2T-${tag}-2026-${String(seq).padStart(6, "0")}` };
+};
+
+const insertPayment = async (tx: Tx, id: string, amount: number): Promise<void> => {
+  const { seq, number } = await takeNumber(tx, "receipt");
   await tx.execute(sql`
     INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number,
         method, amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq,
         received_by, created_at)
-    VALUES (${A.clinicId}, ${id}, ${A.branchId}, ${A.patientId}, ${invoiceId}, 2026, ${receiptSeq},
-        ${`R-${id}`}, 'knet', ${amount}, 'KWD', 3, NULL, now(), current_date, NULL, ${newTestId()}, now())
+    VALUES (${A.clinicId}, ${id}, ${A.branchId}, ${A.patientId}, ${invoiceId}, 2026, ${seq},
+        ${number}, 'knet', ${amount}, 'KWD', 3, NULL, now(), current_date, NULL, ${newTestId()}, now())
   `);
 };
 
@@ -126,18 +145,14 @@ const insertCredit = async (
   `);
 };
 
-const insertRefund = async (
-  tx: Tx,
-  id: string,
-  refundSeq: number,
-  amount: number,
-): Promise<void> => {
+const insertRefund = async (tx: Tx, id: string, amount: number): Promise<void> => {
+  const { seq, number } = await takeNumber(tx, "refund");
   await tx.execute(sql`
     INSERT INTO refunds (clinic_id, id, branch_id, patient_id, invoice_id, year, refund_seq, refund_number,
         method, amount_minor, currency, currency_exponent, reason, refunded_at, business_date, cash_seq,
         refunded_by, created_at)
-    VALUES (${A.clinicId}, ${id}, ${A.branchId}, ${A.patientId}, ${invoiceId}, 2026, ${refundSeq},
-        ${`RF-${id}`}, 'knet', ${amount}, 'KWD', 3, 'x', now(), current_date, NULL, ${newTestId()}, now())
+    VALUES (${A.clinicId}, ${id}, ${A.branchId}, ${A.patientId}, ${invoiceId}, 2026, ${seq},
+        ${number}, 'knet', ${amount}, 'KWD', 3, 'x', now(), current_date, NULL, ${newTestId()}, now())
   `);
 };
 
@@ -160,7 +175,7 @@ describe("the money checks run at the real COMMIT (0066)", () => {
     const allocationId = newTestId();
     paidAllocationId = allocationId;
     await app.withTenant(A.clinicId, async (tx) => {
-      await insertPayment(tx, paymentId, 1, 4000);
+      await insertPayment(tx, paymentId, 4000);
       await insertAllocation(tx, allocationId, paymentId, 4000);
     });
     expect(await paymentRows(paymentId)).toBe(1);
@@ -172,7 +187,7 @@ describe("the money checks run at the real COMMIT (0066)", () => {
     const allocationId = newTestId();
     const failure = await caught(
       app.withTenant(A.clinicId, async (tx) => {
-        await insertPayment(tx, paymentId, 2, 1000);
+        await insertPayment(tx, paymentId, 1000);
         await insertAllocation(tx, allocationId, paymentId, 600);
       }),
     );
@@ -187,7 +202,7 @@ describe("the money checks run at the real COMMIT (0066)", () => {
     const failure = await caught(
       app.withTenant(A.clinicId, async (tx) => {
         await insertCredit(tx, creditId, paidAllocationId, 500);
-        await insertRefund(tx, refundId, 1, 500);
+        await insertRefund(tx, refundId, 500);
       }),
     );
     expect(failure.code).toBe("P0001");
@@ -202,7 +217,7 @@ describe("the money checks run at the real COMMIT (0066)", () => {
     const failure = await caught(
       app.withTenant(A.clinicId, async (tx) => {
         await insertCredit(tx, creditId, paidAllocationId, 500);
-        await insertRefund(tx, refundId, 2, 500);
+        await insertRefund(tx, refundId, 500);
         await insertRefundSource(tx, sourceId, refundId, creditId, 300);
       }),
     );
@@ -218,7 +233,7 @@ describe("the money checks run at the real COMMIT (0066)", () => {
     const failure = await caught(
       app.withTenant(A.clinicId, async (tx) => {
         await insertCredit(tx, creditId, paidAllocationId, 4001);
-        await insertRefund(tx, refundId, 3, 4001);
+        await insertRefund(tx, refundId, 4001);
         await insertRefundSource(tx, sourceId, refundId, creditId, 4001);
       }),
     );
@@ -233,7 +248,7 @@ describe("the money checks run at the real COMMIT (0066)", () => {
     const sourceId = newTestId();
     await app.withTenant(A.clinicId, async (tx) => {
       await insertCredit(tx, creditId, paidAllocationId, 1000);
-      await insertRefund(tx, refundId, 4, 1000);
+      await insertRefund(tx, refundId, 1000);
       await insertRefundSource(tx, sourceId, refundId, creditId, 1000);
     });
     expect(await refundRows(refundId)).toBe(1);

@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import postgres, { type Sql } from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { createDatabase, type Database } from "../index.ts";
+import { createDatabase, type Database, type Tx } from "../index.ts";
 import {
   createOwner,
   newTestId,
@@ -50,17 +50,21 @@ beforeAll(async () => {
       VALUES (${A.clinicId}, ${invoiceId}, ${A.branchId}, ${A.patientId}, 2026, ${seq}, ${`F2R-${invoiceId}`},
         'issued', 'manual', NULL, now(), 'KWD', 3, 1000, 0, 0, 0, 1000, ${newTestId()}, now(), now())`;
   }
+  // The receipts and refunds are numbered from the branch's prefix (R1-9, 0066).
+  await owner`UPDATE branches SET invoice_prefix = 'F2T'
+    WHERE clinic_id = ${A.clinicId} AND id = ${A.branchId}`;
   // A payment of 1000 on i1, fully allocated, and a credit of 1000 released from that allocation: i1 is
   // paid 0 and the patient holds a credit of 1000.
   await app.withTenant(A.clinicId, async (tx) => {
     const paymentId = newTestId();
     const allocationId = newTestId();
     creditId = newTestId();
+    const { seq, number } = await takeNumber(tx, "receipt");
     await tx.execute(sql`
       INSERT INTO payments (clinic_id, id, branch_id, patient_id, invoice_id, year, receipt_seq, receipt_number,
           method, amount_minor, currency, currency_exponent, reference, received_at, business_date, cash_seq,
           received_by, created_at)
-      VALUES (${A.clinicId}, ${paymentId}, ${A.branchId}, ${A.patientId}, ${i1}, 2026, 1, ${`R-${paymentId}`},
+      VALUES (${A.clinicId}, ${paymentId}, ${A.branchId}, ${A.patientId}, ${i1}, 2026, ${seq}, ${number},
           'knet', 1000, 'KWD', 3, NULL, now(), current_date, NULL, ${newTestId()}, now())
     `);
     await tx.execute(sql`
@@ -83,11 +87,31 @@ afterAll(async () => {
   await owner.end();
 });
 
+/** The branch's next receipt or refund number, exactly as the API takes it (R1-8). */
+const takeNumber = async (
+  tx: Tx,
+  series: "receipt" | "refund",
+): Promise<{ seq: number; number: string }> => {
+  await tx.execute(sql`
+    INSERT INTO receipt_sequences (clinic_id, id, branch_id, series, year, next_number, created_at, updated_at)
+    VALUES (${A.clinicId}, ${newTestId()}, ${A.branchId}, ${series}, 2026, 1, now(), now())
+    ON CONFLICT (clinic_id, branch_id, series, year) DO NOTHING
+  `);
+  const rows = await tx.execute<{ seq: number }>(sql`
+    UPDATE receipt_sequences SET next_number = next_number + 1, updated_at = now()
+    WHERE clinic_id = ${A.clinicId} AND branch_id = ${A.branchId} AND series = ${series} AND year = 2026
+    RETURNING next_number - 1 AS seq
+  `);
+  const seq = Number(rows[0]?.seq);
+  const tag = series === "receipt" ? "R" : "RF";
+  return { seq, number: `F2T-${tag}-2026-${String(seq).padStart(6, "0")}` };
+};
+
 /** A transaction that spends 700 of the credit on one invoice, committed by the client. */
 const spend = (
   client: Sql,
   invoiceId: string,
-): Promise<"ok" | { code?: string; message?: string }> =>
+): Promise<"ok" | { code?: string; message?: string; detail?: string }> =>
   client
     .begin(async (tx) => {
       await tx`SELECT set_config('app.clinic_id', ${A.clinicId}, true)`;
@@ -101,7 +125,7 @@ const spend = (
     })
     .then(
       () => "ok" as const,
-      (error: unknown) => error as { code?: string; message?: string },
+      (error: unknown) => error as { code?: string; message?: string; detail?: string },
     );
 
 describe("the commit-time money checks serialise on one clinic-wide lock (PR #92 review)", () => {
@@ -136,9 +160,10 @@ describe("the commit-time money checks serialise on one clinic-wide lock (PR #92
       expect(results.filter((result) => result === "ok")).toHaveLength(1);
       const failures = results.filter((result) => result !== "ok");
       expect(failures).toHaveLength(1);
-      const failure = failures[0] as { code?: string; message?: string };
+      const failure = failures[0] as { code?: string; message?: string; detail?: string };
       expect(failure.code).toBe("P0001");
       expect(failure.message).toBe("finance_invariant");
+      expect(failure.detail).toBe("credit_remaining");
       // The refused transaction stored nothing: one allocation of the credit is left.
       const rows = await owner<{ n: string }[]>`
         SELECT count(*) AS n FROM payment_allocations WHERE credit_id = ${creditId}
@@ -168,7 +193,7 @@ describe("the commit-time money checks serialise on one clinic-wide lock (PR #92
         })
         .then(
           () => undefined,
-          (error: unknown) => error as { code?: string; message?: string },
+          (error: unknown) => error as { code?: string; message?: string; detail?: string },
         );
     for (const isolation of [
       "isolation level repeatable read",
@@ -177,6 +202,7 @@ describe("the commit-time money checks serialise on one clinic-wide lock (PR #92
       const failure = await write(isolation);
       expect(failure?.code).toBe("P0001");
       expect(failure?.message).toBe("finance_invariant");
+      expect(failure?.detail).toBe("isolation");
     }
     // The refused transactions stored nothing.
     const rows = await owner<{ n: string }[]>`
