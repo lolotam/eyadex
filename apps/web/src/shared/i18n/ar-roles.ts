@@ -50,6 +50,9 @@ export const arRoles = {
       invoices: "الفواتير",
       discounts: "الخصومات",
       prices: "الأسعار",
+      payments: "المدفوعات",
+      refunds: "الاسترداد",
+      cash_closings: "إقفال الصندوق",
     },
     actions: {
       view: "عرض",

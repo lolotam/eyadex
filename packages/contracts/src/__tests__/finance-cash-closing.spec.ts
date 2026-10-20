@@ -219,3 +219,57 @@ describe("the cash closing amounts add up", () => {
     }
   });
 });
+
+describe("drawer amount bounds (PR #89 review)", () => {
+  it("accepts the counted bound and refuses one minor unit more", () => {
+    expect(
+      createCashClosingRequestSchema.safeParse({ ...request, countedMinor: "1000000000000000000" })
+        .success,
+    ).toBe(true);
+    expect(
+      createCashClosingRequestSchema.safeParse({ ...request, countedMinor: "1000000000000000001" })
+        .success,
+    ).toBe(false);
+  });
+
+  it("keeps the difference of the widest expected and counted amounts inside a bigint", () => {
+    expect(
+      cashClosingSchema.safeParse({
+        ...closing,
+        expectedMinor: "-1000000000000000000",
+        countedMinor: "1000000000000000000",
+        differenceMinor: "2000000000000000000",
+      }).success,
+    ).toBe(true);
+  });
+
+  it("refuses an expected amount outside the drawer's bound", () => {
+    expect(
+      cashClosingSchema.safeParse({
+        ...closing,
+        expectedMinor: "-1000000000000000001",
+        countedMinor: "0",
+        differenceMinor: "1000000000000000001",
+      }).success,
+    ).toBe(false);
+    expect(
+      cashClosingSchema.safeParse({
+        ...closing,
+        expectedMinor: "1000000000000000001",
+        countedMinor: "1000000000000000000",
+        differenceMinor: "-1",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("refuses a preview whose expected amount is outside the drawer's bound", () => {
+    expect(
+      cashClosingPreviewResponseSchema.safeParse({
+        ...preview,
+        cashInMinor: "0",
+        cashOutMinor: "1000000000000000001",
+        expectedMinor: "-1000000000000000001",
+      }).success,
+    ).toBe(false);
+  });
+});

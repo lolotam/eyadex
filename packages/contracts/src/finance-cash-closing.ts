@@ -4,9 +4,11 @@ import { dateSchema } from "./finance-list.ts";
 import { cashSeqSchema, paymentMethodSchema } from "./finance-payments.ts";
 import { text } from "./finance-text.ts";
 import {
+  cashMinorAmountSchema,
   currencyCodeSchema,
   minorAmountSchema,
   positiveMinorAmountSchema,
+  signedCashMinorAmountSchema,
   signedMinorAmountSchema,
 } from "./money.ts";
 
@@ -87,7 +89,7 @@ export const cashClosingPreviewResponseSchema = z
     throughCashSeq: cashSeqSchema,
     cashInMinor: minorAmountSchema,
     cashOutMinor: minorAmountSchema,
-    expectedMinor: signedMinorAmountSchema,
+    expectedMinor: signedCashMinorAmountSchema,
     methodTotals: z.array(methodTotalSchema),
     movements: z.array(cashMovementSchema),
     currency: currencyCodeSchema,
@@ -110,7 +112,7 @@ export const createCashClosingRequestSchema = z
     branchId: idSchema,
     previousClosingId: idSchema.nullable(),
     throughCashSeq: cashSeqSchema,
-    countedMinor: minorAmountSchema,
+    countedMinor: cashMinorAmountSchema,
     note: noteSchema.optional(),
   })
   .strict();
@@ -145,8 +147,8 @@ export const cashClosingObjectSchema = z
     previousClosingId: idSchema.nullable(),
     fromCashSeq: cashSeqSchema,
     toCashSeq: cashSeqSchema,
-    expectedMinor: signedMinorAmountSchema,
-    countedMinor: minorAmountSchema,
+    expectedMinor: signedCashMinorAmountSchema,
+    countedMinor: cashMinorAmountSchema,
     differenceMinor: signedMinorAmountSchema,
     methodTotals: z.array(methodTotalSchema),
     note: noteSchema,

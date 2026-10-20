@@ -44,6 +44,15 @@ describe("@eyadex/db/schema", () => {
       schema.invoices,
       schema.invoiceLines,
       schema.invoiceLinks,
+      schema.clinicPaymentMethods,
+      schema.receiptSequences,
+      schema.payments,
+      schema.paymentAllocations,
+      schema.patientCredits,
+      schema.refunds,
+      schema.refundSources,
+      schema.cashClosings,
+      schema.branchCashDrawers,
     ];
     for (const table of clinicOwned) {
       const pk = getTableConfig(table).primaryKeys[0]?.columns.map((c) => c.name);

@@ -5,6 +5,7 @@
 -- idempotent, so a second run changes nothing. It leaves the platform default alone (the super admin may
 -- have changed it since). No BEGIN/COMMIT here: db/tests/finance-release.sql runs it inside its own
 -- transaction.
+-- It is also 0067's statement (finance F2, spec §4.5): its predicate grants the five F2 clinic-scope keys too; db/tests/finance-release-catch-up.sh compares both.
 -- Usage: psql -1 -v ON_ERROR_STOP=1 -f db/maintenance/finance-release-catch-up.sql   (as the migration owner)
 
 INSERT INTO role_permissions (clinic_id, id, role_id, permission_id, created_at)

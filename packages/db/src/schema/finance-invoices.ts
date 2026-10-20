@@ -77,6 +77,16 @@ export const invoices = pgTable(
       foreignColumns: [patients.clinicId, patients.id],
     }),
     unique("invoices_number_unique").on(t.clinicId, t.number),
+    // 0064: the money rows reach the invoice through a key that carries the patient.
+    unique("invoices_id_patient_unique").on(t.clinicId, t.id, t.patientId),
+    // 0064: payments and refunds also carry the invoice's branch and currency (F2-Q8, EY-5.2).
+    unique("invoices_money_target_unique").on(
+      t.clinicId,
+      t.id,
+      t.branchId,
+      t.patientId,
+      t.currency,
+    ),
     uniqueIndex("invoices_clinic_source_live")
       .on(t.clinicId, t.source, t.sourceId)
       .where(sql.raw("status <> 'void'::text")),

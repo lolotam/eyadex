@@ -51,6 +51,9 @@ export const enRoles = {
       invoices: "Invoices",
       discounts: "Discounts",
       prices: "Prices",
+      payments: "Payments",
+      refunds: "Refunds",
+      cash_closings: "Cash closing",
     },
     actions: {
       view: "View",

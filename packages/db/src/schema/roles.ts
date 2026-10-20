@@ -68,7 +68,7 @@ export const permissions = pgTable(
     check(
       "permissions_key_check",
       sql.raw(
-        "(key ~ '^(view|create|update|deactivate|overbook):(branches|users|roles|patients|audit_log|clinic_settings|appointments|services|schedules|visits|medical|medicines|invoices|discounts|prices):(clinic|branch|own)$'::text)",
+        "(key ~ '^(view|create|update|deactivate|overbook):(branches|users|roles|patients|audit_log|clinic_settings|appointments|services|schedules|visits|medical|medicines|invoices|discounts|prices|payments|refunds|cash_closings):(clinic|branch|own)$'::text)",
       ),
     ),
     check(

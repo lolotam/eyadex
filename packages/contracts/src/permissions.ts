@@ -20,6 +20,9 @@ export const resourceSchema = z.enum([
   "invoices",
   "discounts",
   "prices",
+  "payments",
+  "refunds",
+  "cash_closings",
 ]);
 export type PermissionResource = z.infer<typeof resourceSchema>;
 
@@ -31,7 +34,7 @@ export type PermissionScope = z.infer<typeof scopeSchema>;
 export const permissionSchema = z
   .string()
   .regex(
-    /^(view|create|update|deactivate|overbook):(branches|users|roles|patients|audit_log|clinic_settings|appointments|services|schedules|visits|medical|medicines|invoices|discounts|prices):(clinic|branch|own)$/,
+    /^(view|create|update|deactivate|overbook):(branches|users|roles|patients|audit_log|clinic_settings|appointments|services|schedules|visits|medical|medicines|invoices|discounts|prices|payments|refunds|cash_closings):(clinic|branch|own)$/,
   );
 export type Permission = string;
 
@@ -60,6 +63,9 @@ const resourceModule: Record<PermissionResource, ClinicModule | null> = {
   invoices: "finance",
   discounts: "finance",
   prices: "finance",
+  payments: "finance",
+  refunds: "finance",
+  cash_closings: "finance",
 };
 
 type Scopes = readonly PermissionScope[];
@@ -75,7 +81,9 @@ const MANAGED = { view: CLINIC, create: CLINIC, update: CLINIC, deactivate: CLIN
  * caller starts a visit as its provider (P2 spec). `medical` is a visit's clinical content and the
  * medical file; `medicines` is the clinic's medicines list (P2-F2). Finance (F1 §3.1): `own` views the
  * invoices of the caller's own patients; `deactivate:invoices` is void; `discounts` is changing a
- * discount on an invoice; `prices` covers service and per-doctor prices.
+ * discount on an invoice; `prices` covers service and per-doctor prices. Finance (F2 §4.1): `payments`
+ * covers receipts, their movements and applying a patient credit; `refunds` has no view of its own;
+ * `cash_closings` is a branch's daily cash closing; none of them has an `own` scope.
  */
 const resourceGrants: Record<PermissionResource, Partial<Record<PermissionAction, Scopes>>> = {
   branches: MANAGED,
@@ -108,6 +116,9 @@ const resourceGrants: Record<PermissionResource, Partial<Record<PermissionAction
   },
   discounts: { create: BRANCHED },
   prices: { view: CLINIC, update: CLINIC },
+  payments: { view: BRANCHED, create: BRANCHED },
+  refunds: { create: BRANCHED },
+  cash_closings: { view: BRANCHED, create: BRANCHED },
 };
 
 function buildCatalog(): PermissionDefinition[] {
@@ -132,10 +143,12 @@ export const PERMISSION_CATALOG: readonly PermissionDefinition[] = buildCatalog(
 
 /**
  * Resources with no view action of their own, and the resource whose view makes them reachable: a discount
- * is a change to an invoice (finance spec R1-14), so `create:discounts` needs `view:invoices`.
+ * is a change to an invoice (finance spec R1-14), so `create:discounts` needs `view:invoices`. A refund is
+ * read through the payment screens (F2 §4.1), so `create:refunds` needs `view:payments`.
  */
 export const VIEWED_THROUGH: Readonly<Partial<Record<PermissionResource, PermissionResource>>> = {
   discounts: "invoices",
+  refunds: "payments",
 };
 
 /**
@@ -207,5 +220,15 @@ export const PERMISSION_KEYS = [
   "create:discounts:branch",
   "view:prices:clinic",
   "update:prices:clinic",
+  "view:payments:clinic",
+  "view:payments:branch",
+  "create:payments:clinic",
+  "create:payments:branch",
+  "create:refunds:clinic",
+  "create:refunds:branch",
+  "view:cash_closings:clinic",
+  "view:cash_closings:branch",
+  "create:cash_closings:clinic",
+  "create:cash_closings:branch",
 ] as const;
 export type PermissionKey = (typeof PERMISSION_KEYS)[number];

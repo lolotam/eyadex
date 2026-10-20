@@ -13,7 +13,7 @@ const financeKeys = (scope?: string) =>
   ).map((p) => p.key);
 
 describe("finance keys of the new clinics' system roles (FIN-4)", () => {
-  it("give the locked admin exactly the seven clinic-scope finance keys", () => {
+  it("give the locked admin exactly the twelve clinic-scope finance keys", () => {
     const admin = roleKeys("clinic_admin").filter((k) => financeKeys().includes(k));
     expect(admin.sort()).toEqual(
       [
@@ -24,12 +24,17 @@ describe("finance keys of the new clinics' system roles (FIN-4)", () => {
         "create:discounts:clinic",
         "view:prices:clinic",
         "update:prices:clinic",
+        "view:payments:clinic",
+        "create:payments:clinic",
+        "create:refunds:clinic",
+        "view:cash_closings:clinic",
+        "create:cash_closings:clinic",
       ].sort(),
     );
     expect(admin.sort()).toEqual(financeKeys("clinic").sort());
   });
 
-  it("let the front desk invoice in its branches and read prices, without discount, void or price writes", () => {
+  it("let the front desk invoice, record payments and close its branches' cash, without refunds", () => {
     const desk = roleKeys("receptionist").filter((k) => financeKeys().includes(k));
     expect(desk.sort()).toEqual(
       [
@@ -37,8 +42,16 @@ describe("finance keys of the new clinics' system roles (FIN-4)", () => {
         "create:invoices:branch",
         "update:invoices:branch",
         "view:prices:clinic",
+        "view:payments:branch",
+        "create:payments:branch",
+        "view:cash_closings:branch",
+        "create:cash_closings:branch",
       ].sort(),
     );
+  });
+
+  it("give the front desk no refund key, which stays with the admin (F2-Q15)", () => {
+    expect(roleKeys("receptionist").some((k) => k.includes(":refunds:"))).toBe(false);
   });
 
   it("let the doctor read its own patients' invoices only", () => {
