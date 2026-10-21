@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export type KeyedRequest = { fingerprint: string; key: string } | null;
 
@@ -31,6 +31,11 @@ export type HeldRequest = {
 export type HeldKeys = {
   keyOf: (operation: KeyedOperation, request: unknown) => string;
   drop: (operation: KeyedOperation) => void;
+  /**
+   * Whether the invoice's paid amount moved under the held key of that action: the key can no longer
+   * answer a new request, and the earlier one may have been recorded, so the user is told before sending.
+   */
+  paidChanged: Record<KeyedOperation, boolean>;
 };
 
 /**
@@ -66,6 +71,10 @@ export function useHeldKeys({ invoiceId, paidMinor }: HeldContext): HeldKeys {
   const held = useRef<{ keys: Record<KeyedOperation, HeldRequest | null> }>({
     keys: { pay: null, credit: null },
   });
+  const [paidChanged, setPaidChanged] = useState<Record<KeyedOperation, boolean>>({
+    pay: false,
+    credit: false,
+  });
   const keyOf = useCallback(
     (operation: KeyedOperation, request: unknown) => {
       const next = heldFor(
@@ -81,8 +90,28 @@ export function useHeldKeys({ invoiceId, paidMinor }: HeldContext): HeldKeys {
   );
   const drop = useCallback((operation: KeyedOperation) => {
     held.current.keys[operation] = null;
+    setPaidChanged((current) =>
+      operation === "pay" ? { ...current, pay: false } : { ...current, credit: false },
+    );
   }, []);
-  return useMemo(() => ({ keyOf, drop }), [keyOf, drop]);
+  // The paid amount moved under a held key of the same invoice: that key is dropped by the next send, and
+  // the earlier request may have been recorded, so the panel warns before the user sends again.
+  useEffect(() => {
+    setPaidChanged((current) => {
+      const stale = (operation: KeyedOperation) => {
+        const request = held.current.keys[operation];
+        return (
+          request !== null && request.invoiceId === invoiceId && request.paidMinor !== paidMinor
+        );
+      };
+      const next = {
+        pay: current.pay || stale("pay"),
+        credit: current.credit || stale("credit"),
+      };
+      return next.pay === current.pay && next.credit === current.credit ? current : next;
+    });
+  }, [invoiceId, paidMinor]);
+  return useMemo(() => ({ keyOf, drop, paidChanged }), [keyOf, drop, paidChanged]);
 }
 
 /**

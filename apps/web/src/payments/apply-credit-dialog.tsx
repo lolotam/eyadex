@@ -1,4 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
+import { AlertTriangle } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import type { Invoice } from "@eyadex/contracts/finance";
@@ -18,6 +19,8 @@ type Props = {
   creditMinor: string;
   /** The panel's held Idempotency-Key for this operation (see useHeldKeys). */
   keyOf: (request: unknown) => string;
+  /** The invoice's paid amount moved under the held key: a payment may be recorded (useHeldKeys). */
+  paidChanged?: boolean;
   onDone: () => void;
   onFailed?: () => void;
   onPendingChange?: (pending: boolean) => void;
@@ -25,7 +28,7 @@ type Props = {
 
 /** Spends the patient's credit on this invoice, mounted once per open; prefilled with the smaller amount. */
 export function ApplyCreditForm(props: Props) {
-  const { invoice, creditMinor, keyOf, onDone, onFailed, onPendingChange } = props;
+  const { invoice, creditMinor, keyOf, paidChanged, onDone, onFailed, onPendingChange } = props;
   const { t, tDynamic } = useI18n();
   const api = useApi();
   const { persona } = usePersona();
@@ -62,6 +65,12 @@ export function ApplyCreditForm(props: Props) {
   const errors = form.formState.errors;
   return (
     <form className="flex flex-col gap-3" onSubmit={(e) => void submit(e)} noValidate>
+      {paidChanged && (
+        <p role="alert" className="flex items-start gap-2 rounded-md border bg-muted p-3 text-sm">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
+          {t("payments.paidChangedNotice")}
+        </p>
+      )}
       <p className="text-sm text-muted-foreground">
         {t("payments.dialog.available", {
           amount: `${formatMinor(creditMinor, exponent)} ${invoice.currency}`,

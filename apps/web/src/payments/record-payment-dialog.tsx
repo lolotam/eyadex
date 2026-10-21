@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { AlertTriangle } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import type { Invoice, PaymentMethod } from "@eyadex/contracts/finance";
@@ -27,6 +28,8 @@ type Props = {
   methods: PaymentMethod[];
   /** The panel's held Idempotency-Key for this operation (see useHeldKeys). */
   keyOf: (request: unknown) => string;
+  /** The invoice's paid amount moved under the held key: a payment may be recorded (useHeldKeys). */
+  paidChanged?: boolean;
   onDone: () => void;
   onFailed?: () => void;
   onPendingChange?: (pending: boolean) => void;
@@ -34,10 +37,11 @@ type Props = {
 
 /**
  * The record-payment form, mounted once per open: the enabled methods only, the amount prefilled with the
- * balance due, an optional reference. Refused before sending above the balance (F2-Q1).
+ * balance due, an optional reference. Refused before sending above the balance (F2-Q1). A payment may
+ * already be recorded when the invoice's paid amount moved, so the form warns before sending again.
  */
 export function RecordPaymentForm(props: Props) {
-  const { invoice, methods, keyOf, onDone, onFailed, onPendingChange } = props;
+  const { invoice, methods, keyOf, paidChanged, onDone, onFailed, onPendingChange } = props;
   const { t, tDynamic } = useI18n();
   const api = useApi();
   const { persona } = usePersona();
@@ -91,6 +95,12 @@ export function RecordPaymentForm(props: Props) {
   }
   return (
     <form className="flex flex-col gap-3" onSubmit={(e) => void submit(e)} noValidate>
+      {paidChanged && (
+        <p role="alert" className="flex items-start gap-2 rounded-md border bg-muted p-3 text-sm">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
+          {t("payments.paidChangedNotice")}
+        </p>
+      )}
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="payment-method">{t("payments.dialog.method")}</Label>
         <Select

@@ -1,6 +1,7 @@
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { resetMockData } from "@/shared/api/mock/mock-test-kit";
-import { keyFor } from "./idempotency-key";
+import { keyFor, useHeldKeys } from "./idempotency-key";
 import { admin, as, issue, patientAt, pay, refusal, roleOf } from "./payment-mock-kit";
 
 beforeEach(() => resetMockData());
@@ -60,5 +61,58 @@ describe("the dialog's key", () => {
     expect(keyFor(a, "same", make)).toBe(a);
     const b = keyFor(a, "changed", make);
     expect(b.key).not.toBe(a.key);
+  });
+});
+
+// PR #108: the paid amount moved under a held key, so a payment may already be recorded.
+describe("the report of a stale held key", () => {
+  const INVOICE = "00000000-0000-7000-8000-00000000000a";
+  const OTHER = "00000000-0000-7000-8000-00000000000d";
+  type Props = { invoiceId: string; paidMinor: string };
+  const held = (initial: Props) =>
+    renderHook((props: Props) => useHeldKeys(props), { initialProps: initial });
+
+  it("warns when the paid amount moved, and the next send uses a new key", async () => {
+    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000" });
+    const first = result.current.keyOf("pay", { amountMinor: "4000" });
+    expect(result.current.paidChanged.pay).toBe(false);
+    rerender({ invoiceId: INVOICE, paidMinor: "5000" });
+    await waitFor(() => expect(result.current.paidChanged.pay).toBe(true));
+    expect(result.current.keyOf("pay", { amountMinor: "4000" })).not.toBe(first);
+  });
+
+  it("warns nothing and reuses the key when the paid amount did not move", () => {
+    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000" });
+    const first = result.current.keyOf("pay", { amountMinor: "4000" });
+    rerender({ invoiceId: INVOICE, paidMinor: "1000" });
+    expect(result.current.paidChanged.pay).toBe(false);
+    expect(result.current.keyOf("pay", { amountMinor: "4000" })).toBe(first);
+  });
+
+  it("warns nothing when another invoice is shown", () => {
+    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000" });
+    result.current.keyOf("pay", { amountMinor: "4000" });
+    rerender({ invoiceId: OTHER, paidMinor: "5000" });
+    expect(result.current.paidChanged.pay).toBe(false);
+  });
+
+  it("a confirmed success clears the report", async () => {
+    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000" });
+    result.current.keyOf("pay", { amountMinor: "4000" });
+    rerender({ invoiceId: INVOICE, paidMinor: "5000" });
+    await waitFor(() => expect(result.current.paidChanged.pay).toBe(true));
+    act(() => {
+      result.current.drop("pay");
+    });
+    expect(result.current.paidChanged.pay).toBe(false);
+  });
+
+  it("the credit reports on its own: it warns and the next send uses a new key", async () => {
+    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000" });
+    const first = result.current.keyOf("credit", { amountMinor: "2000" });
+    rerender({ invoiceId: INVOICE, paidMinor: "3000" });
+    await waitFor(() => expect(result.current.paidChanged.credit).toBe(true));
+    expect(result.current.paidChanged.pay).toBe(false);
+    expect(result.current.keyOf("credit", { amountMinor: "2000" })).not.toBe(first);
   });
 });

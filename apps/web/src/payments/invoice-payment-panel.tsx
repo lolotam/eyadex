@@ -43,7 +43,7 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
   const query = useInvoicePayments(invoice.id, invoice.version, mayView);
   // The held key is bound to the invoice as it is now, not to the copy the dialog was opened on: a
   // refetch that shows a higher paid amount means the earlier request may have been recorded, so its key
-  // must not answer a new payment.
+  // must not answer a new payment, and the dialog says so before the next send.
   const keys = useHeldKeys({
     invoiceId: invoice.id,
     paidMinor: invoice.settlement?.paidMinor ?? "0",
@@ -162,6 +162,7 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
               invoice={open.invoice}
               methods={enabled}
               keyOf={(request) => keys.keyOf("pay", request)}
+              paidChanged={keys.paidChanged.pay}
               onDone={() => done(open)}
               onFailed={failed}
               onPendingChange={setPending}
@@ -172,6 +173,7 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
               invoice={open.invoice}
               creditMinor={open.credit}
               keyOf={(request) => keys.keyOf("credit", request)}
+              paidChanged={keys.paidChanged.credit}
               onDone={() => done(open)}
               onFailed={failed}
               onPendingChange={setPending}
