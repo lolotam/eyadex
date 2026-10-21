@@ -90,7 +90,9 @@ positions F1 uses (5a, 7a, 9b).
     discounts and patient-facing fields. `source`, `source_id`, `branch_id`, `patient_id`, `number` and
     `issued_at` never change. Each edit is one transaction that recomputes the totals with the shared
     function, archives removed lines (`archived_at`; no row is deleted and archiving frees the position) and
-    writes an audit row with before and after totals and the changed lines. Changing a discount (add,
+    writes an audit row with a before and an after snapshot (`invoiceAuditSnapshot`): number, status, version,
+    subtotal, discount, tax and total, the line count and a summary of the discounts (scope, kind and value,
+    never the written reason) — not the changed lines. Changing a discount (add,
     remove, or change its value or reason) needs `create:discounts` as well; an edit that leaves discounts
     alone needs only `update:invoices` (R1-14). A void invoice cannot be edited (`invoice_void`).
 12. **Versioning.** `invoices.version` starts at 1 and increments on every edit and on void; reads return it
@@ -116,8 +118,11 @@ positions F1 uses (5a, 7a, 9b).
 16. **The token.** 32 random bytes. `invoice_links` keeps the SHA-256 hash for lookup, never the token
     itself, and a sealed copy (`token_sealed`, sealed by the worker with the dedicated key
     `INVOICE_LINK_SEAL_KEY`, bound to clinic, link and notification) that only a retried send re-opens, so
-    the retry sends the same URL (C1, owner-approved). A link expires after 14 days; a void, an expiry, a
-    rotated seal key or a send that proves non-delivery revokes it (`revoked_at`; never deleted). An
+    the retry sends the same URL (C1, owner-approved). A link expires after 14 days. A retry of the same send
+    revokes its link when it has expired or its seal no longer opens (a rotated key) and mints a new one; a
+    send that proves non-delivery revokes its link (`revoked_at`; never deleted). Rotating the key does not
+    revoke links already sent: the lookup checks only the hash, `revoked_at` and the expiry, so they stay
+    valid until they expire. A voided invoice's link stops working (R1-16). An
     ambiguous failure (a timeout) keeps it until expiry. One invoice can have several live links, one per
     send. The link transaction commits before any network send.
 17. **Public lookup.** `GET /v1/public/invoices/:token` has its own rate limit and no clinic yet: the API hashes the token and
@@ -150,6 +155,6 @@ positions F1 uses (5a, 7a, 9b).
 - The platform sees revenue by month and nothing else; a support question about one invoice is answered by
   the clinic.
 - The link design needs one more secret (`INVOICE_LINK_SEAL_KEY`), rotated only after the invoice queue is
-  drained.
+  drained; links already sent stay valid until they expire.
 - F1's invoice PDF (slice 8g, `docs/specs/finance-f1-pdf-design.md`) is deferred by the owner to the end of
   the project; the stored totals do not depend on it.
