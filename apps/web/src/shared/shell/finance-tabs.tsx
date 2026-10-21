@@ -1,20 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useI18n } from "@/shared/i18n/i18n-provider";
-import { can } from "@/shared/permissions/can";
 import { useSession } from "@/shared/persona/persona-provider";
-
-export type FinanceTabId = "invoices" | "payments";
-
-const TABS = [
-  { id: "invoices", to: "/clinic/invoices", resource: "invoices" },
-  { id: "payments", to: "/clinic/payments", resource: "payments" },
-] as const;
-
-/** The tabs a user may open, by view permission, never by role. */
-export function visibleFinanceTabs(permissions: readonly string[]) {
-  return TABS.filter((tab) => can(permissions, "view", tab.resource));
-}
+import { visibleFinanceTabs, type FinanceTabId } from "./finance-tab-list";
 
 /** The invoices / payments link strip above both lists; hidden when only one tab is open to the user. */
 export function FinanceTabs({ active }: { active: FinanceTabId }) {

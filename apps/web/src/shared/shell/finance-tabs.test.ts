@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { visibleFinanceTabs } from "./finance-tabs";
+import { visibleFinanceTabs } from "./finance-tab-list";
 import { CLINIC_NAV, navItemsFor } from "./nav-items";
 
 const shows = (keys: string[]) =>

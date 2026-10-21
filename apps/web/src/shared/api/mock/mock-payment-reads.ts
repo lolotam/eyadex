@@ -117,7 +117,11 @@ export function getPayment(db: MockState, persona: Persona, paymentId: string): 
 }
 
 /** GET /v1/payments/branch-options: the payment guards, then only the branches the view key reaches. */
-export function branchOptions(db: MockState, persona: Persona, raw: unknown): BranchOptionListResponse {
+export function branchOptions(
+  db: MockState,
+  persona: Persona,
+  raw: unknown,
+): BranchOptionListResponse {
   const a = requirePayments(db, persona, "view");
   const q = parse(optionListQuerySchema, raw);
   const rows = db.branches.filter(
@@ -126,7 +130,12 @@ export function branchOptions(db: MockState, persona: Persona, raw: unknown): Br
   const start = q.cursor ? rows.findIndex((r) => r.id === q.cursor) + 1 : 0;
   const page = rows.slice(start, start + q.limit);
   return {
-    items: page.map((b) => ({ id: b.id, nameAr: b.nameAr, nameEn: b.nameEn, isActive: b.isActive })),
+    items: page.map((b) => ({
+      id: b.id,
+      nameAr: b.nameAr,
+      nameEn: b.nameEn,
+      isActive: b.isActive,
+    })),
     nextCursor: start + q.limit < rows.length ? (page[page.length - 1]?.id ?? null) : null,
     total: rows.length,
   };

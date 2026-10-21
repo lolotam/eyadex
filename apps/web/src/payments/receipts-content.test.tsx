@@ -18,8 +18,12 @@ vi.mock("@tanstack/react-router", () => ({
     <a href={to}>{children}</a>
   ),
 }));
-vi.mock("@/shared/persona/persona-provider", () => ({ useSession: () => ({ session: h.session }) }));
-vi.mock("./receipt-patient-picker", () => ({ ReceiptPatientPicker: () => <div>patient-filter</div> }));
+vi.mock("@/shared/persona/persona-provider", () => ({
+  useSession: () => ({ session: h.session }),
+}));
+vi.mock("./receipt-patient-picker", () => ({
+  ReceiptPatientPicker: () => <div>patient-filter</div>,
+}));
 vi.mock("./receipt-queries", async (real) => ({
   ...(await real<typeof import("./receipt-queries")>()),
   useReceiptBranches: () => ({

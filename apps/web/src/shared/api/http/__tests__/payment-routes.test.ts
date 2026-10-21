@@ -117,7 +117,10 @@ describe("payments over HTTP", () => {
   it("reads the receipts' branch options from the payments route (card 1b)", async () => {
     const answer = await h.api.payments.branchOptions(P, { limit: 100 });
     expect(answer.items).toEqual([branchOption]);
-    expect(last()).toMatchObject({ method: "GET", url: "/api/v1/payments/branch-options?limit=100" });
+    expect(last()).toMatchObject({
+      method: "GET",
+      url: "/api/v1/payments/branch-options?limit=100",
+    });
     broken = true;
     expect((await code(h.api.payments.branchOptions(P, {}))).code).toBe("unknown");
   });
