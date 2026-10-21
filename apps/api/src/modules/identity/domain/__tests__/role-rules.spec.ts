@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { permissionKeysSchema } from "@eyadex/contracts/roles";
+
 import {
   decideRoleDeactivation,
   decideRoleReactivation,
@@ -10,6 +12,7 @@ import {
   sameKeySet,
   sameRole,
 } from "../role-rules.ts";
+import { SYSTEM_ROLES } from "../system-roles.ts";
 
 const custom = { isLocked: false, isActive: true };
 const locked = { isLocked: true, isActive: true };
@@ -87,4 +90,14 @@ describe("no-op and audit", () => {
       permissionKeys: ["a", "b"],
     });
   });
+});
+
+// Issue #93: new clinics are seeded from these templates, so each must pass the role contract as is.
+describe("the system role templates", () => {
+  it.each(SYSTEM_ROLES.map((r) => [r.key, r.permissions] as const))(
+    "%s passes the role contract, the view-scope rule included",
+    (_key, permissions) => {
+      expect(permissionKeysSchema.safeParse([...permissions]).success).toBe(true);
+    },
+  );
 });

@@ -183,7 +183,8 @@ export const en = {
   ...enWhatsapp,
   ...enFinance,
   validation: {
-    needsView: "Any create, edit or deactivate permission needs view on the same area",
+    needsView:
+      "Any create, edit or deactivate permission needs view on the same area, at a scope at least as wide",
     timezone: "Choose a supported time zone",
     required: "Required",
     tooShort: "Too short",

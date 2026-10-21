@@ -6,7 +6,9 @@ import {
   VIEWED_THROUGH,
   actionSchema,
   resourceSchema,
+  viewScopeCovers,
   type PermissionResource,
+  type PermissionScope,
 } from "./permissions.ts";
 
 // Invisible format/control characters render as nothing; they could only split a number past the audit
@@ -52,11 +54,22 @@ export const permissionKeysSchema = z
       }
     }
     // Any write on a resource needs view on it too, so every granted action is reachable. A resource with no
-    // view of its own (a discount is a change to an invoice) needs view on the resource it changes.
+    // view of its own (a discount is a change to an invoice) needs view on the resource it changes. The view
+    // must reach as far as the write (issue #93): a branch view with a clinic write would let the role change
+    // records in branches it cannot see.
     for (const key of keys) {
-      const [action, resource] = key.split(":") as [string, PermissionResource];
+      const [action, resource, scope] = key.split(":") as [
+        string,
+        PermissionResource,
+        PermissionScope,
+      ];
+      if (action === "view") continue;
       const viewed = VIEWED_THROUGH[resource] ?? resource;
-      if (action !== "view" && !keys.some((k) => k.startsWith(`view:${viewed}:`))) {
+      const covered = keys.some((k) => {
+        const [a, r, s] = k.split(":") as [string, string, PermissionScope];
+        return a === "view" && r === viewed && viewScopeCovers(s, scope);
+      });
+      if (!covered) {
         ctx.addIssue({ code: "custom", message: "validation.needsView" });
         return;
       }
