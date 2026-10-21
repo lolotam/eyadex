@@ -1,6 +1,6 @@
 # Finance F3 — reports (design draft)
 
-- Status: **owner decisions taken 2026-10-21** (EY-9, §11). Nothing here is built. Six answers differ from
+- Status: **owner decisions taken 2026-10-21** (EY-9, §11). Nothing here is built. Five answers differ from
   the recommendation (F3-Q4, Q5, Q7, Q8, Q9), and the body of §3–§8 is updated to them in the next revision
   of this file before any slice starts; §11 wins where they disagree. The slices of §9 still wait for the
   owner's yes on the SQL plan, and the open items of issues #105 and #106.
@@ -28,6 +28,10 @@ Binding rules it inherits (not re-asked here):
 - **R1-18 + R2-6 (doctor reports):** `view:finance_reports:own` uses **the same reach as
   `view:invoices:own`** (R1-12: the invoices of the caller's own patients, whole invoices). **No per-provider
   line split in F3** — that is doctor commission (FIN-19, later). Exports obey the same scope.
+  **Amended by the owner (F3-Q4 = (c), 2026-10-21) for R10 only:** R10 shows the revenue of the doctor's own
+  lines — lines whose `provider_id` is the caller's membership **on invoices inside the caller's
+  `view:invoices:own` reach** (`ownPatientFilter`). Both conditions apply, so R10 never shows an amount from an
+  invoice the doctor's invoice list hides (§3: a report is never a back door). R4 is unchanged (clinic/branch).
 - **R3-8:** reports never read `cash_closings.method_totals`; they use `business_date` on the movements.
 - **FIN-3:** the platform sees finance only as the totals function. No report, view, export or audit row of
   F3 reaches `eyadex_platform`.
@@ -403,12 +407,12 @@ recommendation it says so, with what changes.
 | F3-Q1    | «نحفظ يومها وقت إصدارها (المقترح)» | (a) store `invoices.business_date` at issue                                               | expand → backfill → contract (§8); the platform function moves with it (F3-Q13)                                                                                                 |
 | F3-Q2    | «30/60/90/أكتر (المقترح)»          | (a) 0–30 / 31–60 / 61–90 / over 90                                                        | —                                                                                                                                                                               |
 | F3-Q3    | «سطر لوحده (المقترح)»              | (a) `line_total_minor` per row plus one report-level tax line                             | —                                                                                                                                                                               |
-| F3-Q4    | «إيراد خدماته هو بس»               | **(c), not the recommendation**: R10 shows the revenue of the doctor's own lines only     | R10 is per line, not per whole invoice; R2-6 is changed for this report and the spec says so                                                                                    |
+| F3-Q4    | «إيراد خدماته هو بس»               | **(c), not the recommendation**: R10 shows the revenue of the doctor's own lines only     | R10 is per line, not per whole invoice: own lines = `provider_id` = caller AND the invoice is in the caller's `own` reach (amended R2-6 in §1)                                  |
 | F3-Q5    | «CSV وExcel»                       | **(b), not the recommendation**: CSV and XLSX                                             | an XLSX writer is a new dependency (the 24 h supply-chain guard applies); typed text cells keep big amounts exact (issue #106) and the formula guard applies to every text cell |
 | F3-Q6    | «سنة شاشة، 3 سنين تصدير (المقترح)» | (a) 366 days on screen, 3 years in export, every export a background job                  | —                                                                                                                                                                               |
 | F3-Q7    | «باسم المريض»                      | **(a), not the recommendation**: R8 lists the patient's name                              | R8 holds patient data: its export follows the R5–R7 rules (audited, 24 h)                                                                                                       |
 | F3-Q8    | «يطلع في الملف كمان»               | **(b), not the recommendation**: refund and discount reasons are exported                 | reasons are free text in a file that leaves the system; length-capped as stored, formula-guarded                                                                                |
-| F3-Q9    | «والريسبشن كمان»                   | **(b), not the recommendation**: the receptionist also gets `view:finance_reports:branch` | defaults: admin `clinic`, receptionist `branch`, doctor `own` (R10 only, per F3-Q4); 0070 grants them                                                                           |
+| F3-Q9    | «والريسبشن كمان»                   | **(b), not the recommendation**: the receptionist also gets `view:finance_reports:branch` | defaults: admin `clinic`, doctor `own` (R10 only, per F3-Q4); the receptionist's default **waits for privacy point 1 (EY-9.14)** and 0070 does not grant it until then          |
 | F3-Q10   | «24 ساعة (المقترح)»                | (a) 24 hours                                                                              | —                                                                                                                                                                               |
 | F3-Q11   | «مباشرة من الجداول (المقترح)»      | (a) live queries                                                                          | —                                                                                                                                                                               |
 | F3-Q12   | «أيوه، للعيادة كلها (المقترح)»     | (a) R6 in F3, clinic scope                                                                | —                                                                                                                                                                               |
