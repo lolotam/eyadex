@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { PAYMENT_METHODS } from "@eyadex/contracts/finance";
 import { errorKeyOf } from "@/shared/api/api-error";
 import { api, as, clinicIdAt, getState, resetMockData } from "@/shared/api/mock/mock-test-kit";
-import { switchesOf } from "./payment-methods-card";
+import { switchesOf } from "./payment-method-switches";
 
 beforeEach(() => resetMockData());
 

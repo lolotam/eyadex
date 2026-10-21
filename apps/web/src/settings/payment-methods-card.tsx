@@ -15,14 +15,7 @@ import { useApi } from "@/shared/api/api-provider";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { usePersona } from "@/shared/persona/persona-provider";
 import { useRefreshFinanceSettings } from "./finance-queries";
-
-type Switches = Record<PaymentMethod, boolean>;
-
-/** Absent means all four on, as the API reads "no saved switch = on" (spec §4.6). */
-export function switchesOf(settings: Pick<FinanceSettings, "paymentMethods">): Switches {
-  const saved = new Map((settings.paymentMethods ?? []).map((m) => [m.method, m.enabled]));
-  return Object.fromEntries(PAYMENT_METHODS.map((m) => [m, saved.get(m) ?? true])) as Switches;
-}
+import { switchesOf, type Switches } from "./payment-method-switches";
 
 type Props = { settings: FinanceSettings; editable: boolean };
 
