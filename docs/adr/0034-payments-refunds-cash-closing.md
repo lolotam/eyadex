@@ -71,3 +71,43 @@ INSERT` on them and no role has `UPDATE` or `DELETE`. A correction is a new move
 - The owner decided every open rule on 2026-10-20 as recommended (spec §4.10, F2-Q1 … F2-Q19): items 3, 5
   and 6 stand as written, refunds are numbered `PREFIX-RF-YYYY-NNNNNN`, a branch closes once a day, and cash
   closings stay out of the platform's audit.
+
+## As built (F2 slices 3–5, PRs 94, 95, 99)
+
+- **Routes** (the hosts mount the API under `/api/v1`). The clinic routes each carry
+  `@RequiresFeature("finance")`: `POST /v1/invoices/:id/refunds` (`create:refunds:branch`,
+  `Idempotency-Key` required); `GET /v1/refunds` and `GET /v1/refunds/:id` (`view:payments:branch`; a
+  refund has no view key of its own); `GET /v1/cash-closings/preview?branchId=` and `POST /v1/cash-closings`
+  (`create:cash_closings:branch`, the close takes an `Idempotency-Key`); `GET /v1/cash-closings` and
+  `GET /v1/cash-closings/:id` (`view:cash_closings:branch`). A branch key admits the clinic scope too; the
+  use case narrows to the caller's reach. A refund on an invoice outside it, a single refund or closing
+  outside it, and a preview or close of a branch outside it are `not_found`; the lists AND their `branchId`
+  filter with the reach, so a list filtered to a branch outside it is an empty page (200). The platform route
+  `GET /v1/platform/clinics/:id/finance-totals` (totals only) is guarded by `@PlatformStaff()` alone, with
+  no finance feature gate; an unknown clinic is `not_found`.
+- **Refund lock order:** the clinic idempotency key (0) → the patient row (7) → the invoice `FOR UPDATE`
+  (7a) → the invoice's branch `FOR SHARE` for the prefix (9) → the branch's cash drawer `FOR UPDATE`, for
+  a cash refund only (9a) → the refund series of `receipt_sequences` (9c). Every balance is read after the
+  patient and invoice locks, and the clock after the patient, invoice and branch locks. A refund from a payment writes the
+  `refund` credits it releases first and then spends exactly them in `refund_sources`.
+- **Close lock order:** the idempotency key (0) → the branch `FOR SHARE` (9) → the drawer `FOR UPDATE`
+  (9a). A closing takes no patient lock, but it takes turns with the branch's cash payments and cash
+  refunds through the drawer lock: they take it `FOR UPDATE` for their `cash_seq` (`takeCashSeq`) and
+  hold it until they commit. A non-cash payment or refund never takes the drawer lock, and the branch
+  `FOR SHARE` locks do not conflict, so it never waits for a closing. The preview writes nothing.
+- **Refundable from a payment (issue #91):** the smaller of the payment's live allocations and the
+  payment amount minus what was already released from its allocations, never below zero
+  (`refundableFromPayment`). More than that is `refund_exceeds_available` (409); the payment must belong
+  to the invoice in the path, or it is `not_found`.
+- **Close rules:** the request repeats the preview's `previousClosingId` and `throughCashSeq`; if the
+  drawer moved since, it is `cash_drawer_changed` (409). A branch closes once per clinic-timezone business
+  day: the last closing's date decides (`cash_closing_exists`, 409), and a clock set back to an earlier
+  closed day reaches the `cash_closings_business_date_unique` index, which answers the same code. When
+  the counted amount differs from the expected one (cash in − cash out in the range), a non-blank note is
+  required (`closing_note_required`, 400).
+- **Audit** keeps ids, numbers, methods and amounts; a refund records `reasonLength` and a closing
+  `noteLength` (when it has a note), never the text.
+- **Platform totals v2:** each month of `finance-totals` adds `collectedMinor` and `refundedMinor` beside
+  `invoicedMinor`, from `finance_monthly_totals` (the two fields are optional in the contract).
+- **Deferred:** the receipt PDF (`GET /v1/payments/:id/pdf`, F2-Q14) waits with slice 8g; the web
+  (slice 6) is still to come.
