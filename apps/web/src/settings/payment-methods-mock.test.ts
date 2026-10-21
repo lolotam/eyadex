@@ -55,10 +55,4 @@ describe("payment methods (spec §4.6)", () => {
       "forbidden",
     );
   });
-
-  it("a method turned off is refused by the next payment", async () => {
-    await api.finance.setPaymentMethods(admin(), all((m) => m !== "knet"));
-    const settings = await api.finance.settings(admin());
-    expect(settings.paymentMethods?.find((m) => m.method === "knet")?.enabled).toBe(false);
-  });
 });

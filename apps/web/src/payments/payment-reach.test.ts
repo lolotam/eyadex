@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { paymentListResponseSchema, invoicePaymentsResponseSchema } from "@eyadex/contracts/finance";
+import {
+  PAYMENT_METHODS,
+  invoicePaymentsResponseSchema,
+  paymentListResponseSchema,
+} from "@eyadex/contracts/finance";
 import { clinicFinanceOf } from "@/shared/api/mock/mock-finance-state";
 import { resetMockData } from "@/shared/api/mock/mock-test-kit";
 import { checkAmount } from "./payment-amount";
@@ -68,6 +72,18 @@ describe("who reaches payments (F2-Q8)", () => {
     expect(second.items[0]!.amountMinor).toBe("100");
     const view = await api.payments.invoicePayments(admin(), invoice.id);
     expect(invoicePaymentsResponseSchema.safeParse(view).success).toBe(true);
+  });
+});
+
+describe("the method switches reach the payment", () => {
+  it("a method turned off in the settings is refused as payment_method_disabled", async () => {
+    const invoice = await issue("5000");
+    await api.finance.setPaymentMethods(
+      admin(),
+      PAYMENT_METHODS.map((method) => ({ method, enabled: method !== "knet" })),
+    );
+    expect(await refusal(pay(invoice.id, "100", "knet"))).toBe("payment_method_disabled");
+    expect((await pay(invoice.id, "100", "cash")).payment.method).toBe("cash");
   });
 });
 
