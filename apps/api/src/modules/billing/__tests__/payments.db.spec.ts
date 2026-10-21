@@ -169,7 +169,7 @@ describe("the refusals of a payment (spec §4.3 S9 and S11)", () => {
 describe("the receipt numbers (spec §4.6, R1-9)", () => {
   it("numbers the receipts per branch: branch R starts at one whatever branch D used", async () => {
     const invoice = await invoiceOn(C.branchR, "1000");
-    const res = await pay(h, C.cashier.cookie, invoice.id, cash("1000"));
+    const res = await pay(h, C.receptionist.cookie, invoice.id, cash("1000"));
     expect(res.statusCode, res.body).toBe(201);
     const answer = res.json() as Answer;
     const year = answer.payment.businessDate.slice(0, 4);

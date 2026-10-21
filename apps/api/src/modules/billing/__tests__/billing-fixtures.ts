@@ -17,7 +17,7 @@ import { medicalClinic, patientIn, setModule } from "../../medical/__tests__/med
  * the onboarding (system-roles.ts) and the doctor `view:invoices:own`; a price reader holds
  * `view:prices:clinic` only, and the desk (branch R) holds the receptionist's finance keys.
  *
- * Finance F2 (F2-Q15) adds the cashier: a member of branch R that records the payments of its branch
+ * Finance F2 (F2-Q15) adds the receptionist: a member of branch R that records the payments of its branch
  * (the four keys of §4.1) and holds no other finance key.
  */
 export async function financeClinic(h: Harness, invalidate: AuthorizationInvalidator) {
@@ -40,7 +40,7 @@ export async function financeClinic(h: Harness, invalidate: AuthorizationInvalid
     ]),
     { allBranches: false, branchIds: [C.branchR] },
   );
-  const cashier = await memberOn(
+  const receptionist = await memberOn(
     h,
     C.admin,
     await customRole(h, C.clinicId, [
@@ -52,7 +52,7 @@ export async function financeClinic(h: Harness, invalidate: AuthorizationInvalid
     { allBranches: false, branchIds: [C.branchR] },
   );
   await invalidate.clinicChanged(C.clinicId);
-  return { ...C, priceReader, desk, cashier };
+  return { ...C, priceReader, desk, receptionist };
 }
 
 export type FinanceClinic = Awaited<ReturnType<typeof financeClinic>>;
@@ -170,4 +170,69 @@ export async function applyCredit(
     { amountMinor },
     key,
   );
+}
+
+/**
+ * POST /v1/invoices/:id/refunds as `cookie`, with the idempotency key (a fresh one by default).
+ *
+ * @returns the response of the API, untouched
+ */
+export async function refund(
+  h: Harness,
+  cookie: string,
+  invoiceId: string,
+  body: Record<string, unknown>,
+  key = randomUUID(),
+) {
+  return send(h, cookie, "POST", `/v1/invoices/${invoiceId}/refunds`, body, key);
+}
+
+/**
+ * Finance F2 slice 5 (F2-Q15): two members of branch R beside the receptionist — the refunder gives money back
+ * from the invoices of its branch, and the closer closes its branch's cash drawer. Neither holds another
+ * finance key, so each spec proves one key at a time.
+ */
+export async function moneyStaff(
+  h: Harness,
+  C: FinanceClinic,
+  invalidate: AuthorizationInvalidator,
+) {
+  const branchR = { allBranches: false, branchIds: [C.branchR] };
+  const refunder = await memberOn(
+    h,
+    C.admin,
+    await customRole(h, C.clinicId, [
+      "view:patients:branch",
+      "view:invoices:branch",
+      "view:payments:branch",
+      "create:refunds:branch",
+    ]),
+    branchR,
+  );
+  const closer = await memberOn(
+    h,
+    C.admin,
+    await customRole(h, C.clinicId, ["view:cash_closings:branch", "create:cash_closings:branch"]),
+    branchR,
+  );
+  await invalidate.clinicChanged(C.clinicId);
+  return { refunder, closer };
+}
+
+/** GET /v1/cash-closings/preview for one branch, as `cookie`. */
+export const previewClosing = (h: Harness, cookie: string, branchId: string) =>
+  send(h, cookie, "GET", `/v1/cash-closings/preview?branchId=${branchId}`);
+
+/**
+ * POST /v1/cash-closings as `cookie`, with the idempotency key (a fresh one by default).
+ *
+ * @returns the response of the API, untouched
+ */
+export async function closeCash(
+  h: Harness,
+  cookie: string,
+  body: Record<string, unknown>,
+  key = randomUUID(),
+) {
+  return send(h, cookie, "POST", "/v1/cash-closings", body, key);
 }

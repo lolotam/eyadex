@@ -28,6 +28,9 @@ export const enRoles = {
       "The Clinic Admin role is locked: it always holds every permission and cannot be renamed or deactivated.",
     fields: { nameAr: "Name (Arabic)", nameEn: "Name (English)" },
     matrixTitle: "Permissions",
+    catalogLoadError: "The permissions could not be loaded, so the role cannot be saved yet",
+    catalogRefreshError:
+      "The permissions could not be refreshed; the list shown is the last one loaded",
     groups: {
       core: "Clinic administration",
       patients: "Patients module",

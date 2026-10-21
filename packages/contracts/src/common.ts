@@ -54,6 +54,7 @@ const baseApiErrorCodes = [
   "role_locked",
   "role_in_use",
   "role_name_taken",
+  "role_hidden_keys_invalid",
   "patient_phone_taken",
   "patient_civil_id_taken",
   "last_active_platform_account",

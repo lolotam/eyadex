@@ -1,7 +1,7 @@
 import { NO_FEATURES, type ClinicFeatures } from "@eyadex/contracts/clinics";
 import type { Role } from "@eyadex/contracts/organization";
 import { PERMISSION_CATALOG, type PermissionDefinition } from "@eyadex/contracts/permissions";
-import type { RoleListItem } from "@eyadex/contracts/roles";
+import { uncoveredWrite, type RoleListItem } from "@eyadex/contracts/roles";
 import { ApiError } from "../api-error";
 import { memberBranchScope, type Actor } from "./mock-actor";
 import type { MockState } from "./mock-store";
@@ -72,6 +72,18 @@ export function mergeHiddenKeys(
       flags,
     );
   return [...requested.filter(visible), ...existing.filter((key) => !visible(key))];
+}
+
+/**
+ * The API's `hiddenScopeGap`: the view-scope rule (issue #93) on the keys as they will be saved. The request
+ * carries no keys of a switched-off module, so the contract never saw the kept ones; nothing is dropped,
+ * the save is refused until the module is switched on and the keys fixed.
+ */
+export function enforceSavedKeysCovered(saved: readonly string[]): void {
+  const gap = uncoveredWrite(saved);
+  if (gap === undefined) return;
+  const module = PERMISSION_CATALOG.find((p) => p.key === gap)?.module ?? "core";
+  throw new ApiError("role_hidden_keys_invalid", undefined, { module });
 }
 
 export function enforceUniqueNames(

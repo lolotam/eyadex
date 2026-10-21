@@ -164,6 +164,8 @@ const BILLING_RELATIONS = [
   "refunds",
   "refund_sources",
   "branch_cash_drawers",
+  // Finance F2 slice 5: the daily cash closings.
+  "cash_closings",
   // The jsonb set function its id lists read.
   "jsonb_array_elements_text",
   "branches",

@@ -1,5 +1,19 @@
+import {
+  cashClosingSnapshotShape,
+  creditSpendsShape,
+  CURRENCY_CODE,
+  MINOR,
+  NUMBER,
+  RECEIPT_NUMBER,
+  refundSnapshotShape,
+  UUID,
+  type CashClosingAuditSnapshot,
+  type RefundAuditSnapshot,
+} from "./finance-audit-shapes.ts";
 import type { Invoice } from "./finance-invoice.ts";
 import { PAYMENT_METHODS, type PaymentMethod } from "./finance-payments.ts";
+
+export type { CashClosingAuditSnapshot, RefundAuditSnapshot } from "./finance-audit-shapes.ts";
 
 /** خصم في اللقطة: نوعه وقيمته بس، من غير السبب المكتوب. */
 export type DiscountSnapshot =
@@ -49,19 +63,16 @@ export interface CreditAuditSnapshot {
   readonly spends?: readonly { readonly creditId: string; readonly amountMinor: string }[];
 }
 
-/** أي لقطة مالية بتتخزن في سجل العيادة: فاتورة أو دفعة أو رصيد مراجع. */
+/** أي لقطة مالية بتتخزن في سجل العيادة: فاتورة أو دفعة أو رصيد مراجع أو استرداد أو إقفال صندوق. */
 export type FinanceAuditSnapshot =
-  InvoiceAuditSnapshot | PaymentAuditSnapshot | CreditAuditSnapshot;
+  | InvoiceAuditSnapshot
+  | PaymentAuditSnapshot
+  | CreditAuditSnapshot
+  | RefundAuditSnapshot
+  | CashClosingAuditSnapshot;
 
-// The snapshot skips scrubAuditValue on purpose: that scrub masks any run of 7+ digits as a phone and
-// 12+ as a civil ID, so "1000000" or SLM-2026-000123 would be stored mangled. It is safe to skip only
-// because every string is checked against these shapes, which no typed name or phone can pass.
-// The payment and the credit snapshots are checked the same way.
-const MINOR = /^\d{1,19}$/;
-const NUMBER = /^[A-Z0-9]{2,6}-\d{4}-\d{6,}$/;
-const RECEIPT_NUMBER = /^[A-Z0-9]{2,6}-R-\d{4}-\d{6,}$/;
-const CURRENCY_CODE = /^[A-Z]{3}$/;
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+// Every string of a finance snapshot is checked against the shapes of finance-audit-shapes.ts before it
+// is stored, which is why the snapshot may skip the audit scrub.
 const CREDIT_CAUSES = ["invoice_edited", "invoice_voided", "refund"] as const;
 
 /** نفس رسالة فشل لقطة الفاتورة، عشان القارئ يشوف سبب واحد لكل اللقطة المالية. */
@@ -138,24 +149,6 @@ function paymentSnapshotShape(snapshot: unknown): boolean {
   );
 }
 
-/** رصيد واحد صرفته دفعة: معرّف الرصيد والمبلغ. */
-function creditSpendShape(spend: unknown): boolean {
-  if (typeof spend !== "object" || spend === null) return false;
-  const row = spend as { readonly creditId: string; readonly amountMinor: string };
-  return (
-    typeof row.creditId === "string" &&
-    UUID.test(row.creditId) &&
-    typeof row.amountMinor === "string" &&
-    MINOR.test(row.amountMinor)
-  );
-}
-
-/** قائمة الأرصدة اللي دفعة واحدة صرفتها: كل رصيد بمعرّفه ومبلغه. */
-function creditSpendsShape(spends: unknown): boolean {
-  if (!Array.isArray(spends)) return false;
-  return spends.every((spend) => creditSpendShape(spend));
-}
-
 /** لقطة رصيد المراجع على شكلها: رقم الفاتورة والمبلغ والعملة والسبب والتخصيص. */
 function creditSnapshotShape(snapshot: unknown): boolean {
   if (typeof snapshot !== "object" || snapshot === null) return false;
@@ -182,9 +175,13 @@ function assertInvoiceSnapshotShape(snapshot: unknown): void {
   assertInvoiceAuditSnapshotShape(invoice);
 }
 
+/** كيانات المالية اللي لقطاتها بتتراجع على شكلها قبل الكتابة. */
+export type FinanceSnapshotEntity =
+  "invoice" | "invoice_link" | "payment" | "patient_credit" | "refund" | "cash_closing";
+
 /**
- * يمنع تخزين نص حر مكان أرقام الدفعة أو رصيد المراجع قبل تجاوز تنقية سجل التدقيق: كل نص في اللقطة
- * المالية بيتأكد من شكله، واللقطة دي ما بتاخدش غير معرّفات وأرقام.
+ * يمنع تخزين نص حر مكان أرقام الدفعة أو رصيد المراجع أو الاسترداد أو الإقفال قبل تجاوز تنقية سجل
+ * التدقيق: كل نص في اللقطة المالية بيتأكد من شكله، واللقطة دي ما بتاخدش غير معرّفات وأرقام.
  *
  * @param entity الكيان اللي اللقطة بتاعته
  * @param snapshot اللقطة، أو `null` لما مفيش لقطة
@@ -192,7 +189,7 @@ function assertInvoiceSnapshotShape(snapshot: unknown): void {
  * @throws Error لما لقطة حاجة بره شكلها
  */
 export function assertFinanceAuditSnapshotShape(
-  entity: "invoice" | "invoice_link" | "payment" | "patient_credit",
+  entity: FinanceSnapshotEntity,
   snapshot: FinanceAuditSnapshot | null,
 ): void {
   if (snapshot === null) return;
@@ -208,6 +205,12 @@ export function assertFinanceAuditSnapshotShape(
       return;
     case "patient_credit":
       if (!creditSnapshotShape(snapshot)) throw new Error(SHAPE_ERROR);
+      return;
+    case "refund":
+      if (!refundSnapshotShape(snapshot)) throw new Error(SHAPE_ERROR);
+      return;
+    case "cash_closing":
+      if (!cashClosingSnapshotShape(snapshot)) throw new Error(SHAPE_ERROR);
       return;
   }
 }

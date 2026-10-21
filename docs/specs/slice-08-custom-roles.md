@@ -64,7 +64,13 @@ stays.
    reactivate included. Non-locked ready roles (doctor, receptionist, technician) are editable like
    custom ones (PRD §4.7 table, story 45, mock `enforceNotLocked`).
 2. **Catalogue only.** The shared `permissionKeysSchema` refuses unknown keys, two scopes for one
-   action, and a write without its view → `validation` (400). Keys are de-duplicated.
+   action, and a write without its view → `validation` (400). The view must cover the write's scope
+   (`clinic` ⊇ `branch` ⊇ `own`, issue #93), so `view:payments:branch` + `create:payments:clinic` is
+   refused. A stored role that breaks this is read as it is and refused only on its next save. The
+   saved set (after `mergeHiddenKeys`) is checked too: kept keys of a switched-off module that break
+   it answer `role_hidden_keys_invalid` (409, `details.module`) until the module is on and they are
+   fixed; nothing is dropped. The editor sends every key the role holds (the ones it does not show
+   as stored), never a set filtered by its catalogue, and names the module when a hidden pair is refused. Keys are de-duplicated.
 3. **Hidden module keys** (`mergeHiddenKeys`): saved keys = requested keys whose module is enabled
    - the role's existing keys whose module is disabled. A requested key of a disabled module is
      dropped; an existing one is kept whatever the input says (FLAG-02). Enabled modules are read

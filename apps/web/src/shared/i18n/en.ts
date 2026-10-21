@@ -185,7 +185,8 @@ export const en = {
   ...enFinance,
   ...enPayments,
   validation: {
-    needsView: "Any create, edit or deactivate permission needs view on the same area",
+    needsView:
+      "Any create, edit or deactivate permission needs view on the same area, at a scope at least as wide",
     timezone: "Choose a supported time zone",
     required: "Required",
     tooShort: "Too short",
@@ -234,6 +235,8 @@ export const en = {
     role_in_use:
       "This role is held by {count} users, deactivated ones included. Move them to another role first",
     role_name_taken: "Another role in this clinic already uses this name",
+    role_hidden_keys_invalid:
+      "This role's permissions in the switched-off {module} module need a wider view. Switch the module on, fix them and save",
     idempotency_conflict:
       "This request was already sent with different details; close the form and start again",
     unauthorized: "Sign in to continue",
