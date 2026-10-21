@@ -1,8 +1,9 @@
 # Finance F3 — reports (design draft)
 
-- Status: **draft for the owner's review** (2026-10-21). Nothing here is built. Every business rule that the
-  FIN decisions, R1–R3 and F2-Q1 … F2-Q19 do not already settle is a numbered question in §10 (F3-Q1 …
-  F3-Q13); the owner decides them, and the slices of §9 wait for his answers and his yes on the SQL plan.
+- Status: **owner decisions taken 2026-10-21** (EY-9, §11). Nothing here is built. Six answers differ from
+  the recommendation (F3-Q4, Q5, Q7, Q8, Q9), and the body of §3–§8 is updated to them in the next revision
+  of this file before any slice starts; §11 wins where they disagree. The slices of §9 still wait for the
+  owner's yes on the SQL plan, and the open items of issues #105 and #106.
 - Parent spec: `docs/specs/finance-design.md` (§2 shared rules, §3 F1, §4 F2, §8–§8d binding review rules).
   This file replaces the §5 outline there.
 - Decision record: none yet. When the owner approves, the decisions of this file go into **ADR-0035**
@@ -391,3 +392,32 @@ Each question has options and a recommendation. Waleed decides; nothing below is
     "reports = platform" invariant; (c) block timezone changes once the clinic has an invoice or a payment.
     **Recommendation: (a)** — one definition of a day everywhere, a small SQL change, and clinics keep the
     right to correct a wrong timezone.
+
+## 11. Owner decisions (EY-9, 2026-10-21)
+
+Waleed's answers, verbatim from his cards (relayed by the super admin session). Where an answer is not the
+recommendation it says so, with what changes.
+
+| Question | Answer (verbatim)                  | Decision                                                                                  | What changes                                                                                                                                                                    |
+| -------- | ---------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F3-Q1    | «نحفظ يومها وقت إصدارها (المقترح)» | (a) store `invoices.business_date` at issue                                               | expand → backfill → contract (§8); the platform function moves with it (F3-Q13)                                                                                                 |
+| F3-Q2    | «30/60/90/أكتر (المقترح)»          | (a) 0–30 / 31–60 / 61–90 / over 90                                                        | —                                                                                                                                                                               |
+| F3-Q3    | «سطر لوحده (المقترح)»              | (a) `line_total_minor` per row plus one report-level tax line                             | —                                                                                                                                                                               |
+| F3-Q4    | «إيراد خدماته هو بس»               | **(c), not the recommendation**: R10 shows the revenue of the doctor's own lines only     | R10 is per line, not per whole invoice; R2-6 is changed for this report and the spec says so                                                                                    |
+| F3-Q5    | «CSV وExcel»                       | **(b), not the recommendation**: CSV and XLSX                                             | an XLSX writer is a new dependency (the 24 h supply-chain guard applies); typed text cells keep big amounts exact (issue #106) and the formula guard applies to every text cell |
+| F3-Q6    | «سنة شاشة، 3 سنين تصدير (المقترح)» | (a) 366 days on screen, 3 years in export, every export a background job                  | —                                                                                                                                                                               |
+| F3-Q7    | «باسم المريض»                      | **(a), not the recommendation**: R8 lists the patient's name                              | R8 holds patient data: its export follows the R5–R7 rules (audited, 24 h)                                                                                                       |
+| F3-Q8    | «يطلع في الملف كمان»               | **(b), not the recommendation**: refund and discount reasons are exported                 | reasons are free text in a file that leaves the system; length-capped as stored, formula-guarded                                                                                |
+| F3-Q9    | «والريسبشن كمان»                   | **(b), not the recommendation**: the receptionist also gets `view:finance_reports:branch` | defaults: admin `clinic`, receptionist `branch`, doctor `own` (R10 only, per F3-Q4); 0070 grants them                                                                           |
+| F3-Q10   | «24 ساعة (المقترح)»                | (a) 24 hours                                                                              | —                                                                                                                                                                               |
+| F3-Q11   | «مباشرة من الجداول (المقترح)»      | (a) live queries                                                                          | —                                                                                                                                                                               |
+| F3-Q12   | «أيوه، للعيادة كلها (المقترح)»     | (a) R6 in F3, clinic scope                                                                | —                                                                                                                                                                               |
+| F3-Q13   | «نوحّد الحساب (المقترح)»           | (a) the platform totals move to `business_date` in a new SQL file                         | applying that file to production needs the owner's own yes when it is ready                                                                                                     |
+
+Points raised back to the owner with these answers (privacy; not yet decided):
+
+1. With F3-Q7 (a), F3-Q8 (b) and F3-Q9 (b), a receptionist with `branch` scope could export files that hold
+   patient names and free-text reasons for a whole branch. Proposed guard: the receptionist's default covers
+   R1, R2 and R9 only, and the patient-named reports (R5–R8) and their exports need the admin's grant.
+2. Free-text reasons in an exported file may carry clinical detail typed by staff. Proposed guard: every
+   export of R5–R8 writes a patient-data access audit row (who, which report, which range).
