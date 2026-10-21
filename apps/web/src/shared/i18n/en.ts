@@ -277,5 +277,8 @@ export const en = {
     version_conflict: "Someone else just changed this invoice; reload it and try again",
     send_request_conflict: "This send request was already used for another invoice or channel",
     invoice_link_expired: "This invoice link is no longer valid; ask the clinic for a new one",
+    // Finance F2 (spec §4.4).
+    cash_drawer_out_of_range:
+      "The period's net cash is beyond the allowed limit, so the drawer cannot be closed",
   },
 } as const;
