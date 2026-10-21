@@ -270,7 +270,9 @@ job by id through its outbox event, §7.2). Not append-only: the worker updates 
 - **The worker re-checks access at run time.** Inside `withTenant(clinicId)` it loads the requester's
   membership and role and re-derives the scope and branch reach **now**; a requester who lost the key, the
   branch or the clinic gets `failed` (`forbidden`), and the module-off and clinic-suspended checks of
-  CLAUDE.md §6 apply again. The stored `scope` is an upper bound, never a grant.
+  CLAUDE.md §6 apply again. The stored `scope` is an upper bound, never a grant. The same re-check covers
+  every **additional key** the report needs (§3: `view:invoices` for R5/R8, `view:payments` for R6/R7,
+  `view:cash_closings` for R9), each with `viewScopeCovers` against the export's scope; the download repeats it.
 - **Only the requester downloads, and only within today's reach.** `GET …/exports/:id` and the file link
   answer `not_found` to anyone else (ISO-02). For the requester, every download re-derives the current reach
   from the membership and role **now** — the key's scope, the branch list, or the `own` membership — and
@@ -425,3 +427,13 @@ Points raised back to the owner with these answers (privacy; not yet decided):
    R1, R2 and R9 only, and the patient-named reports (R5–R8) and their exports need the admin's grant.
 2. Free-text reasons in an exported file may carry clinical detail typed by staff. Proposed guard: every
    export of R5–R8 writes a patient-data access audit row (who, which report, which range).
+3. **R10's paid and owed columns after F3-Q4 = (c).** Payments name an invoice, not a line, so paid and owed
+   cannot be split to the doctor's own lines without a rule the owner has not given (that is FIN-19
+   commission). Proposed: (a) R10 shows only the billed amount of the doctor's own lines per month, with no
+   paid or owed columns (recommended); (b) R10 also shows, beside it, the whole-invoice paid and owed of the
+   invoices that carry those lines, labelled as whole-invoice amounts. Until answered, R10 has no paid or
+   owed column.
+
+ADR-0035 (`docs/adr/0035-finance-reports.md`) is written with the first F3 slice, from §11 and the answers
+to the three points above; nothing is built before it. The discount-giver rule of R8 stays open in issue
+#106 (attribution per discount, not per invoice edit).
