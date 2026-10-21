@@ -1,6 +1,6 @@
 /**
  * The fields of the refund (`refund.recorded`) and cash closing (`cash_closing.closed`) audit snapshots
- * (finance F2 slice 5, spec §4.6), and the length of the closing note that sits beside them.
+ * (finance F2 slice 5, spec §4.6), the refund reason and closing note lengths among them.
  */
 export const arRefundClosingAuditFields = {
   refundNumber: "رقم الاسترداد",
@@ -19,5 +19,6 @@ export const arRefundClosingAuditFields = {
   countedMinor: "المعدود (بالوحدة الصغرى)",
   differenceMinor: "الفرق (بالوحدة الصغرى)",
   previousClosingId: "الإقفال السابق",
+  reasonLength: "طول سبب الاسترداد (عدد الحروف)",
   noteLength: "طول الملاحظة (عدد الحروف)",
 };

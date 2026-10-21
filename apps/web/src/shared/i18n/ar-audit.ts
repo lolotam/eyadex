@@ -176,7 +176,6 @@ export const arAudit = {
       commercialRegNo: "رقم السجل التجاري",
       logo: "الشعار",
       providerCount: "عدد الدكاترة",
-      reasonLength: "طول السبب",
       via: "طريقة الوصول",
       taxRateBp: "نسبة الضريبة (نقطة أساس)",
       nameAr: "الاسم (عربي)",

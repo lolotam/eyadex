@@ -176,7 +176,6 @@ export const enAudit = {
       commercialRegNo: "Commercial registration number",
       logo: "Logo",
       providerCount: "Doctor count",
-      reasonLength: "Reason length",
       via: "Access method",
       taxRateBp: "Tax rate (basis points)",
       nameAr: "Name (Arabic)",
