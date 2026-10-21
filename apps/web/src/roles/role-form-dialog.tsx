@@ -16,13 +16,14 @@ import {
 } from "@/components/ui/dialog";
 import { Form } from "@/components/ui/form";
 import { useApi } from "@/shared/api/api-provider";
-import { ApiError, errorCodeOf } from "@/shared/api/api-error";
 import { TextField } from "@/shared/forms/form-fields";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { usePersona } from "@/shared/persona/persona-provider";
+import { LoadNotice } from "@/shared/shell/load-notice";
 import { LoadingBlock } from "@/shared/shell/loading-block";
 import { PermissionMatrix } from "./permission-matrix";
 import { usePermissionCatalog, useRefreshRoles } from "./role-queries";
+import { roleSaveError } from "./role-save-error";
 
 const namesSchema = roleInputSchema.pick({ nameAr: true, nameEn: true });
 type Names = { nameAr: string; nameEn: string };
@@ -37,7 +38,7 @@ type Props = {
 export function RoleFormDialog({ open, role, readOnly, onOpenChange }: Props) {
   const api = useApi();
   const { persona } = usePersona();
-  const { t } = useI18n();
+  const { t, tDynamic } = useI18n();
   const refresh = useRefreshRoles();
   const catalog = usePermissionCatalog();
   const [keys, setKeys] = useState<string[]>([]);
@@ -58,6 +59,9 @@ export function RoleFormDialog({ open, role, readOnly, onOpenChange }: Props) {
 
   const mutation = useMutation({
     mutationFn: (names: Names) => {
+      // Every key the role holds: the matrix edits only the keys it shows and leaves the others as stored.
+      // Filtering by the catalogue would drop keys a stale catalogue does not list; the server ignores a
+      // switched-off module's requested keys and keeps the stored ones (FLAG-02).
       const input = { ...names, permissionKeys: keys };
       return role
         ? api.roles.update(persona, role.id, input)
@@ -68,10 +72,14 @@ export function RoleFormDialog({ open, role, readOnly, onOpenChange }: Props) {
       toast.success(t(role ? "roles.updated" : "roles.created"));
       onOpenChange(false);
     },
-    onError: (error) =>
-      toast.error(
-        t(`errors.${errorCodeOf(error)}`, error instanceof ApiError ? error.details : undefined),
-      ),
+    onError: (error) => {
+      const shown = new Set(catalog.data?.map((d) => d.key));
+      const failure = roleSaveError(error, keys, shown);
+      const vars = failure.module
+        ? { ...failure.details, module: tDynamic(`roles.groups.${failure.module}`) }
+        : failure.details;
+      toast.error(t(`errors.${failure.code}`, vars));
+    },
   });
 
   const title =
@@ -93,7 +101,8 @@ export function RoleFormDialog({ open, role, readOnly, onOpenChange }: Props) {
           <form
             id="role-form"
             className="flex flex-col gap-5 py-2"
-            onSubmit={form.handleSubmit((values) => mutation.mutate(values))}
+            // Like the disabled Save: with no catalogue the matrix never rendered, so nothing was reviewed.
+            onSubmit={form.handleSubmit((values) => catalog.data && mutation.mutate(values))}
           >
             <fieldset disabled={readOnly} className="grid gap-4 sm:grid-cols-2">
               <TextField
@@ -111,6 +120,12 @@ export function RoleFormDialog({ open, role, readOnly, onOpenChange }: Props) {
             </fieldset>
             <div className="flex flex-col gap-2">
               <h3 className="text-sm font-semibold">{t("roles.matrixTitle")}</h3>
+              {catalog.isError && (
+                <LoadNotice
+                  title={t(catalog.data ? "roles.catalogRefreshError" : "roles.catalogLoadError")}
+                  onRetry={() => void catalog.refetch()}
+                />
+              )}
               {catalog.data ? (
                 <PermissionMatrix
                   catalog={catalog.data}
@@ -119,7 +134,7 @@ export function RoleFormDialog({ open, role, readOnly, onOpenChange }: Props) {
                   readOnly={readOnly}
                 />
               ) : (
-                <LoadingBlock />
+                !catalog.isError && <LoadingBlock />
               )}
             </div>
           </form>
@@ -135,7 +150,12 @@ export function RoleFormDialog({ open, role, readOnly, onOpenChange }: Props) {
             {t("common.cancel")}
           </Button>
           {!readOnly && (
-            <Button type="submit" form="role-form" disabled={mutation.isPending}>
+            <Button
+              type="submit"
+              form="role-form"
+              // A cached catalogue is a real one; with none at all there is nothing to filter the keys by.
+              disabled={mutation.isPending || catalog.data === undefined}
+            >
               {role ? t("common.save") : t("common.create")}
             </Button>
           )}

@@ -1,15 +1,19 @@
 import { describe, expect, it } from "vitest";
 
+import { permissionKeysSchema } from "@eyadex/contracts/roles";
+
 import {
   decideRoleDeactivation,
   decideRoleReactivation,
   decideRoleUpdate,
+  hiddenScopeGap,
   isEditableKey,
   mergeHiddenKeys,
   roleAuditSnapshot,
   sameKeySet,
   sameRole,
 } from "../role-rules.ts";
+import { SYSTEM_ROLES } from "../system-roles.ts";
 
 const custom = { isLocked: false, isActive: true };
 const locked = { isLocked: true, isActive: true };
@@ -87,4 +91,31 @@ describe("no-op and audit", () => {
       permissionKeys: ["a", "b"],
     });
   });
+});
+
+// PR #98 review: the saved set, kept hidden keys included, is checked after mergeHiddenKeys.
+describe("the view-scope gap of the saved keys", () => {
+  it("names the module of a kept write wider than its view", () => {
+    const kept = mergeHiddenKeys(
+      ["view:users:clinic"],
+      ["view:payments:branch", "create:payments:clinic"],
+      [],
+    );
+    expect(hiddenScopeGap(kept)).toBe("finance");
+  });
+
+  it("is null when every write is covered", () => {
+    expect(hiddenScopeGap(["view:payments:clinic", "create:payments:clinic"])).toBeNull();
+    expect(hiddenScopeGap([])).toBeNull();
+  });
+});
+
+// Issue #93: new clinics are seeded from these templates, so each must pass the role contract as is.
+describe("the system role templates", () => {
+  it.each(SYSTEM_ROLES.map((r) => [r.key, r.permissions] as const))(
+    "%s passes the role contract, the view-scope rule included",
+    (_key, permissions) => {
+      expect(permissionKeysSchema.safeParse([...permissions]).success).toBe(true);
+    },
+  );
 });

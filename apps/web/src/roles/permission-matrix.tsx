@@ -1,5 +1,4 @@
 import {
-  VIEWED_THROUGH,
   actionSchema,
   type PermissionDefinition,
   type PermissionResource,
@@ -14,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useI18n } from "@/shared/i18n/i18n-provider";
-import { viewScope } from "./view-scope";
+import { withScope } from "./matrix-keys";
 
 type Props = {
   catalog: PermissionDefinition[];
@@ -36,26 +35,8 @@ export function PermissionMatrix({ catalog, value, onChange, readOnly }: Props) 
     })),
   ].filter((g) => g.items.length > 0);
 
-  // Writes need view on the same resource, or on the resource it is viewed through (a discount is a
-  // change to an invoice): granting a write grants that view, dropping the view drops the writes.
   function setScope(resource: PermissionResource, action: string, scope: string | null) {
-    const prefix = `${action}:${resource}:`;
-    const viewedVia = VIEWED_THROUGH[resource] ?? resource;
-    let next = value.filter((k) => !k.startsWith(prefix));
-    if (scope) {
-      next.push(`${prefix}${scope}`);
-      if (action !== "view" && !next.some((k) => k.startsWith(`view:${viewedVia}:`)))
-        next.push(`view:${viewedVia}:${viewScope(catalog, viewedVia, scope)}`);
-    } else if (action === "view") {
-      const dependents = Object.entries(VIEWED_THROUGH)
-        .filter(([, via]) => via === resource)
-        .map(([r]) => r);
-      next = next.filter((k) => {
-        const r = k.split(":")[1];
-        return r !== resource && !dependents.includes(r ?? "");
-      });
-    }
-    onChange(next);
+    onChange(withScope(catalog, value, { resource, action, scope }));
   }
 
   return (

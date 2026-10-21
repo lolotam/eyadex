@@ -6,7 +6,9 @@ import {
   VIEWED_THROUGH,
   actionSchema,
   resourceSchema,
+  viewScopeCovers,
   type PermissionResource,
+  type PermissionScope,
 } from "./permissions.ts";
 
 // Invisible format/control characters render as nothing; they could only split a number past the audit
@@ -36,33 +38,51 @@ export const permissionKeysSchema = z
   .array(z.string())
   .max(PERMISSION_CATALOG.length)
   .superRefine((keys, ctx) => {
-    for (const key of keys) {
-      if (!CATALOG_KEYS.has(key)) {
-        ctx.addIssue({ code: "custom", message: "validation.unknownPermission" });
-        return;
-      }
-    }
-    for (const resource of resourceSchema.options) {
-      for (const action of actionSchema.options) {
-        const scopes = keys.filter((k) => k.startsWith(`${action}:${resource}:`));
-        if (scopes.length > 1) {
-          ctx.addIssue({ code: "custom", message: "validation.oneScope" });
-          return;
-        }
-      }
-    }
-    // Any write on a resource needs view on it too, so every granted action is reachable. A resource with no
-    // view of its own (a discount is a change to an invoice) needs view on the resource it changes.
-    for (const key of keys) {
-      const [action, resource] = key.split(":") as [string, PermissionResource];
-      const viewed = VIEWED_THROUGH[resource] ?? resource;
-      if (action !== "view" && !keys.some((k) => k.startsWith(`view:${viewed}:`))) {
-        ctx.addIssue({ code: "custom", message: "validation.needsView" });
-        return;
-      }
-    }
+    const problem = permissionKeysProblem(keys);
+    if (problem) ctx.addIssue({ code: "custom", message: `validation.${problem}` });
   })
   .transform((keys) => [...new Set(keys)]);
+
+/** The whole-set rules of `permissionKeysSchema`, in the order it checks them. */
+export type PermissionKeysProblem = "unknownPermission" | "oneScope" | "needsView";
+
+/**
+ * The first whole-set rule a key set breaks, as `permissionKeysSchema` reports it. Exported so a client can
+ * tell which rule refused a request the API reports only as `validation`, without copying the rules.
+ */
+export function permissionKeysProblem(keys: readonly string[]): PermissionKeysProblem | null {
+  if (keys.some((key) => !CATALOG_KEYS.has(key))) return "unknownPermission";
+  for (const resource of resourceSchema.options) {
+    for (const action of actionSchema.options) {
+      const scopes = keys.filter((k) => k.startsWith(`${action}:${resource}:`));
+      if (scopes.length > 1) return "oneScope";
+    }
+  }
+  return uncoveredWrite(keys) === undefined ? null : "needsView";
+}
+
+/**
+ * The first write key with no view that reaches it, if any. Any write on a resource needs view on it too, so
+ * every granted action is reachable; a resource with no view of its own (a discount is a change to an
+ * invoice) needs view on the resource it changes. The view must reach as far as the write (issue #93): a
+ * branch view with a clinic write would let the role change records in branches it cannot see. Exported so
+ * a save can check the stored keys of a switched-off module too, which the request never carries.
+ */
+export function uncoveredWrite(keys: readonly string[]): string | undefined {
+  return keys.find((key) => {
+    const [action, resource, scope] = key.split(":") as [
+      string,
+      PermissionResource,
+      PermissionScope,
+    ];
+    if (action === "view") return false;
+    const viewed = VIEWED_THROUGH[resource] ?? resource;
+    return !keys.some((k) => {
+      const [a, r, s] = k.split(":") as [string, string, PermissionScope];
+      return a === "view" && r === viewed && viewScopeCovers(s, scope);
+    });
+  });
+}
 
 export const roleInputSchema = z.object({
   nameAr: roleName,

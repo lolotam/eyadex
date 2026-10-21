@@ -151,6 +151,16 @@ export const VIEWED_THROUGH: Readonly<Partial<Record<PermissionResource, Permiss
   refunds: "payments",
 };
 
+const SCOPE_RANK: Readonly<Record<PermissionScope, number>> = { own: 0, branch: 1, clinic: 2 };
+
+/**
+ * Whether a view scope reaches every record a write scope reaches, so a granted write never lands where
+ * the role cannot look (issue #93): `clinic` covers `branch` and `own`, `branch` covers `own`.
+ */
+export function viewScopeCovers(view: PermissionScope, write: PermissionScope): boolean {
+  return SCOPE_RANK[view] >= SCOPE_RANK[write];
+}
+
 /**
  * Every catalogue key as a literal type, so `@Require(...)` in the API only compiles with a real key.
  * Written out (not derived) on purpose: a test pins it to PERMISSION_CATALOG and to the seeded table.
