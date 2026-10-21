@@ -1,7 +1,7 @@
 # Finance — design (post-MVP phase 4)
 
 - Status: owner decisions taken 2026-10-14 (decisions page batches 10–13). F1 is implemented and in
-  production (PRs 78, 84, 85, 87); F2 is designed in §4 and approved by the owner (SQL plan and F2-Q1 … F2-Q19, 2026-10-20), not built yet; F3 and F4 are outlines.
+  production (PRs 78, 84, 85, 87); F2 is designed in §4 and approved by the owner (SQL plan and F2-Q1 … F2-Q19, 2026-10-20); its contracts, SQL, domain and payments-and-credit API are built (PRs 90, 92, 94, 95), and the refunds, cash closing and platform totals API (slice 5) and the web (slice 6) are still to come; F3 and F4 are outlines.
 - PRD: §8.3 item 4 ("finance"), §4.7 (permissions), §4.8 (module flags), §4.11 (audit), §5 (database
   rules), §8 (security: the platform never sees patient data).
 - Decision records: ADR-0033 (money, numbering and the invoice life cycle,
