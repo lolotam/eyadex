@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 
+import { MAX_CASH_MINOR, MAX_MINOR } from "@eyadex/contracts/money";
+
 import { ApiError } from "../../../shared/errors.ts";
 import {
   closingPeriod,
   expectedCash,
+  requireCashInRange,
   requireNoteForDifference,
   requireNotClosedToday,
   requirePreviewCurrent,
@@ -128,5 +131,31 @@ describe("cash closing rules — the note", () => {
     const shortage = catchApiError(() => requireNoteForDifference(1000n, 900n, null));
     expect(shortage.code).toBe("closing_note_required");
     expect(() => requireNoteForDifference(900n, 1000n, "Missing cash")).not.toThrow();
+  });
+});
+
+describe("cash closing rules — the bound of the period (#100)", () => {
+  const sums = (cashInMinor: bigint, cashOutMinor: bigint) => ({
+    cashInMinor,
+    cashOutMinor,
+    expectedMinor: cashInMinor - cashOutMinor,
+  });
+
+  it("passes an expectation exactly on either bound", () => {
+    expect(() => requireCashInRange(sums(MAX_CASH_MINOR, 0n))).not.toThrow();
+    expect(() => requireCashInRange(sums(0n, MAX_CASH_MINOR))).not.toThrow();
+  });
+
+  it.each([
+    ["above", sums(MAX_CASH_MINOR + 1n, 0n)],
+    ["below", sums(0n, MAX_CASH_MINOR + 1n)],
+  ])("refuses an expectation one unit %s the bound", (_side, period) => {
+    expect(catchApiError(() => requireCashInRange(period)).code).toBe("cash_drawer_out_of_range");
+  });
+
+  it("refuses cash in or out beyond bigint even when they cancel out", () => {
+    const both = sums(MAX_MINOR + 1n, MAX_MINOR + 1n);
+    expect(both.expectedMinor).toBe(0n);
+    expect(catchApiError(() => requireCashInRange(both)).code).toBe("cash_drawer_out_of_range");
   });
 });

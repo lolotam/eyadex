@@ -250,6 +250,7 @@ describe("F2 error catalogue", () => {
     "cash_drawer_changed",
     "cash_closing_exists",
     "closing_note_required",
+    "cash_drawer_out_of_range",
   ];
 
   it.each(codes)("includes API code %s", (code) => {

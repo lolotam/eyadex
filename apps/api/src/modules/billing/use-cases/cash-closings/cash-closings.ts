@@ -17,6 +17,7 @@ import type { BillingActor, MemberBranches } from "../../domain/billing-actor.ts
 import {
   closingPeriod,
   expectedCash,
+  requireCashInRange,
   requireNoteForDifference,
   requireNotClosedToday,
   requirePreviewCurrent,
@@ -81,6 +82,7 @@ export class CashClosings {
         period.throughCashSeq,
       );
       const sums = expectedCash(period, movements.map(drawerMovement));
+      requireCashInRange(sums);
       const day = clinicBusinessDay(clock.now(), facts.timezone);
       return {
         branchId,
@@ -180,6 +182,7 @@ export class CashClosings {
       period.throughCashSeq,
     );
     const sums = expectedCash(period, movements.map(drawerMovement));
+    requireCashInRange(sums);
     const note = body.note ?? null;
     requireNoteForDifference(BigInt(body.countedMinor), sums.expectedMinor, note);
     const closingId = ids.newId();

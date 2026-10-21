@@ -1,3 +1,5 @@
+import { MAX_CASH_MINOR, MAX_MINOR } from "@eyadex/contracts/money";
+
 import { ApiError } from "../../../shared/errors.ts";
 
 /** حالة درج الفرع: آخر رقم نقدي اتسلم وآخر رقم اتقفل وآخر إقفال للفرع. */
@@ -58,6 +60,25 @@ export function expectedCash(
     else cashOutMinor += movement.amountMinor;
   }
   return { cashInMinor, cashOutMinor, expectedMinor: cashInMinor - cashOutMinor };
+}
+
+/**
+ * مبالغ الفترة لازم تفضل جوه حدود العقد قبل ما تتعرض أو تتكتب: الداخل والخارج جوه `bigint`، والمتوقع
+ * جوه ±`MAX_CASH_MINOR` عشان الفرق مع المعدود يفضل جوه `bigint` (الحد نفسه اللي في قيد قاعدة البيانات).
+ *
+ * @param sums النقد الداخل والخارج والمتوقع للفترة
+ * @returns مفيش قيمة؛ بترجع لو القاعدة ماشية
+ * @throws ApiError `cash_drawer_out_of_range` لما مبلغ منهم برا الحد
+ */
+export function requireCashInRange(sums: {
+  readonly cashInMinor: bigint;
+  readonly cashOutMinor: bigint;
+  readonly expectedMinor: bigint;
+}): void {
+  if (sums.cashInMinor > MAX_MINOR || sums.cashOutMinor > MAX_MINOR)
+    throw new ApiError("cash_drawer_out_of_range");
+  if (sums.expectedMinor > MAX_CASH_MINOR || sums.expectedMinor < -MAX_CASH_MINOR)
+    throw new ApiError("cash_drawer_out_of_range");
 }
 
 /**

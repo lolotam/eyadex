@@ -38,6 +38,10 @@ export const FINANCE_ERROR_MESSAGES = {
     message_ar: "اكتب ملاحظة لما يكون فيه فرق.",
     message_en: "Write a note when there is a difference.",
   },
+  cash_drawer_out_of_range: {
+    message_ar: "صافي النقد في الفترة دي أكبر من الحد المسموح، ومينفعش يتقفل.",
+    message_en: "The period's net cash is beyond the allowed limit and cannot be closed.",
+  },
 } satisfies Record<
   (typeof FINANCE_F2_ERROR_CODES)[number],
   { message_ar: string; message_en: string }
