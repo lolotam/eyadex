@@ -65,6 +65,38 @@ describe("the view-scope rule (mock)", () => {
     expect([...saved.permissionKeys].sort()).toEqual([...FIXED].sort());
   });
 
+  // PR #98 review: the API's order — the saved keys are checked before the name is found taken.
+  it("NEGATIVE: a taken name with a broken hidden pair answers role_hidden_keys_invalid", async () => {
+    const id = storedNarrowRole();
+    const db = getState();
+    db.features[clinicId()] = { ...(db.features[clinicId()] ?? NO_FEATURES), finance: false };
+    const taken = db.roles.find((r) => r.clinicId === clinicId() && r.id !== id);
+    if (!taken) throw new Error("no other role");
+    await expect(
+      api.roles.update(admin(), id, {
+        nameAr: taken.nameAr,
+        nameEn: taken.nameEn,
+        permissionKeys: [],
+      }),
+    ).rejects.toMatchObject({ code: "role_hidden_keys_invalid" });
+  });
+
+  // As the API: an empty request clears the shown keys and keeps a switched-off module's keys as stored.
+  it("an update with no keys keeps the hidden keys and clears the shown ones", async () => {
+    const db = getState();
+    db.features[clinicId()] = { ...(db.features[clinicId()] ?? NO_FEATURES), finance: false };
+    const role = await api.roles.create(
+      admin(),
+      { ...names, permissionKeys: ["view:users:clinic"] },
+      crypto.randomUUID(),
+    );
+    const stored = db.roles.find((r) => r.id === role.id);
+    if (!stored) throw new Error("no role");
+    stored.permissions = ["view:users:clinic", ...FIXED];
+    const saved = await api.roles.update(admin(), role.id, { ...names, permissionKeys: [] });
+    expect([...saved.permissionKeys].sort()).toEqual([...FIXED].sort());
+  });
+
   // PR #98 review: the kept keys of a switched-off module are checked on the saved set, as the API does.
   it("NEGATIVE: with finance off, a save leaving the hidden pair out is refused, naming finance", async () => {
     const id = storedNarrowRole();

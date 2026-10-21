@@ -139,10 +139,12 @@ export function createMockRoles(): ApiClient["roles"] {
       enforceMayDefineRole(db, actor, role.permissions);
       enforceNotLocked(role);
       const input = parseInput(rawInput);
-      enforceUniqueNames(db, clinic.id, input, role.id);
       const permissions = mergeHiddenKeys(db, clinic.id, input.permissionKeys, role.permissions);
+      // The API's order (role-changes.ts): the saved keys, then the definer's cover, then the names,
+      // which the API learns only from the unique index at the write.
       enforceSavedKeysCovered(permissions);
       enforceMayDefineRole(db, actor, permissions);
+      enforceUniqueNames(db, clinic.id, input, role.id);
       const before = structuredClone(role);
       role.nameAr = input.nameAr;
       role.nameEn = input.nameEn;

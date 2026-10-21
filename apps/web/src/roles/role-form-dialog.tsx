@@ -20,6 +20,7 @@ import { ApiError, errorCodeOf } from "@/shared/api/api-error";
 import { TextField } from "@/shared/forms/form-fields";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { usePersona } from "@/shared/persona/persona-provider";
+import { LoadNotice } from "@/shared/shell/load-notice";
 import { LoadingBlock } from "@/shared/shell/loading-block";
 import { PermissionMatrix } from "./permission-matrix";
 import { usePermissionCatalog, useRefreshRoles } from "./role-queries";
@@ -59,8 +60,10 @@ export function RoleFormDialog({ open, role, readOnly, onOpenChange }: Props) {
   const mutation = useMutation({
     mutationFn: (names: Names) => {
       // Only the keys the matrix shows: the server keeps a switched-off module's keys as stored (FLAG-02)
-      // and checks the saved set itself, naming that module when its kept keys break the view rule.
-      const shown = new Set(catalog.data?.map((d) => d.key));
+      // and checks the saved set itself, naming that module when its kept keys break the view rule. With
+      // no catalogue there is nothing to filter by, and an empty set would clear every visible key.
+      if (!catalog.data) throw new ApiError("validation");
+      const shown = new Set(catalog.data.map((d) => d.key));
       const input = { ...names, permissionKeys: keys.filter((key) => shown.has(key)) };
       return role
         ? api.roles.update(persona, role.id, input)
@@ -119,6 +122,11 @@ export function RoleFormDialog({ open, role, readOnly, onOpenChange }: Props) {
                   onChange={setKeys}
                   readOnly={readOnly}
                 />
+              ) : catalog.isError ? (
+                <LoadNotice
+                  title={t("roles.catalogLoadError")}
+                  onRetry={() => void catalog.refetch()}
+                />
               ) : (
                 <LoadingBlock />
               )}
@@ -136,7 +144,11 @@ export function RoleFormDialog({ open, role, readOnly, onOpenChange }: Props) {
             {t("common.cancel")}
           </Button>
           {!readOnly && (
-            <Button type="submit" form="role-form" disabled={mutation.isPending}>
+            <Button
+              type="submit"
+              form="role-form"
+              disabled={mutation.isPending || !catalog.isSuccess}
+            >
               {role ? t("common.save") : t("common.create")}
             </Button>
           )}
