@@ -1,11 +1,12 @@
 # Finance — design (post-MVP phase 4)
 
 - Status: owner decisions taken 2026-10-14 (decisions page batches 10–13). F1 is implemented and in
-  production (PRs 78, 84, 85, 87); F2 is designed in §4 and approved by the owner (SQL plan and F2-Q1 … F2-Q19, 2026-10-20), not built yet; F3 and F4 are outlines.
+  production (PRs 78, 84, 85, 87); F2 is designed in §4 and approved by the owner (SQL plan and F2-Q1 … F2-Q19, 2026-10-20); its contracts, SQL, domain and payments-and-credit API are built (PRs 90, 92, 94, 95), and the refunds, cash closing and platform totals API (slice 5) and the web (slice 6) are still to come; F3 and F4 are outlines.
 - PRD: §8.3 item 4 ("finance"), §4.7 (permissions), §4.8 (module flags), §4.11 (audit), §5 (database
   rules), §8 (security: the platform never sees patient data).
-- Decision records to write with the work: ADR-0033 (money, numbering and the invoice life cycle),
-  ADR-0034 (payments, refunds and the cash closing, with F2).
+- Decision records: ADR-0033 (money, numbering and the invoice life cycle,
+  `docs/adr/0033-f1-money-numbering-invoice-life-cycle.md`) and ADR-0034 (payments, refunds and the cash
+  closing, with F2).
 - Vocabulary: the Arabic UI says «فاتورة» (invoice), «إيصال» (receipt), «المراجع» (never «المريض»),
   «موظف الاستقبال». Amounts show with the clinic currency code, e.g. «12.500 د.ك».
 
@@ -146,8 +147,8 @@ renderer is at capacity — owner 2026-10-15, F1-PDF-BUSY).
 - Status: approved. On 2026-10-20 the owner approved the SQL plan of §4.5 (owner rule from PR #86) and
   decided every question of §4.10 (F2-Q1 … F2-Q19) as recommended, in his own words: «موافق على خطة SQL بتاعة
   F2 في PR 89، وكل الأسئلة F2-Q1 لحد F2-Q19 زي ترشيحك.» No rule of this section is left open.
-- Decision record: ADR-0034 (`docs/adr/0034-payments-refunds-cash-closing.md`). ADR-0033 (F1's money and
-  numbering) is still unwritten and stays a follow-up; ADR-0034 cites §3, §8 and §8b for the F1 rules.
+- Decision record: ADR-0034 (`docs/adr/0034-payments-refunds-cash-closing.md`). ADR-0033 records F1's money and
+  numbering (`docs/adr/0033-f1-money-numbering-invoice-life-cycle.md`); ADR-0034 cites §3, §8 and §8b for the F1 rules.
 - F2 builds on F1 and **changes F1 code in one place**: the invoice edit and void (`InvoiceChanges`)
   release money that no longer fits the invoice into patient credit (R1-5, R2-2, §4.3).
 
