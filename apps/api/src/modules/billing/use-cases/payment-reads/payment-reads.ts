@@ -16,6 +16,7 @@ import { paymentsReach } from "../../domain/money-reach.ts";
 import { readInvoice } from "../../persistence/pg-invoice-store.ts";
 import { readInvoiceMoney, readPatientMoney } from "../../persistence/pg-patient-money.ts";
 import { invoiceMovementRows, readPayment } from "../../persistence/pg-payment-reads.ts";
+import type { BillingBranchReader } from "../../ports/billing-branches.ts";
 import type { BillingPatientReader } from "../../ports/billing-patients.ts";
 import { listPaymentBranchOptions } from "../../queries/payment-branch-options.ts";
 import { listPayments } from "../../queries/payment-list.ts";
@@ -30,6 +31,7 @@ export class PaymentReads {
     private readonly deps: {
       readonly db: Database;
       readonly patients: BillingPatientReader;
+      readonly branches: BillingBranchReader;
     },
   ) {}
 
@@ -101,7 +103,7 @@ export class PaymentReads {
     const reach = paymentsReach(actor, "view");
     if (reach === null) throw new ApiError("forbidden");
     return this.deps.db.withTenant(actor.clinicId, (tx) =>
-      listPaymentBranchOptions(tx, actor.clinicId, reach, query),
+      listPaymentBranchOptions(tx, actor.clinicId, reach, query, this.deps.branches),
     );
   }
 

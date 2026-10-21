@@ -1,18 +1,10 @@
 import type { BranchOptionListResponse, OptionListQuery } from "@eyadex/contracts/role-admin";
 import type { Tx } from "@eyadex/db";
-import { sql } from "drizzle-orm";
 
 import { ApiError } from "../../../shared/errors.ts";
 import type { MemberBranches } from "../domain/billing-actor.ts";
-import { branchCondition } from "./branch-condition.ts";
+import type { BillingBranchReader } from "../ports/billing-branches.ts";
 import { fromCursor, toCursor } from "./list-cursor.ts";
-
-interface OptionRow {
-  id: string;
-  name_ar: string;
-  name_en: string;
-  is_active: boolean;
-}
 
 /**
  * فروع العيادة اللي الفاعل يقدر يقرأ فيها مدفوعات، كاختيارات لفلتر شاشة الإيصالات (spec §4.6).
@@ -23,6 +15,7 @@ interface OptionRow {
  * @param clinicId عيادة السياق
  * @param reach الفروع اللي الفاعل يقدر يقرأ فيها
  * @param query الـ cursor والحد
+ * @param branches قارئ الفروع (port بتنفّذه tenancy)
  * @returns الصفحة والمؤشر التالي والعدد الكلي
  */
 export async function listPaymentBranchOptions(
@@ -30,33 +23,33 @@ export async function listPaymentBranchOptions(
   clinicId: string,
   reach: MemberBranches,
   query: OptionListQuery,
+  branches: BillingBranchReader,
 ): Promise<BranchOptionListResponse> {
   const after = query.cursor === undefined ? null : fromCursor(query.cursor);
-  // A cursor this list never made is refused, like every other list, instead of restarting at page one.
+  // A cursor that is not in this list's format is refused; a well-formed id only sets the position,
+  // as in every other billing list (payment-list.ts, refund-list.ts).
   if (query.cursor !== undefined && after === null) {
     throw new ApiError("validation", [{ path: ["cursor"], code: "invalid" }]);
   }
-  const where = [sql`b.clinic_id = ${clinicId}`, branchCondition(reach, sql`b.id`)];
-  // The total is counted on the whole reach, not on the page: it is the number of branches to filter by.
-  const [count] = await tx.execute<{ total: number }>(
-    sql`SELECT count(*)::int AS total FROM branches b WHERE ${sql.join(where, sql` AND `)}`,
-  );
-  const page = after === null ? where : [...where, sql`b.id > ${after}::uuid`];
-  const rows = await tx.execute<OptionRow>(
-    sql`SELECT b.id, b.name_ar, b.name_en, b.is_active FROM branches b
-        WHERE ${sql.join(page, sql` AND `)}
-        ORDER BY b.id LIMIT ${query.limit + 1}`,
-  );
-  const items = rows.slice(0, query.limit);
+  // A clinic's branch count is bounded by its plan limit, so the whole list is small and it pages in memory.
+  const all = await branches.listForOptions(tx, clinicId, "ar");
+  const allowedIds = reach.all ? null : new Set(reach.branchIds);
+  // The cursor is the last id seen, so the list is sorted by id ascending.
+  const kept = all
+    .filter((branch) => allowedIds === null || allowedIds.has(branch.id))
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  const rest = after === null ? kept : kept.filter((branch) => branch.id > after);
+  const page = rest.slice(0, query.limit + 1);
+  const items = page.slice(0, query.limit);
   const last = items.at(-1);
   return {
-    items: items.map((row) => ({
-      id: row.id,
-      nameAr: row.name_ar,
-      nameEn: row.name_en,
-      isActive: row.is_active,
+    items: items.map((branch) => ({
+      id: branch.id,
+      nameAr: branch.nameAr,
+      nameEn: branch.nameEn,
+      isActive: branch.isActive,
     })),
-    nextCursor: rows.length > query.limit && last !== undefined ? toCursor(last.id) : null,
-    total: count!.total,
+    nextCursor: page.length > query.limit && last !== undefined ? toCursor(last.id) : null,
+    total: kept.length,
   };
 }
