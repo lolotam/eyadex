@@ -9,7 +9,7 @@ import { canAtBranch } from "@/shared/permissions/can-at-branch";
 import { useSession } from "@/shared/persona/persona-provider";
 import { branchNameIn } from "./receipt-queries";
 
-const link = "font-medium text-primary underline-offset-4 hover:underline";
+const link = "whitespace-nowrap font-medium text-primary underline-offset-4 hover:underline";
 
 /**
  * Receipt (opens it), business day, patient name (plain text, no file open), branch, invoice (a link only
