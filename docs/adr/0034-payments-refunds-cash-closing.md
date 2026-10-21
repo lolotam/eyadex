@@ -74,14 +74,15 @@ INSERT` on them and no role has `UPDATE` or `DELETE`. A correction is a new move
 
 ## As built (F2 slices 3–5, PRs 94, 95, 99)
 
-- **Routes** (each `@RequiresFeature("finance")`; the hosts mount the API under `/api/v1`):
-  `POST /v1/invoices/:id/refunds` (`create:refunds:branch`, `Idempotency-Key` required);
-  `GET /v1/refunds` and `GET /v1/refunds/:id` (`view:payments:branch`; a refund has no view key of its
-  own); `GET /v1/cash-closings/preview?branchId=` and `POST /v1/cash-closings` (`create:cash_closings:branch`,
-  the close takes an `Idempotency-Key`); `GET /v1/cash-closings` and `GET /v1/cash-closings/:id`
-  (`view:cash_closings:branch`); `GET /v1/platform/clinics/:id/finance-totals` (totals only). A branch key
-  admits the clinic scope too; the use case narrows to the caller's reach, and a branch outside it is
-  `not_found`.
+- **Routes** (the hosts mount the API under `/api/v1`). The clinic routes each carry
+  `@RequiresFeature("finance")`: `POST /v1/invoices/:id/refunds` (`create:refunds:branch`,
+  `Idempotency-Key` required); `GET /v1/refunds` and `GET /v1/refunds/:id` (`view:payments:branch`; a
+  refund has no view key of its own); `GET /v1/cash-closings/preview?branchId=` and `POST /v1/cash-closings`
+  (`create:cash_closings:branch`, the close takes an `Idempotency-Key`); `GET /v1/cash-closings` and
+  `GET /v1/cash-closings/:id` (`view:cash_closings:branch`). A branch key admits the clinic scope too; the
+  use case narrows to the caller's reach, and a branch outside it is `not_found`. The platform route
+  `GET /v1/platform/clinics/:id/finance-totals` (totals only) is guarded by `@PlatformStaff()` alone, with
+  no finance feature gate; an unknown clinic is `not_found`.
 - **Refund lock order:** the clinic idempotency key (0) → the patient row (7) → the invoice `FOR UPDATE`
   (7a) → the invoice's branch `FOR SHARE` for the prefix (9) → the branch's cash drawer `FOR UPDATE`, for
   a cash refund only (9a) → the refund series of `receipt_sequences` (9c). Every balance is read after the
