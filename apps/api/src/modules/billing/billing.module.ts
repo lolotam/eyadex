@@ -21,10 +21,12 @@ import {
 import { CLOCK, TenancyModule, type Clock } from "../tenancy/index.ts";
 import { InvoicePdfController } from "./http/invoice-pdf.controller.ts";
 import { InvoiceSendController } from "./http/invoice-send.controller.ts";
+import { CashClosingsController } from "./http/cash-closings.controller.ts";
 import { InvoicesController } from "./http/invoices.controller.ts";
 import { PaymentsController } from "./http/payments.controller.ts";
 import { PublicInvoiceController } from "./http/public-invoice.controller.ts";
 import { PricesController } from "./http/prices.controller.ts";
+import { RefundsController } from "./http/refunds.controller.ts";
 import { SettingsController } from "./http/settings.controller.ts";
 import type { BillingLineDoctorLocks } from "./ports/billing-members.ts";
 import type { BillingInvoiceNotifier } from "./ports/billing-notifier.ts";
@@ -32,6 +34,8 @@ import type { BillingPatientReader } from "./ports/billing-patients.ts";
 import type { InvoicePdfRenderer } from "./ports/invoice-pdf.ts";
 import type { BillingAppointmentReader, BillingVisitReader } from "./ports/billing-sources.ts";
 import {
+  CASH_CLOSING_READS,
+  CASH_CLOSINGS,
   CREDIT_APPLICATIONS,
   INVOICE_CHANGES,
   INVOICE_DRAFTS,
@@ -39,12 +43,18 @@ import {
   INVOICE_PDFS,
   INVOICE_PAYMENTS,
   INVOICE_READS,
+  INVOICE_REFUNDS,
   INVOICE_SENDS,
   FINANCE_SETTINGS,
   PAYMENT_READS,
   PRICE_CHANGES,
   PUBLIC_INVOICE_LINKS,
+  REFUND_READS,
 } from "./ports/tokens.ts";
+import { CashClosingReads } from "./use-cases/cash-closings/cash-closing-reads.ts";
+import { CashClosings } from "./use-cases/cash-closings/cash-closings.ts";
+import { RefundReads } from "./use-cases/refunds/refund-reads.ts";
+import { InvoiceRefunds } from "./use-cases/refunds/refunds.ts";
 import { ClinicFinanceSettings } from "./use-cases/settings/settings.ts";
 import { InvoiceChanges } from "./use-cases/changes/changes.ts";
 import { InvoiceDrafts } from "./use-cases/draft/draft.ts";
@@ -96,6 +106,8 @@ export class BillingModule {
         PublicInvoiceController,
         SettingsController,
         PaymentsController,
+        RefundsController,
+        CashClosingsController,
       ],
       providers: [
         ClinicAreaGuard,
@@ -183,6 +195,28 @@ export class BillingModule {
           provide: PAYMENT_READS,
           inject: [DATABASE],
           useFactory: (db: Database) => new PaymentReads({ db, patients }),
+        },
+        {
+          provide: INVOICE_REFUNDS,
+          inject: [DATABASE, CLOCK],
+          useFactory: (db: Database, clock: Clock) =>
+            new InvoiceRefunds({ db, clock, ids: systemUuidV7(), patients }),
+        },
+        {
+          provide: REFUND_READS,
+          inject: [DATABASE],
+          useFactory: (db: Database) => new RefundReads({ db, patients }),
+        },
+        {
+          provide: CASH_CLOSINGS,
+          inject: [DATABASE, CLOCK],
+          useFactory: (db: Database, clock: Clock) =>
+            new CashClosings({ db, clock, ids: systemUuidV7() }),
+        },
+        {
+          provide: CASH_CLOSING_READS,
+          inject: [DATABASE],
+          useFactory: (db: Database) => new CashClosingReads({ db }),
         },
       ],
     };

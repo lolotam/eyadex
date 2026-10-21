@@ -51,6 +51,8 @@ export const arAudit = {
       payment: "دفعة",
       patient_credit: "رصيد المراجع",
       payment_methods: "طرق الدفع",
+      refund: "استرداد",
+      cash_closing: "إقفال الصندوق",
     },
     actions: {
       branch: {
@@ -147,6 +149,8 @@ export const arAudit = {
       payment: { recorded: "تسجيل دفعة" },
       credit: { applied: "استخدام رصيد المراجع", released: "تحويل مبلغ لرصيد المراجع" },
       payment_methods: { changed: "تعديل طرق الدفع" },
+      refund: { recorded: "تسجيل استرداد" },
+      cash_closing: { closed: "إقفال الصندوق" },
       ...arMedicalAuditActions,
     },
     fields: {

@@ -121,6 +121,30 @@ const ALLOWED: Record<AuditEntity, readonly string[]> = {
   patient_credit: ["invoiceNumber", "amountMinor", "currency", "cause", "allocationId", "spends"],
   // Finance F2: the clinic's payment methods are a setting about no patient.
   payment_methods: ["paymentMethods"],
+  // Finance F2 slice 5: a refund names its number, the invoice, the method, the amount, its source and
+  // the credits it spent; never the reason text (its length sits beside the snapshot).
+  refund: [
+    "refundNumber",
+    "invoiceNumber",
+    "method",
+    "amountMinor",
+    "currency",
+    "cashSeq",
+    "source",
+    "receiptNumber",
+    "spends",
+  ],
+  // Finance F2 slice 5: a cash closing's day, cash period and amounts; never the note text.
+  cash_closing: [
+    "businessDate",
+    "fromCashSeq",
+    "toCashSeq",
+    "expectedMinor",
+    "countedMinor",
+    "differenceMinor",
+    "currency",
+    "previousClosingId",
+  ],
   // ADR-0020: the platform team and settings writers. No link, hash or user id is ever recorded.
   platform_account: ["fullName", "email", "status"],
   platform_settings: [
@@ -137,6 +161,15 @@ const ALLOWED: Record<AuditEntity, readonly string[]> = {
 // (a feature change records which module); copied into each non-null snapshot.
 // A mail provider change records its slot (ADR-0031).
 const CONTEXT_KEYS = ["module", "slot"] as const;
+
+// The finance entities whose snapshots are shape-checked when they are written (shared/finance-audit.ts).
+const FINANCE_ENTITIES: ReadonlySet<AuditEntity> = new Set<AuditEntity>([
+  "invoice",
+  "payment",
+  "patient_credit",
+  "refund",
+  "cash_closing",
+]);
 
 const isPlainObject = (value: unknown): value is Snapshot =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -156,7 +189,7 @@ function project(entity: AuditEntity, side: unknown, context: Snapshot): Snapsho
   if (Object.keys(out).length === 0) return null;
   // A finance snapshot is shape-checked when it is written (shared/finance-audit.ts); the scrub below
   // would read a 7-digit amount as a phone number and mask it.
-  if (entity === "invoice" || entity === "payment" || entity === "patient_credit") return out;
+  if (FINANCE_ENTITIES.has(entity)) return out;
   // Defence in depth over the allowlist, at every depth (`firstAdmin.email` is nested): a secret, PEM
   // or civil ID typed into an allowed field, and a phone number written anywhere — an email's local
   // part included.

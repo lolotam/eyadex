@@ -11,3 +11,7 @@ export const INVOICE_PDFS = Symbol("billing.InvoicePdfs");
 export const INVOICE_PAYMENTS = Symbol("billing.InvoicePayments");
 export const CREDIT_APPLICATIONS = Symbol("billing.CreditApplications");
 export const PAYMENT_READS = Symbol("billing.PaymentReads");
+export const INVOICE_REFUNDS = Symbol("billing.InvoiceRefunds");
+export const REFUND_READS = Symbol("billing.RefundReads");
+export const CASH_CLOSINGS = Symbol("billing.CashClosings");
+export const CASH_CLOSING_READS = Symbol("billing.CashClosingReads");

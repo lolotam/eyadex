@@ -51,6 +51,8 @@ export const enAudit = {
       payment: "Payment",
       patient_credit: "Patient credit",
       payment_methods: "Payment methods",
+      refund: "Refund",
+      cash_closing: "Cash closing",
     },
     actions: {
       branch: {
@@ -147,6 +149,8 @@ export const enAudit = {
       payment: { recorded: "Payment recorded" },
       credit: { applied: "Patient credit applied", released: "Moved to patient credit" },
       payment_methods: { changed: "Payment methods changed" },
+      refund: { recorded: "Refund recorded" },
+      cash_closing: { closed: "Cash drawer closed" },
       ...enMedicalAuditActions,
     },
     fields: {
