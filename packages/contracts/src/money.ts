@@ -112,3 +112,20 @@ export function parseMajorToMinor(text: string, exponent: number): string | null
   const minor = BigInt(match[1]! + fraction.padEnd(exponent, "0"));
   return minor.toString();
 }
+
+/**
+ * Reads a minor-unit amount as a bigint, or null when the text is not a canonical amount — its own schema
+ * already refuses it, and the rules that read it must not crash on a payload that failed there.
+ *
+ * @param amount a minor-unit amount as text
+ * @returns the amount in minor units, or null when the text is not canonical
+ */
+export function readMinor(amount: string): bigint | null {
+  try {
+    const value = BigInt(amount);
+    return value.toString() === amount ? value : null;
+  } catch (error) {
+    if (!(error instanceof SyntaxError)) throw error;
+    return null;
+  }
+}

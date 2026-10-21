@@ -4,7 +4,12 @@ import { invoiceSettlementSchema } from "./finance-invoice.ts";
 import { dateSchema } from "./finance-list.ts";
 import { cashSeqSchema, paymentListQuerySchema, paymentMethodSchema } from "./finance-payments.ts";
 import { requiredText } from "./finance-text.ts";
-import { currencyCodeSchema, minorAmountSchema, positiveMinorAmountSchema } from "./money.ts";
+import {
+  currencyCodeSchema,
+  minorAmountSchema,
+  positiveMinorAmountSchema,
+  readMinor,
+} from "./money.ts";
 
 /**
  * `POST /v1/invoices/:id/refunds`: a payment refund reopens its balance; a credit refund consumes
@@ -70,8 +75,28 @@ export const refundWriteResponseSchema = z
 /** Releases preserve why money left an invoice without prescribing the later settlement algorithm. */
 export const creditReleaseCauseSchema = z.enum(["invoice_edited", "invoice_voided", "refund"]);
 
+/** The two amounts the refundable rule reads, so the rule sees only what it compares. */
+type RefundableShape = {
+  readonly kind: string;
+  readonly amountMinor: string;
+  readonly refundableMinor?: string | undefined;
+};
+
+/**
+ * #91: a payment movement's refundable amount never exceeds what was paid — the refund dialog caps at this
+ * value, so it must never promise more than was paid.
+ */
+const refundableWithinPayment = (movement: RefundableShape, ctx: z.RefinementCtx): void => {
+  if (movement.kind !== "payment") return;
+  const amount = readMinor(movement.amountMinor);
+  const refundable = readMinor(movement.refundableMinor ?? "");
+  if (amount === null || refundable === null) return;
+  if (refundable <= amount) return;
+  ctx.addIssue({ code: "custom", path: ["refundableMinor"], message: "validation.amount" });
+};
+
 /** Stable movement ids let the invoice history distinguish receipts, credit and refunds. */
-export const invoicePaymentMovementSchema = z.discriminatedUnion("kind", [
+const invoicePaymentMovementUnion = z.discriminatedUnion("kind", [
   z
     .object({
       kind: z.literal("payment"),
@@ -118,6 +143,9 @@ export const invoicePaymentMovementSchema = z.discriminatedUnion("kind", [
     })
     .strict(),
 ]);
+
+export const invoicePaymentMovementSchema =
+  invoicePaymentMovementUnion.superRefine(refundableWithinPayment);
 export type InvoicePaymentMovement = z.infer<typeof invoicePaymentMovementSchema>;
 
 /** `GET /v1/invoices/:id/payments` returns movements oldest first and clinic-wide patient credit. */

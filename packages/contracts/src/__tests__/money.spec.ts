@@ -10,6 +10,7 @@ import {
   minorLineAmountSchema,
   parseMajorToMinor,
   positiveMinorAmountSchema,
+  readMinor,
   signedMinorAmountSchema,
   SUPPORTED_CURRENCIES,
 } from "../money.ts";
@@ -115,5 +116,18 @@ describe("signed and positive money (R3-5, R3-7)", () => {
 
   it("retains the aggregate ceiling on positive amounts", () => {
     expect(positiveMinorAmountSchema.safeParse("9223372036854775808").success).toBe(false);
+  });
+});
+
+describe("readMinor", () => {
+  it.each<[string, bigint | null]>([
+    ["12500", 12500n],
+    ["-1", -1n],
+    ["007", null],
+    ["1.5", null],
+    ["", null],
+    ["abc", null],
+  ])("reads %s as %s", (amount, expected) => {
+    expect(readMinor(amount)).toBe(expected);
   });
 });
