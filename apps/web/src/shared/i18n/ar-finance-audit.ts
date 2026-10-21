@@ -19,5 +19,5 @@ export const arRefundClosingAuditFields = {
   countedMinor: "المعدود (بالوحدة الصغرى)",
   differenceMinor: "الفرق (بالوحدة الصغرى)",
   previousClosingId: "الإقفال السابق",
-  noteLength: "طول الملاحظة",
+  noteLength: "طول الملاحظة (عدد الحروف)",
 };

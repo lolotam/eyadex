@@ -13,6 +13,34 @@ export const REFUND_NUMBER = /^[A-Z0-9]{2,6}-RF-\d{4}-\d{6,}$/;
 export const CURRENCY_CODE = /^[A-Z]{3}$/;
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
+/**
+ * The fields a refund and a cash closing snapshot keep (spec §4.6): the API's audit allowlist shows these
+ * and nothing else, and the web labels every one of them.
+ */
+export const REFUND_AUDIT_FIELDS = [
+  "refundNumber",
+  "invoiceNumber",
+  "method",
+  "amountMinor",
+  "currency",
+  "cashSeq",
+  "source",
+  "receiptNumber",
+  "spends",
+  "reasonLength",
+] as const;
+export const CASH_CLOSING_AUDIT_FIELDS = [
+  "businessDate",
+  "fromCashSeq",
+  "toCashSeq",
+  "expectedMinor",
+  "countedMinor",
+  "differenceMinor",
+  "currency",
+  "previousClosingId",
+  "noteLength",
+] as const;
+
 /** A typed text's length (a refund reason, a closing note: 1–300): a number, never the text. */
 const textLength = (value: unknown): boolean =>
   typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 300;

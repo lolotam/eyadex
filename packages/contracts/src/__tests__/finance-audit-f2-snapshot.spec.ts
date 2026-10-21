@@ -5,6 +5,8 @@ import {
   type CashClosingAuditSnapshot,
   type RefundAuditSnapshot,
 } from "../finance-audit-snapshot.ts";
+import { createCashClosingRequestSchema } from "../finance-cash-closing.ts";
+import { createRefundRequestSchema } from "../finance-refunds.ts";
 
 // Finance F2 slice 5 (spec §4.6): the refund and the cash closing snapshots skip the audit scrub, so every
 // string in them must keep its shape — a typed reason, note or name can never pass for one.
@@ -63,6 +65,32 @@ describe("the refund audit snapshot", () => {
     expect(
       refused("refund", { ...refund, spends: [{ creditId: "Sara", amountMinor: "1" }] }),
     ).toThrow();
+  });
+});
+
+describe("the text lengths a snapshot may carry (never 0)", () => {
+  it("turns an empty or blank closing note into none, so no zero note length is written", () => {
+    const close = {
+      branchId: CREDIT,
+      previousClosingId: null,
+      throughCashSeq: "0",
+      countedMinor: "0",
+    };
+    for (const note of ["", "   "]) {
+      expect(createCashClosingRequestSchema.parse({ ...close, note }).note).toBeNull();
+    }
+  });
+
+  it("refuses an empty or blank refund reason", () => {
+    for (const reason of ["", "   "]) {
+      const body = { source: "credit", amountMinor: "1", method: "cash", reason };
+      expect(createRefundRequestSchema.safeParse(body).success).toBe(false);
+    }
+  });
+
+  it("refuses a zero length in either snapshot", () => {
+    expect(refused("refund", { ...refund, reasonLength: 0 })).toThrow();
+    expect(refused("cash_closing", { ...closing, noteLength: 0 })).toThrow();
   });
 });
 

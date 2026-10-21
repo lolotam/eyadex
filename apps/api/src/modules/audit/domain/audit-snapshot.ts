@@ -1,4 +1,8 @@
 import type { PlatformAuditEntity } from "@eyadex/contracts/audit";
+import {
+  CASH_CLOSING_AUDIT_FIELDS,
+  REFUND_AUDIT_FIELDS,
+} from "@eyadex/contracts/finance-audit-shapes";
 import type { clinicAuditEntitySchema } from "@eyadex/contracts/organization";
 import { maskPhone, normalizeAuditText, scrubAuditValue } from "@eyadex/observability";
 import type { z } from "zod";
@@ -123,30 +127,9 @@ const ALLOWED: Record<AuditEntity, readonly string[]> = {
   payment_methods: ["paymentMethods"],
   // Finance F2 slice 5: a refund names its number, the invoice, the method, the amount, its source and
   // the credits it spent, and the reason's length; never the reason text.
-  refund: [
-    "refundNumber",
-    "invoiceNumber",
-    "method",
-    "amountMinor",
-    "currency",
-    "cashSeq",
-    "source",
-    "receiptNumber",
-    "spends",
-    "reasonLength",
-  ],
+  refund: REFUND_AUDIT_FIELDS,
   // Finance F2 slice 5: a cash closing's day, cash period, amounts and note length; never the note.
-  cash_closing: [
-    "businessDate",
-    "fromCashSeq",
-    "toCashSeq",
-    "expectedMinor",
-    "countedMinor",
-    "differenceMinor",
-    "currency",
-    "previousClosingId",
-    "noteLength",
-  ],
+  cash_closing: CASH_CLOSING_AUDIT_FIELDS,
   // ADR-0020: the platform team and settings writers. No link, hash or user id is ever recorded.
   platform_account: ["fullName", "email", "status"],
   platform_settings: [

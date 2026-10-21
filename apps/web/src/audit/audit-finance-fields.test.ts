@@ -1,34 +1,17 @@
+import {
+  CASH_CLOSING_AUDIT_FIELDS,
+  REFUND_AUDIT_FIELDS,
+} from "@eyadex/contracts/finance-audit-shapes";
 import { describe, expect, it } from "vitest";
 
 import { ar } from "@/shared/i18n/ar";
 import { en } from "@/shared/i18n/en";
 
-// Finance F2 slice 5: every field the API keeps in a refund or a cash closing snapshot
-// (apps/api/src/modules/audit/domain/audit-snapshot.ts) and the note length beside a closing gets a
-// label, so the audit detail dialog never shows a raw field name.
-const REFUND_FIELDS = [
-  "refundNumber",
-  "invoiceNumber",
-  "method",
-  "amountMinor",
-  "currency",
-  "cashSeq",
-  "source",
-  "receiptNumber",
-  "spends",
-  "creditId",
-];
-const CLOSING_FIELDS = [
-  "businessDate",
-  "fromCashSeq",
-  "toCashSeq",
-  "expectedMinor",
-  "countedMinor",
-  "differenceMinor",
-  "currency",
-  "previousClosingId",
-  "noteLength",
-];
+// Finance F2 slice 5: the API's audit allowlist for a refund and a cash closing is these contract lists
+// (apps/api/src/modules/audit/domain/audit-snapshot.ts), so a field the API shows without a label here
+// fails this test and never reaches the audit detail dialog as a raw name. `creditId` is the one field
+// nested inside `spends`.
+const FIELDS = [...REFUND_AUDIT_FIELDS, ...CASH_CLOSING_AUDIT_FIELDS, "creditId"];
 
 describe("the refund and cash closing audit field labels", () => {
   for (const [lang, dict] of [
@@ -37,8 +20,7 @@ describe("the refund and cash closing audit field labels", () => {
   ] as const) {
     it(`labels every refund and closing snapshot field (${lang})`, () => {
       const labels = dict.audit.fields as Record<string, string>;
-      const missing = [...REFUND_FIELDS, ...CLOSING_FIELDS].filter((field) => !labels[field]);
-      expect(missing).toEqual([]);
+      expect(FIELDS.filter((field) => !labels[field])).toEqual([]);
     });
   }
 

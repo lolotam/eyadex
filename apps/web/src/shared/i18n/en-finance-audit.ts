@@ -19,5 +19,5 @@ export const enRefundClosingAuditFields = {
   countedMinor: "Counted (minor units)",
   differenceMinor: "Difference (minor units)",
   previousClosingId: "Previous closing",
-  noteLength: "Note length",
+  noteLength: "Note length (characters)",
 };

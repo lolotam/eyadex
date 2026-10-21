@@ -153,11 +153,18 @@ describe("two closings in a row with no cash between them (R3-3)", () => {
     const second = await onDay(1, async () => {
       const shown = await preview();
       expect(shown).toMatchObject({ fromCashSeq: "2", throughCashSeq: "2", expectedMinor: "0" });
-      const res = await closeWith(shown, "0");
+      // An empty note is no note: it is stored as none, and the audit row carries no note length.
+      const res = await closeWith(shown, "0", "");
       expect(res.statusCode, res.body).toBe(201);
       return closingOf(res);
     });
     expect(second).toMatchObject({ previousClosingId: first.id, fromCashSeq: "2", toCashSeq: "2" });
+    expect(second.note).toBeNull();
+    const [row] = await h.owner`SELECT details FROM audit_log
+                                WHERE clinic_id = ${C.clinicId} AND entity_id = ${second.id}`;
+    expect((row!["details"] as { after: Record<string, unknown> }).after).not.toHaveProperty(
+      "noteLength",
+    );
     const third = await onDay(2, async () => {
       const res = await closeWith(await preview(), "0");
       expect(res.statusCode, res.body).toBe(201);
