@@ -21,6 +21,11 @@ import {
   type CreatePaymentRequest,
   type PaymentListQuery,
 } from "@eyadex/contracts/finance";
+import {
+  optionListQuerySchema,
+  type BranchOptionListResponse,
+  type OptionListQuery,
+} from "@eyadex/contracts/role-admin";
 import type { z } from "zod";
 
 import { ZodValidationPipe } from "../../../shared/zod-validation.pipe.ts";
@@ -90,6 +95,17 @@ export class PaymentsController {
     @Query(new ZodValidationPipe(paymentListQuerySchema)) query: PaymentListQuery,
   ): Promise<z.infer<typeof paymentListResponseSchema>> {
     return this.reads.list(actorOf(request), query);
+  }
+
+  // Before `payments/:id`: the receipts screen names and filters the branches it may read in.
+  @Get("payments/branch-options")
+  @Require("view:payments:branch")
+  @RequiresFeature("finance")
+  branchOptions(
+    @Req() request: ClinicRequest,
+    @Query(new ZodValidationPipe(optionListQuerySchema)) query: OptionListQuery,
+  ): Promise<BranchOptionListResponse> {
+    return this.reads.branchOptions(actorOf(request), query);
   }
 
   @Get("payments/:id")
