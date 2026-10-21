@@ -61,10 +61,12 @@ Two facts shape the design:
    invoices by `issued_at AT TIME ZONE clinics.timezone` at read time moves an invoice to another day if the
    clinic's timezone is later edited (0036 grants `UPDATE (timezone)` on `clinics` to `eyadex_app`). The
    platform function 0061 already computes it live. F3-Q1 decides whether F3 freezes it.
-2. **Discount and tax are not all on the lines.** `line_total_minor` is after the line discount, but the
-   invoice-level discount (`invoice_discount`, part of `discount_minor`) and the tax (`tax_minor`) live on
-   the invoice. So Σ `line_total_minor` of an invoice is not its `total_minor` whenever there is an invoice
-   discount or tax. Any per-service or per-doctor revenue has to say how the difference is split (F3-Q3).
+2. **Tax is not on the lines.** `computeInvoiceTotals` (`packages/contracts/src/invoice-totals.ts`) applies
+   the line discount, then **allocates the invoice-level discount to the lines**, so the stored
+   `line_total_minor` is already net of both discounts. Tax is computed per line but stored only on the
+   invoice (`tax_minor`; `invoice_lines` has no tax column), and `total_minor = Σ line_total_minor + tax_minor`.
+   So a per-service or per-doctor sum of `line_total_minor` must **not** subtract the invoice discount again;
+   the only gap to the invoices' total is the tax (F3-Q3).
 
 ## 3. Permissions (new resource; module `finance`)
 
@@ -104,7 +106,7 @@ All amounts are minor units as decimal strings (`minorAmountSchema`), with the c
 | R5  | Outstanding balances «المبالغ المستحقة» (aging) | per issued invoice with `owed > 0`: number, branch, issue day, total, paid, owed, age bucket; summary per bucket and branch                                                 | `invoices` + live allocations (§5.2)                                                                      | `clinic`/`branch`/`own` (+ `view:invoices` at a covering scope)         | **yes**: the patient's display name and invoice number per row                            |
 | R6  | Patient credit «أرصدة المراجعين»                | per patient with credit balance > 0: balance, oldest credit day                                                                                                             | `patient_credits` − allocations funded by them − `refund_sources` (§4.3 `remaining`)                      | `clinic` only (credit is clinic-wide, F2-Q7) (+ `view:payments:clinic`) | **yes**: names                                                                            |
 | R7  | Refunds «المستردات»                             | per refund: number, business day, branch, method, amount, source (payment or credit), refunded by; reason as text only on screen, never in CSV (F3-Q8)                      | `refunds`, `refund_sources`                                                                               | `clinic`/`branch` (+ `view:payments` covering)                          | **yes**: names                                                                            |
-| R8  | Discounts «الخصومات»                            | per invoice with `discount_minor > 0`: number, issue day, branch, discount amount, kind (line/invoice), who issued; reason only on screen                                   | `invoices`, `invoice_lines.line_discount`, `invoices.invoice_discount`                                    | `clinic`/`branch` (F3-Q7)                                               | **yes**: names (or none, F3-Q7)                                                           |
+| R8  | Discounts «الخصومات»                            | per invoice with `discount_minor > 0`: number, issue day, branch, discount amount, kind (line/invoice), who issued; reason only on screen                                   | `invoices`, `invoice_lines.line_discount`, `invoices.invoice_discount`                                    | `clinic`/`branch` (F3-Q7) (+ `view:invoices` covering, like R5)         | **yes**: names (or none, F3-Q7)                                                           |
 | R9  | Cash closings «سجل إقفال الصندوق»               | per closing: business day, branch, expected, counted, difference, closed by, note present (yes/no); totals of differences                                                   | `cash_closings` only (never `method_totals`, R3-8)                                                        | `clinic`/`branch` (+ `view:cash_closings` covering)                     | no                                                                                        |
 | R10 | Doctor's own summary «ملخص فواتيري»             | per month: invoiced, paid, owed of the invoices in the caller's `own` reach — whole invoices (R2-6)                                                                         | `invoices` + `finance_invoice_balances`, filtered by `ownPatientFilter` (§5.1)                            | `own` only                                                              | aggregates on screen; the drill-down is the invoices list the doctor already sees (F3-Q4) |
 
@@ -311,7 +313,7 @@ Negative tests (same PR as the SQL):
 - `db/tests/finance.sql`: the finance key set grows from 23 to 26; the view equals `settlement.ts` on the
   S1–S11 fixture; R2's month sums equal `finance_monthly_totals` for the same clinic and month with an
   unchanged timezone, including an edit, a void and a refund across two months (R1-17) — after a timezone
-  change the test follows F3-Q13; lines with `archived_at` are not counted.
+  change the test follows F3-Q13; lines with `archived_at` are not counted; on invoices with a line discount, an invoice discount and tax, Σ R3 (and Σ R4) + the tax row = Σ `total_minor` (the discount is subtracted once).
 - `db/tests/finance-reports-platform.sql` (new): `eyadex_platform` has no privilege on the table, the view or
   any report function, and sees no `finance_report_export` audit row through the view or the policies;
   `eyadex_auth` and `eyadex_dispatcher` have none either.
@@ -347,11 +349,12 @@ Each question has options and a recommendation. Waleed decides; nothing below is
 2. **F3-Q2 — Aging buckets for outstanding balances (R5).** (a) 0–30, 31–60, 61–90, over 90 days from the
    issue day; (b) 0–7, 8–30, 31–90, over 90; (c) set by each clinic. **Recommendation: (a)** — the usual
    finance buckets.
-3. **F3-Q3 — Invoice-level discount and tax in the service and doctor reports (R3, R4).** (a) Show billed
-   line amounts (`line_total_minor`), with one «خصم الفاتورة» row and one «الضريبة» row at report level, no
-   apportioning; (b) apportion the invoice discount and tax across lines pro rata (half-up, remainder on the
-   last line); (c) show amounts before any discount only. **Recommendation: (a)** — real numbers with no
-   estimated split, and the report total still matches the invoices' total.
+3. **F3-Q3 — Tax in the service and doctor reports (R3, R4).** Line amounts are already net of the line
+   and invoice discounts (§2). (a) Show `line_total_minor` per service or doctor (net of discounts, before
+   tax), with one «الضريبة» row at report level, so Σ rows + tax = Σ invoice totals; (b) recompute each line's
+   tax with the shared `computeInvoiceTotals` from the stored lines and show amounts including tax; (c) show
+   gross amounts (`quantity × unit_price_minor`) with a separate discount column. **Recommendation: (a)** —
+   stored numbers only, nothing recomputed, and the total still matches the invoices.
 4. **F3-Q4 — The doctor's own report (`own`, R10).** (a) A monthly summary of the invoices of the doctor's
    own patients, whole invoices, no line split (R2-6), in F3; (b) no doctor report in F3, it waits for doctor
    commission (FIN-19); (c) the doctor sees revenue of his own lines only — this **changes R2-6**.
