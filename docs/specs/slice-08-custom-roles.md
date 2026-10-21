@@ -69,7 +69,8 @@ stays.
    refused. A stored role that breaks this is read as it is and refused only on its next save. The
    saved set (after `mergeHiddenKeys`) is checked too: kept keys of a switched-off module that break
    it answer `role_hidden_keys_invalid` (409, `details.module`) until the module is on and they are
-   fixed; nothing is dropped. The editor sends only the keys it shows. Keys are de-duplicated.
+   fixed; nothing is dropped. The editor sends every key the role holds (the ones it does not show
+   as stored), never a set filtered by its catalogue, and names the module when a hidden pair is refused. Keys are de-duplicated.
 3. **Hidden module keys** (`mergeHiddenKeys`): saved keys = requested keys whose module is enabled
    - the role's existing keys whose module is disabled. A requested key of a disabled module is
      dropped; an existing one is kept whatever the input says (FLAG-02). Enabled modules are read
