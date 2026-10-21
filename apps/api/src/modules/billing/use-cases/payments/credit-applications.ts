@@ -15,7 +15,7 @@ import { settle } from "../../domain/payment-rules.ts";
 import { invoiceOwner, lockInvoice } from "../../persistence/pg-invoice-changes.ts";
 import { readInvoice } from "../../persistence/pg-invoice-store.ts";
 import { readPatientMoney } from "../../persistence/pg-patient-money.ts";
-import { readAllocations } from "../../persistence/pg-payment-reads.ts";
+import { readAllocations, type CreditAllocationRow } from "../../persistence/pg-payment-reads.ts";
 import { insertAllocation, invoiceMoneyFacts } from "../../persistence/pg-payment-writes.ts";
 import type { BillingPatientReader } from "../../ports/billing-patients.ts";
 import { moneyClaim } from "./payment-claim.ts";
@@ -32,6 +32,22 @@ export type CreditApplicationAnswer = {
   readonly settlement: InvoiceSettlement;
   readonly creditBalanceMinor: string;
 };
+
+/** الرد المحفوظ في مفتاح العيادة: التخصيصات، والحالة، والرصيد اللي أول جواب رجّعهم (R3-6). */
+interface CreditClaim {
+  readonly allocationIds: string[];
+  readonly settlement: InvoiceSettlement;
+  readonly creditBalanceMinor: string;
+}
+
+/** التخصيصات كما بتتجاوب في الـ API: صف التخصيص كما هو في الداتابيز. */
+const allocationsOf = (rows: readonly CreditAllocationRow[]) =>
+  rows.map((row) => ({
+    id: row.id,
+    creditId: row.credit_id,
+    amountMinor: row.amount_minor,
+    createdAt: row.created_at,
+  }));
 
 /**
  * استخدام رصيد المراجع على فاتورة (FIN-13، F2-Q6، spec §4.3، §4.4): مفيش إيصال لأن فلوس ما دخلتش،
@@ -61,20 +77,25 @@ export class CreditApplications {
     const claim = moneyClaim(actor, "credit.apply", invoiceId, body, idempotencyKey);
     const { db, clock, ids } = this.deps;
     return db.withTenant(actor.clinicId, async (tx) => {
-      const claimed = await claimClinicIdempotencyKey<{ allocationIds: string[] }>(
+      const claimed = await claimClinicIdempotencyKey<CreditClaim>(
         tx,
         claim,
         ids.newId(),
         clock.now(),
       );
       if (claimed.kind === "conflict") throw new ApiError("idempotency_conflict");
-      // The first answer is given again only while the invoice's branch is still in reach (R3-6).
+      // The replay answers what the first request answered, not what the invoice looks like now (R3-6).
       if (claimed.kind === "replay") {
-        return this.answer(tx, actor, reach, invoiceId, claimed.response.allocationIds);
+        return this.replay(tx, actor, reach, invoiceId, claimed.response);
       }
       const allocationIds = await this.write(tx, actor, reach, invoiceId, body);
-      await completeClinicIdempotencyKey(tx, claim, { allocationIds });
-      return this.answer(tx, actor, reach, invoiceId, allocationIds);
+      const answer = await this.answer(tx, actor, reach, invoiceId, allocationIds);
+      await completeClinicIdempotencyKey(tx, claim, {
+        allocationIds,
+        settlement: answer.settlement,
+        creditBalanceMinor: answer.creditBalanceMinor,
+      });
+      return answer;
     });
   }
 
@@ -169,19 +190,36 @@ export class CreditApplications {
     const invoice = await readInvoice(tx, actor.clinicId, invoiceId);
     if (invoice === null || !reachesBranch(reach, invoice.branchId))
       throw new ApiError("not_found");
-    const settlement = invoice.settlement;
-    // A void invoice has no settlement: the credit was applied to an invoice that was voided after it.
-    if (settlement === null || settlement === undefined) throw new ApiError("invoice_void");
+    // The credit use was just written on an issued invoice under its lock, so the invoice is there and issued.
     const money = await readPatientMoney(tx, actor.clinicId, invoice.patientId);
     return {
-      allocations: rows.map((row) => ({
-        id: row.id,
-        creditId: row.credit_id,
-        amountMinor: row.amount_minor,
-        createdAt: row.created_at,
-      })),
-      settlement,
+      allocations: allocationsOf(rows),
+      settlement: invoice.settlement!,
       creditBalanceMinor: String(creditBalance(money)),
+    };
+  }
+
+  /**
+   * إعادة الطلب بالمفتاح نفسه: بترجّع الحالة والرصيد اللي أول جواب رجّعهم، مهما تغيّرت الفاتورة
+   * بعدها (R3-6).
+   *
+   * @returns التخصيصات وحالة الفاتورة ورصيد المراجع زي ما أول جواب رجّعهم
+   */
+  private async replay(
+    tx: Tx,
+    actor: BillingActor,
+    reach: MemberBranches,
+    invoiceId: string,
+    response: CreditClaim,
+  ): Promise<CreditApplicationAnswer> {
+    const rows = await readAllocations(tx, actor.clinicId, response.allocationIds);
+    const invoice = await readInvoice(tx, actor.clinicId, invoiceId);
+    if (invoice === null || !reachesBranch(reach, invoice.branchId))
+      throw new ApiError("not_found");
+    return {
+      allocations: allocationsOf(rows),
+      settlement: response.settlement,
+      creditBalanceMinor: response.creditBalanceMinor,
     };
   }
 }

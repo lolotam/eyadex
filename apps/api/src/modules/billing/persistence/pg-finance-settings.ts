@@ -57,6 +57,18 @@ export async function setLogoKey(tx: Tx, clinicId: string, key: string, now: Dat
   );
 }
 
+/**
+ * The clinic row locked FOR UPDATE (ADR-0027 item 11): a clinic settings writer takes it and nothing
+ * after it, so two changes of the same setting run one after the other and each one audits the result
+ * of the other.
+ *
+ * @param tx the transaction inside the caller's withTenant(clinicId)
+ * @param clinicId the clinic
+ */
+export async function lockClinicRow(tx: Tx, clinicId: string): Promise<void> {
+  await tx.execute(sql`SELECT id FROM clinics WHERE id = ${clinicId} FOR UPDATE`);
+}
+
 // A branch is locked once it has issued an invoice (spec §8 rule 9); the used prefix records it too.
 const LOCKED = sql`(EXISTS (SELECT 1 FROM invoices i WHERE i.clinic_id = b.clinic_id
   AND i.branch_id = b.id) OR EXISTS (SELECT 1 FROM used_invoice_prefixes u

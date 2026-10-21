@@ -47,6 +47,12 @@ export type PaymentAnswer = {
   readonly settlement: InvoiceSettlement;
 };
 
+/** الرد المحفوظ في مفتاح العيادة: الإيصال، والحالة اللي أول جواب رجّعها (R3-6). */
+interface PaymentClaim {
+  readonly paymentId: string;
+  readonly settlement: InvoiceSettlement;
+}
+
 /**
  * تسجيل دفعة على فاتورة (spec §4.3، §4.4، §4.6): قفل المفتاح (0) وبعدين المراجع (7) وبعدين الفاتورة
  * (7a) وبعدين فرع الفاتورة (9) وبعدين درج الكاش (9a، كاش بس) وبعدين تسلسل الإيصالات (9c). كل رصيد
@@ -76,20 +82,24 @@ export class InvoicePayments {
     const claim = moneyClaim(actor, "payment.create", invoiceId, body, idempotencyKey);
     const { db, clock, ids } = this.deps;
     return db.withTenant(actor.clinicId, async (tx) => {
-      const claimed = await claimClinicIdempotencyKey<{ paymentId: string }>(
+      const claimed = await claimClinicIdempotencyKey<PaymentClaim>(
         tx,
         claim,
         ids.newId(),
         clock.now(),
       );
       if (claimed.kind === "conflict") throw new ApiError("idempotency_conflict");
-      // The first answer is given again only while its branch is still in the caller's reach (R3-6).
+      // The replay answers what the first request answered, not what the invoice looks like now (R3-6).
       if (claimed.kind === "replay") {
-        return this.answer(tx, actor, reach, claimed.response.paymentId);
+        return this.replay(tx, actor, reach, claimed.response);
       }
       const paymentId = await this.write(tx, actor, reach, invoiceId, body);
-      await completeClinicIdempotencyKey(tx, claim, { paymentId });
-      return this.answer(tx, actor, reach, paymentId);
+      const answer = await this.answer(tx, actor, reach, paymentId);
+      await completeClinicIdempotencyKey(tx, claim, {
+        paymentId,
+        settlement: answer.settlement,
+      });
+      return answer;
     });
   }
 
@@ -206,16 +216,43 @@ export class InvoicePayments {
     reach: MemberBranches,
     paymentId: string,
   ): Promise<PaymentAnswer> {
+    const payment = await this.receipt(tx, actor, reach, paymentId);
+    // The payment was just written on an issued invoice under its lock, so the invoice is there and issued.
+    const invoice = (await readInvoice(tx, actor.clinicId, payment.invoiceId))!;
+    return { payment, settlement: invoice.settlement! };
+  }
+
+  /**
+   * إعادة الطلب بالمفتاح نفسه: بترجّع الحالة اللي أول جواب رجّعها، مهما تغيّرت الفاتورة بعدها (R3-6).
+   *
+   * @returns الإيصال وحالة الفاتورة زي ما أول جواب رجّعها
+   */
+  private async replay(
+    tx: Tx,
+    actor: BillingActor,
+    reach: MemberBranches,
+    response: PaymentClaim,
+  ): Promise<PaymentAnswer> {
+    const payment = await this.receipt(tx, actor, reach, response.paymentId);
+    return { payment, settlement: response.settlement };
+  }
+
+  /**
+   * الإيصال باسم المراجع، لو فرع الفاتورة لسه في نطاق الفاعل.
+   *
+   * @returns الإيصال
+   */
+  private async receipt(
+    tx: Tx,
+    actor: BillingActor,
+    reach: MemberBranches,
+    paymentId: string,
+  ): Promise<Payment> {
     const payment = await readPayment(tx, actor.clinicId, paymentId);
     if (payment === null || !reachesBranch(reach, payment.branchId))
       throw new ApiError("not_found");
     const patientName = await this.deps.patients.displayName(tx, actor.clinicId, payment.patientId);
     if (patientName === null) throw new ApiError("not_found");
-    const invoice = await readInvoice(tx, actor.clinicId, payment.invoiceId);
-    if (invoice === null) throw new ApiError("not_found");
-    const settlement = invoice.settlement;
-    // A void invoice has no settlement: the payment landed on an invoice that was voided after it.
-    if (settlement === null || settlement === undefined) throw new ApiError("invoice_void");
-    return { payment: { ...payment, patientName }, settlement };
+    return { ...payment, patientName };
   }
 }

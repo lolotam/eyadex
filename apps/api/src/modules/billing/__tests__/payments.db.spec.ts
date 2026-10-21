@@ -13,6 +13,7 @@ import { AUTHORIZATION_INVALIDATOR, type AuthorizationInvalidator } from "../../
 import { code, send } from "../../appointments/__tests__/scheduling-fixtures.ts";
 import { patientIn } from "../../medical/__tests__/medical-fixtures.ts";
 import {
+  applyCredit,
   auditSince,
   financeClinic,
   manualInvoice,
@@ -29,6 +30,8 @@ let invalidate: AuthorizationInvalidator;
 /** The invoice the first test paid in full; the refusals below read it. */
 let paidInvoice = { id: "", number: "" };
 
+type Settlement = { state: string; paidMinor: string; owedMinor: string };
+
 type Answer = {
   payment: {
     id: string;
@@ -37,22 +40,43 @@ type Answer = {
     businessDate: string;
     cashSeq: string | null;
   };
-  settlement: { state: string; paidMinor: string; owedMinor: string };
+  settlement: Settlement;
 };
+
+type CreditAnswer = { allocations: unknown[]; settlement: Settlement; creditBalanceMinor: string };
 
 const cash = (amountMinor: string) => ({ method: "cash", amountMinor });
 const seqOf = (receiptNumber: string) => Number(receiptNumber.split("-").at(-1));
 const invoiceOn = async (branchId: string, total: string) =>
   manualInvoice(h, C.admin.cookie, await patientIn(h, C, branchId), branchId, total);
-const voidInvoice = (invoiceId: string) =>
+const freeLine = (unitPriceMinor: string) => ({
+  kind: "free",
+  descriptionAr: "جلسة",
+  descriptionEn: "Session",
+  quantity: 1,
+  unitPriceMinor,
+  discount: null,
+});
+const editTo = (invoiceId: string, totalMinor: string, ifMatch: string) =>
   call(h, {
+    method: "PATCH",
+    url: `/v1/invoices/${invoiceId}`,
+    host: APP,
+    cookie: C.admin.cookie,
+    body: { lines: [freeLine(totalMinor)], invoiceDiscount: null },
+    headers: { "if-match": ifMatch },
+  });
+const voidInvoice = async (invoiceId: string) => {
+  const shown = await send(h, C.admin.cookie, "GET", `/v1/invoices/${invoiceId}`);
+  return call(h, {
     method: "POST",
     url: `/v1/invoices/${invoiceId}/void`,
     host: APP,
     cookie: C.admin.cookie,
     body: { reason: "issued twice" },
-    headers: { "if-match": '"1"' },
+    headers: { "if-match": String(shown.headers["etag"]) },
   });
+};
 
 beforeAll(async () => {
   h = await openHarness({}, true);
@@ -153,7 +177,7 @@ describe("the receipt numbers (spec §4.6, R1-9)", () => {
   });
 });
 
-describe("the idempotency of a payment (spec §4.4, R3-6)", () => {
+describe("the idempotency of a payment and of a credit application (spec §4.4, R3-6)", () => {
   it("replays the same key and body, and refuses the same key on another invoice", async () => {
     const invoice = await invoiceOn(C.branchD, "3000");
     const other = await invoiceOn(C.branchD, "3000");
@@ -173,6 +197,40 @@ describe("the idempotency of a payment (spec §4.4, R3-6)", () => {
     );
     const conflict = await pay(h, C.admin.cookie, other.id, cash("2000"), key);
     expect([conflict.statusCode, code(conflict)]).toEqual([409, "idempotency_conflict"]);
+  });
+
+  it("replays the first answer after the invoice was voided", async () => {
+    const invoice = await invoiceOn(C.branchD, "3000");
+    const key = randomUUID();
+    const first = await pay(h, C.admin.cookie, invoice.id, cash("1000"), key);
+    expect(first.statusCode, first.body).toBe(201);
+    const voided = await voidInvoice(invoice.id);
+    expect(voided.statusCode, voided.body).toBe(200);
+    const replay = await pay(h, C.admin.cookie, invoice.id, cash("1000"), key);
+    expect(replay.statusCode, replay.body).toBe(201);
+    const two = replay.json() as Answer;
+    expect(two.payment.id).toBe((first.json() as Answer).payment.id);
+    expect(two.settlement).toEqual((first.json() as Answer).settlement);
+    expect(two.settlement).toEqual({ state: "partly_paid", paidMinor: "1000", owedMinor: "2000" });
+  });
+
+  it("replays the first credit answer after the invoice was voided", async () => {
+    const patient = await patientIn(h, C, C.branchD);
+    const paid = await manualInvoice(h, C.admin.cookie, patient, C.branchD, "10000");
+    const first = await pay(h, C.admin.cookie, paid.id, cash("10000"));
+    expect(first.statusCode, first.body).toBe(201);
+    const edited = await editTo(paid.id, "7000", '"1"');
+    expect(edited.statusCode, edited.body).toBe(200);
+    const target = await manualInvoice(h, C.admin.cookie, patient, C.branchD, "5000");
+    const key = randomUUID();
+    const applied = await applyCredit(h, C.admin.cookie, target.id, "1000", key);
+    expect(applied.statusCode, applied.body).toBe(201);
+    const one = applied.json() as CreditAnswer;
+    const voided = await voidInvoice(target.id);
+    expect(voided.statusCode, voided.body).toBe(200);
+    const replay = await applyCredit(h, C.admin.cookie, target.id, "1000", key);
+    expect(replay.statusCode, replay.body).toBe(201);
+    expect(replay.json()).toEqual(one);
   });
 });
 

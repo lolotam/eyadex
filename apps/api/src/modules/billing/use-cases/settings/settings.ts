@@ -17,6 +17,7 @@ import { paymentMethodSettings, requireSomeMethodEnabled } from "../../domain/pa
 import {
   listPrefixes,
   lockBranchPrefix,
+  lockClinicRow,
   logoKey,
   prefixTaken,
   readFinanceSettings,
@@ -133,6 +134,9 @@ export class ClinicFinanceSettings {
     return this.deps.db.withTenant(actor.clinicId, async (tx) => {
       const after = paymentMethodSettings(settings);
       requireSomeMethodEnabled(after);
+      // ADR-0027 item 11: the clinic row first, so a second change waits for this one and audits its
+      // result instead of the state before it.
+      await lockClinicRow(tx, actor.clinicId);
       const before = paymentMethodSettings(await paymentMethodRows(tx, actor.clinicId));
       await savePaymentMethods(tx, this.deps.ids, actor.clinicId, after, this.deps.clock.now());
       await this.audit(tx, actor, "payment_methods.changed", "payment_methods", actor.clinicId, {
