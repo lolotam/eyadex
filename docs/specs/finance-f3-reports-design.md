@@ -106,7 +106,7 @@ All amounts are minor units as decimal strings (`minorAmountSchema`), with the c
 | R5  | Outstanding balances «المبالغ المستحقة» (aging) | per issued invoice with `owed > 0`: number, branch, issue day, total, paid, owed, age bucket; summary per bucket and branch                                                 | `invoices` + live allocations (§5.2)                                                                      | `clinic`/`branch`/`own` (+ `view:invoices` at a covering scope)         | **yes**: the patient's display name and invoice number per row                            |
 | R6  | Patient credit «أرصدة المراجعين»                | per patient with credit balance > 0: balance, oldest credit day                                                                                                             | `patient_credits` − allocations funded by them − `refund_sources` (§4.3 `remaining`)                      | `clinic` only (credit is clinic-wide, F2-Q7) (+ `view:payments:clinic`) | **yes**: names                                                                            |
 | R7  | Refunds «المستردات»                             | per refund: number, business day, branch, method, amount, source (payment or credit), refunded by; reason as text only on screen, never in CSV (F3-Q8)                      | `refunds`, `refund_sources`                                                                               | `clinic`/`branch` (+ `view:payments` covering)                          | **yes**: names                                                                            |
-| R8  | Discounts «الخصومات»                            | per invoice with `discount_minor > 0`: number, issue day, branch, discount amount, kind (line/invoice), who issued; reason only on screen                                   | `invoices`, `invoice_lines.line_discount`, `invoices.invoice_discount`                                    | `clinic`/`branch` (F3-Q7) (+ `view:invoices` covering, like R5)         | **yes**: names (or none, F3-Q7)                                                           |
+| R8  | Discounts «الخصومات»                            | per invoice with `discount_minor > 0`: number, issue day, branch, discount amount, kind (line/invoice), who set it (from `audit_log`, note below); reason only on screen    | `invoices`, `invoice_lines.line_discount`, `invoices.invoice_discount`                                    | `clinic`/`branch` (F3-Q7) (+ `view:invoices` covering, like R5)         | **yes**: names (or none, F3-Q7)                                                           |
 | R9  | Cash closings «سجل إقفال الصندوق»               | per closing: business day, branch, expected, counted, difference, closed by, note present (yes/no); totals of differences                                                   | `cash_closings` only (never `method_totals`, R3-8)                                                        | `clinic`/`branch` (+ `view:cash_closings` covering)                     | no                                                                                        |
 | R10 | Doctor's own summary «ملخص فواتيري»             | per month: invoiced, paid, owed of the invoices in the caller's `own` reach — whole invoices (R2-6)                                                                         | `invoices` + `finance_invoice_balances`, filtered by `ownPatientFilter` (§5.1)                            | `own` only                                                              | aggregates on screen; the drill-down is the invoices list the doctor already sees (F3-Q4) |
 
@@ -125,6 +125,12 @@ Notes:
 - **R4 and R2-6.** R4 groups the clinic's lines by `provider_id` for a clinic or branch reader; it is a
   management view of who billed what, not a commission statement. A doctor holding only `own` gets R10,
   which never splits an invoice by line (F3-Q4 asks whether R10 waits for FIN-19 instead).
+- **R8 "who set the discount"** never comes from `invoices.created_by` (that is who issued it; a later edit
+  can add or change the discount). It is the `actor_user_id` (0011) of the newest `audit_log` row with
+  `entity_type = 'invoice'` for that invoice whose action is `invoice.issued` (snapshot `after.discounts`
+  not empty) or `invoice.edited` (snapshot `before.discounts` ≠ `after.discounts`); the `discounts` array of
+  `invoiceAuditSnapshot` (`packages/contracts/src/finance-audit-snapshot.ts`) carries each line and invoice
+  discount. The staff name is resolved the way the clinic audit screen resolves `actor_user_id` (slice 10).
 - **R5 age** is counted from the invoice's issue day to today (clinic timezone). The buckets are F3-Q2.
 - Reports **R5–R8 show patient names** inside the caller's reach, read in one batch through
   `BillingPatientReader.displayNames`, with **no `patient_access` audit row** (parent §8c item 4, as the F1
@@ -199,6 +205,10 @@ sums only.
   (`\t`) or a carriage return (`\r`) is prefixed with `'`. The **only** exemption is the exporter's own
   numeric amount and count columns, written as plain numbers from `bigint` values (`-3.000` stays a number,
   so a negative expected cash or difference still sums in Excel); no text ever reaches those columns.
+  **Precision:** Excel keeps 15 significant digits, and a `bigint` minor amount can have more. An amount is
+  written as a number only while its digits (major and minor parts, without sign) fit in 15; beyond that it
+  is written as quoted text with all its decimals (`"1234567890123.456"`), so no digit is ever rounded
+  away. Counts are always numbers (they never reach 15 digits).
 - **XLSX**: F3-Q5.
 - **PDF**: waits for slice 8g (the F1 PDF renderer, parked to the project end; parent §3.3 and
   `finance-f1-pdf-design.md`). F3 adds no PDF route; the screen offers the browser's print.
@@ -215,40 +225,26 @@ CLAUDE.md §6: anything expected to exceed 200 ms is a worker job.
   aggregates instead.)
 - **The worker has no job queue library.** `apps/worker` has two mechanisms only: the `OutboxPoller`
   (`apps/worker/src/shared/outbox-poller.ts`) over `outbox_events` (0025/0029), claimed through
-  `DispatcherOutbox.claimNext` (`packages/db/src/dispatcher.ts`) as `eyadex_dispatcher`; and `PeriodicJob`
-  (`apps/worker/src/shared/periodic-job.ts`) timers. No BullMQ, pg-boss or similar. `claimNext` runs the
-  handler **inside** the claim transaction, which has a 30 s `statement_timeout` and
-  `idle_in_transaction_session_timeout` (`transactionTimeoutMs`, default 30000): a long export there would lose
-  its claim and replay. **The design keeps the outbox as the only durable queue and never builds a file inside
-  a claim.** It adds no queue library, no new role and no `BYPASSRLS`, and the worker never scans
-  `finance_report_exports` without a clinic context.
-- **Step 1 — request (API).** In one `withTenant` transaction: the `finance_report_exports` row (`queued`,
-  `attempt = 0`) and an `outbox_events` row with the clinic's `clinic_id`,
-  `event_type = 'finance_report.export_requested'` and a payload of the export id only (no patient field, no
-  parameters).
-- **Step 2 — the outbox handler is short.** `event-router.ts` routes the type to a handler that, inside
-  `withTenant(event.clinicId)` on the `eyadex_app` pool (as `pg-orphan-invitation-canceller.ts` does),
-  re-checks access (§7.4), sets the row `running` with `attempt = attempt + 1` and
-  `lease_until = now + 10 min`, writes a `finance_report.export_check` outbox event for the same clinic with
-  `next_attempt_at = lease_until`, and returns. The claim commits in milliseconds.
-- **Step 3 — the build runs outside the claim.** After the claim commits, the handler hands `(clinicId,
-exportId, attempt)` to an in-process `FinanceExportRunner` (bounded concurrency, one per worker by default).
-  The runner reads the report in pages, each page its own short `withTenant` transaction, streams the CSV to
-  the blob store at the fixed key `clinic/<clinic_id>/finance-exports/<id>`, then finishes in one short
-  transaction: `UPDATE … SET status = 'done', … WHERE id = $id AND status = 'running' AND attempt = $attempt`,
-  plus the audit row. Any error writes `failed` (with `error_code`) under the same guard.
-- **Step 4 — the check event recovers a lost runner.** Its handler (short, `withTenant`) does nothing when the
-  row is `done` or `failed`; when it is still `running` past `lease_until` (the worker died or the runner
-  hung), it starts step 2 again if `attempt < 3`, else marks it `failed` (`export_gave_up`). Bounded at three
-  attempts.
-- **Idempotent by job id.** The blob key is the export id, so a retry overwrites the same object and never
-  creates a second file; the `attempt` guard makes a stale runner's finish a no-op; a replayed
-  `export_requested` event finds the row no longer `queued` and only acks; the audit row is written only by
-  the finish that wins.
-- **Expiry uses the same route:** the finish writes a `finance_report.export_expired` event with
-  `next_attempt_at = expires_at`; its handler deletes the blob and marks the row `expired` inside
-  `withTenant`. Slice 4 confirms that `claimNext` honours `next_attempt_at` on a new row (it does for
-  retries); if it does not, the check and expiry handlers re-queue themselves until their time.
+  `DispatcherOutbox.claimNext` (`packages/db/src/dispatcher.ts`) as `eyadex_dispatcher`, and `PeriodicJob`
+  timers. `claimNext` runs its handler inside the claim transaction (30 s `statement_timeout` and
+  `idle_in_transaction_session_timeout`), so no file is ever built inside a claim. The request writes the
+  export row and an `outbox_events` row (the clinic's `clinic_id`, the export id only) in one `withTenant`
+  transaction; the worker reads only inside `withTenant(event.clinicId)`.
+
+#### Export pipeline — design open, decided before the export slice's SQL
+
+The runner's internals are tracked in issue #105 ("F3: design the finance export pipeline") and are
+agreed there before slice 4's SQL is written. Whatever design wins must meet these binding requirements:
+
+1. **A post-commit hand-off point outside `claimNext`**: the claim only records the hand-off.
+2. **Lease renewal (heartbeat)** while an export is queued or running, so load never looks like a dead worker
+   and a live build is never taken over.
+3. **Attempt-specific blob keys**: each attempt uploads to its own key; only the fenced winner is published;
+   losing or stale uploads are deleted.
+4. **A cleanup path for every key ever allocated**, failed and partial uploads included.
+5. **The 24-hour retention** of the published file (F3-Q10), then the blob is deleted and the row is `expired`.
+6. The constraints already fixed above: the outbox stays the only durable queue, no new role, no `BYPASSRLS`,
+   access re-checked at run time (§7.4), a bounded retry count, idempotent by export id.
 
 ### 7.3 The export table (new clinic table)
 
@@ -256,8 +252,8 @@ exportId, attempt)` to an in-process `FinanceExportRunner` (bounded concurrency,
 `payments.received_by`), `report` (`daily_takings`/`period_summary`/`by_service`/`by_doctor`/`outstanding`/
 `patient_credit`/`refunds`/`discounts`/`cash_closings`/`own_summary`), `params jsonb` (date range, branch
 ids, language; no patient field), `scope` (`clinic`/`branch`/`own`, the scope the request was granted),
-`status` (`queued`/`running`/`done`/`failed`/`expired`), `attempt smallint` (0–3), `lease_until timestamptz NULL`, `storage_key text NULL`
-(exactly `clinic/<clinic_id>/finance-exports/<id>`, the 0049 pattern), `byte_size int NULL`, `row_count int
+`status` (`queued`/`running`/`done`/`failed`/`expired`), `storage_key text NULL` (under
+`clinic/<clinic_id>/finance-exports/`, the 0049 pattern; the attempt and lease columns follow issue #105), `byte_size int NULL`, `row_count int
 NULL`, `error_code text NULL`, `created_at`, `started_at NULL`, `finished_at NULL`, `expires_at NULL`.
 Primary key `(clinic_id, id)`, RLS enabled and forced with the standard policy, index
 `(clinic_id, requested_by, created_at)` for the requester's export list (no queue index: the worker reaches a
@@ -270,12 +266,16 @@ job by id through its outbox event, §7.2). Not append-only: the worker updates 
   membership and role and re-derives the scope and branch reach **now**; a requester who lost the key, the
   branch or the clinic gets `failed` (`forbidden`), and the module-off and clinic-suspended checks of
   CLAUDE.md §6 apply again. The stored `scope` is an upper bound, never a grant.
-- **Only the requester downloads.** `GET …/exports/:id` and the file link answer `not_found` to anyone else
-  (ISO-02), and re-check the key. The file is served through the API (the blob store stays private), sealed
+- **Only the requester downloads, and only within today's reach.** `GET …/exports/:id` and the file link
+  answer `not_found` to anyone else (ISO-02). For the requester, every download re-derives the current reach
+  from the membership and role **now** — the key's scope, the branch list, or the `own` membership — and
+  compares it with the export's stored `scope` and `params`: if the key is gone the answer is `forbidden`; if
+  the reach got narrower (a branch in `params` is no longer reachable, or the scope dropped from `clinic` to
+  `branch` or `own`) the answer is `not_found` and the file is not served. A wider reach changes nothing. The file is served through the API (the blob store stays private), sealed
   like medical attachments if it holds patient names (R5–R8; ADR-0028 pattern).
 - **Retention:** the file is deleted from the blob store at `expires_at` and the row becomes `expired`
   (F3-Q10). The row itself is never deleted (CLAUDE.md §5).
-- **Audit:** `finance_report.exported` (entity `finance_report_export`, one row, written by the winning finish of §7.2)
+- **Audit:** `finance_report.exported` (entity `finance_report_export`, one row, written when the winning attempt publishes the file, §7.2)
   records the report, date range, branch ids, row count — never a name or a reason. For R5–R8 it is
   `patient_access` (the file holds names); for the others `administrative`. 0068 adds the entity to
   `audit_log_patient_events_are_patient_access` where it applies and excludes it from
@@ -323,14 +323,14 @@ Negative tests (same PR as the SQL):
 
 ## 9. Slices and delivery (each PR about 3,000 changed lines, one merge each, owner's yes before each)
 
-| #   | Slice                            | Who                    | Contents                                                                                                                                                                                                                                          | Rough size |
-| --- | -------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| 1   | Contracts                        | implementer (per run)  | `packages/contracts/src/finance-reports.ts`: report query and row schemas (R1–R10), export request/status schemas, error codes (`export_busy`, `report_range_too_long`), CSV column definitions shared with the mock. No keys yet.                | ~1,500     |
-| 2   | SQL + RLS + negative tests       | implementer            | 0068–0070 as approved, the keys in contracts and `system-roles.ts`, the `db/tests` of §8. Staging first; production after the owner's yes and a backup.                                                                                           | ~2,500     |
-| 3   | Domain + API — on-screen reports | implementer            | `billing/domain/report-scope.ts` (scope → branch ids, the extra-key rule of §3), the controllers and queries for R1–R10, cursor lists for R5–R8, db specs per report and per scope.                                                               | ~3,000     |
-| 4   | Exports (API + worker)           | implementer            | Export routes and their outbox events, `apps/worker/src/finance-exports/` (the outbox handlers: re-check access, build CSV, store, expire), audit, db specs incl. the revoked-access and expiry cases. `CLAUDE.architecture.md` §2.2 billing row. | ~3,000     |
-| 5   | Lovable web brief                | Orchestrator → Lovable | `.lovable/plan/p4-f3-web-<date>.md`, Plan mode first: «التقارير» nav item, one screen per report, filters, export button and status, the mock mirroring every rule.                                                                               | ~3,000     |
-| 6   | Review loop, staging, production | Orchestrator           | Codex + MergePilot on every PR, at most 3 fix rounds, blocking findings only; staging against the real API; SQL first in production, backup first.                                                                                                | —          |
+| #   | Slice                            | Who                    | Contents                                                                                                                                                                                                                                                        | Rough size |
+| --- | -------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| 1   | Contracts                        | implementer (per run)  | `packages/contracts/src/finance-reports.ts`: report query and row schemas (R1–R10), export request/status schemas, error codes (`export_busy`, `report_range_too_long`), CSV column definitions shared with the mock. No keys yet.                              | ~1,500     |
+| 2   | SQL + RLS + negative tests       | implementer            | 0068–0070 as approved, the keys in contracts and `system-roles.ts`, the `db/tests` of §8. Staging first; production after the owner's yes and a backup.                                                                                                         | ~2,500     |
+| 3   | Domain + API — on-screen reports | implementer            | `billing/domain/report-scope.ts` (scope → branch ids, the extra-key rule of §3), the controllers and queries for R1–R10, cursor lists for R5–R8, db specs per report and per scope.                                                                             | ~3,000     |
+| 4   | Exports (API + worker)           | implementer            | Export routes and their outbox events, `apps/worker/src/finance-exports/` (the pipeline agreed in issue #105: re-check access, build CSV, store, expire), audit, db specs incl. the revoked-access and expiry cases. `CLAUDE.architecture.md` §2.2 billing row. | ~3,000     |
+| 5   | Lovable web brief                | Orchestrator → Lovable | `.lovable/plan/p4-f3-web-<date>.md`, Plan mode first: «التقارير» nav item, one screen per report, filters, export button and status, the mock mirroring every rule.                                                                                             | ~3,000     |
+| 6   | Review loop, staging, production | Orchestrator           | Codex + MergePilot on every PR, at most 3 fix rounds, blocking findings only; staging against the real API; SQL first in production, backup first.                                                                                                              | —          |
 
 Web rules (slice 5): Arabic first, RTL, logical CSS, every string ar + en, «المراجع» never «المريض»,
 amounts through `formatMinor`, loading / empty / error states, 1440px and 390px, a totals row that matches
