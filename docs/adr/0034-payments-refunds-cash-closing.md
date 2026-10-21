@@ -85,7 +85,7 @@ INSERT` on them and no role has `UPDATE` or `DELETE`. A correction is a new move
 - **Refund lock order:** the clinic idempotency key (0) → the patient row (7) → the invoice `FOR UPDATE`
   (7a) → the invoice's branch `FOR SHARE` for the prefix (9) → the branch's cash drawer `FOR UPDATE`, for
   a cash refund only (9a) → the refund series of `receipt_sequences` (9c). Every balance is read after the
-  locks, and the clock after the patient, invoice and branch locks. A refund from a payment writes the
+  patient and invoice locks, and the clock after the patient, invoice and branch locks. A refund from a payment writes the
   `refund` credits it releases first and then spends exactly them in `refund_sources`.
 - **Close lock order:** the idempotency key (0) → the branch `FOR SHARE` (9) → the drawer `FOR UPDATE`
   (9a). No patient lock, so a closing never waits behind a payment. The preview writes nothing.
