@@ -88,7 +88,10 @@ INSERT` on them and no role has `UPDATE` or `DELETE`. A correction is a new move
   patient and invoice locks, and the clock after the patient, invoice and branch locks. A refund from a payment writes the
   `refund` credits it releases first and then spends exactly them in `refund_sources`.
 - **Close lock order:** the idempotency key (0) → the branch `FOR SHARE` (9) → the drawer `FOR UPDATE`
-  (9a). No patient lock, so a closing never waits behind a payment. The preview writes nothing.
+  (9a). A closing takes no patient lock, but it takes turns with the branch's cash payments and cash
+  refunds through the drawer lock: they take it `FOR UPDATE` for their `cash_seq` (`takeCashSeq`) and
+  hold it until they commit. A non-cash payment or refund never takes the drawer lock, and the branch
+  `FOR SHARE` locks do not conflict, so it never waits for a closing. The preview writes nothing.
 - **Refundable from a payment (issue #91):** the smaller of the payment's live allocations and the
   payment amount minus what was already released from its allocations, never below zero
   (`refundableFromPayment`). More than that is `refund_exceeds_available` (409); the payment must belong
