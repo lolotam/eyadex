@@ -559,7 +559,7 @@ shown through `formatMinor`; never a JS `number`. Each screen has loading, empty
 
 Designed in `docs/specs/finance-f3-reports-design.md` (draft, 2026-10-21): read-only reports over the F1/F2
 tables in the clinic timezone, CSV export as worker jobs, behind `view:finance_reports:clinic|branch|own`
-(R1-18, R2-6), totals by R1-17. It waits for the owner's answers to F3-Q1 … F3-Q12 and his yes on its SQL
+(R1-18, R2-6), totals by R1-17. It waits for the owner's answers to F3-Q1 … F3-Q13 and his yes on its SQL
 plan; its decisions would become ADR-0035.
 
 ## 6. F4 — online payment and insurance (outline)

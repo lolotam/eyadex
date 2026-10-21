@@ -2,7 +2,7 @@
 
 - Status: **draft for the owner's review** (2026-10-21). Nothing here is built. Every business rule that the
   FIN decisions, R1–R3 and F2-Q1 … F2-Q19 do not already settle is a numbered question in §10 (F3-Q1 …
-  F3-Q12); the owner decides them, and the slices of §9 wait for his answers and his yes on the SQL plan.
+  F3-Q13); the owner decides them, and the slices of §9 wait for his answers and his yes on the SQL plan.
 - Parent spec: `docs/specs/finance-design.md` (§2 shared rules, §3 F1, §4 F2, §8–§8d binding review rules).
   This file replaces the §5 outline there.
 - Decision record: none yet. When the owner approves, the decisions of this file go into **ADR-0035**
@@ -106,13 +106,17 @@ All amounts are minor units as decimal strings (`minorAmountSchema`), with the c
 | R7  | Refunds «المستردات»                             | per refund: number, business day, branch, method, amount, source (payment or credit), refunded by; reason as text only on screen, never in CSV (F3-Q8)                      | `refunds`, `refund_sources`                                                                               | `clinic`/`branch` (+ `view:payments` covering)                          | **yes**: names                                                                            |
 | R8  | Discounts «الخصومات»                            | per invoice with `discount_minor > 0`: number, issue day, branch, discount amount, kind (line/invoice), who issued; reason only on screen                                   | `invoices`, `invoice_lines.line_discount`, `invoices.invoice_discount`                                    | `clinic`/`branch` (F3-Q7)                                               | **yes**: names (or none, F3-Q7)                                                           |
 | R9  | Cash closings «سجل إقفال الصندوق»               | per closing: business day, branch, expected, counted, difference, closed by, note present (yes/no); totals of differences                                                   | `cash_closings` only (never `method_totals`, R3-8)                                                        | `clinic`/`branch` (+ `view:cash_closings` covering)                     | no                                                                                        |
-| R10 | Doctor's own summary «ملخص فواتيري»             | per month: invoiced, paid, owed of the invoices in the caller's `own` reach — whole invoices (R2-6)                                                                         | `invoices` + live allocations, filtered by the `own` reach                                                | `own` only                                                              | aggregates on screen; the drill-down is the invoices list the doctor already sees (F3-Q4) |
+| R10 | Doctor's own summary «ملخص فواتيري»             | per month: invoiced, paid, owed of the invoices in the caller's `own` reach — whole invoices (R2-6)                                                                         | `invoices` + `finance_invoice_balances`, filtered by `ownPatientFilter` (§5.1)                            | `own` only                                                              | aggregates on screen; the drill-down is the invoices list the doctor already sees (F3-Q4) |
 
 Notes:
 
-- **R1 and R2 add up to the platform.** For any month, Σ R2 `invoicedMinor`/`collectedMinor`/`refundedMinor`
-  over all branches equals `finance_monthly_totals` for that clinic and month (a test, §8). R1's `inMinor`
-  is per movement day, so a month of R1 equals R2's `collectedMinor` of that month.
+- **R1 and R2 against the platform totals — open (F3-Q13).** R1 and R2 group payments and refunds by their
+  stored `business_date`, but `finance_monthly_totals` (0065) converts `received_at`/`refunded_at` with the
+  clinic's **current** timezone (and 0061 does the same for `issued_at`). While the timezone never changes the
+  two agree; after a change, a movement near a month boundary can fall in a different month in each, so
+  "clinic reports = platform totals" is not guaranteed today. Until the owner decides F3-Q13, F3 asserts
+  it only for a clinic whose timezone has not changed. Within F3 itself, a month of R1 equals R2's
+  `collectedMinor` of that month (both read `business_date`).
 - **R3/R4 are billed revenue, not collected.** Payments name an invoice, not a line, so collected money
   cannot be split by service or doctor without a rule (F3-Q3 covers billed; collected per doctor is
   commission territory, FIN-19).
@@ -128,7 +132,7 @@ Notes:
 
 ### 5.1 Pattern
 
-- **Report functions, not table reads in TypeScript.** Each aggregate report (R1–R4, R9, R10's sums) is one
+- **Report functions, not table reads in TypeScript.** Each aggregate report with a `clinic`/`branch` scope (R1–R4, R9) is one
   `LANGUAGE sql STABLE` function with **`SECURITY INVOKER`** (the default), taking `(p_from date, p_to date,
 p_branch_ids uuid[])` and returning a fixed row type. Invoker rights mean the caller's RLS applies: under
   `withTenant` it sees only its clinic, and with no `app.clinic_id` it sees zero rows (CLAUDE.md §5). The
@@ -142,6 +146,16 @@ p_branch_ids uuid[])` and returning a fixed row type. Invoker rights mean the ca
   `SECURITY DEFINER` and none needs a new owner role (unlike 0061/0066, which must see across RLS).
 - **Patient rows (R5–R8) stay plain queries** in `apps/api/src/modules/billing/queries/` with cursor
   pagination, like `invoice-list.ts` and `payment-list.ts`, joined to the balance view for R5.
+- **Every `own` read (R10, and R5 for an `own` reader) is a plain query, never a function.** The `own` reach
+  is not a date and a branch list: it is the caller's membership and its appointment or visit links (R1-12).
+  The query applies exactly the predicate the invoice list applies today —
+  `BillingPatientReader.ownPatientFilter(membershipId, sql\`i.patient_id\`)`(port`apps/api/src/modules/billing/ports/billing-patients.ts`, implementation
+`apps/api/src/modules/patients/persistence/pg-billing-patients.ts`), chosen the way
+`use-cases/reads/reads.ts` `condition(reach)`chooses it — and sums over`finance_invoice_balances`. Why a
+query and not a function taking `membershipId`: the predicate belongs to the patients module (billing never
+names the appointments or visits relations), so a SQL copy of it would be a second definition of `own`that could drift from the invoice list's. RLS stays the clinic wall under`withTenant`; the predicate only
+narrows inside the clinic. A test asserts that R10's invoice set equals `GET /v1/invoices` for the same
+  doctor.
 
 ### 5.2 Derived balances
 
@@ -164,7 +178,7 @@ sums only.
 - **Movements** (payments, refunds, closings) group by their stored `business_date`. A movement never
   changes day.
 - **Invoices** group by their issue day: by default `(issued_at AT TIME ZONE clinics.timezone)::date`,
-  computed in the function; with F3-Q1 = (أ), by a stored `invoices.business_date` instead. R1-17 already
+  computed in the function; with F3-Q1 = (a), by a stored `invoices.business_date` instead. R1-17 already
   fixes that an edit or void restates the invoice's **issue** month; it never moves it to the edit's day.
 - **Date filters** are `date` values (`dateSchema`), inclusive both ends, never client timestamps — the rule
   of `GET /v1/payments` today.
@@ -177,8 +191,12 @@ sums only.
 
 - **CSV** (FIN-18), UTF-8 with a BOM so Excel opens Arabic correctly, comma-separated, RFC 4180 quoting,
   headers in the caller's language (ar or en), amounts in **major units with the currency exponent's
-  decimals** (`12.500`) plus a `currency` column, dates `YYYY-MM-DD`. Formula injection is neutralised (a
-  cell starting with `=`, `+`, `-`, `@` is prefixed with `'`).
+  decimals** (`12.500`) plus a `currency` column, dates `YYYY-MM-DD`. Formula injection is guarded on
+  **free-text cells only** (patient and staff names, invoice, receipt and refund numbers, descriptions,
+  notes): a cell whose first character is `=`, `+`, `-`, `@`, a tab (`\t`) or a carriage return (`\r`) is
+  prefixed with `'`. The exporter's own amount and count columns are written as plain numbers (`-3.000`
+  stays a number, so a negative expected cash or difference still sums in Excel); they are never text from a
+  user.
 - **XLSX**: F3-Q5.
 - **PDF**: waits for slice 8g (the F1 PDF renderer, parked to the project end; parent §3.3 and
   `finance-f1-pdf-design.md`). F3 adds no PDF route; the screen offers the browser's print.
@@ -193,6 +211,21 @@ CLAUDE.md §6: anything expected to exceed 200 ms is a worker job.
   stores a request row and returns `202` with its id; the worker builds the file; the screen polls
   `GET /v1/finance-reports/exports/:id` and downloads when `ready`. (F3-Q6 offers a sync path for small
   aggregates instead.)
+- **The worker finds the job through the outbox, the route every worker job uses today.** In the same
+  `withTenant` transaction as the request row, the API writes an `outbox_events` row (0025/0029) with the
+  clinic's `clinic_id`, `event_type = 'finance_report.export_requested'` and a payload of the export id only
+  (no patient field, no parameters). The worker's `OutboxPoller` (`apps/worker/src/shared/outbox-poller.ts`)
+  claims it through `DispatcherOutbox.claimNext` (`packages/db/src/dispatcher.ts`) as `eyadex_dispatcher`,
+  which reads the outbox only; `event-router.ts` routes the type to the export handler, which then opens
+  `withTenant(event.clinicId)` on the `eyadex_app` pool (as `pg-orphan-invitation-canceller.ts` does) and
+  reads the export row and the report data under RLS. The outbox's retry fields (`attempts`,
+  `next_attempt_at`, `failed_at`, 0029) carry the retries. No new role, no `BYPASSRLS`, and the worker never
+  scans `finance_report_exports` without a clinic context.
+- **Expiry uses the same route:** when the file is ready, the handler writes a
+  `finance_report.export_expired` event for the same clinic with `next_attempt_at = expires_at`; its handler
+  deletes the blob and marks the row `expired` inside `withTenant`. Slice 4 confirms that `claimNext` honours
+  `next_attempt_at` on a new row (it does for retries); if it does not, the expiry event is written without
+  a delay and the handler re-queues itself until `expires_at`.
 
 ### 7.3 The export table (new clinic table)
 
@@ -204,8 +237,8 @@ ids, language; no patient field), `scope` (`clinic`/`branch`/`own`, the scope th
 (exactly `clinic/<clinic_id>/finance-exports/<id>`, the 0049 pattern), `byte_size int NULL`, `row_count int
 NULL`, `error_code text NULL`, `created_at`, `started_at NULL`, `finished_at NULL`, `expires_at NULL`.
 Primary key `(clinic_id, id)`, RLS enabled and forced with the standard policy, index
-`(clinic_id, requested_by, created_at)` and a partial index `(created_at) WHERE status = 'queued'` for the
-worker scan. Not append-only: the worker updates `status` and the file fields (column-level `UPDATE` grant).
+`(clinic_id, requested_by, created_at)` for the requester's export list (no queue index: the worker reaches a
+job by id through its outbox event, §7.2). Not append-only: the worker updates `status` and the file fields (column-level `UPDATE` grant).
 `REVOKE ALL … FROM eyadex_platform`.
 
 ### 7.4 Rules
@@ -230,11 +263,23 @@ worker scan. Not append-only: the worker updates `status` and the file fields (c
 
 ## 8. SQL plan (proposed; needs the owner's yes before any SQL is written)
 
-| File (proposed)                    | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `0068_finance_reports_core.sql`    | Extends `permissions_key_check` (resource `finance_reports`) and inserts the 3 keys (`…c004b`–`…c004d`). Creates `finance_report_exports` (§7.3) with RLS + policy + indexes + grants, and the audit-entity changes of §7.4. Creates the view `finance_invoice_balances` (§5.2) and the report functions `finance_report_daily_takings`, `finance_report_period_summary`, `finance_report_by_service`, `finance_report_by_doctor`, `finance_report_cash_closings` (invoker, §5.1). If F3-Q1 = (أ): adds `invoices.business_date date` (backfilled from `issued_at` in the clinic timezone, then `NOT NULL`), set by the issue path from then on. |
-| `0069_finance_reports_indexes.sql` | Only the indexes the plans need, each justified by an `EXPLAIN` in the PR: a partial `invoices (clinic_id, branch_id, issued_at) WHERE status = 'issued'` for R5 (or `(clinic_id, branch_id, business_date)` with F3-Q1 = (أ)); none for `invoice_lines` (the 0060 partial unique index `(clinic_id, invoice_id, position) WHERE archived_at IS NULL` already serves R3/R4); `payment_allocations (clinic_id, invoice_id) INCLUDE (amount_minor)` if the balance view needs it. Kept separate so it can be applied `CONCURRENTLY` outside a transaction if the tables are large.                                                                 |
-| `0070_finance_reports_release.sql` | R2-4 again: the 0063/0067 role statement (`module = 'finance' AND scope = 'clinic'`, locked `clinic_admin` only, `ON CONFLICT DO NOTHING`), so each existing locked admin gains `view:finance_reports:clinic` and nothing else (F3-Q9). `db/maintenance/finance-release-catch-up.sql` already matches by predicate; `db/tests/finance-release-catch-up.sh` gains a `cmp` against 0070.                                                                                                                                                                                                                                                           |
+| File (proposed)                    | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `0068_finance_reports_core.sql`    | Extends `permissions_key_check` (resource `finance_reports`) and inserts the 3 keys (`…c004b`–`…c004d`). Creates `finance_report_exports` (§7.3) with RLS + policy + indexes + grants, and the audit-entity changes of §7.4. Creates the view `finance_invoice_balances` (§5.2) and the report functions `finance_report_daily_takings`, `finance_report_period_summary`, `finance_report_by_service`, `finance_report_by_doctor`, `finance_report_cash_closings` (invoker, §5.1). If F3-Q1 = (a): adds `invoices.business_date date` **nullable** only (expand step, see below). |
+| `0069_finance_reports_indexes.sql` | Only the indexes the plans need, each justified by an `EXPLAIN` in the PR: a partial `invoices (clinic_id, branch_id, issued_at) WHERE status = 'issued'` for R5 (or `(clinic_id, branch_id, business_date)` with F3-Q1 = (a)); none for `invoice_lines` (the 0060 partial unique index `(clinic_id, invoice_id, position) WHERE archived_at IS NULL` already serves R3/R4); `payment_allocations (clinic_id, invoice_id) INCLUDE (amount_minor)` if the balance view needs it. Kept separate so it can be applied `CONCURRENTLY` outside a transaction if the tables are large.  |
+| `0070_finance_reports_release.sql` | R2-4 again: the 0063/0067 role statement (`module = 'finance' AND scope = 'clinic'`, locked `clinic_admin` only, `ON CONFLICT DO NOTHING`), so each existing locked admin gains `view:finance_reports:clinic` and nothing else (F3-Q9). `db/maintenance/finance-release-catch-up.sql` already matches by predicate; `db/tests/finance-release-catch-up.sh` gains a `cmp` against 0070.                                                                                                                                                                                            |
+
+If F3-Q1 = (a), `invoices.business_date` follows **expand → backfill → contract**, so a rolling deploy never
+meets a `NOT NULL` column that the running API does not write:
+
+1. **Expand** (0068): add the column nullable; nothing reads it yet.
+2. **Writer**: deploy the API whose issue path sets `business_date` (the clinic-timezone day of `issued_at`,
+   read after the locks, like `payments.business_date`).
+3. **Backfill and verify** (`db/maintenance/invoice-business-date-backfill.sql`, run by the orchestrator
+   after step 2 is live): fill the rows still `NULL` from `issued_at` in the clinic timezone, in batches; then
+   a check query proves no row is `NULL`.
+4. **Contract**: a later forward-only file (the next free number at that time) adds `NOT NULL` and the
+   `(clinic_id, branch_id, business_date)` index; reports switch to the column only after it.
 
 Negative tests (same PR as the SQL):
 
@@ -243,8 +288,9 @@ Negative tests (same PR as the SQL):
   context, `finance_invoice_balances` and every report function return no row of clinic B; with no
   `app.clinic_id` they return zero rows and no error.
 - `db/tests/finance.sql`: the finance key set grows from 23 to 26; the view equals `settlement.ts` on the
-  S1–S11 fixture; R2's month sums equal `finance_monthly_totals` for the same clinic and month, including an
-  edit, a void and a refund across two months (R1-17); lines with `archived_at` are not counted.
+  S1–S11 fixture; R2's month sums equal `finance_monthly_totals` for the same clinic and month with an
+  unchanged timezone, including an edit, a void and a refund across two months (R1-17) — after a timezone
+  change the test follows F3-Q13; lines with `archived_at` are not counted.
 - `db/tests/finance-reports-platform.sql` (new): `eyadex_platform` has no privilege on the table, the view or
   any report function, and sees no `finance_report_export` audit row through the view or the policies;
   `eyadex_auth` and `eyadex_dispatcher` have none either.
@@ -254,26 +300,27 @@ Negative tests (same PR as the SQL):
 
 ## 9. Slices and delivery (each PR about 3,000 changed lines, one merge each, owner's yes before each)
 
-| #   | Slice                            | Who                    | Contents                                                                                                                                                                                                                           | Rough size |
-| --- | -------------------------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| 1   | Contracts                        | implementer (per run)  | `packages/contracts/src/finance-reports.ts`: report query and row schemas (R1–R10), export request/status schemas, error codes (`export_busy`, `report_range_too_long`), CSV column definitions shared with the mock. No keys yet. | ~1,500     |
-| 2   | SQL + RLS + negative tests       | implementer            | 0068–0070 as approved, the keys in contracts and `system-roles.ts`, the `db/tests` of §8. Staging first; production after the owner's yes and a backup.                                                                            | ~2,500     |
-| 3   | Domain + API — on-screen reports | implementer            | `billing/domain/report-scope.ts` (scope → branch ids, the extra-key rule of §3), the controllers and queries for R1–R10, cursor lists for R5–R8, db specs per report and per scope.                                                | ~3,000     |
-| 4   | Exports (API + worker)           | implementer            | Export routes, `apps/worker/src/finance-exports/` (poll, re-check access, build CSV, store, expire), audit, db specs incl. the revoked-access and expiry cases. `CLAUDE.architecture.md` §2.2 billing row.                         | ~3,000     |
-| 5   | Lovable web brief                | Orchestrator → Lovable | `.lovable/plan/p4-f3-web-<date>.md`, Plan mode first: «التقارير» nav item, one screen per report, filters, export button and status, the mock mirroring every rule.                                                                | ~3,000     |
-| 6   | Review loop, staging, production | Orchestrator           | Codex + MergePilot on every PR, at most 3 fix rounds, blocking findings only; staging against the real API; SQL first in production, backup first.                                                                                 | —          |
+| #   | Slice                            | Who                    | Contents                                                                                                                                                                                                                                          | Rough size |
+| --- | -------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| 1   | Contracts                        | implementer (per run)  | `packages/contracts/src/finance-reports.ts`: report query and row schemas (R1–R10), export request/status schemas, error codes (`export_busy`, `report_range_too_long`), CSV column definitions shared with the mock. No keys yet.                | ~1,500     |
+| 2   | SQL + RLS + negative tests       | implementer            | 0068–0070 as approved, the keys in contracts and `system-roles.ts`, the `db/tests` of §8. Staging first; production after the owner's yes and a backup.                                                                                           | ~2,500     |
+| 3   | Domain + API — on-screen reports | implementer            | `billing/domain/report-scope.ts` (scope → branch ids, the extra-key rule of §3), the controllers and queries for R1–R10, cursor lists for R5–R8, db specs per report and per scope.                                                               | ~3,000     |
+| 4   | Exports (API + worker)           | implementer            | Export routes and their outbox events, `apps/worker/src/finance-exports/` (the outbox handlers: re-check access, build CSV, store, expire), audit, db specs incl. the revoked-access and expiry cases. `CLAUDE.architecture.md` §2.2 billing row. | ~3,000     |
+| 5   | Lovable web brief                | Orchestrator → Lovable | `.lovable/plan/p4-f3-web-<date>.md`, Plan mode first: «التقارير» nav item, one screen per report, filters, export button and status, the mock mirroring every rule.                                                                               | ~3,000     |
+| 6   | Review loop, staging, production | Orchestrator           | Codex + MergePilot on every PR, at most 3 fix rounds, blocking findings only; staging against the real API; SQL first in production, backup first.                                                                                                | —          |
 
 Web rules (slice 5): Arabic first, RTL, logical CSS, every string ar + en, «المراجع» never «المريض»,
 amounts through `formatMinor`, loading / empty / error states, 1440px and 390px, a totals row that matches
 the sum of the rows, and the date range picker in the clinic timezone.
 
-## 10. Questions for the owner (F3-Q1 … F3-Q12)
+## 10. Questions for the owner (F3-Q1 … F3-Q13)
 
 Each question has options and a recommendation. Waleed decides; nothing below is decided.
 
 1. **F3-Q1 — The invoice's day in reports.** Payments and refunds store their business day; invoices store
    only `issued_at`. (a) Add `invoices.business_date`, set at issue and backfilled for existing invoices, so
-   an invoice never changes day if the clinic timezone is edited; (b) compute it at read time from
+   an invoice never changes day if the clinic timezone is edited — and then the platform function must
+   move to the stored day too (F3-Q13 (a)), or clinic reports and platform totals differ after a change; (b) compute it at read time from
    `issued_at` and the current clinic timezone, as the platform function does today. **Recommendation:
    (a)** — the F2 rule, and a small change to the issue path.
 2. **F3-Q2 — Aging buckets for outstanding balances (R5).** (a) 0–30, 31–60, 61–90, over 90 days from the
@@ -312,3 +359,11 @@ Each question has options and a recommendation. Waleed decides; nothing below is
     with the movements.
 12. **F3-Q12 — Patient credit report (R6).** (a) In F3, for the clinic scope with `view:payments:clinic`;
     (b) later. **Recommendation: (a)** — credit is money the clinic owes its patients and should be visible.
+13. **F3-Q13 — Clinic reports vs the platform totals after a timezone change.** Movements keep the business
+    day they were written with; `finance_monthly_totals` (0065) re-reads `received_at`/`refunded_at` in the
+    clinic's current timezone, so after a change the two can disagree near a month boundary. (a) Move the
+    platform totals to `business_date` (and to `invoices.business_date` if F3-Q1 = (a)) in a new SQL file
+    that re-creates the function with the same columns; (b) accept the difference and drop the
+    "reports = platform" invariant; (c) block timezone changes once the clinic has an invoice or a payment.
+    **Recommendation: (a)** — one definition of a day everywhere, a small SQL change, and clinics keep the
+    right to correct a wrong timezone.
