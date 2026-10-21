@@ -73,6 +73,7 @@ import type { MedicalApi } from "./medical-client";
 import type { NotificationsApi } from "./notifications-client";
 import type { WhatsappApi } from "./whatsapp-client";
 import type { FinanceApi } from "./finance-client";
+import type { PaymentsApi } from "./payments-client";
 import type { NewClinicFinance } from "./new-clinic-finance";
 import type { SchedulingApi } from "./scheduling-client";
 
@@ -215,6 +216,8 @@ export interface ApiClient {
   whatsapp: WhatsappApi;
   /** Prices, invoice prefixes, invoices and the platform's clinic finance (phase 4 F1). */
   finance: FinanceApi;
+  /** Finance F2: payments, patient credit and receipts. */
+  payments: PaymentsApi;
   audit: {
     /** Needs view:audit_log:clinic; the caller's clinic only, newest first. */
     clinicList(persona: Persona, query: ClinicAuditListQuery): Promise<Page<ClinicAuditItem>>;

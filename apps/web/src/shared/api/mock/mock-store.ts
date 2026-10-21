@@ -1,4 +1,5 @@
 import type { FinanceMockState } from "./mock-finance-state";
+import type { PaymentMockState } from "./mock-payment-state";
 import type { AppointmentStatus, CancelReason } from "@eyadex/contracts/appointments";
 import type { Clinic, ClinicFeatures, CreatedClinic } from "@eyadex/contracts/clinics";
 import type { InvitationRecord } from "@eyadex/contracts/invitations";
@@ -13,6 +14,7 @@ import type { MedicalState } from "./mock-medical-state";
 import type { NotificationState } from "./mock-notification-state";
 import type { StoredWhatsappChannel } from "./mock-whatsapp-state";
 import { buildSeed } from "./seed";
+import { seedFinanceDemo } from "./seed-finance";
 
 export type StoredService = ClinicService & { clinicId: string };
 export type StoredShift = ScheduleShift & { clinicId: string; id: string; membershipId: string };
@@ -84,6 +86,8 @@ export type MockState = {
   whatsapp?: { channels: Record<string, StoredWhatsappChannel>; unavailable?: boolean };
   /** Phase 4 F1: prices, finance details, prefixes and invoices (created on use). */
   finance?: FinanceMockState;
+  /** Phase 4 F2: payments, allocations, patient credit, receipt and drawer counters (created on use). */
+  payments?: PaymentMockState;
   platformAccounts: PlatformAccount[];
   platformSettings: PlatformSettings;
   platformAudit: PlatformAuditEntry[];
@@ -91,7 +95,7 @@ export type MockState = {
   clinicAudit: (Omit<ClinicAuditEntry, "entityId"> & { entityId: string | null })[];
 };
 
-const STORAGE_KEY = "eyadex:mock-db:v21";
+const STORAGE_KEY = "eyadex:mock-db:v22";
 /** Shared with the persona provider by name only (screens never import the mock). */
 const PERSONA_STORAGE_KEY = "eyadex:persona";
 const MOCK_RESET_EVENT = "eyadex:mock-reset";
@@ -111,7 +115,7 @@ export function getState(): MockState {
       }
     }
   }
-  state = buildSeed();
+  state = freshState();
   persist();
   if (typeof window !== "undefined") {
     // A new data version reseeds every id: a saved persona would point at records that no
@@ -127,8 +131,18 @@ export function persist(): void {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
+/**
+ * The demo's first open also gets some money (F2 card 1 §6), built through the mock's own writes. The test
+ * runner starts from the plain seed, so every F1 and F2 test keeps its numbering from 000001.
+ */
+function freshState(): MockState {
+  const seeded = buildSeed();
+  if (import.meta.env.MODE !== "test") seedFinanceDemo(seeded);
+  return seeded;
+}
+
 export function resetMockData(): void {
-  state = buildSeed();
+  state = freshState();
   persist();
 }
 

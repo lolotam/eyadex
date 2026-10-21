@@ -6,6 +6,7 @@ import type {
   InvoiceListQuery,
   InvoicePrefixItem,
   PlatformClinicFinance,
+  PaymentMethodsRequest,
   PlatformClinicFinanceRequest,
   PriceList,
   SendInvoiceRequest,
@@ -46,6 +47,11 @@ export interface FinanceApi {
   logo(persona: Persona): Promise<Blob | null>;
   /** PNG or JPEG of at most 1 MB, sent as the raw body; anything else is `validation`. */
   uploadLogo(persona: Persona, file: Blob): Promise<FinanceSettings>;
+  /** F2: replaces all four method switches; needs `update:clinic_settings:clinic`. */
+  setPaymentMethods(
+    persona: Persona,
+    paymentMethods: PaymentMethodsRequest["paymentMethods"],
+  ): Promise<PaymentMethodsRequest>;
   prefixes(persona: Persona): Promise<InvoicePrefixItem[]>;
   setPrefix(persona: Persona, branchId: string, invoicePrefix: string): Promise<InvoicePrefixItem>;
   listInvoices(persona: Persona, query: Partial<InvoiceListQuery>): Promise<InvoiceList>;

@@ -1,5 +1,6 @@
 import {
   financeSettingsRequestSchema,
+  paymentMethodsRequestSchema,
   invoicePrefixRequestSchema,
   providerPricesRequestSchema,
   servicePriceRequestSchema,
@@ -8,7 +9,7 @@ import {
   type ServicePrice,
 } from "@eyadex/contracts/finance";
 import type { Persona } from "@eyadex/contracts/session";
-import { ApiError } from "../api-error";
+import { ApiError, financeError } from "../api-error";
 import { guardFinance, requireFinanceKey } from "./mock-finance-access";
 import {
   clinicFinanceOf,
@@ -20,6 +21,8 @@ import {
 } from "./mock-finance-state";
 import { auditFinanceSetting } from "./mock-finance-audit";
 import { parse } from "./mock-medical-access";
+import { writeClinicAudit } from "./mock-audit";
+import { methodsOf, paymentState } from "./mock-payment-state";
 import type { MockState } from "./mock-store";
 
 const LOGO_MAX_BYTES = 1024 * 1024;
@@ -32,6 +35,7 @@ export function settingsView(db: MockState, clinicId: string): FinanceSettings {
     taxRateBp: f.taxRateBp,
     commercialRegNo: f.commercialRegNo,
     hasLogo: f.hasLogo,
+    paymentMethods: methodsOf(db, clinicId),
   };
 }
 
@@ -178,4 +182,30 @@ export function setPrefix(db: MockState, persona: Persona, branchId: string, raw
     after: { invoicePrefix },
   });
   return prefixItem(db, a.clinic.id, branchId);
+}
+
+/**
+ * PUT /v1/clinic/settings/payment-methods (spec §4.6): all four switches at once, needs
+ * `update:clinic_settings:clinic`, at least one stays on; one administrative `payment_methods.changed` row.
+ */
+export function setPaymentMethods(db: MockState, persona: Persona, raw: unknown) {
+  const a = guardFinance(db, persona);
+  if (!a.keys.includes("update:clinic_settings:clinic")) throw new ApiError("forbidden");
+  const { paymentMethods } = parse(paymentMethodsRequestSchema, raw);
+  if (!paymentMethods.some((m) => m.enabled)) throw financeError("payment_methods_empty");
+  const before = methodsOf(db, a.clinic.id);
+  paymentState(db).methods[a.clinic.id] = Object.fromEntries(
+    paymentMethods.map((m) => [m.method, m.enabled]),
+  );
+  const after = methodsOf(db, a.clinic.id);
+  writeClinicAudit(db, {
+    clinicId: a.clinic.id,
+    actorName: a.actorName,
+    action: "payment_methods.changed",
+    entity: "payment_methods",
+    entityId: a.clinic.id,
+    before: { paymentMethods: before },
+    after: { paymentMethods: after },
+  });
+  return { paymentMethods: after };
 }
