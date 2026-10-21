@@ -1,7 +1,7 @@
 # Finance — design (post-MVP phase 4)
 
 - Status: owner decisions taken 2026-10-14 (decisions page batches 10–13). F1 is implemented and in
-  production (PRs 78, 84, 85, 87); F2 is designed in §4 and approved by the owner (SQL plan and F2-Q1 … F2-Q19, 2026-10-20); its contracts, SQL, domain and payments-and-credit API are built (PRs 90, 92, 94, 95), and the refunds, cash closing and platform totals API (slice 5) and the web (slice 6) are still to come; F3 and F4 are outlines.
+  production (PRs 78, 84, 85, 87); F2 is designed in §4 and approved by the owner (SQL plan and F2-Q1 … F2-Q19, 2026-10-20); its contracts, SQL, domain and payments-and-credit API are built (PRs 90, 92, 94, 95), and the refunds, cash closing and platform totals API (slice 5) and the web (slice 6) are still to come; F3 is a design draft (`finance-f3-reports-design.md`, §5) awaiting the owner; F4 is an outline.
 - PRD: §8.3 item 4 ("finance"), §4.7 (permissions), §4.8 (module flags), §4.11 (audit), §5 (database
   rules), §8 (security: the platform never sees patient data).
 - Decision records: ADR-0033 (money, numbering and the invoice life cycle,
@@ -555,10 +555,12 @@ shown through `formatMinor`; never a JS `number`. Each screen has loading, empty
     كإجماليات بس؛ (ب) تبان كحدث إداري من غير بيانات مراجعين (زي AGENTS.md). **القرار (المالك، 2026-10-20):
     (أ)** — `cash_closing` يفضل مستبعد من سجل المنصة (0064).
 
-## 5. F3 — reports (outline)
+## 5. F3 — reports (design draft)
 
-Read-only report endpoints over F1/F2 tables in the clinic timezone, with CSV/Excel export, behind a
-`view:finance_reports:clinic|branch|own` permission (R1-18). Totals follow R1-17.
+Designed in `docs/specs/finance-f3-reports-design.md` (draft, 2026-10-21): read-only reports over the F1/F2
+tables in the clinic timezone, CSV export as worker jobs, behind `view:finance_reports:clinic|branch|own`
+(R1-18, R2-6), totals by R1-17. It waits for the owner's answers to F3-Q1 … F3-Q12 and his yes on its SQL
+plan; its decisions would become ADR-0035.
 
 ## 6. F4 — online payment and insurance (outline)
 
