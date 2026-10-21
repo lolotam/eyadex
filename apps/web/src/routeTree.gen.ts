@@ -20,6 +20,7 @@ import { Route as ClinicAccountRouteImport } from './routes/clinic.account'
 import { Route as ClinicAppointmentsRouteImport } from './routes/clinic.appointments'
 import { Route as ClinicAuditRouteImport } from './routes/clinic.audit'
 import { Route as ClinicBranchesRouteImport } from './routes/clinic.branches'
+import { Route as ClinicPaymentsRouteImport } from './routes/clinic.payments'
 import { Route as ClinicRolesRouteImport } from './routes/clinic.roles'
 import { Route as ClinicUsersRouteImport } from './routes/clinic.users'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
@@ -32,6 +33,7 @@ import { Route as ClinicInvoicesInvoiceIdRouteImport } from './routes/clinic.inv
 import { Route as ClinicInvoicesNewRouteImport } from './routes/clinic.invoices.new'
 import { Route as ClinicPatientsIndexRouteImport } from './routes/clinic.patients.index'
 import { Route as ClinicPatientsPatientIdRouteImport } from './routes/clinic.patients.$patientId'
+import { Route as ClinicReceiptsPaymentIdRouteImport } from './routes/clinic.receipts.$paymentId'
 import { Route as ClinicSettingsIndexRouteImport } from './routes/clinic.settings.index'
 import { Route as ClinicSettingsEmailRouteImport } from './routes/clinic.settings.email'
 import { Route as ClinicSettingsFinanceRouteImport } from './routes/clinic.settings.finance'
@@ -101,6 +103,11 @@ const ClinicBranchesRoute = ClinicBranchesRouteImport.update({
   path: '/branches',
   getParentRoute: () => ClinicRoute,
 } as any)
+const ClinicPaymentsRoute = ClinicPaymentsRouteImport.update({
+  id: '/payments',
+  path: '/payments',
+  getParentRoute: () => ClinicRoute,
+} as any)
 const ClinicRolesRoute = ClinicRolesRouteImport.update({
   id: '/roles',
   path: '/roles',
@@ -159,6 +166,11 @@ const ClinicPatientsIndexRoute = ClinicPatientsIndexRouteImport.update({
 const ClinicPatientsPatientIdRoute = ClinicPatientsPatientIdRouteImport.update({
   id: '/patients/$patientId',
   path: '/patients/$patientId',
+  getParentRoute: () => ClinicRoute,
+} as any)
+const ClinicReceiptsPaymentIdRoute = ClinicReceiptsPaymentIdRouteImport.update({
+  id: '/receipts/$paymentId',
+  path: '/receipts/$paymentId',
   getParentRoute: () => ClinicRoute,
 } as any)
 const ClinicSettingsIndexRoute = ClinicSettingsIndexRouteImport.update({
@@ -239,6 +251,7 @@ export interface FileRoutesByFullPath {
   '/clinic/appointments': typeof ClinicAppointmentsRoute
   '/clinic/audit': typeof ClinicAuditRoute
   '/clinic/branches': typeof ClinicBranchesRoute
+  '/clinic/payments': typeof ClinicPaymentsRoute
   '/clinic/roles': typeof ClinicRolesRoute
   '/clinic/users': typeof ClinicUsersRoute
   '/invite/$token': typeof InviteTokenRoute
@@ -250,6 +263,7 @@ export interface FileRoutesByFullPath {
   '/clinic/invoices/$invoiceId': typeof ClinicInvoicesInvoiceIdRoute
   '/clinic/invoices/new': typeof ClinicInvoicesNewRoute
   '/clinic/patients/$patientId': typeof ClinicPatientsPatientIdRoute
+  '/clinic/receipts/$paymentId': typeof ClinicReceiptsPaymentIdRoute
   '/clinic/settings/email': typeof ClinicSettingsEmailRoute
   '/clinic/settings/finance': typeof ClinicSettingsFinanceRoute
   '/clinic/settings/medicines': typeof ClinicSettingsMedicinesRoute
@@ -275,6 +289,7 @@ export interface FileRoutesByTo {
   '/clinic/appointments': typeof ClinicAppointmentsRoute
   '/clinic/audit': typeof ClinicAuditRoute
   '/clinic/branches': typeof ClinicBranchesRoute
+  '/clinic/payments': typeof ClinicPaymentsRoute
   '/clinic/roles': typeof ClinicRolesRoute
   '/clinic/users': typeof ClinicUsersRoute
   '/invite/$token': typeof InviteTokenRoute
@@ -286,6 +301,7 @@ export interface FileRoutesByTo {
   '/clinic/invoices/$invoiceId': typeof ClinicInvoicesInvoiceIdRoute
   '/clinic/invoices/new': typeof ClinicInvoicesNewRoute
   '/clinic/patients/$patientId': typeof ClinicPatientsPatientIdRoute
+  '/clinic/receipts/$paymentId': typeof ClinicReceiptsPaymentIdRoute
   '/clinic/settings/email': typeof ClinicSettingsEmailRoute
   '/clinic/settings/finance': typeof ClinicSettingsFinanceRoute
   '/clinic/settings/medicines': typeof ClinicSettingsMedicinesRoute
@@ -314,6 +330,7 @@ export interface FileRoutesById {
   '/clinic/appointments': typeof ClinicAppointmentsRoute
   '/clinic/audit': typeof ClinicAuditRoute
   '/clinic/branches': typeof ClinicBranchesRoute
+  '/clinic/payments': typeof ClinicPaymentsRoute
   '/clinic/roles': typeof ClinicRolesRoute
   '/clinic/users': typeof ClinicUsersRoute
   '/invite/$token': typeof InviteTokenRoute
@@ -325,6 +342,7 @@ export interface FileRoutesById {
   '/clinic/invoices/$invoiceId': typeof ClinicInvoicesInvoiceIdRoute
   '/clinic/invoices/new': typeof ClinicInvoicesNewRoute
   '/clinic/patients/$patientId': typeof ClinicPatientsPatientIdRoute
+  '/clinic/receipts/$paymentId': typeof ClinicReceiptsPaymentIdRoute
   '/clinic/settings/email': typeof ClinicSettingsEmailRoute
   '/clinic/settings/finance': typeof ClinicSettingsFinanceRoute
   '/clinic/settings/medicines': typeof ClinicSettingsMedicinesRoute
@@ -354,6 +372,7 @@ export interface FileRouteTypes {
     | '/clinic/appointments'
     | '/clinic/audit'
     | '/clinic/branches'
+    | '/clinic/payments'
     | '/clinic/roles'
     | '/clinic/users'
     | '/invite/$token'
@@ -365,6 +384,7 @@ export interface FileRouteTypes {
     | '/clinic/invoices/$invoiceId'
     | '/clinic/invoices/new'
     | '/clinic/patients/$patientId'
+    | '/clinic/receipts/$paymentId'
     | '/clinic/settings/email'
     | '/clinic/settings/finance'
     | '/clinic/settings/medicines'
@@ -390,6 +410,7 @@ export interface FileRouteTypes {
     | '/clinic/appointments'
     | '/clinic/audit'
     | '/clinic/branches'
+    | '/clinic/payments'
     | '/clinic/roles'
     | '/clinic/users'
     | '/invite/$token'
@@ -401,6 +422,7 @@ export interface FileRouteTypes {
     | '/clinic/invoices/$invoiceId'
     | '/clinic/invoices/new'
     | '/clinic/patients/$patientId'
+    | '/clinic/receipts/$paymentId'
     | '/clinic/settings/email'
     | '/clinic/settings/finance'
     | '/clinic/settings/medicines'
@@ -428,6 +450,7 @@ export interface FileRouteTypes {
     | '/clinic/appointments'
     | '/clinic/audit'
     | '/clinic/branches'
+    | '/clinic/payments'
     | '/clinic/roles'
     | '/clinic/users'
     | '/invite/$token'
@@ -439,6 +462,7 @@ export interface FileRouteTypes {
     | '/clinic/invoices/$invoiceId'
     | '/clinic/invoices/new'
     | '/clinic/patients/$patientId'
+    | '/clinic/receipts/$paymentId'
     | '/clinic/settings/email'
     | '/clinic/settings/finance'
     | '/clinic/settings/medicines'
@@ -545,6 +569,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ClinicBranchesRouteImport
       parentRoute: typeof ClinicRoute
     }
+    '/clinic/payments': {
+      id: '/clinic/payments'
+      path: '/payments'
+      fullPath: '/clinic/payments'
+      preLoaderRoute: typeof ClinicPaymentsRouteImport
+      parentRoute: typeof ClinicRoute
+    }
     '/clinic/roles': {
       id: '/clinic/roles'
       path: '/roles'
@@ -627,6 +658,13 @@ declare module '@tanstack/react-router' {
       path: '/patients/$patientId'
       fullPath: '/clinic/patients/$patientId'
       preLoaderRoute: typeof ClinicPatientsPatientIdRouteImport
+      parentRoute: typeof ClinicRoute
+    }
+    '/clinic/receipts/$paymentId': {
+      id: '/clinic/receipts/$paymentId'
+      path: '/receipts/$paymentId'
+      fullPath: '/clinic/receipts/$paymentId'
+      preLoaderRoute: typeof ClinicReceiptsPaymentIdRouteImport
       parentRoute: typeof ClinicRoute
     }
     '/clinic/settings/': {
@@ -728,12 +766,14 @@ interface ClinicRouteChildren {
   ClinicAppointmentsRoute: typeof ClinicAppointmentsRoute
   ClinicAuditRoute: typeof ClinicAuditRoute
   ClinicBranchesRoute: typeof ClinicBranchesRoute
+  ClinicPaymentsRoute: typeof ClinicPaymentsRoute
   ClinicRolesRoute: typeof ClinicRolesRoute
   ClinicUsersRoute: typeof ClinicUsersRoute
   ClinicIndexRoute: typeof ClinicIndexRoute
   ClinicInvoicesInvoiceIdRoute: typeof ClinicInvoicesInvoiceIdRoute
   ClinicInvoicesNewRoute: typeof ClinicInvoicesNewRoute
   ClinicPatientsPatientIdRoute: typeof ClinicPatientsPatientIdRoute
+  ClinicReceiptsPaymentIdRoute: typeof ClinicReceiptsPaymentIdRoute
   ClinicSettingsEmailRoute: typeof ClinicSettingsEmailRoute
   ClinicSettingsFinanceRoute: typeof ClinicSettingsFinanceRoute
   ClinicSettingsMedicinesRoute: typeof ClinicSettingsMedicinesRoute
@@ -753,12 +793,14 @@ const ClinicRouteChildren: ClinicRouteChildren = {
   ClinicAppointmentsRoute: ClinicAppointmentsRoute,
   ClinicAuditRoute: ClinicAuditRoute,
   ClinicBranchesRoute: ClinicBranchesRoute,
+  ClinicPaymentsRoute: ClinicPaymentsRoute,
   ClinicRolesRoute: ClinicRolesRoute,
   ClinicUsersRoute: ClinicUsersRoute,
   ClinicIndexRoute: ClinicIndexRoute,
   ClinicInvoicesInvoiceIdRoute: ClinicInvoicesInvoiceIdRoute,
   ClinicInvoicesNewRoute: ClinicInvoicesNewRoute,
   ClinicPatientsPatientIdRoute: ClinicPatientsPatientIdRoute,
+  ClinicReceiptsPaymentIdRoute: ClinicReceiptsPaymentIdRoute,
   ClinicSettingsEmailRoute: ClinicSettingsEmailRoute,
   ClinicSettingsFinanceRoute: ClinicSettingsFinanceRoute,
   ClinicSettingsMedicinesRoute: ClinicSettingsMedicinesRoute,

@@ -127,7 +127,7 @@
 - [x] F2 slice 5: refunds, cash closings, receipt, platform totals v2 (API) (PR #99; the receipt PDF is deferred with 8g, below)
 - [ ] F2 slice 6: web (Lovable) — in progress
   - [x] Card 1a: payments, patient credit, settlement on invoices, payment methods (mock = API)
-  - [ ] Card 1b: receipts list and receipt page, «المدفوعات» tab — waits for the owner's go-ahead
+  - [x] Card 1b: receipts list and receipt page, «المدفوعات» tab, receipt link in the success toast
   - [ ] Card 2: refunds and the cash closing — after card 1 merges
 - [ ] F2: the receipt PDF — deferred with 8g
 - [ ] F3: reports (outline, `finance-design.md` §5)

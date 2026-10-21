@@ -77,8 +77,14 @@ export const CLINIC_NAV: NavItem[] = [
     icon: Stethoscope,
     permission: "create:visits:own",
   },
-  // Finance F1: the invoice list; its keys vanish with the finance module.
-  { to: "/clinic/invoices", label: "nav.invoices", icon: ReceiptText, resource: "invoices" },
+  // Finance F1/F2: the invoices and receipts tabs; their keys vanish with the finance module. A
+  // payments-only role lands on the receipts tab (the invoices page sends it there).
+  {
+    to: "/clinic/invoices",
+    label: "nav.invoices",
+    icon: ReceiptText,
+    anyOf: ["invoices", "payments"],
+  },
   { to: "/clinic/audit", label: "nav.audit", icon: ClipboardList, resource: "audit_log" },
   // D-17: the Settings page holds the General, Services and Work schedules tabs.
   {

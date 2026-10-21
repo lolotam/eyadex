@@ -8,6 +8,7 @@ import type {
   paymentListResponseSchema,
   paymentWriteResponseSchema,
 } from "@eyadex/contracts/finance";
+import type { BranchOptionListResponse, OptionListQuery } from "@eyadex/contracts/role-admin";
 import type { Persona } from "@eyadex/contracts/session";
 import type { z } from "zod";
 
@@ -38,4 +39,9 @@ export interface PaymentsApi {
   ): Promise<CreditApplication>;
   listPayments(persona: Persona, query: Partial<PaymentListQuery>): Promise<PaymentList>;
   getPayment(persona: Persona, paymentId: string): Promise<Payment>;
+  /** The branches inside the caller's `view:payments` reach: the receipts' branch names and filter. */
+  branchOptions(
+    persona: Persona,
+    query: Partial<OptionListQuery>,
+  ): Promise<BranchOptionListResponse>;
 }

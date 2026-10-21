@@ -5,6 +5,7 @@ import {
   paymentResponseSchema,
   paymentWriteResponseSchema,
 } from "@eyadex/contracts/finance";
+import { branchOptionListResponseSchema } from "@eyadex/contracts/role-admin";
 import type { PaymentsApi } from "../payments-client";
 import type { HttpContext } from "./http-context";
 
@@ -36,5 +37,10 @@ export function createHttpPayments({ transport }: HttpContext): PaymentsApi {
       });
       return answer.payment;
     },
+    branchOptions: (_persona, query) =>
+      transport.send("GET", "/v1/payments/branch-options", {
+        schema: branchOptionListResponseSchema,
+        query,
+      }),
   };
 }
