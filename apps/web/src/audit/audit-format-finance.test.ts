@@ -29,7 +29,7 @@ const SPENDS = [
 describe("finance audit list values", () => {
   it("reads the payment-method switches in Arabic", () => {
     expect(formatFinanceAuditList("paymentMethods", METHODS, lookup(ar), "ar")).toBe(
-      "نقدًا: مفعّل، كي نت: موقوف، تحويل بنكي: مفعّل، سبب آخر: موقوف",
+      "نقدًا: مفعّل، كي نت: موقوف، تحويل بنكي: مفعّل، أخرى: موقوف",
     );
   });
 
@@ -43,6 +43,11 @@ describe("finance audit list values", () => {
     const text = `${SPENDS[0]!.creditId}: 3000\n${SPENDS[1]!.creditId}: 500`;
     expect(formatFinanceAuditList("spends", SPENDS, lookup(ar), "ar")).toBe(text);
     expect(formatFinanceAuditList("spends", SPENDS, lookup(en), "en")).toBe(text);
+  });
+
+  it("reads a receipt's method as the method, «أخرى» not «سبب آخر»", () => {
+    expect(formatFinanceAuditList("method", "other", lookup(ar), "ar")).toBe("أخرى");
+    expect(formatFinanceAuditList("method", "knet", lookup(en), "en")).toBe("KNET");
   });
 
   it("leaves any other field or a malformed list to the caller", () => {

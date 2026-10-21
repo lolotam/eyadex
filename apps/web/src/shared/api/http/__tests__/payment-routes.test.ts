@@ -59,7 +59,8 @@ function answer(call: Call) {
       : { body: movements };
   }
   if (path.endsWith("/credit-applications")) return { status: 201, body: credit };
-  if (path === "/api/v1/payments") return { body: { items: [payment], nextCursor: null, total: 1 } };
+  if (path === "/api/v1/payments")
+    return { body: { items: [payment], nextCursor: null, total: 1 } };
   if (path === `/api/v1/payments/${PAYMENT}`) return { body: { payment } };
   if (path === "/api/v1/clinic/settings/payment-methods") return { body: methods };
   return { status: 404, body: {} };
@@ -80,7 +81,9 @@ describe("payments over HTTP", () => {
 
   it("records a payment with the Idempotency-Key and only the contract's body", async () => {
     const body = { method: "cash" as const, amountMinor: "1000" };
-    expect((await h.api.payments.recordPayment(P, INVOICE, body, "key-1")).payment).toEqual(payment);
+    expect((await h.api.payments.recordPayment(P, INVOICE, body, "key-1")).payment).toEqual(
+      payment,
+    );
     expect(last()).toMatchObject({
       method: "POST",
       url: `/api/v1/invoices/${INVOICE}/payments`,

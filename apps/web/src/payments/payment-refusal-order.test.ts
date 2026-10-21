@@ -21,7 +21,8 @@ beforeEach(() => resetMockData());
 const UNKNOWN_INVOICE = "00000000-0000-7000-8000-0000000000ff";
 const clinic = () => getState().clinics.find((c) => c.id === clinicIdAt(0))!;
 const financeOff = () => (getState().features[clinicIdAt(0)]!.finance = false);
-const methodOff = (method: "cash") => (paymentState(getState()).methods[clinicIdAt(0)] = { [method]: false });
+const methodOff = (method: "cash") =>
+  (paymentState(getState()).methods[clinicIdAt(0)] = { [method]: false });
 const noPaymentKeys = () => {
   const { role } = roleOf("receptionist");
   role.permissions = role.permissions.filter((k) => !k.includes(":payments:"));

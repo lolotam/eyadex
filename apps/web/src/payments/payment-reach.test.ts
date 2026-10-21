@@ -68,7 +68,10 @@ describe("who reaches payments (F2-Q8)", () => {
     const first = await api.payments.listPayments(admin(), { limit: 1 });
     expect(paymentListResponseSchema.safeParse(first).success).toBe(true);
     expect(first.items[0]!.amountMinor).toBe("200");
-    const second = await api.payments.listPayments(admin(), { limit: 1, cursor: first.nextCursor! });
+    const second = await api.payments.listPayments(admin(), {
+      limit: 1,
+      cursor: first.nextCursor!,
+    });
     expect(second.items[0]!.amountMinor).toBe("100");
     const view = await api.payments.invoicePayments(admin(), invoice.id);
     expect(invoicePaymentsResponseSchema.safeParse(view).success).toBe(true);
@@ -89,8 +92,14 @@ describe("the method switches reach the payment", () => {
 
 describe("amounts in the clinic's currency", () => {
   it("reads major units into minor units for KWD (3) and SAR (2)", () => {
-    expect(checkAmount("12.5", 3, { owedMinor: "99999" })).toEqual({ ok: true, amountMinor: "12500" });
-    expect(checkAmount("12.5", 2, { owedMinor: "99999" })).toEqual({ ok: true, amountMinor: "1250" });
+    expect(checkAmount("12.5", 3, { owedMinor: "99999" })).toEqual({
+      ok: true,
+      amountMinor: "12500",
+    });
+    expect(checkAmount("12.5", 2, { owedMinor: "99999" })).toEqual({
+      ok: true,
+      amountMinor: "1250",
+    });
     expect(checkAmount("12.345", 2, { owedMinor: "99999" })).toMatchObject({ ok: false });
     expect(checkAmount("0", 3, { owedMinor: "1" })).toEqual({ ok: false, error: "amountInvalid" });
   });
@@ -108,7 +117,11 @@ describe("amounts in the clinic's currency", () => {
     clinicFinanceOf(getState(), clinicIdAt(0)).currency = "SAR";
     const invoice = await issue("1250");
     const answer = await pay(invoice.id, "1250");
-    expect(answer.payment).toMatchObject({ currency: "SAR", currencyExponent: 2, amountMinor: "1250" });
+    expect(answer.payment).toMatchObject({
+      currency: "SAR",
+      currencyExponent: 2,
+      amountMinor: "1250",
+    });
     expect(answer.settlement.state).toBe("paid");
   });
 });

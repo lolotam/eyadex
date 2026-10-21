@@ -108,7 +108,11 @@ describe("settlement worked examples S1–S6, S9, S11", () => {
   it("S9 refuses paying above what is owed and changes nothing", async () => {
     const i3 = await issue("5000");
     expect(await refusal(pay(i3.id, "6000"))).toBe("payment_exceeds_balance");
-    expect(await settlementOf(i3.id)).toEqual({ state: "unpaid", paidMinor: "0", owedMinor: "5000" });
+    expect(await settlementOf(i3.id)).toEqual({
+      state: "unpaid",
+      paidMinor: "0",
+      owedMinor: "5000",
+    });
     expect(breachesOf(patientAt().id)).toEqual([]);
   });
 

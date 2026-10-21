@@ -92,7 +92,9 @@ describe("the invoice payment panel", () => {
       branchIds: [BRANCH],
     };
     show();
-    expect(await screen.findByText(ar.payments.movement.payment.replace("{number}", "TT-R-2026-000001"))).toBeInTheDocument();
+    expect(
+      await screen.findByText(ar.payments.movement.payment.replace("{number}", "TT-R-2026-000001")),
+    ).toBeInTheDocument();
     expect(screen.getByText("2.000 KWD")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: ar.payments.panel.record })).toBeInTheDocument();
     await waitFor(() =>

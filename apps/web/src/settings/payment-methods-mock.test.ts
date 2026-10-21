@@ -30,7 +30,10 @@ describe("payment methods (spec §4.6)", () => {
   });
 
   it("saves the whole list and writes one administrative row with before and after", async () => {
-    const saved = await api.finance.setPaymentMethods(admin(), all((m) => m !== "other"));
+    const saved = await api.finance.setPaymentMethods(
+      admin(),
+      all((m) => m !== "other"),
+    );
     expect(saved.paymentMethods.find((m) => m.method === "other")?.enabled).toBe(false);
     expect((await api.finance.settings(admin())).paymentMethods).toEqual(saved.paymentMethods);
     const [row, ...more] = rows();
@@ -44,15 +47,25 @@ describe("payment methods (spec §4.6)", () => {
   });
 
   it("NEGATIVE: turning every method off is payment_methods_empty and writes no row", async () => {
-    expect(await refusal(api.finance.setPaymentMethods(admin(), all(() => false)))).toBe(
-      "payment_methods_empty",
-    );
+    expect(
+      await refusal(
+        api.finance.setPaymentMethods(
+          admin(),
+          all(() => false),
+        ),
+      ),
+    ).toBe("payment_methods_empty");
     expect(rows()).toEqual([]);
   });
 
   it("NEGATIVE: without update:clinic_settings:clinic it is forbidden", async () => {
-    expect(await refusal(api.finance.setPaymentMethods(as("receptionist"), all(() => true)))).toBe(
-      "forbidden",
-    );
+    expect(
+      await refusal(
+        api.finance.setPaymentMethods(
+          as("receptionist"),
+          all(() => true),
+        ),
+      ),
+    ).toBe("forbidden");
   });
 });
