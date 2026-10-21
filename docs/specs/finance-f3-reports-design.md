@@ -417,19 +417,18 @@ recommendation it says so, with what changes.
 | F3-Q6    | «سنة شاشة، 3 سنين تصدير (المقترح)»                                                                      | (a) 366 days on screen, 3 years in export, every export a background job                               | —                                                                                                                                                                               |
 | F3-Q7    | «باسم المريض»                                                                                           | **(a), not the recommendation**: R8 lists the patient's name                                           | R8 holds patient data: its export follows the R5–R7 rules (audited, 24 h)                                                                                                       |
 | F3-Q8    | «يطلع في الملف كمان»                                                                                    | **(b), not the recommendation**: refund and discount reasons are exported                              | reasons are free text in a file that leaves the system; length-capped as stored, formula-guarded                                                                                |
-| F3-Q9    | «والريسبشن كمان»                                                                                        | **(b), not the recommendation**: the receptionist also gets `view:finance_reports:branch`              | defaults: admin `clinic`, doctor `own` (R10 only, per F3-Q4); the receptionist's default **waits for privacy point 1 (EY-9.14)** and 0070 does not grant it until then          |
+| F3-Q9    | «والريسبشن كمان»                                                                                        | **(b), not the recommendation**: the receptionist also gets `view:finance_reports:branch`              | defaults: admin `clinic`, doctor `own` (R10 only, per F3-Q4); receptionist `branch` for R1, R2 and R9 only (EY-9.14 (a)); R5–R8 need the admin's grant; 0070 seeds exactly that |
 | F3-Q10   | «24 ساعة (المقترح)»                                                                                     | (a) 24 hours                                                                                           | —                                                                                                                                                                               |
 | F3-Q11   | «مباشرة من الجداول (المقترح)»                                                                           | (a) live queries                                                                                       | —                                                                                                                                                                               |
 | F3-Q12   | «أيوه، للعيادة كلها (المقترح)»                                                                          | (a) R6 in F3, clinic scope                                                                             | —                                                                                                                                                                               |
 | F3-Q13   | «نوحّد الحساب (المقترح)»                                                                                | (a) the platform totals move to `business_date` in a new SQL file                                      | applying that file to production needs the owner's own yes when it is ready                                                                                                     |
 
-Points raised back to the owner with these answers (privacy; not yet decided):
+Points raised back to the owner with these answers (1 and 2 decided 2026-10-21; 3 open):
 
-1. With F3-Q7 (a), F3-Q8 (b) and F3-Q9 (b), a receptionist with `branch` scope could export files that hold
-   patient names and free-text reasons for a whole branch. Proposed guard: the receptionist's default covers
-   R1, R2 and R9 only, and the patient-named reports (R5–R8) and their exports need the admin's grant.
-2. Free-text reasons in an exported file may carry clinical detail typed by staff. Proposed guard: every
-   export of R5–R8 writes a patient-data access audit row (who, which report, which range).
+1. **Decided (EY-9.14, «التحصيل والكاش بس (المقترح)», option (a)):** the receptionist's default `branch`
+   grant covers R1, R2 and R9 only; the patient-named reports R5–R8 and their exports need the admin's grant.
+2. **Decided (EY-9.15, «سجل زي فتح ملف مريض (المقترح)», option (a)):** every export of R5–R8 writes a
+   patient-data access audit row (who, which report, which range), the same as opening a patient file.
 3. **R10's paid and owed columns after F3-Q4 = (c).** Payments name an invoice, not a line, so paid and owed
    cannot be split to the doctor's own lines without a rule the owner has not given (that is FIN-19
    commission). Proposed: (a) R10 shows only the billed amount of the doctor's own lines per month, with no
