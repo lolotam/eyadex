@@ -130,7 +130,8 @@ positions F1 uses (5a, 7a, 9b).
     that can read the lookup columns only (never `token_sealed`) and executable by `eyadex_app` only; it
     returns the clinic, invoice and link of a live link, and the API then reads the invoice inside
     `withTenant`. The page shows the latest version and stops when the invoice is void. Opening it is
-    audited with the actor `patient_link` (R2-7).
+    audited as `invoice.link_opened` with the system actor (`SYSTEM_ACTOR_ID`, shown as Eyadex in the
+    audit list) and `via: patient_link` in the details (R2-7).
 
 ### What the platform sees
 
