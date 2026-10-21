@@ -115,6 +115,12 @@ export function RoleFormDialog({ open, role, readOnly, onOpenChange }: Props) {
             </fieldset>
             <div className="flex flex-col gap-2">
               <h3 className="text-sm font-semibold">{t("roles.matrixTitle")}</h3>
+              {catalog.isError && (
+                <LoadNotice
+                  title={t(catalog.data ? "roles.catalogRefreshError" : "roles.catalogLoadError")}
+                  onRetry={() => void catalog.refetch()}
+                />
+              )}
               {catalog.data ? (
                 <PermissionMatrix
                   catalog={catalog.data}
@@ -122,13 +128,8 @@ export function RoleFormDialog({ open, role, readOnly, onOpenChange }: Props) {
                   onChange={setKeys}
                   readOnly={readOnly}
                 />
-              ) : catalog.isError ? (
-                <LoadNotice
-                  title={t("roles.catalogLoadError")}
-                  onRetry={() => void catalog.refetch()}
-                />
               ) : (
-                <LoadingBlock />
+                !catalog.isError && <LoadingBlock />
               )}
             </div>
           </form>
@@ -147,7 +148,8 @@ export function RoleFormDialog({ open, role, readOnly, onOpenChange }: Props) {
             <Button
               type="submit"
               form="role-form"
-              disabled={mutation.isPending || !catalog.isSuccess}
+              // A cached catalogue is a real one; with none at all there is nothing to filter the keys by.
+              disabled={mutation.isPending || catalog.data === undefined}
             >
               {role ? t("common.save") : t("common.create")}
             </Button>

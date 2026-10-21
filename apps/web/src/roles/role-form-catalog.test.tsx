@@ -46,6 +46,7 @@ async function openEditor() {
       </I18nProvider>
     </QueryClientProvider>,
   );
+  return client;
 }
 
 const saveButton = () => screen.getByRole("button", { name: ar.common.save });
@@ -79,6 +80,25 @@ describe("the role form while the permission catalogue is missing", () => {
     );
     await openEditor();
     await waitFor(() => expect(saveButton()).toHaveProperty("disabled", false));
+    fireEvent.click(saveButton());
+    await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
+    expect(update.mock.calls[0]?.[2].permissionKeys.length).toBeGreaterThan(0);
+  });
+
+  // MergePilot on PR #98: a failed refresh keeps the cached catalogue, which is still safe to filter by.
+  it("after a good load, a failed refresh keeps the matrix and Save, and offers a retry", async () => {
+    catalog.mockImplementation((...args: Parameters<typeof api.roles.catalog>) =>
+      api.roles.catalog(...args),
+    );
+    const client = await openEditor();
+    await waitFor(() => expect(saveButton()).toHaveProperty("disabled", false));
+    catalog.mockImplementation(down);
+    await client.refetchQueries();
+    expect(await screen.findByText(ar.roles.catalogRefreshError)).toBeTruthy();
+    expect(screen.getByRole("button", { name: ar.common.tryAgain })).toBeTruthy();
+    expect(screen.getByText(ar.roles.matrixTitle)).toBeTruthy();
+    expect(screen.getAllByRole("table").length).toBeGreaterThan(0);
+    expect(saveButton()).toHaveProperty("disabled", false);
     fireEvent.click(saveButton());
     await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
     expect(update.mock.calls[0]?.[2].permissionKeys.length).toBeGreaterThan(0);

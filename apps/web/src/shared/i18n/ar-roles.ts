@@ -28,6 +28,7 @@ export const arRoles = {
     fields: { nameAr: "الاسم (عربي)", nameEn: "الاسم (إنجليزي)" },
     matrixTitle: "الصلاحيات",
     catalogLoadError: "تعذّر تحميل الصلاحيات، لذلك لا يمكن حفظ الدور الآن",
+    catalogRefreshError: "تعذّر تحديث الصلاحيات؛ القائمة المعروضة هي آخر قائمة تم تحميلها",
     groups: {
       core: "إدارة العيادة",
       patients: "موديول المراجعين",
