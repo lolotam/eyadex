@@ -192,11 +192,11 @@ sums only.
 - **CSV** (FIN-18), UTF-8 with a BOM so Excel opens Arabic correctly, comma-separated, RFC 4180 quoting,
   headers in the caller's language (ar or en), amounts in **major units with the currency exponent's
   decimals** (`12.500`) plus a `currency` column, dates `YYYY-MM-DD`. Formula injection is guarded on
-  **free-text cells only** (patient and staff names, invoice, receipt and refund numbers, descriptions,
-  notes): a cell whose first character is `=`, `+`, `-`, `@`, a tab (`\t`) or a carriage return (`\r`) is
-  prefixed with `'`. The exporter's own amount and count columns are written as plain numbers (`-3.000`
-  stays a number, so a negative expected cash or difference still sums in Excel); they are never text from a
-  user.
+  **every text cell** — patient and staff names, document numbers, descriptions, notes, and also the
+  service, branch, method and status labels: a cell whose first character is `=`, `+`, `-`, `@`, a tab
+  (`\t`) or a carriage return (`\r`) is prefixed with `'`. The **only** exemption is the exporter's own
+  numeric amount and count columns, written as plain numbers from `bigint` values (`-3.000` stays a number,
+  so a negative expected cash or difference still sums in Excel); no text ever reaches those columns.
 - **XLSX**: F3-Q5.
 - **PDF**: waits for slice 8g (the F1 PDF renderer, parked to the project end; parent §3.3 and
   `finance-f1-pdf-design.md`). F3 adds no PDF route; the screen offers the browser's print.
@@ -209,23 +209,44 @@ CLAUDE.md §6: anything expected to exceed 200 ms is a worker job.
   These stay under 200 ms with the indexes of §8 for the bounded range of F3-Q6.
 - **Every export is a worker job** — simplest rule, no size guess. `POST /v1/finance-reports/exports`
   stores a request row and returns `202` with its id; the worker builds the file; the screen polls
-  `GET /v1/finance-reports/exports/:id` and downloads when `ready`. (F3-Q6 offers a sync path for small
+  `GET /v1/finance-reports/exports/:id` and downloads when `done`. (F3-Q6 offers a sync path for small
   aggregates instead.)
-- **The worker finds the job through the outbox, the route every worker job uses today.** In the same
-  `withTenant` transaction as the request row, the API writes an `outbox_events` row (0025/0029) with the
-  clinic's `clinic_id`, `event_type = 'finance_report.export_requested'` and a payload of the export id only
-  (no patient field, no parameters). The worker's `OutboxPoller` (`apps/worker/src/shared/outbox-poller.ts`)
-  claims it through `DispatcherOutbox.claimNext` (`packages/db/src/dispatcher.ts`) as `eyadex_dispatcher`,
-  which reads the outbox only; `event-router.ts` routes the type to the export handler, which then opens
-  `withTenant(event.clinicId)` on the `eyadex_app` pool (as `pg-orphan-invitation-canceller.ts` does) and
-  reads the export row and the report data under RLS. The outbox's retry fields (`attempts`,
-  `next_attempt_at`, `failed_at`, 0029) carry the retries. No new role, no `BYPASSRLS`, and the worker never
-  scans `finance_report_exports` without a clinic context.
-- **Expiry uses the same route:** when the file is ready, the handler writes a
-  `finance_report.export_expired` event for the same clinic with `next_attempt_at = expires_at`; its handler
-  deletes the blob and marks the row `expired` inside `withTenant`. Slice 4 confirms that `claimNext` honours
-  `next_attempt_at` on a new row (it does for retries); if it does not, the expiry event is written without
-  a delay and the handler re-queues itself until `expires_at`.
+- **The worker has no job queue library.** `apps/worker` has two mechanisms only: the `OutboxPoller`
+  (`apps/worker/src/shared/outbox-poller.ts`) over `outbox_events` (0025/0029), claimed through
+  `DispatcherOutbox.claimNext` (`packages/db/src/dispatcher.ts`) as `eyadex_dispatcher`; and `PeriodicJob`
+  (`apps/worker/src/shared/periodic-job.ts`) timers. No BullMQ, pg-boss or similar. `claimNext` runs the
+  handler **inside** the claim transaction, which has a 30 s `statement_timeout` and
+  `idle_in_transaction_session_timeout` (`transactionTimeoutMs`, default 30000): a long export there would lose
+  its claim and replay. **The design keeps the outbox as the only durable queue and never builds a file inside
+  a claim.** It adds no queue library, no new role and no `BYPASSRLS`, and the worker never scans
+  `finance_report_exports` without a clinic context.
+- **Step 1 — request (API).** In one `withTenant` transaction: the `finance_report_exports` row (`queued`,
+  `attempt = 0`) and an `outbox_events` row with the clinic's `clinic_id`,
+  `event_type = 'finance_report.export_requested'` and a payload of the export id only (no patient field, no
+  parameters).
+- **Step 2 — the outbox handler is short.** `event-router.ts` routes the type to a handler that, inside
+  `withTenant(event.clinicId)` on the `eyadex_app` pool (as `pg-orphan-invitation-canceller.ts` does),
+  re-checks access (§7.4), sets the row `running` with `attempt = attempt + 1` and
+  `lease_until = now + 10 min`, writes a `finance_report.export_check` outbox event for the same clinic with
+  `next_attempt_at = lease_until`, and returns. The claim commits in milliseconds.
+- **Step 3 — the build runs outside the claim.** After the claim commits, the handler hands `(clinicId,
+exportId, attempt)` to an in-process `FinanceExportRunner` (bounded concurrency, one per worker by default).
+  The runner reads the report in pages, each page its own short `withTenant` transaction, streams the CSV to
+  the blob store at the fixed key `clinic/<clinic_id>/finance-exports/<id>`, then finishes in one short
+  transaction: `UPDATE … SET status = 'done', … WHERE id = $id AND status = 'running' AND attempt = $attempt`,
+  plus the audit row. Any error writes `failed` (with `error_code`) under the same guard.
+- **Step 4 — the check event recovers a lost runner.** Its handler (short, `withTenant`) does nothing when the
+  row is `done` or `failed`; when it is still `running` past `lease_until` (the worker died or the runner
+  hung), it starts step 2 again if `attempt < 3`, else marks it `failed` (`export_gave_up`). Bounded at three
+  attempts.
+- **Idempotent by job id.** The blob key is the export id, so a retry overwrites the same object and never
+  creates a second file; the `attempt` guard makes a stale runner's finish a no-op; a replayed
+  `export_requested` event finds the row no longer `queued` and only acks; the audit row is written only by
+  the finish that wins.
+- **Expiry uses the same route:** the finish writes a `finance_report.export_expired` event with
+  `next_attempt_at = expires_at`; its handler deletes the blob and marks the row `expired` inside
+  `withTenant`. Slice 4 confirms that `claimNext` honours `next_attempt_at` on a new row (it does for
+  retries); if it does not, the check and expiry handlers re-queue themselves until their time.
 
 ### 7.3 The export table (new clinic table)
 
@@ -233,7 +254,7 @@ CLAUDE.md §6: anything expected to exceed 200 ms is a worker job.
 `payments.received_by`), `report` (`daily_takings`/`period_summary`/`by_service`/`by_doctor`/`outstanding`/
 `patient_credit`/`refunds`/`discounts`/`cash_closings`/`own_summary`), `params jsonb` (date range, branch
 ids, language; no patient field), `scope` (`clinic`/`branch`/`own`, the scope the request was granted),
-`status` (`queued`/`running`/`ready`/`failed`/`expired`), `attempts smallint`, `storage_key text NULL`
+`status` (`queued`/`running`/`done`/`failed`/`expired`), `attempt smallint` (0–3), `lease_until timestamptz NULL`, `storage_key text NULL`
 (exactly `clinic/<clinic_id>/finance-exports/<id>`, the 0049 pattern), `byte_size int NULL`, `row_count int
 NULL`, `error_code text NULL`, `created_at`, `started_at NULL`, `finished_at NULL`, `expires_at NULL`.
 Primary key `(clinic_id, id)`, RLS enabled and forced with the standard policy, index
@@ -252,7 +273,7 @@ job by id through its outbox event, §7.2). Not append-only: the worker updates 
   like medical attachments if it holds patient names (R5–R8; ADR-0028 pattern).
 - **Retention:** the file is deleted from the blob store at `expires_at` and the row becomes `expired`
   (F3-Q10). The row itself is never deleted (CLAUDE.md §5).
-- **Audit:** `finance_report.exported` (entity `finance_report_export`, one row when the file is ready)
+- **Audit:** `finance_report.exported` (entity `finance_report_export`, one row, written by the winning finish of §7.2)
   records the report, date range, branch ids, row count — never a name or a reason. For R5–R8 it is
   `patient_access` (the file holds names); for the others `administrative`. 0068 adds the entity to
   `audit_log_patient_events_are_patient_access` where it applies and excludes it from
