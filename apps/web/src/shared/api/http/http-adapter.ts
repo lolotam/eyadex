@@ -3,6 +3,7 @@ import { createHttpAudit } from "./http-audit";
 import { createHttpBranches } from "./http-branches";
 import type { HttpContext } from "./http-context";
 import { createHttpFinance } from "./http-finance";
+import { createHttpPayments } from "./http-payments";
 import { createHttpInvitations } from "./http-invitations";
 import { createHttpMedical } from "./http-medical";
 import { createHttpNotifications } from "./http-notifications";
@@ -45,6 +46,7 @@ export function createHttpApiClient(
     notifications: createHttpNotifications(ctx),
     whatsapp: createHttpWhatsapp(ctx),
     finance: createHttpFinance(ctx),
+    payments: createHttpPayments(ctx),
     audit: createHttpAudit(ctx),
     clinicSettings: createHttpClinicSettings(ctx),
     account: createHttpAccount(ctx),

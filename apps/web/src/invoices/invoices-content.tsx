@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { AlertCircle, Plus, ReceiptText } from "lucide-react";
 import { formatMinor } from "@eyadex/contracts/money";
-import { invoiceStatusSchema } from "@eyadex/contracts/finance";
+import { invoiceStatusSchema, settlementStateSchema } from "@eyadex/contracts/finance";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { errorCodeOf } from "@/shared/api/api-error";
@@ -25,7 +25,7 @@ const PAGE_SIZE = 20;
 const money = (minor: string, exponent: number, currency: string) =>
   `${formatMinor(minor, exponent)} ${currency}`;
 
-/** The invoice list: one toolbar (branch, patient, status, dates, number), cursor pages. */
+/** The invoice list: one toolbar (branch, patient, status, settlement, dates, number), cursor pages. */
 export function InvoicesContent() {
   const { t, tDynamic, pick } = useI18n();
   const { session } = useSession();
@@ -34,6 +34,7 @@ export function InvoicesContent() {
   const [branchId, setBranchId] = useState<string | null>(null);
   const [patient, setPatient] = useState<{ id: string; label: string } | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [settlement, setSettlement] = useState<string | null>(null);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [number, setNumber] = useState("");
@@ -53,6 +54,7 @@ export function InvoicesContent() {
     ...(branchId ? { branchId } : {}),
     ...(patient ? { patientId: patient.id } : {}),
     ...(status ? { status: invoiceStatusSchema.parse(status) } : {}),
+    ...(settlement ? { settlement: settlementStateSchema.parse(settlement) } : {}),
     ...(from ? { from } : {}),
     ...(to ? { to } : {}),
     ...(searchedNumber ? { number: searchedNumber } : {}),
@@ -79,7 +81,7 @@ export function InvoicesContent() {
           )
         }
       />
-      <div className="mb-4 grid gap-2 rounded-lg border bg-card p-3 sm:grid-cols-2 lg:grid-cols-6">
+      <div className="mb-4 grid gap-2 rounded-lg border bg-card p-3 sm:grid-cols-2 lg:grid-cols-7">
         <FilterSelect
           label={t("finance.list.branch")}
           value={branchId}
@@ -99,6 +101,16 @@ export function InvoicesContent() {
             label: t(`finance.status.${s}`),
           }))}
           onChange={(v) => filtered(() => setStatus(v))}
+        />
+        <FilterSelect
+          label={t("payments.list.settlement")}
+          value={settlement}
+          anyLabel={t("payments.list.allSettlements")}
+          options={settlementStateSchema.options.map((s) => ({
+            value: s,
+            label: t(`payments.state.${s}`),
+          }))}
+          onChange={(v) => filtered(() => setSettlement(v))}
         />
         <Input
           type="date"

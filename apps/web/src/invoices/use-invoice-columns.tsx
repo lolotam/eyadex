@@ -3,10 +3,12 @@ import { Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { InvoiceListItem } from "@/shared/api/finance-client";
 import { useI18n } from "@/shared/i18n/i18n-provider";
+import { InvoiceSettlementChip } from "./invoice-settlement-chip";
 import { InvoiceStatusBadge } from "./invoice-status-badge";
 
 /**
- * Number (opens the invoice), patient name (plain text, never a file link), date, branch, source, status, total in the invoice's own currency. The
+ * Number (opens the invoice), patient name (plain text, never a file link), date, branch, source, status,
+ * settlement (empty on a void invoice), total in the invoice's own currency. The
  * branch name comes with the invoice: a doctor's own invoices cross branches outside its membership.
  */
 export function useInvoiceColumns(
@@ -63,6 +65,11 @@ export function useInvoiceColumns(
         id: "status",
         header: t("finance.list.status"),
         cell: ({ row }) => <InvoiceStatusBadge status={row.original.status} />,
+      },
+      {
+        id: "settlement",
+        header: t("payments.list.settlement"),
+        cell: ({ row }) => <InvoiceSettlementChip settlement={row.original.settlement} />,
       },
       {
         id: "total",

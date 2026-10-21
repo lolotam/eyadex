@@ -14,6 +14,7 @@ import { createMockServices } from "./mock-services";
 import { createMockNotifications } from "./mock-notifications";
 import { createMockWhatsapp } from "./mock-whatsapp";
 import { createMockFinance } from "./mock-finance";
+import { createMockPayments } from "./mock-payments";
 import { createMockAuditLog } from "./mock-audit-log";
 import { createMockMedicalAttachments } from "./mock-medical-attachments";
 import { createMockMedicalFiles } from "./mock-medical-files";
@@ -50,6 +51,7 @@ export function createMockApiClient(): ApiClient {
     notifications: createMockNotifications(),
     whatsapp: createMockWhatsapp(),
     finance: createMockFinance(),
+    payments: createMockPayments(),
     audit: createMockAuditLog(),
     clinicSettings: createMockClinicSettings(),
     account: createMockAccount(),

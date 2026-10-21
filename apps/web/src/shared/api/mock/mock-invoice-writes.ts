@@ -28,6 +28,8 @@ import {
 } from "./mock-invoice-rules";
 import { actorReplayKey, requireIdempotencyKey } from "./mock-idempotency";
 import { auditInvoice } from "./mock-finance-audit";
+import { releaseOnChange } from "./mock-invoice-releases";
+import { strip } from "./mock-invoice-view";
 import { parse } from "./mock-medical-access";
 import { inPatientViewReach } from "./mock-patient-rules";
 import { newId, type MockState } from "./mock-store";
@@ -212,14 +214,6 @@ export function issueInvoice(
   return answer;
 }
 
-/** The invoice as the API answers it: without its clinic, with its branch's current names. */
-export function strip(db: MockState, invoice: StoredInvoice): Invoice {
-  const { clinicId, ...rest } = invoice;
-  const branch = db.branches.find((b) => b.id === invoice.branchId && b.clinicId === clinicId);
-  if (!branch) throw new ApiError("not_found");
-  return { ...rest, branchNameAr: branch.nameAr, branchNameEn: branch.nameEn };
-}
-
 /** The invoice for a write: hidden → not_found, seen but out of write reach → forbidden. */
 function lockedInvoice(
   db: MockState,
@@ -258,6 +252,7 @@ export function editInvoice(
   checkServiceLines(db, a.clinic.id, body.lines, invoice.lines);
   const totals = totalsOf(body.lines, body.invoiceDiscount, invoice.taxRateBp);
   const before = strip(db, invoice);
+  const auditCredits = releaseOnChange(db, a, invoice, totals.totalMinor);
   Object.assign(invoice, {
     ...totalsFields(totals),
     invoiceDiscount: body.invoiceDiscount,
@@ -266,6 +261,7 @@ export function editInvoice(
   });
   const after = strip(db, invoice);
   auditInvoice(db, a, "invoice.edited", before, after);
+  auditCredits();
   return after;
 }
 
@@ -281,6 +277,7 @@ export function voidInvoice(
   const invoice = lockedInvoice(db, a, id, "deactivate", version);
   const body = parse(voidInvoiceRequestSchema, raw);
   const before = strip(db, invoice);
+  const auditCredits = releaseOnChange(db, a, invoice, "void");
   Object.assign(invoice, {
     status: "void",
     voidReason: body.reason,
@@ -289,5 +286,6 @@ export function voidInvoice(
   });
   const after = strip(db, invoice);
   auditInvoice(db, a, "invoice.voided", before, after);
+  auditCredits();
   return after;
 }

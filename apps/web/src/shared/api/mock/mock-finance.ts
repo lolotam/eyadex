@@ -19,7 +19,9 @@ import {
 import * as settings from "./mock-finance-settings";
 import { writeClinicAudit } from "./mock-audit";
 import { renderInvoicePdf } from "./mock-invoice-pdf";
-import { draftOf, editInvoice, issueInvoice, strip, voidInvoice } from "./mock-invoice-writes";
+import { draftOf, editInvoice, issueInvoice, voidInvoice } from "./mock-invoice-writes";
+import { strip } from "./mock-invoice-view";
+import { settlementOf } from "./mock-settlement";
 import { parse } from "./mock-medical-access";
 import { resolvePlatformActor, writePlatformAudit } from "./mock-platform-actor";
 import { delay, getState, newId, persist } from "./mock-store";
@@ -77,6 +79,8 @@ export function createMockFinance(): FinanceApi {
       write(() => settings.updateSettings(db(), p, { commercialRegNo })),
     logo: async (p) => (await delay(), settings.readLogo(db(), p)),
     uploadLogo: (p, file) => write(() => settings.uploadLogo(db(), p, file)),
+    setPaymentMethods: (p, paymentMethods) =>
+      write(() => settings.setPaymentMethods(db(), p, { paymentMethods })),
     prefixes: async (p) => (await delay(), settings.listPrefixes(db(), p)),
     setPrefix: (p, branchId, invoicePrefix) =>
       write(() => settings.setPrefix(db(), p, branchId, { invoicePrefix })),
@@ -117,6 +121,7 @@ export function createMockFinance(): FinanceApi {
             (!q.branchId || i.branchId === q.branchId) &&
             (!q.patientId || i.patientId === q.patientId) &&
             (!q.status || i.status === q.status) &&
+            (!q.settlement || settlementOf(db(), i)?.state === q.settlement) &&
             matchesSource(i) &&
             (!q.number || i.number.includes(q.number.toUpperCase())) &&
             (!q.from || day(i.issuedAt) >= q.from) &&
