@@ -33,16 +33,21 @@ positions F1 uses (5a, 7a, 9b).
    position 5a). The platform has no direct `UPDATE` on the currency columns (R1-6, R2-3; SQL 0061).
 3. **Tax.** One rate per clinic in basis points (0–10000, default 0), set by the platform; each invoice
    stores the rate it was totalled with. The tax line shows only when the rate is above zero (FIN-A3).
-4. **Bounds.** A line's quantity is 1–999; a unit price, a line discount amount, a service price and a line
-   total are at most 10¹² minor units; every aggregate is bounded by PostgreSQL `bigint`, and each multiply
-   and add is range-checked against it (R1-2). An invoice has at most 50 lines (`position` 0–49).
+4. **Bounds.** A line's quantity is 1–999; a unit price, a line discount amount and a service price are
+   non-negative and at most 10¹² minor units; a discount percentage is 0–10000 basis points. The totals
+   function rejects a line whose `gross_line` (unit price × quantity) exceeds 10¹² with `validation`
+   (`amount_out_of_range`), so a unit price of 10¹² only fits quantity 1; a negative price or an
+   out-of-range quantity or basis-point value is `invalid_line`. Every aggregate is bounded by PostgreSQL
+   `bigint`, and each multiply and add is range-checked against it (R1-2). An invoice has at most 50 lines (`position` 0–49).
 5. **Totals: one pure function** in `packages/contracts` (`invoice-totals.ts`), used by the API, the web
    mock and the PDF, so a printed total never differs from the stored one (R1-1, R2-1):
    1. `gross_line = unit_price_minor × quantity`.
    2. A line discount is a percentage in basis points (`round_half_up(gross_line × bp / 10000)`) or an
       amount on the whole line (not per unit) that may not exceed `gross_line`;
       `net_line = gross_line − line_discount`.
-   3. An invoice discount (percentage or amount) applies to `Σ net_line` and never exceeds it. It is
+   3. An invoice discount (percentage or amount) applies to `Σ net_line` and never exceeds it. A percentage
+      becomes the amount `D = round_half_up(Σ net_line × bp / 10000)`, the same rounding as a line discount
+      (for example `Σ net_line = 50` at 100 bp gives `D = 1`). It is
       allocated to lines in proportion to `net_line`: each share is `floor(D × net_line / Σ net_line)`, and
       the remainder goes one minor unit at a time to the lines that still have capacity
       (`net_line − share > 0`), in `position` order, cycling until spent. When `Σ net_line = 0`, every share
@@ -106,7 +111,8 @@ positions F1 uses (5a, 7a, 9b).
 
 15. **A private link per send.** `POST /invoices/:id/send` queues a `patient_notifications` row of kind
     `invoice` (the N1/N2 pipeline), identified by a client-generated `send_request_id` that is unique per
-    clinic, so a retry returns the first row and a new press resends. The message carries `/i/<token>`.
+    clinic, so a retry returns the first row and a new press resends. The message carries
+    `${APP_URL}/api/v1/public/invoices/<token>`, which reaches `GET /v1/public/invoices/:token`.
 16. **The token.** 32 random bytes. `invoice_links` keeps the SHA-256 hash for lookup, never the token
     itself, and a sealed copy (`token_sealed`, sealed by the worker with the dedicated key
     `INVOICE_LINK_SEAL_KEY`, bound to clinic, link and notification) that only a retried send re-opens, so
@@ -114,7 +120,7 @@ positions F1 uses (5a, 7a, 9b).
     rotated seal key or a send that proves non-delivery revokes it (`revoked_at`; never deleted). An
     ambiguous failure (a timeout) keeps it until expiry. One invoice can have several live links, one per
     send. The link transaction commits before any network send.
-17. **Public lookup.** `/i/<token>` has its own rate limit and no clinic yet: the API hashes the token and
+17. **Public lookup.** `GET /v1/public/invoices/:token` has its own rate limit and no clinic yet: the API hashes the token and
     calls `invoice_link_lookup(hash)`, a `SECURITY DEFINER` function owned by a `NOLOGIN`, `NOBYPASSRLS` role
     that can read the lookup columns only (never `token_sealed`) and executable by `eyadex_app` only; it
     returns the clinic, invoice and link of a live link, and the API then reads the invoice inside

@@ -101,6 +101,7 @@
 - [x] The platform's audit INSERT policy refuses `appointment` rows too, as its read policy and view do (SQL 0051; 0046 is applied on staging, so it stays unedited)
 - [x] Apply `db/sql/0045`–`0051` to staging, then production, each before the deploy that needs it (orchestrator)
 - [ ] Load ICD-10-CM after 0047 (orchestrator)
+- [x] Fix: FY2027 ICD-10-CM codes with a letter second (`QA0…`) are accepted (PR #75)
 - [ ] After the release deploy, run `db/maintenance/medical-release-catch-up.sql` on staging, then production, before the platform switches `medical` on for any clinic (orchestrator)
 - [x] Drop the plain `civil_id` column: SQL 0052 (refuses while a plain number remains) and code that never names it; the backfill command is removed (ADR-0028, R1-6)
 - [x] Apply `db/sql/0052` on staging, then production, each only AFTER the deploy whose code no longer names `civil_id` is live there: the older API still reads and writes the column and breaks once it is gone (orchestrator)
@@ -111,11 +112,10 @@
 - [x] N1: patient email notifications — settings, patient email and message language, the `patient_notifications` ledger, scanner and worker send handler (ADR-0031, SQL 0053–0056, PR #72)
 - [x] N2: patient messages over WhatsApp — Evolution QR link and Meta Business coexistence (ADR-0032, SQL 0057–0058, PR #73)
 - [x] N3: WhatsApp delivered/read through the Meta status webhook, and Embedded Signup (SQL 0059, PR #76)
-- [x] Fix: FY2027 ICD-10-CM codes with a letter second (`QA0…`) are accepted (PR #75)
 
 ## Post-MVP phase 4 — finance (`docs/specs/finance-design.md`)
 
-- [x] F1: service and per-doctor prices, invoices and lines, gap-free numbers per branch and year, void, send by email or WhatsApp, the patient's invoice link, platform revenue totals only (ADR-0033, SQL 0060–0063, PR #78)
+- [x] F1: service and per-doctor prices, invoices and lines, gap-free numbers per branch and year, void, send by email or WhatsApp (the send queue and the link token storage; the PDF the link opens is deferred with 8g, so the link answers 503 until then), platform revenue totals only (ADR-0033, SQL 0060–0063, PR #78)
 - [x] F1 follow-ups: backend and web (PR #84), the invoice list names each patient (PR #85), review follow-ups (PR #87)
 - [ ] F1: the invoice PDF (slice 8g, `docs/specs/finance-f1-pdf-design.md`) — deferred to the project end by the owner
 - [x] F2 design: manual payments, credit, refunds and cash closing, with ADR-0034 (PR #89)
