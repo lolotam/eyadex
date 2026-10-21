@@ -1,21 +1,25 @@
 import type { InvoiceListQuery, invoiceListItemSchema } from "@eyadex/contracts/finance";
+import type { PatientMoney } from "@eyadex/contracts/settlement";
 import type { Tx } from "@eyadex/db";
 import { sql, type SQL } from "drizzle-orm";
 import type { z } from "zod";
 
 import { ApiError } from "../../../shared/errors.ts";
+import { settlementView } from "../domain/settlement-view.ts";
+import { readInvoiceMoney } from "../persistence/pg-patient-money.ts";
 import type { InvoiceSource } from "../persistence/pg-invoice-store.ts";
 import type { BillingPatientReader } from "../ports/billing-patients.ts";
+import { fromCursor, toCursor } from "./list-cursor.ts";
 
 type InvoiceListItem = z.infer<typeof invoiceListItemSchema>;
 
-// The opaque cursor is the last id without its dashes: ids are UUID v7, so id order is issue order.
-const toCursor = (id: string) => id.replaceAll("-", "");
-const fromCursor = (cursor: string): string | null => {
-  if (!/^[0-9a-f]{32}$/.test(cursor)) return null;
-  const at = [8, 12, 16, 20];
-  return [0, ...at].map((start, i) => cursor.slice(start, at[i])).join("-");
-};
+// The money live on the invoice: the allocations on it minus the credits released from those
+// allocations (spec §4.3). The shared function derives the same number from the movements.
+const PAID = sql`((SELECT coalesce(sum(a.amount_minor), 0) FROM payment_allocations a
+        WHERE a.clinic_id = i.clinic_id AND a.invoice_id = i.id)
+  - (SELECT coalesce(sum(c.amount_minor), 0) FROM patient_credits c
+        JOIN payment_allocations a ON a.clinic_id = c.clinic_id AND a.id = c.origin_allocation_id
+        WHERE a.clinic_id = i.clinic_id AND a.invoice_id = i.id))`;
 
 const iso = (column: SQL) =>
   sql`to_char(${column} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`;
@@ -45,6 +49,17 @@ function filters(
   }
   if (query.number !== undefined) {
     where.push(sql`i.number ILIKE ${`%${escapeLike(query.number)}%`}`);
+  }
+  // The settlement filter runs before the page is cut, so it restates the state rule in SQL; the
+  // settlement of each row itself still comes from the shared function (spec §4.6).
+  if (query.settlement === "unpaid") {
+    where.push(sql`i.status = 'issued' AND ${PAID} = 0 AND i.total_minor > 0`);
+  }
+  if (query.settlement === "partly_paid") {
+    where.push(sql`i.status = 'issued' AND ${PAID} > 0 AND ${PAID} < i.total_minor`);
+  }
+  if (query.settlement === "paid") {
+    where.push(sql`i.status = 'issued' AND ${PAID} = i.total_minor`);
   }
   // The days are the clinic's own (spec §3.3), read in its timezone.
   const day = sql`(i.issued_at AT TIME ZONE c.timezone)::date`;
@@ -77,7 +92,7 @@ interface Row {
   version: number;
 }
 
-const toItem = (r: Row, patientName: string): InvoiceListItem => ({
+const toItem = (r: Row, patientName: string, money: PatientMoney): InvoiceListItem => ({
   id: r.id,
   number: r.number,
   status: r.status,
@@ -96,6 +111,7 @@ const toItem = (r: Row, patientName: string): InvoiceListItem => ({
   taxRateBp: r.tax_rate_bp,
   taxMinor: r.tax_minor,
   totalMinor: r.total_minor,
+  settlement: settlementView(money, { id: r.id, status: r.status, totalMinor: r.total_minor }),
   invoiceDiscount: r.invoice_discount,
   voidReason: r.void_reason,
   voidedAt: r.voided_at,
@@ -144,11 +160,18 @@ export async function listInvoices(
     clinicId,
     pageRows.map((row) => row.patient_id),
   );
-  const items = pageRows.map((row) => {
+  // The name is checked before the money is read: a page row without a name fails the page whole.
+  const named = pageRows.map((row) => {
     const name = names.get(row.patient_id);
     if (name === undefined) throw new ApiError("unknown");
-    return toItem(row, name);
+    return { row, name };
   });
+  const money = await readInvoiceMoney(
+    tx,
+    clinicId,
+    named.map(({ row }) => row.id),
+  );
+  const items = named.map(({ row, name }) => toItem(row, name, money));
   const last = items.at(-1);
   return {
     items,

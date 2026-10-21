@@ -48,6 +48,9 @@ export const arAudit = {
       ...arMedicalAuditEntities,
       invoice: "فاتورة",
       invoice_link: "رابط فاتورة",
+      payment: "دفعة",
+      patient_credit: "رصيد المراجع",
+      payment_methods: "طرق الدفع",
     },
     actions: {
       branch: {
@@ -141,6 +144,9 @@ export const arAudit = {
         pdf_opened: "فتح الفاتورة PDF",
         link_opened: "فتح المراجع رابط الفاتورة",
       },
+      payment: { recorded: "تسجيل دفعة" },
+      credit: { applied: "استخدام رصيد المراجع", released: "تحويل مبلغ لرصيد المراجع" },
+      payment_methods: { changed: "تعديل طرق الدفع" },
       ...arMedicalAuditActions,
     },
     fields: {

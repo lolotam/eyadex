@@ -50,6 +50,7 @@ export const platformAuditEntitySchema = z.enum([
   "platform_account",
   "platform_settings",
   "clinic_mail_provider",
+  "payment_methods",
 ]);
 export type PlatformAuditEntity = z.infer<typeof platformAuditEntitySchema>;
 
@@ -180,6 +181,11 @@ export const CLINIC_AUDIT_ACTIONS = [
   "invoice.voided",
   "invoice.pdf_opened",
   "invoice.link_opened",
+  // Finance F2 (spec §4.6): money in, patient credit, and the clinic's payment methods.
+  "payment.recorded",
+  "credit.applied",
+  "credit.released",
+  "payment_methods.changed",
 ] as const;
 
 /** Actions only the platform writes (its own log). */
@@ -206,9 +212,12 @@ export const PLATFORM_ONLY_AUDIT_ACTIONS = [
  * configuration (services, schedules, staff time off) — ADR-0026 §8 — the appointments, which name
  * patients (0043 keeps their rows out of the platform's view as well), and the medical module's
  * visits, medical files, attachments and medicines list (P2 R3-4), and the invoices (finance F1, 0060).
+ *
+ * A payment or a credit names a patient, so the platform never reads it; `payment_methods.` does not
+ * match `payment\.`, so the payment-methods change stays a platform-visible clinic setting (spec §4.6).
  */
 const CLINIC_ONLY_ACTION =
-  /^(patient|service|schedule|time_off|appointment|visit|medical_profile|attachment|medicine|invoice)\./;
+  /^(patient|service|schedule|time_off|appointment|visit|medical_profile|attachment|medicine|invoice|payment|credit)\./;
 
 /** What the platform audit screen can show: its own events plus clinic administrative ones. */
 export const PLATFORM_AUDIT_ACTIONS = [

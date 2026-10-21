@@ -142,7 +142,7 @@ const importsOfMedical = (module: string): string[] =>
       ([, target = ""]) => `${file.slice(modulesDir.length)}: ${target}`,
     ),
   );
-// Finance F1 (plan Task 8): billing names its own tables, the price column of clinic_services, and
+// Finance F1 and F2 (plan Task 8): billing names its own tables, the price column of clinic_services, and
 // branches and clinics for the invoice prefix and the currency; patients, appointments, visits and members
 // come through its ports, bound in billing.module.ts to the adapters their owners export from index.ts.
 const BILLING_RELATIONS = [
@@ -155,6 +155,17 @@ const BILLING_RELATIONS = [
   "invoice_links",
   // 0062: the patient link lookup, SECURITY DEFINER over invoice_links.
   "invoice_link_lookup",
+  // Finance F2 (0064): the payment tables billing owns (spec §4.2).
+  "clinic_payment_methods",
+  "receipt_sequences",
+  "payments",
+  "payment_allocations",
+  "patient_credits",
+  "refunds",
+  "refund_sources",
+  "branch_cash_drawers",
+  // The jsonb set function its id lists read.
+  "jsonb_array_elements_text",
   "branches",
   "clinics",
 ];

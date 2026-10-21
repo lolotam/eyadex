@@ -63,6 +63,13 @@ describe("finance settings", () => {
       taxRateBp: 0,
       commercialRegNo: null,
       hasLogo: false,
+      // FIN-11: the four methods in the fixed order; a method with no row is still on.
+      paymentMethods: [
+        { method: "cash", enabled: true },
+        { method: "knet", enabled: true },
+        { method: "bank_transfer", enabled: true },
+        { method: "other", enabled: true },
+      ],
     });
   });
 

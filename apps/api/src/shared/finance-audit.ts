@@ -1,17 +1,23 @@
 import {
-  assertInvoiceAuditSnapshotShape,
-  type InvoiceAuditSnapshot,
+  assertFinanceAuditSnapshotShape,
+  type FinanceAuditSnapshot,
 } from "@eyadex/contracts/finance-audit-snapshot";
 export { invoiceAuditSnapshot } from "@eyadex/contracts/finance-audit-snapshot";
 export type {
+  CreditAuditSnapshot,
   DiscountSnapshot,
+  FinanceAuditSnapshot,
   InvoiceAuditSnapshot,
+  PaymentAuditSnapshot,
 } from "@eyadex/contracts/finance-audit-snapshot";
 import type { Tx } from "@eyadex/db";
 import { sql } from "drizzle-orm";
 
-/** كيانات المالية في سجل العيادة (0060): صفوفها وصول لملف مراجع، والمنصة عمرها ما بتشوفها. */
-export type FinanceAuditEntity = "invoice" | "invoice_link";
+/**
+ * كيانات المالية في سجل العيادة (0060): صفوفها وصول لملف مراجع، والمنصة عمرها ما بتشوفها. الدفعات
+ * والرصيد كمان وصول لملف مراجع (0064)، وطرق الدفع ماتوصلش هنا لأنها إعداد عيادة.
+ */
+export type FinanceAuditEntity = "invoice" | "invoice_link" | "payment" | "patient_credit";
 
 /** صف مالي في سجل العيادة: التصنيف `patient_access` دايمًا (0060 بيرفض غيره للكيانات دي). */
 export interface FinanceAccessEntry {
@@ -23,8 +29,8 @@ export interface FinanceAccessEntry {
   readonly entityId: string;
   /** فرع الفاتورة، عشان فلاتر السجل. */
   readonly branchId: string;
-  readonly before: InvoiceAuditSnapshot | null;
-  readonly after: InvoiceAuditSnapshot | null;
+  readonly before: FinanceAuditSnapshot | null;
+  readonly after: FinanceAuditSnapshot | null;
   /** طول سبب الإلغاء أو الخصم بس، عمر النص نفسه ما يتخزن. */
   readonly reasonLength?: number;
   /** فتح من رابط المراجع (R2-7): الفاعل مش موظف، فالصف بيقول ده صراحة. */
@@ -41,8 +47,8 @@ export interface FinanceAccessEntry {
  * @returns بيخلص لما الصف يتكتب
  */
 export async function writeFinanceAudit(tx: Tx, entry: FinanceAccessEntry): Promise<void> {
-  assertInvoiceAuditSnapshotShape(entry.before);
-  assertInvoiceAuditSnapshotShape(entry.after);
+  assertFinanceAuditSnapshotShape(entry.entityType, entry.before);
+  assertFinanceAuditSnapshotShape(entry.entityType, entry.after);
   const details = {
     before: entry.before,
     after: entry.after,

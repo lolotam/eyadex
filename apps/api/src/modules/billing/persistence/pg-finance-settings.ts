@@ -3,6 +3,9 @@ import type { CurrencyCode } from "@eyadex/contracts/money";
 import type { Tx } from "@eyadex/db";
 import { sql } from "drizzle-orm";
 
+import { paymentMethodSettings } from "../domain/payment-rules.ts";
+import { paymentMethodRows } from "./pg-payment-writes.ts";
+
 // SQL on the clinic columns finance owns (0060: commercial_reg_no, logo_blob_key) and the branches'
 // invoice prefix. Every function runs inside the caller's withTenant(clinicId).
 
@@ -23,6 +26,8 @@ export async function readFinanceSettings(tx: Tx, clinicId: string): Promise<Fin
     taxRateBp: row!.tax_rate_bp,
     commercialRegNo: row!.commercial_reg_no,
     hasLogo: row!.logo_blob_key !== null,
+    // FIN-11: the four methods in the fixed order; a method with no row is still on.
+    paymentMethods: paymentMethodSettings(await paymentMethodRows(tx, clinicId)),
   };
 }
 
@@ -50,6 +55,18 @@ export async function setLogoKey(tx: Tx, clinicId: string, key: string, now: Dat
     sql`UPDATE clinics SET logo_blob_key = ${key}, updated_at = ${now.toISOString()}::timestamptz
         WHERE id = ${clinicId}`,
   );
+}
+
+/**
+ * The clinic row locked FOR UPDATE (ADR-0027 item 11): a clinic settings writer takes it and nothing
+ * after it, so two changes of the same setting run one after the other and each one audits the result
+ * of the other.
+ *
+ * @param tx the transaction inside the caller's withTenant(clinicId)
+ * @param clinicId the clinic
+ */
+export async function lockClinicRow(tx: Tx, clinicId: string): Promise<void> {
+  await tx.execute(sql`SELECT id FROM clinics WHERE id = ${clinicId} FOR UPDATE`);
 }
 
 // A branch is locked once it has issued an invoice (spec §8 rule 9); the used prefix records it too.

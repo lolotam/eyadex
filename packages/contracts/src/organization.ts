@@ -63,6 +63,10 @@ export const clinicAuditEntitySchema = z.enum([
   // Finance F1 (0060): patient_access rows, the clinic log only, like the medical entities.
   "invoice",
   "invoice_link",
+  // Finance F2 (0064): payments and credits are patient access; the payment methods are a setting.
+  "payment",
+  "patient_credit",
+  "payment_methods",
 ]);
 
 export const clinicAuditEntrySchema = z.object({

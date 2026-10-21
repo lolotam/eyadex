@@ -2,7 +2,8 @@
 
 - Status: accepted (owner decision 2026-10-10, slice A2)
 - Date: 2026-10-10
-- Amended: 2026-10-20 (finance F2, slice 2): items 0, 7a, 9a, 9b, 9c and 12 (finance spec §4.4, ADR-0034).
+- Amended: 2026-10-20 (finance F2, slice 2): items 0, 7a, 9a, 9b, 9c and 12 (finance spec §4.4, ADR-0034);
+  2026-10-21 (finance F2, slice 4): item 5a and the issue and edit membership locks (spec §8d R3-4).
 
 ## Context
 
@@ -33,6 +34,10 @@ no other path locks that row)
 4. `appointments:<clinic>:<membership>` (advisory, the provider lock; several are taken sorted by
    membership id — `lockProviders`)
 5. an `appointments` row
+
+   - **5a** — `finance:<clinic>` (advisory, finance F1: a price or currency write, and an invoice issue
+     while the clinic has none)
+
 6. a membership row, then an invitation row
 7. a patient row
 
@@ -72,9 +77,10 @@ the branch row. Finance F2: a payment 0 → 7 → 7a → 9 (`FOR SHARE`, the pre
 a credit use 0 → 7 → 7a; an invoice edit or void with releases 7 → 7a; a refund 0 → 7 → 7a → 9 → 9a
 (cash only) → 9c (the refund series); a cash closing 0 → 9 → 9a, with no patient lock, so it never
 waits on a payment that waits on it. F2's rows reference no membership (`received_by`, `refunded_by`
-and `closed_by` have no foreign key). F1's invoice issue and edit take a membership `KEY SHARE` through
-their lines after the branch row; finance slice 4 moves those membership locks before the patient row
-(spec §8d R3-4).
+and `closed_by` have no foreign key). F1's invoice issue takes 0 → 5 (the appointment it bills, if any) →
+5a (the clinic's first issue only) → 6 (the line doctors' membership rows, `FOR KEY SHARE`, by id) → 7 →
+9 (`FOR SHARE`) → 9b, and an edit 6 → 7 → 7a, so the lines' foreign keys find their membership locks
+already held (spec §8d R3-4).
 
 ## Consequences
 

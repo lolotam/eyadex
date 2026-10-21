@@ -50,4 +50,5 @@ export {
 export { PgMemberNames } from "./persistence/pg-member-names.ts";
 export { PgRoleNames } from "./persistence/pg-role-names.ts";
 export { PgProviderDirectory, type ProviderRow } from "./persistence/pg-provider-directory.ts";
+export { PgBillingLineDoctors } from "./persistence/pg-billing-line-doctors.ts";
 export { PublicRateLimitGuard } from "./auth/public-rate-limit.guard.ts";
