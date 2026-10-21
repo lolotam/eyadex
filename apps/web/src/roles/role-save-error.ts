@@ -1,6 +1,6 @@
 import type { WebErrorCode } from "@eyadex/contracts/common";
 import { PERMISSION_CATALOG } from "@eyadex/contracts/permissions";
-import { uncoveredWrite } from "@eyadex/contracts/roles";
+import { permissionKeysProblem, uncoveredWrite } from "@eyadex/contracts/roles";
 import { ApiError, errorCodeOf } from "@/shared/api/api-error";
 
 export type RoleSaveError = {
@@ -25,11 +25,13 @@ export function roleSaveError(
   const details = error instanceof ApiError ? error.details : {};
   const named = details["module"];
   if (typeof named === "string") return { code, module: named, details };
-  if (code !== "validation" || uncoveredWrite(sent.filter((k) => shown.has(k)))) {
+  // The API reports a contract refusal only as `validation`; it ran the same rules on the same keys, so
+  // they say which one it was. Only the view rule on a key the form does not show is relabelled.
+  if (code !== "validation" || permissionKeysProblem(sent) !== "needsView")
     return { code, details };
-  }
   const gap = uncoveredWrite(sent);
-  if (gap === undefined) return { code, details };
+  const shownGap = uncoveredWrite(sent.filter((k) => shown.has(k)));
+  if (gap === undefined || shown.has(gap) || shownGap) return { code, details };
   const module = PERMISSION_CATALOG.find((p) => p.key === gap)?.module ?? "core";
   return { code: "role_hidden_keys_invalid", module, details };
 }

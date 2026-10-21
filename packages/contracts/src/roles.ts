@@ -38,26 +38,28 @@ export const permissionKeysSchema = z
   .array(z.string())
   .max(PERMISSION_CATALOG.length)
   .superRefine((keys, ctx) => {
-    for (const key of keys) {
-      if (!CATALOG_KEYS.has(key)) {
-        ctx.addIssue({ code: "custom", message: "validation.unknownPermission" });
-        return;
-      }
-    }
-    for (const resource of resourceSchema.options) {
-      for (const action of actionSchema.options) {
-        const scopes = keys.filter((k) => k.startsWith(`${action}:${resource}:`));
-        if (scopes.length > 1) {
-          ctx.addIssue({ code: "custom", message: "validation.oneScope" });
-          return;
-        }
-      }
-    }
-    if (uncoveredWrite(keys) !== undefined) {
-      ctx.addIssue({ code: "custom", message: "validation.needsView" });
-    }
+    const problem = permissionKeysProblem(keys);
+    if (problem) ctx.addIssue({ code: "custom", message: `validation.${problem}` });
   })
   .transform((keys) => [...new Set(keys)]);
+
+/** The whole-set rules of `permissionKeysSchema`, in the order it checks them. */
+export type PermissionKeysProblem = "unknownPermission" | "oneScope" | "needsView";
+
+/**
+ * The first whole-set rule a key set breaks, as `permissionKeysSchema` reports it. Exported so a client can
+ * tell which rule refused a request the API reports only as `validation`, without copying the rules.
+ */
+export function permissionKeysProblem(keys: readonly string[]): PermissionKeysProblem | null {
+  if (keys.some((key) => !CATALOG_KEYS.has(key))) return "unknownPermission";
+  for (const resource of resourceSchema.options) {
+    for (const action of actionSchema.options) {
+      const scopes = keys.filter((k) => k.startsWith(`${action}:${resource}:`));
+      if (scopes.length > 1) return "oneScope";
+    }
+  }
+  return uncoveredWrite(keys) === undefined ? null : "needsView";
+}
 
 /**
  * The first write key with no view that reaches it, if any. Any write on a resource needs view on it too, so
