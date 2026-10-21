@@ -18,6 +18,7 @@ import { newId, type MockState } from "./mock-store";
  * @param a the actor
  * @param invoice the invoice before the change
  * @param change the new total of an edit, or "void"
+ * @param now the instant of the change
  * @returns writes the audit rows of the credits
  */
 export function releaseOnChange(
@@ -25,13 +26,13 @@ export function releaseOnChange(
   a: FinanceAccess,
   invoice: StoredInvoice,
   change: bigint | "void",
+  now: Date = new Date(),
 ): () => void {
   const money = moneyOf(db, invoice.clinicId, invoice.patientId);
   const target = settlementInvoice(invoice);
   const releases: Release[] = settle(() =>
     change === "void" ? planVoidRelease(money, target) : planEditRelease(money, target, change),
   );
-  const now = new Date();
   const credits: StoredCredit[] = releases.map((r) => ({
     clinicId: invoice.clinicId,
     id: newId(),

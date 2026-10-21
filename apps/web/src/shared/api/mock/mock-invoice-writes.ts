@@ -277,7 +277,7 @@ export function voidInvoice(
   const invoice = lockedInvoice(db, a, id, "deactivate", version);
   const body = parse(voidInvoiceRequestSchema, raw);
   const before = strip(db, invoice);
-  const auditCredits = releaseOnChange(db, a, invoice, "void");
+  const auditCredits = releaseOnChange(db, a, invoice, "void", now);
   Object.assign(invoice, {
     status: "void",
     voidReason: body.reason,
