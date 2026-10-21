@@ -1,0 +1,47 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { Invoice, PaymentMethod } from "@eyadex/contracts/finance";
+import { ar } from "@/shared/i18n/ar";
+import { I18nProvider } from "@/shared/i18n/i18n-provider";
+import { RecordPaymentForm } from "./record-payment-dialog";
+
+const h = vi.hoisted(() => ({ recordPayment: vi.fn() }));
+vi.mock("@/shared/persona/persona-provider", () => ({
+  usePersona: () => ({ persona: { kind: "clinic_admin", clinicId: "c", memberId: null } }),
+}));
+vi.mock("@/shared/api/api-provider", () => ({
+  useApi: () => ({ payments: { recordPayment: h.recordPayment } }),
+}));
+
+const invoice = {
+  id: "00000000-0000-7000-8000-00000000000a",
+  number: "TT-2026-000001",
+  status: "issued",
+  currency: "KWD",
+  currencyExponent: 3,
+  settlement: { state: "unpaid", paidMinor: "0", owedMinor: "4000" },
+} as unknown as Invoice;
+
+const client = new QueryClient();
+const form = (methods: PaymentMethod[]) => (
+  <QueryClientProvider client={client}>
+    <I18nProvider>
+      <RecordPaymentForm invoice={invoice} methods={methods} onDone={() => undefined} />
+    </I18nProvider>
+  </QueryClientProvider>
+);
+
+afterEach(() => cleanup());
+
+// PR #103 review: the form opened on one set of switches; a method turned off since then is never sent.
+describe("the record-payment form's method", () => {
+  it("falls back to the first enabled method when the selected one is no longer on", async () => {
+    h.recordPayment.mockResolvedValue({ payment: { receiptNumber: "TT-R-2026-000001" } });
+    const view = render(form(["cash", "knet"]));
+    view.rerender(form(["knet", "bank_transfer"]));
+    fireEvent.click(screen.getByRole("button", { name: ar.payments.dialog.submit }));
+    await waitFor(() => expect(h.recordPayment).toHaveBeenCalledTimes(1));
+    expect(h.recordPayment.mock.calls[0]![2]).toMatchObject({ method: "knet" });
+  });
+});

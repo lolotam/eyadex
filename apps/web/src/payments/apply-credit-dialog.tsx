@@ -10,13 +10,18 @@ import { errorKeyOf } from "@/shared/api/api-error";
 import { useApi } from "@/shared/api/api-provider";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { usePersona } from "@/shared/persona/persona-provider";
-import { useIdempotencyKey } from "./idempotency-key";
+import { useIdempotencyKey, usePendingReport } from "./idempotency-key";
 import { checkAmount, smallerMinor } from "./payment-amount";
 
-type Props = { invoice: Invoice; creditMinor: string; onDone: () => void };
+type Props = {
+  invoice: Invoice;
+  creditMinor: string;
+  onDone: () => void;
+  onPendingChange?: (pending: boolean) => void;
+};
 
 /** Spends the patient's credit on this invoice, mounted once per open; prefilled with the smaller amount. */
-export function ApplyCreditForm({ invoice, creditMinor, onDone }: Props) {
+export function ApplyCreditForm({ invoice, creditMinor, onDone, onPendingChange }: Props) {
   const { t, tDynamic } = useI18n();
   const api = useApi();
   const { persona } = usePersona();
@@ -35,6 +40,7 @@ export function ApplyCreditForm({ invoice, creditMinor, onDone }: Props) {
     },
     onError: (e) => form.setError("root", { message: tDynamic(`errors.${errorKeyOf(e)}`) }),
   });
+  usePendingReport(save.isPending, onPendingChange);
   const submit = form.handleSubmit((v) => {
     const checked = checkAmount(v.amount, exponent, { owedMinor: owed, creditMinor });
     if (!checked.ok) {

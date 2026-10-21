@@ -35,6 +35,7 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
     invoice: Invoice;
     credit: string;
   } | null>(null);
+  const [pending, setPending] = useState(false);
   const at = (action: "view" | "create") =>
     !!session && canAtBranch(session, action, "payments", invoice.branchId);
   const mayView = at("view");
@@ -46,18 +47,26 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
   if (!mayView && !mayPay) return null;
   const format = (minor: string) =>
     `${formatMinor(minor, invoice.currencyExponent)} ${invoice.currency}`;
-  // Absent switches mean on: the API's own "no saved switch = on" rule (spec §4.6).
+  // Payment entry waits for the clinic's switches: while they load, or after a load error, it is off. A
+  // forbidden read or an answer without the field offers all four, the API's own "no saved switch = on"
+  // rule (spec §4.6); the API still refuses a disabled method.
+  const forbidden = settings.isError && errorKeyOf(settings.error) === "forbidden";
+  const settingsFailed = settings.isError && !forbidden;
+  const entryOff = settings.isLoading || settingsFailed;
   const methods = (settings.data?.paymentMethods ?? [])
     .filter((m) => m.enabled)
     .map((m) => m.method);
   const enabled = settings.data?.paymentMethods
     ? methods
     : (["cash", "knet", "bank_transfer", "other"] as const).slice();
-  const done = () => {
-    setOpen(null);
+  // A late answer closes only the dialog it was sent from, never one opened after it.
+  const done = (opened: typeof open) => {
+    setOpen((current) => (current === opened ? null : current));
     onChanged();
     refreshPayments();
   };
+  // While a request is in flight the dialog stays open, so its form keeps the Idempotency-Key.
+  const hold = (e: Event) => pending && e.preventDefault();
   return (
     <section className="mt-6 flex flex-col gap-3" aria-labelledby="invoice-payment-title">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -66,7 +75,11 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
         </h2>
         <div className="flex flex-wrap gap-2">
           {mayPay && (
-            <Button size="sm" onClick={() => setOpen({ kind: "pay", invoice, credit })}>
+            <Button
+              size="sm"
+              disabled={entryOff}
+              onClick={() => setOpen({ kind: "pay", invoice, credit })}
+            >
               <Banknote className="size-4" />
               {t("payments.panel.record")}
             </Button>
@@ -75,6 +88,7 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
             <Button
               size="sm"
               variant="outline"
+              disabled={entryOff}
               onClick={() => setOpen({ kind: "credit", invoice, credit })}
             >
               <Wallet className="size-4" />
@@ -83,6 +97,14 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
           )}
         </div>
       </div>
+      {mayPay && settingsFailed && (
+        <StatusPanel
+          icon={AlertCircle}
+          title={t("payments.panel.settingsError")}
+          body={tDynamic(`errors.${errorKeyOf(settings.error)}`)}
+          action={<Button onClick={() => void settings.refetch()}>{t("common.tryAgain")}</Button>}
+        />
+      )}
       {mayView &&
         (query.isError ? (
           <StatusPanel
@@ -106,8 +128,8 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
         ) : (
           <div className="h-16 animate-pulse rounded-md bg-muted" aria-busy="true" />
         ))}
-      <Dialog open={open !== null} onOpenChange={(o) => !o && setOpen(null)}>
-        <DialogContent>
+      <Dialog open={open !== null} onOpenChange={(o) => !o && !pending && setOpen(null)}>
+        <DialogContent onEscapeKeyDown={hold} onInteractOutside={hold}>
           <DialogHeader>
             <DialogTitle>
               {t(
@@ -121,10 +143,20 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
             </DialogTitle>
           </DialogHeader>
           {open?.kind === "pay" && (
-            <RecordPaymentForm invoice={open.invoice} methods={enabled} onDone={done} />
+            <RecordPaymentForm
+              invoice={open.invoice}
+              methods={enabled}
+              onDone={() => done(open)}
+              onPendingChange={setPending}
+            />
           )}
           {open?.kind === "credit" && (
-            <ApplyCreditForm invoice={open.invoice} creditMinor={open.credit} onDone={done} />
+            <ApplyCreditForm
+              invoice={open.invoice}
+              creditMinor={open.credit}
+              onDone={() => done(open)}
+              onPendingChange={setPending}
+            />
           )}
         </DialogContent>
       </Dialog>

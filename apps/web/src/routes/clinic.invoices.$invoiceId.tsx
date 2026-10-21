@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { InvoicePage } from "@/invoices/invoice-page";
 import { InvoicePaymentPanel } from "@/payments/invoice-payment-panel";
+import { useRefreshPayments } from "@/payments/payment-queries";
 import { pageHead } from "@/shared/seo/page-head";
 
 export const Route = createFileRoute("/clinic/invoices/$invoiceId")({
@@ -11,9 +12,11 @@ export const Route = createFileRoute("/clinic/invoices/$invoiceId")({
 // ADR-0030: the route composes the two areas; invoices/ and payments/ never import each other.
 function InvoiceRoute() {
   const { invoiceId } = Route.useParams();
+  const refreshPayments = useRefreshPayments();
   return (
     <InvoicePage
       invoiceId={invoiceId}
+      onInvoiceChanged={refreshPayments}
       paymentPanel={(invoice, refresh) => (
         <InvoicePaymentPanel invoice={invoice} onChanged={refresh} />
       )}

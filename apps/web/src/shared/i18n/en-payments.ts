@@ -9,6 +9,7 @@ export const enPayments = {
       movements: "Movements",
       noMovements: "No payments yet",
       loadError: "Could not load the payments",
+      settingsError: "Could not load the enabled payment methods",
       record: "Record payment",
       useCredit: "Use credit",
     },

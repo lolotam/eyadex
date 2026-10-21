@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 export type KeyedRequest = { fingerprint: string; key: string } | null;
 
@@ -22,4 +22,15 @@ export function useIdempotencyKey(): (request: unknown) => string {
     held.current = keyFor(held.current, JSON.stringify(request), () => crypto.randomUUID());
     return held.current.key;
   }, []);
+}
+
+/**
+ * Tells the dialog owner whether the form's request is in flight, so it can refuse to close: closing
+ * would drop the held key, and a resubmit with a new key could record the same payment twice.
+ */
+export function usePendingReport(pending: boolean, report?: (pending: boolean) => void): void {
+  useEffect(() => {
+    report?.(pending);
+  }, [pending, report]);
+  useEffect(() => () => report?.(false), [report]);
 }

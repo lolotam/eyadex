@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -17,17 +18,22 @@ import { errorKeyOf } from "@/shared/api/api-error";
 import { useApi } from "@/shared/api/api-provider";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { usePersona } from "@/shared/persona/persona-provider";
-import { useIdempotencyKey } from "./idempotency-key";
+import { useIdempotencyKey, usePendingReport } from "./idempotency-key";
 import { checkAmount } from "./payment-amount";
 
 type Values = { method: PaymentMethod; amount: string; reference: string };
-type Props = { invoice: Invoice; methods: PaymentMethod[]; onDone: () => void };
+type Props = {
+  invoice: Invoice;
+  methods: PaymentMethod[];
+  onDone: () => void;
+  onPendingChange?: (pending: boolean) => void;
+};
 
 /**
  * The record-payment form, mounted once per open: the enabled methods only, the amount prefilled with the
  * balance due, an optional reference. Refused before sending above the balance (F2-Q1).
  */
-export function RecordPaymentForm({ invoice, methods, onDone }: Props) {
+export function RecordPaymentForm({ invoice, methods, onDone, onPendingChange }: Props) {
   const { t, tDynamic } = useI18n();
   const api = useApi();
   const { persona } = usePersona();
@@ -49,6 +55,13 @@ export function RecordPaymentForm({ invoice, methods, onDone }: Props) {
     },
     onError: (e) => form.setError("root", { message: tDynamic(`errors.${errorKeyOf(e)}`) }),
   });
+  usePendingReport(save.isPending, onPendingChange);
+  // The switches can arrive or change after the form opened: a method no longer on falls back to the
+  // first one that is, so the form never sends a method the clinic turned off.
+  useEffect(() => {
+    const first = methods[0];
+    if (first && !methods.includes(form.getValues("method"))) form.setValue("method", first);
+  }, [methods, form]);
   const submit = form.handleSubmit((v) => {
     const checked = checkAmount(v.amount, invoice.currencyExponent, { owedMinor: owed });
     if (!checked.ok) {

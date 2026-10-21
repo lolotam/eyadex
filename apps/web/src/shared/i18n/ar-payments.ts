@@ -12,6 +12,7 @@ export const arPayments: Strings<typeof enPayments> = {
       movements: "الحركات",
       noMovements: "لا توجد مدفوعات بعد",
       loadError: "تعذر تحميل المدفوعات",
+      settingsError: "تعذر تحميل طرق الدفع المفعّلة",
       record: "تسجيل دفعة",
       useCredit: "استخدام الرصيد",
     },

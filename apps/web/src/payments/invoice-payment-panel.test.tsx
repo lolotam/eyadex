@@ -1,7 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Invoice } from "@eyadex/contracts/finance";
+import { ApiError } from "@/shared/api/api-error";
 import { ar } from "@/shared/i18n/ar";
 import { I18nProvider } from "@/shared/i18n/i18n-provider";
 import { InvoicePaymentPanel } from "./invoice-payment-panel";
@@ -9,6 +10,8 @@ import { InvoicePaymentPanel } from "./invoice-payment-panel";
 const h = vi.hoisted(() => ({
   session: { permissions: [] as string[], allBranches: false, branchIds: [] as string[] },
   invoicePayments: vi.fn(),
+  recordPayment: vi.fn(),
+  settings: { data: undefined } as Record<string, unknown>,
 }));
 vi.mock("@/shared/persona/persona-provider", () => ({
   useSession: () => ({ session: h.session }),
@@ -18,10 +21,12 @@ vi.mock("@/shared/persona/persona-provider", () => ({
   }),
 }));
 vi.mock("@/shared/api/api-provider", () => ({
-  useApi: () => ({ payments: { invoicePayments: h.invoicePayments } }),
+  useApi: () => ({
+    payments: { invoicePayments: h.invoicePayments, recordPayment: h.recordPayment },
+  }),
 }));
 vi.mock("@/shared/money/use-clinic-money", () => ({
-  useFinanceSettings: () => ({ data: undefined }),
+  useFinanceSettings: () => h.settings,
 }));
 
 const BRANCH = "00000000-0000-7000-8000-000000000002";
@@ -48,6 +53,8 @@ function show() {
 }
 
 beforeEach(() => {
+  h.settings = { data: undefined };
+  h.recordPayment.mockReset();
   h.invoicePayments.mockReset();
   h.invoicePayments.mockResolvedValue({
     invoiceId: invoice.id,
@@ -108,5 +115,54 @@ describe("the invoice payment panel", () => {
     expect(screen.getByRole("button", { name: ar.payments.panel.record })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: ar.payments.panel.useCredit })).toBeNull();
     expect(h.invoicePayments).not.toHaveBeenCalled();
+  });
+});
+
+// PR #103 review: payment entry waits for the clinic's method switches.
+describe("payment entry and the finance settings", () => {
+  const record = () => screen.getByRole("button", { name: ar.payments.panel.record });
+  beforeEach(() => {
+    h.session = { permissions: ["create:payments:clinic"], allBranches: false, branchIds: [] };
+  });
+
+  it("is off while the settings load", () => {
+    h.settings = { data: undefined, isLoading: true };
+    show();
+    expect(record()).toBeDisabled();
+  });
+
+  it("is off after a load error, which shows with a retry", () => {
+    const refetch = vi.fn();
+    h.settings = { data: undefined, isError: true, error: new ApiError("unknown"), refetch };
+    show();
+    expect(record()).toBeDisabled();
+    expect(screen.getByText(ar.payments.panel.settingsError)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: ar.common.tryAgain }));
+    expect(refetch).toHaveBeenCalled();
+  });
+
+  it("a forbidden read keeps every method on, since the API still refuses a disabled one", () => {
+    h.settings = { data: undefined, isError: true, error: new ApiError("forbidden") };
+    show();
+    expect(record()).toBeEnabled();
+    expect(screen.queryByText(ar.payments.panel.settingsError)).toBeNull();
+  });
+});
+
+// PR #103 review: closing while a payment is in flight would drop its Idempotency-Key.
+describe("the payment dialog while a request is in flight", () => {
+  it("cannot be dismissed until the answer arrives, then closes", async () => {
+    h.session = { permissions: ["create:payments:clinic"], allBranches: false, branchIds: [] };
+    let answer: (v: unknown) => void = () => undefined;
+    h.recordPayment.mockReturnValue(new Promise((resolve) => (answer = resolve)));
+    show();
+    fireEvent.click(screen.getByRole("button", { name: ar.payments.panel.record }));
+    fireEvent.click(await screen.findByRole("button", { name: ar.payments.dialog.submit }));
+    await waitFor(() => expect(h.recordPayment).toHaveBeenCalledTimes(1));
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    answer({ payment: { receiptNumber: "TT-R-2026-000002" } });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 });
