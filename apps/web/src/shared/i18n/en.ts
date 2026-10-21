@@ -289,5 +289,7 @@ export const en = {
     cash_drawer_changed: "Cash moved since the preview. Review the closing again.",
     cash_closing_exists: "This branch's cash is already closed for today.",
     closing_note_required: "Write a note when there is a difference.",
+    cash_drawer_out_of_range:
+      "The period's net cash is beyond the allowed limit, so the drawer cannot be closed",
   },
 } as const;

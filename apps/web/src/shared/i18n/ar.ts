@@ -283,5 +283,7 @@ export const ar: Dictionary = {
     cash_drawer_changed: "توجد حركة نقدية جديدة منذ المعاينة. راجع الإقفال مرة أخرى.",
     cash_closing_exists: "تم إقفال صندوق هذا الفرع اليوم.",
     closing_note_required: "اكتب ملاحظة عند وجود فرق.",
+    cash_drawer_out_of_range:
+      "صافي النقد في هذه الفترة يتجاوز الحد المسموح، ولا يمكن إقفال الصندوق",
   },
 };

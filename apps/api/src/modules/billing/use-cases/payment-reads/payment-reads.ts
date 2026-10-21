@@ -6,11 +6,10 @@ import type {
 } from "@eyadex/contracts/finance";
 import { creditBalance, paymentRefundable } from "@eyadex/contracts/settlement";
 import type { Database } from "@eyadex/db";
-import { sql, type SQL } from "drizzle-orm";
 import type { z } from "zod";
 
 import { ApiError } from "../../../../shared/errors.ts";
-import type { BillingActor, MemberBranches } from "../../domain/billing-actor.ts";
+import type { BillingActor } from "../../domain/billing-actor.ts";
 import { reachesBranch } from "../../domain/invoice-reach.ts";
 import { paymentsReach } from "../../domain/money-reach.ts";
 import { readInvoice } from "../../persistence/pg-invoice-store.ts";
@@ -84,7 +83,7 @@ export class PaymentReads {
     const reach = paymentsReach(actor, "view");
     if (reach === null) throw new ApiError("forbidden");
     return this.deps.db.withTenant(actor.clinicId, (tx) =>
-      listPayments(tx, actor.clinicId, query, this.condition(reach), this.deps.patients),
+      listPayments(tx, actor.clinicId, query, reach, this.deps.patients),
     );
   }
 
@@ -110,20 +109,5 @@ export class PaymentReads {
       if (patientName === null) throw new ApiError("not_found");
       return { payment: { ...payment, patientName } };
     });
-  }
-
-  /**
-   * شرط النطاق على العمود `p`: كل الفروع، أو فروع العضو، ولا فروع.
-   *
-   * @param reach نطاق الفاعل
-   * @returns الشرط
-   */
-  private condition(reach: MemberBranches): SQL {
-    if (reach.all) return sql`true`;
-    if (reach.branchIds.length === 0) return sql`false`;
-    return sql`p.branch_id IN (${sql.join(
-      reach.branchIds.map((id) => sql`${id}::uuid`),
-      sql`, `,
-    )})`;
   }
 }

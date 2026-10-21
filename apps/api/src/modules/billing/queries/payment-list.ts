@@ -3,13 +3,15 @@ import type { Tx } from "@eyadex/db";
 import { sql, type SQL } from "drizzle-orm";
 
 import { ApiError } from "../../../shared/errors.ts";
+import type { MemberBranches } from "../domain/billing-actor.ts";
 import type { BillingPatientReader } from "../ports/billing-patients.ts";
+import { branchCondition } from "./branch-condition.ts";
 import { fromCursor, toCursor } from "./list-cursor.ts";
 
 const escapeLike = (text: string) => text.replace(/[\\%_]/g, (c) => `\\${c}`);
 
-function filters(clinicId: string, query: PaymentListQuery, reach: SQL): SQL[] {
-  const where = [sql`p.clinic_id = ${clinicId}`, reach];
+function filters(clinicId: string, query: PaymentListQuery, reach: MemberBranches): SQL[] {
+  const where = [sql`p.clinic_id = ${clinicId}`, branchCondition(reach, sql`p.branch_id`)];
   if (query.branchId !== undefined) where.push(sql`p.branch_id = ${query.branchId}`);
   if (query.method !== undefined) where.push(sql`p.method = ${query.method}`);
   if (query.patientId !== undefined) where.push(sql`p.patient_id = ${query.patientId}`);
@@ -63,14 +65,14 @@ const toPayment = (row: Row, patientName: string): Payment => ({
 /**
  * `GET /v1/payments`: newest first, a page and the total that matches, inside the caller's reach.
  *
- * @param reach the caller's view condition on the alias `p`
+ * @param reach the branches the caller may read
  * @returns the page, the next cursor and the total
  */
 export async function listPayments(
   tx: Tx,
   clinicId: string,
   query: PaymentListQuery,
-  reach: SQL,
+  reach: MemberBranches,
   patients: Pick<BillingPatientReader, "displayNames">,
 ): Promise<{ items: Payment[]; nextCursor: string | null; total: number }> {
   const where = filters(clinicId, query, reach);

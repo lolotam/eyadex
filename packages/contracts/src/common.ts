@@ -28,6 +28,7 @@ export const FINANCE_F2_ERROR_CODES = [
   "cash_drawer_changed",
   "cash_closing_exists",
   "closing_note_required",
+  "cash_drawer_out_of_range",
 ] as const;
 
 const baseApiErrorCodes = [

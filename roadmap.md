@@ -66,6 +66,7 @@
 - [x] `GET /v1/branches/usage`, `GET /v1/users/usage`; web counters no longer nullable
 - [x] New clinic `trialDays` computed on the API clock in the clinic zone; subscription saves end at the clinic's local midnight
 - [x] Slice 8 note: the user editor's option lists are `GET /v1/users/role-options` and `/branch-options` under `view:users:clinic` (done in slice 8)
+- [x] Slice 8 follow-up (issue #93): a role's view key must cover its write's scope (`clinic` covers `branch` and `own`, `branch` covers `own`), checked on the saved set after hidden module keys are merged (`role_hidden_keys_invalid`, 409) (PR #98)
 - [x] Apply `db/sql/0031` to production (orchestrator)
 - [x] Switch production to `VITE_API_MODE=http` (owner, 2026-10-09; prod smoke test green) — after the same SHA has run on staging, which is built with `http` from day one (ADR-0021)
 
@@ -123,7 +124,7 @@
 - [x] F2 slice 2: payments SQL, RLS and negative tests (SQL 0064–0067, PR #92; applied on staging and production 2026-10-20)
 - [x] F2 slice 3: settlement domain (PR #94)
 - [x] F2 slice 4: payments and credit API (PR #95)
-- [ ] F2 slice 5: refunds, cash closings, receipt, platform totals v2 (API) — in progress
+- [x] F2 slice 5: refunds, cash closings, receipt, platform totals v2 (API) (PR #99; the receipt PDF is deferred with 8g, below)
 - [ ] F2 slice 6: web (Lovable) — in progress
   - [x] Card 1a: payments, patient credit, settlement on invoices, payment methods (mock = API)
   - [ ] Card 1b: receipts list and receipt page, «المدفوعات» tab — waits for the owner's go-ahead
