@@ -103,3 +103,9 @@
 - [ ] After the release deploy, run `db/maintenance/medical-release-catch-up.sql` on staging, then production, before the platform switches `medical` on for any clinic (orchestrator)
 - [x] Drop the plain `civil_id` column: SQL 0052 (refuses while a plain number remains) and code that never names it; the backfill command is removed (ADR-0028, R1-6)
 - [ ] Apply `db/sql/0052` on staging, then production, each only AFTER the deploy whose code no longer names `civil_id` is live there: the older API still reads and writes the column and breaks once it is gone (orchestrator)
+
+## Phase 4 F2 — web
+
+- [x] Card 1a: payments, patient credit, settlement on invoices, payment methods (mock = API)
+- [ ] Card 1b: receipts list and receipt page, «المدفوعات» tab — waits for the owner's go-ahead
+- [ ] Card 2: refunds and the cash closing — after card 1 merges
