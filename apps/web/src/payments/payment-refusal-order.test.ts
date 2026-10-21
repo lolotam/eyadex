@@ -48,7 +48,12 @@ describe("record payment refuses in the API's order", () => {
 
   it("forbidden (no payments key in any scope) before the body is read", async () => {
     noPaymentKeys();
-    const bad = api.payments.recordPayment(as("receptionist"), UNKNOWN_INVOICE, {} as never, "");
+    const bad = api.payments.recordPayment(
+      as("receptionist"),
+      UNKNOWN_INVOICE,
+      {} as never,
+      "" as never,
+    );
     expect(await refusal(bad)).toBe("forbidden");
   });
 
@@ -56,15 +61,15 @@ describe("record payment refuses in the API's order", () => {
     expect(await refusal(record(UNKNOWN_INVOICE, { method: "cash", amountMinor: "0" }))).toBe(
       "validation",
     );
-    expect(await refusal(record(UNKNOWN_INVOICE, { method: "cash", amountMinor: "1" }, ""))).toBe(
-      "validation",
-    );
+    expect(
+      await refusal(record(UNKNOWN_INVOICE, { method: "cash", amountMinor: "1" }, "" as never)),
+    ).toBe("validation");
   });
 
   it("the key is checked before the invoice is looked up", async () => {
-    expect(await refusal(record(UNKNOWN_INVOICE, { method: "cash", amountMinor: "1" }, " "))).toBe(
-      "validation",
-    );
+    expect(
+      await refusal(record(UNKNOWN_INVOICE, { method: "cash", amountMinor: "1" }, " " as never)),
+    ).toBe("validation");
   });
 
   it("idempotency before not_found: a used key on an unknown invoice is a conflict", async () => {
