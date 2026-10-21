@@ -17,6 +17,7 @@ import {
   decideRoleDeactivation,
   decideRoleReactivation,
   decideRoleUpdate,
+  hiddenScopeGap,
   mergeHiddenKeys,
   roleAuditSnapshot,
   sameKeySet,
@@ -150,6 +151,9 @@ export class RoleChanges {
       if (decideRoleUpdate(before) === "locked") throw new ApiError("role_locked");
       const modules = await readEnabledModules(tx, actor.clinicId);
       const keys = mergeHiddenKeys(input.permissionKeys, before.permissionKeys, modules);
+      // The request carries no keys of a switched-off module, so the contract never saw the kept ones.
+      const gap = hiddenScopeGap(keys);
+      if (gap) throw new ApiError("role_hidden_keys_invalid", { module: gap });
       const after = { ...before, nameAr: input.nameAr, nameEn: input.nameEn, permissionKeys: keys };
       if (sameRole(before, after)) return null;
       // The role as it will be; the role as it is was checked in change().

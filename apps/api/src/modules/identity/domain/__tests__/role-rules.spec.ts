@@ -6,6 +6,7 @@ import {
   decideRoleDeactivation,
   decideRoleReactivation,
   decideRoleUpdate,
+  hiddenScopeGap,
   isEditableKey,
   mergeHiddenKeys,
   roleAuditSnapshot,
@@ -89,6 +90,23 @@ describe("no-op and audit", () => {
       isActive: true,
       permissionKeys: ["a", "b"],
     });
+  });
+});
+
+// PR #98 review: the saved set, kept hidden keys included, is checked after mergeHiddenKeys.
+describe("the view-scope gap of the saved keys", () => {
+  it("names the module of a kept write wider than its view", () => {
+    const kept = mergeHiddenKeys(
+      ["view:users:clinic"],
+      ["view:payments:branch", "create:payments:clinic"],
+      [],
+    );
+    expect(hiddenScopeGap(kept)).toBe("finance");
+  });
+
+  it("is null when every write is covered", () => {
+    expect(hiddenScopeGap(["view:payments:clinic", "create:payments:clinic"])).toBeNull();
+    expect(hiddenScopeGap([])).toBeNull();
   });
 });
 

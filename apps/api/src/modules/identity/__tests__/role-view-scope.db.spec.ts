@@ -85,3 +85,36 @@ describe("the view-scope rule on the role API", () => {
     expect((await roleRow(h, id)).keys).toEqual(WIDENED);
   });
 });
+
+// Codex and MergePilot on PR #98: the kept keys of a switched-off module never reach the contract, so the
+// saved set is checked after mergeHiddenKeys. Nothing is dropped; the answer names the module to switch on.
+describe("the view-scope rule on a switched-off module's kept keys", () => {
+  let B: Awaited<ReturnType<typeof clinicWithMembers>>;
+  beforeAll(async () => {
+    B = await clinicWithMembers(h);
+    await h.owner`INSERT INTO clinic_features (clinic_id, id, module, enabled, updated_at)
+                  VALUES (${B.admin.clinicId}, gen_random_uuid(), 'finance', false, now())
+                  ON CONFLICT (clinic_id, module) DO UPDATE SET enabled = false`;
+  });
+
+  it("NEGATIVE: a save that leaves the hidden keys out is refused with the module; keys stay", async () => {
+    const id = await customRole(h, B.admin.clinicId, [...NARROW, "view:users:clinic"]);
+    const before = await roleRow(h, id);
+    const res = await patchRole(h, B.admin.cookie, id, {
+      ...names("Renamed"),
+      permissionKeys: ["view:users:clinic"],
+    });
+    expect(res.statusCode).toBe(409);
+    expect(code(res)).toBe("role_hidden_keys_invalid");
+    expect(res.json().details).toEqual({ module: "finance" });
+    expect(await roleRow(h, id)).toEqual(before);
+    expect(await roleAudit(h, B.admin.clinicId, id)).toHaveLength(0);
+  });
+
+  it("a hidden pair that keeps the rule does not block a save", async () => {
+    const id = await customRole(h, B.admin.clinicId, [...WIDENED, "view:users:clinic"]);
+    const res = await patchRole(h, B.admin.cookie, id, { ...names(), permissionKeys: [] });
+    expect(res.statusCode).toBe(200);
+    expect((await roleRow(h, id)).keys).toEqual(WIDENED);
+  });
+});

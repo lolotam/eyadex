@@ -37,7 +37,7 @@ type Props = {
 export function RoleFormDialog({ open, role, readOnly, onOpenChange }: Props) {
   const api = useApi();
   const { persona } = usePersona();
-  const { t } = useI18n();
+  const { t, tDynamic } = useI18n();
   const refresh = useRefreshRoles();
   const catalog = usePermissionCatalog();
   const [keys, setKeys] = useState<string[]>([]);
@@ -58,7 +58,10 @@ export function RoleFormDialog({ open, role, readOnly, onOpenChange }: Props) {
 
   const mutation = useMutation({
     mutationFn: (names: Names) => {
-      const input = { ...names, permissionKeys: keys };
+      // Only the keys the matrix shows: the server keeps a switched-off module's keys as stored (FLAG-02)
+      // and checks the saved set itself, naming that module when its kept keys break the view rule.
+      const shown = new Set(catalog.data?.map((d) => d.key));
+      const input = { ...names, permissionKeys: keys.filter((key) => shown.has(key)) };
       return role
         ? api.roles.update(persona, role.id, input)
         : api.roles.create(persona, input, idempotencyKey);
@@ -69,9 +72,7 @@ export function RoleFormDialog({ open, role, readOnly, onOpenChange }: Props) {
       onOpenChange(false);
     },
     onError: (error) =>
-      toast.error(
-        t(`errors.${errorCodeOf(error)}`, error instanceof ApiError ? error.details : undefined),
-      ),
+      toast.error(t(`errors.${errorCodeOf(error)}`, errorDetails(error, tDynamic))),
   });
 
   const title =
@@ -143,4 +144,12 @@ export function RoleFormDialog({ open, role, readOnly, onOpenChange }: Props) {
       </DialogContent>
     </Dialog>
   );
+}
+
+/** The error's details for its message; a module key becomes the module's name in the matrix headings. */
+function errorDetails(error: unknown, tDynamic: (key: string) => string) {
+  if (!(error instanceof ApiError)) return undefined;
+  const { module } = error.details;
+  if (typeof module !== "string") return error.details;
+  return { ...error.details, module: tDynamic(`roles.groups.${module}`) };
 }

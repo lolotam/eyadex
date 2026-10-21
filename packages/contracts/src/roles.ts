@@ -53,29 +53,34 @@ export const permissionKeysSchema = z
         }
       }
     }
-    // Any write on a resource needs view on it too, so every granted action is reachable. A resource with no
-    // view of its own (a discount is a change to an invoice) needs view on the resource it changes. The view
-    // must reach as far as the write (issue #93): a branch view with a clinic write would let the role change
-    // records in branches it cannot see.
-    for (const key of keys) {
-      const [action, resource, scope] = key.split(":") as [
-        string,
-        PermissionResource,
-        PermissionScope,
-      ];
-      if (action === "view") continue;
-      const viewed = VIEWED_THROUGH[resource] ?? resource;
-      const covered = keys.some((k) => {
-        const [a, r, s] = k.split(":") as [string, string, PermissionScope];
-        return a === "view" && r === viewed && viewScopeCovers(s, scope);
-      });
-      if (!covered) {
-        ctx.addIssue({ code: "custom", message: "validation.needsView" });
-        return;
-      }
+    if (uncoveredWrite(keys) !== undefined) {
+      ctx.addIssue({ code: "custom", message: "validation.needsView" });
     }
   })
   .transform((keys) => [...new Set(keys)]);
+
+/**
+ * The first write key with no view that reaches it, if any. Any write on a resource needs view on it too, so
+ * every granted action is reachable; a resource with no view of its own (a discount is a change to an
+ * invoice) needs view on the resource it changes. The view must reach as far as the write (issue #93): a
+ * branch view with a clinic write would let the role change records in branches it cannot see. Exported so
+ * a save can check the stored keys of a switched-off module too, which the request never carries.
+ */
+export function uncoveredWrite(keys: readonly string[]): string | undefined {
+  return keys.find((key) => {
+    const [action, resource, scope] = key.split(":") as [
+      string,
+      PermissionResource,
+      PermissionScope,
+    ];
+    if (action === "view") return false;
+    const viewed = VIEWED_THROUGH[resource] ?? resource;
+    return !keys.some((k) => {
+      const [a, r, s] = k.split(":") as [string, string, PermissionScope];
+      return a === "view" && r === viewed && viewScopeCovers(s, scope);
+    });
+  });
+}
 
 export const roleInputSchema = z.object({
   nameAr: roleName,

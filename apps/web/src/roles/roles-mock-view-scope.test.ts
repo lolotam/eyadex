@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { NO_FEATURES } from "@eyadex/contracts/clinics";
 import type { Persona } from "@eyadex/contracts/session";
 
 vi.mock("@/shared/api/mock/mock-store", async (importOriginal) => {
@@ -62,5 +63,19 @@ describe("the view-scope rule (mock)", () => {
     expect(getState().roles.find((r) => r.id === id)?.permissions).toEqual(NARROW);
     const saved = await api.roles.update(admin(), id, { ...names, permissionKeys: FIXED });
     expect([...saved.permissionKeys].sort()).toEqual([...FIXED].sort());
+  });
+
+  // PR #98 review: the kept keys of a switched-off module are checked on the saved set, as the API does.
+  it("NEGATIVE: with finance off, a save leaving the hidden pair out is refused, naming finance", async () => {
+    const id = storedNarrowRole();
+    const db = getState();
+    db.features[clinicId()] = { ...(db.features[clinicId()] ?? NO_FEATURES), finance: false };
+    await expect(
+      api.roles.update(admin(), id, { nameAr: "دور آخر", nameEn: "Other", permissionKeys: [] }),
+    ).rejects.toMatchObject({ code: "role_hidden_keys_invalid", details: { module: "finance" } });
+    expect(getState().roles.find((r) => r.id === id)).toMatchObject({
+      nameEn: names.nameEn,
+      permissions: NARROW,
+    });
   });
 });

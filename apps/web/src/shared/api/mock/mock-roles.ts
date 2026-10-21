@@ -8,6 +8,7 @@ import { actorReplayKey } from "./mock-idempotency";
 import {
   enforceMayDefineRole,
   enforceNotLocked,
+  enforceSavedKeysCovered,
   enforceUniqueNames,
   findRole,
   memberCount,
@@ -140,6 +141,7 @@ export function createMockRoles(): ApiClient["roles"] {
       const input = parseInput(rawInput);
       enforceUniqueNames(db, clinic.id, input, role.id);
       const permissions = mergeHiddenKeys(db, clinic.id, input.permissionKeys, role.permissions);
+      enforceSavedKeysCovered(permissions);
       enforceMayDefineRole(db, actor, permissions);
       const before = structuredClone(role);
       role.nameAr = input.nameAr;

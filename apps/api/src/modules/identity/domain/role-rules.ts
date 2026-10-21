@@ -1,5 +1,6 @@
 import type { ClinicModule } from "@eyadex/contracts/clinics";
 import { PERMISSION_CATALOG } from "@eyadex/contracts/permissions";
+import { uncoveredWrite } from "@eyadex/contracts/roles";
 
 const MODULE_OF: ReadonlyMap<string, ClinicModule | null> = new Map(
   PERMISSION_CATALOG.map((p) => [p.key, p.module]),
@@ -46,6 +47,20 @@ export function mergeHiddenKeys(
   const kept = existing.filter((key) => !isEditableKey(key, enabledModules));
   const asked = requested.filter((key) => isEditableKey(key, enabledModules));
   return [...new Set([...asked, ...kept])].sort();
+}
+
+/**
+ * فحص قاعدة العرض والنطاق (issue #93) على المفاتيح اللي هتتحفظ فعلًا، بعد `mergeHiddenKeys`: الطلب
+ * مابيشيلش مفاتيح الموديولات المقفولة، فالـ contract مابيشوفهاش. مفيش مفتاح بيتشال من الدور؛ الحفظ بيترفض
+ * لحد ما الموديول يتفتح ويتصلّح.
+ *
+ * @param keys المفاتيح النهائية بعد الدمج
+ * @returns موديول أول مفتاح كتابة مالوش عرض يغطيه (`core` لمفتاح core)، أو `null` لو كله سليم
+ */
+export function hiddenScopeGap(keys: readonly string[]): ClinicModule | "core" | null {
+  const gap = uncoveredWrite(keys);
+  if (gap === undefined) return null;
+  return MODULE_OF.get(gap) ?? "core";
 }
 
 /**
