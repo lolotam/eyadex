@@ -41,7 +41,7 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
     !!session && canAtBranch(session, action, "payments", invoice.branchId);
   const mayView = at("view");
   const query = useInvoicePayments(invoice.id, invoice.version, mayView);
-  const keys = useHeldKeys(invoice.version);
+  const keys = useHeldKeys();
   const owes = invoice.status === "issued" && positive(invoice.settlement?.owedMinor);
   const credit = query.data?.creditBalanceMinor ?? "0";
   const mayPay = at("create") && owes;

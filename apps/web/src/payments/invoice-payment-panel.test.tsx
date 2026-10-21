@@ -172,11 +172,12 @@ describe("the payment dialog while a request is in flight", () => {
 
 // PR #103 review: an unclear failure keeps the key above the dialog, so a reopened form replays it.
 describe("the held Idempotency-Key", () => {
-  it("a failed request, closed and reopened with the same values, sends the same key", async () => {
+  it("a failed request, reopened with the same values after a version change, sends the same key", async () => {
     h.session = { permissions: ["create:payments:clinic"], allBranches: false, branchIds: [] };
     h.recordPayment.mockRejectedValueOnce(new ApiError("unknown"));
     h.recordPayment.mockResolvedValueOnce({ payment: { receiptNumber: "TT-R-2026-000002" } });
-    show();
+    const queries = client();
+    const view = render(panel(queries));
     const submitOnce = async () => {
       fireEvent.click(screen.getByRole("button", { name: ar.payments.panel.record }));
       fireEvent.click(await screen.findByRole("button", { name: ar.payments.dialog.submit }));
@@ -185,6 +186,7 @@ describe("the held Idempotency-Key", () => {
     await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    view.rerender(panel(queries, { ...invoice, version: 2 }));
     await submitOnce();
     await waitFor(() => expect(h.recordPayment).toHaveBeenCalledTimes(2));
     expect(h.recordPayment.mock.calls[1]![3]).toBe(h.recordPayment.mock.calls[0]![3]);

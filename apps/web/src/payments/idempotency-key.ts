@@ -25,16 +25,13 @@ export type HeldKeys = {
 /**
  * One held key per operation for an invoice, kept above the dialogs: a failure whose outcome is unclear
  * (a timeout, a lost answer) keeps the key, so reopening with the same values lets the API replay instead
- * of recording twice. A key is dropped on a confirmed success, or when the invoice version changes.
+ * of recording twice. A key is dropped only on a confirmed success: an invoice edit says nothing about how
+ * a payment ended, and a key kept across one is still right (same values replay, changed values get a new key).
  */
-export function useHeldKeys(invoiceVersion: number): HeldKeys {
-  const held = useRef<{ version: number; keys: Record<KeyedOperation, KeyedRequest> }>({
-    version: invoiceVersion,
+export function useHeldKeys(): HeldKeys {
+  const held = useRef<{ keys: Record<KeyedOperation, KeyedRequest> }>({
     keys: { pay: null, credit: null },
   });
-  if (held.current.version !== invoiceVersion) {
-    held.current = { version: invoiceVersion, keys: { pay: null, credit: null } };
-  }
   const keyOf = useCallback((operation: KeyedOperation, request: unknown) => {
     const next = keyFor(held.current.keys[operation], JSON.stringify(request), () =>
       crypto.randomUUID(),
