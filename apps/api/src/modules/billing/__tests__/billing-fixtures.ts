@@ -17,7 +17,7 @@ import { medicalClinic, patientIn, setModule } from "../../medical/__tests__/med
  * the onboarding (system-roles.ts) and the doctor `view:invoices:own`; a price reader holds
  * `view:prices:clinic` only, and the desk (branch R) holds the receptionist's finance keys.
  *
- * Finance F2 (F2-Q15) adds the cashier: a member of branch R that records the payments of its branch
+ * Finance F2 (F2-Q15) adds the receptionist: a member of branch R that records the payments of its branch
  * (the four keys of §4.1) and holds no other finance key.
  */
 export async function financeClinic(h: Harness, invalidate: AuthorizationInvalidator) {
@@ -40,7 +40,7 @@ export async function financeClinic(h: Harness, invalidate: AuthorizationInvalid
     ]),
     { allBranches: false, branchIds: [C.branchR] },
   );
-  const cashier = await memberOn(
+  const receptionist = await memberOn(
     h,
     C.admin,
     await customRole(h, C.clinicId, [
@@ -52,7 +52,7 @@ export async function financeClinic(h: Harness, invalidate: AuthorizationInvalid
     { allBranches: false, branchIds: [C.branchR] },
   );
   await invalidate.clinicChanged(C.clinicId);
-  return { ...C, priceReader, desk, cashier };
+  return { ...C, priceReader, desk, receptionist };
 }
 
 export type FinanceClinic = Awaited<ReturnType<typeof financeClinic>>;
@@ -188,7 +188,7 @@ export async function refund(
 }
 
 /**
- * Finance F2 slice 5 (F2-Q15): two members of branch R beside the cashier — the refunder gives money back
+ * Finance F2 slice 5 (F2-Q15): two members of branch R beside the receptionist — the refunder gives money back
  * from the invoices of its branch, and the closer closes its branch's cash drawer. Neither holds another
  * finance key, so each spec proves one key at a time.
  */

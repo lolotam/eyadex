@@ -13,6 +13,10 @@ export const REFUND_NUMBER = /^[A-Z0-9]{2,6}-RF-\d{4}-\d{6,}$/;
 export const CURRENCY_CODE = /^[A-Z]{3}$/;
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
+/** A typed text's length (a refund reason, a closing note: 1–300): a number, never the text. */
+const textLength = (value: unknown): boolean =>
+  typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 300;
+
 /** رصيد واحد اتصرف: معرّف الرصيد والمبلغ. */
 function creditSpendShape(spend: unknown): boolean {
   if (typeof spend !== "object" || spend === null) return false;
@@ -38,7 +42,7 @@ export function creditSpendsShape(spends: unknown): boolean {
 
 /**
  * لقطة استرداد (مالية F2، F2-Q13): رقم الاسترداد ورقم الفاتورة وطريقة الصرف والمبلغ والعملة ورقم الكاش،
- * ومصدره (دفعة أو رصيد) والأرصدة اللي صرفها. السبب نفسه ما بيتخزنش هنا، طوله بس جنب اللقطة.
+ * ومصدره (دفعة أو رصيد) والأرصدة اللي صرفها، وطول السبب. السبب نفسه عمره ما بيتخزن هنا.
  */
 export interface RefundAuditSnapshot {
   readonly refundNumber: string;
@@ -50,11 +54,12 @@ export interface RefundAuditSnapshot {
   readonly source: "payment" | "credit";
   readonly receiptNumber?: string;
   readonly spends: readonly { readonly creditId: string; readonly amountMinor: string }[];
+  readonly reasonLength: number;
 }
 
 /**
  * لقطة إقفال الصندوق (مالية F2، FIN-15): يوم العمل وفترة أرقام الكاش والمتوقع والمعدود والفرق (المتوقع
- * والفرق ممكن يبقوا سالب) والعملة والإقفال اللي قبله. الملاحظة ما بتتخزنش هنا، طولها بس.
+ * والفرق ممكن يبقوا سالب) والعملة والإقفال اللي قبله، وطول الملاحظة لو فيه. النص نفسه ما بيتخزنش.
  */
 export interface CashClosingAuditSnapshot {
   readonly businessDate: string;
@@ -65,6 +70,7 @@ export interface CashClosingAuditSnapshot {
   readonly differenceMinor: string;
   readonly currency: string;
   readonly previousClosingId: string | null;
+  readonly noteLength?: number;
 }
 
 /**
@@ -91,7 +97,8 @@ export function refundSnapshotShape(snapshot: unknown): boolean {
     (refund.source === "payment" || refund.source === "credit") &&
     (refund.receiptNumber === undefined ||
       (typeof refund.receiptNumber === "string" && RECEIPT_NUMBER.test(refund.receiptNumber))) &&
-    creditSpendsShape(refund.spends)
+    creditSpendsShape(refund.spends) &&
+    textLength(refund.reasonLength)
   );
 }
 
@@ -116,6 +123,7 @@ export function cashClosingSnapshotShape(snapshot: unknown): boolean {
     typeof closing.currency === "string" &&
     CURRENCY_CODE.test(closing.currency) &&
     (closing.previousClosingId === null ||
-      (typeof closing.previousClosingId === "string" && UUID.test(closing.previousClosingId)))
+      (typeof closing.previousClosingId === "string" && UUID.test(closing.previousClosingId))) &&
+    (closing.noteLength === undefined || textLength(closing.noteLength))
   );
 }

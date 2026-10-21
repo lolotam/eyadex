@@ -122,7 +122,7 @@ const ALLOWED: Record<AuditEntity, readonly string[]> = {
   // Finance F2: the clinic's payment methods are a setting about no patient.
   payment_methods: ["paymentMethods"],
   // Finance F2 slice 5: a refund names its number, the invoice, the method, the amount, its source and
-  // the credits it spent; never the reason text (its length sits beside the snapshot).
+  // the credits it spent, and the reason's length; never the reason text.
   refund: [
     "refundNumber",
     "invoiceNumber",
@@ -133,8 +133,9 @@ const ALLOWED: Record<AuditEntity, readonly string[]> = {
     "source",
     "receiptNumber",
     "spends",
+    "reasonLength",
   ],
-  // Finance F2 slice 5: a cash closing's day, cash period and amounts; never the note text.
+  // Finance F2 slice 5: a cash closing's day, cash period, amounts and note length; never the note.
   cash_closing: [
     "businessDate",
     "fromCashSeq",
@@ -144,6 +145,7 @@ const ALLOWED: Record<AuditEntity, readonly string[]> = {
     "differenceMinor",
     "currency",
     "previousClosingId",
+    "noteLength",
   ],
   // ADR-0020: the platform team and settings writers. No link, hash or user id is ever recorded.
   platform_account: ["fullName", "email", "status"],

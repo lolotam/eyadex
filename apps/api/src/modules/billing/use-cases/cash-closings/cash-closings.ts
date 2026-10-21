@@ -225,8 +225,8 @@ export class CashClosings {
         differenceMinor: String(BigInt(body.countedMinor) - sums.expectedMinor),
         currency: facts.currency,
         previousClosingId: period.previousClosingId,
+        ...(note === null ? {} : { noteLength: note.length }),
       },
-      ...(note === null ? {} : { noteLength: note.length }),
       createdAt: now,
     });
     return closingId;

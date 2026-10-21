@@ -190,9 +190,22 @@ describe("a count that differs from the expected amount (F2-Q11, R3-5)", () => {
       const [row] = (await auditSince(h, C.clinicId, since)).filter(
         (entry) => entry["entity_id"] === closing.id,
       );
-      const details = row!["details"] as { noteLength: number };
-      expect(details.noteLength).toBe("short by one coin".length);
+      const details = row!["details"] as { after: { noteLength: number } };
+      expect(details.after.noteLength).toBe("short by one coin".length);
       expect(JSON.stringify(details)).not.toContain("short by one coin");
+      // The clinic audit API shows the note's length, a number, and never the note.
+      const read = await send(
+        h,
+        C.admin.cookie,
+        "GET",
+        "/v1/clinic/audit?entity=cash_closing&limit=100",
+      );
+      expect(read.statusCode, read.body).toBe(200);
+      const entry = (
+        read.json() as { items: { entityId: string; after: { noteLength?: number } }[] }
+      ).items.find((item) => item.entityId === closing.id);
+      expect(entry?.after.noteLength).toBe("short by one coin".length);
+      expect(read.body).not.toContain("short by one coin");
     });
   });
 

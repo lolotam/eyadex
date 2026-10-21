@@ -26,7 +26,7 @@ export interface WrittenRefund {
 
 /**
  * صفوف سجل الاسترداد (spec §4.6): `credit.released` لكل رصيد اتحرر من الدفعة، وصف `refund.recorded`
- * واحد بالأرقام والمبالغ والأرصدة اللي اتصرفت بس؛ السبب طوله بس، عمر النص نفسه ما يتخزن.
+ * واحد بالأرقام والمبالغ والأرصدة اللي اتصرفت وطول السبب جوه اللقطة؛ عمر النص نفسه ما يتخزن.
  *
  * @param tx الـ transaction جوه `withTenant(clinicId)`
  * @param ids مولّد المعرّفات
@@ -83,8 +83,8 @@ export async function writeRefundAudit(
         creditId: spend.creditId,
         amountMinor: String(spend.amountMinor),
       })),
+      reasonLength: done.body.reason.length,
     },
-    reasonLength: done.body.reason.length,
     createdAt: now,
   });
 }

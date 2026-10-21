@@ -74,9 +74,9 @@ beforeAll(async () => {
 afterAll(() => closeHarness(h));
 
 describe("the refunds key (spec §4.1, F2-Q15)", () => {
-  it("refuses a refund to the cashier, who records payments but holds no create:refunds", async () => {
+  it("refuses a refund to the receptionist, who records payments but holds no create:refunds", async () => {
     const { invoice, paymentId } = await paidOn(C, C.branchR);
-    const res = await refund(h, C.cashier.cookie, invoice.id, fromPayment(paymentId));
+    const res = await refund(h, C.receptionist.cookie, invoice.id, fromPayment(paymentId));
     expect([res.statusCode, code(res)]).toEqual([403, "forbidden"]);
   });
 
@@ -135,10 +135,10 @@ describe("the branch scope of a refund (F2-Q8)", () => {
 });
 
 describe("the cash closing keys and branch scope (spec §4.1)", () => {
-  it("refuses the preview and the close to the cashier, who holds no cash closing key", async () => {
-    const preview = await previewClosing(h, C.cashier.cookie, C.branchR);
+  it("refuses the preview and the close to the receptionist, who holds no cash closing key", async () => {
+    const preview = await previewClosing(h, C.receptionist.cookie, C.branchR);
     expect([preview.statusCode, code(preview)]).toEqual([403, "forbidden"]);
-    const list = await send(h, C.cashier.cookie, "GET", "/v1/cash-closings");
+    const list = await send(h, C.receptionist.cookie, "GET", "/v1/cash-closings");
     expect([list.statusCode, code(list)]).toEqual([403, "forbidden"]);
   });
 

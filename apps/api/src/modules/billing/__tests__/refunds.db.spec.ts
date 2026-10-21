@@ -260,10 +260,7 @@ describe("the audit rows of a refund (spec §4.6)", () => {
       entity_type: "refund",
       entity_id: answer.refund.id,
     });
-    const details = recorded[0]!["details"] as {
-      after: Record<string, unknown>;
-      reasonLength: number;
-    };
+    const details = recorded[0]!["details"] as { after: Record<string, unknown> };
     expect(details.after).toMatchObject({
       refundNumber: answer.refund.refundNumber,
       invoiceNumber: invoice.number,
@@ -276,8 +273,16 @@ describe("the audit rows of a refund (spec §4.6)", () => {
     expect(details.after["spends"]).toEqual([
       { creditId: released[0]!["entity_id"], amountMinor: "1500" },
     ]);
-    expect(details.reasonLength).toBe(REASON.length);
+    expect(details.after["reasonLength"]).toBe(REASON.length);
     expect(JSON.stringify(rows)).not.toContain(REASON);
+    // The clinic audit API shows the reason's length, a number, and never the reason.
+    const read = await send(h, C.admin.cookie, "GET", "/v1/clinic/audit?entity=refund&limit=100");
+    expect(read.statusCode, read.body).toBe(200);
+    const shown = (
+      read.json() as { items: { entityId: string; after: Record<string, unknown> }[] }
+    ).items.find((item) => item.entityId === answer.refund.id);
+    expect(shown?.after["reasonLength"]).toBe(REASON.length);
+    expect(read.body).not.toContain(REASON);
     expect(JSON.stringify(rows)).not.toContain(answer.refund.patientName);
   });
 });

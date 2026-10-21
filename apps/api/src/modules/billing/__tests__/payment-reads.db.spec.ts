@@ -24,7 +24,7 @@ import {
 let h: Harness;
 let C: FinanceClinic;
 let invalidate: AuthorizationInvalidator;
-/** A receipt of branch D: the one the cashier of branch R must not see. */
+/** A receipt of branch D: the one the receptionist of branch R must not see. */
 let branchDPayment = "";
 
 type Settlement = { state: string; paidMinor: string; owedMinor: string };
@@ -252,12 +252,12 @@ describe("the receipt alone and the branch reach (spec §4.6)", () => {
     expect((res.json() as { payment: Payment }).payment).toEqual(written.payment);
   });
 
-  it("shows the cashier of branch R only the receipts of branch R", async () => {
+  it("shows the receptionist of branch R only the receipts of branch R", async () => {
     const patient = await namedPatient(h, C, C.branchR, "مراجع صندوق تجريبي");
     const invoice = await manualInvoice(h, C.admin.cookie, patient, C.branchR, "1000");
-    const recorded = await pay(h, C.cashier.cookie, invoice.id, cash("1000"));
+    const recorded = await pay(h, C.receptionist.cookie, invoice.id, cash("1000"));
     expect(recorded.statusCode, recorded.body).toBe(201);
-    const res = await list(C.cashier.cookie, "?limit=100");
+    const res = await list(C.receptionist.cookie, "?limit=100");
     expect(res.statusCode, res.body).toBe(200);
     const page = res.json() as PaymentPage;
     expect(page.items.length).toBeGreaterThan(0);

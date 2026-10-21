@@ -35,10 +35,8 @@ export interface FinanceAccessEntry {
   readonly branchId: string;
   readonly before: FinanceAuditSnapshot | null;
   readonly after: FinanceAuditSnapshot | null;
-  /** طول سبب الإلغاء أو الخصم أو الاسترداد بس، عمر النص نفسه ما يتخزن. */
+  /** طول سبب الإلغاء أو الخصم بس، عمر النص نفسه ما يتخزن. */
   readonly reasonLength?: number;
-  /** طول ملاحظة الإقفال بس (F2-Q11)، عمر النص نفسه ما يتخزن. */
-  readonly noteLength?: number;
   /** فتح من رابط المراجع (R2-7): الفاعل مش موظف، فالصف بيقول ده صراحة. */
   readonly via?: "patient_link";
   readonly createdAt: Date;
@@ -66,7 +64,6 @@ export async function writeFinanceAudit(tx: Tx, entry: FinanceAccessEntry): Prom
     before: entry.before,
     after: entry.after,
     ...(entry.reasonLength === undefined ? {} : { reasonLength: entry.reasonLength }),
-    ...(entry.noteLength === undefined ? {} : { noteLength: entry.noteLength }),
     ...(entry.via === undefined ? {} : { via: entry.via }),
   };
   await tx.execute(

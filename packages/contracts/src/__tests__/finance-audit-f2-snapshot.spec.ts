@@ -20,6 +20,7 @@ const refund: RefundAuditSnapshot = {
   source: "payment",
   receiptNumber: "SLM-R-2026-000045",
   spends: [{ creditId: CREDIT, amountMinor: "1500000" }],
+  reasonLength: 18,
 };
 
 const closing: CashClosingAuditSnapshot = {
@@ -48,6 +49,7 @@ describe("the refund audit snapshot", () => {
       cashSeq: null,
       source: "credit",
       spends: [{ creditId: CREDIT, amountMinor: "3000" }],
+      reasonLength: 1,
     };
     expect(() => assertFinanceAuditSnapshotShape("refund", fromCredit)).not.toThrow();
   });
