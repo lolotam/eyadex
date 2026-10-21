@@ -80,7 +80,9 @@ INSERT` on them and no role has `UPDATE` or `DELETE`. A correction is a new move
   refund has no view key of its own); `GET /v1/cash-closings/preview?branchId=` and `POST /v1/cash-closings`
   (`create:cash_closings:branch`, the close takes an `Idempotency-Key`); `GET /v1/cash-closings` and
   `GET /v1/cash-closings/:id` (`view:cash_closings:branch`). A branch key admits the clinic scope too; the
-  use case narrows to the caller's reach, and a branch outside it is `not_found`. The platform route
+  use case narrows to the caller's reach. A refund on an invoice outside it, a single refund or closing
+  outside it, and a preview or close of a branch outside it are `not_found`; the lists AND their `branchId`
+  filter with the reach, so a list filtered to a branch outside it is an empty page (200). The platform route
   `GET /v1/platform/clinics/:id/finance-totals` (totals only) is guarded by `@PlatformStaff()` alone, with
   no finance feature gate; an unknown clinic is `not_found`.
 - **Refund lock order:** the clinic idempotency key (0) → the patient row (7) → the invoice `FOR UPDATE`
