@@ -27,7 +27,12 @@ const client = new QueryClient();
 const form = (methods: PaymentMethod[]) => (
   <QueryClientProvider client={client}>
     <I18nProvider>
-      <RecordPaymentForm invoice={invoice} methods={methods} onDone={() => undefined} />
+      <RecordPaymentForm
+        invoice={invoice}
+        methods={methods}
+        keyOf={() => "00000000-0000-4000-8000-000000000001"}
+        onDone={() => undefined}
+      />
     </I18nProvider>
   </QueryClientProvider>
 );

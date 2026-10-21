@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
 export type KeyedRequest = { fingerprint: string; key: string } | null;
 
@@ -15,18 +15,42 @@ export function keyFor(
   return previous && previous.fingerprint === fingerprint ? previous : { fingerprint, key: make() };
 }
 
-/** One key holder per open dialog: the dialog's content mounts on open, so each open starts fresh. */
-export function useIdempotencyKey(): (request: unknown) => string {
-  const held = useRef<KeyedRequest>(null);
-  return useCallback((request: unknown) => {
-    held.current = keyFor(held.current, JSON.stringify(request), () => crypto.randomUUID());
-    return held.current.key;
+export type KeyedOperation = "pay" | "credit";
+
+export type HeldKeys = {
+  keyOf: (operation: KeyedOperation, request: unknown) => string;
+  drop: (operation: KeyedOperation) => void;
+};
+
+/**
+ * One held key per operation for an invoice, kept above the dialogs: a failure whose outcome is unclear
+ * (a timeout, a lost answer) keeps the key, so reopening with the same values lets the API replay instead
+ * of recording twice. A key is dropped on a confirmed success, or when the invoice version changes.
+ */
+export function useHeldKeys(invoiceVersion: number): HeldKeys {
+  const held = useRef<{ version: number; keys: Record<KeyedOperation, KeyedRequest> }>({
+    version: invoiceVersion,
+    keys: { pay: null, credit: null },
+  });
+  if (held.current.version !== invoiceVersion) {
+    held.current = { version: invoiceVersion, keys: { pay: null, credit: null } };
+  }
+  const keyOf = useCallback((operation: KeyedOperation, request: unknown) => {
+    const next = keyFor(held.current.keys[operation], JSON.stringify(request), () =>
+      crypto.randomUUID(),
+    );
+    held.current.keys[operation] = next;
+    return next.key;
   }, []);
+  const drop = useCallback((operation: KeyedOperation) => {
+    held.current.keys[operation] = null;
+  }, []);
+  return useMemo(() => ({ keyOf, drop }), [keyOf, drop]);
 }
 
 /**
- * Tells the dialog owner whether the form's request is in flight, so it can refuse to close: closing
- * would drop the held key, and a resubmit with a new key could record the same payment twice.
+ * Tells the dialog owner whether the form's request is in flight, so it can refuse to close while the
+ * outcome is still unknown.
  */
 export function usePendingReport(pending: boolean, report?: (pending: boolean) => void): void {
   useEffect(() => {

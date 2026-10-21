@@ -32,14 +32,10 @@ import { InvoiceStatusBadge } from "./invoice-status-badge";
 import { InvoiceTotalsPanel } from "./invoice-totals-panel";
 import { InvoiceVoidDialog } from "./invoice-void-dialog";
 
-/**
- * `paymentPanel` is the payments area's slot (ADR-0030): this area never imports it. `onInvoiceChanged`
- * runs after a saved edit or a void, which can release credit, so the route refreshes the payment side.
- */
+/** `paymentPanel` is the payments area's slot (ADR-0030): this area never imports it. */
 type Props = {
   invoiceId: string;
   paymentPanel?: (invoice: Invoice, refresh: () => void) => ReactNode;
-  onInvoiceChanged?: () => void;
 };
 
 export function InvoicePage(props: Props) {
@@ -50,7 +46,7 @@ export function InvoicePage(props: Props) {
   );
 }
 
-function InvoiceContent({ invoiceId, paymentPanel, onInvoiceChanged }: Props) {
+function InvoiceContent({ invoiceId, paymentPanel }: Props) {
   const { t, tDynamic, pick, formatDate } = useI18n();
   const api = useApi();
   const { persona } = usePersona();
@@ -253,7 +249,6 @@ function InvoiceContent({ invoiceId, paymentPanel, onInvoiceChanged }: Props) {
               }}
               onDone={() => {
                 refresh();
-                onInvoiceChanged?.();
                 setEditing(null);
                 toast.success(t("finance.invoice.saved"));
               }}
@@ -266,7 +261,6 @@ function InvoiceContent({ invoiceId, paymentPanel, onInvoiceChanged }: Props) {
         onClose={() => setVoiding(null)}
         onVoided={() => {
           refresh();
-          onInvoiceChanged?.();
           setVoiding(null);
         }}
       />

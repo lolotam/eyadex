@@ -10,22 +10,25 @@ import { errorKeyOf } from "@/shared/api/api-error";
 import { useApi } from "@/shared/api/api-provider";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { usePersona } from "@/shared/persona/persona-provider";
-import { useIdempotencyKey, usePendingReport } from "./idempotency-key";
+import { usePendingReport } from "./idempotency-key";
 import { checkAmount, smallerMinor } from "./payment-amount";
 
 type Props = {
   invoice: Invoice;
   creditMinor: string;
+  /** The panel's held Idempotency-Key for this operation (see useHeldKeys). */
+  keyOf: (request: unknown) => string;
   onDone: () => void;
+  onFailed?: () => void;
   onPendingChange?: (pending: boolean) => void;
 };
 
 /** Spends the patient's credit on this invoice, mounted once per open; prefilled with the smaller amount. */
-export function ApplyCreditForm({ invoice, creditMinor, onDone, onPendingChange }: Props) {
+export function ApplyCreditForm(props: Props) {
+  const { invoice, creditMinor, keyOf, onDone, onFailed, onPendingChange } = props;
   const { t, tDynamic } = useI18n();
   const api = useApi();
   const { persona } = usePersona();
-  const keyOf = useIdempotencyKey();
   const owed = invoice.settlement?.owedMinor ?? "0";
   const exponent = invoice.currencyExponent;
   const form = useForm<{ amount: string }>({
@@ -38,7 +41,10 @@ export function ApplyCreditForm({ invoice, creditMinor, onDone, onPendingChange 
       toast.success(t("payments.dialog.applied"));
       onDone();
     },
-    onError: (e) => form.setError("root", { message: tDynamic(`errors.${errorKeyOf(e)}`) }),
+    onError: (e) => {
+      form.setError("root", { message: tDynamic(`errors.${errorKeyOf(e)}`) });
+      onFailed?.();
+    },
   });
   usePendingReport(save.isPending, onPendingChange);
   const submit = form.handleSubmit((v) => {

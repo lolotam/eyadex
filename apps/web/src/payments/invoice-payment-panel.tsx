@@ -11,6 +11,7 @@ import { canAtBranch } from "@/shared/permissions/can-at-branch";
 import { useSession } from "@/shared/persona/persona-provider";
 import { StatusPanel } from "@/shared/shell/status-panel";
 import { ApplyCreditForm } from "./apply-credit-dialog";
+import { useHeldKeys } from "./idempotency-key";
 import { InvoiceMovements } from "./invoice-movements";
 import { useInvoicePayments, useRefreshPayments } from "./payment-queries";
 import { RecordPaymentForm } from "./record-payment-dialog";
@@ -39,7 +40,8 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
   const at = (action: "view" | "create") =>
     !!session && canAtBranch(session, action, "payments", invoice.branchId);
   const mayView = at("view");
-  const query = useInvoicePayments(invoice.id, mayView);
+  const query = useInvoicePayments(invoice.id, invoice.version, mayView);
+  const keys = useHeldKeys(invoice.version);
   const owes = invoice.status === "issued" && positive(invoice.settlement?.owedMinor);
   const credit = query.data?.creditBalanceMinor ?? "0";
   const mayPay = at("create") && owes;
@@ -47,7 +49,8 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
   if (!mayView && !mayPay) return null;
   const format = (minor: string) =>
     `${formatMinor(minor, invoice.currencyExponent)} ${invoice.currency}`;
-  // Payment entry waits for the clinic's switches: while they load, or after a load error, it is off. A
+  // «تسجيل دفعة» waits for the clinic's switches (applying credit sends no method): off while they load or
+  // after a load error. A
   // forbidden read or an answer without the field offers all four, the API's own "no saved switch = on"
   // rule (spec §4.6); the API still refuses a disabled method.
   const forbidden = settings.isError && errorKeyOf(settings.error) === "forbidden";
@@ -59,9 +62,15 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
   const enabled = settings.data?.paymentMethods
     ? methods
     : (["cash", "knet", "bank_transfer", "other"] as const).slice();
-  // A late answer closes only the dialog it was sent from, never one opened after it.
-  const done = (opened: typeof open) => {
+  // A late answer closes only the dialog it was sent from, never one opened after it. Only a confirmed
+  // success drops the held key; after a failure the balance is refetched and the key kept for a replay.
+  const done = (opened: NonNullable<typeof open>) => {
+    keys.drop(opened.kind);
     setOpen((current) => (current === opened ? null : current));
+    onChanged();
+    refreshPayments();
+  };
+  const failed = () => {
     onChanged();
     refreshPayments();
   };
@@ -88,7 +97,6 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
             <Button
               size="sm"
               variant="outline"
-              disabled={entryOff}
               onClick={() => setOpen({ kind: "credit", invoice, credit })}
             >
               <Wallet className="size-4" />
@@ -146,7 +154,9 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
             <RecordPaymentForm
               invoice={open.invoice}
               methods={enabled}
+              keyOf={(request) => keys.keyOf("pay", request)}
               onDone={() => done(open)}
+              onFailed={failed}
               onPendingChange={setPending}
             />
           )}
@@ -154,7 +164,9 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
             <ApplyCreditForm
               invoice={open.invoice}
               creditMinor={open.credit}
+              keyOf={(request) => keys.keyOf("credit", request)}
               onDone={() => done(open)}
+              onFailed={failed}
               onPendingChange={setPending}
             />
           )}

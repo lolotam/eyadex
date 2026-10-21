@@ -38,18 +38,21 @@ const invoice = {
   currency: "KWD",
   currencyExponent: 3,
   totalMinor: "5000",
+  version: 1,
   settlement: { state: "partly_paid", paidMinor: "1000", owedMinor: "4000" },
 } as unknown as Invoice;
 
+const client = () => new QueryClient({ defaultOptions: { queries: { retry: false } } });
+const panel = (queries: QueryClient, shown: Invoice = invoice) => (
+  <QueryClientProvider client={queries}>
+    <I18nProvider>
+      <InvoicePaymentPanel invoice={shown} onChanged={() => undefined} />
+    </I18nProvider>
+  </QueryClientProvider>
+);
+
 function show() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
-    <QueryClientProvider client={client}>
-      <I18nProvider>
-        <InvoicePaymentPanel invoice={invoice} onChanged={() => undefined} />
-      </I18nProvider>
-    </QueryClientProvider>,
-  );
+  return render(panel(client()));
 }
 
 beforeEach(() => {
@@ -164,5 +167,38 @@ describe("the payment dialog while a request is in flight", () => {
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     answer({ payment: { receiptNumber: "TT-R-2026-000002" } });
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+});
+
+// PR #103 review: an unclear failure keeps the key above the dialog, so a reopened form replays it.
+describe("the held Idempotency-Key", () => {
+  it("a failed request, closed and reopened with the same values, sends the same key", async () => {
+    h.session = { permissions: ["create:payments:clinic"], allBranches: false, branchIds: [] };
+    h.recordPayment.mockRejectedValueOnce(new ApiError("unknown"));
+    h.recordPayment.mockResolvedValueOnce({ payment: { receiptNumber: "TT-R-2026-000002" } });
+    show();
+    const submitOnce = async () => {
+      fireEvent.click(screen.getByRole("button", { name: ar.payments.panel.record }));
+      fireEvent.click(await screen.findByRole("button", { name: ar.payments.dialog.submit }));
+    };
+    await submitOnce();
+    await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await submitOnce();
+    await waitFor(() => expect(h.recordPayment).toHaveBeenCalledTimes(2));
+    expect(h.recordPayment.mock.calls[1]![3]).toBe(h.recordPayment.mock.calls[0]![3]);
+  });
+});
+
+// PR #103 review: an edit or void that releases credit bumps the version, so the movements refetch.
+describe("the movements after the invoice changes", () => {
+  it("refetches when the invoice version changes", async () => {
+    h.session = { permissions: ["view:payments:clinic"], allBranches: false, branchIds: [] };
+    const queries = client();
+    const view = render(panel(queries));
+    await waitFor(() => expect(h.invoicePayments).toHaveBeenCalledTimes(1));
+    view.rerender(panel(queries, { ...invoice, version: 2 }));
+    await waitFor(() => expect(h.invoicePayments).toHaveBeenCalledTimes(2));
   });
 });

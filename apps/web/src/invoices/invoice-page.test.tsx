@@ -76,20 +76,17 @@ const invoiceAt = (branchId: string): Invoice => ({
   version: 1,
 });
 
-const page = (onInvoiceChanged: () => void = () => undefined) => (
+const page = () => (
   <QueryClientProvider client={new QueryClient()}>
     <I18nProvider manageDocument={false}>
-      <InvoicePage
-        invoiceId="00000000-0000-7000-8000-000000000001"
-        onInvoiceChanged={onInvoiceChanged}
-      />
+      <InvoicePage invoiceId="00000000-0000-7000-8000-000000000001" />
     </I18nProvider>
   </QueryClientProvider>
 );
 
-function show(branchId: string, onInvoiceChanged?: () => void) {
+function show(branchId: string) {
   state.invoice = invoiceAt(branchId);
-  return render(page(onInvoiceChanged));
+  return render(page());
 }
 
 afterEach(cleanup);
@@ -136,16 +133,6 @@ describe("the void dialog", () => {
     const confirm = screen.getAllByRole("button", { name: "إلغاء الفاتورة" }).at(-1)!;
     fireEvent.click(confirm);
     await waitFor(() => expect(state.voided).toEqual([1]));
-  });
-  // PR #103 review: a void can release credit, so the route's payment refresh runs after it.
-  it("tells the route the invoice changed once the void succeeds", async () => {
-    const changed = vi.fn();
-    show(OWN, changed);
-    fireEvent.click(screen.getByRole("button", { name: "إلغاء الفاتورة" }));
-    fireEvent.change(await screen.findByRole("textbox"), { target: { value: "issued twice" } });
-    expect(changed).not.toHaveBeenCalled();
-    fireEvent.click(screen.getAllByRole("button", { name: "إلغاء الفاتورة" }).at(-1)!);
-    await waitFor(() => expect(changed).toHaveBeenCalledTimes(1));
   });
 });
 
