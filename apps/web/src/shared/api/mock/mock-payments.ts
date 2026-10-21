@@ -1,5 +1,5 @@
 import type { PaymentsApi } from "../payments-client";
-import { getPayment, invoicePayments, listPayments } from "./mock-payment-reads";
+import { branchOptions, getPayment, invoicePayments, listPayments } from "./mock-payment-reads";
 import { applyCredit, recordPayment } from "./mock-payment-writes";
 import { delay, getState, persist } from "./mock-store";
 
@@ -21,5 +21,6 @@ export function createMockPayments(): PaymentsApi {
       write(() => applyCredit(getState(), p, id, input, key, new Date())),
     listPayments: async (p, q) => (await delay(), listPayments(getState(), p, q)),
     getPayment: async (p, id) => (await delay(), getPayment(getState(), p, id)),
+    branchOptions: async (p, q) => (await delay(), branchOptions(getState(), p, q)),
   };
 }
