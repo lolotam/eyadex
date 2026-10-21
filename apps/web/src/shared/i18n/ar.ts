@@ -1,4 +1,5 @@
 import { arFinance } from "./ar-finance";
+import { arPayments } from "./ar-payments";
 import { arNotifications } from "./ar-notifications";
 import { arWhatsapp } from "./ar-whatsapp";
 import { arClinicCreate } from "./ar-clinic-create";
@@ -181,6 +182,7 @@ export const ar: Dictionary = {
   ...arNotifications,
   ...arWhatsapp,
   ...arFinance,
+  ...arPayments,
   validation: {
     needsView:
       "أي صلاحية إضافة أو تعديل أو تعطيل تحتاج صلاحية العرض في نفس القسم، بنطاق لا يقل عن نطاقها",
@@ -271,7 +273,16 @@ export const ar: Dictionary = {
     version_conflict: "عدّل شخص آخر هذه الفاتورة للتو؛ أعد تحميلها ثم أعد المحاولة",
     send_request_conflict: "طلب الإرسال هذا مستخدم لفاتورة أو قناة أخرى",
     invoice_link_expired: "رابط الفاتورة غير صالح أو انتهت صلاحيته؛ اطلب رابطاً جديداً من العيادة",
-    // Finance F2 (spec §4.4).
+    // Finance F2 (spec §4.6, §7); these reach the UI as `unknown` with the code in `details.code`.
+    payment_method_disabled: "طريقة الدفع هذه موقوفة في إعدادات العيادة.",
+    payment_exceeds_balance: "المبلغ أكبر من المتبقي على الفاتورة.",
+    invoice_settled: "الفاتورة مدفوعة بالكامل.",
+    credit_insufficient: "رصيد المراجع أقل من المبلغ المطلوب.",
+    refund_exceeds_available: "المبلغ أكبر من المتاح للاسترداد.",
+    payment_methods_empty: "يجب أن تبقى طريقة دفع واحدة على الأقل مفعّلة.",
+    cash_drawer_changed: "توجد حركة نقدية جديدة منذ المعاينة. راجع الإقفال مرة أخرى.",
+    cash_closing_exists: "تم إقفال صندوق هذا الفرع اليوم.",
+    closing_note_required: "اكتب ملاحظة عند وجود فرق.",
     cash_drawer_out_of_range:
       "صافي النقد في هذه الفترة يتجاوز الحد المسموح، ولا يمكن إقفال الصندوق",
   },

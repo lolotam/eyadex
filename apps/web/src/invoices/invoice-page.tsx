@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
 import { AlertCircle, ArrowLeft, Ban, FileDown, Pencil, Send } from "lucide-react";
@@ -6,20 +6,13 @@ import { toast } from "sonner";
 import { formatMinor } from "@eyadex/contracts/money";
 import type { Invoice } from "@eyadex/contracts/finance";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Textarea } from "@/components/ui/textarea";
 import { errorCodeOf } from "@/shared/api/api-error";
 import { useApi } from "@/shared/api/api-provider";
 import { useI18n } from "@/shared/i18n/i18n-provider";
@@ -37,16 +30,23 @@ import { closePdfTab, openPdfTab, showPdf } from "./invoice-pdf-tab";
 import { InvoicePatientName } from "./invoice-patient-name";
 import { InvoiceStatusBadge } from "./invoice-status-badge";
 import { InvoiceTotalsPanel } from "./invoice-totals-panel";
+import { InvoiceVoidDialog } from "./invoice-void-dialog";
 
-export function InvoicePage({ invoiceId }: { invoiceId: string }) {
+/** `paymentPanel` is the payments area's slot (ADR-0030): this area never imports it. */
+type Props = {
+  invoiceId: string;
+  paymentPanel?: (invoice: Invoice, refresh: () => void) => ReactNode;
+};
+
+export function InvoicePage(props: Props) {
   return (
     <RequirePermission resource="invoices">
-      <InvoiceContent invoiceId={invoiceId} />
+      <InvoiceContent {...props} />
     </RequirePermission>
   );
 }
 
-function InvoiceContent({ invoiceId }: { invoiceId: string }) {
+function InvoiceContent({ invoiceId, paymentPanel }: Props) {
   const { t, tDynamic, pick, formatDate } = useI18n();
   const api = useApi();
   const { persona } = usePersona();
@@ -56,10 +56,8 @@ function InvoiceContent({ invoiceId }: { invoiceId: string }) {
   // The invoice as it was when «تعديل» was pressed: a background refetch must not hand the form a newer
   // version than the lines it shows, or a save would overwrite another user's edit (PR #78 review).
   const [editing, setEditing] = useState<Invoice | null>(null);
-  // Likewise the invoice the void dialog was opened on: confirming sends its version, so another user's
-  // edit in the meantime answers version_conflict instead of being voided unseen (PR #78 review).
+  // Likewise the invoice the void dialog was opened on (see InvoiceVoidDialog).
   const [voiding, setVoiding] = useState<Invoice | null>(null);
-  const [reason, setReason] = useState("");
   // The PDF may be unavailable (503 until the server renderer ships): shown in place, page stays usable.
   const [pdfError, setPdfError] = useState<string | null>(null);
   // One id per press: a retry after a failure reuses it, a confirmed send makes the next press a new one.
@@ -68,16 +66,6 @@ function InvoiceContent({ invoiceId }: { invoiceId: string }) {
     whatsapp: crypto.randomUUID(),
   }));
   const onError = (e: unknown) => toast.error(tDynamic(`errors.${errorCodeOf(e)}`));
-  const voidIt = useMutation({
-    mutationFn: (inv: Invoice) =>
-      api.finance.voidInvoice(persona, inv.id, inv.version, reason.trim()),
-    onSuccess: () => {
-      refresh();
-      setVoiding(null);
-      toast.success(t("finance.detail.voided"));
-    },
-    onError,
-  });
   const send = useMutation({
     mutationFn: (channel: "email" | "whatsapp") =>
       api.finance.send(persona, invoiceId, { channel, sendRequestId: sendIds[channel] }),
@@ -238,6 +226,7 @@ function InvoiceContent({ invoiceId }: { invoiceId: string }) {
         </p>
       )}
       <InvoiceTotalsPanel totals={inv} taxRateBp={inv.taxRateBp} format={format} />
+      {paymentPanel?.(inv, refresh)}
       <Dialog open={editing !== null} onOpenChange={(open) => !open && setEditing(null)}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
@@ -267,30 +256,14 @@ function InvoiceContent({ invoiceId }: { invoiceId: string }) {
           )}
         </DialogContent>
       </Dialog>
-      <Dialog open={voiding !== null} onOpenChange={(open) => !open && setVoiding(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t("finance.detail.voidTitle", { number: inv.number })}</DialogTitle>
-            <DialogDescription>{t("finance.detail.voidBody")}</DialogDescription>
-          </DialogHeader>
-          <Textarea
-            value={reason}
-            maxLength={300}
-            aria-label={t("finance.detail.voidReason")}
-            placeholder={t("finance.detail.voidReason")}
-            onChange={(e) => setReason(e.target.value)}
-          />
-          <div className="flex justify-end">
-            <Button
-              variant="destructive"
-              disabled={!reason.trim() || voidIt.isPending}
-              onClick={() => voiding && voidIt.mutate(voiding)}
-            >
-              {t("finance.detail.void")}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <InvoiceVoidDialog
+        invoice={voiding}
+        onClose={() => setVoiding(null)}
+        onVoided={() => {
+          refresh();
+          setVoiding(null);
+        }}
+      />
     </div>
   );
 }

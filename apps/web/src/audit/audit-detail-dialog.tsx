@@ -10,6 +10,7 @@ import { useI18n } from "@/shared/i18n/i18n-provider";
 import { AuditCategoryBadge } from "./audit-category-badge";
 import { auditDiff } from "./audit-diff";
 import { enabledFlags, translateAuditValue } from "./audit-format";
+import { formatFinanceAuditList } from "./audit-format-finance";
 import { formatAuditTime } from "./audit-time";
 
 export type AuditDetailEntry = {
@@ -60,7 +61,8 @@ export function AuditDetailDialog({ entry, timeZone, onClose }: Props) {
   const cell = (field: string, value: unknown): string =>
     field === "changed" && Array.isArray(value)
       ? show(value.map((f) => label(String(f))))
-      : show(value);
+      : (formatFinanceAuditList(field, value, tDynamic, lang === "ar" ? "ar" : "en") ??
+        show(value));
 
   return (
     <Dialog open={Boolean(entry)} onOpenChange={(open) => !open && onClose()}>

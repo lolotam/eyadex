@@ -1,6 +1,8 @@
+import type { InvoiceSettlement } from "@eyadex/contracts/finance";
 import type { Totals } from "@eyadex/contracts/invoice-totals";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { formatBp } from "@/shared/money/use-clinic-money";
+import { InvoiceSettlementChip } from "./invoice-settlement-chip";
 
 type Props = {
   totals:
@@ -10,12 +12,14 @@ type Props = {
         discountMinor: string;
         taxMinor: string;
         totalMinor: string;
+        /** An issued invoice's settlement (F2): paid and balance due under the total. */
+        settlement?: InvoiceSettlement | null | undefined;
       };
   taxRateBp: number;
   format: (minor: string) => string;
 };
 
-/** Subtotal, discounts, the tax line (only when the rate is above 0) and the total. */
+/** Subtotal, discounts, the tax line (only when the rate is above 0), the total and, once issued, paid and due. */
 export function InvoiceTotalsPanel({ totals, taxRateBp, format }: Props) {
   const { t } = useI18n();
   const row = (label: string, minor: bigint | string, strong = false) => (
@@ -32,6 +36,15 @@ export function InvoiceTotalsPanel({ totals, taxRateBp, format }: Props) {
       {taxRateBp > 0 &&
         row(t("finance.invoice.tax", { rate: formatBp(taxRateBp) }), totals.taxMinor)}
       {row(t("finance.invoice.total"), totals.totalMinor, true)}
+      {"settlement" in totals && totals.settlement && (
+        <>
+          {row(t("payments.panel.paid"), totals.settlement.paidMinor)}
+          {row(t("payments.panel.owed"), totals.settlement.owedMinor, true)}
+          <div className="flex justify-end">
+            <InvoiceSettlementChip settlement={totals.settlement} />
+          </div>
+        </>
+      )}
     </dl>
   );
 }

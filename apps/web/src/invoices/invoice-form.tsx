@@ -30,6 +30,8 @@ import { InvoiceLineRow } from "./invoice-line-row";
 import { useInvoiceOptions } from "./invoice-options";
 import { InvoicePatientPicker } from "./invoice-patient-picker";
 import { InvoiceTotalsPanel } from "./invoice-totals-panel";
+import { releasesOnEdit } from "./invoice-release-warning";
+import { ReleaseWarning } from "./release-warning";
 
 type Props = {
   initial: InvoiceFormValues;
@@ -216,6 +218,10 @@ export function InvoiceForm(p: Props) {
       ) : (
         totals && <InvoiceTotalsPanel totals={totals} taxRateBp={taxRateBp} format={money.format} />
       )}
+      {p.editing &&
+        totals &&
+        totals !== "discount_exceeds_total" &&
+        releasesOnEdit(p.editing, totals.totalMinor) && <ReleaseWarning />}
       {error && (
         <div className="flex flex-wrap items-center gap-2 text-sm text-destructive" role="alert">
           {error}

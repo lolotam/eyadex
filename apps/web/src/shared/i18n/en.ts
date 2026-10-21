@@ -1,4 +1,5 @@
 import { enFinance } from "./en-finance";
+import { enPayments } from "./en-payments";
 import { enNotifications } from "./en-notifications";
 import { enWhatsapp } from "./en-whatsapp";
 import { enClinicCreate } from "./en-clinic-create";
@@ -182,6 +183,7 @@ export const en = {
   ...enNotifications,
   ...enWhatsapp,
   ...enFinance,
+  ...enPayments,
   validation: {
     needsView:
       "Any create, edit or deactivate permission needs view on the same area, at a scope at least as wide",
@@ -277,7 +279,16 @@ export const en = {
     version_conflict: "Someone else just changed this invoice; reload it and try again",
     send_request_conflict: "This send request was already used for another invoice or channel",
     invoice_link_expired: "This invoice link is no longer valid; ask the clinic for a new one",
-    // Finance F2 (spec §4.4).
+    // Finance F2 (spec §4.6, §7); these reach the UI as `unknown` with the code in `details.code`.
+    payment_method_disabled: "This payment method is turned off in the clinic settings.",
+    payment_exceeds_balance: "The amount is more than the invoice still owes.",
+    invoice_settled: "The invoice is already fully paid.",
+    credit_insufficient: "The patient's credit is less than the amount.",
+    refund_exceeds_available: "The amount is more than can be refunded.",
+    payment_methods_empty: "At least one payment method must stay on.",
+    cash_drawer_changed: "Cash moved since the preview. Review the closing again.",
+    cash_closing_exists: "This branch's cash is already closed for today.",
+    closing_note_required: "Write a note when there is a difference.",
     cash_drawer_out_of_range:
       "The period's net cash is beyond the allowed limit, so the drawer cannot be closed",
   },

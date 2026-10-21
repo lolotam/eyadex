@@ -1,5 +1,6 @@
 import {
   financeSettingsSchema,
+  paymentMethodsResponseSchema,
   invoicePrefixItemSchema,
   invoicePrefixListSchema,
   platformClinicFinanceSchema,
@@ -21,6 +22,7 @@ type SettingsPart = Pick<
   | "updateSettings"
   | "logo"
   | "uploadLogo"
+  | "setPaymentMethods"
   | "prefixes"
   | "setPrefix"
   | "platformFinance"
@@ -31,6 +33,11 @@ type SettingsPart = Pick<
 function createHttpFinanceSettings({ transport }: HttpContext): SettingsPart {
   const id = encodeURIComponent;
   return {
+    setPaymentMethods: (_persona, paymentMethods) =>
+      transport.send("PUT", "/v1/clinic/settings/payment-methods", {
+        schema: paymentMethodsResponseSchema,
+        body: { paymentMethods },
+      }),
     prices: () => transport.send("GET", "/v1/prices", { schema: priceListResponseSchema }),
     async setServicePrice(_persona, serviceId, priceMinor) {
       const answer = await transport.send("PATCH", `/v1/services/${id(serviceId)}/price`, {

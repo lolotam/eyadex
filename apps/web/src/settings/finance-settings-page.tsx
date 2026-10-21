@@ -11,6 +11,7 @@ import { ClinicFinanceCard } from "./clinic-finance-card";
 import { ClinicLogoCard } from "./clinic-logo-card";
 import { ClinicSettingsGuard } from "./clinic-settings-guard";
 import { InvoicePrefixesCard } from "./invoice-prefixes-card";
+import { PaymentMethodsCard } from "./payment-methods-card";
 
 function FinanceSettingsContent() {
   const { t, tDynamic } = useI18n();
@@ -34,6 +35,7 @@ function FinanceSettingsContent() {
           <ClinicFinanceCard settings={query.data} editable={editable} />
           <ClinicLogoCard hasLogo={query.data.hasLogo} editable={editable} />
           {can(keys, "update", "branches") && <InvoicePrefixesCard />}
+          <PaymentMethodsCard settings={query.data} editable={editable} />
         </div>
       ) : (
         <StatusPanel
@@ -46,7 +48,7 @@ function FinanceSettingsContent() {
   );
 }
 
-/** `/clinic/settings/finance` (F1 §2): currency and tax, registration number, logo, prefixes. */
+/** `/clinic/settings/finance` (F1 §2): currency and tax, registration number, logo, prefixes, payment methods. */
 export function FinanceSettingsPage() {
   return (
     <ClinicSettingsGuard active="finance">
