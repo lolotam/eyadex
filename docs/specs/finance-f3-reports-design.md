@@ -423,18 +423,14 @@ recommendation it says so, with what changes.
 | F3-Q12   | «أيوه، للعيادة كلها (المقترح)»                                                                          | (a) R6 in F3, clinic scope                                                                             | —                                                                                                                                                                               |
 | F3-Q13   | «نوحّد الحساب (المقترح)»                                                                                | (a) the platform totals move to `business_date` in a new SQL file                                      | applying that file to production needs the owner's own yes when it is ready                                                                                                     |
 
-Points raised back to the owner with these answers (1 and 2 decided 2026-10-21; 3 open):
+Points raised back to the owner with these answers (all three decided 2026-10-21):
 
 1. **Decided (EY-9.14, «التحصيل والكاش بس (المقترح)», option (a)):** the receptionist's default `branch`
    grant covers R1, R2 and R9 only; the patient-named reports R5–R8 and their exports need the admin's grant.
 2. **Decided (EY-9.15, «سجل زي فتح ملف مريض (المقترح)», option (a)):** every export of R5–R8 writes a
    patient-data access audit row (who, which report, which range), the same as opening a patient file.
-3. **R10's paid and owed columns after F3-Q4 = (c).** Payments name an invoice, not a line, so paid and owed
-   cannot be split to the doctor's own lines without a rule the owner has not given (that is FIN-19
-   commission). Proposed: (a) R10 shows only the billed amount of the doctor's own lines per month, with no
-   paid or owed columns (recommended); (b) R10 also shows, beside it, the whole-invoice paid and owed of the
-   invoices that carry those lines, labelled as whole-invoice amounts. Until answered, R10 has no paid or
-   owed column.
+3. **Decided (EY-9.16, «المبلغ المطلوب بس (المقترح)», option (a)):** R10 shows only the billed amount of
+   the doctor's own lines per month, with no paid or owed columns (payments name an invoice, not a line).
 
 ADR-0035 (`docs/adr/0035-finance-reports.md`) is written with the first F3 slice, from §11 and the answers
 to the three points above; nothing is built before it. The discount-giver rule of R8 stays open in issue
