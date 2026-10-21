@@ -13,8 +13,9 @@ transfer or other (FIN-11), partial payments (FIN-12), credit when an edited inv
 paid (FIN-13), refunds as their own movement (FIN-14), a daily cash closing per branch (FIN-15) and gap-free
 receipt numbers per branch (FIN-16). R1-4 forbids storing payment progress in `status`; R1-5 and R2-2 say
 money is tracked as movements and a lowered or voided invoice releases its excess into credit; R2-8 fixes
-one patient lock for every money operation. ADR-0033 (F1's money, numbering and invoice life cycle) is not
-written yet; this record cites the spec's §3, §8 and §8b for those rules.
+one patient lock for every money operation. ADR-0033 (`0033-f1-money-numbering-invoice-life-cycle.md`)
+records F1's money, numbering and invoice life cycle; this record also cites the spec's §3, §8 and §8b for
+those rules.
 
 ## Decision
 
