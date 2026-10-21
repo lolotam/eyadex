@@ -15,8 +15,11 @@ import { patientIn } from "../../medical/__tests__/medical-fixtures.ts";
 import {
   financeClinic,
   manualInvoice,
+  pay,
+  refund,
   setPrefixes,
 } from "../../billing/__tests__/billing-fixtures.ts";
+import { CLOCK, type Clock } from "../../tenancy/index.ts";
 import { platformStaff } from "./platform-staff.ts";
 
 // Plan Task 8i (spec §8 rule 6, FIN-3): the platform sets a clinic's currency and tax rate, and reads
@@ -126,7 +129,62 @@ describe("GET /v1/platform/clinics/:id/finance-totals (FIN-3)", () => {
     expect(res.statusCode).toBe(200);
     const { months } = res.json() as { months: Record<string, unknown>[] };
     expect(months).toHaveLength(1);
-    expect(months[0]).toMatchObject({ currency: "KWD", invoicedMinor: "4000" });
-    expect(Object.keys(months[0]!).sort()).toEqual(["currency", "invoicedMinor", "month"]);
+    expect(months[0]).toMatchObject({
+      currency: "KWD",
+      invoicedMinor: "4000",
+      collectedMinor: "0",
+      refundedMinor: "0",
+    });
+    expect(Object.keys(months[0]!).sort()).toEqual([
+      "collectedMinor",
+      "currency",
+      "invoicedMinor",
+      "month",
+      "refundedMinor",
+    ]);
+  });
+
+  it("counts a payment by its month and a refund by its own month (R1-17)", async () => {
+    const C = await financeClinic(h, invalidate);
+    await setPrefixes(h, C);
+    const patient = await patientIn(h, C, C.branchD);
+    const invoice = await manualInvoice(h, C.admin.cookie, patient, C.branchD, "3000");
+    const paid = await pay(h, C.admin.cookie, invoice.id, { method: "knet", amountMinor: "3000" });
+    expect(paid.statusCode, paid.body).toBe(201);
+    const paymentId = (paid.json() as { payment: { id: string } }).payment.id;
+    const clock = h.app.get<Clock>(CLOCK);
+    const real = clock.now;
+    // The refund is made 40 days later, so it lands in a later clinic month than the payment.
+    clock.now = () => new Date(real().getTime() + 40 * 86_400_000);
+    try {
+      const refunded = await refund(h, C.admin.cookie, invoice.id, {
+        source: "payment",
+        paymentId,
+        amountMinor: "1000",
+        method: "knet",
+        reason: "returned a service",
+      });
+      expect(refunded.statusCode, refunded.body).toBe(201);
+    } finally {
+      clock.now = real;
+    }
+    const res = await platform("GET", `/${C.clinicId}/finance-totals`);
+    expect(res.statusCode).toBe(200);
+    const { months } = res.json() as { months: Record<string, unknown>[] };
+    expect(months).toHaveLength(2);
+    expect(months[0]).toMatchObject({
+      invoicedMinor: "3000",
+      collectedMinor: "3000",
+      refundedMinor: "0",
+    });
+    expect(months[1]).toMatchObject({
+      invoicedMinor: "0",
+      collectedMinor: "0",
+      refundedMinor: "1000",
+    });
+    // Totals only: no row names a patient, an invoice or a payment.
+    expect(res.body).not.toContain(patient);
+    expect(res.body).not.toContain(invoice.id);
+    expect(res.body).not.toContain(paymentId);
   });
 });

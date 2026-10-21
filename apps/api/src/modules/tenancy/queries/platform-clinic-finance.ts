@@ -32,8 +32,9 @@ export function readPlatformClinicFinance(
 }
 
 /**
- * إجمالي الفواتير غير الملغية لكل شهر بتوقيت العيادة (FIN-3)، من `finance_monthly_totals` (0061): المنصة
- * مالهاش أي صلاحية على صفوف الفواتير، فالدالة هي الطريق الوحيد.
+ * إجماليات العيادة لكل شهر بتوقيتها (FIN-3، R1-17)، من `finance_monthly_totals` (0065): الفواتير غير
+ * الملغية بشهر إصدارها، والمحصّل بشهر الدفعة، والمسترد بشهر الاسترداد. المنصة مالهاش أي صلاحية على صفوف
+ * الفواتير أو الدفعات أو المرتجعات، فالدالة هي الطريق الوحيد، ومفيش عمود مراجع واصل لها.
  *
  * @param db pool الـ `eyadex_platform`
  * @param clinicId العيادة
@@ -44,15 +45,24 @@ export function readPlatformFinanceTotals(
   clinicId: string,
 ): Promise<z.infer<typeof platformFinanceTotalsSchema>> {
   return db.withTenant(clinicId, async (tx) => {
-    const rows = await tx.execute<{ month: string; currency: CurrencyCode; invoiced: string }>(
-      sql`SELECT to_char(month, 'YYYY-MM') AS month, currency, invoiced_minor::text AS invoiced
-          FROM finance_monthly_totals(${clinicId}::uuid) ORDER BY month`,
+    const rows = await tx.execute<{
+      month: string;
+      currency: CurrencyCode;
+      invoiced: string;
+      collected: string;
+      refunded: string;
+    }>(
+      sql`SELECT to_char(month, 'YYYY-MM') AS month, currency, invoiced_minor::text AS invoiced,
+            collected_minor::text AS collected, refunded_minor::text AS refunded
+          FROM finance_monthly_totals(${clinicId}::uuid) ORDER BY month, currency`,
     );
     return {
       months: rows.map((r) => ({
         month: r.month,
         currency: r.currency,
         invoicedMinor: r.invoiced,
+        collectedMinor: r.collected,
+        refundedMinor: r.refunded,
       })),
     };
   });

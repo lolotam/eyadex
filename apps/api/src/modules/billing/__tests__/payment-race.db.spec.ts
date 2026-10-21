@@ -228,8 +228,8 @@ describe("the cash drawer of a branch (spec §4.4, §4.8)", () => {
     const two = await manualInvoice(h, C.admin.cookie, second, C.branchR, "2000");
     const holding = await holdPatients([first, second]);
     const paying = Promise.all([
-      pay(h, C.cashier.cookie, one.id, cash("1000")),
-      pay(h, C.cashier.cookie, two.id, cash("2000")),
+      pay(h, C.receptionist.cookie, one.id, cash("1000")),
+      pay(h, C.receptionist.cookie, two.id, cash("2000")),
     ]);
     try {
       await rowLockWaiters(2);

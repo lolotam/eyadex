@@ -1,4 +1,5 @@
 import { enAuditApiClinicActions } from "./en-audit-api";
+import { enRefundClosingAuditFields } from "./en-finance-audit";
 import { enMedicalAuditActions, enMedicalAuditEntities, enMedicalAuditFields } from "./en-medical";
 
 // Audit log strings, split out to keep each dictionary file small.
@@ -51,6 +52,8 @@ export const enAudit = {
       payment: "Payment",
       patient_credit: "Patient credit",
       payment_methods: "Payment methods",
+      refund: "Refund",
+      cash_closing: "Cash closing",
     },
     actions: {
       branch: {
@@ -147,10 +150,13 @@ export const enAudit = {
       payment: { recorded: "Payment recorded" },
       credit: { applied: "Patient credit applied", released: "Moved to patient credit" },
       payment_methods: { changed: "Payment methods changed" },
+      refund: { recorded: "Refund recorded" },
+      cash_closing: { closed: "Cash drawer closed" },
       ...enMedicalAuditActions,
     },
     fields: {
       ...enMedicalAuditFields,
+      ...enRefundClosingAuditFields,
       currency: "Currency",
       currencyExponent: "Currency decimal places",
       invoicePrefix: "Invoice prefix",
@@ -170,7 +176,6 @@ export const enAudit = {
       commercialRegNo: "Commercial registration number",
       logo: "Logo",
       providerCount: "Doctor count",
-      reasonLength: "Reason length",
       via: "Access method",
       taxRateBp: "Tax rate (basis points)",
       nameAr: "Name (Arabic)",

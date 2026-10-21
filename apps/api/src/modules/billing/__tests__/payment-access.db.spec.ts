@@ -53,22 +53,27 @@ describe("a member without the payments key", () => {
 });
 
 describe("the branch scope of a payment", () => {
-  it("hides another branch's invoice and receipt from the cashier of branch R", async () => {
+  it("hides another branch's invoice and receipt from the receptionist of branch R", async () => {
     const invoice = await invoiceOn(C, C.branchD, "1000");
-    const recorded = await pay(h, C.cashier.cookie, invoice.id, cash("1000"));
+    const recorded = await pay(h, C.receptionist.cookie, invoice.id, cash("1000"));
     expect([recorded.statusCode, code(recorded)]).toEqual([404, "not_found"]);
-    const receipts = await send(h, C.cashier.cookie, "GET", `/v1/invoices/${invoice.id}/payments`);
+    const receipts = await send(
+      h,
+      C.receptionist.cookie,
+      "GET",
+      `/v1/invoices/${invoice.id}/payments`,
+    );
     expect([receipts.statusCode, code(receipts)]).toEqual([404, "not_found"]);
     const payment = await pay(h, C.admin.cookie, invoice.id, cash("1000"));
     expect(payment.statusCode, payment.body).toBe(201);
     const id = (payment.json() as Answer).payment.id;
-    const receipt = await send(h, C.cashier.cookie, "GET", `/v1/payments/${id}`);
+    const receipt = await send(h, C.receptionist.cookie, "GET", `/v1/payments/${id}`);
     expect([receipt.statusCode, code(receipt)]).toEqual([404, "not_found"]);
   });
 
-  it("lets the cashier pay the invoice of its own branch", async () => {
+  it("lets the receptionist pay the invoice of its own branch", async () => {
     const invoice = await invoiceOn(C, C.branchR, "1000");
-    const recorded = await pay(h, C.cashier.cookie, invoice.id, cash("1000"));
+    const recorded = await pay(h, C.receptionist.cookie, invoice.id, cash("1000"));
     expect(recorded.statusCode, recorded.body).toBe(201);
   });
 });

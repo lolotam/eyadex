@@ -1,4 +1,5 @@
 import { arAuditApiClinicActions } from "./ar-audit-api";
+import { arRefundClosingAuditFields } from "./ar-finance-audit";
 import { arMedicalAuditActions, arMedicalAuditEntities, arMedicalAuditFields } from "./ar-medical";
 
 // نصوص سجل التدقيق، مفصولة لإبقاء ملفات القاموس صغيرة.
@@ -51,6 +52,8 @@ export const arAudit = {
       payment: "دفعة",
       patient_credit: "رصيد المراجع",
       payment_methods: "طرق الدفع",
+      refund: "استرداد",
+      cash_closing: "إقفال الصندوق",
     },
     actions: {
       branch: {
@@ -147,10 +150,13 @@ export const arAudit = {
       payment: { recorded: "تسجيل دفعة" },
       credit: { applied: "استخدام رصيد المراجع", released: "تحويل مبلغ لرصيد المراجع" },
       payment_methods: { changed: "تعديل طرق الدفع" },
+      refund: { recorded: "تسجيل استرداد" },
+      cash_closing: { closed: "إقفال الصندوق" },
       ...arMedicalAuditActions,
     },
     fields: {
       ...arMedicalAuditFields,
+      ...arRefundClosingAuditFields,
       currency: "العملة",
       currencyExponent: "خانات العملة العشرية",
       invoicePrefix: "بادئة الفاتورة",
@@ -170,7 +176,6 @@ export const arAudit = {
       commercialRegNo: "رقم السجل التجاري",
       logo: "الشعار",
       providerCount: "عدد الدكاترة",
-      reasonLength: "طول السبب",
       via: "طريقة الوصول",
       taxRateBp: "نسبة الضريبة (نقطة أساس)",
       nameAr: "الاسم (عربي)",

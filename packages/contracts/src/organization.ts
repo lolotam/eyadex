@@ -67,6 +67,10 @@ export const clinicAuditEntitySchema = z.enum([
   "payment",
   "patient_credit",
   "payment_methods",
+  // Finance F2 slice 5 (0064, F2-Q19): a refund is patient access; a cash closing names no patient but is
+  // finance, so it stays in the clinic log only, like every finance entity.
+  "refund",
+  "cash_closing",
 ]);
 
 export const clinicAuditEntrySchema = z.object({
