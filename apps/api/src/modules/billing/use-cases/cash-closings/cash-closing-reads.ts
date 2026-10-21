@@ -4,13 +4,11 @@ import type {
   cashClosingListResponseSchema,
 } from "@eyadex/contracts/finance";
 import type { Database } from "@eyadex/db";
-import { sql } from "drizzle-orm";
 import type { z } from "zod";
 
 import { ApiError } from "../../../../shared/errors.ts";
 import type { BillingActor, MemberBranches } from "../../domain/billing-actor.ts";
 import { cashClosingsReach } from "../../domain/money-reach.ts";
-import { branchCondition } from "../../queries/branch-condition.ts";
 import { listCashClosings } from "../../queries/cash-closing-list.ts";
 import { closingInReach } from "./closing-view.ts";
 
@@ -32,9 +30,9 @@ export class CashClosingReads {
     actor: BillingActor,
     query: CashClosingListQuery,
   ): Promise<z.infer<typeof cashClosingListResponseSchema>> {
-    const condition = branchCondition(this.reach(actor), sql`k.branch_id`);
+    const reach = this.reach(actor);
     return this.deps.db.withTenant(actor.clinicId, (tx) =>
-      listCashClosings(tx, actor.clinicId, query, condition),
+      listCashClosings(tx, actor.clinicId, query, reach),
     );
   }
 

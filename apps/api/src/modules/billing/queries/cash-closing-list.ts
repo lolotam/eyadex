@@ -3,11 +3,13 @@ import type { Tx } from "@eyadex/db";
 import { sql, type SQL } from "drizzle-orm";
 
 import { ApiError } from "../../../shared/errors.ts";
+import type { MemberBranches } from "../domain/billing-actor.ts";
 import { CLOSING_COLUMNS, toClosing, type ClosingRaw } from "../persistence/pg-cash-closings.ts";
+import { branchCondition } from "./branch-condition.ts";
 import { fromCursor, toCursor } from "./list-cursor.ts";
 
-function filters(clinicId: string, query: CashClosingListQuery, reach: SQL): SQL[] {
-  const where = [sql`k.clinic_id = ${clinicId}`, reach];
+function filters(clinicId: string, query: CashClosingListQuery, reach: MemberBranches): SQL[] {
+  const where = [sql`k.clinic_id = ${clinicId}`, branchCondition(reach, sql`k.branch_id`)];
   if (query.branchId !== undefined) where.push(sql`k.branch_id = ${query.branchId}`);
   // A closing's day is the branch's business day in the clinic's timezone (F2-Q9).
   if (query.from !== undefined) where.push(sql`k.business_date >= ${query.from}::date`);
@@ -19,14 +21,14 @@ function filters(clinicId: string, query: CashClosingListQuery, reach: SQL): SQL
  * `GET /v1/cash-closings`: newest first, a page and the total that matches, inside the caller's reach.
  * No patient appears on a closing (spec §4.6).
  *
- * @param reach the caller's view condition on the alias `k`
+ * @param reach the branches the caller may read
  * @returns the page, the next cursor and the total
  */
 export async function listCashClosings(
   tx: Tx,
   clinicId: string,
   query: CashClosingListQuery,
-  reach: SQL,
+  reach: MemberBranches,
 ): Promise<{ items: CashClosing[]; nextCursor: string | null; total: number }> {
   const where = filters(clinicId, query, reach);
   const [count] = await tx.execute<{ total: number }>(

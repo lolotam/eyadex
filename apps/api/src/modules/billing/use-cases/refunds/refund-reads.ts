@@ -1,13 +1,11 @@
 import type { Refund, RefundListQuery, refundListResponseSchema } from "@eyadex/contracts/finance";
 import type { Database } from "@eyadex/db";
-import { sql } from "drizzle-orm";
 import type { z } from "zod";
 
 import { ApiError } from "../../../../shared/errors.ts";
 import type { BillingActor } from "../../domain/billing-actor.ts";
 import { paymentsReach } from "../../domain/money-reach.ts";
 import type { BillingPatientReader } from "../../ports/billing-patients.ts";
-import { branchCondition } from "../../queries/branch-condition.ts";
 import { listRefunds } from "../../queries/refund-list.ts";
 import { refundInReach } from "./refund-view.ts";
 
@@ -36,9 +34,8 @@ export class RefundReads {
   ): Promise<z.infer<typeof refundListResponseSchema>> {
     const reach = paymentsReach(actor, "view");
     if (reach === null) throw new ApiError("forbidden");
-    const condition = branchCondition(reach, sql`r.branch_id`);
     return this.deps.db.withTenant(actor.clinicId, (tx) =>
-      listRefunds(tx, actor.clinicId, query, condition, this.deps.patients),
+      listRefunds(tx, actor.clinicId, query, reach, this.deps.patients),
     );
   }
 

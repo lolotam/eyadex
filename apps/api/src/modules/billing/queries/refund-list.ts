@@ -9,11 +9,13 @@ import {
   toRefundRow,
   type RefundRaw,
 } from "../persistence/pg-refund-reads.ts";
+import type { MemberBranches } from "../domain/billing-actor.ts";
 import type { BillingPatientReader } from "../ports/billing-patients.ts";
+import { branchCondition } from "./branch-condition.ts";
 import { fromCursor, toCursor } from "./list-cursor.ts";
 
-function filters(clinicId: string, query: RefundListQuery, reach: SQL): SQL[] {
-  const where = [sql`r.clinic_id = ${clinicId}`, reach];
+function filters(clinicId: string, query: RefundListQuery, reach: MemberBranches): SQL[] {
+  const where = [sql`r.clinic_id = ${clinicId}`, branchCondition(reach, sql`r.branch_id`)];
   if (query.branchId !== undefined) where.push(sql`r.branch_id = ${query.branchId}`);
   if (query.method !== undefined) where.push(sql`r.method = ${query.method}`);
   if (query.patientId !== undefined) where.push(sql`r.patient_id = ${query.patientId}`);
@@ -27,14 +29,14 @@ function filters(clinicId: string, query: RefundListQuery, reach: SQL): SQL[] {
 /**
  * `GET /v1/refunds`: newest first, a page and the total that matches, inside the caller's reach.
  *
- * @param reach the caller's view condition on the alias `r`
+ * @param reach the branches the caller may read
  * @returns the page, the next cursor and the total
  */
 export async function listRefunds(
   tx: Tx,
   clinicId: string,
   query: RefundListQuery,
-  reach: SQL,
+  reach: MemberBranches,
   patients: Pick<BillingPatientReader, "displayNames">,
 ): Promise<{ items: Refund[]; nextCursor: string | null; total: number }> {
   const where = filters(clinicId, query, reach);
