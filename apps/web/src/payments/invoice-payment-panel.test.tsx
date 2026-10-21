@@ -50,6 +50,7 @@ const panel = (queries: QueryClient, shown: Invoice = invoice) => (
     </I18nProvider>
   </QueryClientProvider>
 );
+const amountLabel = () => ar.payments.dialog.amount.replace("{currency}", "KWD");
 
 function show() {
   return render(panel(client()));
@@ -190,6 +191,54 @@ describe("the held Idempotency-Key", () => {
     await submitOnce();
     await waitFor(() => expect(h.recordPayment).toHaveBeenCalledTimes(2));
     expect(h.recordPayment.mock.calls[1]![3]).toBe(h.recordPayment.mock.calls[0]![3]);
+  });
+
+  it("a failed request, then a higher paid amount, sends a different key", async () => {
+    h.session = { permissions: ["create:payments:clinic"], allBranches: false, branchIds: [] };
+    h.recordPayment.mockRejectedValueOnce(new ApiError("unknown"));
+    h.recordPayment.mockResolvedValueOnce({ payment: { receiptNumber: "TT-R-2026-000002" } });
+    const queries = client();
+    const view = render(panel(queries));
+    // The same amount both times, so only the invoice's paid amount tells the two requests apart.
+    const submitOnce = async () => {
+      fireEvent.click(screen.getByRole("button", { name: ar.payments.panel.record }));
+      fireEvent.change(await screen.findByLabelText(amountLabel()), { target: { value: "1.000" } });
+      fireEvent.click(await screen.findByRole("button", { name: ar.payments.dialog.submit }));
+    };
+    await submitOnce();
+    await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    view.rerender(
+      panel(queries, {
+        ...invoice,
+        totalMinor: "7000",
+        settlement: { state: "partly_paid", paidMinor: "5000", owedMinor: "2000" },
+      }),
+    );
+    await submitOnce();
+    await waitFor(() => expect(h.recordPayment).toHaveBeenCalledTimes(2));
+    expect(h.recordPayment.mock.calls[1]![3]).not.toBe(h.recordPayment.mock.calls[0]![3]);
+  });
+
+  it("a failed request, then another invoice, sends a different key", async () => {
+    h.session = { permissions: ["create:payments:clinic"], allBranches: false, branchIds: [] };
+    h.recordPayment.mockRejectedValueOnce(new ApiError("unknown"));
+    h.recordPayment.mockResolvedValueOnce({ payment: { receiptNumber: "TT-R-2026-000002" } });
+    const queries = client();
+    const view = render(panel(queries));
+    const submitOnce = async () => {
+      fireEvent.click(screen.getByRole("button", { name: ar.payments.panel.record }));
+      fireEvent.click(await screen.findByRole("button", { name: ar.payments.dialog.submit }));
+    };
+    await submitOnce();
+    await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    view.rerender(panel(queries, { ...invoice, id: "00000000-0000-7000-8000-00000000000d" }));
+    await submitOnce();
+    await waitFor(() => expect(h.recordPayment).toHaveBeenCalledTimes(2));
+    expect(h.recordPayment.mock.calls[1]![3]).not.toBe(h.recordPayment.mock.calls[0]![3]);
   });
 });
 

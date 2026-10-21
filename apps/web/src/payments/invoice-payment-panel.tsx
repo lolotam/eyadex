@@ -41,7 +41,13 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
     !!session && canAtBranch(session, action, "payments", invoice.branchId);
   const mayView = at("view");
   const query = useInvoicePayments(invoice.id, invoice.version, mayView);
-  const keys = useHeldKeys();
+  // The held key is bound to the invoice as it is now, not to the copy the dialog was opened on: a
+  // refetch that shows a higher paid amount means the earlier request may have been recorded, so its key
+  // must not answer a new payment.
+  const keys = useHeldKeys({
+    invoiceId: invoice.id,
+    paidMinor: invoice.settlement?.paidMinor ?? "0",
+  });
   const owes = invoice.status === "issued" && positive(invoice.settlement?.owedMinor);
   const credit = query.data?.creditBalanceMinor ?? "0";
   const mayPay = at("create") && owes;
@@ -63,7 +69,8 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
     ? methods
     : (["cash", "knet", "bank_transfer", "other"] as const).slice();
   // A late answer closes only the dialog it was sent from, never one opened after it. Only a confirmed
-  // success drops the held key; after a failure the balance is refetched and the key kept for a replay.
+  // success drops the held key; after a failure the balance is refetched and the key kept for a replay,
+  // as long as the invoice still shows the same paid amount.
   const done = (opened: NonNullable<typeof open>) => {
     keys.drop(opened.kind);
     setOpen((current) => (current === opened ? null : current));
