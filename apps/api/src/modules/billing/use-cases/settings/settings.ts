@@ -1,4 +1,9 @@
-import type { FinanceSettings, InvoicePrefixItem } from "@eyadex/contracts/finance";
+import type {
+  FinanceSettings,
+  InvoicePrefixItem,
+  PaymentMethod,
+  PaymentMethodsRequest,
+} from "@eyadex/contracts/finance";
 import { DatabaseError, type Database, type Tx } from "@eyadex/db";
 import type { IdGenerator } from "@eyadex/ids";
 
@@ -8,6 +13,7 @@ import { ApiError } from "../../../../shared/errors.ts";
 import type { Clock } from "../../../tenancy/index.ts";
 import type { BillingActor } from "../../domain/billing-actor.ts";
 import { LOGO_MAX_BYTES, logoType, type LogoType } from "../../domain/logo.ts";
+import { paymentMethodSettings, requireSomeMethodEnabled } from "../../domain/payment-rules.ts";
 import {
   listPrefixes,
   lockBranchPrefix,
@@ -18,6 +24,7 @@ import {
   setCommercialRegNo,
   setLogoKey,
 } from "../../persistence/pg-finance-settings.ts";
+import { paymentMethodRows, savePaymentMethods } from "../../persistence/pg-payment-writes.ts";
 
 export interface SettingsDeps {
   readonly db: Database;
@@ -109,6 +116,31 @@ export class ClinicFinanceSettings {
       }
       throw error;
     }
+  }
+
+  /**
+   * طرق الدفع الأربعة بالترتيب الثابت (FIN-11): لازم طريقة واحدة على الأقل تفضل شغالة، والصف
+   * الإداري بيقول قبل وبعد.
+   *
+   * @param actor الفاعل (شايل `update:clinic_settings:clinic`)
+   * @param settings الطرق وهل كل واحدة شغالة
+   * @returns الطرق بعد الحفظ
+   */
+  setPaymentMethods(
+    actor: BillingActor,
+    settings: PaymentMethodsRequest["paymentMethods"],
+  ): Promise<{ paymentMethods: { method: PaymentMethod; enabled: boolean }[] }> {
+    return this.deps.db.withTenant(actor.clinicId, async (tx) => {
+      const after = paymentMethodSettings(settings);
+      requireSomeMethodEnabled(after);
+      const before = paymentMethodSettings(await paymentMethodRows(tx, actor.clinicId));
+      await savePaymentMethods(tx, this.deps.ids, actor.clinicId, after, this.deps.clock.now());
+      await this.audit(tx, actor, "payment_methods.changed", "payment_methods", actor.clinicId, {
+        before: { paymentMethods: before },
+        after: { paymentMethods: after },
+      });
+      return { paymentMethods: after };
+    });
   }
 
   /**

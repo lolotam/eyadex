@@ -3,6 +3,9 @@ import type { CurrencyCode } from "@eyadex/contracts/money";
 import type { Tx } from "@eyadex/db";
 import { sql } from "drizzle-orm";
 
+import { paymentMethodSettings } from "../domain/payment-rules.ts";
+import { paymentMethodRows } from "./pg-payment-writes.ts";
+
 // SQL on the clinic columns finance owns (0060: commercial_reg_no, logo_blob_key) and the branches'
 // invoice prefix. Every function runs inside the caller's withTenant(clinicId).
 
@@ -23,6 +26,8 @@ export async function readFinanceSettings(tx: Tx, clinicId: string): Promise<Fin
     taxRateBp: row!.tax_rate_bp,
     commercialRegNo: row!.commercial_reg_no,
     hasLogo: row!.logo_blob_key !== null,
+    // FIN-11: the four methods in the fixed order; a method with no row is still on.
+    paymentMethods: paymentMethodSettings(await paymentMethodRows(tx, clinicId)),
   };
 }
 

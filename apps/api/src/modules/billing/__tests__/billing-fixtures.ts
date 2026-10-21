@@ -16,6 +16,9 @@ import { medicalClinic, patientIn, setModule } from "../../medical/__tests__/med
  * The medical clinic with the finance module on. The admin holds the seven clinic-scope finance keys from
  * the onboarding (system-roles.ts) and the doctor `view:invoices:own`; a price reader holds
  * `view:prices:clinic` only, and the desk (branch R) holds the receptionist's finance keys.
+ *
+ * Finance F2 (F2-Q15) adds the cashier: a member of branch R that records the payments of its branch
+ * (the four keys of §4.1) and holds no other finance key.
  */
 export async function financeClinic(h: Harness, invalidate: AuthorizationInvalidator) {
   const C = await medicalClinic(h, invalidate);
@@ -37,8 +40,19 @@ export async function financeClinic(h: Harness, invalidate: AuthorizationInvalid
     ]),
     { allBranches: false, branchIds: [C.branchR] },
   );
+  const cashier = await memberOn(
+    h,
+    C.admin,
+    await customRole(h, C.clinicId, [
+      "view:patients:branch",
+      "view:invoices:branch",
+      "view:payments:branch",
+      "create:payments:branch",
+    ]),
+    { allBranches: false, branchIds: [C.branchR] },
+  );
   await invalidate.clinicChanged(C.clinicId);
-  return { ...C, priceReader, desk };
+  return { ...C, priceReader, desk, cashier };
 }
 
 export type FinanceClinic = Awaited<ReturnType<typeof financeClinic>>;
@@ -119,4 +133,41 @@ export async function manualInvoice(
   );
   if (res.statusCode !== 201) throw new Error(`issue ${res.statusCode} ${res.body}`);
   return (res.json() as { invoice: { id: string; number: string } }).invoice;
+}
+
+/**
+ * POST /v1/invoices/:id/payments as `cookie`, with the idempotency key (a fresh one by default).
+ *
+ * @returns the response of the API, untouched
+ */
+export async function pay(
+  h: Harness,
+  cookie: string,
+  invoiceId: string,
+  body: { method: string; amountMinor: string; reference?: string },
+  key = randomUUID(),
+) {
+  return send(h, cookie, "POST", `/v1/invoices/${invoiceId}/payments`, body, key);
+}
+
+/**
+ * POST /v1/invoices/:id/credit-applications as `cookie`, with the idempotency key (a fresh one by default).
+ *
+ * @returns the response of the API, untouched
+ */
+export async function applyCredit(
+  h: Harness,
+  cookie: string,
+  invoiceId: string,
+  amountMinor: string,
+  key = randomUUID(),
+) {
+  return send(
+    h,
+    cookie,
+    "POST",
+    `/v1/invoices/${invoiceId}/credit-applications`,
+    { amountMinor },
+    key,
+  );
 }

@@ -18,6 +18,7 @@ import {
   invoiceTotals,
   mayDiscount,
 } from "../../domain/invoice-rules.ts";
+import type { BillingLineDoctorLocks } from "../../ports/billing-members.ts";
 import type { BillingPatientReader } from "../../ports/billing-patients.ts";
 import {
   branchPrefix,
@@ -30,7 +31,12 @@ import {
   takeNumber,
 } from "../../persistence/pg-invoice-store.ts";
 import { lockClinicFinance } from "../../persistence/pg-price-store.ts";
-import { checkServiceLines, storedLines, unknownLineDoctor } from "../invoice-lines.ts";
+import {
+  checkServiceLines,
+  lineDoctorIds,
+  storedLines,
+  unknownLineDoctor,
+} from "../invoice-lines.ts";
 import { lockSource, refuseBilledEncounter, type SourceReaders } from "../invoice-source.ts";
 
 export interface IssueDeps {
@@ -39,6 +45,7 @@ export interface IssueDeps {
   readonly ids: IdGenerator;
   readonly sources: SourceReaders;
   readonly patients: BillingPatientReader;
+  readonly members: BillingLineDoctorLocks;
 }
 
 // The partial unique index (0060) backs the live-invoice check under the patient lock. The service is
@@ -55,9 +62,9 @@ function issueFailure(error: unknown): never {
 
 /**
  * إصدار فاتورة (spec §3.2، §8 rules 7–9، R1-7، R1-8، R1-14) في transaction واحدة: المصدر والمراجع والفرع
- * جوه نطاق الفاعل، الأقفال بالترتيب (قفل مالية العيادة في أول إصدار ليها، بعدين المراجع)، الرقم التالي
- * للفرع والسنة من غير فجوة، الإجماليات بالدالة المشتركة، صف السجل، ومفتاح `Idempotency-Key`. أي فشل
- * بيرجّع الرقم، والمفتاح المكرر بيرجّع نفس الفاتورة من غير ما ياخد رقم.
+ * جوه نطاق الفاعل، الأقفال بالترتيب (قفل مالية العيادة في أول إصدار ليها، بعدين عضوية أطباء السطور، بعدين
+ * المراجع)، الرقم التالي للفرع والسنة من غير فجوة، الإجماليات بالدالة المشتركة، صف السجل، ومفتاح
+ * `Idempotency-Key`. أي فشل بيرجّع الرقم، والمفتاح المكرر بيرجّع نفس الفاتورة من غير ما ياخد رقم.
  */
 export class InvoiceIssues {
   constructor(private readonly deps: IssueDeps) {}
@@ -116,6 +123,8 @@ export class InvoiceIssues {
     // Spec §8 rule 8: the finance lock only for the clinic's first issue (it races a currency change),
     // then the patient row.
     if (!(await clinicHasInvoice(tx, actor.clinicId))) await lockClinicFinance(tx, actor.clinicId);
+    // ADR-0027 items 5a and 6 (spec §8d R3-4): the lines' membership rows are locked before the patient.
+    await this.deps.members.lockLineDoctors(tx, actor.clinicId, lineDoctorIds(body.lines));
     if (!(await patients.lockForInvoice(tx, actor.clinicId, patientId))) {
       throw new ApiError("not_found");
     }

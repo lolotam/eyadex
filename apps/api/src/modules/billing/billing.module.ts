@@ -12,26 +12,36 @@ import { PgBillingVisits } from "../medical/index.ts";
 import { PgInvoiceNotifications } from "../notifications/index.ts";
 import { PgBillingPatients } from "../patients/index.ts";
 // The public link's guards need the area hosts and the rate limiter (the invitations pattern).
-import { AuthModule, ClinicAreaGuard, PublicRateLimitGuard } from "../identity/index.ts";
+import {
+  AuthModule,
+  ClinicAreaGuard,
+  PgBillingLineDoctors,
+  PublicRateLimitGuard,
+} from "../identity/index.ts";
 import { CLOCK, TenancyModule, type Clock } from "../tenancy/index.ts";
 import { InvoicePdfController } from "./http/invoice-pdf.controller.ts";
 import { InvoiceSendController } from "./http/invoice-send.controller.ts";
 import { InvoicesController } from "./http/invoices.controller.ts";
+import { PaymentsController } from "./http/payments.controller.ts";
 import { PublicInvoiceController } from "./http/public-invoice.controller.ts";
 import { PricesController } from "./http/prices.controller.ts";
 import { SettingsController } from "./http/settings.controller.ts";
+import type { BillingLineDoctorLocks } from "./ports/billing-members.ts";
 import type { BillingInvoiceNotifier } from "./ports/billing-notifier.ts";
 import type { BillingPatientReader } from "./ports/billing-patients.ts";
 import type { InvoicePdfRenderer } from "./ports/invoice-pdf.ts";
 import type { BillingAppointmentReader, BillingVisitReader } from "./ports/billing-sources.ts";
 import {
+  CREDIT_APPLICATIONS,
   INVOICE_CHANGES,
   INVOICE_DRAFTS,
   INVOICE_ISSUES,
   INVOICE_PDFS,
+  INVOICE_PAYMENTS,
   INVOICE_READS,
   INVOICE_SENDS,
   FINANCE_SETTINGS,
+  PAYMENT_READS,
   PRICE_CHANGES,
   PUBLIC_INVOICE_LINKS,
 } from "./ports/tokens.ts";
@@ -44,6 +54,9 @@ import { InvoiceSends } from "./use-cases/invoice-send/invoice-send.ts";
 import { InvoiceReads } from "./use-cases/reads/reads.ts";
 import { PriceChanges } from "./use-cases/prices/prices.ts";
 import { PublicInvoiceLinks } from "./use-cases/public-link/public-link.ts";
+import { InvoicePayments } from "./use-cases/payments/payments.ts";
+import { CreditApplications } from "./use-cases/payments/credit-applications.ts";
+import { PaymentReads } from "./use-cases/payment-reads/payment-reads.ts";
 import { UnavailableInvoicePdf } from "./rendering/unavailable-invoice-pdf.ts";
 
 // Typed against the module's own ports, so no adapter can drift from what the module needs.
@@ -52,10 +65,12 @@ const sources = {
   visits: new PgBillingVisits() satisfies BillingVisitReader,
 };
 const patients: BillingPatientReader = new PgBillingPatients();
+const members: BillingLineDoctorLocks = new PgBillingLineDoctors();
 
 /**
- * موديول المالية (finance F1): أسعار الخدمات، ومن بعدها الفواتير. كل الشغل على pool الـ `eyadex_app`
- * جوه `withTenant`، وكل مسار وراه `@RequiresFeature("finance")`؛ المنصة مالهاش أي مسار هنا.
+ * موديول المالية (finance F1 و F2): أسعار الخدمات، والفواتير، ومدفوعاتها ورصيد المراجع. كل الشغل على
+ * pool الـ `eyadex_app` جوه `withTenant`، وكل مسار وراه `@RequiresFeature("finance")`؛ المنصة مالهاش أي
+ * مسار هنا.
  */
 @Module({})
 export class BillingModule {
@@ -80,6 +95,7 @@ export class BillingModule {
         InvoicePdfController,
         PublicInvoiceController,
         SettingsController,
+        PaymentsController,
       ],
       providers: [
         ClinicAreaGuard,
@@ -99,7 +115,7 @@ export class BillingModule {
           provide: INVOICE_ISSUES,
           inject: [DATABASE, CLOCK],
           useFactory: (db: Database, clock: Clock) =>
-            new InvoiceIssues({ db, clock, ids: systemUuidV7(), sources, patients }),
+            new InvoiceIssues({ db, clock, ids: systemUuidV7(), sources, patients, members }),
         },
         {
           provide: INVOICE_READS,
@@ -149,7 +165,24 @@ export class BillingModule {
           provide: INVOICE_CHANGES,
           inject: [DATABASE, CLOCK],
           useFactory: (db: Database, clock: Clock) =>
-            new InvoiceChanges({ db, clock, ids: systemUuidV7(), patients }),
+            new InvoiceChanges({ db, clock, ids: systemUuidV7(), patients, members }),
+        },
+        {
+          provide: INVOICE_PAYMENTS,
+          inject: [DATABASE, CLOCK],
+          useFactory: (db: Database, clock: Clock) =>
+            new InvoicePayments({ db, clock, ids: systemUuidV7(), patients }),
+        },
+        {
+          provide: CREDIT_APPLICATIONS,
+          inject: [DATABASE, CLOCK],
+          useFactory: (db: Database, clock: Clock) =>
+            new CreditApplications({ db, clock, ids: systemUuidV7(), patients }),
+        },
+        {
+          provide: PAYMENT_READS,
+          inject: [DATABASE],
+          useFactory: (db: Database) => new PaymentReads({ db, patients }),
         },
       ],
     };

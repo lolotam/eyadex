@@ -4,6 +4,7 @@ import {
   invoiceListItemSchema,
   invoiceSourceSchema,
   invoiceStatusSchema,
+  settlementStateSchema,
 } from "./finance-invoice.ts";
 
 /** A real calendar day: impossible dates must not reach PostgreSQL's ::date and fail there. */
@@ -26,6 +27,8 @@ export const invoiceListQuerySchema = z
     branchId: idSchema.optional(),
     patientId: idSchema.optional(),
     status: invoiceStatusSchema.optional(),
+    // The list filter of spec §4.6: the settlement state (unpaid / partly_paid / paid).
+    settlement: settlementStateSchema.optional(),
     from: dateSchema.optional(),
     to: dateSchema.optional(),
     number: z.string().trim().min(1).max(40).optional(),

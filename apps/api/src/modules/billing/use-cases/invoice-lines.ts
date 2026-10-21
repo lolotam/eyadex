@@ -90,6 +90,22 @@ export async function checkServiceLines(
 }
 
 /**
+ * دكاترة السطور: عضوية أطباء سطور الخدمة بس، من غير تكرار ومرتبة بالمعرّف. سطور الـ free مالهاش دكتور،
+ * وسطر الخدمة من غير `providerId` (سعر العيادة) كمان مش دكتور.
+ *
+ * @param lines سطور الفاتورة
+ * @returns معرّفات عضوية أطباء السطور مرتبة
+ */
+export function lineDoctorIds(lines: readonly InvoiceLineInput[]): string[] {
+  const doctors = new Set<string>();
+  for (const line of lines) {
+    if (line.kind !== "service" || line.providerId === null) continue;
+    doctors.add(line.providerId);
+  }
+  return [...doctors].sort();
+}
+
+/**
  * السطور زي ما هتتكتب: الترتيب هو مكانها في الطلب، وسطر الخدمة بياخد اسم الخدمة، والمبلغ من الإجماليات.
  *
  * @param ids مولّد الـ ids

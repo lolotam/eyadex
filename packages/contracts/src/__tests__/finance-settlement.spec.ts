@@ -72,8 +72,13 @@ describe("invoice settlement", () => {
     ).toBeNull();
   });
 
-  it("does not silently accept a settlement filter before the API honours it", () => {
-    expect(invoiceListQuerySchema.safeParse({ settlement: "paid" }).success).toBe(false);
+  it("accepts the three settlement states as an invoice list filter and refuses any other", () => {
+    for (const state of ["unpaid", "partly_paid", "paid"]) {
+      expect(invoiceListQuerySchema.safeParse({ settlement: state }).success).toBe(true);
+    }
+    for (const state of ["credit", "void"]) {
+      expect(invoiceListQuerySchema.safeParse({ settlement: state }).success).toBe(false);
+    }
   });
 });
 

@@ -13,6 +13,8 @@ import {
 import {
   financeSettingsRequestSchema,
   invoicePrefixRequestSchema,
+  paymentMethodsRequestSchema,
+  paymentMethodsResponseSchema,
   type FinanceSettings,
   type InvoicePrefixItem,
 } from "@eyadex/contracts/finance";
@@ -53,6 +55,17 @@ export class SettingsController {
     body: z.infer<typeof financeSettingsRequestSchema>,
   ): Promise<FinanceSettings> {
     return this.settings.setCommercialRegNo(actorOf(request), body.commercialRegNo);
+  }
+
+  @Put("clinic/settings/payment-methods")
+  @Require("update:clinic_settings:clinic")
+  @RequiresFeature("finance")
+  setPaymentMethods(
+    @Req() request: ClinicRequest,
+    @Body(new ZodValidationPipe(paymentMethodsRequestSchema))
+    body: z.infer<typeof paymentMethodsRequestSchema>,
+  ): Promise<z.infer<typeof paymentMethodsResponseSchema>> {
+    return this.settings.setPaymentMethods(actorOf(request), body.paymentMethods);
   }
 
   @Put("clinic/logo")

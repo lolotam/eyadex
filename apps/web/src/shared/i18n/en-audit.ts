@@ -48,6 +48,9 @@ export const enAudit = {
       ...enMedicalAuditEntities,
       invoice: "Invoice",
       invoice_link: "Invoice link",
+      payment: "Payment",
+      patient_credit: "Patient credit",
+      payment_methods: "Payment methods",
     },
     actions: {
       branch: {
@@ -141,6 +144,9 @@ export const enAudit = {
         pdf_opened: "Invoice PDF opened",
         link_opened: "Patient opened the invoice link",
       },
+      payment: { recorded: "Payment recorded" },
+      credit: { applied: "Patient credit applied", released: "Moved to patient credit" },
+      payment_methods: { changed: "Payment methods changed" },
       ...enMedicalAuditActions,
     },
     fields: {

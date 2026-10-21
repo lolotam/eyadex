@@ -1,4 +1,10 @@
 import type { Invoice, UpdateInvoiceRequest } from "@eyadex/contracts/finance";
+import {
+  planEditRelease,
+  planVoidRelease,
+  type PatientMoney,
+  type Release,
+} from "@eyadex/contracts/settlement";
 import type { Database, Tx } from "@eyadex/db";
 import type { IdGenerator } from "@eyadex/ids";
 
@@ -8,6 +14,7 @@ import type { Clock } from "../../../tenancy/index.ts";
 import type { BillingActor } from "../../domain/billing-actor.ts";
 import { branchReach, reachesBranch } from "../../domain/invoice-reach.ts";
 import { invoiceTotals, mayDiscount } from "../../domain/invoice-rules.ts";
+import { settle } from "../../domain/payment-rules.ts";
 import {
   archiveLines,
   invoiceOwner,
@@ -18,14 +25,23 @@ import {
   type LockedInvoice,
 } from "../../persistence/pg-invoice-changes.ts";
 import { insertLines, readInvoice } from "../../persistence/pg-invoice-store.ts";
+import { readPatientMoney } from "../../persistence/pg-patient-money.ts";
+import { insertCredit } from "../../persistence/pg-payment-writes.ts";
+import type { BillingLineDoctorLocks } from "../../ports/billing-members.ts";
 import type { BillingPatientReader } from "../../ports/billing-patients.ts";
-import { checkServiceLines, storedLines, unknownLineDoctor } from "../invoice-lines.ts";
+import {
+  checkServiceLines,
+  lineDoctorIds,
+  storedLines,
+  unknownLineDoctor,
+} from "../invoice-lines.ts";
 
 export interface ChangeDeps {
   readonly db: Database;
   readonly clock: Clock;
   readonly ids: IdGenerator;
   readonly patients: BillingPatientReader;
+  readonly members: BillingLineDoctorLocks;
 }
 
 type DiscountLike = Invoice["invoiceDiscount"] | UpdateInvoiceRequest["invoiceDiscount"];
@@ -37,6 +53,12 @@ interface DiscountedLine {
   readonly quantity: number;
   readonly unitPriceMinor: string;
   readonly discount: DiscountLike;
+}
+
+/** رصيد اتكتب من release واحدة: معرّفه والحركة اللي خرجت منها. */
+interface ReleasedCredit {
+  readonly creditId: string;
+  readonly release: Release;
 }
 
 // R1-14: what the discount key guards — every discount's kind, value and reason, with the line it sits
@@ -67,9 +89,12 @@ const discountsOf = (invoice: {
   ]);
 
 /**
- * تعديل الفاتورة وإلغاؤها (FIN-A5، FIN-8، spec §8 rules 8 و10). القفل بالترتيب: المراجع، بعدين الفاتورة
- * `FOR UPDATE`، وبعد القفل بس بتتراجع الحالة والنسخة (`If-Match`). كل تغيير بيزوّد النسخة وبيكتب صف سجل
- * قبل/بعد. الرقم والفرع والمصدر والتاريخ عمرهم ما بيتغيروا.
+ * تعديل الفاتورة وإلغاؤها (FIN-A5، FIN-8، spec §8 rules 8 و10). القفل بالترتيب: عضوية أطباء السطور،
+ * بعدين المراجع، بعدين الفاتورة `FOR UPDATE`، وبعد القفل بس بتتراجع الحالة والنسخة (`If-Match`). كل تغيير
+ * بيزوّد النسخة وبيكتب صف سجل قبل/بعد. الرقم والفرع والمصدر والتاريخ عمرهم ما بيتغيروا.
+ *
+ * تعديل فاتورة مدفوعة بيقلّل الإجمالي، أو إلغاؤها، بيرجّع الزيادة رصيداً للمراجع (F2-Q18: آخر دفعة
+ * الأول) في نفس الـ transaction؛ ورفع الإجمالي ما بياخدش رصيد مراجع تاني.
  */
 export class InvoiceChanges {
   constructor(private readonly deps: ChangeDeps) {}
@@ -90,35 +115,48 @@ export class InvoiceChanges {
     body: UpdateInvoiceRequest,
   ): Promise<Invoice> {
     // A line doctor of no clinic fails the lines' foreign key: 400, as in issue (PR #78 review).
-    return this.change(actor, "update", id, ifMatch, async (tx, before, locked, now) => {
-      if (discountsOf(before) !== discountsOf(body) && !mayDiscount(actor, locked.branchId)) {
-        throw new ApiError("forbidden");
-      }
-      const names = await checkServiceLines(tx, actor.clinicId, body.lines, before.lines);
-      const totals = invoiceTotals(body.lines, body.invoiceDiscount, locked.taxRateBp);
-      await archiveLines(tx, actor.clinicId, id, now);
-      await insertLines(
-        tx,
-        actor.clinicId,
-        id,
-        storedLines(this.deps.ids, body.lines, names, totals),
-        now,
-      );
-      await saveEditedTotals(
-        tx,
-        actor.clinicId,
-        id,
-        {
-          subtotalMinor: totals.subtotalMinor.toString(),
-          discountMinor: totals.discountMinor.toString(),
-          taxMinor: totals.taxMinor.toString(),
-          totalMinor: totals.totalMinor.toString(),
-          invoiceDiscount: body.invoiceDiscount,
-        },
-        now,
-      );
-      return { action: "invoice.edited" };
-    }).catch(unknownLineDoctor);
+    return this.change(
+      actor,
+      "update",
+      id,
+      ifMatch,
+      lineDoctorIds(body.lines),
+      async (tx, before, locked, now, money) => {
+        if (discountsOf(before) !== discountsOf(body) && !mayDiscount(actor, locked.branchId)) {
+          throw new ApiError("forbidden");
+        }
+        const names = await checkServiceLines(tx, actor.clinicId, body.lines, before.lines);
+        const totals = invoiceTotals(body.lines, body.invoiceDiscount, locked.taxRateBp);
+        const invoice = {
+          id: before.id,
+          status: locked.status,
+          totalMinor: BigInt(before.totalMinor),
+        };
+        const releases = settle(() => planEditRelease(money, invoice, totals.totalMinor));
+        await archiveLines(tx, actor.clinicId, id, now);
+        await insertLines(
+          tx,
+          actor.clinicId,
+          id,
+          storedLines(this.deps.ids, body.lines, names, totals),
+          now,
+        );
+        await saveEditedTotals(
+          tx,
+          actor.clinicId,
+          id,
+          {
+            subtotalMinor: totals.subtotalMinor.toString(),
+            discountMinor: totals.discountMinor.toString(),
+            taxMinor: totals.taxMinor.toString(),
+            totalMinor: totals.totalMinor.toString(),
+            invoiceDiscount: body.invoiceDiscount,
+          },
+          now,
+        );
+        return { action: "invoice.edited", releases };
+      },
+    ).catch(unknownLineDoctor);
   }
 
   /**
@@ -131,11 +169,24 @@ export class InvoiceChanges {
    * @returns الفاتورة بعد الإلغاء
    */
   void(actor: BillingActor, id: string, ifMatch: number, reason: string): Promise<Invoice> {
-    return this.change(actor, "deactivate", id, ifMatch, async (tx, _before, _locked, now) => {
-      await voidInvoiceRow(tx, actor.clinicId, id, reason, now);
-      await revokeLinks(tx, actor.clinicId, id, now);
-      return { action: "invoice.voided", reasonLength: reason.length };
-    });
+    return this.change(
+      actor,
+      "deactivate",
+      id,
+      ifMatch,
+      [],
+      async (tx, before, locked, now, money) => {
+        const invoice = {
+          id: before.id,
+          status: locked.status,
+          totalMinor: BigInt(before.totalMinor),
+        };
+        const releases = settle(() => planVoidRelease(money, invoice));
+        await voidInvoiceRow(tx, actor.clinicId, id, reason, now);
+        await revokeLinks(tx, actor.clinicId, id, now);
+        return { action: "invoice.voided", reasonLength: reason.length, releases };
+      },
+    );
   }
 
   private change(
@@ -143,12 +194,14 @@ export class InvoiceChanges {
     action: "update" | "deactivate",
     id: string,
     ifMatch: number,
+    lineDoctors: readonly string[],
     apply: (
       tx: Tx,
       before: Invoice,
       locked: LockedInvoice,
       now: Date,
-    ) => Promise<{ action: string; reasonLength?: number }>,
+      money: PatientMoney,
+    ) => Promise<{ action: string; reasonLength?: number; releases: readonly Release[] }>,
   ): Promise<Invoice> {
     const reach = branchReach(actor, action);
     if (reach === null) throw new ApiError("forbidden");
@@ -156,13 +209,18 @@ export class InvoiceChanges {
     return db.withTenant(actor.clinicId, async (tx) => {
       const owner = await invoiceOwner(tx, actor.clinicId, id);
       if (owner === null || !reachesBranch(reach, owner.branchId)) throw new ApiError("not_found");
+      // ADR-0027 item 6 (spec §8d R3-4): the lines' membership rows come before the patient row.
+      await this.deps.members.lockLineDoctors(tx, actor.clinicId, lineDoctors);
       await patients.lockForInvoice(tx, actor.clinicId, owner.patientId);
       const locked = (await lockInvoice(tx, actor.clinicId, id))!;
       if (locked.status === "void") throw new ApiError("invoice_void");
       if (locked.version !== ifMatch) throw new ApiError("version_conflict");
       const before = (await readInvoice(tx, actor.clinicId, id))!;
       const now = clock.now();
-      const done = await apply(tx, before, locked, now);
+      const money = await readPatientMoney(tx, actor.clinicId, locked.patientId);
+      const done = await apply(tx, before, locked, now, money);
+      // The credits are written before the invoice is read again, so the answer sees them.
+      const credits = await this.releaseIntoCredits(tx, actor, locked, done.releases, now);
       const after = (await readInvoice(tx, actor.clinicId, id))!;
       await writeFinanceAudit(tx, {
         clinicId: actor.clinicId,
@@ -177,7 +235,61 @@ export class InvoiceChanges {
         ...(done.reasonLength === undefined ? {} : { reasonLength: done.reasonLength }),
         createdAt: now,
       });
+      for (const credit of credits) {
+        await writeFinanceAudit(tx, {
+          clinicId: actor.clinicId,
+          id: ids.newId(),
+          actorUserId: actor.userId,
+          action: "credit.released",
+          entityType: "patient_credit",
+          entityId: credit.creditId,
+          branchId: locked.branchId,
+          before: null,
+          after: {
+            invoiceNumber: before.number,
+            amountMinor: String(credit.release.amountMinor),
+            currency: before.currency,
+            cause: credit.release.cause,
+            allocationId: credit.release.allocationId,
+          },
+          createdAt: now,
+        });
+      }
       return after;
     });
+  }
+
+  /**
+   * بيكتب رصيد لكل release: فلوس رجعت للمراجع من تخصيص على الفاتورة (R1-5، R2-2، F2-Q18).
+   *
+   * @param tx الـ transaction جوه `withTenant(clinicId)`
+   * @param actor الفاعل
+   * @param locked الفاتورة تحت القفل
+   * @param releases الحركات اللي رجعت، بالترتيب اللي الخطة رتّبتها
+   * @param now لحظة الكتابة
+   * @returns الأرصدة اللي اتكتبت، بالمعرّف بتاع كل واحد
+   */
+  private async releaseIntoCredits(
+    tx: Tx,
+    actor: BillingActor,
+    locked: LockedInvoice,
+    releases: readonly Release[],
+    now: Date,
+  ): Promise<readonly ReleasedCredit[]> {
+    const credits: ReleasedCredit[] = [];
+    for (const release of releases) {
+      const creditId = this.deps.ids.newId();
+      await insertCredit(tx, actor.clinicId, {
+        id: creditId,
+        patientId: locked.patientId,
+        originAllocationId: release.allocationId,
+        amountMinor: String(release.amountMinor),
+        cause: release.cause,
+        createdBy: actor.membershipId,
+        createdAt: now,
+      });
+      credits.push({ creditId, release });
+    }
+    return credits;
   }
 }

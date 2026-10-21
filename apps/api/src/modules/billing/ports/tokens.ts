@@ -8,3 +8,6 @@ export const FINANCE_SETTINGS = Symbol("billing.ClinicFinanceSettings");
 export const INVOICE_SENDS = Symbol("billing.InvoiceSends");
 export const PUBLIC_INVOICE_LINKS = Symbol("billing.PublicInvoiceLinks");
 export const INVOICE_PDFS = Symbol("billing.InvoicePdfs");
+export const INVOICE_PAYMENTS = Symbol("billing.InvoicePayments");
+export const CREDIT_APPLICATIONS = Symbol("billing.CreditApplications");
+export const PAYMENT_READS = Symbol("billing.PaymentReads");
