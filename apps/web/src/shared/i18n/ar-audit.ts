@@ -1,4 +1,5 @@
 import { arAuditApiClinicActions } from "./ar-audit-api";
+import { arRefundClosingAuditFields } from "./ar-finance-audit";
 import { arMedicalAuditActions, arMedicalAuditEntities, arMedicalAuditFields } from "./ar-medical";
 
 // نصوص سجل التدقيق، مفصولة لإبقاء ملفات القاموس صغيرة.
@@ -155,6 +156,7 @@ export const arAudit = {
     },
     fields: {
       ...arMedicalAuditFields,
+      ...arRefundClosingAuditFields,
       currency: "العملة",
       currencyExponent: "خانات العملة العشرية",
       invoicePrefix: "بادئة الفاتورة",

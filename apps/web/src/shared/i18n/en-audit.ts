@@ -1,4 +1,5 @@
 import { enAuditApiClinicActions } from "./en-audit-api";
+import { enRefundClosingAuditFields } from "./en-finance-audit";
 import { enMedicalAuditActions, enMedicalAuditEntities, enMedicalAuditFields } from "./en-medical";
 
 // Audit log strings, split out to keep each dictionary file small.
@@ -155,6 +156,7 @@ export const enAudit = {
     },
     fields: {
       ...enMedicalAuditFields,
+      ...enRefundClosingAuditFields,
       currency: "Currency",
       currencyExponent: "Currency decimal places",
       invoicePrefix: "Invoice prefix",
