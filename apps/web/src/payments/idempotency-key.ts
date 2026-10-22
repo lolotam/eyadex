@@ -94,8 +94,10 @@ export function useHeldKeys({ invoiceId, paidMinor }: HeldContext): HeldKeys {
       operation === "pay" ? { ...current, pay: false } : { ...current, credit: false },
     );
   }, []);
-  // The paid amount moved under a held key of the same invoice: that key is dropped by the next send, and
-  // the earlier request may have been recorded, so the panel warns before the user sends again.
+  // The report belongs to the invoice on screen, so it is rebuilt for it and never carried over: a
+  // warning about a payment recorded on another invoice is false here, and it must not follow the
+  // user to a new invoice. Only a key held under an older paid amount warns, since the earlier
+  // request may have been recorded on the server while the invoice moved on.
   useEffect(() => {
     setPaidChanged((current) => {
       const stale = (operation: KeyedOperation) => {
@@ -105,8 +107,8 @@ export function useHeldKeys({ invoiceId, paidMinor }: HeldContext): HeldKeys {
         );
       };
       const next = {
-        pay: current.pay || stale("pay"),
-        credit: current.credit || stale("credit"),
+        pay: stale("pay"),
+        credit: stale("credit"),
       };
       return next.pay === current.pay && next.credit === current.credit ? current : next;
     });

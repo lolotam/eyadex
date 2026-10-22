@@ -96,6 +96,29 @@ describe("the report of a stale held key", () => {
     expect(result.current.paidChanged.pay).toBe(false);
   });
 
+  it("warns nothing on another invoice: the warning was about the first one", async () => {
+    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000" });
+    result.current.keyOf("pay", { amountMinor: "4000" });
+    result.current.keyOf("credit", { amountMinor: "2000" });
+    rerender({ invoiceId: INVOICE, paidMinor: "5000" });
+    await waitFor(() => expect(result.current.paidChanged.pay).toBe(true));
+    await waitFor(() => expect(result.current.paidChanged.credit).toBe(true));
+    rerender({ invoiceId: OTHER, paidMinor: "5000" });
+    await waitFor(() => expect(result.current.paidChanged.pay).toBe(false));
+    expect(result.current.paidChanged.credit).toBe(false);
+  });
+
+  it("warns again on the invoice the key was held on", async () => {
+    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000" });
+    result.current.keyOf("pay", { amountMinor: "4000" });
+    rerender({ invoiceId: INVOICE, paidMinor: "5000" });
+    await waitFor(() => expect(result.current.paidChanged.pay).toBe(true));
+    rerender({ invoiceId: OTHER, paidMinor: "5000" });
+    await waitFor(() => expect(result.current.paidChanged.pay).toBe(false));
+    rerender({ invoiceId: INVOICE, paidMinor: "5000" });
+    await waitFor(() => expect(result.current.paidChanged.pay).toBe(true));
+  });
+
   it("a confirmed success clears the report", async () => {
     const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000" });
     result.current.keyOf("pay", { amountMinor: "4000" });
