@@ -281,6 +281,8 @@ export const ar: Dictionary = {
     refund_exceeds_available: "المبلغ أكبر من المتاح للاسترداد.",
     payment_methods_empty: "يجب أن تبقى طريقة دفع واحدة على الأقل مفعّلة.",
     cash_drawer_changed: "توجد حركة نقدية جديدة منذ المعاينة. راجع الإقفال مرة أخرى.",
+    invoice_paid_changed:
+      "تم تسجيل دفعة على هذه الفاتورة بعد آخر قراءة لها؛ راجع الحركات ثم أعد المحاولة",
     cash_closing_exists: "تم إقفال صندوق هذا الفرع اليوم.",
     closing_note_required: "اكتب ملاحظة عند وجود فرق.",
     cash_drawer_out_of_range:
