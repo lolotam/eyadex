@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { AlertTriangle } from "lucide-react";
 import { useForm } from "react-hook-form";
@@ -19,7 +20,7 @@ type Props = {
   creditMinor: string;
   /** The panel's held Idempotency-Key for this operation (see useHeldKeys). */
   keyOf: (request: unknown) => string;
-  /** The invoice's paid amount moved under the held key: a payment may be recorded (useHeldKeys). */
+  /** The invoice's paid amount went up under the held key: a payment may be recorded (useHeldKeys). */
   paidChanged?: boolean;
   onDone: () => void;
   onFailed?: () => void;
@@ -34,8 +35,11 @@ export function ApplyCreditForm(props: Props) {
   const { persona } = usePersona();
   const owed = invoice.settlement?.owedMinor ?? "0";
   const exponent = invoice.currencyExponent;
+  // The credit never covers more than what it holds, so the prefill is the smaller of what the
+  // invoice owes and what the patient's credit holds.
+  const prefill = formatMinor(smallerMinor(owed, creditMinor), exponent);
   const form = useForm<{ amount: string }>({
-    defaultValues: { amount: formatMinor(smallerMinor(owed, creditMinor), exponent) },
+    defaultValues: { amount: prefill },
   });
   const save = useMutation({
     mutationFn: (body: { amountMinor: string }) =>
@@ -50,6 +54,11 @@ export function ApplyCreditForm(props: Props) {
     },
   });
   usePendingReport(save.isPending, onPendingChange);
+  // The invoice can move while the dialog is open (a refetch after an unclear failure): the amount
+  // follows the new owed amount, so the form never offers what the invoice no longer owes.
+  useEffect(() => {
+    form.resetField("amount", { defaultValue: prefill });
+  }, [form, prefill]);
   const submit = form.handleSubmit((v) => {
     const checked = checkAmount(v.amount, exponent, { owedMinor: owed, creditMinor });
     if (!checked.ok) {

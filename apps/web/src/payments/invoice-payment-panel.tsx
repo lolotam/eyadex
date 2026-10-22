@@ -30,10 +30,10 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
   const { session } = useSession();
   const settings = useFinanceSettings();
   const refreshPayments = useRefreshPayments();
-  // The dialog keeps the invoice and credit it was opened on: a refetch never changes what it checks.
+  // The dialog keeps the credit it was opened on, but the invoice is always the one on screen: a
+  // refetch must not leave the form checking a stale owed amount.
   const [open, setOpen] = useState<{
     kind: "pay" | "credit";
-    invoice: Invoice;
     credit: string;
   } | null>(null);
   const [pending, setPending] = useState(false);
@@ -91,21 +91,13 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
         </h2>
         <div className="flex flex-wrap gap-2">
           {mayPay && (
-            <Button
-              size="sm"
-              disabled={entryOff}
-              onClick={() => setOpen({ kind: "pay", invoice, credit })}
-            >
+            <Button size="sm" disabled={entryOff} onClick={() => setOpen({ kind: "pay", credit })}>
               <Banknote className="size-4" />
               {t("payments.panel.record")}
             </Button>
           )}
           {mayCredit && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setOpen({ kind: "credit", invoice, credit })}
-            >
+            <Button size="sm" variant="outline" onClick={() => setOpen({ kind: "credit", credit })}>
               <Wallet className="size-4" />
               {t("payments.panel.useCredit")}
             </Button>
@@ -159,7 +151,7 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
           </DialogHeader>
           {open?.kind === "pay" && (
             <RecordPaymentForm
-              invoice={open.invoice}
+              invoice={invoice}
               methods={enabled}
               keyOf={(request) => keys.keyOf("pay", request)}
               paidChanged={keys.paidChanged.pay}
@@ -170,7 +162,7 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
           )}
           {open?.kind === "credit" && (
             <ApplyCreditForm
-              invoice={open.invoice}
+              invoice={invoice}
               creditMinor={open.credit}
               keyOf={(request) => keys.keyOf("credit", request)}
               paidChanged={keys.paidChanged.credit}

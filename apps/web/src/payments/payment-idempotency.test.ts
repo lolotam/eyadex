@@ -138,4 +138,34 @@ describe("the report of a stale held key", () => {
     expect(result.current.paidChanged.pay).toBe(false);
     expect(result.current.keyOf("credit", { amountMinor: "2000" })).not.toBe(first);
   });
+
+  // PR #111 review: only a paid amount that went up may warn.
+  it("warns when the paid amount went up", async () => {
+    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000" });
+    result.current.keyOf("pay", { amountMinor: "4000" });
+    rerender({ invoiceId: INVOICE, paidMinor: "5000" });
+    await waitFor(() => expect(result.current.paidChanged.pay).toBe(true));
+  });
+
+  it("warns nothing when the paid amount went down", async () => {
+    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "5000" });
+    const first = result.current.keyOf("pay", { amountMinor: "4000" });
+    rerender({ invoiceId: INVOICE, paidMinor: "1000" });
+    await waitFor(() => expect(result.current.paidChanged.pay).toBe(false));
+    // A paid amount that went down is an edit that released money into credit: it records no
+    // payment, so it warns nothing. The key rule does not change: a paid amount that is not the one
+    // the key was minted under drops the key, so the next send is a new request.
+    expect(result.current.keyOf("pay", { amountMinor: "4000" })).not.toBe(first);
+  });
+
+  // PR #111 review: every invoice keeps its own key.
+  it("keeps every invoice's key: a send on another invoice does not take this one", () => {
+    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000" });
+    const first = result.current.keyOf("pay", { amountMinor: "4000" });
+    rerender({ invoiceId: OTHER, paidMinor: "1000" });
+    const other = result.current.keyOf("pay", { amountMinor: "4000" });
+    expect(other).not.toBe(first);
+    rerender({ invoiceId: INVOICE, paidMinor: "1000" });
+    expect(result.current.keyOf("pay", { amountMinor: "4000" })).toBe(first);
+  });
 });

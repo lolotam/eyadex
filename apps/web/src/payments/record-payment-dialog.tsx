@@ -28,7 +28,7 @@ type Props = {
   methods: PaymentMethod[];
   /** The panel's held Idempotency-Key for this operation (see useHeldKeys). */
   keyOf: (request: unknown) => string;
-  /** The invoice's paid amount moved under the held key: a payment may be recorded (useHeldKeys). */
+  /** The invoice's paid amount went up under the held key: a payment may be recorded (useHeldKeys). */
   paidChanged?: boolean;
   onDone: () => void;
   onFailed?: () => void;
@@ -38,7 +38,7 @@ type Props = {
 /**
  * The record-payment form, mounted once per open: the enabled methods only, the amount prefilled with the
  * balance due, an optional reference. Refused before sending above the balance (F2-Q1). A payment may
- * already be recorded when the invoice's paid amount moved, so the form warns before sending again.
+ * already be recorded when the invoice's paid amount went up, so the form warns before sending again.
  */
 export function RecordPaymentForm(props: Props) {
   const { invoice, methods, keyOf, paidChanged, onDone, onFailed, onPendingChange } = props;
@@ -72,6 +72,12 @@ export function RecordPaymentForm(props: Props) {
     const first = methods[0];
     if (first && !methods.includes(form.getValues("method"))) form.setValue("method", first);
   }, [methods, form]);
+  // The invoice can move while the dialog is open (a refetch after an unclear failure): the amount
+  // follows the new owed amount, so the form never offers what the invoice no longer owes. The method
+  // and the reference stay as the user typed them.
+  useEffect(() => {
+    form.resetField("amount", { defaultValue: formatMinor(owed, invoice.currencyExponent) });
+  }, [form, owed, invoice.currencyExponent]);
   const submit = form.handleSubmit((v) => {
     const checked = checkAmount(v.amount, invoice.currencyExponent, { owedMinor: owed });
     if (!checked.ok) {

@@ -11,6 +11,7 @@ const h = vi.hoisted(() => ({
   session: { permissions: [] as string[], allBranches: false, branchIds: [] as string[] },
   invoicePayments: vi.fn(),
   recordPayment: vi.fn(),
+  applyCredit: vi.fn(),
   settings: { data: undefined } as Record<string, unknown>,
 }));
 vi.mock("@/shared/persona/persona-provider", () => ({
@@ -22,7 +23,11 @@ vi.mock("@/shared/persona/persona-provider", () => ({
 }));
 vi.mock("@/shared/api/api-provider", () => ({
   useApi: () => ({
-    payments: { invoicePayments: h.invoicePayments, recordPayment: h.recordPayment },
+    payments: {
+      invoicePayments: h.invoicePayments,
+      recordPayment: h.recordPayment,
+      applyCredit: h.applyCredit,
+    },
   }),
 }));
 vi.mock("@/shared/money/use-clinic-money", () => ({
@@ -51,6 +56,7 @@ const panel = (queries: QueryClient, shown: Invoice = invoice) => (
   </QueryClientProvider>
 );
 const amountLabel = () => ar.payments.dialog.amount.replace("{currency}", "KWD");
+const sessionOf = (permissions: string[]) => ({ permissions, allBranches: false, branchIds: [] });
 
 function show() {
   return render(panel(client()));
@@ -59,6 +65,7 @@ function show() {
 beforeEach(() => {
   h.settings = { data: undefined };
   h.recordPayment.mockReset();
+  h.applyCredit.mockReset();
   h.invoicePayments.mockReset();
   h.invoicePayments.mockResolvedValue({
     invoiceId: invoice.id,
@@ -251,5 +258,40 @@ describe("the movements after the invoice changes", () => {
     await waitFor(() => expect(h.invoicePayments).toHaveBeenCalledTimes(1));
     view.rerender(panel(queries, { ...invoice, version: 2 }));
     await waitFor(() => expect(h.invoicePayments).toHaveBeenCalledTimes(2));
+  });
+});
+
+// PR #111 review: the dialog follows the invoice, so a refetch with a higher paid amount warns.
+describe("the dialog after the invoice moved", () => {
+  const moved = {
+    ...invoice,
+    totalMinor: "7000",
+    settlement: { state: "partly_paid", paidMinor: "5000", owedMinor: "2000" },
+  } as unknown as Invoice;
+
+  it("warns and prefills the new owed amount after an unclear failure", async () => {
+    h.session = sessionOf(["create:payments:clinic"]);
+    h.recordPayment.mockRejectedValueOnce(new ApiError("unknown"));
+    const queries = client();
+    const view = render(panel(queries));
+    fireEvent.click(screen.getByRole("button", { name: ar.payments.panel.record }));
+    fireEvent.click(await screen.findByRole("button", { name: ar.payments.dialog.submit }));
+    await waitFor(() => expect(h.recordPayment).toHaveBeenCalledTimes(1));
+    // The failure keeps the dialog open with its key held under the old paid amount.
+    view.rerender(panel(queries, moved));
+    expect(await screen.findByText(ar.payments.paidChangedNotice)).toBeInTheDocument();
+    expect(screen.getByLabelText(amountLabel())).toHaveValue("2.000");
+  });
+
+  it("warns on the credit dialog too", async () => {
+    h.session = sessionOf(["view:payments:clinic", "create:payments:clinic"]);
+    h.applyCredit.mockRejectedValueOnce(new ApiError("unknown"));
+    const queries = client();
+    const view = render(panel(queries));
+    fireEvent.click(await screen.findByRole("button", { name: ar.payments.panel.useCredit }));
+    fireEvent.click(await screen.findByRole("button", { name: ar.payments.dialog.apply }));
+    await waitFor(() => expect(h.applyCredit).toHaveBeenCalledTimes(1));
+    view.rerender(panel(queries, moved));
+    expect(await screen.findByText(ar.payments.paidChangedNotice)).toBeInTheDocument();
   });
 });
