@@ -4,6 +4,7 @@ import type {
   invoicePaymentsResponseSchema,
   paymentListResponseSchema,
 } from "@eyadex/contracts/finance";
+import type { BranchOptionListResponse, OptionListQuery } from "@eyadex/contracts/role-admin";
 import { creditBalance, paymentRefundable } from "@eyadex/contracts/settlement";
 import type { Database } from "@eyadex/db";
 import type { z } from "zod";
@@ -15,7 +16,9 @@ import { paymentsReach } from "../../domain/money-reach.ts";
 import { readInvoice } from "../../persistence/pg-invoice-store.ts";
 import { readInvoiceMoney, readPatientMoney } from "../../persistence/pg-patient-money.ts";
 import { invoiceMovementRows, readPayment } from "../../persistence/pg-payment-reads.ts";
+import type { BillingBranchReader } from "../../ports/billing-branches.ts";
 import type { BillingPatientReader } from "../../ports/billing-patients.ts";
+import { listPaymentBranchOptions } from "../../queries/payment-branch-options.ts";
 import { listPayments } from "../../queries/payment-list.ts";
 
 /**
@@ -28,6 +31,7 @@ export class PaymentReads {
     private readonly deps: {
       readonly db: Database;
       readonly patients: BillingPatientReader;
+      readonly branches: BillingBranchReader;
     },
   ) {}
 
@@ -84,6 +88,22 @@ export class PaymentReads {
     if (reach === null) throw new ApiError("forbidden");
     return this.deps.db.withTenant(actor.clinicId, (tx) =>
       listPayments(tx, actor.clinicId, query, reach, this.deps.patients),
+    );
+  }
+
+  /**
+   * فروع العيادة اللي الفاعل يقدر يقرأ فيها مدفوعات، كاختيارات لفلتر شاشة الإيصالات (spec §4.6).
+   * المدى هو مدى `view:payments` نفسه: `clinic` = كل فروع العيادة، `branch` = فروع العضو بس.
+   *
+   * @param actor الفاعل (شايل `view:payments` بنطاق `clinic` أو `branch`)
+   * @param query الـ cursor والحد
+   * @returns الصفحة والمؤشر التالي والعدد الكلي
+   */
+  branchOptions(actor: BillingActor, query: OptionListQuery): Promise<BranchOptionListResponse> {
+    const reach = paymentsReach(actor, "view");
+    if (reach === null) throw new ApiError("forbidden");
+    return this.deps.db.withTenant(actor.clinicId, (tx) =>
+      listPaymentBranchOptions(tx, actor.clinicId, reach, query, this.deps.branches),
     );
   }
 
