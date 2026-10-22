@@ -20,8 +20,13 @@ import { releasesOnVoid } from "./invoice-release-warning";
 
 type Props = { invoice: Invoice | null; onClose: () => void; onVoided: () => void };
 
-/** What a click carries: the invoice to void, and whether its release warning was already shown. */
-type Confirm = { invoice: Invoice; warningShown: boolean };
+/**
+ * What a click carries: the invoice to void, whether its release warning was already shown, and the
+ * reason as it was typed at that click. The reason travels with the click, so what the void sends is
+ * what the user confirmed and not whatever the field holds when the request finally goes out
+ * (PR #110 review).
+ */
+type Confirm = { invoice: Invoice; warningShown: boolean; reason: string };
 
 /**
  * The void confirm. It holds the invoice it was opened on: confirming sends that version, so another user's
@@ -29,6 +34,9 @@ type Confirm = { invoice: Invoice; warningShown: boolean };
  *
  * A recorded payment does not bump that version, so the invoice is read again before every void: when
  * money is paid on it now, the release warning comes first and only the next click voids it (issue #107).
+ *
+ * The reason field is locked while a void is on its way, and the confirming click carries the reason
+ * it was given: an edit made in between cannot rewrite what the void records.
  */
 export function InvoiceVoidDialog({ invoice, onClose, onVoided }: Props) {
   const { t, tDynamic } = useI18n();
@@ -39,8 +47,14 @@ export function InvoiceVoidDialog({ invoice, onClose, onVoided }: Props) {
   const [warnedId, setWarnedId] = useState<string | null>(null);
   const warningShown = invoice !== null && (releasesOnVoid(invoice) || warnedId === invoice.id);
   const voidIt = useMutation({
-    mutationFn: (inv: Invoice) =>
-      api.finance.voidInvoice(persona, inv.id, inv.version, reason.trim()),
+    // The reason is the one the confirming click carried, trimmed: a void records what was confirmed.
+    mutationFn: (confirm: Confirm) =>
+      api.finance.voidInvoice(
+        persona,
+        confirm.invoice.id,
+        confirm.invoice.version,
+        confirm.reason.trim(),
+      ),
     onSuccess: () => {
       onVoided();
       toast.success(t("finance.detail.voided"));
@@ -56,10 +70,12 @@ export function InvoiceVoidDialog({ invoice, onClose, onVoided }: Props) {
         setWarnedId(confirm.invoice.id);
         return;
       }
-      voidIt.mutate(confirm.invoice);
+      voidIt.mutate(confirm);
     },
     onError: (e) => toast.error(tDynamic(`errors.${errorKeyOf(e)}`)),
   });
+  // A void is being prepared or sent: the reason must stay what the user confirmed.
+  const busy = reread.isPending || voidIt.isPending;
   return (
     <Dialog open={invoice !== null} onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
@@ -75,13 +91,14 @@ export function InvoiceVoidDialog({ invoice, onClose, onVoided }: Props) {
           maxLength={300}
           aria-label={t("finance.detail.voidReason")}
           placeholder={t("finance.detail.voidReason")}
+          disabled={busy}
           onChange={(e) => setReason(e.target.value)}
         />
         <div className="flex justify-end">
           <Button
             variant="destructive"
-            disabled={!reason.trim() || reread.isPending || voidIt.isPending}
-            onClick={() => invoice && reread.mutate({ invoice, warningShown })}
+            disabled={!reason.trim() || busy}
+            onClick={() => invoice && reread.mutate({ invoice, warningShown, reason })}
           >
             {t("finance.detail.void")}
           </Button>

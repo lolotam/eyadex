@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Invoice } from "@eyadex/contracts/finance";
@@ -137,5 +137,26 @@ describe("the void dialog before it releases money", () => {
     expect(await screen.findByText(ar.payments.releaseWarning)).toBeInTheDocument();
     view.rerender(dialog(invoicePaid("0", OTHER_ID)));
     expect(screen.queryByText(ar.payments.releaseWarning)).toBeNull();
+  });
+
+  // PR #110 review: the void request goes out after the invoice was read again, so the reason must
+  // be the one the confirming click carried, not whatever the field holds when the request is sent.
+  it("sends the reason typed before the click, not one typed while reading again", async () => {
+    let release: (invoice: Invoice) => void = () => undefined;
+    h.getInvoice.mockReturnValue(
+      new Promise<Invoice>((resolve) => {
+        release = resolve;
+      }),
+    );
+    const { button } = open(invoicePaid("0"));
+    await press(button);
+    const field = screen.getByRole("textbox");
+    fireEvent.change(field, { target: { value: "changed while reading" } });
+    expect(field).toHaveValue("changed while reading");
+    await act(async () => {
+      release(invoicePaid("0"));
+    });
+    await waitFor(() => expect(h.voidInvoice).toHaveBeenCalledTimes(1));
+    expect(h.voidInvoice.mock.calls[0]![3]).toBe("issued twice");
   });
 });
