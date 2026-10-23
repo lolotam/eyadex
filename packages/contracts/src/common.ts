@@ -32,6 +32,19 @@ export const FINANCE_F2_ERROR_CODES = [
   "cash_drawer_out_of_range",
 ] as const;
 
+/**
+ * The F3 codes of the reports and their exports (spec §4, §7.1, §7.4). They are shared by the API
+ * catalogue and its messages, and they stay API-only until the F3 web slice ships their translations.
+ */
+export const FINANCE_F3_ERROR_CODES = [
+  "export_busy",
+  "report_range_too_long",
+  "export_amount_too_large",
+] as const;
+
+/** The finance codes the API owns and the web does not yet translate (F2 and F3). */
+const financeApiOnlyErrorCodes = [...FINANCE_F2_ERROR_CODES, ...FINANCE_F3_ERROR_CODES] as const;
+
 const baseApiErrorCodes = [
   "not_found",
   "idempotency_conflict",
@@ -92,7 +105,7 @@ const baseApiErrorCodes = [
 ] as const;
 
 // Zod 3's enum exclusion exceeds TypeScript's recursion limit on the full catalogue; exclude only
-// from this smaller finance tuple, since the base codes contain no F2 entries.
+// from this smaller finance tuple, since the base codes contain no F2 or F3 entries.
 const financeApiErrorCodeSchema = z.enum([
   // Finance F1 (spec §3.3, R1-6/8/9/10/16, R2-5).
   "price_missing",
@@ -112,6 +125,8 @@ const financeApiErrorCodeSchema = z.enum([
   "invoice_link_expired",
   // Finance F2 (spec §4.6, R3-3).
   ...FINANCE_F2_ERROR_CODES,
+  // Finance F3 (spec §4, §7.1, §7.4).
+  ...FINANCE_F3_ERROR_CODES,
   "unknown",
 ]);
 
@@ -125,12 +140,12 @@ export type ApiErrorCode = z.infer<typeof apiErrorCodeSchema>;
  * The codes the current web slice supports, plus two the API never sends. `conflict` is a 409
  * whose code the web does not know; `not_implemented` is a method the HTTP adapter has no route for
  * yet. Kept apart from `apiErrorCodeSchema` because the API's message table must cover exactly the
- * codes the API can return. F2 codes stay API-only until the web slice adds their translations;
- * the HTTP adapter already falls back for codes its web catalogue does not recognise.
+ * codes the API can return. The F2 and F3 codes stay API-only until their web slices add their
+ * translations; the HTTP adapter already falls back for codes its web catalogue does not recognise.
  */
 export const webErrorCodeSchema = z.enum([
   ...baseApiErrorCodes,
-  ...financeApiErrorCodeSchema.exclude(FINANCE_F2_ERROR_CODES).options,
+  ...financeApiErrorCodeSchema.exclude(financeApiOnlyErrorCodes).options,
   "conflict",
   "not_implemented",
 ]);

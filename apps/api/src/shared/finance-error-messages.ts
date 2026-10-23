@@ -1,6 +1,6 @@
-import type { FINANCE_F2_ERROR_CODES } from "@eyadex/contracts/common";
+import type { FINANCE_F2_ERROR_CODES, FINANCE_F3_ERROR_CODES } from "@eyadex/contracts/common";
 
-/** Keeps F2 messages exhaustive without growing the shared API catalogue beyond its file limit. */
+/** Keeps the F2 and F3 messages exhaustive without growing the shared API catalogue beyond its file limit. */
 export const FINANCE_ERROR_MESSAGES = {
   payment_method_disabled: {
     message_ar: "طريقة الدفع دي مقفولة في إعدادات العيادة.",
@@ -48,7 +48,19 @@ export const FINANCE_ERROR_MESSAGES = {
     message_ar: "صافي النقد في الفترة دي أكبر من الحد المسموح، ومينفعش يتقفل.",
     message_en: "The period's net cash is beyond the allowed limit and cannot be closed.",
   },
+  export_busy: {
+    message_ar: "فيه تصدير شغال دلوقتي؛ استنى لحد ما يخلص.",
+    message_en: "Another export is already running; wait for it to finish.",
+  },
+  report_range_too_long: {
+    message_ar: "الفترة المطلوبة أطول من المسموح.",
+    message_en: "The period is longer than allowed.",
+  },
+  export_amount_too_large: {
+    message_ar: "المبلغ أكبر من دقة ملف CSV؛ صدّر Excel بدل CSV.",
+    message_en: "The amount is too large for a CSV file; export an XLSX instead.",
+  },
 } satisfies Record<
-  (typeof FINANCE_F2_ERROR_CODES)[number],
+  (typeof FINANCE_F2_ERROR_CODES)[number] | (typeof FINANCE_F3_ERROR_CODES)[number],
   { message_ar: string; message_en: string }
 >;
