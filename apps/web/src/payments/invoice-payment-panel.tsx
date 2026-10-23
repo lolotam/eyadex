@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AlertCircle, Banknote, Wallet } from "lucide-react";
 import type { Invoice } from "@eyadex/contracts/finance";
 import { formatMinor, readMinor } from "@eyadex/contracts/money";
@@ -32,8 +32,18 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
   const refreshPayments = useRefreshPayments();
   // The invoice is always the one on screen and the credit is the live one of the payments query: a
   // refetch must not leave the form checking a stale owed amount or a stale credit balance.
-  const [open, setOpen] = useState<{ kind: "pay" | "credit" } | null>(null);
+  const [open, setOpen] = useState<{ kind: "pay" | "credit"; invoiceId: string } | null>(null);
   const [pending, setPending] = useState(false);
+  // The panel stays mounted while the page shows another invoice, so an open form would send what the
+  // user typed for the first invoice to the second one: the dialog belongs to the invoice it was
+  // opened on, so it closes with it and a form never outlives its invoice.
+  const shown = open && open.invoiceId === invoice.id ? open : null;
+  const shownInvoiceId = useRef(invoice.id);
+  useEffect(() => {
+    if (shownInvoiceId.current === invoice.id) return;
+    shownInvoiceId.current = invoice.id;
+    setOpen(null);
+  }, [invoice.id]);
   const at = (action: "view" | "create") =>
     !!session && canAtBranch(session, action, "payments", invoice.branchId);
   const mayView = at("view");
@@ -46,7 +56,18 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
     paidMinor: invoice.settlement?.paidMinor ?? "0",
   });
   const owes = invoice.status === "issued" && positive(invoice.settlement?.owedMinor);
-  const credit = query.data?.creditBalanceMinor ?? "0";
+  // The payments query holds no data of its own until it answers, and a version bump starts a new one,
+  // so the credit would flash "0" in the open dialog: the last balance the query showed is kept for it.
+  // It is kept for this patient only, so another patient's credit is never shown here.
+  const lastCredit = useRef<{ patientId: string; minor: string } | null>(null);
+  useEffect(() => {
+    if (!query.data) return;
+    lastCredit.current = { patientId: invoice.patientId, minor: query.data.creditBalanceMinor };
+  }, [query.data, invoice.patientId]);
+  const kept = lastCredit.current;
+  const credit =
+    query.data?.creditBalanceMinor ??
+    (kept && kept.patientId === invoice.patientId ? kept.minor : "0");
   const mayPay = at("create") && owes;
   const mayCredit = mayPay && positive(credit);
   if (!mayView && !mayPay) return null;
@@ -68,7 +89,7 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
   // A late answer closes only the dialog it was sent from, never one opened after it. Only a confirmed
   // success drops the held key; after a failure the balance is refetched and the key kept for a replay,
   // as long as the invoice still shows the same paid amount.
-  const done = (opened: NonNullable<typeof open>) => {
+  const done = (opened: NonNullable<typeof shown>) => {
     keys.drop(opened.kind);
     setOpen((current) => (current === opened ? null : current));
     onChanged();
@@ -88,13 +109,21 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
         </h2>
         <div className="flex flex-wrap gap-2">
           {mayPay && (
-            <Button size="sm" disabled={entryOff} onClick={() => setOpen({ kind: "pay" })}>
+            <Button
+              size="sm"
+              disabled={entryOff}
+              onClick={() => setOpen({ kind: "pay", invoiceId: invoice.id })}
+            >
               <Banknote className="size-4" />
               {t("payments.panel.record")}
             </Button>
           )}
           {mayCredit && (
-            <Button size="sm" variant="outline" onClick={() => setOpen({ kind: "credit" })}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setOpen({ kind: "credit", invoiceId: invoice.id })}
+            >
               <Wallet className="size-4" />
               {t("payments.panel.useCredit")}
             </Button>
@@ -132,12 +161,12 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
         ) : (
           <div className="h-16 animate-pulse rounded-md bg-muted" aria-busy="true" />
         ))}
-      <Dialog open={open !== null} onOpenChange={(o) => !o && !pending && setOpen(null)}>
+      <Dialog open={shown !== null} onOpenChange={(o) => !o && !pending && setOpen(null)}>
         <DialogContent onEscapeKeyDown={hold} onInteractOutside={hold}>
           <DialogHeader>
             <DialogTitle>
               {t(
-                open?.kind === "credit"
+                shown?.kind === "credit"
                   ? "payments.dialog.creditTitle"
                   : "payments.dialog.recordTitle",
                 {
@@ -146,24 +175,24 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
               )}
             </DialogTitle>
           </DialogHeader>
-          {open?.kind === "pay" && (
+          {shown?.kind === "pay" && (
             <RecordPaymentForm
               invoice={invoice}
               methods={enabled}
               keyOf={(request) => keys.keyOf("pay", request)}
               paidChanged={keys.paidChanged.pay}
-              onDone={() => done(open)}
+              onDone={() => done(shown)}
               onFailed={failed}
               onPendingChange={setPending}
             />
           )}
-          {open?.kind === "credit" && (
+          {shown?.kind === "credit" && (
             <ApplyCreditForm
               invoice={invoice}
               creditMinor={credit}
               keyOf={(request) => keys.keyOf("credit", request)}
               paidChanged={keys.paidChanged.credit}
-              onDone={() => done(open)}
+              onDone={() => done(shown)}
               onFailed={failed}
               onPendingChange={setPending}
             />

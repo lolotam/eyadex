@@ -61,6 +61,8 @@ export type HeldKeys = {
  * A held key answers one request on one invoice state only: a change in the invoice's paid amount means
  * the earlier request may have been recorded on the server, so its key must not replay for a new payment,
  * while an edit that leaves the paid amount alone keeps the key, so a lost answer can still replay.
+ * A caller that warned about the invoice's paid amount offers no previous key: a warned key never
+ * answers again, not even when the paid amount returns to the value it was minted under.
  */
 export function heldFor(
   previous: HeldRequest | null,
@@ -128,7 +130,8 @@ function reportOf(
  * of recording twice. Every invoice keeps its own keys, so a send on another invoice never takes the key
  * held for this one. The key is bound to the invoice and to its paid amount, so it never crosses to
  * another invoice and never answers a payment the invoice already reflects. A key is dropped only on a
- * confirmed success.
+ * confirmed success, and a warned key is never reused: once the paid amount moved under it, every send
+ * is a new request until that success drops it.
  */
 export function useHeldKeys({ invoiceId, paidMinor }: HeldContext): HeldKeys {
   const held = useRef<Map<string, HeldSlot>>(new Map());
@@ -149,7 +152,12 @@ export function useHeldKeys({ invoiceId, paidMinor }: HeldContext): HeldKeys {
     (operation: KeyedOperation, request: unknown) => {
       const slot = slotOf(held.current, invoiceId);
       const context: HeldContext = { invoiceId, paidMinor };
-      const next = heldFor(slot.keys[operation] ?? null, JSON.stringify(request), context, newKey);
+      // A warned key is never reused: the invoice's paid amount moved under it, so the earlier
+      // request may already be recorded on the server, and a replay would answer that request
+      // instead of recording the new one. The paid amount returning to the value the key was minted
+      // under does not make it answerable again — the warning clears only on a confirmed success.
+      const previous = slot.warned[operation] ? null : (slot.keys[operation] ?? null);
+      const next = heldFor(previous, JSON.stringify(request), context, newKey);
       slot.keys[operation] = next;
       // The key answers the invoice as it is now, so the report is rebuilt from it.
       report(slot);

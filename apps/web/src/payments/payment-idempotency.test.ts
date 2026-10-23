@@ -193,4 +193,18 @@ describe("the report of a stale held key", () => {
     rerender({ invoiceId: INVOICE, paidMinor: "1000" });
     expect(result.current.keyOf("pay", { amountMinor: "4000" })).toBe(first);
   });
+
+  // PR #111 review: a warned key is never reused, not even when the paid amount comes back.
+  it("never reuses a warned key, even when the paid amount returns to its old value", async () => {
+    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000" });
+    const first = result.current.keyOf("pay", { amountMinor: "4000" });
+    rerender({ invoiceId: INVOICE, paidMinor: "5000" });
+    await waitFor(() => expect(result.current.paidChanged.pay).toBe(true));
+    // The paid amount returns to the value the key was minted under, and the user sends the same
+    // values again: the earlier request may still be recorded, so the key must not answer it again.
+    rerender({ invoiceId: INVOICE, paidMinor: "1000" });
+    expect(result.current.keyOf("pay", { amountMinor: "4000" })).not.toBe(first);
+    // The warning stays until a confirmed success drops the key.
+    expect(result.current.paidChanged.pay).toBe(true);
+  });
 });

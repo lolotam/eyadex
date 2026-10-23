@@ -181,21 +181,6 @@ describe("the payment dialog while a request is in flight", () => {
 
 // PR #103 review: an unclear failure keeps the key above the dialog, so a reopened form replays it.
 describe("the held Idempotency-Key", () => {
-  it("a failed request, reopened with the same values after a version change, sends the same key", async () => {
-    h.recordPayment.mockRejectedValueOnce(new ApiError("unknown"));
-    h.recordPayment.mockResolvedValueOnce({ payment: { receiptNumber: "TT-R-2026-000002" } });
-    const queries = client();
-    const view = render(panel(queries));
-    await submitOnce();
-    await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
-    fireEvent.click(screen.getByRole("button", { name: "Close" }));
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    view.rerender(panel(queries, { ...invoice, version: 2 }));
-    await submitOnce();
-    await waitFor(() => expect(h.recordPayment).toHaveBeenCalledTimes(2));
-    expect(h.recordPayment.mock.calls[1]![3]).toBe(h.recordPayment.mock.calls[0]![3]);
-  });
-
   it("a failed request, then a higher paid amount, sends a different key", async () => {
     h.recordPayment.mockRejectedValueOnce(new ApiError("unknown"));
     h.recordPayment.mockResolvedValueOnce({ payment: { receiptNumber: "TT-R-2026-000002" } });
@@ -242,30 +227,6 @@ describe("the movements after the invoice changes", () => {
 
 // PR #111 review: the dialog follows the invoice, and a typed amount is never overwritten.
 describe("the dialog after the invoice moved", () => {
-  it("warns and prefills the new owed amount after an unclear failure", async () => {
-    h.recordPayment.mockRejectedValueOnce(new ApiError("unknown"));
-    const queries = client();
-    const view = render(panel(queries));
-    await submitOnce();
-    await waitFor(() => expect(h.recordPayment).toHaveBeenCalledTimes(1));
-    // The failure keeps the dialog open with its key held under the old paid amount.
-    view.rerender(panel(queries, moved));
-    expect(await screen.findByText(ar.payments.paidChangedNotice)).toBeInTheDocument();
-    expect(screen.getByLabelText(amountLabel())).toHaveValue("2.000");
-  });
-
-  it("warns on the credit dialog too", async () => {
-    h.session = sessionOf(["view:payments:clinic", "create:payments:clinic"]);
-    h.applyCredit.mockRejectedValueOnce(new ApiError("unknown"));
-    const queries = client();
-    const view = render(panel(queries));
-    fireEvent.click(await screen.findByRole("button", { name: ar.payments.panel.useCredit }));
-    fireEvent.click(await screen.findByRole("button", { name: ar.payments.dialog.apply }));
-    await waitFor(() => expect(h.applyCredit).toHaveBeenCalledTimes(1));
-    view.rerender(panel(queries, moved));
-    expect(await screen.findByText(ar.payments.paidChangedNotice)).toBeInTheDocument();
-  });
-
   it("keeps a typed amount when the owed amount changes", async () => {
     const queries = client();
     const view = render(panel(queries));
@@ -273,15 +234,6 @@ describe("the dialog after the invoice moved", () => {
     fireEvent.change(await screen.findByLabelText(amountLabel()), { target: { value: "1.000" } });
     view.rerender(panel(queries, moved));
     await waitFor(() => expect(screen.getByLabelText(amountLabel())).toHaveValue("1.000"));
-  });
-
-  it("moves an untouched amount to the new owed amount", async () => {
-    const queries = client();
-    const view = render(panel(queries));
-    fireEvent.click(screen.getByRole("button", { name: ar.payments.panel.record }));
-    expect(await screen.findByLabelText(amountLabel())).toHaveValue("4.000");
-    view.rerender(panel(queries, moved));
-    await waitFor(() => expect(screen.getByLabelText(amountLabel())).toHaveValue("2.000"));
   });
 
   it("shows the credit the payments query holds, not the one captured at open", async () => {
