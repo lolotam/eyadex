@@ -40,8 +40,8 @@ built yet: the SQL plan still needs the owner's yes.
 4. **Default grants** (F3-Q9 (b), EY-9.14 (a), EY-10.1): the locked clinic admin gets the three clinic keys,
    the receptionist gets `view:report_takings:branch` (R1, R2 and R9 only) and the doctor gets
    `view:report_own:own` (R10 only). The new-clinic templates in `system-roles.ts` get the same keys in the
-   same slice. An existing clinic gets the same in the release file, the receptionist and the doctor by
-   `system_key` only — never a custom role.
+   same slice. In an existing clinic the release file grants the locked admin its three keys and changes no
+   other role (FIN-4); the clinic's admin grants the receptionist and doctor keys.
 5. **The doctor's own report (R10) is per line.** It shows the billed amount of the doctor's own lines per
    month — his own lines on invoices inside his own reach — and no paid or owed columns (F3-Q4 (c),
    EY-9.16 (a)). This amends R2-6 for R10 only; the drill-down stays the invoice list he already sees.
@@ -83,8 +83,8 @@ built yet: the SQL plan still needs the owner's yes.
   and fencing columns are part of that table (issue #105).
 - The web role matrix, the seeded roles and the permission catalogue grow with the seven new keys in the
   same PR as the SQL that seeds them, and the new-clinic templates in `system-roles.ts` get the same keys.
-- The receptionist's default report grant and the doctor's own report grant now land with the release file,
-  by `system_key` only (EY-10.1).
+- The receptionist's and the doctor's report keys are new-clinic defaults only; existing clinics' roles are
+  not changed by the release (FIN-4, EY-10.1).
 
 Full detail: `docs/specs/finance-f3-reports-design.md` §3–§9, with the owner's answers verbatim in §11 and
 §12.
