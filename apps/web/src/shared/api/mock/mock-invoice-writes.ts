@@ -7,7 +7,7 @@ import {
   type Invoice,
   type InvoiceDraft,
 } from "@eyadex/contracts/finance";
-import { ApiError } from "../api-error";
+import { ApiError, financeError } from "../api-error";
 import { holdsWrite, seesInvoice, writeReaches, type FinanceAccess } from "./mock-finance-access";
 import {
   clinicFinanceOf,
@@ -32,6 +32,7 @@ import { releaseOnChange } from "./mock-invoice-releases";
 import { strip } from "./mock-invoice-view";
 import { parse } from "./mock-medical-access";
 import { inPatientViewReach } from "./mock-patient-rules";
+import { settlementOf } from "./mock-settlement";
 import { newId, type MockState } from "./mock-store";
 
 /** Who and where an appointment or visit names, or not_found outside the clinic. */
@@ -276,6 +277,12 @@ export function voidInvoice(
 ): Invoice {
   const invoice = lockedInvoice(db, a, id, "deactivate", version);
   const body = parse(voidInvoiceRequestSchema, raw);
+  // As the API (issue #113): the amount the user confirmed must still be the invoice's paid amount,
+  // so money paid since that read never becomes the patient's credit unseen. Judged before any write.
+  if (body.expectedPaidMinor !== undefined) {
+    const paid = settlementOf(db, invoice)?.paidMinor ?? "0";
+    if (BigInt(body.expectedPaidMinor) !== BigInt(paid)) throw financeError("invoice_paid_changed");
+  }
   const before = strip(db, invoice);
   const auditCredits = releaseOnChange(db, a, invoice, "void", now);
   Object.assign(invoice, {

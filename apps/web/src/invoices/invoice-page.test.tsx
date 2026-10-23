@@ -19,6 +19,8 @@ vi.mock("@/shared/api/api-provider", () => ({
   useApi: () => ({
     finance: {
       pdf: async () => new Blob(["%PDF"], { type: "application/pdf" }),
+      // The void dialog reads the invoice again before it voids it (issue #107).
+      getInvoice: async () => state.invoice,
       voidInvoice: async (_p: unknown, _id: string, version: number) => {
         state.voided.push(version);
         return state.invoice;

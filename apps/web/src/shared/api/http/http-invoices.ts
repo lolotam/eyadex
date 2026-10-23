@@ -45,10 +45,11 @@ export function createHttpInvoices({ transport }: HttpContext): InvoicePart {
       });
       return answer.invoice;
     },
-    async voidInvoice(_persona, invoiceId, version, reason) {
+    async voidInvoice(_persona, invoiceId, version, reason, expectedPaidMinor) {
       const answer = await transport.send("POST", `/v1/invoices/${id(invoiceId)}/void`, {
         schema: invoiceWriteResponseSchema,
-        body: { reason },
+        // The confirmed paid amount travels only when the screen sent one (issue #113).
+        body: expectedPaidMinor === undefined ? { reason } : { reason, expectedPaidMinor },
         ifMatch: version,
       });
       return answer.invoice;

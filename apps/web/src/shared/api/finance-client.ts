@@ -66,11 +66,17 @@ export interface FinanceApi {
     version: number,
     input: UpdateInvoiceRequest,
   ): Promise<Invoice>;
+  /**
+   * `expectedPaidMinor` is the paid amount the user confirmed on screen: the API refuses the void when
+   * the invoice was paid more since that read, so the money never turns into the patient's credit
+   * unseen (issue #113). It is optional, so a client that sends no amount keeps working.
+   */
   voidInvoice(
     persona: Persona,
     invoiceId: string,
     version: number,
     reason: string,
+    expectedPaidMinor?: string,
   ): Promise<Invoice>;
   /** The invoice PDF (`application/pdf`); the browser prints it. */
   pdf(persona: Persona, invoiceId: string): Promise<Blob>;
