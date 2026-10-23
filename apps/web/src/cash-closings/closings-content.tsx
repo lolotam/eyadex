@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, Vault } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +15,7 @@ import { FilterSelect } from "@/shared/table/filter-select";
 import { useCursorPages } from "@/shared/table/use-cursor-pages";
 import { CloseDialog } from "./close-dialog";
 import { closableBranches } from "./closing-count";
-import { useClosingBranches, useClosingList } from "./closing-queries";
+import { closingKeys, useClosingBranches, useClosingList } from "./closing-queries";
 import { useClosingColumns } from "./use-closing-columns";
 
 const PAGE_SIZE = 20;
@@ -25,6 +26,7 @@ export function ClosingsContent() {
   const { session } = useSession();
   const permissions = session?.permissions ?? [];
   const pages = useCursorPages();
+  const queryClient = useQueryClient();
   // The branch names and the dialog's picker are the payments branch options (owner decision).
   const branches = useClosingBranches(can(permissions, "view", "payments"));
   const [branchId, setBranchId] = useState<string | null>(null);
@@ -130,6 +132,8 @@ export function ClosingsContent() {
               setBranchId(branch);
               setFrom(day);
               setTo(day);
+              // An already-loaded (empty) page of that filter is fetched again.
+              void queryClient.invalidateQueries({ queryKey: [...closingKeys.all, "list"] });
             })
           }
         />

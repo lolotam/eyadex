@@ -108,7 +108,10 @@ export function CloseDialog({ open, onOpenChange, branches, onShowClosed }: Prop
               value={branchId}
               options={branches.map((b) => ({ value: b.id, label: pick(b.nameAr, b.nameEn) }))}
               onChange={(v) => {
+                // A closing is irreversible: nothing typed for another branch's drawer carries over.
                 setBranchId(v);
+                setCounted("");
+                setNote("");
                 setFailure(null);
                 held.current = null;
               }}

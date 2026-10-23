@@ -27,6 +27,7 @@ export const enCashClosings = {
       pickBranch: "Choose a branch",
       noBranches: "You can't close any branch's drawer.",
       period: "Cash positions {from} to {through}",
+      noMovementSince: "No cash movement since the last closing",
       firstPeriod: "First closing of this branch",
       cashIn: "Cash in",
       cashOut: "Cash out",

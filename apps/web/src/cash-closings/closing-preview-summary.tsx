@@ -14,7 +14,9 @@ export function ClosingPreviewSummary({ preview }: { preview: CashClosingPreview
       <p className="text-xs text-muted-foreground">
         {preview.previousClosingId === null
           ? t("cashClosings.dialog.firstPeriod")
-          : t("cashClosings.dialog.period", {
+          : BigInt(preview.throughCashSeq) <= BigInt(preview.fromCashSeq)
+            ? t("cashClosings.dialog.noMovementSince")
+            : t("cashClosings.dialog.period", {
               from: String(BigInt(preview.fromCashSeq) + 1n),
               through: preview.throughCashSeq,
             })}
