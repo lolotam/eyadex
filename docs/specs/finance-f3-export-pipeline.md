@@ -1,6 +1,8 @@
 # Finance F3 — the export pipeline (design)
 
 - Status: **decided** (2026-10-23). This is the design issue #105 asked for. Nothing here is built.
+- Review: the two Codex P2 findings of PR #121 are folded in — the publish whose answer was lost
+  (§2 step 9, §3, §4) and the upload that lands after its key was swept (§2 step 8, §6, §8.2, §10).
 - Parent spec: `docs/specs/finance-f3-reports-design.md` (§7 exports, §7.3 the export table, §8 the SQL
   plan, §12 the owner decisions). §7.2 and §7.3 of that file point here.
 - Issue: #105 ("F3: design the finance export pipeline"). Its six binding requirements are met below.
@@ -180,10 +182,36 @@ The key is `clinic/<clinic_id>/finance-exports/<export_id>/<attempt>.<ext>`, whe
 
 Before the upload the runner writes the `finance_report_export_blobs` row with the state `allocated`,
 in one short transaction: its own `id`, the export id and the attempt that allocates the key.
-Then it uploads the bytes.
+Then it re-checks and uploads the bytes.
 
 The row comes first on purpose: a crash between the row and the upload leaves a known key, and a
 crash after the upload leaves a known key too.
+
+**The re-check before the upload.** The sweeper may have swept this key while the build was
+running (§6), so the attempt re-checks before it uploads, in one short `withTenant` transaction:
+the export row under the fence of §4 and the live lease of step 9, and its own blob row.
+
+- the export row is no longer the attempt's: the attempt stops before it uploads. There is nothing
+  it may publish, and a late upload would be an orphan,
+- its blob row is not `allocated` any more (the sweeper deleted it, §6): the attempt stops too. The
+  key is gone, so an upload would be an orphan the cleanup never sees, because the sweeper never
+  lists the bucket.
+
+**The upload and the `uploaded` state.** The attempt uploads the bytes and then moves its own blob
+row from `allocated` to `uploaded`, in one short transaction fenced on the row:
+
+```sql
+UPDATE finance_report_export_blobs
+   SET state = 'uploaded', updated_at = $now
+ WHERE clinic_id = $clinic AND export_id = $export AND attempt = $mine AND state = 'allocated'
+```
+
+If that update hits 0 rows, the row is not `allocated` any more: the sweeper deleted it while the
+bytes were going up. The attempt deletes what it just uploaded, so no orphan is left behind, and it
+stops: the publish of step 9 needs the blob row to be `uploaded`.
+
+The `uploaded` state says the bytes are in the store and that the row is still the attempt's. It
+exists for the race only, and the sweeper reads it like `allocated` (§6).
 
 **Step 9 — the fenced publish.**
 
@@ -201,12 +229,12 @@ UPDATE finance_report_exports
 The lease must still be alive: a lease that has expired is not the attempt's any more, so the attempt
 publishes nothing.
 
-The same transaction moves the blob row from `allocated` to `published`:
+The same transaction moves the blob row from `uploaded` to `published`:
 
 ```sql
 UPDATE finance_report_export_blobs
    SET state = 'published', updated_at = $now
- WHERE clinic_id = $clinic AND export_id = $export AND attempt = $mine AND state = 'allocated'
+ WHERE clinic_id = $clinic AND export_id = $export AND attempt = $mine AND state = 'uploaded'
 ```
 
 and it writes the audit row (`finance_report.exported`; a `patient_access` row for R5 to R8, as
@@ -219,6 +247,22 @@ No row updated on the export row, or no row updated on the blob row: the publish
 The transaction aborts, so nothing it wrote is kept — not the status, not the blob state and not the
 audit row — and the attempt deletes its own upload (step 10).
 
+**The publish whose answer was lost.** A commit that succeeded but whose answer never came back is
+not a lost publish: the transaction is durable, only the answer is gone. So a publish that updates
+0 rows is not refused straight away. The attempt re-reads the export row and its own blob row, in
+one short `withTenant` transaction, and reads the state:
+
+- the export row is `done`, its `storage_key` is this attempt's key and the blob row is `published`:
+  the publish committed and the answer was lost. This is the attempt's own success: it keeps the
+  file, it stops the heartbeat and it exits, and it deletes nothing,
+- anything else: another attempt, or another state, holds the row. The upload is deleted (step 10).
+
+The key carries the attempt number, so a key that equals this attempt's key is this attempt's file
+and no other attempt's.
+
+The re-read is asked in two places, and the answer is the same in both: after a publish that
+updated 0 rows (this step) and after a heartbeat that updated 0 rows (§3).
+
 **Step 10 — a losing attempt cleans up after itself.**
 
 A refused publish (step 9) means the worker no longer owns the row. It deletes its own upload, marks
@@ -226,6 +270,10 @@ its own blob row `deleted`, stops its heartbeat and exits.
 
 It never touches the export row: the new owner owns it now.
 Its own blob row is its own: the row of its own attempt, so it never touches the winner's blob row.
+A blob row the sweeper already marked `deleted` stays as it is.
+
+A publish that was refused but whose re-read showed the attempt's own success (step 9) is not a
+losing attempt: it keeps its file, it deletes nothing and it exits.
 
 **The end of the flow.** The next claim of the event finds `status = 'done'` and returns `dispatched`,
 which closes the event.
@@ -272,8 +320,14 @@ UPDATE finance_report_exports SET lease_until = $now + interval '60 seconds'
 - The heartbeat carries the fence of §4: `attempt = $mine AND lease_owner = $me`.
   Every write an attempt makes to the export row carries it: the heartbeat, the publish, the
   failure, the release and the abandon.
-- Zero rows updated means the lease is gone: the attempt was taken over. The runner stops the build,
-  deletes its own upload, marks its blob row `deleted` and exits.
+- Zero rows updated usually means the lease is gone: the attempt was taken over. The runner stops the
+  build, deletes its own upload, marks its blob row `deleted` and exits.
+- A heartbeat that updates 0 rows is not always a takeover: the attempt's publish may have committed
+  and its answer may have been lost. So the runner re-reads the export row and its own blob row,
+  exactly as the publish does (§2 step 9): if the export row is `done` with this attempt's key in
+  `storage_key` and the blob row is `published`, the attempt is its own success — it keeps the
+  file, it stops the heartbeat and it exits. Otherwise the lease is gone and the attempt deletes
+  its own upload.
 - The heartbeat covers the whole attempt: the wait for a free build slot and the build itself.
   A busy worker never looks dead, and a live build is never taken over.
 - The heartbeat stops when the attempt ends.
@@ -287,9 +341,14 @@ UPDATE finance_report_exports SET lease_until = $now + interval '60 seconds'
 - **The fence is on every write an attempt makes to the export row.** The heartbeat, the publish, the
   failure, the release and the abandon all carry
   `WHERE clinic_id = $clinic AND id = $export AND attempt = $mine AND lease_owner = $me`.
-  A write that updates 0 rows is a lost race: the attempt stops, deletes its own upload and exits.
+  A write that updates 0 rows is a lost race: the attempt stops, deletes its own upload and exits —
+  unless the re-read of §2 step 9 shows the attempt's own published file, in which case it keeps the
+  file and exits.
   The lease write of step 3 is not one of them: it takes the lease, so it is fenced on the row's
   current `attempt` and on the lease being free.
+- The blob row writes carry the attempt's own row, `(clinic_id, export_id, attempt = $mine)`: the
+  `allocated` to `uploaded` move of step 8 and the `uploaded` to `published` move of step 9 touch
+  the attempt's own row and no other, so a loser never moves the winner's blob row.
 - The publish is fenced on `(id, attempt, lease_owner)` and on a live lease (`lease_until > now()`,
   §2 step 9). The fence is the only thing that decides the winner.
 - A stale attempt (its lease was taken over, or its heartbeat failed) updates 0 rows: it is fenced
@@ -299,7 +358,8 @@ UPDATE finance_report_exports SET lease_until = $now + interval '60 seconds'
 - The winner's attempt is the row's `attempt` after the publish, because the fence requires
   `attempt = $mine`. So the download can unseal the bytes with the right additional data.
 - The publish is idempotent by export id: a second publish of the same attempt changes 0 rows,
-  because the first one cleared `lease_owner`.
+  because the first one cleared `lease_owner`. The re-read of §2 step 9 then finds the attempt's own
+  success, so the retry keeps the file and deletes nothing.
 
 ## 5. Failure and retry
 
@@ -358,21 +418,22 @@ clinic/<clinic_id>/finance-exports/<export_id>/<attempt>.<ext>
 The blob table is `finance_report_export_blobs`: one row per key ever allocated, written **before**
 the upload.
 
-| Column        | Type          | Null     | Meaning                                       |
-| ------------- | ------------- | -------- | --------------------------------------------- |
-| `clinic_id`   | `uuid`        | NOT NULL | the clinic                                    |
-| `id`          | `uuid`        | NOT NULL | the row's own id (a UUID v7), the primary key |
-| `export_id`   | `uuid`        | NOT NULL | the export                                    |
-| `attempt`     | `integer`     | NOT NULL | the attempt that allocated the key            |
-| `storage_key` | `text`        | NOT NULL | the key                                       |
-| `state`       | `text`        | NOT NULL | `allocated` / `published` / `deleted`         |
-| `created_at`  | `timestamptz` | NOT NULL | when the key was allocated                    |
-| `updated_at`  | `timestamptz` | NOT NULL | when the state last changed                   |
+| Column        | Type          | Null     | Meaning                                            |
+| ------------- | ------------- | -------- | -------------------------------------------------- |
+| `clinic_id`   | `uuid`        | NOT NULL | the clinic                                         |
+| `id`          | `uuid`        | NOT NULL | the row's own id (a UUID v7), the primary key      |
+| `export_id`   | `uuid`        | NOT NULL | the export                                         |
+| `attempt`     | `integer`     | NOT NULL | the attempt that allocated the key                 |
+| `storage_key` | `text`        | NOT NULL | the key                                            |
+| `state`       | `text`        | NOT NULL | `allocated` / `uploaded` / `published` / `deleted` |
+| `created_at`  | `timestamptz` | NOT NULL | when the key was allocated                         |
+| `updated_at`  | `timestamptz` | NOT NULL | when the state last changed                        |
 
 The primary key is `(clinic_id, id)` (CLAUDE.md §5), and `(clinic_id, export_id, attempt)` is unique:
 one row per key ever allocated (§8.2).
 
 - `allocated` — the key is reserved. The upload may be running, partial or missing.
+- `uploaded` — the bytes are in the store under this key, and the row is still the attempt's.
 - `published` — the fenced publish won, and this key is the file the download serves.
 - `deleted` — the bytes are gone.
 
@@ -381,14 +442,20 @@ It deletes a key only when it is sure that no live attempt still needs it.
 It reads the export row of every candidate inside `withTenant(clinicId)`, so it knows the row's
 current `attempt` and its lease before it deletes anything.
 
-- an `allocated` row whose `attempt` is **below the export row's current `attempt`** is deleted and set
-  to `deleted`: that attempt lost the race, its upload is not the published file, and it can never
-  be published any more,
-- an `allocated` row whose `created_at` is **older than the build budget plus the lease**
-  (15 min + 60 s) is deleted and set to `deleted`: its attempt is past the budget of §9 and its lease
-  is long gone, so nothing is uploading under that key any more,
-- an `allocated` row of the export's **current** attempt is never deleted while the export is
-  `running` with a live lease: the upload may be in flight and the publish still needs the key,
+- an `allocated` or an `uploaded` row whose `attempt` is **below the export row's current
+  `attempt`** is deleted and set to `deleted`: that attempt lost the race, its upload is not the
+  published file, and it can never be published any more,
+- an `allocated` or an `uploaded` row whose `created_at` is **older than the build budget plus the
+  lease** (15 min + 60 s) is deleted and set to `deleted`: its attempt is past the budget of §9 and
+  its lease is long gone, so nothing is uploading under that key any more,
+- an `allocated` or an `uploaded` row of the export's **current** attempt is never deleted while the
+  export is `running` with a live lease: the upload may be in flight and the publish still needs the
+  key,
+- a `deleted` row whose `updated_at` is **older than the grace period** (the build budget plus the
+  lease, 15 min + 60 s) has its key deleted once more: a key that was marked `deleted` while an
+  upload was still in flight can reappear in the store after the sweep, and the bucket is never
+  listed, so only the table can catch it. The re-delete refreshes `updated_at`, so it is tried again
+  once per grace period, and a missing object is not an error, so the retry is harmless,
 - every `published` row whose export's `expires_at` has passed is deleted and set to `deleted`, and
   its export becomes `expired` (§7),
 - a key that is not there is not an error: the sweep is idempotent, and a second run deletes nothing.
@@ -396,6 +463,8 @@ current `attempt` and its lease before it deletes anything.
 The order is always the same: the bytes first, then the row state.
 A crash between the two leaves a row that claims a key which is already gone; the next sweep deletes
 the missing key and marks the row.
+The re-delete of a `deleted` row keeps that order too: the bytes first, then the refreshed
+`updated_at`.
 
 The sweeper never lists the bucket. It reads the keys from the table and deletes them one by one.
 
@@ -513,16 +582,16 @@ There is no `DELETE`: the row is never deleted.
 
 ### 8.2 `finance_report_export_blobs`
 
-| Column        | Type          | Null     | Default | Note                                  |
-| ------------- | ------------- | -------- | ------- | ------------------------------------- |
-| `clinic_id`   | `uuid`        | NOT NULL | —       | the clinic                            |
-| `id`          | `uuid`        | NOT NULL | —       | a UUID v7 from the application        |
-| `export_id`   | `uuid`        | NOT NULL | —       | the export                            |
-| `attempt`     | `integer`     | NOT NULL | —       | the attempt that allocated the key    |
-| `storage_key` | `text`        | NOT NULL | —       | the key                               |
-| `state`       | `text`        | NOT NULL | —       | `allocated` / `published` / `deleted` |
-| `created_at`  | `timestamptz` | NOT NULL | —       |                                       |
-| `updated_at`  | `timestamptz` | NOT NULL | —       |                                       |
+| Column        | Type          | Null     | Default | Note                                               |
+| ------------- | ------------- | -------- | ------- | -------------------------------------------------- |
+| `clinic_id`   | `uuid`        | NOT NULL | —       | the clinic                                         |
+| `id`          | `uuid`        | NOT NULL | —       | a UUID v7 from the application                     |
+| `export_id`   | `uuid`        | NOT NULL | —       | the export                                         |
+| `attempt`     | `integer`     | NOT NULL | —       | the attempt that allocated the key                 |
+| `storage_key` | `text`        | NOT NULL | —       | the key                                            |
+| `state`       | `text`        | NOT NULL | —       | `allocated` / `uploaded` / `published` / `deleted` |
+| `created_at`  | `timestamptz` | NOT NULL | —       |                                                    |
+| `updated_at`  | `timestamptz` | NOT NULL | —       |                                                    |
 
 Primary key `(clinic_id, id)`, the standard of every clinic table (CLAUDE.md §5).
 The row has an id of its own, like every other clinic table, and not only the key of its attempt.
@@ -536,7 +605,7 @@ satisfied.
 Checks:
 
 - `attempt >= 1`,
-- `state` in (`allocated`, `published`, `deleted`),
+- `state` in (`allocated`, `uploaded`, `published`, `deleted`),
 - `storage_key` matches
   `^clinic/[0-9a-f-]{36}/finance-exports/[0-9a-f-]{36}/[0-9]+\.(csv|xlsx)$`.
 
@@ -552,8 +621,9 @@ GRANT UPDATE (state, updated_at) ON finance_report_export_blobs TO eyadex_app;
 REVOKE ALL ON finance_report_export_blobs FROM eyadex_platform, eyadex_auth, eyadex_dispatcher;
 ```
 
-The `UPDATE` is column level, like the export table of §8.1: a blob row only ever moves from
-`allocated` to `published` or to `deleted`, and nothing else about it changes.
+The `UPDATE` is column level, like the export table of §8.1: a blob row only ever changes its
+state — `allocated` to `uploaded` to `published`, or to `deleted` — and nothing else about it
+changes.
 
 There is no `DELETE`: the rows are the trail of every key ever allocated.
 
@@ -577,6 +647,7 @@ There is no `DELETE`: the rows are the trail of every key ever allocated.
 | the heartbeat                     | 20 s                 | the runner's timer                                  |
 | one build's own budget            | 15 min               | the runner abandons the attempt                     |
 | the sweep                         | 5 min                | the periodic job                                    |
+| the grace period of the re-delete | 16 min               | the sweeper of §6 (build budget plus the lease)     |
 | the builds per worker             | 2                    | the runner's local queue and the claim backpressure |
 | the next look at a running export | the end of its lease | the event's `next_attempt_at`                       |
 
@@ -603,7 +674,10 @@ Unit (the domain):
 - the backoff ladder: 1, 5, 30 and 120 minutes, and the fifth attempt is final,
 - the failure kinds: `forbidden`, `export_amount_too_large` and `attempts_exhausted` are final, the
   others retry,
-- the heartbeat's decision: the runner stops when the renewal updates 0 rows.
+- the heartbeat's decision: the runner stops when the renewal updates 0 rows,
+- the re-read after a zero-row write: the attempt keeps its file when the export row is `done` with
+  its own key and the blob row is `published`, and it deletes its own upload in every other case.
+  The heartbeat and the publish ask the same question, so the decision is one decision.
 
 Integration (against PostgreSQL, as `eyadex_app`):
 
@@ -615,24 +689,35 @@ Integration (against PostgreSQL, as `eyadex_app`):
   `attempt + 1` and a new owner,
 - the fenced publish: a publish with a stale attempt or a stale owner updates 0 rows and the export
   row is unchanged,
+- the publish whose answer was lost: a publish that committed and is replayed updates 0 rows, and the
+  attempt keeps its file — the export row stays `done` with its own key, the blob row stays
+  `published` and the key is still in the store,
+- the zero-row heartbeat after a committed publish: the runner re-reads the row, sees its own
+  success and does not delete the key,
 - the live lease at the publish: a publish whose `lease_until` is in the past updates 0 rows, the blob
-  row stays `allocated` and the audit row is not written,
-- the publish moves the blob row: the blob row goes from `allocated` to `published` in the same
-  transaction, and a blob row that is not `allocated` aborts the whole publish, so the export row and
+  row stays `uploaded` and the audit row is not written,
+- the publish moves the blob row: the blob row goes from `uploaded` to `published` in the same
+  transaction, and a blob row that is not `uploaded` aborts the whole publish, so the export row and
   the audit row stay as they were,
 - the attempt limit: a `running` row with an expired lease at the limit becomes `failed` with
   `attempts_exhausted`, and so does a `queued` row at the limit,
-- the sweeper never touches a live upload: the `allocated` row of the current attempt of a running
-  export with a live lease is not deleted,
-- the sweeper deletes the losers: the `allocated` row of an attempt below the row's current `attempt`
-  is deleted, and so is an `allocated` row older than the build budget plus the lease,
+- the sweeper never touches a live upload: the `allocated` and the `uploaded` row of the current
+  attempt of a running export with a live lease are not deleted,
+- the sweeper deletes the losers: the `allocated` and the `uploaded` row of an attempt below the
+  row's current `attempt` are deleted, and so is an `allocated` or an `uploaded` row older than the
+  build budget plus the lease,
+- the late upload: an attempt whose blob row was swept to `deleted` does not upload at all, and an
+  upload that lands after the sweep is deleted by the attempt itself, because the `allocated` to
+  `uploaded` update finds `deleted`,
 - the stale upload is deleted: the losing attempt's key is gone and its blob row is `deleted`,
 - the published file: the publish sets `status`, `storage_key`, `byte_size`, `row_count` and
   `expires_at` (24 hours), and the blob row is `published`,
 - the blob row is written before the upload: a failed upload leaves an `allocated` row,
-- the sweeper: an `allocated` row of a dead attempt is deleted (an attempt below the row's current
-  `attempt`, or one older than the build budget plus the lease), an expired `published` row is
-  deleted and its export becomes `expired`, and a second run deletes nothing,
+- the sweeper: an `allocated` or an `uploaded` row of a dead attempt is deleted (an attempt below the
+  row's current `attempt`, or one older than the build budget plus the lease), an expired `published`
+  row is deleted and its export becomes `expired`, and a second run deletes nothing,
+- the re-delete of a swept key: a `deleted` row older than the grace period has its key deleted once
+  more, so a key that reappeared after the sweep is caught, and the row stays `deleted`,
 - the retention: at `expires_at` the key is gone, the row is `expired`, and `storage_key` and
   `patient_ids` are null,
 - the purge: a refused `own` download deletes the key, sets `purged` and clears `storage_key`, and the
