@@ -8,8 +8,6 @@ import { useDebouncedValue } from "@/shared/forms/use-debounced-value";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { can } from "@/shared/permissions/can";
 import { useSession } from "@/shared/persona/persona-provider";
-import { FinanceTabs } from "@/shared/shell/finance-tabs";
-import { PageHeader } from "@/shared/shell/page-header";
 import { StatusPanel } from "@/shared/shell/status-panel";
 import { CursorPager } from "@/shared/table/cursor-pager";
 import { DataTable } from "@/shared/table/data-table";
@@ -21,7 +19,7 @@ import { useReceiptColumns } from "./use-receipt-columns";
 
 const PAGE_SIZE = 20;
 
-/** The receipts list: branch, method, dates, patient (with `view:patients` only), number; cursor pages. */
+/** The receipts list (the page header and the switcher are the page's): branch, method, dates, patient (with `view:patients` only), number; cursor pages. */
 export function ReceiptsContent() {
   const { t, tDynamic, pick } = useI18n();
   const { session } = useSession();
@@ -66,8 +64,6 @@ export function ReceiptsContent() {
   const items = list.data?.items ?? [];
   return (
     <div>
-      <PageHeader title={t("payments.receipts.title")} subtitle={t("payments.receipts.subtitle")} />
-      <FinanceTabs active="payments" />
       <div className="mb-4 grid gap-2 rounded-lg border bg-card p-3 sm:grid-cols-2 lg:grid-cols-6">
         <FilterSelect
           label={t("payments.receipts.branch")}
