@@ -70,4 +70,11 @@ describe("clinic navigation", () => {
     expect(shows(["view:patients:own"], "/clinic/patients")).toBe(true);
     expect(shows(["view:patients:own"], "/clinic/appointments")).toBe(false);
   });
+
+  it("shows Cash closing with view:cash_closings only, never with the create key alone", () => {
+    const shows = (keys: string[]) =>
+      navItemsFor(CLINIC_NAV, keys).some((item) => item.to === "/clinic/cash-closings");
+    expect(shows(["view:cash_closings:branch"])).toBe(true);
+    expect(shows(["create:cash_closings:branch", "view:payments:clinic"])).toBe(false);
+  });
 });

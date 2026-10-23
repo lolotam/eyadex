@@ -16,6 +16,7 @@ export const arRoutes = {
     appointments: "المواعيد",
     visits: "الزيارات",
     invoices: "الفواتير",
+    cashClosings: "إقفال الصندوق",
     account: "حسابي",
     menu: "القائمة",
   },
@@ -50,6 +51,14 @@ export const arRoutes = {
     clinicPayments: {
       title: "المدفوعات",
       description: "إيصالات العيادة: البحث والتصفية وفتح الإيصال.",
+    },
+    clinicCashClosings: {
+      title: "إقفال الصندوق",
+      description: "إقفال صندوق الفرع لليوم ومراجعة الإقفالات السابقة.",
+    },
+    clinicCashClosing: {
+      title: "إقفال الصندوق",
+      description: "فترة الإقفال والنقد المتوقع والمعدود والفرق والحركات.",
     },
     clinicReceipt: {
       title: "إيصال",

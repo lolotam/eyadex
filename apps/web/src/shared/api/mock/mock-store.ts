@@ -1,5 +1,6 @@
 import type { FinanceMockState } from "./mock-finance-state";
 import type { PaymentMockState } from "./mock-payment-state";
+import type { ClosingMockState } from "./mock-cash-closing-state";
 import type { AppointmentStatus, CancelReason } from "@eyadex/contracts/appointments";
 import type { Clinic, ClinicFeatures, CreatedClinic } from "@eyadex/contracts/clinics";
 import type { InvitationRecord } from "@eyadex/contracts/invitations";
@@ -88,6 +89,8 @@ export type MockState = {
   finance?: FinanceMockState;
   /** Phase 4 F2: payments, allocations, patient credit, receipt and drawer counters (created on use). */
   payments?: PaymentMockState;
+  /** Phase 4 F2 card 2b: the branch cash closings and their drawer marks (created on use). */
+  cashClosings?: ClosingMockState;
   platformAccounts: PlatformAccount[];
   platformSettings: PlatformSettings;
   platformAudit: PlatformAuditEntry[];

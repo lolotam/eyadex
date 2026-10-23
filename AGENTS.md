@@ -52,4 +52,5 @@ When reviewing a pull request, report only real defects, ranked by severity. Che
 - Eyadex serves every clinic specialty with one shared core; specialty-specific sections are roadmap additions, and the default front-desk role key is `receptionist`.
 - Finance F2 error codes are outside the web error catalogue, so both adapters carry them as `unknown` with the API code in `details.code`; screens read them through `errorKeyOf` — keeps `packages/contracts` untouched.
 - Payments live in `apps/web/src/payments`; the invoice page receives the payment panel as a route slot, so `invoices/` and `payments/` never import each other (ADR-0030).
+- Cash closings live in `apps/web/src/cash-closings` and import no other business area; branch names come from the payments branch options through the `ApiClient`, keeping area boundaries intact.
 - The platform audit API builds its rows from platform events plus clinic entries that are administrative and not about a patient, filtered at the source — so patient activity can never reach the platform, whatever the UI asks.
