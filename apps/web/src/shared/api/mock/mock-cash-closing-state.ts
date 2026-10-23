@@ -66,7 +66,7 @@ export function drawerMovements(
   return [...payments, ...refunds].sort((a, b) => (BigInt(a.cashSeq) < BigInt(b.cashSeq) ? -1 : 1));
 }
 
-/** Cash in minus cash out of the period (F2-Q10: no opening float); refused outside the contract's range. */
+/** Cash in minus cash out of the period (F2-Q10: no opening float). */
 export function expectedCash(movements: readonly CashMovement[]) {
   let cashIn = 0n;
   let cashOut = 0n;
@@ -74,12 +74,15 @@ export function expectedCash(movements: readonly CashMovement[]) {
     if (m.kind === "payment") cashIn += BigInt(m.amountMinor);
     else cashOut += BigInt(m.amountMinor);
   }
-  const expected = cashIn - cashOut;
+  return { cashIn, cashOut, expected: cashIn - cashOut };
+}
+
+/** The contract's range on the sums; the close checks it after cash_drawer_changed and cash_closing_exists. */
+export function requireCashInRange({ cashIn, cashOut, expected }: ReturnType<typeof expectedCash>) {
   if (cashIn > MAX_MINOR || cashOut > MAX_MINOR) throw financeError("cash_drawer_out_of_range");
   if (expected > MAX_CASH_MINOR || expected < -MAX_CASH_MINOR) {
     throw financeError("cash_drawer_out_of_range");
   }
-  return { cashIn, cashOut, expected };
 }
 
 /** Every method's in and out on the branch's business day, in the fixed order, for information only. */
