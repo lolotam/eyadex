@@ -240,7 +240,7 @@ describe("F1 response compatibility", () => {
   );
 });
 
-describe("F2 error catalogue", () => {
+describe("the finance error catalogue (F2 §4.6, F3 §4 and §7.4)", () => {
   const codes = [
     "payment_method_disabled",
     "payment_exceeds_balance",
@@ -253,18 +253,18 @@ describe("F2 error catalogue", () => {
     "cash_closing_exists",
     "closing_note_required",
     "cash_drawer_out_of_range",
+    "export_busy",
+    "report_range_too_long",
+    "export_amount_too_large",
   ];
 
   it.each(codes)("includes API code %s", (code) => {
     expect(apiErrorCodeSchema.parse(code)).toBe(code);
   });
 
-  it.each(codes)(
-    "leaves %s to the web's unknown-code fallback until its translations ship",
-    (code) => {
-      expect(webErrorCodeSchema.safeParse(code).success).toBe(false);
-    },
-  );
+  it.each(codes)("leaves %s to the web's fallback until it ships", (code) => {
+    expect(webErrorCodeSchema.safeParse(code).success).toBe(false);
+  });
 
   it.each(["invoice_void", "version_conflict", "conflict", "not_implemented"])(
     "keeps the existing web code %s",
