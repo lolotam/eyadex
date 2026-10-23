@@ -2,8 +2,9 @@
 
 - Status: **decided** (owner decisions taken 2026-10-21, EY-9, §11, and 2026-10-23, EY-10, §12). Nothing
   here is built. Five answers differ from the recommendation (F3-Q4, Q5, Q7, Q8, Q9); §3–§9 state them, and
-  §11 and §12 win where they disagree. The slices of §9 still wait for the owner's yes on the SQL plan, and
-  for the open item of issue #105.
+  §11 and §12 win where they disagree. The slices of §9 still wait for the owner's yes on the SQL plan.
+  The export pipeline is designed in `docs/specs/finance-f3-export-pipeline.md`, which lands before
+  slice 2's SQL.
 - Parent spec: `docs/specs/finance-design.md` (§2 shared rules, §3 F1, §4 F2, §8–§8d binding review rules).
   This file replaces the §5 outline there.
 - Decision record: **ADR-0035** (`docs/adr/0035-finance-reports.md`), accepted 2026-10-21.
@@ -295,21 +296,32 @@ CLAUDE.md §6: anything expected to exceed 200 ms is a worker job.
   export row and an `outbox_events` row (the clinic's `clinic_id`, the export id only) in one `withTenant`
   transaction; the worker reads only inside `withTenant(event.clinicId)`.
 
-#### Export pipeline — design open, decided before slice 2's SQL
+#### Export pipeline — designed in `docs/specs/finance-f3-export-pipeline.md`
 
-The runner's internals are tracked in issue #105 ("F3: design the finance export pipeline") and are
-agreed there before slice 2's SQL is written, because the export table's lease and fencing columns are
-part of that table (tracked in #105). Whatever design wins must meet these binding requirements:
+The runner's internals are designed in **`docs/specs/finance-f3-export-pipeline.md`**. That file is
+written before slice 2's SQL, because the export table's lease and fencing columns are part of that
+table, and it meets these binding requirements:
 
-1. **A post-commit hand-off point outside `claimNext`**: the claim only records the hand-off.
-2. **Lease renewal (heartbeat)** while an export is queued or running, so load never looks like a dead worker
-   and a live build is never taken over.
-3. **Attempt-specific blob keys**: each attempt uploads to its own key; only the fenced winner is published;
-   losing or stale uploads are deleted.
-4. **A cleanup path for every key ever allocated**, failed and partial uploads included.
-5. **The 24-hour retention** of the published file (F3-Q10), then the blob is deleted and the row is `expired`.
-6. The constraints already fixed above: the outbox stays the only durable queue, no new role, no `BYPASSRLS`,
-   access re-checked at run time (§7.4), a bounded retry count, idempotent by export id.
+1. **A post-commit hand-off point outside `claimNext`**: the claim only records the hand-off. The
+   handler takes the lease in a short transaction and returns `deferred`; the runner starts the build
+   after the claim has committed, through a new `afterClaim` hook on the `OutboxPoller`
+   (pipeline §2).
+2. **Lease renewal (heartbeat)** while an export is queued or running, so load never looks like a dead
+   worker and a live build is never taken over: a 60 s lease renewed every 20 s, covering the wait for
+   a build slot and the build itself (pipeline §3).
+3. **Attempt-specific blob keys**: each attempt uploads to its own key
+   `clinic/<clinic_id>/finance-exports/<export_id>/<attempt>.<ext>`; only the fenced winner (the
+   `UPDATE … WHERE id AND attempt = :mine AND lease_owner = :me AND lease_until > now()`) is published;
+   a losing or stale upload is deleted (pipeline §4 and §6).
+4. **A cleanup path for every key ever allocated**, failed and partial uploads included: the table
+   `finance_report_export_blobs` holds one row per allocated key, written before the upload, and a
+   sweeper deletes the keys of the attempts that lost the race, the keys older than the build budget
+   plus the lease, and every expired published one (pipeline §6).
+5. **The 24-hour retention** of the published file (F3-Q10), then the blob is deleted and the row is
+   `expired` (pipeline §7).
+6. The constraints already fixed above: the outbox stays the only durable queue, no new role, no
+   `BYPASSRLS`, access re-checked at run time (§7.4), a bounded retry count, idempotent by export id
+   (pipeline §1 and §5).
 
 ### 7.3 The export table (new clinic table)
 
@@ -320,12 +332,27 @@ ids, language; no patient field), `format` (`csv`/`xlsx`, F3-Q5 b, its own colum
 (`clinic`/`branch`/`own`, the scope the request was granted), `patient_ids uuid[] NULL` (the patients of an
 `own` export, so the download can re-check them — EY-10.6), `status` (`queued`/`running`/`done`/`failed`/
 `expired`/`purged`), `storage_key text NULL` (under
-`clinic/<clinic_id>/finance-exports/`, the 0049 pattern; the attempt and lease columns follow issue #105 and are designed before slice 2's SQL), `byte_size int NULL`, `row_count int
+`clinic/<clinic_id>/finance-exports/`, the 0049 pattern), `byte_size int NULL`, `row_count int
 NULL`, `error_code text NULL`, `created_at`, `started_at NULL`, `finished_at NULL`, `expires_at NULL`.
+The pipeline of `docs/specs/finance-f3-export-pipeline.md` adds four columns to this table, the attempt
+counter and the lease (pipeline §8.1): `attempt integer NOT NULL DEFAULT 0` (the attempts so far; the
+attempt is part of the blob key), `lease_owner text NULL` (the worker that holds the lease),
+`lease_until timestamptz NULL` (when the lease ends; the heartbeat renews it), `next_attempt_at
+timestamptz NULL` (the earliest time of the next attempt, the backoff of §5 of that file).
 Primary key `(clinic_id, id)`, RLS enabled and forced with the standard policy, index
-`(clinic_id, requested_by, created_at)` for the requester's export list (no queue index: the worker reaches a
-job by id through its outbox event, §7.2). Not append-only: the worker updates `status` and the file fields (column-level `UPDATE` grant).
-`REVOKE ALL … FROM eyadex_platform`.
+`(clinic_id, requested_by, created_at)` for the requester's export list, and one more index
+`(clinic_id, status, expires_at)` for the expiry sweep (no queue index: the worker reaches a job by id
+through its outbox event, §7.2). Not append-only: the worker updates `status`, the lease columns and the
+file fields (column-level `UPDATE` grant).
+`REVOKE ALL … FROM eyadex_platform, eyadex_auth, eyadex_dispatcher`.
+
+A second table comes with it, `finance_report_export_blobs` (pipeline §8.2): one row per blob key ever
+allocated — `clinic_id`, `id`, `export_id`, `attempt`, `storage_key`, `state` (`allocated`/`published`/
+`deleted`), `created_at`, `updated_at` — with the primary key `(clinic_id, id)`, the unique
+`(clinic_id, export_id, attempt)`, the same forced RLS policy and the same column-level `UPDATE` grant.
+It is what makes the cleanup of every key possible (pipeline §6).
+The exact columns, types, checks and indexes of both tables are in
+`docs/specs/finance-f3-export-pipeline.md` §8, so slice 2's SQL is written from there.
 
 ### 7.4 Rules
 
@@ -425,10 +452,10 @@ Negative tests (same PR as the SQL):
 | #   | Slice                            | Who                    | Contents                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Rough size |
 | --- | -------------------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | 1   | Contracts                        | implementer (per run)  | `packages/contracts/src/finance-reports.ts`: report query and row schemas (R1–R10), export request/status schemas, error codes (`export_busy`, `report_range_too_long`, `export_amount_too_large`), CSV and XLSX column definitions shared with the mock. No keys yet.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | ~1,500     |
-| 2   | SQL + RLS + negative tests       | implementer            | 0068–0070 as approved (0071–0073 ship later with the contract step, §8), the 7 keys in contracts and `system-roles.ts` (the new-clinic templates of EY-10.1 in the same slice), the `db/tests` of §8. The pipeline of issue #105 lands before this slice's SQL, because the export table's lease and fencing columns are part of it (#105). Staging first; production after the owner's yes and a backup.                                                                                                                                                                                                                                                                                                                                                                                                                  | ~2,500     |
+| 2   | SQL + RLS + negative tests       | implementer            | 0068–0070 as approved (0071–0073 ship later with the contract step, §8), the 7 keys in contracts and `system-roles.ts` (the new-clinic templates of EY-10.1 in the same slice), the `db/tests` of §8. The pipeline design of `docs/specs/finance-f3-export-pipeline.md` lands before this slice's SQL, because the export table's lease and fencing columns are part of it. Staging first; production after the owner's yes and a backup.                                                                                                                                                                                                                                                                                                                                                                                  | ~2,500     |
 | 2b  | Writers + backfills              | implementer            | The F1/F2 billing paths that fill the expand columns of 0068: the issue path sets `invoices.business_date`, every path that inserts a `payment_allocations` row (payment, credit application, and any other writer found in billing) sets its `business_date`; the issue and edit paths set `invoices.discounted_by` and `invoice_lines.discounted_by`, and an edit that keeps a line's discount unchanged carries its `discounted_by` over to the new line row instead of the editor, and an edit that keeps the invoice discount unchanged keeps `invoices.discounted_by` (EY-10.2, EY-10.5); the web mock mirrors them. Plus `db/maintenance/invoice-business-date-backfill.sql` and `allocation-business-date-backfill.sql` with their check queries. Lands after slice 2 and before the contract release (0071–0073). | ~1,500     |
 | 3   | Domain + API — on-screen reports | implementer            | `billing/domain/report-scope.ts` (scope → branch ids, the extra-key rule of §3), the controllers and queries for R1–R10 (R10 per the doctor's own lines, F3-Q4 c), cursor lists for R5–R8, db specs per report and per scope, including the three key-split cases of §8 (a receptionist reaches R1/R2/R9 only, `report_patients` without `view:invoices` gets nothing from R5, `report_own` never opens R5).                                                                                                                                                                                                                                                                                                                                                                                                               | ~3,000     |
-| 4   | Exports (API + worker)           | implementer            | Export routes and their outbox events, `apps/worker/src/finance-exports/` (the pipeline agreed in issue #105: re-check access, build the CSV or the XLSX, store, expire), the CSV refusal over 15 significant digits and the XLSX text cells (EY-10.3), the purge of a refused `own` export (EY-10.4), audit, db specs incl. the revoked-access and expiry cases. `CLAUDE.architecture.md` §2.2 billing row.                                                                                                                                                                                                                                                                                                                                                                                                               | ~3,000     |
+| 4   | Exports (API + worker)           | implementer            | Export routes and their outbox events, `apps/worker/src/finance-exports/` (the pipeline of `docs/specs/finance-f3-export-pipeline.md`: re-check access, build the CSV or the XLSX, store, expire), the CSV refusal over 15 significant digits and the XLSX text cells (EY-10.3), the purge of a refused `own` export (EY-10.4), audit, db specs incl. the revoked-access and expiry cases. `CLAUDE.architecture.md` §2.2 billing row.                                                                                                                                                                                                                                                                                                                                                                                      | ~3,000     |
 | 5   | Lovable web brief                | Orchestrator → Lovable | `.lovable/plan/p4-f3-web-<date>.md`, Plan mode first: «التقارير» nav item, one screen per report, filters, export button and status, the mock mirroring every rule.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | ~3,000     |
 | 6   | Review loop, staging, production | Orchestrator           | Codex + MergePilot on every PR, at most 3 fix rounds, blocking findings only; staging against the real API; SQL first in production, backup first.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | —          |
 
@@ -438,7 +465,9 @@ the sum of the rows, and the date range picker in the clinic timezone.
 
 ## Open review items
 
-- The export table's lease and fencing columns must be designed before slice 2's SQL, so the #105 gate moves earlier (tracked in #105).
+None. The last open item here — the export table's lease and fencing columns, which are needed before
+slice 2's SQL — is designed in `docs/specs/finance-f3-export-pipeline.md`, and that file lands before
+that slice.
 
 Everything else that was open here is settled by EY-10 (§12): the discount giver of R8 is stored on the row,
 a big amount is refused in CSV and written as a text cell in XLSX, and the report key split is defined.
