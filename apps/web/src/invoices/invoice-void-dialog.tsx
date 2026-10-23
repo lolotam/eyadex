@@ -29,11 +29,19 @@ type Props = { invoice: Invoice | null; onClose: () => void; onVoided: () => voi
 type Confirm = { invoice: Invoice; warningShown: boolean; reason: string };
 
 /**
+ * A confirming click with the paid amount it carried: the API refuses a void whose confirmed amount
+ * is not the invoice's paid amount any more (issue #113).
+ */
+type VoidRequest = Confirm & { expectedPaidMinor: string };
+
+/**
  * The void confirm. It holds the invoice it was opened on: confirming sends that version, so another user's
  * edit meanwhile answers version_conflict instead of being voided unseen (PR #78 review).
  *
  * A recorded payment does not bump that version, so the invoice is read again before every void: when
  * money is paid on it now, the release warning comes first and only the next click voids it (issue #107).
+ * The void carries the paid amount of that read, so the API can refuse it when the invoice was paid more
+ * in between (issue #113).
  *
  * The reason field is locked while a void is on its way, and the confirming click carries the reason
  * it was given: an edit made in between cannot rewrite what the void records.
@@ -46,20 +54,35 @@ export function InvoiceVoidDialog({ invoice, onClose, onVoided }: Props) {
   // The warning belongs to the invoice it was shown for: opening another invoice starts it over.
   const [warnedId, setWarnedId] = useState<string | null>(null);
   const warningShown = invoice !== null && (releasesOnVoid(invoice) || warnedId === invoice.id);
+  // A read that only refreshes the warning: after the API refused the void, the dialog stays open and
+  // the warning must show the amount the invoice carries now (issue #113).
+  const refresh = useMutation({
+    mutationFn: (confirm: Confirm) => api.finance.getInvoice(persona, confirm.invoice.id),
+    onSuccess: (fresh, confirm) => {
+      if (releasesOnVoid(fresh)) setWarnedId(confirm.invoice.id);
+    },
+    onError: (e) => toast.error(tDynamic(`errors.${errorKeyOf(e)}`)),
+  });
   const voidIt = useMutation({
     // The reason is the one the confirming click carried, trimmed: a void records what was confirmed.
-    mutationFn: (confirm: Confirm) =>
+    mutationFn: (request: VoidRequest) =>
       api.finance.voidInvoice(
         persona,
-        confirm.invoice.id,
-        confirm.invoice.version,
-        confirm.reason.trim(),
+        request.invoice.id,
+        request.invoice.version,
+        request.reason.trim(),
+        request.expectedPaidMinor,
       ),
     onSuccess: () => {
       onVoided();
       toast.success(t("finance.detail.voided"));
     },
-    onError: (e) => toast.error(tDynamic(`errors.${errorKeyOf(e)}`)),
+    onError: (e, request) => {
+      toast.error(tDynamic(`errors.${errorKeyOf(e)}`));
+      // The invoice was paid more after the amount was confirmed: read it again so the warning shows
+      // the new amount, and leave the dialog open for the next confirming click.
+      if (errorKeyOf(e) === "invoice_paid_changed") refresh.mutate(request);
+    },
   });
   const reread = useMutation({
     mutationFn: (confirm: Confirm) => api.finance.getInvoice(persona, confirm.invoice.id),
@@ -70,12 +93,14 @@ export function InvoiceVoidDialog({ invoice, onClose, onVoided }: Props) {
         setWarnedId(confirm.invoice.id);
         return;
       }
-      voidIt.mutate(confirm);
+      // The void carries the amount this read showed, so the API refuses it when the invoice was paid
+      // more in between (issue #113).
+      voidIt.mutate({ ...confirm, expectedPaidMinor: fresh.settlement?.paidMinor ?? "0" });
     },
     onError: (e) => toast.error(tDynamic(`errors.${errorKeyOf(e)}`)),
   });
   // A void is being prepared or sent: the reason must stay what the user confirmed.
-  const busy = reread.isPending || voidIt.isPending;
+  const busy = reread.isPending || voidIt.isPending || refresh.isPending;
   return (
     <Dialog open={invoice !== null} onOpenChange={(open) => !open && onClose()}>
       <DialogContent>

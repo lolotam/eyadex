@@ -158,8 +158,17 @@ export function createMockFinance(): FinanceApi {
       write(() => issueInvoice(db(), guardFinance(db(), p), input, key, new Date())),
     edit: (p, id, version, input) =>
       write(() => editInvoice(db(), guardFinance(db(), p), id, version, input)),
-    voidInvoice: (p, id, version, reason) =>
-      write(() => voidInvoice(db(), guardFinance(db(), p), id, version, { reason }, new Date())),
+    voidInvoice: (p, id, version, reason, expectedPaidMinor) =>
+      write(() =>
+        voidInvoice(
+          db(),
+          guardFinance(db(), p),
+          id,
+          version,
+          expectedPaidMinor === undefined ? { reason } : { reason, expectedPaidMinor },
+          new Date(),
+        ),
+      ),
     async pdf(persona, id) {
       await delay();
       const file = renderInvoicePdf(strip(db(), visibleInvoice(persona, id)));

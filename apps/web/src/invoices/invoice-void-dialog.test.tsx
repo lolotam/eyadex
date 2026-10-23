@@ -160,3 +160,35 @@ describe("the void dialog before it releases money", () => {
     expect(h.voidInvoice.mock.calls[0]![3]).toBe("issued twice");
   });
 });
+
+// Issue #113: the API refuses a void when the invoice was paid more since the amount the user
+// confirmed, so the void carries that amount and the refusal leaves the dialog open.
+describe("the void dialog and the confirmed paid amount", () => {
+  it("sends the paid amount of the invoice it read again", async () => {
+    h.getInvoice.mockResolvedValue(invoicePaid("1000"));
+    const { button } = open(invoicePaid("0"));
+    await press(button);
+    // The warning comes first, so the void waits for the next click.
+    expect(await screen.findByText(ar.payments.releaseWarning)).toBeInTheDocument();
+    await press(button);
+    await waitFor(() => expect(h.voidInvoice).toHaveBeenCalledTimes(1));
+    // The amount the read showed, not the one the dialog was opened with.
+    expect(h.voidInvoice.mock.calls[0]![4]).toBe("1000");
+  });
+
+  it("stays open and shows the error when the paid amount changed", async () => {
+    const errorToast = vi.spyOn(toast, "error");
+    h.getInvoice.mockResolvedValue(invoicePaid("1000"));
+    h.voidInvoice.mockRejectedValue(
+      new ApiError("unknown", undefined, { code: "invoice_paid_changed" }),
+    );
+    const { button } = open(invoicePaid("1000"));
+    await press(button);
+    await waitFor(() => expect(errorToast).toHaveBeenCalledWith(ar.errors.invoice_paid_changed));
+    // The dialog stays open: nothing was voided and the warning is still there.
+    expect(h.voided).not.toHaveBeenCalled();
+    expect(screen.getByText(ar.payments.releaseWarning)).toBeInTheDocument();
+    // The invoice is read again, so the warning shows the amount it carries now.
+    await waitFor(() => expect(h.getInvoice).toHaveBeenCalledTimes(2));
+  });
+});
