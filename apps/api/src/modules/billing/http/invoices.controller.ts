@@ -124,12 +124,7 @@ export class InvoicesController {
     @Body(new ZodValidationPipe(voidInvoiceRequestSchema))
     body: z.infer<typeof voidInvoiceRequestSchema>,
   ): Promise<InvoiceAnswer> {
-    const invoice = await this.changes.void(
-      actorOf(request),
-      idOf(id),
-      versionOf(ifMatch),
-      body.reason,
-    );
+    const invoice = await this.changes.void(actorOf(request), idOf(id), versionOf(ifMatch), body);
     return withETag(reply, { invoice });
   }
 }

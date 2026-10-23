@@ -18,7 +18,7 @@ import {
   PgBillingLineDoctors,
   PublicRateLimitGuard,
 } from "../identity/index.ts";
-import { CLOCK, TenancyModule, type Clock } from "../tenancy/index.ts";
+import { CLOCK, PgFilingBranches, TenancyModule, type Clock } from "../tenancy/index.ts";
 import { InvoicePdfController } from "./http/invoice-pdf.controller.ts";
 import { InvoiceSendController } from "./http/invoice-send.controller.ts";
 import { CashClosingsController } from "./http/cash-closings.controller.ts";
@@ -28,6 +28,7 @@ import { PublicInvoiceController } from "./http/public-invoice.controller.ts";
 import { PricesController } from "./http/prices.controller.ts";
 import { RefundsController } from "./http/refunds.controller.ts";
 import { SettingsController } from "./http/settings.controller.ts";
+import type { BillingBranchReader } from "./ports/billing-branches.ts";
 import type { BillingLineDoctorLocks } from "./ports/billing-members.ts";
 import type { BillingInvoiceNotifier } from "./ports/billing-notifier.ts";
 import type { BillingPatientReader } from "./ports/billing-patients.ts";
@@ -75,6 +76,7 @@ const sources = {
   visits: new PgBillingVisits() satisfies BillingVisitReader,
 };
 const patients: BillingPatientReader = new PgBillingPatients();
+const branches: BillingBranchReader = new PgFilingBranches();
 const members: BillingLineDoctorLocks = new PgBillingLineDoctors();
 
 /**
@@ -194,7 +196,7 @@ export class BillingModule {
         {
           provide: PAYMENT_READS,
           inject: [DATABASE],
-          useFactory: (db: Database) => new PaymentReads({ db, patients }),
+          useFactory: (db: Database) => new PaymentReads({ db, patients, branches }),
         },
         {
           provide: INVOICE_REFUNDS,

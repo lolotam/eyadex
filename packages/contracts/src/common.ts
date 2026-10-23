@@ -26,6 +26,7 @@ export const FINANCE_F2_ERROR_CODES = [
   "refund_exceeds_available",
   "payment_methods_empty",
   "cash_drawer_changed",
+  "invoice_paid_changed",
   "cash_closing_exists",
   "closing_note_required",
   "cash_drawer_out_of_range",

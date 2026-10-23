@@ -28,6 +28,7 @@ const payment = {
   cashSeq: "1",
   receivedBy: USER,
 };
+const branchOption = { id: BRANCH, nameAr: "فرع", nameEn: "Branch", isActive: true };
 const movements = {
   invoiceId: INVOICE,
   currency: "KWD",
@@ -61,6 +62,8 @@ function answer(call: Call) {
   if (path.endsWith("/credit-applications")) return { status: 201, body: credit };
   if (path === "/api/v1/payments")
     return { body: { items: [payment], nextCursor: null, total: 1 } };
+  if (path === "/api/v1/payments/branch-options")
+    return { body: { items: [branchOption], nextCursor: null, total: 1 } };
   if (path === `/api/v1/payments/${PAYMENT}`) return { body: { payment } };
   if (path === "/api/v1/clinic/settings/payment-methods") return { body: methods };
   return { status: 404, body: {} };
@@ -109,6 +112,17 @@ describe("payments over HTTP", () => {
     expect(last().url).toBe("/api/v1/payments?limit=20&method=knet&from=2026-01-01");
     expect(await h.api.payments.getPayment(P, PAYMENT)).toEqual(payment);
     expect(last().url).toBe(`/api/v1/payments/${PAYMENT}`);
+  });
+
+  it("reads the receipts' branch options from the payments route (card 1b)", async () => {
+    const answer = await h.api.payments.branchOptions(P, { limit: 100 });
+    expect(answer.items).toEqual([branchOption]);
+    expect(last()).toMatchObject({
+      method: "GET",
+      url: "/api/v1/payments/branch-options?limit=100",
+    });
+    broken = true;
+    expect((await code(h.api.payments.branchOptions(P, {}))).code).toBe("unknown");
   });
 
   it("saves the payment methods with PUT and the whole list", async () => {
