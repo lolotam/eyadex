@@ -15,7 +15,11 @@ vi.mock("@/shared/persona/persona-provider", () => ({
   useSession: () => ({
     session: {
       clinic: { timezone: "Asia/Kuwait" },
-      permissions: ["view:payments:clinic", "view:cash_closings:clinic", "create:cash_closings:clinic"],
+      permissions: [
+        "view:payments:clinic",
+        "view:cash_closings:clinic",
+        "create:cash_closings:clinic",
+      ],
       branchIds: [],
     },
   }),
