@@ -2,6 +2,7 @@ import { refundListQuerySchema, type Refund } from "@eyadex/contracts/finance";
 import type { Persona } from "@eyadex/contracts/session";
 import { ApiError } from "../api-error";
 import type { RefundList } from "../payments-client";
+import { fromCursor, toCursor } from "./mock-list-cursor";
 import { parse } from "./mock-medical-access";
 import { paymentsReach, requirePayments } from "./mock-payment-access";
 import { paymentState, type StoredRefund } from "./mock-payment-state";
@@ -13,14 +14,6 @@ export function refundView(db: MockState, r: StoredRefund): Refund {
   const patient = db.patients.find((x) => x.clinicId === clinicId && x.id === r.patientId);
   if (!patient) throw new ApiError("unknown");
   return { ...rest, patientName: patient.fullName };
-}
-
-// The API's list cursor (list-cursor.ts): the last id without its dashes; anything else is refused.
-const toCursor = (id: string) => id.replaceAll("-", "");
-function fromCursor(cursor: string): string {
-  if (!/^[0-9a-f]{32}$/.test(cursor)) throw new ApiError("validation");
-  const at = [8, 12, 16, 20];
-  return [0, ...at].map((start, i) => cursor.slice(start, at[i])).join("-");
 }
 
 /** GET /v1/refunds: read through `view:payments` (spec §4.1), newest first, inside its reach. */
