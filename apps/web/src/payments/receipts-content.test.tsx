@@ -130,21 +130,21 @@ describe("the receipts list (card 1b)", () => {
     h.session.permissions = ["view:payments:clinic", "view:patients:clinic"];
     const view = show();
     fireEvent.click(screen.getByText("patient-filter"));
-    expect(h.queries.at(-1)?.patientId).toBe("p1");
+    expect(h.queries.at(-1)?.["patientId"]).toBe("p1");
     h.session = { ...h.session, permissions: ["view:payments:clinic"] };
     view.rerender(
       <I18nProvider manageDocument={false}>
         <ReceiptsContent />
       </I18nProvider>,
     );
-    expect(h.queries.at(-1)?.patientId).toBeUndefined();
+    expect(h.queries.at(-1)?.["patientId"]).toBeUndefined();
     h.session = { ...h.session, permissions: ["view:payments:clinic", "view:patients:clinic"] };
     view.rerender(
       <I18nProvider manageDocument={false}>
         <ReceiptsContent />
       </I18nProvider>,
     );
-    expect(h.queries.at(-1)?.patientId).toBeUndefined();
+    expect(h.queries.at(-1)?.["patientId"]).toBeUndefined();
   });
 
   it("shows a branch-options failure with a working retry", () => {
