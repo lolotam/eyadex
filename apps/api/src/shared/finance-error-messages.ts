@@ -31,9 +31,10 @@ export const FINANCE_ERROR_MESSAGES = {
     message_en: "Cash moved since the preview. Review the closing again.",
   },
   invoice_paid_changed: {
-    message_ar: "تم تسجيل دفعة على هذه الفاتورة بعد آخر قراءة لها؛ راجع الحركات ثم أعد المحاولة",
+    message_ar:
+      "المبلغ المدفوع على هذه الفاتورة تغيّر بعد آخر قراءة لها؛ راجع الحركات ثم أعد المحاولة",
     message_en:
-      "A payment was recorded on this invoice since you last read it; check the movements and try again.",
+      "The paid amount on this invoice changed since you last read it; check the movements and try again.",
   },
   cash_closing_exists: {
     message_ar: "الفرع ده اتقفل صندوقه النهارده.",
