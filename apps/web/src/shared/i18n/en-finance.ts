@@ -142,6 +142,8 @@ export const enFinance = {
       totals: "Invoiced per month",
       month: "Month",
       invoiced: "Invoiced",
+      collected: "Collected",
+      refunded: "Refunded",
       noTotals: "No invoices yet",
       totalsError: "The totals could not be loaded",
     },

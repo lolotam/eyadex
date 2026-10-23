@@ -7,7 +7,7 @@ import { useI18n } from "@/shared/i18n/i18n-provider";
 import { usePersona } from "@/shared/persona/persona-provider";
 import { LoadingBlock } from "@/shared/shell/loading-block";
 
-/** The clinic's invoiced total per month (FIN-3), read-only; never an invoice row. */
+/** The clinic's invoiced, collected and refunded totals per month (FIN-3), read-only; never a row. */
 export function ClinicFinanceTotals({ clinicId }: { clinicId: string }) {
   const { t } = useI18n();
   const api = useApi();
@@ -52,6 +52,8 @@ export function ClinicFinanceTotals({ clinicId }: { clinicId: string }) {
               <tr className="border-b text-muted-foreground">
                 <th className="py-2 text-start font-medium">{t("finance.platform.month")}</th>
                 <th className="py-2 text-end font-medium">{t("finance.platform.invoiced")}</th>
+                <th className="py-2 text-end font-medium">{t("finance.platform.collected")}</th>
+                <th className="py-2 text-end font-medium">{t("finance.platform.refunded")}</th>
               </tr>
             </thead>
             <tbody>
@@ -63,6 +65,14 @@ export function ClinicFinanceTotals({ clinicId }: { clinicId: string }) {
                   <td className="py-2 text-end tabular-nums" dir="ltr">
                     {formatMinor(m.invoicedMinor, SUPPORTED_CURRENCIES[m.currency])} {m.currency}
                   </td>
+                  {[m.collectedMinor, m.refundedMinor].map((minor, i) => (
+                    <td key={i} className="py-2 text-end tabular-nums" dir="ltr">
+                      {/* Optional in the contract until the API computes it: absent is «—», never 0. */}
+                      {minor === undefined
+                        ? "—"
+                        : `${formatMinor(minor, SUPPORTED_CURRENCIES[m.currency])} ${m.currency}`}
+                    </td>
+                  ))}
                 </tr>
               ))}
             </tbody>

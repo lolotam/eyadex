@@ -70,6 +70,18 @@ export function invoicePayments(
         at: c.createdAt,
         by: c.by,
       })),
+    ...s.refunds
+      .filter((r) => r.clinicId === invoice.clinicId && r.invoiceId === invoice.id)
+      .map((r) => ({
+        kind: "refund" as const,
+        refundId: r.id,
+        refundNumber: r.refundNumber,
+        method: r.method,
+        amountMinor: r.amountMinor,
+        reason: r.reason,
+        at: r.refundedAt,
+        by: r.refundedBy,
+      })),
   ].sort((x, y) => x.at.localeCompare(y.at));
   return {
     invoiceId: invoice.id,
