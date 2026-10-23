@@ -25,18 +25,21 @@ const OPERATIONS: KeyedOperation[] = ["pay", "credit"];
 const newKey = () => crypto.randomUUID();
 
 /**
- * The invoice and the state a held key is bound to: the paid amount and the number of movements the
- * invoice showed then. The movements never net out — a payment that was recorded and then refunded
- * leaves the paid amount as it was — so their count is what tells that the invoice moved under a key
- * whose paid amount did not change.
+ * The money state of one invoice: the paid amount and the number of movements it showed, as ONE answer
+ * of the payments query. The two halves belong together, so they move together: a refresh that moves
+ * the invoice rotates a held key once and never once per source (PR #111 review). The movements never
+ * net out — a payment that was recorded and then refunded leaves the paid amount as it was — so their
+ * count is what tells that the invoice moved under a key whose paid amount did not change.
  */
 export type HeldContext = { invoiceId: string; paidMinor: string; revision: number };
 
 /**
- * What the hook takes: the revision is optional, so a caller that reads no movements of its own — the
- * form above the panel — binds its key to the invoice and its paid amount alone.
+ * What the hook takes: the invoice and the money state its keys are bound to — the paid amount and the
+ * movement count of one payments-query answer. The paid amount is null while the panel has no real
+ * answer yet, so a key is never minted against an unknown invoice. The revision is optional, so a
+ * caller that reads no movements of its own binds its key to the invoice and its paid amount alone.
  */
-export type HeldInput = { invoiceId: string; paidMinor: string; revision?: number };
+export type HeldInput = { invoiceId: string; paidMinor: string | null; revision?: number };
 
 /** A held key with the request and the invoice state it is allowed to answer. */
 export type HeldRequest = {
@@ -141,17 +144,23 @@ function movedUnder(request: HeldRequest, context: HeldContext): boolean {
  * A payment can land and a refund or an edit can release money again, so the net can drop too, and a
  * payment that was recorded and then refunded leaves the net as it was: only the movements show that.
  * The warning is kept in the invoice's slot, so it survives the new key of a retry and a failed retry,
- * and only a confirmed success drops it.
+ * and only a confirmed success drops it. Without a money state there is nothing to compare the held
+ * key with, so no invoice is reported as moved.
  */
 function reportOf(
   slot: HeldSlot | undefined,
-  context: HeldContext,
+  context: HeldContext | null,
 ): Record<KeyedOperation, boolean> {
   const warned: Record<KeyedOperation, boolean> = { pay: false, credit: false };
   if (!slot) return warned;
   for (const operation of OPERATIONS) {
     const request = slot.keys[operation];
-    if (request && request.invoiceId === context.invoiceId && movedUnder(request, context)) {
+    if (
+      context !== null &&
+      request &&
+      request.invoiceId === context.invoiceId &&
+      movedUnder(request, context)
+    ) {
       slot.warned[operation] = true;
       // The key held under the old state may already be recorded on the server, so it must not answer
       // the next request. The next send replaces it once: the replacement answers the sends after it,
@@ -167,11 +176,12 @@ function reportOf(
  * One held key per operation and per invoice, kept above the dialogs: a failure whose outcome is unclear
  * (a timeout, a lost answer) keeps the key, so reopening with the same values lets the API replay instead
  * of recording twice. Every invoice keeps its own keys, so a send on another invoice never takes the key
- * held for this one. The key is bound to the invoice, to its paid amount and to the number of movements
- * it showed, so it never crosses to another invoice and never answers a payment the invoice already
- * reflects. A key is dropped only on a confirmed success. A warned key is never reused: once the invoice
- * moved under it, the next send replaces it with one fresh key, and that replacement answers the sends
- * after it until the invoice moves again or a success drops it.
+ * held for this one. The key is bound to the invoice and to the money state it was minted under — the
+ * paid amount and the movement count of one payments-query answer — so it never crosses to another
+ * invoice and never answers a payment the invoice already reflects. A key is dropped only on a
+ * confirmed success. A warned key is never reused: once the invoice moved under it, the next send
+ * replaces it with one fresh key, and that replacement answers the sends after it until the invoice
+ * moves again or a success drops it.
  */
 export function useHeldKeys({ invoiceId, paidMinor, revision = 0 }: HeldInput): HeldKeys {
   const held = useRef<Map<string, HeldSlot>>(new Map());
@@ -179,19 +189,27 @@ export function useHeldKeys({ invoiceId, paidMinor, revision = 0 }: HeldInput): 
     pay: false,
     credit: false,
   });
+  // The money state the keys are bound to: the paid amount and the movement count of ONE answer of the
+  // payments query. Without a paid amount there is no state yet, so no key is minted against it.
+  const context = useMemo(
+    () => (paidMinor === null ? null : { invoiceId, paidMinor, revision }),
+    [invoiceId, paidMinor, revision],
+  );
   const report = useCallback(
     (slot: HeldSlot | undefined) => {
-      const next = reportOf(slot, { invoiceId, paidMinor, revision });
+      const next = reportOf(slot, context);
       setPaidChanged((current) =>
         next.pay === current.pay && next.credit === current.credit ? current : next,
       );
     },
-    [invoiceId, paidMinor, revision],
+    [context],
   );
   const keyOf = useCallback(
     (operation: KeyedOperation, request: unknown) => {
       const slot = slotOf(held.current, invoiceId);
-      const context: HeldContext = { invoiceId, paidMinor, revision };
+      // Without a money state there is nothing to bind a key to, and the panel keeps its actions off
+      // until the state is real, so no request is ever sent with the key this returns.
+      if (!context) return "";
       // The key held under a state that moved may already be recorded on the server, so it must not
       // answer the new request. The rotation mints one fresh key for the state as it is now, and the
       // sends after it reuse that key: a second unclear failure replays it instead of recording a
@@ -207,7 +225,7 @@ export function useHeldKeys({ invoiceId, paidMinor, revision = 0 }: HeldInput): 
       report(slot);
       return next.key;
     },
-    [invoiceId, paidMinor, revision, report],
+    [invoiceId, context, report],
   );
   const drop = useCallback(
     (operation: KeyedOperation) => {

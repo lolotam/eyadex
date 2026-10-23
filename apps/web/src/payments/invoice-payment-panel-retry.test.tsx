@@ -48,12 +48,6 @@ const invoice = {
   version: 1,
   settlement: { state: "partly_paid", paidMinor: "1000", owedMinor: "4000" },
 } as unknown as Invoice;
-/** Another invoice of the same patient: the credit kept for the first one is not its own. */
-const other = {
-  ...invoice,
-  id: "00000000-0000-7000-8000-00000000000d",
-  number: "TT-2026-000002",
-} as unknown as Invoice;
 /** The same invoice after a payment landed on it: the balance due fell. */
 const moved = {
   ...invoice,
@@ -71,20 +65,20 @@ const movements = [
     at: "2026-10-20T08:00:00.000Z",
   },
 ];
-/**
- * The movements after the lost request was recorded and then refunded: the invoice shows the payment
- * that was recorded and the refund of it, while its net paid amount is the one it had before.
- */
+/** A second receipt: the invoice gained a movement. */
+const second = {
+  kind: "payment",
+  paymentId: "00000000-0000-7000-8000-0000000000b2",
+  receiptNumber: "TT-R-2026-000002",
+  method: "cash",
+  amountMinor: "4000",
+  at: "2026-10-20T08:30:00.000Z",
+};
+
+/** The movements after the lost request was recorded and then refunded; the net paid amount stayed. */
 const refunded = [
   ...movements,
-  {
-    kind: "payment",
-    paymentId: "00000000-0000-7000-8000-0000000000b2",
-    receiptNumber: "TT-R-2026-000002",
-    method: "cash",
-    amountMinor: "4000",
-    at: "2026-10-20T08:30:00.000Z",
-  },
+  second,
   {
     kind: "refund",
     refundId: "00000000-0000-7000-8000-0000000000c3",
@@ -107,21 +101,34 @@ const panel = (queries: QueryClient, shown: Invoice = invoice) => (
 const amountLabel = () => ar.payments.dialog.amount.replace("{currency}", "KWD");
 const available = (amount: string) => ar.payments.dialog.available.replace("{amount}", amount);
 const sessionOf = (permissions: string[]) => ({ permissions, allBranches: false, branchIds: [] });
-/** Opens the record-payment dialog and sends it, with the amount the user typed. */
+/** The answer of the payments query: the settlement and the movements of ONE read. */
+const answer = (paidMinor: string, owedMinor: string, moves: unknown[]) => ({
+  creditBalanceMinor: "2000",
+  movements: moves,
+  settlement: { state: "partly_paid", paidMinor, owedMinor },
+});
+/** Opens the record-payment dialog — its button waits for the payments query — and sends it. */
 const submitOnce = async (amount?: string) => {
-  fireEvent.click(screen.getByRole("button", { name: ar.payments.panel.record }));
+  const button = await screen.findByRole("button", { name: ar.payments.panel.record });
+  await waitFor(() => expect(button).toBeEnabled());
+  fireEvent.click(button);
   const field = await screen.findByLabelText(amountLabel());
   if (amount) fireEvent.change(field, { target: { value: amount } });
   fireEvent.click(await screen.findByRole("button", { name: ar.payments.dialog.submit }));
 };
+/** Closes the open dialog and waits until it is gone. */
+const close = async () => {
+  fireEvent.click(screen.getByRole("button", { name: "Close" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+};
 
 beforeEach(() => {
   h.settings = { data: undefined };
-  h.session = sessionOf(["create:payments:clinic"]);
+  h.session = sessionOf(["view:payments:clinic", "create:payments:clinic"]);
   h.recordPayment.mockReset();
   h.applyCredit.mockReset();
   h.invoicePayments.mockReset();
-  h.invoicePayments.mockResolvedValue({ creditBalanceMinor: "2000", movements });
+  h.invoicePayments.mockResolvedValue(answer("1000", "4000", movements));
 });
 afterEach(() => cleanup());
 
@@ -134,8 +141,7 @@ describe("the held Idempotency-Key", () => {
     const view = render(panel(queries));
     await submitOnce();
     await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
-    fireEvent.click(screen.getByRole("button", { name: "Close" }));
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await close();
     view.rerender(panel(queries, { ...invoice, version: 2 }));
     await submitOnce();
     await waitFor(() => expect(h.recordPayment).toHaveBeenCalledTimes(2));
@@ -147,33 +153,29 @@ describe("the held Idempotency-Key", () => {
     h.recordPayment.mockRejectedValue(new ApiError("unknown"));
     const queries = client();
     const view = render(panel(queries));
-    await submitOnce();
+    await submitOnce("1.000");
     await waitFor(() => expect(h.recordPayment).toHaveBeenCalledTimes(1));
     const first = h.recordPayment.mock.calls[0]![3];
-    // The invoice's paid amount moved under the held key, so the earlier request may be recorded.
-    view.rerender(panel(queries, moved));
-    fireEvent.click(screen.getByRole("button", { name: "Close" }));
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    await submitOnce();
+    // The failed send refetched the payments: waiting for that refetch keeps the new answer out of it.
+    await waitFor(() => expect(h.invoicePayments).toHaveBeenCalledTimes(2));
+    // The invoice moved: the payments query answers with the paid amount and the movement of it.
+    h.invoicePayments.mockResolvedValue(answer("5000", "2000", [...movements, second]));
+    view.rerender(panel(queries, { ...moved, version: 2 }));
     expect(await screen.findByText(ar.payments.paidChangedNotice)).toBeInTheDocument();
+    await close();
+    await submitOnce("1.000");
     await waitFor(() => expect(h.recordPayment).toHaveBeenCalledTimes(2));
     const replacement = h.recordPayment.mock.calls[1]![3];
     expect(replacement).not.toBe(first);
     // The retry after it reuses the replacement, so the API replays it instead of paying twice.
-    fireEvent.click(screen.getByRole("button", { name: "Close" }));
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    await submitOnce();
+    await close();
+    await submitOnce("1.000");
     await waitFor(() => expect(h.recordPayment).toHaveBeenCalledTimes(3));
     expect(h.recordPayment.mock.calls[2]![3]).toBe(replacement);
   });
 
-  // PR #111 review: a payment that was recorded and then refunded leaves the net paid amount as it
-  // was, so only the movements show that the invoice moved under the held key.
+  // PR #111 review: a recorded and refunded payment leaves the net as it was: the movements show it.
   it("replaces the key when a payment was recorded and then refunded", async () => {
-    // The movements are read by the payments query, and only a user who may view the payments gets
-    // it: a user who may only create payments never learns how many movements the invoice has, so
-    // the panel cannot tell a recorded-and-refunded payment from an untouched invoice.
-    h.session = sessionOf(["view:payments:clinic", "create:payments:clinic"]);
     h.recordPayment.mockRejectedValue(new ApiError("unknown"));
     const queries = client();
     const view = render(panel(queries));
@@ -187,16 +189,51 @@ describe("the held Idempotency-Key", () => {
     // The failed send refetches the movements: waiting for that refetch keeps the new movements out
     // of it, so only the refetch after the version bump can show the recorded payment.
     await waitFor(() => expect(h.invoicePayments).toHaveBeenCalledTimes(2));
-    // The payment was recorded and then refunded: the paid amount is the one the key was minted
-    // under, and the invoice gained the payment and its refund.
-    h.invoicePayments.mockResolvedValue({ creditBalanceMinor: "2000", movements: refunded });
+    // The payment was recorded and refunded: the paid amount stayed, the invoice gained two movements.
+    h.invoicePayments.mockResolvedValue(answer("1000", "4000", refunded));
     view.rerender(panel(queries, { ...invoice, version: 2 }));
     expect(await screen.findByText(ar.payments.paidChangedNotice)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Close" }));
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await close();
     await submitOnce();
     await waitFor(() => expect(h.recordPayment).toHaveBeenCalledTimes(2));
     expect(h.recordPayment.mock.calls[1]![3]).not.toBe(first);
+  });
+
+  // PR #111 review: no key before a real baseline: the query answers the money state the key binds to.
+  it("keeps the record action off until the query has answered once", () => {
+    h.invoicePayments.mockReturnValue(new Promise(() => undefined));
+    render(panel(client()));
+    expect(screen.getByRole("button", { name: ar.payments.panel.record })).toBeDisabled();
+    // The patient's credit is only known from that answer, so the credit action is not offered.
+    expect(screen.queryByRole("button", { name: ar.payments.panel.useCredit })).toBeNull();
+  });
+
+  // PR #111 review: the paid amount and the movements come from one answer: one move, one rotation.
+  it("rotates the key once when the invoice and the query refresh separately", async () => {
+    h.recordPayment.mockRejectedValue(new ApiError("unknown"));
+    const queries = client();
+    const view = render(panel(queries));
+    await submitOnce("1.000");
+    await waitFor(() => expect(h.recordPayment).toHaveBeenCalledTimes(1));
+    const first = h.recordPayment.mock.calls[0]![3];
+    // The invoice page refreshed on its own: the key reads the query, so its paid amount moves nothing.
+    view.rerender(panel(queries, moved));
+    await close();
+    await submitOnce("1.000");
+    await waitFor(() => expect(h.recordPayment).toHaveBeenCalledTimes(2));
+    // The same request under the same money state: the key is the one the failed send held.
+    expect(h.recordPayment.mock.calls[1]![3]).toBe(first);
+    // The failed send refetched the payments: waiting for it keeps the new answer out of it.
+    await waitFor(() => expect(h.invoicePayments).toHaveBeenCalledTimes(3));
+    // The payments query then answers with the invoice as it is now: the invoice moved once.
+    h.invoicePayments.mockResolvedValue(answer("5000", "2000", [...movements, second]));
+    view.rerender(panel(queries, { ...moved, version: 2 }));
+    expect(await screen.findByText(ar.payments.paidChangedNotice)).toBeInTheDocument();
+    await close();
+    await submitOnce("1.000");
+    await waitFor(() => expect(h.recordPayment).toHaveBeenCalledTimes(3));
+    // One rotation: the moved invoice gets a key of its own, and the sends after it reuse it.
+    expect(h.recordPayment.mock.calls[2]![3]).not.toBe(first);
   });
 });
 
@@ -208,51 +245,31 @@ describe("the dialog after the invoice moved", () => {
     const view = render(panel(queries));
     await submitOnce();
     await waitFor(() => expect(h.recordPayment).toHaveBeenCalledTimes(1));
-    // The failure keeps the dialog open with its key held under the old paid amount.
-    view.rerender(panel(queries, moved));
+    await waitFor(() => expect(h.invoicePayments).toHaveBeenCalledTimes(2));
+    // The invoice moved: the payments query answers with the invoice as it is now.
+    h.invoicePayments.mockResolvedValue(answer("5000", "2000", [...movements, second]));
+    view.rerender(panel(queries, { ...moved, version: 2 }));
     expect(await screen.findByText(ar.payments.paidChangedNotice)).toBeInTheDocument();
     expect(screen.getByLabelText(amountLabel())).toHaveValue("2.000");
   });
 
   it("warns on the credit dialog too", async () => {
-    h.session = sessionOf(["view:payments:clinic", "create:payments:clinic"]);
     h.applyCredit.mockRejectedValueOnce(new ApiError("unknown"));
     const queries = client();
     const view = render(panel(queries));
     fireEvent.click(await screen.findByRole("button", { name: ar.payments.panel.useCredit }));
     fireEvent.click(await screen.findByRole("button", { name: ar.payments.dialog.apply }));
     await waitFor(() => expect(h.applyCredit).toHaveBeenCalledTimes(1));
-    view.rerender(panel(queries, moved));
+    await waitFor(() => expect(h.invoicePayments).toHaveBeenCalledTimes(2));
+    h.invoicePayments.mockResolvedValue(answer("5000", "2000", [...movements, second]));
+    view.rerender(panel(queries, { ...moved, version: 2 }));
     expect(await screen.findByText(ar.payments.paidChangedNotice)).toBeInTheDocument();
-  });
-
-  it("moves an untouched amount to the new owed amount", async () => {
-    const queries = client();
-    const view = render(panel(queries));
-    fireEvent.click(screen.getByRole("button", { name: ar.payments.panel.record }));
-    expect(await screen.findByLabelText(amountLabel())).toHaveValue("4.000");
-    view.rerender(panel(queries, moved));
-    await waitFor(() => expect(screen.getByLabelText(amountLabel())).toHaveValue("2.000"));
   });
 });
 
-// PR #111 review: the dialog belongs to the invoice it was opened on, and the credit it shows is the
-// one the payments query last answered.
+// PR #111 review: the dialog belongs to its invoice, and the credit is the one the query answered.
 describe("the dialog and the invoice on screen", () => {
-  it("closes the open dialog when another invoice is shown", async () => {
-    const queries = client();
-    const view = render(panel(queries));
-    fireEvent.click(screen.getByRole("button", { name: ar.payments.panel.record }));
-    expect(await screen.findByLabelText(amountLabel())).toBeInTheDocument();
-    // The panel stays mounted while the page shows another invoice: the form must not carry what the
-    // user typed for the first one over to the second.
-    view.rerender(panel(queries, { ...invoice, id: "00000000-0000-7000-8000-00000000000d" }));
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(screen.queryByLabelText(amountLabel())).toBeNull();
-  });
-
   it("keeps the credit the query last showed while it refetches", async () => {
-    h.session = sessionOf(["view:payments:clinic", "create:payments:clinic"]);
     const queries = client();
     const view = render(panel(queries));
     fireEvent.click(await screen.findByRole("button", { name: ar.payments.panel.useCredit }));
@@ -267,17 +284,14 @@ describe("the dialog and the invoice on screen", () => {
 
   // PR #111 review: the credit kept for the loading query belongs to the invoice it was read on.
   it("does not keep the credit of another invoice of the same patient", async () => {
-    h.session = sessionOf(["view:payments:clinic", "create:payments:clinic"]);
     const queries = client();
     const view = render(panel(queries));
-    const creditButton = await screen.findByRole("button", {
-      name: ar.payments.panel.useCredit,
-    });
-    expect(creditButton).toBeInTheDocument();
-    // Another invoice of the same patient is shown, and its query starts over: it holds no data of
-    // its own, so the credit read for the first invoice must not be offered on this one.
+    expect(
+      await screen.findByRole("button", { name: ar.payments.panel.useCredit }),
+    ).toBeInTheDocument();
+    // Its query starts over: the credit read for the first invoice is not offered on this one.
     h.invoicePayments.mockReturnValue(new Promise(() => undefined));
-    view.rerender(panel(queries, other));
+    view.rerender(panel(queries, { ...invoice, id: "00000000-0000-7000-8000-00000000000d" }));
     await waitFor(() =>
       expect(screen.queryByRole("button", { name: ar.payments.panel.useCredit })).toBeNull(),
     );

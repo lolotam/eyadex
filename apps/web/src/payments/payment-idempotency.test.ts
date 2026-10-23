@@ -68,7 +68,7 @@ describe("the dialog's key", () => {
 describe("the report of a stale held key", () => {
   const INVOICE = "00000000-0000-7000-8000-00000000000a";
   const OTHER = "00000000-0000-7000-8000-00000000000d";
-  type Props = { invoiceId: string; paidMinor: string; revision: number };
+  type Props = { invoiceId: string; paidMinor: string | null; revision: number };
   const held = (initial: Props) =>
     renderHook((props: Props) => useHeldKeys(props), { initialProps: initial });
 
@@ -153,10 +153,7 @@ describe("the report of a stale held key", () => {
     const first = result.current.keyOf("pay", { amountMinor: "4000" });
     rerender({ invoiceId: INVOICE, paidMinor: "1000", revision: 1 });
     await waitFor(() => expect(result.current.paidChanged.pay).toBe(true));
-    // A paid amount that went down is a refund or an edit that released money into credit: the net
-    // moved, so the movements are read before sending again. The key rule does not change: a paid
-    // amount that is not the one the key was minted under drops the key, so the next send is a new
-    // request.
+    // A paid amount that went down is a refund or an edit that released money: the net moved, so the key is a new one.
     expect(result.current.keyOf("pay", { amountMinor: "4000" })).not.toBe(first);
   });
 
@@ -200,8 +197,8 @@ describe("the report of a stale held key", () => {
     const first = result.current.keyOf("pay", { amountMinor: "4000" });
     rerender({ invoiceId: INVOICE, paidMinor: "5000", revision: 1 });
     await waitFor(() => expect(result.current.paidChanged.pay).toBe(true));
-    // The paid amount returns to the value the key was minted under, and the user sends the same
-    // values again: the earlier request may still be recorded, so the key must not answer it again.
+    // The paid amount returns to the key's value: the earlier request may be recorded, so the key
+    // must not answer it again.
     rerender({ invoiceId: INVOICE, paidMinor: "1000", revision: 1 });
     expect(result.current.keyOf("pay", { amountMinor: "4000" })).not.toBe(first);
     // The warning stays until a confirmed success drops the key.
@@ -281,8 +278,7 @@ describe("the report of a stale held key", () => {
   it("warns and rotates when the movements grew and the paid amount stayed", async () => {
     const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000", revision: 1 });
     const first = result.current.keyOf("pay", { amountMinor: "4000" });
-    // The payment was recorded and then refunded: the paid amount is the one the key was minted
-    // under, and the invoice gained two movements.
+    // The payment was recorded and then refunded: the paid amount stayed, the invoice gained two movements.
     rerender({ invoiceId: INVOICE, paidMinor: "1000", revision: 3 });
     await waitFor(() => expect(result.current.paidChanged.pay).toBe(true));
     expect(result.current.keyOf("pay", { amountMinor: "4000" })).not.toBe(first);
@@ -294,5 +290,11 @@ describe("the report of a stale held key", () => {
     rerender({ invoiceId: INVOICE, paidMinor: "1000", revision: 2 });
     expect(result.current.paidChanged.pay).toBe(false);
     expect(result.current.keyOf("pay", { amountMinor: "4000" })).toBe(first);
+  });
+
+  // PR #111 review: no key before a real baseline: the panel waits for the payments query.
+  it("mints no key while the invoice has no money state", () => {
+    const { result } = held({ invoiceId: INVOICE, paidMinor: null, revision: 0 });
+    expect(result.current.keyOf("pay", { amountMinor: "4000" })).toBe("");
   });
 });
