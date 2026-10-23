@@ -1,4 +1,6 @@
+import { useEffect, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { AlertTriangle } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import type { Invoice } from "@eyadex/contracts/finance";
@@ -15,9 +17,12 @@ import { checkAmount, smallerMinor } from "./payment-amount";
 
 type Props = {
   invoice: Invoice;
+  /** The patient's live credit balance, as the payments query shows it. */
   creditMinor: string;
   /** The panel's held Idempotency-Key for this operation (see useHeldKeys). */
   keyOf: (request: unknown) => string;
+  /** The invoice's paid amount changed under the held key: a payment may be recorded (useHeldKeys). */
+  paidChanged?: boolean;
   onDone: () => void;
   onFailed?: () => void;
   onPendingChange?: (pending: boolean) => void;
@@ -25,14 +30,17 @@ type Props = {
 
 /** Spends the patient's credit on this invoice, mounted once per open; prefilled with the smaller amount. */
 export function ApplyCreditForm(props: Props) {
-  const { invoice, creditMinor, keyOf, onDone, onFailed, onPendingChange } = props;
+  const { invoice, creditMinor, keyOf, paidChanged, onDone, onFailed, onPendingChange } = props;
   const { t, tDynamic } = useI18n();
   const api = useApi();
   const { persona } = usePersona();
   const owed = invoice.settlement?.owedMinor ?? "0";
   const exponent = invoice.currencyExponent;
+  // The credit never covers more than what it holds, so the prefill is the smaller of what the
+  // invoice owes and what the patient's credit holds.
+  const prefill = formatMinor(smallerMinor(owed, creditMinor), exponent);
   const form = useForm<{ amount: string }>({
-    defaultValues: { amount: formatMinor(smallerMinor(owed, creditMinor), exponent) },
+    defaultValues: { amount: prefill },
   });
   const save = useMutation({
     mutationFn: (body: { amountMinor: string }) =>
@@ -47,6 +55,20 @@ export function ApplyCreditForm(props: Props) {
     },
   });
   usePendingReport(save.isPending, onPendingChange);
+  // The amount the field was last prefilled with, so a change of the prefill can tell an untouched
+  // field from one the user typed in.
+  const prefilled = useRef(prefill);
+  // The invoice and the patient's credit can move while the dialog is open (a refetch after an unclear
+  // failure): an untouched amount follows the new prefill, so the form never offers what the credit no
+  // longer holds. A typed amount is the user's decision and stays as it is — checkAmount refuses it
+  // before sending when it is now above the credit or the balance.
+  useEffect(() => {
+    const state = form.getFieldState("amount");
+    const typed = state.isDirty && form.getValues("amount") !== prefilled.current;
+    if (typed) return;
+    form.resetField("amount", { defaultValue: prefill });
+    prefilled.current = prefill;
+  }, [form, prefill]);
   const submit = form.handleSubmit((v) => {
     const checked = checkAmount(v.amount, exponent, { owedMinor: owed, creditMinor });
     if (!checked.ok) {
@@ -62,6 +84,12 @@ export function ApplyCreditForm(props: Props) {
   const errors = form.formState.errors;
   return (
     <form className="flex flex-col gap-3" onSubmit={(e) => void submit(e)} noValidate>
+      {paidChanged && (
+        <p role="alert" className="flex items-start gap-2 rounded-md border bg-muted p-3 text-sm">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
+          {t("payments.paidChangedNotice")}
+        </p>
+      )}
       <p className="text-sm text-muted-foreground">
         {t("payments.dialog.available", {
           amount: `${formatMinor(creditMinor, exponent)} ${invoice.currency}`,

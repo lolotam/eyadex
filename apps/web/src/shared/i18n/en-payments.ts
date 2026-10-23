@@ -44,6 +44,8 @@ export const enPayments = {
       noMethods: "No payment method is turned on",
     },
     releaseWarning: "The extra amount becomes patient credit",
+    paidChangedNotice:
+      "This invoice's movements changed after your last attempt; check the movements before sending.",
     list: { settlement: "Payment", allSettlements: "All" },
     methods: {
       title: "Payment methods",

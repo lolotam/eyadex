@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, Banknote, Undo2, Wallet } from "lucide-react";
 import type { Invoice } from "@eyadex/contracts/finance";
 import { formatMinor, readMinor } from "@eyadex/contracts/money";
@@ -11,7 +11,7 @@ import { canAtBranch } from "@/shared/permissions/can-at-branch";
 import { useSession } from "@/shared/persona/persona-provider";
 import { StatusPanel } from "@/shared/shell/status-panel";
 import { ApplyCreditForm } from "./apply-credit-dialog";
-import { useHeldKeys } from "./idempotency-key";
+import { useHeldKeys, type HeldContext } from "./idempotency-key";
 import { InvoiceMovements } from "./invoice-movements";
 import { useInvoicePayments, useRefreshPayments } from "./payment-queries";
 import { RecordPaymentForm } from "./record-payment-dialog";
@@ -32,32 +32,82 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
   const { session } = useSession();
   const settings = useFinanceSettings();
   const refreshPayments = useRefreshPayments();
-  // The dialog keeps the invoice and credit it was opened on: a refetch never changes what it checks.
+  // The dialog belongs to the invoice it was opened on (`invoiceId`); the forms read the invoice and the
+  // credit as they are now, so a refetch never leaves them checking a stale owed amount or balance.
   const [open, setOpen] = useState<
-    | { kind: "pay" | "credit"; invoice: Invoice; credit: string }
-    | { kind: "refund"; invoice: Invoice; source: RefundSource }
+    | { kind: "pay" | "credit"; invoiceId: string }
+    | { kind: "refund"; invoiceId: string; source: RefundSource }
     | null
   >(null);
   const [pending, setPending] = useState(false);
+  // The panel stays mounted while the page shows another invoice, so an open form would send what the
+  // user typed for the first invoice to the second one: the dialog belongs to the invoice it was
+  // opened on, so it closes with it and a form never outlives its invoice.
+  const shown = open && open.invoiceId === invoice.id ? open : null;
+  const shownInvoiceId = useRef(invoice.id);
+  useEffect(() => {
+    if (shownInvoiceId.current === invoice.id) return;
+    shownInvoiceId.current = invoice.id;
+    setOpen(null);
+  }, [invoice.id]);
   const at = (action: "view" | "create") =>
     !!session && canAtBranch(session, action, "payments", invoice.branchId);
   const mayView = at("view");
   const query = useInvoicePayments(invoice.id, invoice.version, mayView);
-  // The held key is bound to the invoice as it is now, not to the copy the dialog was opened on: a
-  // refetch that shows a higher paid amount means the earlier request may have been recorded, so its key
-  // must not answer a new payment.
+  // The money state of the invoice as the payments query last answered it: the paid amount and the
+  // movement count of ONE answer, so the two halves never move apart and a refresh that moves the
+  // invoice rotates a held key once and never once per source (PR #111 review). The answer is kept
+  // while the query refetches — a version bump starts a new query that holds no data of its own — and
+  // it belongs to the invoice it was read on, so it never reaches another one.
+  const [answered, setAnswered] = useState<HeldContext | null>(null);
+  useEffect(() => {
+    if (!query.data) return;
+    setAnswered({
+      invoiceId: invoice.id,
+      paidMinor: query.data.settlement?.paidMinor ?? "0",
+      revision: query.data.movements.length,
+    });
+  }, [query.data, invoice.id]);
+  const money = answered !== null && answered.invoiceId === invoice.id ? answered : null;
+  // The state the held keys are bound to. A user who may read the payments waits for its first
+  // answer: a key minted before it would be "moved" by the real movement count the moment it lands,
+  // so the actions stay off until then. A user who may not read them never gets an answer (the API
+  // needs `view:payments` for it), so their movements are unknown and stay unknown: their state is the
+  // invoice's own settlement alone — one source, which a count that arrives later can never move.
+  const invoicePaid = invoice.settlement?.paidMinor ?? "0";
+  const keyState = useMemo<HeldContext | null>(() => {
+    if (money) return money;
+    if (mayView) return null;
+    return { invoiceId: invoice.id, paidMinor: invoicePaid, revision: 0 };
+  }, [money, mayView, invoice.id, invoicePaid]);
   const keys = useHeldKeys({
     invoiceId: invoice.id,
-    paidMinor: invoice.settlement?.paidMinor ?? "0",
+    paidMinor: keyState?.paidMinor ?? null,
+    revision: keyState?.revision ?? 0,
   });
   // Refund keys are held per invoice and source, never bound to the paid amount a refund itself lowers.
   const refundKeys = useRefundKeys();
   const mayRefund =
     mayView && !!session && canAtBranch(session, "create", "refunds", invoice.branchId);
   const owes = invoice.status === "issued" && positive(invoice.settlement?.owedMinor);
-  const credit = query.data?.creditBalanceMinor ?? "0";
+  // The payments query holds no data of its own until it answers, and a version bump starts a new one,
+  // so the credit would flash "0" in the open dialog: the last balance the query showed is kept for it.
+  // It is kept for the invoice it was read on, so another invoice of the same patient never shows
+  // a balance that was read for this one.
+  const lastCredit = useRef<{ invoiceId: string; minor: string } | null>(null);
+  useEffect(() => {
+    if (!query.data) return;
+    lastCredit.current = { invoiceId: invoice.id, minor: query.data.creditBalanceMinor };
+  }, [query.data, invoice.id]);
+  const kept = lastCredit.current;
+  const credit =
+    query.data?.creditBalanceMinor ?? (kept && kept.invoiceId === invoice.id ? kept.minor : "0");
   const mayPay = at("create") && owes;
   const mayCredit = mayPay && positive(credit);
+  // The actions wait for the money state: the key they mint is bound to it, so it is minted only
+  // against a real answer of the payments query and never against a guess that a later answer would
+  // contradict (PR #111 review).
+  const ready = keyState !== null;
   if (!mayView && !mayPay) return null;
   const format = (minor: string) =>
     `${formatMinor(minor, invoice.currencyExponent)} ${invoice.currency}`;
@@ -75,10 +125,10 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
     ? methods
     : (["cash", "knet", "bank_transfer", "other"] as const).slice();
   // A late answer closes only the dialog it was sent from, never one opened after it. Only a confirmed
-  // success drops the held key; after a failure the balance is refetched and the key kept for a replay,
-  // as long as the invoice still shows the same paid amount.
-  const done = (opened: NonNullable<typeof open>) => {
-    if (opened.kind === "refund") refundKeys.drop(opened.invoice.id, opened.source);
+  // success drops the held key; after a failure the payments are refetched and the key kept for a
+  // replay, as long as the money state the payments query shows is the one it was minted under.
+  const done = (opened: NonNullable<typeof shown>) => {
+    if (opened.kind === "refund") refundKeys.drop(opened.invoiceId, opened.source);
     else keys.drop(opened.kind);
     setOpen((current) => (current === opened ? null : current));
     onChanged();
@@ -100,8 +150,8 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
           {mayPay && (
             <Button
               size="sm"
-              disabled={entryOff}
-              onClick={() => setOpen({ kind: "pay", invoice, credit })}
+              disabled={entryOff || !ready}
+              onClick={() => setOpen({ kind: "pay", invoiceId: invoice.id })}
             >
               <Banknote className="size-4" />
               {t("payments.panel.record")}
@@ -111,7 +161,8 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => setOpen({ kind: "credit", invoice, credit })}
+              disabled={!ready}
+              onClick={() => setOpen({ kind: "credit", invoiceId: invoice.id })}
             >
               <Wallet className="size-4" />
               {t("payments.panel.useCredit")}
@@ -151,7 +202,7 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
                     onClick={() =>
                       setOpen({
                         kind: "refund",
-                        invoice,
+                        invoiceId: invoice.id,
                         source: { kind: "credit", capMinor: query.data.creditBalanceMinor },
                       })
                     }
@@ -170,7 +221,7 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
                     onRefund: (m) =>
                       setOpen({
                         kind: "refund",
-                        invoice,
+                        invoiceId: invoice.id,
                         source: {
                           kind: "payment",
                           paymentId: m.paymentId,
@@ -185,49 +236,51 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
         ) : (
           <div className="h-16 animate-pulse rounded-md bg-muted" aria-busy="true" />
         ))}
-      <Dialog open={open !== null} onOpenChange={(o) => !o && !pending && setOpen(null)}>
+      <Dialog open={shown !== null} onOpenChange={(o) => !o && !pending && setOpen(null)}>
         <DialogContent onEscapeKeyDown={hold} onInteractOutside={hold}>
           <DialogHeader>
             <DialogTitle>
-              {open?.kind === "refund"
-                ? open.source.kind === "payment"
-                  ? t("payments.refund.paymentTitle", { number: open.source.receiptNumber })
+              {shown?.kind === "refund"
+                ? shown.source.kind === "payment"
+                  ? t("payments.refund.paymentTitle", { number: shown.source.receiptNumber })
                   : t("payments.refund.creditTitle")
                 : t(
-                    open?.kind === "credit"
+                    shown?.kind === "credit"
                       ? "payments.dialog.creditTitle"
                       : "payments.dialog.recordTitle",
                     { number: invoice.number },
                   )}
             </DialogTitle>
           </DialogHeader>
-          {open?.kind === "pay" && (
+          {shown?.kind === "pay" && (
             <RecordPaymentForm
-              invoice={open.invoice}
+              invoice={invoice}
               methods={enabled}
               keyOf={(request) => keys.keyOf("pay", request)}
-              onDone={() => done(open)}
+              paidChanged={keys.paidChanged.pay}
+              onDone={() => done(shown)}
               onFailed={failed}
               onPendingChange={setPending}
             />
           )}
-          {open?.kind === "credit" && (
+          {shown?.kind === "credit" && (
             <ApplyCreditForm
-              invoice={open.invoice}
-              creditMinor={open.credit}
+              invoice={invoice}
+              creditMinor={credit}
               keyOf={(request) => keys.keyOf("credit", request)}
-              onDone={() => done(open)}
+              paidChanged={keys.paidChanged.credit}
+              onDone={() => done(shown)}
               onFailed={failed}
               onPendingChange={setPending}
             />
           )}
-          {open?.kind === "refund" && (
+          {shown?.kind === "refund" && (
             <RefundForm
-              invoice={open.invoice}
-              source={open.source}
+              invoice={invoice}
+              source={shown.source}
               methods={enabled}
-              keyOf={(request) => refundKeys.keyOf(open.invoice.id, open.source, request)}
-              onDone={() => done(open)}
+              keyOf={(request) => refundKeys.keyOf(shown.invoiceId, shown.source, request)}
+              onDone={() => done(shown)}
               onFailed={failed}
               onPendingChange={setPending}
             />

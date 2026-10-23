@@ -47,6 +47,7 @@ export const arPayments: Strings<typeof enPayments> = {
       noMethods: "لا توجد طريقة دفع مفعّلة",
     },
     releaseWarning: "سيتحول المبلغ الزائد إلى رصيد للمراجع",
+    paidChangedNotice: "تغيّرت حركات هذه الفاتورة بعد محاولتك السابقة؛ راجع الحركات قبل الإرسال",
     list: { settlement: "الدفع", allSettlements: "الكل" },
     methods: {
       title: "طرق الدفع",
