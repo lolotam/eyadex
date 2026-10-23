@@ -74,6 +74,7 @@ import type { NotificationsApi } from "./notifications-client";
 import type { WhatsappApi } from "./whatsapp-client";
 import type { FinanceApi } from "./finance-client";
 import type { PaymentsApi } from "./payments-client";
+import type { CashClosingsApi } from "./cash-closings-client";
 import type { NewClinicFinance } from "./new-clinic-finance";
 import type { SchedulingApi } from "./scheduling-client";
 
@@ -218,6 +219,8 @@ export interface ApiClient {
   finance: FinanceApi;
   /** Finance F2: payments, patient credit and receipts. */
   payments: PaymentsApi;
+  /** Finance F2 card 2b: the branch cash drawer closing. */
+  cashClosings: CashClosingsApi;
   audit: {
     /** Needs view:audit_log:clinic; the caller's clinic only, newest first. */
     clinicList(persona: Persona, query: ClinicAuditListQuery): Promise<Page<ClinicAuditItem>>;
