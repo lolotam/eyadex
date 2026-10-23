@@ -45,6 +45,11 @@ export type HeldSlot = {
    * invoice.
    */
   warned: Record<KeyedOperation, boolean>;
+  /**
+   * Whether the next send has to replace the held key of that operation: the paid amount moved
+   * under it, so the key it holds may already be recorded and must not answer the new request.
+   */
+  rotate: Record<KeyedOperation, boolean>;
 };
 
 export type HeldKeys = {
@@ -61,8 +66,8 @@ export type HeldKeys = {
  * A held key answers one request on one invoice state only: a change in the invoice's paid amount means
  * the earlier request may have been recorded on the server, so its key must not replay for a new payment,
  * while an edit that leaves the paid amount alone keeps the key, so a lost answer can still replay.
- * A caller that warned about the invoice's paid amount offers no previous key: a warned key never
- * answers again, not even when the paid amount returns to the value it was minted under.
+ * A caller that replaces a warned key offers no previous key: the warned key never answers
+ * again, not even when the paid amount returns to the value it was minted under.
  */
 export function heldFor(
   previous: HeldRequest | null,
@@ -89,6 +94,7 @@ function slotOf(held: Map<string, HeldSlot>, invoiceId: string): HeldSlot {
   const fresh: HeldSlot = {
     keys: { pay: null, credit: null },
     warned: { pay: false, credit: false },
+    rotate: { pay: false, credit: false },
   };
   held.set(invoiceId, fresh);
   return fresh;
@@ -118,6 +124,11 @@ function reportOf(
     const request = slot.keys[operation];
     if (request && request.invoiceId === invoiceId && paidMoved(request.paidMinor, paidMinor)) {
       slot.warned[operation] = true;
+      // The key held under the old paid amount may already be recorded on the server, so it must
+      // not answer the next request. The next send replaces it once: the replacement answers the
+      // sends after it, so a second unclear failure replays it instead of recording a second
+      // payment.
+      slot.rotate[operation] = true;
     }
     warned[operation] = slot.warned[operation];
   }
@@ -130,8 +141,9 @@ function reportOf(
  * of recording twice. Every invoice keeps its own keys, so a send on another invoice never takes the key
  * held for this one. The key is bound to the invoice and to its paid amount, so it never crosses to
  * another invoice and never answers a payment the invoice already reflects. A key is dropped only on a
- * confirmed success, and a warned key is never reused: once the paid amount moved under it, every send
- * is a new request until that success drops it.
+ * confirmed success. A warned key is never reused: once the paid amount moved under it, the
+ * next send replaces it with one fresh key, and that replacement answers the sends after it until
+ * the paid amount moves again or a success drops it.
  */
 export function useHeldKeys({ invoiceId, paidMinor }: HeldContext): HeldKeys {
   const held = useRef<Map<string, HeldSlot>>(new Map());
@@ -152,13 +164,17 @@ export function useHeldKeys({ invoiceId, paidMinor }: HeldContext): HeldKeys {
     (operation: KeyedOperation, request: unknown) => {
       const slot = slotOf(held.current, invoiceId);
       const context: HeldContext = { invoiceId, paidMinor };
-      // A warned key is never reused: the invoice's paid amount moved under it, so the earlier
-      // request may already be recorded on the server, and a replay would answer that request
-      // instead of recording the new one. The paid amount returning to the value the key was minted
-      // under does not make it answerable again — the warning clears only on a confirmed success.
-      const previous = slot.warned[operation] ? null : (slot.keys[operation] ?? null);
+      // The key held under a paid amount that moved may already be recorded on the server, so it
+      // must not answer the new request. The rotation mints one fresh key for the paid amount as
+      // it is now, and the sends after it reuse that key: a second unclear failure replays it
+      // instead of recording a second payment.
+      const replacing = slot.rotate[operation];
+      const previous = replacing ? null : (slot.keys[operation] ?? null);
       const next = heldFor(previous, JSON.stringify(request), context, newKey);
       slot.keys[operation] = next;
+      // The replacement happened: the next send reuses the new key, and only another move of the paid
+      // amount rotates it again.
+      slot.rotate[operation] = false;
       // The key answers the invoice as it is now, so the report is rebuilt from it.
       report(slot);
       return next.key;
@@ -171,6 +187,8 @@ export function useHeldKeys({ invoiceId, paidMinor }: HeldContext): HeldKeys {
       slot.keys[operation] = null;
       // A confirmed success: the key is released and the warning it raised goes with it.
       slot.warned[operation] = false;
+      // The key to replace is released too, so the next send mints its own key from the start.
+      slot.rotate[operation] = false;
       report(slot);
     },
     [invoiceId, report],

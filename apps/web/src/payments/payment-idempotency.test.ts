@@ -207,4 +207,72 @@ describe("the report of a stale held key", () => {
     // The warning stays until a confirmed success drops the key.
     expect(result.current.paidChanged.pay).toBe(true);
   });
+
+  // PR #111 review: the warning costs one replacement, not a new key on every send.
+  it("mints one replacement key after the warning and reuses it on the next send", async () => {
+    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000" });
+    const first = result.current.keyOf("pay", { amountMinor: "4000" });
+    rerender({ invoiceId: INVOICE, paidMinor: "5000" });
+    await waitFor(() => expect(result.current.paidChanged.pay).toBe(true));
+    // The first send after the warning replaces the key that may already be recorded.
+    let replacement = "";
+    act(() => {
+      replacement = result.current.keyOf("pay", { amountMinor: "4000" });
+    });
+    expect(replacement).not.toBe(first);
+    // The second send with the same values reuses the replacement: the API replays it instead of
+    // recording a second payment.
+    let again = "";
+    act(() => {
+      again = result.current.keyOf("pay", { amountMinor: "4000" });
+    });
+    expect(again).toBe(replacement);
+    // The warning stays: only a confirmed success drops it.
+    expect(result.current.paidChanged.pay).toBe(true);
+  });
+
+  // PR #111 review: the paid amount moves again under the replacement key, so it rotates again.
+  it("rotates once more when the paid amount moves again", async () => {
+    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000" });
+    const first = result.current.keyOf("pay", { amountMinor: "4000" });
+    rerender({ invoiceId: INVOICE, paidMinor: "5000" });
+    await waitFor(() => expect(result.current.paidChanged.pay).toBe(true));
+    let second = "";
+    act(() => {
+      second = result.current.keyOf("pay", { amountMinor: "4000" });
+    });
+    expect(second).not.toBe(first);
+    // The paid amount moves again under the replacement key, so the next send replaces it once.
+    rerender({ invoiceId: INVOICE, paidMinor: "7000" });
+    await waitFor(() => expect(result.current.paidChanged.pay).toBe(true));
+    let third = "";
+    act(() => {
+      third = result.current.keyOf("pay", { amountMinor: "4000" });
+    });
+    expect(third).not.toBe(second);
+    // And that rotation happened once: the send after it reuses the new key.
+    let fourth = "";
+    act(() => {
+      fourth = result.current.keyOf("pay", { amountMinor: "4000" });
+    });
+    expect(fourth).toBe(third);
+  });
+
+  // PR #111 review: a confirmed success drops the key to replace as well.
+  it("drops the pending replacement with the key on a confirmed success", async () => {
+    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000" });
+    const first = result.current.keyOf("pay", { amountMinor: "4000" });
+    rerender({ invoiceId: INVOICE, paidMinor: "5000" });
+    await waitFor(() => expect(result.current.paidChanged.pay).toBe(true));
+    act(() => {
+      result.current.drop("pay");
+    });
+    // The success released the key and the warning, so the next send mints a key of its own.
+    let after = "";
+    act(() => {
+      after = result.current.keyOf("pay", { amountMinor: "4000" });
+    });
+    expect(after).not.toBe(first);
+    expect(result.current.paidChanged.pay).toBe(false);
+  });
 });

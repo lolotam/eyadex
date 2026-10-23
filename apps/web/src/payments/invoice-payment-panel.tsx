@@ -58,16 +58,16 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
   const owes = invoice.status === "issued" && positive(invoice.settlement?.owedMinor);
   // The payments query holds no data of its own until it answers, and a version bump starts a new one,
   // so the credit would flash "0" in the open dialog: the last balance the query showed is kept for it.
-  // It is kept for this patient only, so another patient's credit is never shown here.
-  const lastCredit = useRef<{ patientId: string; minor: string } | null>(null);
+  // It is kept for the invoice it was read on, so another invoice of the same patient never shows
+  // a balance that was read for this one.
+  const lastCredit = useRef<{ invoiceId: string; minor: string } | null>(null);
   useEffect(() => {
     if (!query.data) return;
-    lastCredit.current = { patientId: invoice.patientId, minor: query.data.creditBalanceMinor };
-  }, [query.data, invoice.patientId]);
+    lastCredit.current = { invoiceId: invoice.id, minor: query.data.creditBalanceMinor };
+  }, [query.data, invoice.id]);
   const kept = lastCredit.current;
   const credit =
-    query.data?.creditBalanceMinor ??
-    (kept && kept.patientId === invoice.patientId ? kept.minor : "0");
+    query.data?.creditBalanceMinor ?? (kept && kept.invoiceId === invoice.id ? kept.minor : "0");
   const mayPay = at("create") && owes;
   const mayCredit = mayPay && positive(credit);
   if (!mayView && !mayPay) return null;

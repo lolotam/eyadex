@@ -35,16 +35,24 @@ vi.mock("@/shared/money/use-clinic-money", () => ({
 }));
 
 const BRANCH = "00000000-0000-7000-8000-000000000002";
+const PATIENT = "00000000-0000-7000-8000-0000000000c1";
 const invoice = {
   id: "00000000-0000-7000-8000-00000000000a",
   number: "TT-2026-000001",
   status: "issued",
   branchId: BRANCH,
+  patientId: PATIENT,
   currency: "KWD",
   currencyExponent: 3,
   totalMinor: "5000",
   version: 1,
   settlement: { state: "partly_paid", paidMinor: "1000", owedMinor: "4000" },
+} as unknown as Invoice;
+/** Another invoice of the same patient: the credit kept for the first one is not its own. */
+const other = {
+  ...invoice,
+  id: "00000000-0000-7000-8000-00000000000d",
+  number: "TT-2026-000002",
 } as unknown as Invoice;
 /** The same invoice after a payment landed on it: the balance due fell. */
 const moved = {
@@ -108,6 +116,31 @@ describe("the held Idempotency-Key", () => {
     await submitOnce();
     await waitFor(() => expect(h.recordPayment).toHaveBeenCalledTimes(2));
     expect(h.recordPayment.mock.calls[1]![3]).toBe(h.recordPayment.mock.calls[0]![3]);
+  });
+
+  // PR #111 review: the warning costs one replacement key, not a new one on every retry.
+  it("sends one replacement key for the retries after the warning", async () => {
+    h.recordPayment.mockRejectedValue(new ApiError("unknown"));
+    const queries = client();
+    const view = render(panel(queries));
+    await submitOnce();
+    await waitFor(() => expect(h.recordPayment).toHaveBeenCalledTimes(1));
+    const first = h.recordPayment.mock.calls[0]![3];
+    // The invoice's paid amount moved under the held key, so the earlier request may be recorded.
+    view.rerender(panel(queries, moved));
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await submitOnce();
+    expect(await screen.findByText(ar.payments.paidChangedNotice)).toBeInTheDocument();
+    await waitFor(() => expect(h.recordPayment).toHaveBeenCalledTimes(2));
+    const replacement = h.recordPayment.mock.calls[1]![3];
+    expect(replacement).not.toBe(first);
+    // The retry after it reuses the replacement, so the API replays it instead of paying twice.
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await submitOnce();
+    await waitFor(() => expect(h.recordPayment).toHaveBeenCalledTimes(3));
+    expect(h.recordPayment.mock.calls[2]![3]).toBe(replacement);
   });
 });
 
@@ -174,5 +207,23 @@ describe("the dialog and the invoice on screen", () => {
     // The open dialog keeps the credit it had, instead of showing "0" until the query answers.
     expect(screen.getByText(available("2.000 KWD"))).toBeInTheDocument();
     expect(screen.getByLabelText(amountLabel())).toHaveValue("2.000");
+  });
+
+  // PR #111 review: the credit kept for the loading query belongs to the invoice it was read on.
+  it("does not keep the credit of another invoice of the same patient", async () => {
+    h.session = sessionOf(["view:payments:clinic", "create:payments:clinic"]);
+    const queries = client();
+    const view = render(panel(queries));
+    const creditButton = await screen.findByRole("button", {
+      name: ar.payments.panel.useCredit,
+    });
+    expect(creditButton).toBeInTheDocument();
+    // Another invoice of the same patient is shown, and its query starts over: it holds no data of
+    // its own, so the credit read for the first invoice must not be offered on this one.
+    h.invoicePayments.mockReturnValue(new Promise(() => undefined));
+    view.rerender(panel(queries, other));
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: ar.payments.panel.useCredit })).toBeNull(),
+    );
   });
 });
