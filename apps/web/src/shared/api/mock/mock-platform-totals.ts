@@ -3,7 +3,13 @@ import { clinicMonth, financeState } from "./mock-finance-state";
 import { paymentState } from "./mock-payment-state";
 import type { MockState } from "./mock-store";
 
-type Sum = { month: string; currency: string; invoiced: bigint; collected: bigint; refunded: bigint };
+type Sum = {
+  month: string;
+  currency: string;
+  invoiced: bigint;
+  collected: bigint;
+  refunded: bigint;
+};
 
 /**
  * The platform's monthly totals of one clinic (FIN-3): invoiced, collected and refunded per clinic-timezone
@@ -20,7 +26,12 @@ export function platformTotalsOf(
   timezone: string,
 ): PlatformFinanceTotals {
   const sums = new Map<string, Sum>();
-  const add = (at: string, currency: string, field: "invoiced" | "collected" | "refunded", minor: string) => {
+  const add = (
+    at: string,
+    currency: string,
+    field: "invoiced" | "collected" | "refunded",
+    minor: string,
+  ) => {
     const month = clinicMonth(at, timezone);
     const k = `${month}:${currency}`;
     const row = sums.get(k) ?? { month, currency, invoiced: 0n, collected: 0n, refunded: 0n };
@@ -28,7 +39,8 @@ export function platformTotalsOf(
     sums.set(k, row);
   };
   for (const i of financeState(db).invoices) {
-    if (i.clinicId === clinicId && i.status !== "void") add(i.issuedAt, i.currency, "invoiced", i.totalMinor);
+    if (i.clinicId === clinicId && i.status !== "void")
+      add(i.issuedAt, i.currency, "invoiced", i.totalMinor);
   }
   const s = paymentState(db);
   for (const p of s.payments) {

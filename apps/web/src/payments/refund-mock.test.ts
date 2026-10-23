@@ -162,7 +162,7 @@ describe("refund idempotency and audit", () => {
     expect(row?.entity).toBe("refund");
     expect(row?.after).toMatchObject({ source: "payment", reasonLength: REASON.length });
     expect(JSON.stringify(row)).not.toContain(REASON);
-    expect(() => assertFinanceAuditSnapshotShape("refund", row!.after)).not.toThrow();
+    expect(() => assertFinanceAuditSnapshotShape("refund", row!.after as never)).not.toThrow();
   });
 
   it("shows the refund on the invoice's movements and in the refunds list", async () => {
