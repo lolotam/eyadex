@@ -63,9 +63,9 @@ describe("GET /payments/branch-options (card 1b)", () => {
 
   it("NEGATIVE: a cursor not in the API's format is a validation error, not page one", async () => {
     const all = await api.payments.branchOptions(admin(), {});
-    expect(
-      await refusal(api.payments.branchOptions(admin(), { cursor: all.items[0]!.id })),
-    ).toBe("validation");
+    expect(await refusal(api.payments.branchOptions(admin(), { cursor: all.items[0]!.id }))).toBe(
+      "validation",
+    );
   });
 
   it("NEGATIVE: without view:payments it is forbidden, as the other payment reads", async () => {

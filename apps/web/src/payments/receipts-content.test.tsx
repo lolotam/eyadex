@@ -24,7 +24,11 @@ vi.mock("@/shared/persona/persona-provider", () => ({
   useSession: () => ({ session: h.session }),
 }));
 vi.mock("./receipt-patient-picker", () => ({
-  ReceiptPatientPicker: ({ onChange }: { onChange: (p: { id: string; label: string }) => void }) => (
+  ReceiptPatientPicker: ({
+    onChange,
+  }: {
+    onChange: (p: { id: string; label: string }) => void;
+  }) => (
     <button type="button" onClick={() => onChange({ id: "p1", label: "x" })}>
       patient-filter
     </button>
