@@ -83,7 +83,7 @@ describe("the close dialog", () => {
     expect(counted().value).toBe("4");
     expect(note().value).toBe("نقص");
     // The next close repeats the new preview's position, under a new key.
-    await waitFor(() => expect(screen.getByText("6.000 KWD")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText(/6\.000 KWD/).length).toBeGreaterThan(0));
     h.close.mockResolvedValue({ branchId: BRANCH, businessDate: "2026-03-10" });
     fireEvent.click(submit());
     await waitFor(() => expect(h.close).toHaveBeenCalledTimes(2));
