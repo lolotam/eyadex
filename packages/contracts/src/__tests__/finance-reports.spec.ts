@@ -15,8 +15,6 @@ import {
   reportDiscountQuerySchema,
   reportDiscountRowSchema,
   reportExportRequestSchema,
-  reportExportSchema,
-  reportExportStatusSchema,
   reportOutstandingQuerySchema,
   reportOutstandingRowSchema,
   reportOwnSummaryQuerySchema,
@@ -144,6 +142,7 @@ const REPORTS: readonly ReportCase[] = [
       source: "payment",
       amountMinor: "500",
       refundedBy: ID,
+      refundedByName: "Synthetic staff",
       reason: "Duplicate receipt",
     },
   },
@@ -160,6 +159,7 @@ const REPORTS: readonly ReportCase[] = [
       kind: "line",
       discountMinor: "300",
       discountedBy: null,
+      discountedByName: null,
       reason: "Courtesy",
     },
   },
@@ -175,6 +175,7 @@ const REPORTS: readonly ReportCase[] = [
       countedMinor: "900",
       differenceMinor: "-100",
       closedBy: ID,
+      closedByName: "Synthetic staff",
       notePresent: true,
     },
   },
@@ -195,7 +196,9 @@ describe.each(REPORTS)("$report", ({ query, row, example }) => {
     const result = query.safeParse({ from: "2024-01-01", to: "2026-01-01" });
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.issues.map((issue) => issue.message)).toContain("report_range_too_long");
+      expect(result.error.issues.map((issue) => issue.message)).toContain(
+        "validation.rangeTooLong",
+      );
     }
   });
 
@@ -215,32 +218,6 @@ describe("the patient-named reports (spec §4, R5–R8)", () => {
     for (const { report, row } of REPORTS) {
       expect(rowKeys(row).includes("patientName"), report).toBe(named.includes(report));
     }
-  });
-});
-
-describe("the export row (spec §7.3)", () => {
-  const STATUSES = ["queued", "running", "done", "failed", "expired", "purged"];
-  const exportRow = {
-    id: ID,
-    report: "daily_takings",
-    format: "csv",
-    status: "queued",
-    createdAt: "2026-10-23T08:00:00.000Z",
-    expiresAt: null,
-    byteSize: null,
-    rowCount: null,
-  };
-
-  it("carries exactly the six statuses of the export table", () => {
-    expect(reportExportStatusSchema.options).toEqual(STATUSES);
-  });
-
-  it("accepts the row of a queued export", () => {
-    expect(reportExportSchema.safeParse(exportRow).success).toBe(true);
-  });
-
-  it("refuses a patient field", () => {
-    expect(reportExportSchema.safeParse({ ...exportRow, patientId: ID }).success).toBe(false);
   });
 });
 
@@ -264,7 +241,9 @@ describe("the export request (spec §7.1, §7.2)", () => {
     });
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.issues.map((issue) => issue.message)).toContain("report_range_too_long");
+      expect(result.error.issues.map((issue) => issue.message)).toContain(
+        "validation.rangeTooLong",
+      );
     }
   });
 

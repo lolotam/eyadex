@@ -138,7 +138,8 @@ const BILLED_HEADER = { ar: "المبلغ", en: "Billed" };
 /**
  * The columns of every report, in order (spec §7.1): the headers follow the caller's language, the
  * amounts are written in major units with the currency's decimals, and every text cell is guarded
- * against a formula. The currency column reads the row's own currency, so every row carries it.
+ * against a formula. The currency column reads the row's own currency, so every row carries it. A
+ * column that names a staff member reads the row's display name, never the membership id (spec §4).
  */
 export const REPORT_EXPORT_COLUMNS = {
   daily_takings: [
@@ -201,7 +202,7 @@ export const REPORT_EXPORT_COLUMNS = {
     { key: "method", header: METHOD_HEADER, kind: "text" },
     { key: "source", header: SOURCE_HEADER, kind: "text" },
     { key: "amountMinor", header: AMOUNT_HEADER, kind: "money" },
-    { key: "refundedBy", header: REFUNDED_BY_HEADER, kind: "text" },
+    { key: "refundedByName", header: REFUNDED_BY_HEADER, kind: "text" },
     { key: "reason", header: REASON_HEADER, kind: "text" },
     { key: "currency", header: CURRENCY_HEADER, kind: "text" },
   ],
@@ -212,7 +213,7 @@ export const REPORT_EXPORT_COLUMNS = {
     { key: "patientName", header: PATIENT_HEADER, kind: "text" },
     { key: "kind", header: DISCOUNT_TYPE_HEADER, kind: "text" },
     { key: "discountMinor", header: DISCOUNT_AMOUNT_HEADER, kind: "money" },
-    { key: "discountedBy", header: DISCOUNTED_BY_HEADER, kind: "text" },
+    { key: "discountedByName", header: DISCOUNTED_BY_HEADER, kind: "text" },
     { key: "reason", header: REASON_HEADER, kind: "text" },
     { key: "currency", header: CURRENCY_HEADER, kind: "text" },
   ],
@@ -222,7 +223,7 @@ export const REPORT_EXPORT_COLUMNS = {
     { key: "expectedMinor", header: EXPECTED_HEADER, kind: "money" },
     { key: "countedMinor", header: COUNTED_HEADER, kind: "money" },
     { key: "differenceMinor", header: DIFFERENCE_HEADER, kind: "money" },
-    { key: "closedBy", header: CLOSED_BY_HEADER, kind: "text" },
+    { key: "closedByName", header: CLOSED_BY_HEADER, kind: "text" },
     { key: "notePresent", header: NOTE_HEADER, kind: "text" },
     { key: "currency", header: CURRENCY_HEADER, kind: "text" },
   ],

@@ -40,8 +40,25 @@ export const REPORT_RANGE_MAX_DAYS = 366;
 /** Three calendar years inclusive reach 1096 days (a leap year inside the span), so that is the bound. */
 export const REPORT_EXPORT_RANGE_MAX_DAYS = 1096;
 
-/** A report period is a clinic business day (`2026-10-23`) or a clinic month (`2026-10`). */
-export const reportPeriodSchema = z.string().regex(/^\d{4}-\d{2}(-\d{2})?$/, "validation.date");
+/** A real calendar month (`2026-10`): the twelve months only, so `2026-00` and `2026-13` are refused. */
+const isCalendarMonth = (value: string): boolean => {
+  const month = Number(value.slice(5, 7));
+  return month >= 1 && month <= 12;
+};
+
+/** A real calendar day (`2026-10-23`) or a real calendar month (`2026-10`). */
+const isRealPeriod = (value: string): boolean =>
+  isCalendarMonth(value) && (value.length === 7 || dateSchema.safeParse(value).success);
+
+/**
+ * A report period is a clinic business day (`2026-10-23`) or a clinic month (`2026-10`). Both are
+ * real calendar values: `2026-13-01`, `2026-02-30` and `2026-00` are refused, and a leap day is a
+ * real day (`2028-02-29`).
+ */
+export const reportPeriodSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}(-\d{2})?$/, "validation.date")
+  .refine(isRealPeriod, "validation.date");
 
 /** The days a range covers, both ends included, or null when the two are not days. */
 const rangeDays = (from: string, to: string): number | null => {
@@ -54,7 +71,8 @@ const rangeDays = (from: string, to: string): number | null => {
 /**
  * The range rule every report shares (spec §4, §6): the days are clinic business days, the range is
  * inclusive, it may not run backwards, and it may not be longer than the caller asked for. A range that
- * is too long is refused with the error code of the refusal (F3-Q6 a).
+ * is too long is refused with the `validation.rangeTooLong` key; the API maps it to its
+ * `report_range_too_long` error code (F3-Q6 a).
  */
 export const reportRangeWithin =
   (maxDays: number) =>
@@ -66,7 +84,7 @@ export const reportRangeWithin =
       return;
     }
     if (days > maxDays) {
-      ctx.addIssue({ code: "custom", path: ["to"], message: "report_range_too_long" });
+      ctx.addIssue({ code: "custom", path: ["to"], message: "validation.rangeTooLong" });
     }
   };
 
@@ -209,6 +227,8 @@ export const reportRefundRowSchema = z
     source: reportRefundSourceSchema,
     amountMinor: minorAmountSchema,
     refundedBy: idSchema,
+    /** The staff member who refunded, by name; null when the membership is gone (spec §4). */
+    refundedByName: z.string().nullable(),
     reason: text(300),
     currency: currencyCodeSchema,
   })
@@ -231,6 +251,8 @@ export const reportDiscountRowSchema = z
     discountMinor: minorAmountSchema,
     /** Who set the discount, stored on the row; null for a discount set before the column existed (EY-10.2). */
     discountedBy: idSchema.nullable(),
+    /** The name of that staff member, resolved the way the audit screen resolves one (spec §4). */
+    discountedByName: z.string().nullable(),
     reason: text(300),
     currency: currencyCodeSchema,
   })
@@ -248,13 +270,18 @@ export const reportCashClosingRowSchema = z
     /** A shortage is negative, so the difference is signed (the F2 closing rule). */
     differenceMinor: signedMinorAmountSchema,
     closedBy: idSchema,
+    /** The staff member who closed the drawer, by name; null when the membership is gone (spec §4). */
+    closedByName: z.string().nullable(),
     notePresent: z.boolean(),
     currency: currencyCodeSchema,
   })
   .strict();
 
-/** R10 groups the doctor's own lines by a clinic month (spec §4, R10). */
-export const reportMonthSchema = z.string().regex(/^\d{4}-\d{2}$/, "validation.date");
+/** R10 groups the doctor's own lines by a clinic month (spec §4, R10). The month must be a real one. */
+export const reportMonthSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}$/, "validation.date")
+  .refine(isCalendarMonth, "validation.date");
 
 /** R10: the doctor's own billed amount per month, with no paid or owed columns (EY-9.16 a). */
 export const reportOwnSummaryRowSchema = z
