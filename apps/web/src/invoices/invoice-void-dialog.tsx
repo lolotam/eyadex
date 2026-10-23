@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { Invoice } from "@eyadex/contracts/finance";
@@ -45,6 +45,10 @@ type VoidRequest = Confirm & { expectedPaidMinor: string };
  *
  * The reason field is locked while a void is on its way, and the confirming click carries the reason
  * it was given: an edit made in between cannot rewrite what the void records.
+ *
+ * While that void is on its way the dialog cannot be closed, and a read that answers after the
+ * dialog was closed voids nothing: the user cannot walk away from a void they did not see
+ * (PR #110 review).
  */
 export function InvoiceVoidDialog({ invoice, onClose, onVoided }: Props) {
   const { t, tDynamic } = useI18n();
@@ -54,6 +58,13 @@ export function InvoiceVoidDialog({ invoice, onClose, onVoided }: Props) {
   // The warning belongs to the invoice it was shown for: opening another invoice starts it over.
   const [warnedId, setWarnedId] = useState<string | null>(null);
   const warningShown = invoice !== null && (releasesOnVoid(invoice) || warnedId === invoice.id);
+  // The invoice the dialog shows right now: a read that answers after the dialog was closed must
+  // not void that invoice (PR #110 review). The ref is the only value the read's answer can trust:
+  // the state it reads is a render away.
+  const openId = useRef<string | null>(invoice?.id ?? null);
+  useEffect(() => {
+    openId.current = invoice?.id ?? null;
+  }, [invoice?.id]);
   // A read that only refreshes the warning: after the API refused the void, the dialog stays open and
   // the warning must show the amount the invoice carries now (issue #113).
   const refresh = useMutation({
@@ -87,6 +98,9 @@ export function InvoiceVoidDialog({ invoice, onClose, onVoided }: Props) {
   const reread = useMutation({
     mutationFn: (confirm: Confirm) => api.finance.getInvoice(persona, confirm.invoice.id),
     onSuccess: (fresh, confirm) => {
+      // The dialog was closed while the invoice was read again: the user walked away, so nothing is
+      // voided now (PR #110 review).
+      if (openId.current !== confirm.invoice.id) return;
       // Money paid since the dialog opened becomes the patient's credit on void, so the warning comes
       // first and the void waits for the next click.
       if (releasesOnVoid(fresh) && !confirm.warningShown) {
@@ -102,7 +116,16 @@ export function InvoiceVoidDialog({ invoice, onClose, onVoided }: Props) {
   // A void is being prepared or sent: the reason must stay what the user confirmed.
   const busy = reread.isPending || voidIt.isPending || refresh.isPending;
   return (
-    <Dialog open={invoice !== null} onOpenChange={(open) => !open && onClose()}>
+    <Dialog
+      open={invoice !== null}
+      onOpenChange={(open) => {
+        // A void is on its way: the dialog must not close, or the read that is still running would
+        // void the invoice after the user walked away (PR #110 review). The close button, Escape
+        // and a click outside all come through here, so they all do nothing while the void runs.
+        if (busy) return;
+        if (!open) onClose();
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>

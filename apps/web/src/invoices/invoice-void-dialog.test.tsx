@@ -55,19 +55,26 @@ const invoicePaid = (paidMinor: string, id = INVOICE_ID): Invoice => ({
 });
 
 const client = new QueryClient();
-const dialog = (invoice: Invoice) => (
+/** The dialog on an invoice, with the close path under the test's control. */
+const dialogWith = (invoice: Invoice | null, onClose: () => void) => (
   <QueryClientProvider client={client}>
     <I18nProvider manageDocument={false}>
-      <InvoiceVoidDialog invoice={invoice} onClose={() => undefined} onVoided={h.voided} />
+      <InvoiceVoidDialog invoice={invoice} onClose={onClose} onVoided={h.voided} />
     </I18nProvider>
   </QueryClientProvider>
 );
+const dialog = (invoice: Invoice) => dialogWith(invoice, () => undefined);
+
+/** Opens the dialog on an invoice with the close path under the test's control. */
+function openWith(invoice: Invoice, onClose: () => void) {
+  const view = render(dialogWith(invoice, onClose));
+  fireEvent.change(screen.getByRole("textbox"), { target: { value: "issued twice" } });
+  return { view, button: screen.getByRole("button", { name: ar.finance.detail.void }) };
+}
 
 /** Opens the dialog on an invoice and types the reason a void needs. */
 function open(invoice: Invoice) {
-  const view = render(dialog(invoice));
-  fireEvent.change(screen.getByRole("textbox"), { target: { value: "issued twice" } });
-  return { view, button: screen.getByRole("button", { name: ar.finance.detail.void }) };
+  return openWith(invoice, () => undefined);
 }
 
 /** Presses the void button once it is ready again. */
@@ -190,5 +197,60 @@ describe("the void dialog and the confirmed paid amount", () => {
     expect(screen.getByText(ar.payments.releaseWarning)).toBeInTheDocument();
     // The invoice is read again, so the warning shows the amount it carries now.
     await waitFor(() => expect(h.getInvoice).toHaveBeenCalledTimes(2));
+  });
+});
+
+// PR #110 review: the void goes out after the invoice was read again, so the dialog must not close
+// while that read is running, and a read that answers after the user closed the dialog must not
+// void the invoice.
+describe("the void dialog while a void is on its way", () => {
+  it("does not close while the invoice is read again", async () => {
+    // The read never answers, so the dialog stays busy for the whole test.
+    h.getInvoice.mockReturnValue(new Promise<Invoice>(() => undefined));
+    const closed = vi.fn();
+    const { button } = openWith(invoicePaid("0"), closed);
+    await press(button);
+    // The void is on its way: the button that confirms it is locked.
+    await waitFor(() => expect(button).toBeDisabled());
+    // The close button does nothing while the void runs.
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(closed).not.toHaveBeenCalled();
+    // And neither does Escape.
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(closed).not.toHaveBeenCalled();
+    expect(h.voidInvoice).not.toHaveBeenCalled();
+  });
+
+  it("closes again once the void is done", async () => {
+    h.getInvoice.mockResolvedValue(invoicePaid("0"));
+    const closed = vi.fn();
+    const { button } = openWith(invoicePaid("0"), closed);
+    await press(button);
+    await waitFor(() => expect(h.voidInvoice).toHaveBeenCalledTimes(1));
+    // The void is done, so the dialog is free to close again.
+    await waitFor(() => expect(button).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(closed).toHaveBeenCalledTimes(1);
+  });
+
+  it("voids nothing when the dialog was closed while the invoice was read again", async () => {
+    let release: (invoice: Invoice) => void = () => undefined;
+    h.getInvoice.mockReturnValue(
+      new Promise<Invoice>((resolve) => {
+        release = resolve;
+      }),
+    );
+    const closed = vi.fn();
+    const { view, button } = openWith(invoicePaid("0"), closed);
+    await press(button);
+    // The user closed the dialog anyway: the parent cleared the invoice.
+    view.rerender(dialogWith(null, closed));
+    await act(async () => {
+      release(invoicePaid("0"));
+    });
+    // The read answered and the dialog is gone, so nothing was voided: the same read with the
+    // dialog still open does void the invoice (the test above this block).
+    expect(h.voidInvoice).not.toHaveBeenCalled();
+    expect(h.voided).not.toHaveBeenCalled();
   });
 });
