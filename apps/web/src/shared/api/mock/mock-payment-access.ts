@@ -43,7 +43,23 @@ export function reachableInvoice(
   return invoice;
 }
 
-type Replay = { op: "payment" | "credit"; key: string; invoiceId: string; body: unknown };
+/** Does the caller's `create:refunds` key reach this branch (spec §4.1; no `own` scope). */
+export function refundsReach(a: FinanceAccess, branchId: string): boolean {
+  if (a.keys.includes("create:refunds:clinic")) return true;
+  if (!a.keys.includes("create:refunds:branch")) return false;
+  return a.branches.allBranches || a.branches.branchIds.includes(branchId);
+}
+
+/** The refund guard: `create:refunds` in any scope, else forbidden (the API's `refundsReach`). */
+export function requireRefunds(db: MockState, persona: Persona) {
+  const a = guardFinance(db, persona);
+  if (!a.keys.includes("create:refunds:clinic") && !a.keys.includes("create:refunds:branch")) {
+    throw new ApiError("forbidden");
+  }
+  return a;
+}
+
+type Replay = { op: "payment" | "credit" | "refund"; key: string; invoiceId: string; body: unknown };
 
 const ledgerKey = (a: FinanceAccess, r: Replay) =>
   `${r.op}:${actorReplayKey(a.clinic.id, a.member.id, r.key)}`;
@@ -58,7 +74,9 @@ export function replayOf<T>(db: MockState, a: FinanceAccess, r: Replay): T | und
   const prior = paymentState(db).replays[ledgerKey(a, r)];
   if (!prior) return undefined;
   if (prior.fingerprint !== fingerprintOf(r)) throw new ApiError("idempotency_conflict");
-  if (!paymentsReach(a, "create", prior.branchId)) throw new ApiError("not_found");
+  const reaches =
+    r.op === "refund" ? refundsReach(a, prior.branchId) : paymentsReach(a, "create", prior.branchId);
+  if (!reaches) throw new ApiError("not_found");
   return structuredClone(prior.answer) as T;
 }
 
