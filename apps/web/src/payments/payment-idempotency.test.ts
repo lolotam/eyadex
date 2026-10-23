@@ -139,7 +139,7 @@ describe("the report of a stale held key", () => {
     expect(result.current.keyOf("credit", { amountMinor: "2000" })).not.toBe(first);
   });
 
-  // PR #111 review: only a paid amount that went up may warn.
+  // PR #111 review: a paid amount that changed warns, in either direction.
   it("warns when the paid amount went up", async () => {
     const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000" });
     result.current.keyOf("pay", { amountMinor: "4000" });
@@ -147,15 +147,40 @@ describe("the report of a stale held key", () => {
     await waitFor(() => expect(result.current.paidChanged.pay).toBe(true));
   });
 
-  it("warns nothing when the paid amount went down", async () => {
+  // PR #111 review: the warning means "the paid amount changed", in either direction.
+  it("warns when the paid amount went down", async () => {
     const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "5000" });
     const first = result.current.keyOf("pay", { amountMinor: "4000" });
     rerender({ invoiceId: INVOICE, paidMinor: "1000" });
-    await waitFor(() => expect(result.current.paidChanged.pay).toBe(false));
-    // A paid amount that went down is an edit that released money into credit: it records no
-    // payment, so it warns nothing. The key rule does not change: a paid amount that is not the one
-    // the key was minted under drops the key, so the next send is a new request.
+    await waitFor(() => expect(result.current.paidChanged.pay).toBe(true));
+    // A paid amount that went down is a refund or an edit that released money into credit: the net
+    // moved, so the movements are read before sending again. The key rule does not change: a paid
+    // amount that is not the one the key was minted under drops the key, so the next send is a new
+    // request.
     expect(result.current.keyOf("pay", { amountMinor: "4000" })).not.toBe(first);
+  });
+
+  // PR #111 review: the warning stays until a confirmed success.
+  it("keeps the warning after a new key and a failed retry, and clears it on a success", async () => {
+    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000" });
+    const first = result.current.keyOf("pay", { amountMinor: "4000" });
+    rerender({ invoiceId: INVOICE, paidMinor: "5000" });
+    await waitFor(() => expect(result.current.paidChanged.pay).toBe(true));
+    // The retry mints a new key under the paid amount as it is now, and the warning stays.
+    let retry = "";
+    act(() => {
+      retry = result.current.keyOf("pay", { amountMinor: "4000" });
+    });
+    expect(retry).not.toBe(first);
+    expect(result.current.paidChanged.pay).toBe(true);
+    // The retry failed: its key is kept for a replay, so the warning stays too.
+    rerender({ invoiceId: INVOICE, paidMinor: "5000" });
+    expect(result.current.paidChanged.pay).toBe(true);
+    // A confirmed success drops the key, and the warning with it.
+    act(() => {
+      result.current.drop("pay");
+    });
+    expect(result.current.paidChanged.pay).toBe(false);
   });
 
   // PR #111 review: every invoice keeps its own key.

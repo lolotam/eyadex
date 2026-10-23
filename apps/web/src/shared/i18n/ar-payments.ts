@@ -46,7 +46,7 @@ export const arPayments: Strings<typeof enPayments> = {
     },
     releaseWarning: "سيتحول المبلغ الزائد إلى رصيد للمراجع",
     paidChangedNotice:
-      "تم تسجيل دفعة على هذه الفاتورة بعد محاولتك السابقة؛ راجع الحركات قبل الإرسال",
+      "المبلغ المدفوع على هذه الفاتورة تغيّر بعد محاولتك السابقة؛ راجع الحركات قبل الإرسال",
     list: { settlement: "الدفع", allSettlements: "الكل" },
     methods: {
       title: "طرق الدفع",

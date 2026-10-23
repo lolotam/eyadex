@@ -43,7 +43,7 @@ export const enPayments = {
     },
     releaseWarning: "The extra amount becomes patient credit",
     paidChangedNotice:
-      "A payment was recorded on this invoice after your last attempt; check the movements before sending.",
+      "The paid amount on this invoice changed after your last attempt; check the movements before sending.",
     list: { settlement: "Payment", allSettlements: "All" },
     methods: {
       title: "Payment methods",

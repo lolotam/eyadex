@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { AlertTriangle } from "lucide-react";
 import { useForm } from "react-hook-form";
@@ -17,10 +17,11 @@ import { checkAmount, smallerMinor } from "./payment-amount";
 
 type Props = {
   invoice: Invoice;
+  /** The patient's live credit balance, as the payments query shows it. */
   creditMinor: string;
   /** The panel's held Idempotency-Key for this operation (see useHeldKeys). */
   keyOf: (request: unknown) => string;
-  /** The invoice's paid amount went up under the held key: a payment may be recorded (useHeldKeys). */
+  /** The invoice's paid amount changed under the held key: a payment may be recorded (useHeldKeys). */
   paidChanged?: boolean;
   onDone: () => void;
   onFailed?: () => void;
@@ -54,10 +55,19 @@ export function ApplyCreditForm(props: Props) {
     },
   });
   usePendingReport(save.isPending, onPendingChange);
-  // The invoice can move while the dialog is open (a refetch after an unclear failure): the amount
-  // follows the new owed amount, so the form never offers what the invoice no longer owes.
+  // The amount the field was last prefilled with, so a change of the prefill can tell an untouched
+  // field from one the user typed in.
+  const prefilled = useRef(prefill);
+  // The invoice and the patient's credit can move while the dialog is open (a refetch after an unclear
+  // failure): an untouched amount follows the new prefill, so the form never offers what the credit no
+  // longer holds. A typed amount is the user's decision and stays as it is — checkAmount refuses it
+  // before sending when it is now above the credit or the balance.
   useEffect(() => {
+    const state = form.getFieldState("amount");
+    const typed = state.isDirty && form.getValues("amount") !== prefilled.current;
+    if (typed) return;
     form.resetField("amount", { defaultValue: prefill });
+    prefilled.current = prefill;
   }, [form, prefill]);
   const submit = form.handleSubmit((v) => {
     const checked = checkAmount(v.amount, exponent, { owedMinor: owed, creditMinor });

@@ -18,6 +18,9 @@ export function keyFor(
 
 export type KeyedOperation = "pay" | "credit";
 
+/** The operations that hold a key of their own. */
+const OPERATIONS: KeyedOperation[] = ["pay", "credit"];
+
 /** A fresh Idempotency-Key: the screen mints it, the API reads it back on a retry. */
 const newKey = () => crypto.randomUUID();
 
@@ -32,14 +35,23 @@ export type HeldRequest = {
   paidMinor: string;
 };
 
-/** The keys one invoice holds: one per operation. */
-export type HeldSlot = Record<KeyedOperation, HeldRequest | null>;
+/** The slot of one invoice: the key it holds per operation and the warning each one raised. */
+export type HeldSlot = {
+  /** The held key of each operation, minted and dropped on their own. */
+  keys: Record<KeyedOperation, HeldRequest | null>;
+  /**
+   * Whether the invoice's paid amount moved under the held key of that operation. It lives in the
+   * invoice's slot, so it stays until a confirmed success drops the key and never reaches another
+   * invoice.
+   */
+  warned: Record<KeyedOperation, boolean>;
+};
 
 export type HeldKeys = {
   keyOf: (operation: KeyedOperation, request: unknown) => string;
   drop: (operation: KeyedOperation) => void;
   /**
-   * Whether the invoice's paid amount went up under the held key of that action: the key can no longer
+   * Whether the invoice's paid amount changed under the held key of that action: the key can no longer
    * answer a new request, and the earlier one may have been recorded, so the user is told before sending.
    */
   paidChanged: Record<KeyedOperation, boolean>;
@@ -72,30 +84,42 @@ export function heldFor(
 function slotOf(held: Map<string, HeldSlot>, invoiceId: string): HeldSlot {
   const found = held.get(invoiceId);
   if (found) return found;
-  const fresh: HeldSlot = { pay: null, credit: null };
+  const fresh: HeldSlot = {
+    keys: { pay: null, credit: null },
+    warned: { pay: false, credit: false },
+  };
   held.set(invoiceId, fresh);
   return fresh;
 }
 
+/** Whether two minor amounts are two different amounts, not two spellings of one. */
+function paidMoved(before: string, now: string): boolean {
+  const was = readMinor(before);
+  const is = readMinor(now);
+  return was !== null && is !== null && was !== is;
+}
+
 /**
- * The report of the invoice on screen: a held key warns only when the paid amount went up since the key
- * was minted, since only then may the earlier request have been recorded on the server. A paid amount
- * that went down (an edit that released money into credit, a refund) records no payment, so it warns
- * nothing.
+ * The report of the invoice on screen: a held key warns when the invoice's paid amount is no longer the
+ * one it was minted under, in either direction — a payment can land and a refund or an edit can release
+ * money again, so the net can drop too. The warning is kept in the invoice's slot, so it survives the
+ * new key of a retry and a failed retry, and only a confirmed success drops it.
  */
-function reportsOf(
+function reportOf(
   slot: HeldSlot | undefined,
   invoiceId: string,
   paidMinor: string,
 ): Record<KeyedOperation, boolean> {
-  const moved = (operation: KeyedOperation) => {
-    const request = slot?.[operation];
-    if (!request || request.invoiceId !== invoiceId) return false;
-    const before = readMinor(request.paidMinor);
-    const now = readMinor(paidMinor);
-    return before !== null && now !== null && now > before;
-  };
-  return { pay: moved("pay"), credit: moved("credit") };
+  const warned: Record<KeyedOperation, boolean> = { pay: false, credit: false };
+  if (!slot) return warned;
+  for (const operation of OPERATIONS) {
+    const request = slot.keys[operation];
+    if (request && request.invoiceId === invoiceId && paidMoved(request.paidMinor, paidMinor)) {
+      slot.warned[operation] = true;
+    }
+    warned[operation] = slot.warned[operation];
+  }
+  return warned;
 }
 
 /**
@@ -114,10 +138,10 @@ export function useHeldKeys({ invoiceId, paidMinor }: HeldContext): HeldKeys {
   });
   const report = useCallback(
     (slot: HeldSlot | undefined) => {
-      setPaidChanged((current) => {
-        const next = reportsOf(slot, invoiceId, paidMinor);
-        return next.pay === current.pay && next.credit === current.credit ? current : next;
-      });
+      const next = reportOf(slot, invoiceId, paidMinor);
+      setPaidChanged((current) =>
+        next.pay === current.pay && next.credit === current.credit ? current : next,
+      );
     },
     [invoiceId, paidMinor],
   );
@@ -125,8 +149,8 @@ export function useHeldKeys({ invoiceId, paidMinor }: HeldContext): HeldKeys {
     (operation: KeyedOperation, request: unknown) => {
       const slot = slotOf(held.current, invoiceId);
       const context: HeldContext = { invoiceId, paidMinor };
-      const next = heldFor(slot[operation] ?? null, JSON.stringify(request), context, newKey);
-      slot[operation] = next;
+      const next = heldFor(slot.keys[operation] ?? null, JSON.stringify(request), context, newKey);
+      slot.keys[operation] = next;
       // The key answers the invoice as it is now, so the report is rebuilt from it.
       report(slot);
       return next.key;
@@ -136,7 +160,9 @@ export function useHeldKeys({ invoiceId, paidMinor }: HeldContext): HeldKeys {
   const drop = useCallback(
     (operation: KeyedOperation) => {
       const slot = slotOf(held.current, invoiceId);
-      slot[operation] = null;
+      slot.keys[operation] = null;
+      // A confirmed success: the key is released and the warning it raised goes with it.
+      slot.warned[operation] = false;
       report(slot);
     },
     [invoiceId, report],

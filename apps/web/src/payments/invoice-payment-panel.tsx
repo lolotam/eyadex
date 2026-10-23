@@ -30,19 +30,16 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
   const { session } = useSession();
   const settings = useFinanceSettings();
   const refreshPayments = useRefreshPayments();
-  // The dialog keeps the credit it was opened on, but the invoice is always the one on screen: a
-  // refetch must not leave the form checking a stale owed amount.
-  const [open, setOpen] = useState<{
-    kind: "pay" | "credit";
-    credit: string;
-  } | null>(null);
+  // The invoice is always the one on screen and the credit is the live one of the payments query: a
+  // refetch must not leave the form checking a stale owed amount or a stale credit balance.
+  const [open, setOpen] = useState<{ kind: "pay" | "credit" } | null>(null);
   const [pending, setPending] = useState(false);
   const at = (action: "view" | "create") =>
     !!session && canAtBranch(session, action, "payments", invoice.branchId);
   const mayView = at("view");
   const query = useInvoicePayments(invoice.id, invoice.version, mayView);
   // The held key is bound to the invoice as it is now, not to the copy the dialog was opened on: a
-  // refetch that shows a higher paid amount means the earlier request may have been recorded, so its key
+  // refetch that shows another paid amount means the earlier request may have been recorded, so its key
   // must not answer a new payment, and the dialog says so before the next send.
   const keys = useHeldKeys({
     invoiceId: invoice.id,
@@ -91,13 +88,13 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
         </h2>
         <div className="flex flex-wrap gap-2">
           {mayPay && (
-            <Button size="sm" disabled={entryOff} onClick={() => setOpen({ kind: "pay", credit })}>
+            <Button size="sm" disabled={entryOff} onClick={() => setOpen({ kind: "pay" })}>
               <Banknote className="size-4" />
               {t("payments.panel.record")}
             </Button>
           )}
           {mayCredit && (
-            <Button size="sm" variant="outline" onClick={() => setOpen({ kind: "credit", credit })}>
+            <Button size="sm" variant="outline" onClick={() => setOpen({ kind: "credit" })}>
               <Wallet className="size-4" />
               {t("payments.panel.useCredit")}
             </Button>
@@ -163,7 +160,7 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
           {open?.kind === "credit" && (
             <ApplyCreditForm
               invoice={invoice}
-              creditMinor={open.credit}
+              creditMinor={credit}
               keyOf={(request) => keys.keyOf("credit", request)}
               paidChanged={keys.paidChanged.credit}
               onDone={() => done(open)}
