@@ -104,6 +104,9 @@ describe("refund numbers and the drawer", () => {
     // A cash refund takes the next position of the same branch drawer as the cash payment.
     expect(BigInt(first.refund.cashSeq!)).toBe(BigInt(p.cashSeq!) + 1n);
     expect(second.refund.cashSeq).toBeNull();
+    // The receipts keep their own series: the next receipt is the second one, whatever was refunded.
+    const other = await issue("1000");
+    expect((await pay(other.id, "1000")).payment.receiptNumber).toMatch(/-R-\d{4}-000002$/);
   });
 });
 
