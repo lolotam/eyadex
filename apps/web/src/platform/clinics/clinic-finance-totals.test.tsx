@@ -59,4 +59,34 @@ describe("the platform's clinic totals", () => {
     expect(screen.getByRole("button", { name: "إعادة المحاولة" })).toBeTruthy();
     expect(screen.queryByText("لا توجد فواتير بعد")).toBeNull();
   });
+
+  // Card 2a: collected and refunded are optional in the contract; absent is «—», never zero.
+  it("shows collected and refunded, and «—» where the answer leaves them out", async () => {
+    load.mockResolvedValue({
+      months: [
+        { month: "2026-09", currency: "KWD", invoicedMinor: "1000" },
+        {
+          month: "2026-10",
+          currency: "KWD",
+          invoicedMinor: "2000",
+          collectedMinor: "1500",
+          refundedMinor: "250",
+        },
+      ],
+    });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <I18nProvider manageDocument={false}>
+          <ClinicFinanceTotals clinicId="clinic" />
+        </I18nProvider>
+      </QueryClientProvider>,
+    );
+    await screen.findByRole("table");
+    expect(screen.getByText("المحصّل")).toBeInTheDocument();
+    expect(screen.getByText("المسترد")).toBeInTheDocument();
+    expect(screen.getAllByText("—")).toHaveLength(2);
+    expect(screen.getByText("1.500 KWD")).toBeInTheDocument();
+    expect(screen.getByText("0.250 KWD")).toBeInTheDocument();
+  });
 });

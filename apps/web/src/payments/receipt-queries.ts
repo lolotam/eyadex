@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import type { PaymentListQuery } from "@eyadex/contracts/finance";
+import type { PaymentListQuery, RefundListQuery } from "@eyadex/contracts/finance";
 import type { BranchOption } from "@eyadex/contracts/users";
 import { ApiError } from "@/shared/api/api-error";
 import { useApi } from "@/shared/api/api-provider";
@@ -64,4 +64,17 @@ export function branchNameIn(
 ): string {
   const b = branches?.find((x) => x.id === branchId);
   return b ? pick(b.nameAr, b.nameEn) : "—";
+}
+
+/** One cursor page of refunds (read through `view:payments`); the shown page stays while the next loads. */
+export function useRefundList(query: Partial<RefundListQuery>) {
+  const api = useApi();
+  const { persona, ready } = usePersona();
+  return useQuery({
+    queryKey: [...paymentKeys.all, "refunds", query, persona.memberId],
+    queryFn: () => api.payments.listRefunds(persona, query),
+    enabled: ready && Boolean(persona.clinicId),
+    placeholderData: (previous) => previous,
+    retry,
+  });
 }

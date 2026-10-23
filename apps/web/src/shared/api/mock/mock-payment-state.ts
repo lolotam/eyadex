@@ -1,4 +1,4 @@
-import type { Payment, PaymentMethod } from "@eyadex/contracts/finance";
+import type { Payment, PaymentMethod, Refund } from "@eyadex/contracts/finance";
 import { PAYMENT_METHODS } from "@eyadex/contracts/finance";
 import type { PatientMoney, ReleaseCause } from "@eyadex/contracts/settlement";
 import type { MockState } from "./mock-store";
@@ -31,8 +31,25 @@ export type StoredCredit = {
   by: string;
 };
 
+/** A refund as stored: like a receipt, the patient's name is read with it, never kept on it. */
+export type StoredRefund = Omit<Refund, "patientName"> & { clinicId: string };
+
+/** Which credit a refund spent, and how much of it (0064's `refund_sources`). */
+export type StoredRefundSource = {
+  clinicId: string;
+  id: string;
+  refundId: string;
+  creditId: string;
+  patientId: string;
+  amountMinor: string;
+};
+
 export type PaymentMockState = {
   payments: StoredPayment[];
+  refunds: StoredRefund[];
+  refundSources: StoredRefundSource[];
+  /** `branchId:year` → the last refund number there: its own series, apart from receipts. */
+  refundCounters: Record<string, number>;
   allocations: StoredAllocation[];
   credits: StoredCredit[];
   /** `branchId:year` (clinic-timezone year) → the last receipt number issued there. */
@@ -51,6 +68,9 @@ export type PaymentMockState = {
 export function paymentState(db: MockState): PaymentMockState {
   db.payments ??= {
     payments: [],
+    refunds: [],
+    refundSources: [],
+    refundCounters: {},
     allocations: [],
     credits: [],
     receiptCounters: {},
@@ -58,6 +78,10 @@ export function paymentState(db: MockState): PaymentMockState {
     methods: {},
     replays: {},
   };
+  // A state saved before refunds existed gains their tables on first read.
+  db.payments.refunds ??= [];
+  db.payments.refundSources ??= [];
+  db.payments.refundCounters ??= {};
   return db.payments;
 }
 
@@ -102,8 +126,12 @@ export function moneyOf(db: MockState, clinicId: string, patientId: string): Pat
       cause: c.cause,
       createdAt: c.createdAt,
     })),
-    refunds: [],
-    refundSources: [],
+    refunds: mine(s.refunds).map((r) => ({ id: r.id, amountMinor: BigInt(r.amountMinor) })),
+    refundSources: mine(s.refundSources).map((r) => ({
+      refundId: r.refundId,
+      creditId: r.creditId,
+      amountMinor: BigInt(r.amountMinor),
+    })),
   };
 }
 

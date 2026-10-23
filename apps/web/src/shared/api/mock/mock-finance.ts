@@ -24,6 +24,7 @@ import { strip } from "./mock-invoice-view";
 import { settlementOf } from "./mock-settlement";
 import { parse } from "./mock-medical-access";
 import { resolvePlatformActor, writePlatformAudit } from "./mock-platform-actor";
+import { platformTotalsOf } from "./mock-platform-totals";
 import { delay, getState, newId, persist } from "./mock-store";
 
 function viewer(persona: Persona): FinanceAccess {
@@ -235,24 +236,7 @@ export function createMockFinance(): FinanceApi {
       await delay();
       resolvePlatformActor(db(), persona);
       const { timezone } = clinicOf(clinicId);
-      const sums = new Map<string, { month: string; currency: string; minor: bigint }>();
-      for (const i of financeState(db()).invoices) {
-        if (i.clinicId !== clinicId || i.status === "void") continue;
-        const month = clinicMonth(i.issuedAt, timezone);
-        const k = `${month}:${i.currency}`;
-        const row = sums.get(k) ?? { month, currency: i.currency, minor: 0n };
-        row.minor += BigInt(i.totalMinor);
-        sums.set(k, row);
-      }
-      return {
-        months: [...sums.values()]
-          .sort((x, y) => x.month.localeCompare(y.month))
-          .map((r) => ({
-            month: r.month,
-            currency: r.currency as never,
-            invoicedMinor: r.minor.toString(),
-          })),
-      };
+      return platformTotalsOf(db(), clinicId, timezone);
     },
   };
 }
