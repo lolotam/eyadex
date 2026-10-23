@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AlertCircle, Banknote, Wallet } from "lucide-react";
+import { AlertCircle, Banknote, Undo2, Wallet } from "lucide-react";
 import type { Invoice } from "@eyadex/contracts/finance";
 import { formatMinor, readMinor } from "@eyadex/contracts/money";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import { useHeldKeys } from "./idempotency-key";
 import { InvoiceMovements } from "./invoice-movements";
 import { useInvoicePayments, useRefreshPayments } from "./payment-queries";
 import { RecordPaymentForm } from "./record-payment-dialog";
+import { RefundForm, type RefundSource } from "./refund-form";
 
 type Props = { invoice: Invoice; onChanged: () => void };
 
@@ -31,11 +32,11 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
   const settings = useFinanceSettings();
   const refreshPayments = useRefreshPayments();
   // The dialog keeps the invoice and credit it was opened on: a refetch never changes what it checks.
-  const [open, setOpen] = useState<{
-    kind: "pay" | "credit";
-    invoice: Invoice;
-    credit: string;
-  } | null>(null);
+  const [open, setOpen] = useState<
+    | { kind: "pay" | "credit"; invoice: Invoice; credit: string }
+    | { kind: "refund"; invoice: Invoice; source: RefundSource }
+    | null
+  >(null);
   const [pending, setPending] = useState(false);
   const at = (action: "view" | "create") =>
     !!session && canAtBranch(session, action, "payments", invoice.branchId);
@@ -48,6 +49,13 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
     invoiceId: invoice.id,
     paidMinor: invoice.settlement?.paidMinor ?? "0",
   });
+  // Refunds keep their own held keys: "pay" for a receipt refund, "credit" for a credit refund.
+  const refundKeys = useHeldKeys({
+    invoiceId: invoice.id,
+    paidMinor: invoice.settlement?.paidMinor ?? "0",
+  });
+  const mayRefund =
+    mayView && !!session && canAtBranch(session, "create", "refunds", invoice.branchId);
   const owes = invoice.status === "issued" && positive(invoice.settlement?.owedMinor);
   const credit = query.data?.creditBalanceMinor ?? "0";
   const mayPay = at("create") && owes;
@@ -72,7 +80,8 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
   // success drops the held key; after a failure the balance is refetched and the key kept for a replay,
   // as long as the invoice still shows the same paid amount.
   const done = (opened: NonNullable<typeof open>) => {
-    keys.drop(opened.kind);
+    if (opened.kind === "refund") refundKeys.drop(opened.source.kind === "payment" ? "pay" : "credit");
+    else keys.drop(opened.kind);
     setOpen((current) => (current === opened ? null : current));
     onChanged();
     refreshPayments();
@@ -131,14 +140,49 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
         ) : query.data ? (
           <>
             {positive(query.data.creditBalanceMinor) && (
-              <p className="text-sm">
+              <div className="flex flex-wrap items-center gap-2 text-sm">
                 <span className="text-muted-foreground">{t("payments.panel.credit")}: </span>
                 <span className="font-medium tabular-nums">
                   {format(query.data.creditBalanceMinor)}
                 </span>
-              </p>
+                {mayRefund && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={entryOff}
+                    onClick={() =>
+                      setOpen({
+                        kind: "refund",
+                        invoice,
+                        source: { kind: "credit", capMinor: query.data.creditBalanceMinor },
+                      })
+                    }
+                  >
+                    <Undo2 className="size-4" />
+                    {t("payments.refund.action")}
+                  </Button>
+                )}
+              </div>
             )}
-            <InvoiceMovements data={query.data} format={format} />
+            <InvoiceMovements
+              data={query.data}
+              format={format}
+              {...(mayRefund && !entryOff
+                ? {
+                    onRefund: (m) =>
+                      setOpen({
+                        kind: "refund",
+                        invoice,
+                        source: {
+                          kind: "payment",
+                          paymentId: m.paymentId,
+                          receiptNumber: m.receiptNumber,
+                          capMinor: m.refundableMinor,
+                        },
+                      }),
+                  }
+                : {})}
+            />
           </>
         ) : (
           <div className="h-16 animate-pulse rounded-md bg-muted" aria-busy="true" />
@@ -147,14 +191,16 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
         <DialogContent onEscapeKeyDown={hold} onInteractOutside={hold}>
           <DialogHeader>
             <DialogTitle>
-              {t(
-                open?.kind === "credit"
-                  ? "payments.dialog.creditTitle"
-                  : "payments.dialog.recordTitle",
-                {
-                  number: invoice.number,
-                },
-              )}
+              {open?.kind === "refund"
+                ? open.source.kind === "payment"
+                  ? t("payments.refund.paymentTitle", { number: open.source.receiptNumber })
+                  : t("payments.refund.creditTitle")
+                : t(
+                    open?.kind === "credit"
+                      ? "payments.dialog.creditTitle"
+                      : "payments.dialog.recordTitle",
+                    { number: invoice.number },
+                  )}
             </DialogTitle>
           </DialogHeader>
           {open?.kind === "pay" && (
@@ -172,6 +218,19 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
               invoice={open.invoice}
               creditMinor={open.credit}
               keyOf={(request) => keys.keyOf("credit", request)}
+              onDone={() => done(open)}
+              onFailed={failed}
+              onPendingChange={setPending}
+            />
+          )}
+          {open?.kind === "refund" && (
+            <RefundForm
+              invoice={open.invoice}
+              source={open.source}
+              methods={enabled}
+              keyOf={(request) =>
+                refundKeys.keyOf(open.source.kind === "payment" ? "pay" : "credit", request)
+              }
               onDone={() => done(open)}
               onFailed={failed}
               onPendingChange={setPending}
