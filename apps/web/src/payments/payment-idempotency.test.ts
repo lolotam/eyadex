@@ -68,61 +68,61 @@ describe("the dialog's key", () => {
 describe("the report of a stale held key", () => {
   const INVOICE = "00000000-0000-7000-8000-00000000000a";
   const OTHER = "00000000-0000-7000-8000-00000000000d";
-  type Props = { invoiceId: string; paidMinor: string };
+  type Props = { invoiceId: string; paidMinor: string; revision: number };
   const held = (initial: Props) =>
     renderHook((props: Props) => useHeldKeys(props), { initialProps: initial });
 
   it("warns when the paid amount moved, and the next send uses a new key", async () => {
-    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000" });
+    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000", revision: 1 });
     const first = result.current.keyOf("pay", { amountMinor: "4000" });
     expect(result.current.paidChanged.pay).toBe(false);
-    rerender({ invoiceId: INVOICE, paidMinor: "5000" });
+    rerender({ invoiceId: INVOICE, paidMinor: "5000", revision: 1 });
     await waitFor(() => expect(result.current.paidChanged.pay).toBe(true));
     expect(result.current.keyOf("pay", { amountMinor: "4000" })).not.toBe(first);
   });
 
   it("warns nothing and reuses the key when the paid amount did not move", () => {
-    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000" });
+    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000", revision: 1 });
     const first = result.current.keyOf("pay", { amountMinor: "4000" });
-    rerender({ invoiceId: INVOICE, paidMinor: "1000" });
+    rerender({ invoiceId: INVOICE, paidMinor: "1000", revision: 1 });
     expect(result.current.paidChanged.pay).toBe(false);
     expect(result.current.keyOf("pay", { amountMinor: "4000" })).toBe(first);
   });
 
   it("warns nothing when another invoice is shown", () => {
-    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000" });
+    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000", revision: 1 });
     result.current.keyOf("pay", { amountMinor: "4000" });
-    rerender({ invoiceId: OTHER, paidMinor: "5000" });
+    rerender({ invoiceId: OTHER, paidMinor: "5000", revision: 1 });
     expect(result.current.paidChanged.pay).toBe(false);
   });
 
   it("warns nothing on another invoice: the warning was about the first one", async () => {
-    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000" });
+    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000", revision: 1 });
     result.current.keyOf("pay", { amountMinor: "4000" });
     result.current.keyOf("credit", { amountMinor: "2000" });
-    rerender({ invoiceId: INVOICE, paidMinor: "5000" });
+    rerender({ invoiceId: INVOICE, paidMinor: "5000", revision: 1 });
     await waitFor(() => expect(result.current.paidChanged.pay).toBe(true));
     await waitFor(() => expect(result.current.paidChanged.credit).toBe(true));
-    rerender({ invoiceId: OTHER, paidMinor: "5000" });
+    rerender({ invoiceId: OTHER, paidMinor: "5000", revision: 1 });
     await waitFor(() => expect(result.current.paidChanged.pay).toBe(false));
     expect(result.current.paidChanged.credit).toBe(false);
   });
 
   it("warns again on the invoice the key was held on", async () => {
-    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000" });
+    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000", revision: 1 });
     result.current.keyOf("pay", { amountMinor: "4000" });
-    rerender({ invoiceId: INVOICE, paidMinor: "5000" });
+    rerender({ invoiceId: INVOICE, paidMinor: "5000", revision: 1 });
     await waitFor(() => expect(result.current.paidChanged.pay).toBe(true));
-    rerender({ invoiceId: OTHER, paidMinor: "5000" });
+    rerender({ invoiceId: OTHER, paidMinor: "5000", revision: 1 });
     await waitFor(() => expect(result.current.paidChanged.pay).toBe(false));
-    rerender({ invoiceId: INVOICE, paidMinor: "5000" });
+    rerender({ invoiceId: INVOICE, paidMinor: "5000", revision: 1 });
     await waitFor(() => expect(result.current.paidChanged.pay).toBe(true));
   });
 
   it("a confirmed success clears the report", async () => {
-    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000" });
+    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000", revision: 1 });
     result.current.keyOf("pay", { amountMinor: "4000" });
-    rerender({ invoiceId: INVOICE, paidMinor: "5000" });
+    rerender({ invoiceId: INVOICE, paidMinor: "5000", revision: 1 });
     await waitFor(() => expect(result.current.paidChanged.pay).toBe(true));
     act(() => {
       result.current.drop("pay");
@@ -131,9 +131,9 @@ describe("the report of a stale held key", () => {
   });
 
   it("the credit reports on its own: it warns and the next send uses a new key", async () => {
-    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000" });
+    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000", revision: 1 });
     const first = result.current.keyOf("credit", { amountMinor: "2000" });
-    rerender({ invoiceId: INVOICE, paidMinor: "3000" });
+    rerender({ invoiceId: INVOICE, paidMinor: "3000", revision: 1 });
     await waitFor(() => expect(result.current.paidChanged.credit).toBe(true));
     expect(result.current.paidChanged.pay).toBe(false);
     expect(result.current.keyOf("credit", { amountMinor: "2000" })).not.toBe(first);
@@ -141,17 +141,17 @@ describe("the report of a stale held key", () => {
 
   // PR #111 review: a paid amount that changed warns, in either direction.
   it("warns when the paid amount went up", async () => {
-    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000" });
+    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000", revision: 1 });
     result.current.keyOf("pay", { amountMinor: "4000" });
-    rerender({ invoiceId: INVOICE, paidMinor: "5000" });
+    rerender({ invoiceId: INVOICE, paidMinor: "5000", revision: 1 });
     await waitFor(() => expect(result.current.paidChanged.pay).toBe(true));
   });
 
   // PR #111 review: the warning means "the paid amount changed", in either direction.
   it("warns when the paid amount went down", async () => {
-    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "5000" });
+    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "5000", revision: 1 });
     const first = result.current.keyOf("pay", { amountMinor: "4000" });
-    rerender({ invoiceId: INVOICE, paidMinor: "1000" });
+    rerender({ invoiceId: INVOICE, paidMinor: "1000", revision: 1 });
     await waitFor(() => expect(result.current.paidChanged.pay).toBe(true));
     // A paid amount that went down is a refund or an edit that released money into credit: the net
     // moved, so the movements are read before sending again. The key rule does not change: a paid
@@ -162,9 +162,9 @@ describe("the report of a stale held key", () => {
 
   // PR #111 review: the warning stays until a confirmed success.
   it("keeps the warning after a new key and a failed retry, and clears it on a success", async () => {
-    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000" });
+    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000", revision: 1 });
     const first = result.current.keyOf("pay", { amountMinor: "4000" });
-    rerender({ invoiceId: INVOICE, paidMinor: "5000" });
+    rerender({ invoiceId: INVOICE, paidMinor: "5000", revision: 1 });
     await waitFor(() => expect(result.current.paidChanged.pay).toBe(true));
     // The retry mints a new key under the paid amount as it is now, and the warning stays.
     let retry = "";
@@ -174,7 +174,7 @@ describe("the report of a stale held key", () => {
     expect(retry).not.toBe(first);
     expect(result.current.paidChanged.pay).toBe(true);
     // The retry failed: its key is kept for a replay, so the warning stays too.
-    rerender({ invoiceId: INVOICE, paidMinor: "5000" });
+    rerender({ invoiceId: INVOICE, paidMinor: "5000", revision: 1 });
     expect(result.current.paidChanged.pay).toBe(true);
     // A confirmed success drops the key, and the warning with it.
     act(() => {
@@ -185,24 +185,24 @@ describe("the report of a stale held key", () => {
 
   // PR #111 review: every invoice keeps its own key.
   it("keeps every invoice's key: a send on another invoice does not take this one", () => {
-    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000" });
+    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000", revision: 1 });
     const first = result.current.keyOf("pay", { amountMinor: "4000" });
-    rerender({ invoiceId: OTHER, paidMinor: "1000" });
+    rerender({ invoiceId: OTHER, paidMinor: "1000", revision: 1 });
     const other = result.current.keyOf("pay", { amountMinor: "4000" });
     expect(other).not.toBe(first);
-    rerender({ invoiceId: INVOICE, paidMinor: "1000" });
+    rerender({ invoiceId: INVOICE, paidMinor: "1000", revision: 1 });
     expect(result.current.keyOf("pay", { amountMinor: "4000" })).toBe(first);
   });
 
   // PR #111 review: a warned key is never reused, not even when the paid amount comes back.
   it("never reuses a warned key, even when the paid amount returns to its old value", async () => {
-    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000" });
+    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000", revision: 1 });
     const first = result.current.keyOf("pay", { amountMinor: "4000" });
-    rerender({ invoiceId: INVOICE, paidMinor: "5000" });
+    rerender({ invoiceId: INVOICE, paidMinor: "5000", revision: 1 });
     await waitFor(() => expect(result.current.paidChanged.pay).toBe(true));
     // The paid amount returns to the value the key was minted under, and the user sends the same
     // values again: the earlier request may still be recorded, so the key must not answer it again.
-    rerender({ invoiceId: INVOICE, paidMinor: "1000" });
+    rerender({ invoiceId: INVOICE, paidMinor: "1000", revision: 1 });
     expect(result.current.keyOf("pay", { amountMinor: "4000" })).not.toBe(first);
     // The warning stays until a confirmed success drops the key.
     expect(result.current.paidChanged.pay).toBe(true);
@@ -210,9 +210,9 @@ describe("the report of a stale held key", () => {
 
   // PR #111 review: the warning costs one replacement, not a new key on every send.
   it("mints one replacement key after the warning and reuses it on the next send", async () => {
-    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000" });
+    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000", revision: 1 });
     const first = result.current.keyOf("pay", { amountMinor: "4000" });
-    rerender({ invoiceId: INVOICE, paidMinor: "5000" });
+    rerender({ invoiceId: INVOICE, paidMinor: "5000", revision: 1 });
     await waitFor(() => expect(result.current.paidChanged.pay).toBe(true));
     // The first send after the warning replaces the key that may already be recorded.
     let replacement = "";
@@ -233,9 +233,9 @@ describe("the report of a stale held key", () => {
 
   // PR #111 review: the paid amount moves again under the replacement key, so it rotates again.
   it("rotates once more when the paid amount moves again", async () => {
-    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000" });
+    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000", revision: 1 });
     const first = result.current.keyOf("pay", { amountMinor: "4000" });
-    rerender({ invoiceId: INVOICE, paidMinor: "5000" });
+    rerender({ invoiceId: INVOICE, paidMinor: "5000", revision: 1 });
     await waitFor(() => expect(result.current.paidChanged.pay).toBe(true));
     let second = "";
     act(() => {
@@ -243,7 +243,7 @@ describe("the report of a stale held key", () => {
     });
     expect(second).not.toBe(first);
     // The paid amount moves again under the replacement key, so the next send replaces it once.
-    rerender({ invoiceId: INVOICE, paidMinor: "7000" });
+    rerender({ invoiceId: INVOICE, paidMinor: "7000", revision: 1 });
     await waitFor(() => expect(result.current.paidChanged.pay).toBe(true));
     let third = "";
     act(() => {
@@ -260,9 +260,9 @@ describe("the report of a stale held key", () => {
 
   // PR #111 review: a confirmed success drops the key to replace as well.
   it("drops the pending replacement with the key on a confirmed success", async () => {
-    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000" });
+    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000", revision: 1 });
     const first = result.current.keyOf("pay", { amountMinor: "4000" });
-    rerender({ invoiceId: INVOICE, paidMinor: "5000" });
+    rerender({ invoiceId: INVOICE, paidMinor: "5000", revision: 1 });
     await waitFor(() => expect(result.current.paidChanged.pay).toBe(true));
     act(() => {
       result.current.drop("pay");
@@ -274,5 +274,25 @@ describe("the report of a stale held key", () => {
     });
     expect(after).not.toBe(first);
     expect(result.current.paidChanged.pay).toBe(false);
+  });
+
+  // PR #111 review: a recorded payment and a later refund leave the net paid amount as it was, so
+  // only the movements show that the invoice moved under the held key.
+  it("warns and rotates when the movements grew and the paid amount stayed", async () => {
+    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000", revision: 1 });
+    const first = result.current.keyOf("pay", { amountMinor: "4000" });
+    // The payment was recorded and then refunded: the paid amount is the one the key was minted
+    // under, and the invoice gained two movements.
+    rerender({ invoiceId: INVOICE, paidMinor: "1000", revision: 3 });
+    await waitFor(() => expect(result.current.paidChanged.pay).toBe(true));
+    expect(result.current.keyOf("pay", { amountMinor: "4000" })).not.toBe(first);
+  });
+
+  it("warns nothing and reuses the key when the paid amount and the movements stayed", () => {
+    const { result, rerender } = held({ invoiceId: INVOICE, paidMinor: "1000", revision: 2 });
+    const first = result.current.keyOf("pay", { amountMinor: "4000" });
+    rerender({ invoiceId: INVOICE, paidMinor: "1000", revision: 2 });
+    expect(result.current.paidChanged.pay).toBe(false);
+    expect(result.current.keyOf("pay", { amountMinor: "4000" })).toBe(first);
   });
 });

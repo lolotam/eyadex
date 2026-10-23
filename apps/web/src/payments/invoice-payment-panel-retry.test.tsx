@@ -71,6 +71,30 @@ const movements = [
     at: "2026-10-20T08:00:00.000Z",
   },
 ];
+/**
+ * The movements after the lost request was recorded and then refunded: the invoice shows the payment
+ * that was recorded and the refund of it, while its net paid amount is the one it had before.
+ */
+const refunded = [
+  ...movements,
+  {
+    kind: "payment",
+    paymentId: "00000000-0000-7000-8000-0000000000b2",
+    receiptNumber: "TT-R-2026-000002",
+    method: "cash",
+    amountMinor: "4000",
+    at: "2026-10-20T08:30:00.000Z",
+  },
+  {
+    kind: "refund",
+    refundId: "00000000-0000-7000-8000-0000000000c3",
+    refundNumber: "TT-RF-2026-000002",
+    method: "cash",
+    amountMinor: "4000",
+    reason: "test",
+    at: "2026-10-20T09:00:00.000Z",
+  },
+];
 
 const client = () => new QueryClient({ defaultOptions: { queries: { retry: false } } });
 const panel = (queries: QueryClient, shown: Invoice = invoice) => (
@@ -141,6 +165,38 @@ describe("the held Idempotency-Key", () => {
     await submitOnce();
     await waitFor(() => expect(h.recordPayment).toHaveBeenCalledTimes(3));
     expect(h.recordPayment.mock.calls[2]![3]).toBe(replacement);
+  });
+
+  // PR #111 review: a payment that was recorded and then refunded leaves the net paid amount as it
+  // was, so only the movements show that the invoice moved under the held key.
+  it("replaces the key when a payment was recorded and then refunded", async () => {
+    // The movements are read by the payments query, and only a user who may view the payments gets
+    // it: a user who may only create payments never learns how many movements the invoice has, so
+    // the panel cannot tell a recorded-and-refunded payment from an untouched invoice.
+    h.session = sessionOf(["view:payments:clinic", "create:payments:clinic"]);
+    h.recordPayment.mockRejectedValue(new ApiError("unknown"));
+    const queries = client();
+    const view = render(panel(queries));
+    // The movements are read before the send, so the key is minted under the invoice as it is.
+    expect(
+      await screen.findByText(ar.payments.movement.payment.replace("{number}", "TT-R-2026-000001")),
+    ).toBeInTheDocument();
+    await submitOnce();
+    await waitFor(() => expect(h.recordPayment).toHaveBeenCalledTimes(1));
+    const first = h.recordPayment.mock.calls[0]![3];
+    // The failed send refetches the movements: waiting for that refetch keeps the new movements out
+    // of it, so only the refetch after the version bump can show the recorded payment.
+    await waitFor(() => expect(h.invoicePayments).toHaveBeenCalledTimes(2));
+    // The payment was recorded and then refunded: the paid amount is the one the key was minted
+    // under, and the invoice gained the payment and its refund.
+    h.invoicePayments.mockResolvedValue({ creditBalanceMinor: "2000", movements: refunded });
+    view.rerender(panel(queries, { ...invoice, version: 2 }));
+    expect(await screen.findByText(ar.payments.paidChangedNotice)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await submitOnce();
+    await waitFor(() => expect(h.recordPayment).toHaveBeenCalledTimes(2));
+    expect(h.recordPayment.mock.calls[1]![3]).not.toBe(first);
   });
 });
 

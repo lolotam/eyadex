@@ -48,12 +48,31 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
     !!session && canAtBranch(session, action, "payments", invoice.branchId);
   const mayView = at("view");
   const query = useInvoicePayments(invoice.id, invoice.version, mayView);
+  // The movements of the invoice are its revision: every payment, credit application, credit
+  // release and refund adds one, and they never net out, so their count shows a move the net paid
+  // amount cannot show: a payment that was recorded and then refunded leaves the paid amount as it
+  // was.
+  // The query holds no data of its own while it refetches, so the count it last answered is kept for
+  // the invoice it was read on, like the credit below.
+  // A user who may create payments but not view them never reads the movements — the API needs
+  // `view:payments` for them — so their revision stays 0 and only the paid amount can tell them
+  // that the invoice moved.
+  const lastRevision = useRef<{ invoiceId: string; revision: number } | null>(null);
+  useEffect(() => {
+    if (!query.data) return;
+    lastRevision.current = { invoiceId: invoice.id, revision: query.data.movements.length };
+  }, [query.data, invoice.id]);
+  const keptRevision = lastRevision.current;
+  const revision =
+    query.data?.movements.length ??
+    (keptRevision && keptRevision.invoiceId === invoice.id ? keptRevision.revision : 0);
   // The held key is bound to the invoice as it is now, not to the copy the dialog was opened on: a
-  // refetch that shows another paid amount means the earlier request may have been recorded, so its key
-  // must not answer a new payment, and the dialog says so before the next send.
+  // refetch that shows another paid amount or another movement means the earlier request may have been
+  // recorded, so its key must not answer a new payment, and the dialog says so before the next send.
   const keys = useHeldKeys({
     invoiceId: invoice.id,
     paidMinor: invoice.settlement?.paidMinor ?? "0",
+    revision,
   });
   const owes = invoice.status === "issued" && positive(invoice.settlement?.owedMinor);
   // The payments query holds no data of its own until it answers, and a version bump starts a new one,
