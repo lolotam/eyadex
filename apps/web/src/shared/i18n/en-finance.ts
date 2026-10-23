@@ -123,6 +123,9 @@ export const enFinance = {
       voidTitle: "Void invoice {number}",
       voidBody: "The number stays used. The appointment or visit can be invoiced again.",
       voidReason: "Reason",
+      voidPaidNow: "Paid on this invoice now: {amount}",
+      voidPaidChanged:
+        "The paid amount changed since this window opened; check it, then press Void again.",
       voided: "Invoice voided",
       send: "Send",
       sendEmail: "By email",

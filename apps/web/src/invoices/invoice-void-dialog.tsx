@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { Invoice } from "@eyadex/contracts/finance";
+import { formatMinor } from "@eyadex/contracts/money";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -44,6 +45,10 @@ type VoidRequest = Confirm & { expectedPaidMinor: string };
  * showing another amount means the user confirmed a stale one, so the void waits for another click and
  * no money turns into the patient's credit unseen (PR #110 review, issue #113).
  *
+ * The paid amount the void will carry is on screen: the dialog shows it, and a read that finds
+ * another amount shows the new one with a notice, so a click that voided nothing is never silent
+ * (PR #110 review).
+ *
  * The reason field is locked while a void is on its way, and the confirming click carries the reason
  * it was given: an edit made in between cannot rewrite what the void records.
  *
@@ -67,6 +72,15 @@ export function InvoiceVoidDialog({ invoice, onClose, onVoided }: Props) {
     id: null,
     paid: "0",
   });
+  /**
+   * The invoice whose paid amount changed under the user: the void carries the amount on screen, so a
+   * click that found another amount voided nothing and has to say so (PR #110 review).
+   */
+  const [paidChangedId, setPaidChangedId] = useState<string | null>(null);
+  // The notice belongs to the invoice it was raised for: opening another one starts over without it.
+  useEffect(() => {
+    setPaidChangedId(null);
+  }, [invoice?.id]);
   // Another invoice opens the dialog: the confirmed amount starts over at that invoice's own amount.
   const seenPaid =
     seen.id === (invoice?.id ?? null) ? seen.paid : (invoice?.settlement?.paidMinor ?? "0");
@@ -95,8 +109,12 @@ export function InvoiceVoidDialog({ invoice, onClose, onVoided }: Props) {
       // The dialog was closed while the invoice was read again: the user walked away, so the read
       // changes nothing (PR #110 review).
       if (openId.current !== confirm.invoice.id) return;
+      const freshPaid = fresh.settlement?.paidMinor ?? "0";
       // The amount the invoice carries now is the one the next confirming click confirms.
-      setSeen({ id: confirm.invoice.id, paid: fresh.settlement?.paidMinor ?? "0" });
+      setSeen({ id: confirm.invoice.id, paid: freshPaid });
+      // The invoice was paid more after the amount was confirmed: the amount on screen changes under
+      // the user, so the notice says why the next click is the one that confirms it (PR #110 review).
+      if (freshPaid !== confirm.seenPaid) setPaidChangedId(confirm.invoice.id);
       if (releasesOnVoid(fresh)) setWarnedId(confirm.invoice.id);
     },
     onError: (e) => toast.error(tDynamic(`errors.${errorKeyOf(e)}`)),
@@ -134,6 +152,9 @@ export function InvoiceVoidDialog({ invoice, onClose, onVoided }: Props) {
       // the next click confirms the amount now on the invoice (PR #110 review).
       if (freshPaid !== confirm.seenPaid) {
         setSeen({ id: confirm.invoice.id, paid: freshPaid });
+        // The amount on screen changed under the user: this click voided nothing, so the notice says
+        // why and the next click confirms the amount now shown (PR #110 review).
+        setPaidChangedId(confirm.invoice.id);
         if (releasesOnVoid(fresh)) setWarnedId(confirm.invoice.id);
         return;
       }
@@ -168,7 +189,24 @@ export function InvoiceVoidDialog({ invoice, onClose, onVoided }: Props) {
             {t("finance.detail.voidTitle", { number: invoice?.number ?? "" })}
           </DialogTitle>
           <DialogDescription>{t("finance.detail.voidBody")}</DialogDescription>
+          {/* The paid amount the void will carry: the user confirms what the dialog shows. */}
+          {invoice && (
+            <p className="text-sm">
+              {t("finance.detail.voidPaidNow", {
+                amount: `${formatMinor(seenPaid, invoice.currencyExponent)} ${invoice.currency}`,
+              })}
+            </p>
+          )}
         </DialogHeader>
+        {/* The click that found another amount voided nothing: the notice says why. */}
+        {invoice && paidChangedId === invoice.id && (
+          <p
+            role="alert"
+            className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm"
+          >
+            {t("finance.detail.voidPaidChanged")}
+          </p>
+        )}
         {warningShown && <ReleaseWarning />}
         <Textarea
           value={reason}

@@ -124,6 +124,8 @@ export const arFinance: Strings<typeof enFinance> = {
       voidTitle: "إلغاء الفاتورة {number}",
       voidBody: "يبقى الرقم مستخدمًا. ويمكن إصدار فاتورة جديدة للموعد أو الزيارة.",
       voidReason: "السبب",
+      voidPaidNow: "المدفوع على الفاتورة الآن: {amount}",
+      voidPaidChanged: "تغيّر المبلغ المدفوع منذ فتح النافذة؛ راجعه ثم اضغط إلغاء مرة أخرى",
       voided: "تم إلغاء الفاتورة",
       send: "إرسال",
       sendEmail: "بالبريد الإلكتروني",
