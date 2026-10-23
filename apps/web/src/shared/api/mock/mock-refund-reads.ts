@@ -40,8 +40,9 @@ export function listRefunds(db: MockState, persona: Persona, raw: unknown): Refu
         (!q.from || r.businessDate >= q.from) &&
         (!q.to || r.businessDate <= q.to),
     )
-    .sort((x, y) => (x.id < y.id ? 1 : x.id > y.id ? -1 : 0));
-  const rest = after ? rows.filter((r) => r.id < after) : rows;
+    // Mock ids are random, so the creation instant orders them, as UUID v7 order does in the API.
+    .sort((x, y) => y.refundedAt.localeCompare(x.refundedAt) || y.id.localeCompare(x.id));
+  const rest = after ? rows.slice(rows.findIndex((r) => r.id === after) + 1 || rows.length) : rows;
   const page = rest.slice(0, q.limit);
   const last = page[page.length - 1];
   return {
