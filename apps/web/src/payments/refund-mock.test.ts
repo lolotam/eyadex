@@ -4,6 +4,7 @@ import type { Persona } from "@eyadex/contracts/session";
 import { assertFinanceAuditSnapshotShape } from "@eyadex/contracts/finance-audit-snapshot";
 import { financeState } from "@/shared/api/mock/mock-finance-state";
 import { paymentState } from "@/shared/api/mock/mock-payment-state";
+import { platformTotalsOf } from "@/shared/api/mock/mock-platform-totals";
 import { resetMockData } from "@/shared/api/mock/mock-test-kit";
 import {
   admin,
@@ -179,5 +180,19 @@ describe("refund idempotency and audit", () => {
     expect(await api.payments.getRefund(admin(), done.refund.id)).toMatchObject({
       patientName: done.refund.patientName,
     });
+  });
+});
+
+describe("the platform's monthly totals (card 2a §5)", () => {
+  it("adds collected and refunded sums, and nothing else about a payment", async () => {
+    const i = await issue("2000");
+    const p = (await pay(i.id, "2000")).payment;
+    await refund(i.id, fromPayment(p.id, "500"));
+    const { months } = platformTotalsOf(getState(), clinicIdAt(0), "Asia/Kuwait");
+    const month = months.find((m) => m.collectedMinor !== "0");
+    expect(month).toMatchObject({ collectedMinor: "2000", refundedMinor: "500" });
+    expect(Object.keys(month!).sort()).toEqual(
+      ["collectedMinor", "currency", "invoicedMinor", "month", "refundedMinor"].sort(),
+    );
   });
 });

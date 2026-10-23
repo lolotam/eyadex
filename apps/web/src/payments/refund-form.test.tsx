@@ -45,7 +45,8 @@ const form = (source: RefundSource) => (
 );
 const type = (label: string, value: string) =>
   fireEvent.change(screen.getByLabelText(label, { exact: false }), { target: { value } });
-const submit = () => fireEvent.click(screen.getByRole("button", { name: ar.payments.refund.submit }));
+const submit = () =>
+  fireEvent.click(screen.getByRole("button", { name: ar.payments.refund.submit }));
 
 beforeEach(() => h.refund.mockReset());
 afterEach(() => cleanup());
