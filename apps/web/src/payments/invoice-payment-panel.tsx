@@ -16,6 +16,7 @@ import { InvoiceMovements } from "./invoice-movements";
 import { useInvoicePayments, useRefreshPayments } from "./payment-queries";
 import { RecordPaymentForm } from "./record-payment-dialog";
 import { RefundForm, type RefundSource } from "./refund-form";
+import { useRefundKeys } from "./refund-keys";
 
 type Props = { invoice: Invoice; onChanged: () => void };
 
@@ -49,11 +50,8 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
     invoiceId: invoice.id,
     paidMinor: invoice.settlement?.paidMinor ?? "0",
   });
-  // Refunds keep their own held keys: "pay" for a receipt refund, "credit" for a credit refund.
-  const refundKeys = useHeldKeys({
-    invoiceId: invoice.id,
-    paidMinor: invoice.settlement?.paidMinor ?? "0",
-  });
+  // Refund keys are held per invoice and source, never bound to the paid amount a refund itself lowers.
+  const refundKeys = useRefundKeys();
   const mayRefund =
     mayView && !!session && canAtBranch(session, "create", "refunds", invoice.branchId);
   const owes = invoice.status === "issued" && positive(invoice.settlement?.owedMinor);
@@ -80,8 +78,7 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
   // success drops the held key; after a failure the balance is refetched and the key kept for a replay,
   // as long as the invoice still shows the same paid amount.
   const done = (opened: NonNullable<typeof open>) => {
-    if (opened.kind === "refund")
-      refundKeys.drop(opened.source.kind === "payment" ? "pay" : "credit");
+    if (opened.kind === "refund") refundKeys.drop(opened.invoice.id, opened.source);
     else keys.drop(opened.kind);
     setOpen((current) => (current === opened ? null : current));
     onChanged();
@@ -229,9 +226,7 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
               invoice={open.invoice}
               source={open.source}
               methods={enabled}
-              keyOf={(request) =>
-                refundKeys.keyOf(open.source.kind === "payment" ? "pay" : "credit", request)
-              }
+              keyOf={(request) => refundKeys.keyOf(open.invoice.id, open.source, request)}
               onDone={() => done(open)}
               onFailed={failed}
               onPendingChange={setPending}

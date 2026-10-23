@@ -52,6 +52,7 @@ const PATIENT_ACCESS: ReadonlySet<string> = new Set([
   "invoice_link",
   "payment",
   "patient_credit",
+  "refund",
 ]);
 
 /** Append-only clinic audit primitive shared by every clinic-area mock namespace. */
