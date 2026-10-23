@@ -28,7 +28,8 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 const branch = () => patientAt().registrationBranchId;
-const preview = (p: Persona = admin(), branchId = branch()) => api.cashClosings.preview(p, branchId);
+const preview = (p: Persona = admin(), branchId = branch()) =>
+  api.cashClosings.preview(p, branchId);
 const close = (
   pv: CashClosingPreview,
   countedMinor: string,
@@ -109,9 +110,9 @@ describe("closing refusals, in the API's order", () => {
     member.branchIds = [b.registrationBranchId];
     expect(await refusal(preview(desk, a.registrationBranchId))).toBe("not_found");
     const mine = await preview(desk, b.registrationBranchId);
-    expect(await refusal(close({ ...mine, branchId: a.registrationBranchId }, "0", undefined, desk))).toBe(
-      "not_found",
-    );
+    expect(
+      await refusal(close({ ...mine, branchId: a.registrationBranchId }, "0", undefined, desk)),
+    ).toBe("not_found");
     const other = await close(await preview(admin(), a.registrationBranchId), "0");
     expect(await refusal(api.cashClosings.get(desk, other.id))).toBe("not_found");
     expect((await api.cashClosings.list(desk, {})).items).toEqual([]);

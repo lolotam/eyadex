@@ -76,7 +76,11 @@ export function ClosingDetails({ closingId }: { closingId: string }) {
           <span dir="ltr">{`${formatMinor(k.countedMinor, exp)} ${k.currency}`}</span>
         </Row>
         <Row label={t("cashClosings.difference")}>
-          <ClosingDifference differenceMinor={k.differenceMinor} exponent={exp} currency={k.currency} />
+          <ClosingDifference
+            differenceMinor={k.differenceMinor}
+            exponent={exp}
+            currency={k.currency}
+          />
         </Row>
         <Row label={t("cashClosings.note")}>{k.note ?? "—"}</Row>
         <Row label={t("cashClosings.detail.previous")}>

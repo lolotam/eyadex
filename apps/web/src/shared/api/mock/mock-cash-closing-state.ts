@@ -63,9 +63,7 @@ export function drawerMovements(
     amountMinor: r.amountMinor,
     at: r.refundedAt,
   }));
-  return [...payments, ...refunds].sort((a, b) =>
-    BigInt(a.cashSeq) < BigInt(b.cashSeq) ? -1 : 1,
-  );
+  return [...payments, ...refunds].sort((a, b) => (BigInt(a.cashSeq) < BigInt(b.cashSeq) ? -1 : 1));
 }
 
 /** Cash in minus cash out of the period (F2-Q10: no opening float); refused outside the contract's range. */
@@ -96,7 +94,9 @@ export function methodTotals(
     r.clinicId === clinicId && r.branchId === branchId && r.businessDate === businessDate;
   return PAYMENT_METHODS.map((method) => {
     const sum = (rows: { method: PaymentMethod; amountMinor: string }[]) =>
-      String(rows.filter((r) => r.method === method).reduce((t, r) => t + BigInt(r.amountMinor), 0n));
+      String(
+        rows.filter((r) => r.method === method).reduce((t, r) => t + BigInt(r.amountMinor), 0n),
+      );
     return {
       method,
       inMinor: sum(s.payments.filter(that)),

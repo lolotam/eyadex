@@ -71,14 +71,18 @@ describe("the close dialog", () => {
   });
 
   it("cash_drawer_changed refetches the preview and keeps the count and the note", async () => {
-    h.preview.mockResolvedValueOnce(previewAt("1", "5000")).mockResolvedValue(previewAt("2", "6000"));
+    h.preview
+      .mockResolvedValueOnce(previewAt("1", "5000"))
+      .mockResolvedValue(previewAt("2", "6000"));
     h.close.mockRejectedValueOnce(financeError("cash_drawer_changed"));
     dialog();
     await waitFor(() => counted());
     fireEvent.change(counted(), { target: { value: "4" } });
     fireEvent.change(note(), { target: { value: "نقص" } });
     fireEvent.click(submit());
-    await waitFor(() => expect(screen.getByText(ar.cashClosings.dialog.changed)).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText(ar.cashClosings.dialog.changed)).toBeInTheDocument(),
+    );
     await waitFor(() => expect(h.preview).toHaveBeenCalledTimes(2));
     expect(counted().value).toBe("4");
     expect(note().value).toBe("نقص");

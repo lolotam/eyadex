@@ -1,7 +1,4 @@
-import {
-  cashClosingListQuerySchema,
-  type CashClosingDetail,
-} from "@eyadex/contracts/finance";
+import { cashClosingListQuerySchema, type CashClosingDetail } from "@eyadex/contracts/finance";
 import type { Persona } from "@eyadex/contracts/session";
 import { ApiError } from "../api-error";
 import type { CashClosingList } from "../cash-closings-client";

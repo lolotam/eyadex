@@ -66,7 +66,10 @@ export function ClosingsContent() {
           label={t("cashClosings.branch")}
           value={branchId}
           anyLabel={t("cashClosings.allBranches")}
-          options={(branches.data ?? []).map((b) => ({ value: b.id, label: pick(b.nameAr, b.nameEn) }))}
+          options={(branches.data ?? []).map((b) => ({
+            value: b.id,
+            label: pick(b.nameAr, b.nameEn),
+          }))}
           onChange={(v) => filtered(() => setBranchId(v))}
         />
         <Input
@@ -98,7 +101,11 @@ export function ClosingsContent() {
           action={<Button onClick={() => void list.refetch()}>{t("common.tryAgain")}</Button>}
         />
       ) : !list.isLoading && items.length === 0 ? (
-        <StatusPanel icon={Vault} title={t("cashClosings.empty")} body={t("cashClosings.emptyBody")} />
+        <StatusPanel
+          icon={Vault}
+          title={t("cashClosings.empty")}
+          body={t("cashClosings.emptyBody")}
+        />
       ) : (
         <div className="overflow-x-auto">
           <div className="min-w-[720px]">

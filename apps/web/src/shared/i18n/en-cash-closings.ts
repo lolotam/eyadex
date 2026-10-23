@@ -2,7 +2,8 @@
 export const enCashClosings = {
   cashClosings: {
     title: "Cash closing",
-    subtitle: "Count each branch's drawer once a day. A closing is final: it is never edited or reopened.",
+    subtitle:
+      "Count each branch's drawer once a day. A closing is final: it is never edited or reopened.",
     close: "Close the drawer",
     branch: "Branch",
     allBranches: "All branches",
@@ -45,7 +46,8 @@ export const enCashClosings = {
       submit: "Close the drawer",
       done: "Drawer closed",
       previewError: "Couldn't load the preview",
-      changed: "Cash moved since the preview. The preview is refreshed; check the count and close again.",
+      changed:
+        "Cash moved since the preview. The preview is refreshed; check the count and close again.",
       showToday: "Show today's closing",
     },
     detail: {

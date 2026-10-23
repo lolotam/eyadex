@@ -7,7 +7,8 @@ import { delay, getState, persist } from "./mock-store";
 export function createMockCashClosings(): CashClosingsApi {
   return {
     preview: async (p, branchId) => (
-      await delay(), previewClosing(getState(), p, branchId, new Date())
+      await delay(),
+      previewClosing(getState(), p, branchId, new Date())
     ),
     async close(p, input, key) {
       await delay();

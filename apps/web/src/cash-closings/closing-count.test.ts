@@ -34,9 +34,17 @@ describe("the count", () => {
 
 describe("closable branches (create:cash_closings at the branch)", () => {
   it("the branch key offers the user's branches only; the clinic key offers all", () => {
-    const desk = { permissions: ["create:cash_closings:branch"], allBranches: false, branchIds: [B2] };
+    const desk = {
+      permissions: ["create:cash_closings:branch"],
+      allBranches: false,
+      branchIds: [B2],
+    };
     expect(closableBranches(desk, branches).map((b) => b.id)).toEqual([B2]);
-    const admin = { permissions: ["create:cash_closings:clinic"], allBranches: false, branchIds: [] };
+    const admin = {
+      permissions: ["create:cash_closings:clinic"],
+      allBranches: false,
+      branchIds: [],
+    };
     expect(closableBranches(admin, branches)).toHaveLength(2);
   });
 

@@ -106,7 +106,9 @@ export function closeCash(
     throw financeError("cash_drawer_changed");
   }
   const businessDate = dayInTimeZone(now.toISOString(), a.clinic.timezone);
-  const last = s.closings.find((k) => k.clinicId === a.clinic.id && k.id === period.previousClosingId);
+  const last = s.closings.find(
+    (k) => k.clinicId === a.clinic.id && k.id === period.previousClosingId,
+  );
   if (last?.businessDate === businessDate) throw financeError("cash_closing_exists");
   const note = body.note ?? null;
   const counted = BigInt(body.countedMinor);

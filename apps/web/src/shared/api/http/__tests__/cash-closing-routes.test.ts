@@ -47,7 +47,8 @@ function answer(call: Call) {
   if (path === "/api/v1/cash-closings" && call.method === "POST") {
     return { status: 201, body: { cashClosing: { ...closing, movements: [] } } };
   }
-  if (path === "/api/v1/cash-closings") return { body: { items: [closing], nextCursor: null, total: 1 } };
+  if (path === "/api/v1/cash-closings")
+    return { body: { items: [closing], nextCursor: null, total: 1 } };
   if (path === `/api/v1/cash-closings/${CLOSING}`) {
     return { body: { cashClosing: { ...closing, movements: [] } } };
   }

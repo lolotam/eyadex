@@ -56,7 +56,8 @@ export function CloseDialog({ open, onOpenChange, branches, onShowClosed }: Prop
   const preview = useClosingPreview(open ? branchId : null);
   const pv = preview.data;
   const countedMinor = pv ? countedMinorOf(counted, pv.currencyExponent) : null;
-  const difference = pv && countedMinor !== null ? differenceOf(countedMinor, pv.expectedMinor) : null;
+  const difference =
+    pv && countedMinor !== null ? differenceOf(countedMinor, pv.expectedMinor) : null;
   const save = useMutation({
     mutationFn: (body: CreateCashClosingRequest) => {
       held.current = keyFor(held.current, JSON.stringify(body), () => crypto.randomUUID());
@@ -76,7 +77,11 @@ export function CloseDialog({ open, onOpenChange, branches, onShowClosed }: Prop
     },
   });
   const blocked =
-    !pv || countedMinor === null || difference === null || needsNote(difference, note) || save.isPending;
+    !pv ||
+    countedMinor === null ||
+    difference === null ||
+    needsNote(difference, note) ||
+    save.isPending;
   const submit = () => {
     if (!pv || countedMinor === null) return;
     setFailure(null);
@@ -158,7 +163,9 @@ export function CloseDialog({ open, onOpenChange, branches, onShowClosed }: Prop
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
                   />
-                  <p className="text-xs text-muted-foreground">{t("cashClosings.dialog.noteHint")}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("cashClosings.dialog.noteHint")}
+                  </p>
                 </div>
               </>
             )}
