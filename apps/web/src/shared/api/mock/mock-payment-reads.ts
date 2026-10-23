@@ -144,39 +144,6 @@ export function branchOptions(
   };
 }
 
-/** GET /v1/payments/:id: a receipt outside the view key's reach is not_found. */
-export function getPayment(db: MockState, persona: Persona, paymentId: string): Payment {
-  const a = requirePayments(db, persona, "view");
-  const p = paymentState(db).payments.find((x) => x.id === paymentId && x.clinicId === a.clinic.id);
-  if (!p || !paymentsReach(a, "view", p.branchId)) throw new ApiError("not_found");
-  return paymentView(db, p);
-}
-
-/** GET /v1/payments/branch-options: the payment guards, then only the branches the view key reaches. */
-export function branchOptions(
-  db: MockState,
-  persona: Persona,
-  raw: unknown,
-): BranchOptionListResponse {
-  const a = requirePayments(db, persona, "view");
-  const q = parse(optionListQuerySchema, raw);
-  const rows = db.branches.filter(
-    (b) => b.clinicId === a.clinic.id && paymentsReach(a, "view", b.id),
-  );
-  const start = q.cursor ? rows.findIndex((r) => r.id === q.cursor) + 1 : 0;
-  const page = rows.slice(start, start + q.limit);
-  return {
-    items: page.map((b) => ({
-      id: b.id,
-      nameAr: b.nameAr,
-      nameEn: b.nameEn,
-      isActive: b.isActive,
-    })),
-    nextCursor: start + q.limit < rows.length ? (page[page.length - 1]?.id ?? null) : null,
-    total: rows.length,
-  };
-}
-
 function cursorId(cursor: string): string {
   if (!/^[0-9a-f]{32}$/.test(cursor)) throw new ApiError("validation");
   const at = [8, 12, 16, 20];
