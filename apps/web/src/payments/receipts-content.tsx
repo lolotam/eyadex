@@ -42,12 +42,18 @@ export function ReceiptsContent() {
     setPageNumber(searched);
     pages.reset();
   }
+  const seesPatients = can(session?.permissions ?? [], "view", "patients");
+  // The patient filter exists only with `view:patients`; a key lost mid-session drops the hidden choice.
+  if (!seesPatients && patient) {
+    setPatient(null);
+    pages.reset();
+  }
   const list = useReceiptList({
     limit: PAGE_SIZE,
     ...(!searchChanged && pages.cursor ? { cursor: pages.cursor } : {}),
     ...(branchId ? { branchId } : {}),
     ...(method ? { method: paymentMethodSchema.parse(method) } : {}),
-    ...(patient ? { patientId: patient.id } : {}),
+    ...(seesPatients && patient ? { patientId: patient.id } : {}),
     ...(from ? { from } : {}),
     ...(to ? { to } : {}),
     ...(searched ? { receiptNumber: searched } : {}),
@@ -57,7 +63,6 @@ export function ReceiptsContent() {
     apply();
     pages.reset();
   };
-  const seesPatients = can(session?.permissions ?? [], "view", "patients");
   const items = list.data?.items ?? [];
   return (
     <div>
@@ -108,6 +113,14 @@ export function ReceiptsContent() {
           onChange={(e) => setNumber(e.target.value)}
         />
       </div>
+      {branches.isError && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-destructive/40 px-3 py-2 text-sm text-destructive">
+          <span>{t("payments.receipts.branchesError")}</span>
+          <Button size="sm" variant="outline" onClick={() => void branches.refetch()}>
+            {t("common.tryAgain")}
+          </Button>
+        </div>
+      )}
       {list.isError ? (
         <StatusPanel
           icon={AlertCircle}
@@ -131,8 +144,8 @@ export function ReceiptsContent() {
       <CursorPager
         count={items.length}
         total={list.data?.total ?? 0}
-        canPrevious={!searchPending && pages.canPrevious}
-        canNext={!searchPending && Boolean(list.data?.nextCursor)}
+        canPrevious={!searchPending && !list.isPlaceholderData && pages.canPrevious}
+        canNext={!searchPending && !list.isPlaceholderData && Boolean(list.data?.nextCursor)}
         onPrevious={pages.previous}
         onNext={() => pages.next(list.data?.nextCursor ?? null)}
       />
