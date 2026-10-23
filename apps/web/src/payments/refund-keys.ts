@@ -30,9 +30,7 @@ export function useRefundKeys() {
   const store = useRef<RefundKeyStore>(new Map());
   const keyOf = useCallback(
     (invoiceId: string, source: RefundSource, request: unknown) =>
-      refundKeyOf(store.current, refundSlot(invoiceId, source), request, () =>
-        crypto.randomUUID(),
-      ),
+      refundKeyOf(store.current, refundSlot(invoiceId, source), request, () => crypto.randomUUID()),
     [],
   );
   const drop = useCallback((invoiceId: string, source: RefundSource) => {

@@ -18,7 +18,11 @@ describe("refund idempotency keys (PR #116 review)", () => {
     const { result, rerender } = renderHook(({ paidMinor }) => [useRefundKeys(), paidMinor], {
       initialProps: { paidMinor: "4000" },
     });
-    const first = (result.current[0] as ReturnType<typeof useRefundKeys>).keyOf("inv", receipt, body);
+    const first = (result.current[0] as ReturnType<typeof useRefundKeys>).keyOf(
+      "inv",
+      receipt,
+      body,
+    );
     rerender({ paidMinor: "3000" });
     const keys = result.current[0] as ReturnType<typeof useRefundKeys>;
     expect(keys.keyOf("inv", receipt, body)).toBe(first);
@@ -44,7 +48,13 @@ describe("refund audit category", () => {
     await api.payments.refund(
       admin(),
       invoice.id,
-      { source: "payment", paymentId: paid.payment.id, amountMinor: "1000", method: "cash", reason: "خطأ" },
+      {
+        source: "payment",
+        paymentId: paid.payment.id,
+        amountMinor: "1000",
+        method: "cash",
+        reason: "خطأ",
+      },
       crypto.randomUUID(),
     );
     const rows = auditOf("refund.recorded");
