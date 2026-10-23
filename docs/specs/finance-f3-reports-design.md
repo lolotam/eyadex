@@ -330,7 +330,7 @@ table, and it meets these binding requirements:
 `patient_credit`/`refunds`/`discounts`/`cash_closings`/`own_summary`), `params jsonb` (date range, branch
 ids, language; no patient field), `format` (`csv`/`xlsx`, F3-Q5 b, its own column — EY-10.6), `scope`
 (`clinic`/`branch`/`own`, the scope the request was granted), `patient_ids uuid[] NULL` (the patients of an
-`own` export, so the download can re-check them — EY-10.6), `status` (`queued`/`running`/`done`/`failed`/
+`own` export, written by the publish, so the download can re-check them — EY-10.6), `status` (`queued`/`running`/`done`/`failed`/
 `expired`/`purged`), `storage_key text NULL` (under
 `clinic/<clinic_id>/finance-exports/`, the 0049 pattern), `byte_size int NULL`, `row_count int
 NULL`, `error_code text NULL`, `created_at`, `started_at NULL`, `finished_at NULL`, `expires_at NULL`.
@@ -347,9 +347,10 @@ file fields (column-level `UPDATE` grant).
 `REVOKE ALL … FROM eyadex_platform, eyadex_auth, eyadex_dispatcher`.
 
 A second table comes with it, `finance_report_export_blobs` (pipeline §8.2): one row per blob key ever
-allocated — `clinic_id`, `id`, `export_id`, `attempt`, `storage_key`, `state` (`allocated`/`published`/
-`deleted`), `created_at`, `updated_at` — with the primary key `(clinic_id, id)`, the unique
-`(clinic_id, export_id, attempt)`, the same forced RLS policy and the same column-level `UPDATE` grant.
+allocated — `clinic_id`, `id`, `export_id`, `attempt`, `storage_key`, `state` (`allocated`/`uploaded`/
+`published`/`deleted`/`gone`), `deleted_at`, `created_at`, `updated_at` — with the primary key
+`(clinic_id, id)`, the unique `(clinic_id, export_id, attempt)`, the same forced RLS policy and the
+same column-level `UPDATE` grant.
 It is what makes the cleanup of every key possible (pipeline §6).
 The exact columns, types, checks and indexes of both tables are in
 `docs/specs/finance-f3-export-pipeline.md` §8, so slice 2's SQL is written from there.
