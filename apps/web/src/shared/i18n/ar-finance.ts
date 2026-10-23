@@ -143,6 +143,8 @@ export const arFinance: Strings<typeof enFinance> = {
       totals: "إجمالي الفواتير لكل شهر",
       month: "الشهر",
       invoiced: "الإجمالي",
+      collected: "المحصّل",
+      refunded: "المسترد",
       noTotals: "لا توجد فواتير بعد",
       totalsError: "تعذّر تحميل الإجماليات",
     },
