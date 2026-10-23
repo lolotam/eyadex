@@ -11,6 +11,8 @@ const h = vi.hoisted(() => ({
   session: { permissions: [] as string[], allBranches: false, branchIds: [] as string[] },
   list: {} as Record<string, unknown>,
   refetch: vi.fn(),
+  branches: {} as Record<string, unknown>,
+  queries: [] as Record<string, unknown>[],
 }));
 
 vi.mock("@tanstack/react-router", () => ({
@@ -22,14 +24,23 @@ vi.mock("@/shared/persona/persona-provider", () => ({
   useSession: () => ({ session: h.session }),
 }));
 vi.mock("./receipt-patient-picker", () => ({
-  ReceiptPatientPicker: () => <div>patient-filter</div>,
+  ReceiptPatientPicker: ({
+    onChange,
+  }: {
+    onChange: (p: { id: string; label: string }) => void;
+  }) => (
+    <button type="button" onClick={() => onChange({ id: "p1", label: "x" })}>
+      patient-filter
+    </button>
+  ),
 }));
 vi.mock("./receipt-queries", async (real) => ({
   ...(await real<typeof import("./receipt-queries")>()),
-  useReceiptBranches: () => ({
-    data: [{ id: BRANCH_A, nameAr: "فرع أ", nameEn: "Branch A", isActive: true }],
-  }),
-  useReceiptList: () => h.list,
+  useReceiptBranches: () => h.branches,
+  useReceiptList: (q: Record<string, unknown>) => {
+    h.queries.push(q);
+    return h.list;
+  },
 }));
 
 const base: Omit<Payment, "id" | "receiptNumber" | "branchId" | "invoiceNumber"> = {
@@ -73,6 +84,9 @@ const show = () =>
 beforeEach(() => {
   h.session = { permissions: ["view:payments:clinic"], allBranches: false, branchIds: [BRANCH_A] };
   h.list = { data: { items: rows, total: 2, nextCursor: null }, isLoading: false };
+  h.branches = { data: [{ id: BRANCH_A, nameAr: "فرع أ", nameEn: "Branch A", isActive: true }] };
+  h.queries = [];
+  h.refetch.mockReset();
 });
 afterEach(cleanup);
 
@@ -110,5 +124,45 @@ describe("the receipts list (card 1b)", () => {
     expect(screen.getByText("تعذر تحميل الإيصالات")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "حاول مرة أخرى" }));
     expect(h.refetch).toHaveBeenCalled();
+  });
+
+  it("drops a picked patient and its filter when view:patients is lost", () => {
+    h.session.permissions = ["view:payments:clinic", "view:patients:clinic"];
+    const view = show();
+    fireEvent.click(screen.getByText("patient-filter"));
+    expect(h.queries.at(-1)?.["patientId"]).toBe("p1");
+    h.session = { ...h.session, permissions: ["view:payments:clinic"] };
+    view.rerender(
+      <I18nProvider manageDocument={false}>
+        <ReceiptsContent />
+      </I18nProvider>,
+    );
+    expect(h.queries.at(-1)?.["patientId"]).toBeUndefined();
+    h.session = { ...h.session, permissions: ["view:payments:clinic", "view:patients:clinic"] };
+    view.rerender(
+      <I18nProvider manageDocument={false}>
+        <ReceiptsContent />
+      </I18nProvider>,
+    );
+    expect(h.queries.at(-1)?.["patientId"]).toBeUndefined();
+  });
+
+  it("shows a branch-options failure with a working retry", () => {
+    h.branches = { isError: true, refetch: h.refetch };
+    show();
+    expect(screen.getByText("تعذر تحميل الفروع")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "حاول مرة أخرى" }));
+    expect(h.refetch).toHaveBeenCalled();
+  });
+
+  it("disables both pager buttons while placeholder data shows", () => {
+    h.list = {
+      data: { items: rows, total: 40, nextCursor: "abc" },
+      isLoading: false,
+      isPlaceholderData: true,
+    };
+    show();
+    expect(screen.getByRole("button", { name: "التالي" }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: "السابق" }).hasAttribute("disabled")).toBe(true);
   });
 });

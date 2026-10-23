@@ -78,6 +78,8 @@ export const arPayments: Strings<typeof enPayments> = {
       empty: "لا توجد إيصالات",
       emptyBody: "تظهر هنا المدفوعات المسجلة.",
       loadError: "تعذر تحميل الإيصالات",
+      branchesError: "تعذر تحميل الفروع",
+      patientSearchError: "تعذر البحث عن المراجعين",
       detailTitle: "إيصال {number}",
       back: "العودة إلى المدفوعات",
     },

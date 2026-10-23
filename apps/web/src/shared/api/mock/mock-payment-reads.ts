@@ -124,11 +124,14 @@ export function branchOptions(
 ): BranchOptionListResponse {
   const a = requirePayments(db, persona, "view");
   const q = parse(optionListQuerySchema, raw);
-  const rows = db.branches.filter(
-    (b) => b.clinicId === a.clinic.id && paymentsReach(a, "view", b.id),
-  );
-  const start = q.cursor ? rows.findIndex((r) => r.id === q.cursor) + 1 : 0;
-  const page = rows.slice(start, start + q.limit);
+  // The API's cursor: the last id without dashes, ids in order (list-cursor.ts); anything else is refused.
+  const after = q.cursor ? cursorId(q.cursor) : null;
+  const rows = db.branches
+    .filter((b) => b.clinicId === a.clinic.id && paymentsReach(a, "view", b.id))
+    .sort((x, y) => (x.id < y.id ? -1 : x.id > y.id ? 1 : 0));
+  const rest = after ? rows.filter((r) => r.id > after) : rows;
+  const page = rest.slice(0, q.limit);
+  const last = page[page.length - 1];
   return {
     items: page.map((b) => ({
       id: b.id,
@@ -136,7 +139,13 @@ export function branchOptions(
       nameEn: b.nameEn,
       isActive: b.isActive,
     })),
-    nextCursor: start + q.limit < rows.length ? (page[page.length - 1]?.id ?? null) : null,
+    nextCursor: rest.length > q.limit && last ? last.id.replaceAll("-", "") : null,
     total: rows.length,
   };
+}
+
+function cursorId(cursor: string): string {
+  if (!/^[0-9a-f]{32}$/.test(cursor)) throw new ApiError("validation");
+  const at = [8, 12, 16, 20];
+  return [0, ...at].map((start, i) => cursor.slice(start, at[i])).join("-");
 }

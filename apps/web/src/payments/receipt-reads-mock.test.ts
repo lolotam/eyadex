@@ -53,6 +53,21 @@ describe("GET /payments/branch-options (card 1b)", () => {
     expect(second.items[0]!.id).not.toBe(first.items[0]!.id);
   });
 
+  it("orders by id and uses the API's dash-free cursor", async () => {
+    const all = await api.payments.branchOptions(admin(), {});
+    const ids = all.items.map((b) => b.id);
+    expect(ids).toEqual([...ids].sort());
+    const first = await api.payments.branchOptions(admin(), { limit: 1 });
+    expect(first.nextCursor).toBe(ids[0]!.replaceAll("-", ""));
+  });
+
+  it("NEGATIVE: a cursor not in the API's format is a validation error, not page one", async () => {
+    const all = await api.payments.branchOptions(admin(), {});
+    expect(await refusal(api.payments.branchOptions(admin(), { cursor: all.items[0]!.id }))).toBe(
+      "validation",
+    );
+  });
+
   it("NEGATIVE: without view:payments it is forbidden, as the other payment reads", async () => {
     const { role } = roleOf("receptionist");
     role.permissions = ["view:invoices:clinic", "create:payments:clinic"];

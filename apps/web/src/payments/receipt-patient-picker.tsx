@@ -35,7 +35,7 @@ export function ReceiptPatientPicker({
         limit: 10,
         q: debounced,
         branchId: null,
-        status: "active",
+        status: null,
       }),
     enabled: ready && Boolean(persona.clinicId) && debounced.length >= 2,
     retry: (count, error) => !(error instanceof ApiError) && count < 2,
@@ -61,6 +61,14 @@ export function ReceiptPatientPicker({
         aria-label={t("finance.invoice.pickPatient")}
         placeholder={t("finance.invoice.pickPatient")}
       />
+      {search.isError && (
+        <p className="mt-1 flex items-center gap-2 text-xs text-destructive">
+          {t("payments.receipts.patientSearchError")}
+          <Button type="button" variant="link" size="sm" onClick={() => void search.refetch()}>
+            {t("common.tryAgain")}
+          </Button>
+        </p>
+      )}
       {items.length > 0 && (
         <ul className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border bg-popover shadow-sm">
           {items.map((p) => (
