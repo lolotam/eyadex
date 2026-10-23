@@ -1,4 +1,5 @@
 import { paymentListQuerySchema, type Payment } from "@eyadex/contracts/finance";
+import { optionListQuerySchema, type BranchOptionListResponse } from "@eyadex/contracts/role-admin";
 import type { Persona } from "@eyadex/contracts/session";
 import { creditBalance, paymentRefundable } from "@eyadex/contracts/settlement";
 import { ApiError } from "../api-error";
@@ -113,4 +114,38 @@ export function getPayment(db: MockState, persona: Persona, paymentId: string): 
   const p = paymentState(db).payments.find((x) => x.id === paymentId && x.clinicId === a.clinic.id);
   if (!p || !paymentsReach(a, "view", p.branchId)) throw new ApiError("not_found");
   return paymentView(db, p);
+}
+
+/** GET /v1/payments/branch-options: the payment guards, then only the branches the view key reaches. */
+export function branchOptions(
+  db: MockState,
+  persona: Persona,
+  raw: unknown,
+): BranchOptionListResponse {
+  const a = requirePayments(db, persona, "view");
+  const q = parse(optionListQuerySchema, raw);
+  // The API's cursor: the last id without dashes, ids in order (list-cursor.ts); anything else is refused.
+  const after = q.cursor ? cursorId(q.cursor) : null;
+  const rows = db.branches
+    .filter((b) => b.clinicId === a.clinic.id && paymentsReach(a, "view", b.id))
+    .sort((x, y) => (x.id < y.id ? -1 : x.id > y.id ? 1 : 0));
+  const rest = after ? rows.filter((r) => r.id > after) : rows;
+  const page = rest.slice(0, q.limit);
+  const last = page[page.length - 1];
+  return {
+    items: page.map((b) => ({
+      id: b.id,
+      nameAr: b.nameAr,
+      nameEn: b.nameEn,
+      isActive: b.isActive,
+    })),
+    nextCursor: rest.length > q.limit && last ? last.id.replaceAll("-", "") : null,
+    total: rows.length,
+  };
+}
+
+function cursorId(cursor: string): string {
+  if (!/^[0-9a-f]{32}$/.test(cursor)) throw new ApiError("validation");
+  const at = [8, 12, 16, 20];
+  return [0, ...at].map((start, i) => cursor.slice(start, at[i])).join("-");
 }

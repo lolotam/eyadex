@@ -10,6 +10,7 @@ import { useDebouncedValue } from "@/shared/forms/use-debounced-value";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { can } from "@/shared/permissions/can";
 import { useSession } from "@/shared/persona/persona-provider";
+import { FinanceTabs } from "@/shared/shell/finance-tabs";
 import { PageHeader } from "@/shared/shell/page-header";
 import { StatusPanel } from "@/shared/shell/status-panel";
 import { CursorPager } from "@/shared/table/cursor-pager";
@@ -81,6 +82,7 @@ export function InvoicesContent() {
           )
         }
       />
+      <FinanceTabs active="invoices" />
       <div className="mb-4 grid gap-2 rounded-lg border bg-card p-3 sm:grid-cols-2 lg:grid-cols-7">
         <FilterSelect
           label={t("finance.list.branch")}
