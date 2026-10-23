@@ -29,6 +29,7 @@ export const arCashClosings: Strings<typeof enCashClosings> = {
       pickBranch: "اختر الفرع",
       noBranches: "لا يمكنك إقفال صندوق أي فرع.",
       period: "الحركات النقدية من {from} إلى {through}",
+      noMovementSince: "لا توجد حركات نقدية منذ آخر إقفال",
       firstPeriod: "أول إقفال لهذا الفرع",
       cashIn: "النقد الداخل",
       cashOut: "النقد الخارج",

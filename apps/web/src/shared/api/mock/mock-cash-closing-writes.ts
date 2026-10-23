@@ -18,6 +18,7 @@ import {
   drawerMovements,
   expectedCash,
   methodTotals,
+  requireCashInRange,
 } from "./mock-cash-closing-state";
 import type { FinanceAccess } from "./mock-finance-access";
 import { clinicFinanceOf, exponentOf } from "./mock-finance-state";
@@ -55,6 +56,7 @@ export function previewClosing(
   if (!closingsReach(a, "create", branchId)) throw new ApiError("not_found");
   requireBranch(db, a, branchId);
   const { period, movements, sums } = drawerNow(db, a, branchId);
+  requireCashInRange(sums);
   const businessDate = dayInTimeZone(now.toISOString(), a.clinic.timezone);
   const currency = clinicFinanceOf(db, a.clinic.id).currency;
   return {
@@ -110,6 +112,7 @@ export function closeCash(
     (k) => k.clinicId === a.clinic.id && k.id === period.previousClosingId,
   );
   if (last?.businessDate === businessDate) throw financeError("cash_closing_exists");
+  requireCashInRange(sums);
   const note = body.note ?? null;
   const counted = BigInt(body.countedMinor);
   if (counted !== sums.expected && (note === null || note.trim() === "")) {
