@@ -26,7 +26,7 @@ export function ClosingMethodTotals({
         {totals.map((m) => (
           <div key={m.method} className="flex flex-wrap justify-between gap-2">
             <dt className="text-muted-foreground">{t(`payments.method.${m.method}`)}</dt>
-            <dd className="tabular-nums" dir="ltr">
+            <dd className="tabular-nums">
               {`${t("cashClosings.dialog.in")} ${money(m.inMinor)} · ${t("cashClosings.dialog.out")} ${money(m.outMinor)}`}
             </dd>
           </div>
