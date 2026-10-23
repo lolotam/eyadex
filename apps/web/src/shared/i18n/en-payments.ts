@@ -75,6 +75,8 @@ export const enPayments = {
       empty: "No receipts",
       emptyBody: "Recorded payments appear here.",
       loadError: "Could not load the receipts",
+      branchesError: "Could not load the branches",
+      patientSearchError: "Could not search patients",
       detailTitle: "Receipt {number}",
       back: "Back to payments",
     },

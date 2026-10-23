@@ -35,7 +35,7 @@ export function ReceiptPatientPicker({
         limit: 10,
         q: debounced,
         branchId: null,
-        status: "active",
+        status: null,
       }),
     enabled: ready && Boolean(persona.clinicId) && debounced.length >= 2,
     retry: (count, error) => !(error instanceof ApiError) && count < 2,
