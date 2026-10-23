@@ -11,6 +11,7 @@ import {
   UserCircle,
   Users,
   UsersRound,
+  Vault,
   type LucideIcon,
 } from "lucide-react";
 import type { PermissionResource } from "@eyadex/contracts/permissions";
@@ -31,6 +32,7 @@ export type NavPath =
   | "/clinic/appointments"
   | "/clinic/visits"
   | "/clinic/invoices"
+  | "/clinic/cash-closings"
   | "/clinic/audit"
   | "/clinic/settings"
   | "/clinic/account";
@@ -84,6 +86,13 @@ export const CLINIC_NAV: NavItem[] = [
     label: "nav.invoices",
     icon: ReceiptText,
     anyOf: ["invoices", "payments"],
+  },
+  // F2 card 2b: the branch cash closing, by its own view key (gone with the finance module).
+  {
+    to: "/clinic/cash-closings",
+    label: "nav.cashClosings",
+    icon: Vault,
+    resource: "cash_closings",
   },
   { to: "/clinic/audit", label: "nav.audit", icon: ClipboardList, resource: "audit_log" },
   // D-17: the Settings page holds the General, Services and Work schedules tabs.
