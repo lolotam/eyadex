@@ -287,6 +287,8 @@ export const en = {
     refund_exceeds_available: "The amount is more than can be refunded.",
     payment_methods_empty: "At least one payment method must stay on.",
     cash_drawer_changed: "Cash moved since the preview. Review the closing again.",
+    invoice_paid_changed:
+      "The paid amount on this invoice changed since you last read it; check the movements and try again.",
     cash_closing_exists: "This branch's cash is already closed for today.",
     closing_note_required: "Write a note when there is a difference.",
     cash_drawer_out_of_range:

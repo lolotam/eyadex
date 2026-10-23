@@ -9,6 +9,7 @@ import {
   invoiceSettlementSchema,
   PAYMENT_METHODS,
   platformFinanceTotalsSchema,
+  voidInvoiceRequestSchema,
 } from "../finance.ts";
 
 const ID = "0198f0a0-0000-7000-8000-000000000001";
@@ -248,6 +249,7 @@ describe("F2 error catalogue", () => {
     "refund_exceeds_available",
     "payment_methods_empty",
     "cash_drawer_changed",
+    "invoice_paid_changed",
     "cash_closing_exists",
     "closing_note_required",
     "cash_drawer_out_of_range",
@@ -277,5 +279,20 @@ describe("F2 error catalogue", () => {
       "conflict",
       "not_implemented",
     ]);
+  });
+});
+
+describe("the void request carries the paid amount the user confirmed", () => {
+  const reason = "issued twice";
+
+  it("accepts the request without it, so the web that is live today keeps working", () => {
+    expect(voidInvoiceRequestSchema.parse({ reason })).toEqual({ reason });
+  });
+
+  it("accepts a canonical minor-unit string and refuses any other amount", () => {
+    const accepted = { reason, expectedPaidMinor: "4000" };
+    const refused = { reason, expectedPaidMinor: "-1" };
+    expect(voidInvoiceRequestSchema.safeParse(accepted).success).toBe(true);
+    expect(voidInvoiceRequestSchema.safeParse(refused).success).toBe(false);
   });
 });

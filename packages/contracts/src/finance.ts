@@ -98,8 +98,19 @@ export const updateInvoiceRequestSchema = z
   .strict();
 export type UpdateInvoiceRequest = z.infer<typeof updateInvoiceRequestSchema>;
 
-/** `POST /v1/invoices/:id/void` with `If-Match` (FIN-8). */
-export const voidInvoiceRequestSchema = z.object({ reason: requiredText(300) }).strict();
+/**
+ * `POST /v1/invoices/:id/void` with `If-Match` (FIN-8). `expectedPaidMinor` is the paid amount the
+ * user confirmed on screen: the API refuses the void when the invoice was paid more since that read,
+ * because the money would turn into the patient's credit unseen. It is optional, so the web that is
+ * live today keeps working.
+ */
+export const voidInvoiceRequestSchema = z
+  .object({
+    reason: requiredText(300),
+    expectedPaidMinor: minorAmountSchema.optional(),
+  })
+  .strict();
+export type VoidInvoiceRequest = z.infer<typeof voidInvoiceRequestSchema>;
 
 /** `GET /v1/invoices/draft`: pre-filled lines for the «فاتورة» button; nothing is stored. */
 export const invoiceDraftQuerySchema = z
