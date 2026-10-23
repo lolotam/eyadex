@@ -1,5 +1,6 @@
 import { enFinance } from "./en-finance";
 import { enPayments } from "./en-payments";
+import { enCashClosings } from "./en-cash-closings";
 import { enNotifications } from "./en-notifications";
 import { enWhatsapp } from "./en-whatsapp";
 import { enClinicCreate } from "./en-clinic-create";
@@ -184,6 +185,7 @@ export const en = {
   ...enWhatsapp,
   ...enFinance,
   ...enPayments,
+  ...enCashClosings,
   validation: {
     needsView:
       "Any create, edit or deactivate permission needs view on the same area, at a scope at least as wide",

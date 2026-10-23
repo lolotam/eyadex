@@ -1,5 +1,6 @@
 import { arFinance } from "./ar-finance";
 import { arPayments } from "./ar-payments";
+import { arCashClosings } from "./ar-cash-closings";
 import { arNotifications } from "./ar-notifications";
 import { arWhatsapp } from "./ar-whatsapp";
 import { arClinicCreate } from "./ar-clinic-create";
@@ -183,6 +184,7 @@ export const ar: Dictionary = {
   ...arWhatsapp,
   ...arFinance,
   ...arPayments,
+  ...arCashClosings,
   validation: {
     needsView:
       "أي صلاحية إضافة أو تعديل أو تعطيل تحتاج صلاحية العرض في نفس القسم، بنطاق لا يقل عن نطاقها",

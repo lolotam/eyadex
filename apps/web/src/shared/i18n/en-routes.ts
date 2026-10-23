@@ -16,6 +16,7 @@ export const enRoutes = {
     appointments: "Appointments",
     visits: "Visits",
     invoices: "Invoices",
+    cashClosings: "Cash closing",
     account: "My account",
     menu: "Menu",
   },
@@ -50,6 +51,14 @@ export const enRoutes = {
     clinicPayments: {
       title: "Payments",
       description: "The clinic's receipts: search, filter and open one.",
+    },
+    clinicCashClosings: {
+      title: "Cash closing",
+      description: "Close a branch's cash drawer for the day and review past closings.",
+    },
+    clinicCashClosing: {
+      title: "Cash closing",
+      description: "A closing's period, expected and counted cash, difference and movements.",
     },
     clinicReceipt: {
       title: "Receipt",
