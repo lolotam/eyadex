@@ -18,7 +18,7 @@ import {
   patientAt,
   refusal,
   roleOf,
-} from "@/payments/payment-mock-kit";
+} from "./closing-mock-kit";
 
 beforeEach(() => {
   resetMockData();
