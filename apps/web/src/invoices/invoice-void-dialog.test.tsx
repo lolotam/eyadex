@@ -109,6 +109,8 @@ describe("the void dialog before it releases money", () => {
     await waitFor(() => expect(h.voidInvoice).toHaveBeenCalledTimes(1));
     // The void still sends the version the dialog was opened with, so an edit answers version_conflict.
     expect(h.voidInvoice.mock.calls[0]![2]).toBe(1);
+    // The second click confirms the amount the invoice carries now.
+    expect(h.voidInvoice.mock.calls[0]![4]).toBe("1000");
     expect(h.voided).toHaveBeenCalledTimes(1);
   });
 
@@ -198,6 +200,23 @@ describe("the void dialog and the confirmed paid amount", () => {
     // The invoice is read again, so the warning shows the amount it carries now.
     await waitFor(() => expect(h.getInvoice).toHaveBeenCalledTimes(2));
   });
+
+  // PR #110 review: the void carries the amount the user confirmed. A read that shows another amount
+  // means the user confirmed a stale one, so the void waits for another click.
+  it("does not void on the first click when the invoice was paid again", async () => {
+    // The dialog opened on a paid invoice, so the warning was already shown.
+    h.getInvoice.mockResolvedValue(invoicePaid("2000"));
+    const { button } = open(invoicePaid("1000"));
+    await press(button);
+    // The confirmed amount (1000) is not the amount the invoice carries now (2000): nothing is
+    // voided yet, the warning comes first.
+    expect(await screen.findByText(ar.payments.releaseWarning)).toBeInTheDocument();
+    expect(h.voidInvoice).not.toHaveBeenCalled();
+    await press(button);
+    await waitFor(() => expect(h.voidInvoice).toHaveBeenCalledTimes(1));
+    // The second click confirms the amount the invoice carries now.
+    expect(h.voidInvoice.mock.calls[0]![4]).toBe("2000");
+  });
 });
 
 // PR #110 review: the void goes out after the invoice was read again, so the dialog must not close
@@ -250,6 +269,27 @@ describe("the void dialog while a void is on its way", () => {
     });
     // The read answered and the dialog is gone, so nothing was voided: the same read with the
     // dialog still open does void the invoice (the test above this block).
+    expect(h.voidInvoice).not.toHaveBeenCalled();
+    expect(h.voided).not.toHaveBeenCalled();
+  });
+
+  it("voids nothing when the dialog was unmounted while the invoice was read again", async () => {
+    let release: (invoice: Invoice) => void = () => undefined;
+    h.getInvoice.mockReturnValue(
+      new Promise<Invoice>((resolve) => {
+        release = resolve;
+      }),
+    );
+    const { view, button } = open(invoicePaid("0"));
+    await press(button);
+    // The route changed: the dialog is gone while the read is still running.
+    view.unmount();
+    await act(async () => {
+      release(invoicePaid("0"));
+      // The answer of the read is processed on the next turn, so the check below is not too early.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    // The read answered after the unmount, so it voids nothing.
     expect(h.voidInvoice).not.toHaveBeenCalled();
     expect(h.voided).not.toHaveBeenCalled();
   });

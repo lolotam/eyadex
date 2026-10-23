@@ -21,12 +21,12 @@ import { releasesOnVoid } from "./invoice-release-warning";
 type Props = { invoice: Invoice | null; onClose: () => void; onVoided: () => void };
 
 /**
- * What a click carries: the invoice to void, whether its release warning was already shown, and the
- * reason as it was typed at that click. The reason travels with the click, so what the void sends is
- * what the user confirmed and not whatever the field holds when the request finally goes out
- * (PR #110 review).
+ * What a click carries: the invoice to void, whether its release warning was already shown, the paid
+ * amount the user confirmed, and the reason as it was typed at that click. The reason travels with the
+ * click, so what the void sends is what the user confirmed and not whatever the field holds when the
+ * request finally goes out (PR #110 review).
  */
-type Confirm = { invoice: Invoice; warningShown: boolean; reason: string };
+type Confirm = { invoice: Invoice; warningShown: boolean; seenPaid: string; reason: string };
 
 /**
  * A confirming click with the paid amount it carried: the API refuses a void whose confirmed amount
@@ -40,15 +40,16 @@ type VoidRequest = Confirm & { expectedPaidMinor: string };
  *
  * A recorded payment does not bump that version, so the invoice is read again before every void: when
  * money is paid on it now, the release warning comes first and only the next click voids it (issue #107).
- * The void carries the paid amount of that read, so the API can refuse it when the invoice was paid more
- * in between (issue #113).
+ * The void carries the paid amount the user confirmed, not the amount that read brings back: a read
+ * showing another amount means the user confirmed a stale one, so the void waits for another click and
+ * no money turns into the patient's credit unseen (PR #110 review, issue #113).
  *
  * The reason field is locked while a void is on its way, and the confirming click carries the reason
  * it was given: an edit made in between cannot rewrite what the void records.
  *
  * While that void is on its way the dialog cannot be closed, and a read that answers after the
- * dialog was closed voids nothing: the user cannot walk away from a void they did not see
- * (PR #110 review).
+ * dialog was closed or unmounted voids nothing: the user cannot walk away from a void they did not
+ * see (PR #110 review).
  */
 export function InvoiceVoidDialog({ invoice, onClose, onVoided }: Props) {
   const { t, tDynamic } = useI18n();
@@ -58,18 +59,44 @@ export function InvoiceVoidDialog({ invoice, onClose, onVoided }: Props) {
   // The warning belongs to the invoice it was shown for: opening another invoice starts it over.
   const [warnedId, setWarnedId] = useState<string | null>(null);
   const warningShown = invoice !== null && (releasesOnVoid(invoice) || warnedId === invoice.id);
+  /**
+   * The paid amount the dialog last showed the user, with the invoice it belongs to: the void carries
+   * the amount the user confirmed, not the amount a later read brings back (PR #110 review).
+   */
+  const [seen, setSeen] = useState<{ id: string | null; paid: string }>({
+    id: null,
+    paid: "0",
+  });
+  // Another invoice opens the dialog: the confirmed amount starts over at that invoice's own amount.
+  const seenPaid =
+    seen.id === (invoice?.id ?? null) ? seen.paid : (invoice?.settlement?.paidMinor ?? "0");
   // The invoice the dialog shows right now: a read that answers after the dialog was closed must
   // not void that invoice (PR #110 review). The ref is the only value the read's answer can trust:
   // the state it reads is a render away.
   const openId = useRef<string | null>(invoice?.id ?? null);
   useEffect(() => {
     openId.current = invoice?.id ?? null;
+    return () => {
+      // The dialog closed or opened another invoice: a read that answers now must not void.
+      openId.current = null;
+    };
   }, [invoice?.id]);
+  // The dialog was unmounted (a route change): a read that answers now must not void anything.
+  useEffect(() => {
+    return () => {
+      openId.current = null;
+    };
+  }, []);
   // A read that only refreshes the warning: after the API refused the void, the dialog stays open and
   // the warning must show the amount the invoice carries now (issue #113).
   const refresh = useMutation({
     mutationFn: (confirm: Confirm) => api.finance.getInvoice(persona, confirm.invoice.id),
     onSuccess: (fresh, confirm) => {
+      // The dialog was closed while the invoice was read again: the user walked away, so the read
+      // changes nothing (PR #110 review).
+      if (openId.current !== confirm.invoice.id) return;
+      // The amount the invoice carries now is the one the next confirming click confirms.
+      setSeen({ id: confirm.invoice.id, paid: fresh.settlement?.paidMinor ?? "0" });
       if (releasesOnVoid(fresh)) setWarnedId(confirm.invoice.id);
     },
     onError: (e) => toast.error(tDynamic(`errors.${errorKeyOf(e)}`)),
@@ -101,15 +128,24 @@ export function InvoiceVoidDialog({ invoice, onClose, onVoided }: Props) {
       // The dialog was closed while the invoice was read again: the user walked away, so nothing is
       // voided now (PR #110 review).
       if (openId.current !== confirm.invoice.id) return;
+      const freshPaid = fresh.settlement?.paidMinor ?? "0";
+      // The invoice was paid more since the user confirmed the amount: a void carrying the amount
+      // this read brought back would release money the user never saw, so the warning comes first and
+      // the next click confirms the amount now on the invoice (PR #110 review).
+      if (freshPaid !== confirm.seenPaid) {
+        setSeen({ id: confirm.invoice.id, paid: freshPaid });
+        if (releasesOnVoid(fresh)) setWarnedId(confirm.invoice.id);
+        return;
+      }
       // Money paid since the dialog opened becomes the patient's credit on void, so the warning comes
       // first and the void waits for the next click.
       if (releasesOnVoid(fresh) && !confirm.warningShown) {
         setWarnedId(confirm.invoice.id);
         return;
       }
-      // The void carries the amount this read showed, so the API refuses it when the invoice was paid
+      // The void carries the amount the user confirmed, so the API refuses it when the invoice was paid
       // more in between (issue #113).
-      voidIt.mutate({ ...confirm, expectedPaidMinor: fresh.settlement?.paidMinor ?? "0" });
+      voidIt.mutate({ ...confirm, expectedPaidMinor: confirm.seenPaid });
     },
     onError: (e) => toast.error(tDynamic(`errors.${errorKeyOf(e)}`)),
   });
@@ -146,7 +182,7 @@ export function InvoiceVoidDialog({ invoice, onClose, onVoided }: Props) {
           <Button
             variant="destructive"
             disabled={!reason.trim() || busy}
-            onClick={() => invoice && reread.mutate({ invoice, warningShown, reason })}
+            onClick={() => invoice && reread.mutate({ invoice, warningShown, seenPaid, reason })}
           >
             {t("finance.detail.void")}
           </Button>
