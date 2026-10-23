@@ -32,11 +32,8 @@ export function useReceipt(paymentId: string) {
   });
 }
 
-/**
- * Every branch the `view:payments` key reaches, all pages (lesson 5.3): names and the filter. A screen
- * open without that key (the cash closings) passes `enabled: false` instead of hearing forbidden.
- */
-export function useReceiptBranches(enabled = true) {
+/** Every branch the `view:payments` key reaches, all pages (lesson 5.3): names and the filter. */
+export function useReceiptBranches() {
   const api = useApi();
   const { persona, ready } = usePersona();
   return useQuery({
@@ -54,7 +51,7 @@ export function useReceiptBranches(enabled = true) {
       } while (cursor);
       return items;
     },
-    enabled: enabled && ready && Boolean(persona.clinicId),
+    enabled: ready && Boolean(persona.clinicId),
     retry,
   });
 }

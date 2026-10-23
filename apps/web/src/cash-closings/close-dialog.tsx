@@ -16,14 +16,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { keyFor, type KeyedRequest } from "@/payments/idempotency-key";
 import { errorKeyOf } from "@/shared/api/api-error";
 import { useApi } from "@/shared/api/api-provider";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { usePersona } from "@/shared/persona/persona-provider";
 import { LoadingBlock } from "@/shared/shell/loading-block";
 import { FilterSelect } from "@/shared/table/filter-select";
-import { countedMinorOf, differenceOf, needsNote } from "./closing-count";
+import { countedMinorOf, differenceOf, keyFor, needsNote, type HeldKey } from "./closing-count";
 import { ClosingDifference } from "./closing-difference";
 import { ClosingPreviewSummary } from "./closing-preview-summary";
 import { closingKeys, useClosingPreview } from "./closing-queries";
@@ -52,7 +51,7 @@ export function CloseDialog({ open, onOpenChange, branches, onShowClosed }: Prop
   const [counted, setCounted] = useState("");
   const [note, setNote] = useState("");
   const [failure, setFailure] = useState<string | null>(null);
-  const held = useRef<KeyedRequest>(null);
+  const held = useRef<HeldKey>(null);
   const preview = useClosingPreview(open ? branchId : null);
   const pv = preview.data;
   const countedMinor = pv ? countedMinorOf(counted, pv.currencyExponent) : null;

@@ -4,9 +4,9 @@ import type { ColumnDef } from "@tanstack/react-table";
 import type { CashClosing } from "@eyadex/contracts/finance";
 import type { BranchOption } from "@eyadex/contracts/users";
 import { formatMinor, formatSignedMinor } from "@eyadex/contracts/money";
-import { branchNameIn } from "@/payments/receipt-queries";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { ClosingDifference } from "./closing-difference";
+import { branchNameIn } from "./closing-queries";
 
 const amount = "block whitespace-nowrap text-end tabular-nums";
 

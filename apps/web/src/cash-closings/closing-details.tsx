@@ -3,8 +3,6 @@ import { AlertCircle, ArrowLeft } from "lucide-react";
 import { instantToWall } from "@eyadex/contracts/clinic-time";
 import { formatMinor, formatSignedMinor } from "@eyadex/contracts/money";
 import { Button } from "@/components/ui/button";
-import { branchNameIn, useReceiptBranches } from "@/payments/receipt-queries";
-import { ReceiptRow as Row } from "@/payments/receipt-row";
 import { errorKeyOf } from "@/shared/api/api-error";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { can } from "@/shared/permissions/can";
@@ -15,14 +13,15 @@ import { StatusPanel } from "@/shared/shell/status-panel";
 import { ClosingDifference } from "./closing-difference";
 import { ClosingMethodTotals } from "./closing-method-totals";
 import { ClosingMovements } from "./closing-movements";
-import { useClosing } from "./closing-queries";
+import { branchNameIn, useClosing, useClosingBranches } from "./closing-queries";
+import { ClosingRow as Row } from "./closing-row";
 
 /** A saved closing, read-only: it is never edited or reopened (F2-Q11). No patient appears on it. */
 export function ClosingDetails({ closingId }: { closingId: string }) {
   const { t, tDynamic, pick, formatDate } = useI18n();
   const { session } = useSession();
   const closing = useClosing(closingId);
-  const branches = useReceiptBranches(can(session?.permissions ?? [], "view", "payments"));
+  const branches = useClosingBranches(can(session?.permissions ?? [], "view", "payments"));
   const back = (
     <Button asChild variant="outline">
       <Link to="/clinic/cash-closings">

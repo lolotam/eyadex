@@ -35,3 +35,13 @@ export function closableBranches(
 ): BranchOption[] {
   return branches.filter((b) => canAtBranch(access, "create", "cash_closings", b.id));
 }
+
+export type HeldKey = { fingerprint: string; key: string } | null;
+
+/**
+ * The closing's Idempotency-Key: a retry of the same request keeps it, so an unclear failure that was in
+ * fact recorded replays the first closing; a refreshed preview or another count is a new request.
+ */
+export function keyFor(previous: HeldKey, fingerprint: string, make: () => string) {
+  return previous && previous.fingerprint === fingerprint ? previous : { fingerprint, key: make() };
+}

@@ -2,7 +2,6 @@ import { useState } from "react";
 import { AlertCircle, Vault } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useReceiptBranches } from "@/payments/receipt-queries";
 import { errorKeyOf } from "@/shared/api/api-error";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { can } from "@/shared/permissions/can";
@@ -15,7 +14,7 @@ import { FilterSelect } from "@/shared/table/filter-select";
 import { useCursorPages } from "@/shared/table/use-cursor-pages";
 import { CloseDialog } from "./close-dialog";
 import { closableBranches } from "./closing-count";
-import { useClosingList } from "./closing-queries";
+import { useClosingBranches, useClosingList } from "./closing-queries";
 import { useClosingColumns } from "./use-closing-columns";
 
 const PAGE_SIZE = 20;
@@ -27,7 +26,7 @@ export function ClosingsContent() {
   const permissions = session?.permissions ?? [];
   const pages = useCursorPages();
   // The branch names and the dialog's picker are the payments branch options (owner decision).
-  const branches = useReceiptBranches(can(permissions, "view", "payments"));
+  const branches = useClosingBranches(can(permissions, "view", "payments"));
   const [branchId, setBranchId] = useState<string | null>(null);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
