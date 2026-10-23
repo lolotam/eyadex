@@ -129,7 +129,11 @@ function planOf(
   const money = moneyOf(db, invoice.clinicId, invoice.patientId);
   const amount = BigInt(body.amountMinor);
   if (body.source === "credit") {
-    return { credits: [], spends: settle(() => planCreditRefund(money, amount)), receiptNumber: null };
+    return {
+      credits: [],
+      spends: settle(() => planCreditRefund(money, amount)),
+      receiptNumber: null,
+    };
   }
   const payment = paymentState(db).payments.find(
     (p) => p.clinicId === a.clinic.id && p.id === body.paymentId,

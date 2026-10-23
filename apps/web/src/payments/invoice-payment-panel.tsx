@@ -80,7 +80,8 @@ export function InvoicePaymentPanel({ invoice, onChanged }: Props) {
   // success drops the held key; after a failure the balance is refetched and the key kept for a replay,
   // as long as the invoice still shows the same paid amount.
   const done = (opened: NonNullable<typeof open>) => {
-    if (opened.kind === "refund") refundKeys.drop(opened.source.kind === "payment" ? "pay" : "credit");
+    if (opened.kind === "refund")
+      refundKeys.drop(opened.source.kind === "payment" ? "pay" : "credit");
     else keys.drop(opened.kind);
     setOpen((current) => (current === opened ? null : current));
     onChanged();

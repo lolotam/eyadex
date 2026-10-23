@@ -59,7 +59,12 @@ export function requireRefunds(db: MockState, persona: Persona) {
   return a;
 }
 
-type Replay = { op: "payment" | "credit" | "refund"; key: string; invoiceId: string; body: unknown };
+type Replay = {
+  op: "payment" | "credit" | "refund";
+  key: string;
+  invoiceId: string;
+  body: unknown;
+};
 
 const ledgerKey = (a: FinanceAccess, r: Replay) =>
   `${r.op}:${actorReplayKey(a.clinic.id, a.member.id, r.key)}`;
@@ -75,7 +80,9 @@ export function replayOf<T>(db: MockState, a: FinanceAccess, r: Replay): T | und
   if (!prior) return undefined;
   if (prior.fingerprint !== fingerprintOf(r)) throw new ApiError("idempotency_conflict");
   const reaches =
-    r.op === "refund" ? refundsReach(a, prior.branchId) : paymentsReach(a, "create", prior.branchId);
+    r.op === "refund"
+      ? refundsReach(a, prior.branchId)
+      : paymentsReach(a, "create", prior.branchId);
   if (!reaches) throw new ApiError("not_found");
   return structuredClone(prior.answer) as T;
 }
