@@ -21,6 +21,7 @@ import { useI18n } from "@/shared/i18n/i18n-provider";
 import { usePersona } from "@/shared/persona/persona-provider";
 import { usePendingReport } from "./idempotency-key";
 import { checkAmount } from "./payment-amount";
+import { ReceiptToastLink } from "./receipt-toast-link";
 
 type Values = { method: PaymentMethod; amount: string; reference: string };
 type Props = {
@@ -59,7 +60,9 @@ export function RecordPaymentForm(props: Props) {
     mutationFn: (body: { method: PaymentMethod; amountMinor: string; reference?: string }) =>
       api.payments.recordPayment(persona, invoice.id, body, keyOf(body)),
     onSuccess: (answer) => {
-      toast.success(t("payments.dialog.recorded", { number: answer.payment.receiptNumber }));
+      toast.success(t("payments.dialog.recordedTitle"), {
+        description: <ReceiptToastLink payment={answer.payment} />,
+      });
       onDone();
     },
     onError: (e) => {

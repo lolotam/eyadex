@@ -47,6 +47,14 @@ export const enRoutes = {
       title: "Invoice",
       description: "An invoice's lines, discounts, tax and total, with PDF, send and void.",
     },
+    clinicPayments: {
+      title: "Payments",
+      description: "The clinic's receipts: search, filter and open one.",
+    },
+    clinicReceipt: {
+      title: "Receipt",
+      description: "A receipt's date, branch, invoice, method and amount.",
+    },
     clinicInvoiceNew: {
       title: "New invoice",
       description: "Issue an invoice for an appointment, a visit or by hand.",

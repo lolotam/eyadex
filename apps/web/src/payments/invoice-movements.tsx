@@ -1,10 +1,22 @@
+import { readMinor } from "@eyadex/contracts/money";
+import { Undo2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import type { InvoicePayments } from "@/shared/api/payments-client";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 
-type Props = { data: InvoicePayments; format: (minor: string) => string };
+type PaymentMovement = Extract<InvoicePayments["movements"][number], { kind: "payment" }>;
+type Props = {
+  data: InvoicePayments;
+  format: (minor: string) => string;
+  /** Given only to a caller who may refund at the invoice's branch. */
+  onRefund?: (movement: PaymentMovement) => void;
+};
 
-/** The invoice's movements oldest first: receipts, credit applied, money released into credit. */
-export function InvoiceMovements({ data, format }: Props) {
+/**
+ * The invoice's movements oldest first: receipts, credit applied, money released, refunds. A wrong receipt
+ * is corrected by a refund and a new payment (F2-Q12), so a receipt has no delete or cancel action.
+ */
+export function InvoiceMovements({ data, format, onRefund }: Props) {
   const { t, formatDate } = useI18n();
   if (data.movements.length === 0) {
     return <p className="text-sm text-muted-foreground">{t("payments.panel.noMovements")}</p>;
@@ -40,8 +52,24 @@ export function InvoiceMovements({ data, format }: Props) {
                   .filter(Boolean)
                   .join(" · ")}
               </div>
+              {m.kind === "refund" && (
+                <div className="mt-0.5 break-words text-xs text-muted-foreground" dir="auto">
+                  {m.reason}
+                </div>
+              )}
             </div>
-            <span className="tabular-nums">{format(m.amountMinor)}</span>
+            <div className="flex items-center gap-2">
+              <span className="tabular-nums" dir="ltr">
+                {m.kind === "refund" ? "−" : ""}
+                {format(m.amountMinor)}
+              </span>
+              {onRefund && m.kind === "payment" && (readMinor(m.refundableMinor) ?? 0n) > 0n && (
+                <Button size="sm" variant="ghost" onClick={() => onRefund(m)}>
+                  <Undo2 className="size-4" />
+                  {t("payments.refund.action")}
+                </Button>
+              )}
+            </div>
           </li>
         );
       })}

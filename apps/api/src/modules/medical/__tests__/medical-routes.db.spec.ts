@@ -100,7 +100,8 @@ describe("walk-in picker (R3-1)", () => {
   });
 
   it("finds active files of the branch by name or file number, name and number only, audited", async () => {
-    const tag = randomUUID().slice(0, 4);
+    // "zz" is not hex, so the tag can never appear inside an id in the audit row by chance.
+    const tag = `zz${randomUUID().slice(0, 4)}`;
     const ids: string[] = [];
     for (let i = 0; i < 22; i += 1) {
       const id = await addPatient(h, C.clinicId, C.branchD);

@@ -47,6 +47,14 @@ export const arRoutes = {
       title: "فاتورة",
       description: "بنود الفاتورة وخصوماتها وضريبتها وإجماليها، مع الطباعة والإرسال والإلغاء.",
     },
+    clinicPayments: {
+      title: "المدفوعات",
+      description: "إيصالات العيادة: البحث والتصفية وفتح الإيصال.",
+    },
+    clinicReceipt: {
+      title: "إيصال",
+      description: "تاريخ الإيصال وفرعه وفاتورته وطريقة الدفع والمبلغ.",
+    },
     clinicInvoiceNew: {
       title: "فاتورة جديدة",
       description: "إصدار فاتورة لموعد أو زيارة أو يدويًا.",

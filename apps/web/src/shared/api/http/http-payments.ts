@@ -4,7 +4,11 @@ import {
   paymentListResponseSchema,
   paymentResponseSchema,
   paymentWriteResponseSchema,
+  refundListResponseSchema,
+  refundResponseSchema,
+  refundWriteResponseSchema,
 } from "@eyadex/contracts/finance";
+import { branchOptionListResponseSchema } from "@eyadex/contracts/role-admin";
 import type { PaymentsApi } from "../payments-client";
 import type { HttpContext } from "./http-context";
 
@@ -36,5 +40,24 @@ export function createHttpPayments({ transport }: HttpContext): PaymentsApi {
       });
       return answer.payment;
     },
+    refund: (_persona, invoiceId, input, idempotencyKey) =>
+      transport.send("POST", `/v1/invoices/${id(invoiceId)}/refunds`, {
+        schema: refundWriteResponseSchema,
+        body: input,
+        idempotencyKey,
+      }),
+    listRefunds: (_persona, query) =>
+      transport.send("GET", "/v1/refunds", { schema: refundListResponseSchema, query }),
+    async getRefund(_persona, refundId) {
+      const answer = await transport.send("GET", `/v1/refunds/${id(refundId)}`, {
+        schema: refundResponseSchema,
+      });
+      return answer.refund;
+    },
+    branchOptions: (_persona, query) =>
+      transport.send("GET", "/v1/payments/branch-options", {
+        schema: branchOptionListResponseSchema,
+        query,
+      }),
   };
 }

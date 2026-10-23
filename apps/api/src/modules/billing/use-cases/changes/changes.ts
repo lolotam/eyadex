@@ -1,4 +1,5 @@
 import type { Invoice, UpdateInvoiceRequest } from "@eyadex/contracts/finance";
+import type { VoidInvoiceRequest as VoidBody } from "@eyadex/contracts/finance";
 import {
   planEditRelease,
   planVoidRelease,
@@ -15,6 +16,7 @@ import type { BillingActor } from "../../domain/billing-actor.ts";
 import { branchReach, reachesBranch } from "../../domain/invoice-reach.ts";
 import { invoiceTotals, mayDiscount } from "../../domain/invoice-rules.ts";
 import { settle } from "../../domain/payment-rules.ts";
+import { requireExpectedPaid } from "../../domain/void-expected-paid.ts";
 import {
   archiveLines,
   invoiceOwner,
@@ -165,10 +167,10 @@ export class InvoiceChanges {
    * @param actor الفاعل (شايل `deactivate:invoices` بنطاق `clinic` أو `branch`)
    * @param id الفاتورة
    * @param ifMatch النسخة اللي الفورم شافها
-   * @param reason سبب الإلغاء (بيتخزن في الفاتورة، والسجل بياخد طوله بس)
+   * @param body السبب (بيتخزن في الفاتورة، والسجل بياخد طوله بس) والمبلغ المدفوع اللي الموظف أكده (#113)
    * @returns الفاتورة بعد الإلغاء
    */
-  void(actor: BillingActor, id: string, ifMatch: number, reason: string): Promise<Invoice> {
+  void(actor: BillingActor, id: string, ifMatch: number, body: VoidBody): Promise<Invoice> {
     return this.change(
       actor,
       "deactivate",
@@ -176,15 +178,17 @@ export class InvoiceChanges {
       ifMatch,
       [],
       async (tx, before, locked, now, money) => {
+        // The confirmed amount is judged under the invoice lock, before any write (issue #113).
+        requireExpectedPaid(before.settlement?.paidMinor ?? "0", body.expectedPaidMinor);
         const invoice = {
           id: before.id,
           status: locked.status,
           totalMinor: BigInt(before.totalMinor),
         };
         const releases = settle(() => planVoidRelease(money, invoice));
-        await voidInvoiceRow(tx, actor.clinicId, id, reason, now);
+        await voidInvoiceRow(tx, actor.clinicId, id, body.reason, now);
         await revokeLinks(tx, actor.clinicId, id, now);
-        return { action: "invoice.voided", reasonLength: reason.length, releases };
+        return { action: "invoice.voided", reasonLength: body.reason.length, releases };
       },
     );
   }

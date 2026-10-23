@@ -30,6 +30,12 @@ export const FINANCE_ERROR_MESSAGES = {
     message_ar: "فيه حركة نقدية جديدة من وقت المعاينة. راجع الإقفال تاني.",
     message_en: "Cash moved since the preview. Review the closing again.",
   },
+  invoice_paid_changed: {
+    message_ar:
+      "المبلغ المدفوع على هذه الفاتورة تغيّر بعد آخر قراءة لها؛ راجع الحركات ثم أعد المحاولة",
+    message_en:
+      "The paid amount on this invoice changed since you last read it; check the movements and try again.",
+  },
   cash_closing_exists: {
     message_ar: "الفرع ده اتقفل صندوقه النهارده.",
     message_en: "This branch's cash is already closed for today.",
