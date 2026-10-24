@@ -39,15 +39,15 @@ Out of scope:
 
 Where the code goes (parent slice 4): `apps/worker/src/finance-exports/`.
 
-| File                               | What it holds                                           |
-| ---------------------------------- | ------------------------------------------------------- |
-| `handle-export-requested.ts`       | the claim handler: the hand-off only, no build          |
-| `export-runner.ts`                 | the local queue, the heartbeat and the build            |
-| `persistence/pg-export-store.ts`   | the lease, the heartbeat, the blob rows and the publish |
-| `persistence/pg-export-sweeper.ts` | the expiry sweep and the cleanup of every allocated key |
-| `domain/export-key.ts`             | the blob key layout                                     |
-| `domain/export-failures.ts`        | the failure kinds and the backoff ladder                |
-| `ports/blob-store.ts`              | the worker's blob port: `put`, `get`, `delete`          |
+| File                               | What it holds                                                     |
+| ---------------------------------- | ----------------------------------------------------------------- |
+| `handle-export-requested.ts`       | the claim handler: the hand-off only, no build                    |
+| `export-runner.ts`                 | the local queue, the heartbeat and the build                      |
+| `persistence/pg-export-store.ts`   | the lease, the heartbeat, the blob rows and the publish           |
+| `persistence/pg-export-sweeper.ts` | the expiry sweep and the cleanup of every allocated key           |
+| `domain/export-key.ts`             | the blob key layout                                               |
+| `domain/export-failures.ts`        | the failure kinds and the backoff ladder                          |
+| `ports/blob-store.ts`              | the worker's blob port: `put` (tagged), `get`, `delete`, `exists` |
 
 The API side stays in the `billing` module (`apps/api/src/modules/billing/`), because the billing
 module owns the finance tables (ADR-0033, ADR-0034).
@@ -109,9 +109,17 @@ never part of the claim transaction: it is its own transaction, and it commits o
 
 - `attempt = attempt + 1`,
 - `lease_owner = <this worker>`,
-- `lease_until = now + 60 s`,
+- `lease_until = now() + 60 s`,
 - `status = 'running'`,
 - `started_at` set once, on the first attempt.
+
+**One running export per member, held by the database.** The request's check of step 1 sees only the
+moment of the request: two requests from one member can both pass it before either is leased. So the
+lease also runs into the partial unique index `(clinic_id, requested_by) WHERE status = 'running'`
+(§8.1). A lease write that would make a second `running` row for the member fails on that index; the
+transaction rolls back, nothing is written, and the handler returns `deferred` with `nextAttemptAt`
+30 s later. A takeover of the member's own expired lease updates the same row, so it never trips the
+index.
 
 The handler then returns `deferred` with `nextAttemptAt` = the end of the lease.
 `deferred` is the dispatcher's own "not attempted yet" outcome: it does not count an attempt and it
@@ -232,7 +240,8 @@ One short transaction, on the app pool inside `withTenant(clinicId)`:
 UPDATE finance_report_exports
    SET status = 'done', storage_key = $key, byte_size = $size, row_count = $rows,
        patient_ids = $patients,
-       finished_at = now(), expires_at = now() + interval '24 hours', error_code = NULL,
+       finished_at = clock_timestamp(), expires_at = clock_timestamp() + interval '24 hours',
+       error_code = NULL,
        lease_owner = NULL, lease_until = NULL
  WHERE clinic_id = $clinic AND id = $export AND attempt = $mine AND lease_owner = $me
    AND lease_until > now()
@@ -240,6 +249,11 @@ UPDATE finance_report_exports
 
 The lease must still be alive: a lease that has expired is not the attempt's any more, so the attempt
 publishes nothing.
+
+The blob row's update below runs **first** in the transaction, and this export update runs last, so a
+wait on the blob row cannot push the commit past the stored times. `finished_at` and `expires_at` are
+then read from `clock_timestamp()` rather than the transaction's start (`now()`), so the 24 hours
+start at the publication itself.
 A final row (`done`, `failed`, `expired`, `purged`) holds no live lease — the publish and the release
 clear it — so the publish never touches one either.
 
@@ -492,7 +506,10 @@ prove that the last delete was the last write. The guarantee comes from the stor
 - every export object is written with the object tag `eyadex-kind=finance-export`,
 - the bucket carries a lifecycle rule that expires objects with that tag **2 days** after their
   creation. A published file lives 24 hours (§7), so the rule never removes a file the download
-  still serves, and any object the table lost track of is removed by the store within 2 days.
+  still serves. The removal is **eventual**: the store counts expiry days from its own day boundary
+  and runs the deletion as a background scan, so an object the table lost track of is removed
+  within about 3 days, not at an exact hour. That bound covers only the rare late write of §6; every
+  key the table knows is deleted by the sweeper as soon as it is dead.
 
 The table's cleanup keeps its job: it removes every known key as soon as it is dead, so a file
 outlives its row only in the rare late-write case, and never past the lifecycle rule. The rule is a
@@ -623,6 +640,8 @@ Primary key `(clinic_id, id)`.
 Indexes:
 
 - `(clinic_id, requested_by, created_at)` — the requester's export list (parent §7.3).
+- unique `(clinic_id, requested_by) WHERE status = 'running'` — at most one running export per member,
+  held by the database at the lease (§2 step 3).
 - `(clinic_id, status, expires_at)` — the expiry sweep of §7.
   This is not a queue index: the worker still reaches a job by its id, through its outbox event.
 
@@ -784,6 +803,8 @@ Integration (against PostgreSQL, as `eyadex_app`):
 - the publish moves the blob row: the blob row goes from `uploaded` to `published` in the same
   transaction, and a blob row that is not `uploaded` aborts the whole publish, so the export row and
   the audit row stay as they were,
+- one running export per member: two queued exports of one member, leased together, leave one
+  `running` and the other `queued` with its event deferred, and the second runs once the first ends,
 - the attempt limit: a `running` row with an expired lease at the limit becomes `failed` with
   `attempts_exhausted`, and so does a `queued` row at the limit,
 - the sweeper never touches a live upload: the `allocated` and the `uploaded` row of the current
@@ -842,7 +863,8 @@ The pipeline needs a third operation, `delete(key)` on both adapters:
 - the API adapter (`S3BlobStore` and `MemoryBlobStore`) deletes the key of a refused `own` export
   (EY-10.4),
 - the worker's adapter deletes the key of a losing attempt, of an expired file and of an orphaned
-  upload.
+  upload, stats a key before its row becomes `gone` (`exists(key)`, §6), and writes every export
+  object with the tag `eyadex-kind=finance-export`.
 
 The worker gets its own port and S3 client under `apps/worker/src/shared/blob/`, with the same
 contract, because the apps never import each other.
@@ -858,9 +880,16 @@ the API's user needs it on the same prefix for the purge.
 The attachments' keys stay undeletable: the export prefix is the only one that gets the permission.
 
 **The bucket has no lifecycle rule for exports.** The store needs a rule that expires objects tagged
-`eyadex-kind=finance-export` 2 days after creation (§6), and the storage users need
-`s3:PutObjectTagging` for the tag. The rule is filtered by the tag, so it can never touch an
-attachment.
+`eyadex-kind=finance-export` 2 days after creation (§6). The tag is the rule's only filter, so who can
+write it decides what the rule may delete:
+
+- only the **worker's** storage user gets `s3:PutObjectTagging`, and only on the resource
+  `clinic/*/finance-exports/*`, the same scope as its `s3:DeleteObject`. The API's user never gets it:
+  the API uploads no export;
+- a server-side check, run once when the policy is applied, proves it: tagging an attachment key as
+  the worker's user, and any key as the API's user, is refused.
+
+So an attachment can never carry the tag, and the rule can never delete one.
 
 **All three are a server change, and the owner says yes before slice 4 ships.** The grants and the
 rule live on the storage side (the bucket policy, the lifecycle rule and the worker's storage user),
