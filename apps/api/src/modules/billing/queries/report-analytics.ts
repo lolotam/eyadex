@@ -6,24 +6,47 @@ import type { z } from "zod";
 import { analyticsTotals, sumReportMoney } from "../domain/report-totals.ts";
 import type { BillingPatientReader } from "../ports/billing-patients.ts";
 import type { BillingReportStaff } from "../ports/billing-report-staff.ts";
+import type { BillingReportServices } from "../ports/billing-report-services.ts";
 import { uuidArray, type ReportContext, type ReportQuery } from "./report-sql.ts";
 
 type ServiceRow = z.infer<typeof reports.reportByServiceRowSchema>;
 type DoctorRow = z.infer<typeof reports.reportByDoctorRowSchema>;
 type OwnRow = z.infer<typeof reports.reportOwnSummaryRowSchema>;
 
-export async function byService(tx: Tx, ctx: ReportContext, query: ReportQuery) {
-  const rows = await tx.execute<ServiceRow>(sql`
+export async function byService(
+  tx: Tx,
+  ctx: ReportContext,
+  query: ReportQuery,
+  services: BillingReportServices,
+) {
+  const raw = await tx.execute<Omit<ServiceRow, "name">>(sql`
     SELECT r.kind, r.service_id AS "serviceId",
-      CASE WHEN r.kind = 'tax' THEN ${ctx.language === "ar" ? "الضريبة" : "Tax"}
-        WHEN r.kind = 'free' THEN ${ctx.language === "ar" ? "بنود حرة" : "Free lines"}
-        ELSE coalesce(${ctx.language === "ar" ? sql`s.name_ar` : sql`s.name_en`}, '—') END AS name,
       r.line_count AS "lineCount", r.quantity, r.amount_minor::text AS "amountMinor", r.currency
     FROM finance_report_by_service(${query.from}::date, ${query.to}::date,
       ${uuidArray(ctx.branchIds)}) r
-    LEFT JOIN clinic_services s ON s.clinic_id = ${ctx.clinicId} AND s.id = r.service_id
     ORDER BY r.kind, r.service_id`);
-  return { rows: [...rows], totals: analyticsTotals(rows) };
+  const names = await services.namesOf(
+    tx,
+    ctx.clinicId,
+    raw.flatMap((row) => (row.serviceId === null ? [] : [row.serviceId])),
+  );
+  const rows = raw.map((row) => {
+    const service = row.serviceId === null ? undefined : names.get(row.serviceId);
+    return {
+      ...row,
+      name:
+        row.kind === "tax"
+          ? ctx.language === "ar"
+            ? "الضريبة"
+            : "Tax"
+          : row.kind === "free"
+            ? ctx.language === "ar"
+              ? "بنود حرة"
+              : "Free lines"
+            : ((ctx.language === "ar" ? service?.nameAr : service?.nameEn) ?? "—"),
+    };
+  });
+  return { rows, totals: analyticsTotals(rows) };
 }
 
 export async function byDoctor(
@@ -75,7 +98,8 @@ export async function ownSummary(
     WHERE i.clinic_id = ${ctx.clinicId} AND i.status = 'issued'
       AND i.branch_id = ANY(${uuidArray(ctx.branchIds)}) AND ${own}
       AND l.archived_at IS NULL AND l.provider_id = ${membershipId}::uuid
-      AND (i.issued_at AT TIME ZONE c.timezone)::date BETWEEN ${query.from}::date AND ${query.to}::date
+      AND i.issued_at >= (${query.from}::date::timestamp AT TIME ZONE c.timezone)
+      AND i.issued_at < ((${query.to}::date + 1)::timestamp AT TIME ZONE c.timezone)
     GROUP BY 1, i.currency ORDER BY 1`);
   return { rows: [...rows], totals: { billedMinor: sumReportMoney(rows, "billedMinor") } };
 }

@@ -6,7 +6,7 @@ import type { z } from "zod";
 import type { BillingPatientReader } from "../ports/billing-patients.ts";
 import type { BillingReportStaff } from "../ports/billing-report-staff.ts";
 import {
-  branchName,
+  branchReportItems,
   patientReportItems,
   reportPage,
   uuidArray,
@@ -16,11 +16,11 @@ import {
 
 type RefundRow = Omit<
   z.infer<typeof reports.reportRefundRowSchema>,
-  "patientName" | "refundedByName"
+  "patientName" | "refundedByName" | "branchName"
 > & { rowId: string };
 type DiscountRow = Omit<
   z.infer<typeof reports.reportDiscountRowSchema>,
-  "patientName" | "discountedByName"
+  "patientName" | "discountedByName" | "branchName"
 > & { rowId: string };
 
 export async function reportRefunds(
@@ -31,18 +31,23 @@ export async function reportRefunds(
   staff: BillingReportStaff,
 ) {
   const relation = sql`SELECT f.id AS "rowId", f.id AS "refundId", f.refund_number AS "refundNumber",
-    f.branch_id AS "branchId", ${branchName(ctx.language)} AS "branchName",
+    f.branch_id AS "branchId",
     f.business_date::text AS "businessDate", f.patient_id AS "patientId", f.method,
     CASE WHEN EXISTS (SELECT 1 FROM refund_sources s
       JOIN patient_credits pc ON pc.clinic_id = s.clinic_id AND pc.id = s.credit_id
       WHERE s.clinic_id = f.clinic_id AND s.refund_id = f.id AND pc.cause = 'refund')
       THEN 'payment' ELSE 'credit' END AS source,
     f.amount_minor::text AS "amountMinor", f.refunded_by AS "refundedBy", f.reason, f.currency
-    FROM refunds f JOIN branches b ON b.clinic_id = f.clinic_id AND b.id = f.branch_id
+    FROM refunds f
     WHERE f.clinic_id = ${ctx.clinicId} AND f.branch_id = ANY(${uuidArray(ctx.branchIds)})
       AND f.business_date BETWEEN ${query.from}::date AND ${query.to}::date`;
   const page = await reportPage<RefundRow>(tx, query, relation);
-  const named = await patientReportItems(tx, ctx.clinicId, page.rows, patients);
+  const named = await patientReportItems(
+    tx,
+    ctx.clinicId,
+    branchReportItems(ctx, page.rows),
+    patients,
+  );
   const names = await staff.findMany(
     tx,
     ctx.clinicId,
@@ -81,12 +86,11 @@ export async function reportDiscounts(
     FROM invoice_lines l WHERE l.clinic_id = i.clinic_id AND l.invoice_id = i.id
       AND l.archived_at IS NULL)`;
   const relation = sql`SELECT d.id AS "rowId", i.id AS "invoiceId", i.number AS "invoiceNumber",
-    i.branch_id AS "branchId", ${branchName(ctx.language)} AS "branchName",
+    i.branch_id AS "branchId",
     (i.issued_at AT TIME ZONE c.timezone)::date::text AS "businessDate",
     i.patient_id AS "patientId", d.kind, d.amount::text AS "discountMinor",
     d.discounted_by AS "discountedBy", d.reason, i.currency
     FROM invoices i JOIN clinics c ON c.id = i.clinic_id
-    JOIN branches b ON b.clinic_id = i.clinic_id AND b.id = i.branch_id
     CROSS JOIN LATERAL (
       SELECT l.id, 'line' AS kind, ${lineAmount} AS amount, l.discounted_by,
         l.line_discount->>'reason' AS reason
@@ -100,7 +104,12 @@ export async function reportDiscounts(
       AND i.branch_id = ANY(${uuidArray(ctx.branchIds)})
       AND (i.issued_at AT TIME ZONE c.timezone)::date BETWEEN ${query.from}::date AND ${query.to}::date`;
   const page = await reportPage<DiscountRow>(tx, query, relation);
-  const named = await patientReportItems(tx, ctx.clinicId, page.rows, patients);
+  const named = await patientReportItems(
+    tx,
+    ctx.clinicId,
+    branchReportItems(ctx, page.rows),
+    patients,
+  );
   const names = await staff.findMany(
     tx,
     ctx.clinicId,

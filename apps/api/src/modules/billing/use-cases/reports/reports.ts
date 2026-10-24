@@ -9,12 +9,13 @@ import { reportBranchIds, reportScope } from "../../domain/report-scope.ts";
 import { clinicMoneyFacts, type ClinicMoneyFacts } from "../../persistence/pg-cash-drawer.ts";
 import type { BillingPatientReader } from "../../ports/billing-patients.ts";
 import type { BillingReportStaff } from "../../ports/billing-report-staff.ts";
+import type { BillingReportServices } from "../../ports/billing-report-services.ts";
+import type { BillingBranchReader } from "../../ports/billing-branches.ts";
 import { reportRefunds, reportDiscounts } from "../../queries/report-adjustments.ts";
 import { byService, byDoctor, ownSummary } from "../../queries/report-analytics.ts";
 import { outstanding, patientCredit } from "../../queries/report-balances.ts";
 import { dailyTakings, periodSummary, reportCashClosings } from "../../queries/report-takings.ts";
 import {
-  reportBranches,
   type ReportContext,
   type ReportPageQuery,
   type ReportQuery,
@@ -30,6 +31,8 @@ export class FinanceReports {
       readonly clock: Clock;
       readonly patients: BillingPatientReader;
       readonly staff: BillingReportStaff;
+      readonly services: BillingReportServices;
+      readonly branches: BillingBranchReader;
     },
   ) {}
 
@@ -46,7 +49,9 @@ export class FinanceReports {
   }
 
   byService(actor: BillingActor, query: ReportQuery, language: Language) {
-    return this.read("by_service", actor, query, language, (tx, ctx) => byService(tx, ctx, query));
+    return this.read("by_service", actor, query, language, (tx, ctx) =>
+      byService(tx, ctx, query, this.deps.services),
+    );
   }
 
   byDoctor(actor: BillingActor, query: ReportQuery, language: Language) {
@@ -107,14 +112,22 @@ export class FinanceReports {
     const scope = reportScope(actor, report);
     if (scope === null) throw new ApiError("forbidden");
     return this.deps.db.withTenant(actor.clinicId, async (tx) => {
+      const branches = await this.deps.branches.listForOptions(tx, actor.clinicId, language);
       const branchIds = reportBranchIds(
         scope,
-        await reportBranches(tx, actor.clinicId),
+        branches.map((branch) => branch.id),
         query.branchId,
       );
       if (branchIds === null) throw new ApiError("forbidden");
       const facts = await clinicMoneyFacts(tx, actor.clinicId);
-      const result = await load(tx, { clinicId: actor.clinicId, branchIds, language }, facts);
+      const branchNames = new Map(
+        branches.map((branch) => [branch.id, language === "ar" ? branch.nameAr : branch.nameEn]),
+      );
+      const result = await load(
+        tx,
+        { clinicId: actor.clinicId, branchIds, branchNames, language },
+        facts,
+      );
       return { ...result, currency: facts.currency, currencyExponent: facts.currencyExponent };
     });
   }

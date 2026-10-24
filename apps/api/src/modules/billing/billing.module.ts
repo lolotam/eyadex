@@ -7,7 +7,7 @@ import type { BlobStore } from "../../shared/blob/blob-store.ts";
 import { DatabaseModule } from "../../shared/database.module.ts";
 import { DATABASE } from "../../shared/database.provider.ts";
 // A module.ts may bind another module's adapter to a port it owns (CLAUDE.architecture.md §2.2).
-import { PgBillingAppointments } from "../appointments/index.ts";
+import { PgBillingAppointments, PgBillingReportServices } from "../appointments/index.ts";
 import { PgBillingVisits } from "../medical/index.ts";
 import { PgInvoiceNotifications } from "../notifications/index.ts";
 import { PgBillingPatients } from "../patients/index.ts";
@@ -23,6 +23,7 @@ import { CLOCK, PgFilingBranches, TenancyModule, type Clock } from "../tenancy/i
 import { InvoicePdfController } from "./http/invoice-pdf.controller.ts";
 import { FinanceReportsController } from "./http/finance-reports.controller.ts";
 import type { BillingReportStaff } from "./ports/billing-report-staff.ts";
+import type { BillingReportServices } from "./ports/billing-report-services.ts";
 import { FinanceReports } from "./use-cases/reports/reports.ts";
 import { InvoiceSendController } from "./http/invoice-send.controller.ts";
 import { CashClosingsController } from "./http/cash-closings.controller.ts";
@@ -84,6 +85,7 @@ const patients: BillingPatientReader = new PgBillingPatients();
 const branches: BillingBranchReader = new PgFilingBranches();
 const members: BillingLineDoctorLocks = new PgBillingLineDoctors();
 const reportStaff: BillingReportStaff = new PgProviderDirectory();
+const reportServices: BillingReportServices = new PgBillingReportServices();
 
 /**
  * موديول المالية (finance F1 و F2): أسعار الخدمات، والفواتير، ومدفوعاتها ورصيد المراجع. كل الشغل على
@@ -123,7 +125,14 @@ export class BillingModule {
           provide: FINANCE_REPORTS,
           inject: [DATABASE, CLOCK],
           useFactory: (db: Database, clock: Clock) =>
-            new FinanceReports({ db, clock, patients, staff: reportStaff }),
+            new FinanceReports({
+              db,
+              clock,
+              patients,
+              staff: reportStaff,
+              branches,
+              services: reportServices,
+            }),
         },
         ClinicAreaGuard,
         PublicRateLimitGuard,

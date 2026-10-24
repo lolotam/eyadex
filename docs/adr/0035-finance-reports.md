@@ -68,6 +68,12 @@ built yet: the SQL plan still needs the owner's yes.
 9. **The platform sees nothing of F3** (FIN-3): no grant on a report table, function or view, no report
    screen, no export and no audit row.
 10. **The SQL plan needs the owner's yes** before any SQL file is written (spec §8).
+11. **Report names cross module boundaries through billing-owned ports**, bound only in
+    `billing.module.ts` through each owner's `index.ts`: `BillingReportStaff` uses identity's
+    `PgProviderDirectory`, `BillingBranchReader` uses tenancy's existing `PgFilingBranches` (including
+    inactive branches), and `BillingReportServices` uses appointments' `PgBillingReportServices`
+    (including inactive services). Report SQL reads neither branch nor service names directly. The
+    adapters import nothing of billing, preserving the dependency direction of §2.2.
 
 ## Consequences
 

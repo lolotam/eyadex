@@ -5,26 +5,30 @@ import type { z } from "zod";
 
 import { sumReportMoney } from "../domain/report-totals.ts";
 import type { BillingReportStaff } from "../ports/billing-report-staff.ts";
-import { branchName, uuidArray, type ReportContext, type ReportQuery } from "./report-sql.ts";
+import {
+  branchReportItems,
+  uuidArray,
+  type ReportContext,
+  type ReportQuery,
+} from "./report-sql.ts";
 
-type TakingsRow = z.infer<typeof reports.reportDailyTakingsRowSchema>;
-type SummaryRow = z.infer<typeof reports.reportPeriodSummaryRowSchema>;
-type ClosingRow = z.infer<typeof reports.reportCashClosingRowSchema>;
+type TakingsRow = Omit<z.infer<typeof reports.reportDailyTakingsRowSchema>, "branchName">;
+type SummaryRow = Omit<z.infer<typeof reports.reportPeriodSummaryRowSchema>, "branchName">;
+type ClosingRow = Omit<z.infer<typeof reports.reportCashClosingRowSchema>, "branchName">;
 type Grouped = ReportQuery & { groupBy: "day" | "month" };
 
 export async function dailyTakings(tx: Tx, ctx: ReportContext, query: Grouped) {
   const period = query.groupBy === "month" ? "YYYY-MM" : "YYYY-MM-DD";
   const rows = await tx.execute<TakingsRow>(sql`
     SELECT to_char(r.business_date, ${period}) AS period, r.branch_id AS "branchId",
-      ${branchName(ctx.language)} AS "branchName", r.method, r.currency,
+      r.method, r.currency,
       sum(r.in_minor)::text AS "inMinor", sum(r.out_minor)::text AS "outMinor",
       sum(r.net_minor)::text AS "netMinor"
     FROM finance_report_daily_takings(${query.from}::date, ${query.to}::date,
       ${uuidArray(ctx.branchIds)}) r
-    JOIN branches b ON b.clinic_id = ${ctx.clinicId} AND b.id = r.branch_id
-    GROUP BY 1, 2, 3, r.method, r.currency ORDER BY 1, 2, r.method`);
+    GROUP BY 1, 2, r.method, r.currency ORDER BY 1, 2, r.method`);
   return {
-    rows: [...rows],
+    rows: branchReportItems(ctx, rows),
     totals: {
       inMinor: sumReportMoney(rows, "inMinor"),
       outMinor: sumReportMoney(rows, "outMinor"),
@@ -37,17 +41,16 @@ export async function periodSummary(tx: Tx, ctx: ReportContext, query: Grouped) 
   const period = query.groupBy === "month" ? "YYYY-MM" : "YYYY-MM-DD";
   const rows = await tx.execute<SummaryRow>(sql`
     SELECT to_char(r.business_date, ${period}) AS period, r.branch_id AS "branchId",
-      ${branchName(ctx.language)} AS "branchName", r.currency,
+      r.currency,
       sum(r.invoiced_minor)::text AS "invoicedMinor", sum(r.discount_minor)::text AS "discountMinor",
       sum(r.tax_minor)::text AS "taxMinor", sum(r.collected_minor)::text AS "collectedMinor",
       sum(r.refunded_minor)::text AS "refundedMinor",
       sum(r.credit_applied_minor)::text AS "creditAppliedMinor", sum(r.void_count)::int AS "voidCount"
     FROM finance_report_period_summary(${query.from}::date, ${query.to}::date,
       ${uuidArray(ctx.branchIds)}) r
-    JOIN branches b ON b.clinic_id = ${ctx.clinicId} AND b.id = r.branch_id
-    GROUP BY 1, 2, 3, r.currency ORDER BY 1, 2`);
+    GROUP BY 1, 2, r.currency ORDER BY 1, 2`);
   return {
-    rows: [...rows],
+    rows: branchReportItems(ctx, rows),
     totals: {
       invoicedMinor: sumReportMoney(rows, "invoicedMinor"),
       discountMinor: sumReportMoney(rows, "discountMinor"),
@@ -68,20 +71,19 @@ export async function reportCashClosings(
 ) {
   const raw = await tx.execute<Omit<ClosingRow, "closedByName">>(sql`
     SELECT r.closing_id AS "closingId", r.branch_id AS "branchId",
-      ${branchName(ctx.language)} AS "branchName", r.business_date::text AS "businessDate",
+      r.business_date::text AS "businessDate",
       r.expected_minor::text AS "expectedMinor", r.counted_minor::text AS "countedMinor",
       r.difference_minor::text AS "differenceMinor", r.closed_by AS "closedBy",
       r.note_present AS "notePresent", r.currency
     FROM finance_report_cash_closings(${query.from}::date, ${query.to}::date,
       ${uuidArray(ctx.branchIds)}) r
-    JOIN branches b ON b.clinic_id = ${ctx.clinicId} AND b.id = r.branch_id
     ORDER BY r.business_date, r.branch_id, r.closing_id`);
   const names = await staff.findMany(
     tx,
     ctx.clinicId,
     raw.map((row) => row.closedBy),
   );
-  const rows = raw.map((row) => ({
+  const rows = branchReportItems(ctx, raw).map((row) => ({
     ...row,
     closedByName: names.get(row.closedBy)?.fullName ?? null,
   }));

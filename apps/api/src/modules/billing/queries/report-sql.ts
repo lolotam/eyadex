@@ -20,16 +20,18 @@ export interface ReportContext {
   readonly clinicId: string;
   readonly branchIds: readonly string[];
   readonly language: "ar" | "en";
+  readonly branchNames: ReadonlyMap<string, string>;
 }
 
-export const branchName = (language: "ar" | "en") =>
-  language === "ar" ? sql`b.name_ar` : sql`b.name_en`;
-
-export async function reportBranches(tx: Tx, clinicId: string): Promise<string[]> {
-  const rows = await tx.execute<{ id: string }>(
-    sql`SELECT id FROM branches WHERE clinic_id = ${clinicId} ORDER BY id`,
-  );
-  return rows.map((row) => row.id);
+export function branchReportItems<Row extends { branchId: string }>(
+  ctx: ReportContext,
+  rows: readonly Row[],
+): (Row & { branchName: string })[] {
+  return rows.map((row) => {
+    const branchName = ctx.branchNames.get(row.branchId);
+    if (branchName === undefined) throw new ApiError("unknown");
+    return { ...row, branchName };
+  });
 }
 
 // The relation is a billing SELECT with a private rowId, so a discount line and invoice paginate alike.

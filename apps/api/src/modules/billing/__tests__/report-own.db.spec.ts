@@ -127,6 +127,37 @@ describe("R10 doctor's own billed lines", () => {
     await expectForbidden(f, "outstanding", f.C.doctor.cookie);
   });
 
+  it("keeps both range boundaries at clinic midnight when filtering issue instants", async () => {
+    const { h, C } = f;
+    const invoiceId = visible[0]!;
+    const [original] = await h.owner<
+      { issued_at: string }[]
+    >`SELECT issued_at::text AS issued_at FROM invoices
+      WHERE clinic_id = ${C.clinicId} AND id = ${invoiceId}`;
+    try {
+      for (const [instant, expected] of [
+        ["2026-06-14T20:59:59.999Z", "0"],
+        ["2026-06-14T21:00:00Z", "600"],
+        ["2026-06-15T20:59:59.999Z", "600"],
+        ["2026-06-15T21:00:00Z", "0"],
+      ]) {
+        await h.owner`UPDATE invoices SET issued_at = ${instant!}::timestamptz
+          WHERE clinic_id = ${C.clinicId} AND id = ${invoiceId}`;
+        const res = await f.get(
+          "own-summary",
+          C.doctor.cookie,
+          "",
+          "from=2026-06-15&to=2026-06-15",
+        );
+        expect(res.statusCode, res.body).toBe(200);
+        expect(reportOwnSummaryResponseSchema.parse(res.json()).totals.billedMinor).toBe(expected);
+      }
+    } finally {
+      await h.owner`UPDATE invoices SET issued_at = ${original!.issued_at}::timestamptz
+        WHERE clinic_id = ${C.clinicId} AND id = ${invoiceId}`;
+    }
+  });
+
   it("clinic and branch report keys never open R10, and wider invoices keys never stand in for own", async () => {
     await expectForbidden(f, "own-summary", f.C.admin.cookie);
     await expectForbidden(f, "own-summary", f.branch.cookie);
