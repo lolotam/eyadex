@@ -23,6 +23,10 @@ export const resourceSchema = z.enum([
   "payments",
   "refunds",
   "cash_closings",
+  "report_takings",
+  "report_analytics",
+  "report_patients",
+  "report_own",
 ]);
 export type PermissionResource = z.infer<typeof resourceSchema>;
 
@@ -34,7 +38,7 @@ export type PermissionScope = z.infer<typeof scopeSchema>;
 export const permissionSchema = z
   .string()
   .regex(
-    /^(view|create|update|deactivate|overbook):(branches|users|roles|patients|audit_log|clinic_settings|appointments|services|schedules|visits|medical|medicines|invoices|discounts|prices|payments|refunds|cash_closings):(clinic|branch|own)$/,
+    /^(view|create|update|deactivate|overbook):(branches|users|roles|patients|audit_log|clinic_settings|appointments|services|schedules|visits|medical|medicines|invoices|discounts|prices|payments|refunds|cash_closings|report_takings|report_analytics|report_patients|report_own):(clinic|branch|own)$/,
   );
 export type Permission = string;
 
@@ -66,6 +70,10 @@ const resourceModule: Record<PermissionResource, ClinicModule | null> = {
   payments: "finance",
   refunds: "finance",
   cash_closings: "finance",
+  report_takings: "finance",
+  report_analytics: "finance",
+  report_patients: "finance",
+  report_own: "finance",
 };
 
 type Scopes = readonly PermissionScope[];
@@ -83,7 +91,9 @@ const MANAGED = { view: CLINIC, create: CLINIC, update: CLINIC, deactivate: CLIN
  * invoices of the caller's own patients; `deactivate:invoices` is void; `discounts` is changing a
  * discount on an invoice; `prices` covers service and per-doctor prices. Finance (F2 §4.1): `payments`
  * covers receipts, their movements and applying a patient credit; `refunds` has no view of its own;
- * `cash_closings` is a branch's daily cash closing; none of them has an `own` scope.
+ * `cash_closings` is a branch's daily cash closing; none of them has an `own` scope. Finance F3 (EY-10.1): one
+ * view key per report group — `report_takings` (R1, R2, R9), `report_analytics` (R3, R4), `report_patients`
+ * (R5–R8, no `own`) and `report_own` (R10, the doctor's own summary, `own` only).
  */
 const resourceGrants: Record<PermissionResource, Partial<Record<PermissionAction, Scopes>>> = {
   branches: MANAGED,
@@ -119,6 +129,10 @@ const resourceGrants: Record<PermissionResource, Partial<Record<PermissionAction
   payments: { view: BRANCHED, create: BRANCHED },
   refunds: { create: BRANCHED },
   cash_closings: { view: BRANCHED, create: BRANCHED },
+  report_takings: { view: BRANCHED },
+  report_analytics: { view: BRANCHED },
+  report_patients: { view: BRANCHED },
+  report_own: { view: ["own"] },
 };
 
 function buildCatalog(): PermissionDefinition[] {
@@ -240,5 +254,12 @@ export const PERMISSION_KEYS = [
   "view:cash_closings:branch",
   "create:cash_closings:clinic",
   "create:cash_closings:branch",
+  "view:report_takings:clinic",
+  "view:report_takings:branch",
+  "view:report_analytics:clinic",
+  "view:report_analytics:branch",
+  "view:report_patients:clinic",
+  "view:report_patients:branch",
+  "view:report_own:own",
 ] as const;
 export type PermissionKey = (typeof PERMISSION_KEYS)[number];

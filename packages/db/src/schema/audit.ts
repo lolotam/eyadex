@@ -55,6 +55,13 @@ export const auditLog = pgTable(
         "((entity_type <> ALL (ARRAY['patient'::text, 'visit'::text, 'visit_addendum'::text, 'diagnosis'::text, 'prescription'::text, 'medical_profile'::text, 'attachment'::text, 'invoice'::text, 'invoice_link'::text, 'payment'::text, 'refund'::text, 'patient_credit'::text])) OR (category = 'patient_access'::text))",
       ),
     ),
+    // Finance F3 (0068, spec §7.4): an export of the patient-named reports R5–R8 is patient access.
+    check(
+      "audit_log_patient_report_exports_are_patient_access",
+      sql.raw(
+        "((entity_type <> 'finance_report_export'::text) OR ((details ->> 'report'::text) <> ALL (ARRAY['outstanding'::text, 'patient_credit'::text, 'refunds'::text, 'discounts'::text])) OR (category = 'patient_access'::text))",
+      ),
+    ),
   ],
 );
 

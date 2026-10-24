@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   char,
   check,
+  date,
   foreignKey,
   index,
   integer,
@@ -58,6 +59,10 @@ export const invoices = pgTable(
     createdBy: uuid("created_by").notNull(),
     createdAt: timestamp("created_at", tz).notNull(),
     updatedAt: timestamp("updated_at", tz).notNull(),
+    // Finance F3 (0068): the stored issue day, nullable until the contract step (0072), and who set the
+    // invoice discount (a membership id with no foreign key, EY-10.2).
+    businessDate: date("business_date", { mode: "string" }),
+    discountedBy: uuid("discounted_by"),
   },
   (t) => [
     primaryKey({ name: "invoices_pkey", columns: [t.clinicId, t.id] }),
@@ -91,6 +96,10 @@ export const invoices = pgTable(
       .on(t.clinicId, t.source, t.sourceId)
       .where(sql.raw("status <> 'void'::text")),
     index("invoices_clinic_branch_issued_idx").on(t.clinicId, t.branchId, t.issuedAt),
+    // Finance F3 (0069): the reports read issued invoices only.
+    index("invoices_clinic_branch_issued_live_idx")
+      .on(t.clinicId, t.branchId, t.issuedAt)
+      .where(sql.raw("status = 'issued'::text")),
     index("invoices_clinic_patient_idx").on(t.clinicId, t.patientId),
     check("invoices_currency_check", sql.raw(`${CURRENCIES}`)),
     check("invoices_currency_exponent_check", sql.raw("(currency_exponent = ANY (ARRAY[2, 3]))")),
@@ -141,6 +150,8 @@ export const invoiceLines = pgTable(
     archivedAt: timestamp("archived_at", tz),
     createdAt: timestamp("created_at", tz).notNull(),
     updatedAt: timestamp("updated_at", tz).notNull(),
+    // Finance F3 (0068, EY-10.2): who set the line discount, a membership id with no foreign key.
+    discountedBy: uuid("discounted_by"),
   },
   (t) => [
     primaryKey({ name: "invoice_lines_pkey", columns: [t.clinicId, t.id] }),

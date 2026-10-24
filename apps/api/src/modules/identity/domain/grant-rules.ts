@@ -35,6 +35,9 @@ const CLINIC_BOUND: ReadonlyMap<string, string> = new Map([
   ["update:medical:own", "update:medical:clinic"],
   // Finance F1 (spec R1-12): invoices of the caller's own patients reach every branch the same way.
   ["view:invoices:own", "view:invoices:clinic"],
+  // Finance F3 (spec §3, R1-12): the doctor's own summary reads the same cross-branch reach. There is no
+  // clinic report_own key, so the clinic key of the report that shows every doctor's lines (R4) covers it.
+  ["view:report_own:own", "view:report_analytics:clinic"],
 ]);
 
 // P2 R1-2 (spec §2, P2-5): the locked clinic admin does not read clinical content by default, yet it is
