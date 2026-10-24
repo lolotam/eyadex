@@ -109,7 +109,7 @@ never part of the claim transaction: it is its own transaction, and it commits o
 
 - `attempt = attempt + 1`,
 - `lease_owner = <this worker>`,
-- `lease_until = now() + 60 s`,
+- `lease_until = clock_timestamp() + 60 s`,
 - `status = 'running'`,
 - `started_at` set once, on the first attempt.
 
@@ -119,7 +119,9 @@ lease also runs into the partial unique index `(clinic_id, requested_by) WHERE s
 (§8.1). A lease write that would make a second `running` row for the member fails on that index; the
 transaction rolls back, nothing is written, and the handler returns `deferred` with `nextAttemptAt`
 30 s later. A takeover of the member's own expired lease updates the same row, so it never trips the
-index.
+index. The block cannot outlive the stuck row: a `running` row with an expired lease still has its
+own pending event, and its next claim takes it over or fails it at the attempt limit (§5). So a
+member's queued export waits at most one lease plus the claim interval behind a dead attempt.
 
 The handler then returns `deferred` with `nextAttemptAt` = the end of the lease.
 `deferred` is the dispatcher's own "not attempted yet" outcome: it does not count an attempt and it
@@ -244,7 +246,7 @@ UPDATE finance_report_exports
        error_code = NULL,
        lease_owner = NULL, lease_until = NULL
  WHERE clinic_id = $clinic AND id = $export AND attempt = $mine AND lease_owner = $me
-   AND lease_until > now()
+   AND lease_until > clock_timestamp()
 ```
 
 The lease must still be alive: a lease that has expired is not the attempt's any more, so the attempt
@@ -253,7 +255,9 @@ publishes nothing.
 The blob row's update below runs **first** in the transaction, and this export update runs last, so a
 wait on the blob row cannot push the commit past the stored times. `finished_at` and `expires_at` are
 then read from `clock_timestamp()` rather than the transaction's start (`now()`), so the 24 hours
-start at the publication itself.
+start at the publication itself. The fence reads the same clock (`lease_until > clock_timestamp()`),
+so a lease that expires while the transaction waits on the blob row refuses the publish (§3, one
+clock).
 A final row (`done`, `failed`, `expired`, `purged`) holds no live lease — the publish and the release
 clear it — so the publish never touches one either.
 
@@ -332,7 +336,7 @@ unfinished, so the handler reads the export row and takes one branch:
 | `queued` and `attempt` at the limit          | returns `failed`                                                                                            | `status = 'failed'`, `error_code = 'attempts_exhausted'`                                                           |
 | no row at all                                | returns `failed`: the export was never written, or the clinic is gone                                       | nothing: there is no row to write                                                                                  |
 
-The lease write of step 3 is `attempt + 1`, `lease_owner`, `lease_until = now() + 60 s`,
+The lease write of step 3 is `attempt + 1`, `lease_owner`, `lease_until = clock_timestamp() + 60 s`,
 `status = 'running'` and `started_at` set once on the first attempt.
 The limit is 5 attempts (§5): a new attempt needs `attempt < 5`, and `attempt` never goes above 5.
 
@@ -353,19 +357,22 @@ row lock decides, and the loser sees a live lease and defers.
 - The heartbeat is one short `withTenant` transaction:
 
 ```sql
-UPDATE finance_report_exports SET lease_until = now() + interval '60 seconds'
+UPDATE finance_report_exports SET lease_until = clock_timestamp() + interval '60 seconds'
  WHERE clinic_id = $clinic AND id = $export AND attempt = $mine AND lease_owner = $me
-   AND status = 'running' AND lease_until > now()
+   AND status = 'running' AND lease_until > clock_timestamp()
 ```
 
-- **One clock.** Every lease and publish timestamp is the database's `now()`: the lease write, the
-  heartbeat, the publish and the sweep's age checks. A lease is written and checked on the same
-  clock, so a skewed worker clock can neither shorten a live lease nor stretch an expired one. The
-  worker's own clock times only its local timers (the heartbeat interval and the build budget).
+- **One clock.** Every lease timestamp and every lease check reads the database's current time,
+  `clock_timestamp()`: the lease write, the heartbeat, the publish (its fence and its `finished_at`
+  and `expires_at`) and the sweep's age checks. A lease is written and checked on the same clock, so
+  a skewed worker clock can neither shorten a live lease nor stretch an expired one. It is not
+  `now()`, the transaction's start: a statement that waits on a row lock would otherwise check an
+  expired lease against an older time and pass. The worker's own clock times only its local timers
+  (the heartbeat interval and the build budget).
 - The heartbeat carries the fence of §4: `attempt = $mine AND lease_owner = $me`.
   Every write an attempt makes to the export row carries it: the heartbeat, the publish, the
   failure, the release and the abandon.
-- The heartbeat adds two conditions of its own: `status = 'running'` and `lease_until > now()`.
+- The heartbeat adds two conditions of its own: `status = 'running'` and `lease_until > clock_timestamp()`.
   **A heartbeat never revives a lease and never touches a final row.** An expired lease is not the
   attempt's any more — the takeover of §5 owns the row now — so the heartbeat does not extend it,
   and a final row (`done`, `failed`, `expired`, `purged`) is never renewed either.
@@ -388,7 +395,7 @@ UPDATE finance_report_exports SET lease_until = now() + interval '60 seconds'
 - **The fence is on every write an attempt makes to the export row.** The heartbeat, the publish, the
   failure, the release and the abandon all carry
   `WHERE clinic_id = $clinic AND id = $export AND attempt = $mine AND lease_owner = $me`.
-  The heartbeat adds `status = 'running' AND lease_until > now()` on top of them (§3).
+  The heartbeat adds `status = 'running' AND lease_until > clock_timestamp()` on top of them (§3).
   A write that updates 0 rows is a lost race, and the attempt re-reads before it deletes anything:
   the re-read of §2 step 9 asks whether this attempt's own publish is the row's `done` state. If it
   is, the attempt keeps its file and exits; otherwise it stops, deletes its own upload and exits.
@@ -397,7 +404,7 @@ UPDATE finance_report_exports SET lease_until = now() + interval '60 seconds'
 - The blob row writes carry the attempt's own row, `(clinic_id, export_id, attempt = $mine)`: the
   `allocated` to `uploaded` move of step 8 and the `uploaded` to `published` move of step 9 touch
   the attempt's own row and no other, so a loser never moves the winner's blob row.
-- The publish is fenced on `(id, attempt, lease_owner)` and on a live lease (`lease_until > now()`,
+- The publish is fenced on `(id, attempt, lease_owner)` and on a live lease (`lease_until > clock_timestamp()`,
   §2 step 9). The fence is the only thing that decides the winner.
 - A stale attempt (its lease was taken over, or its heartbeat failed) updates 0 rows: it is fenced
   out.
