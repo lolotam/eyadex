@@ -1,11 +1,11 @@
--- The finance releases (0063 for F1 and 0067 for F2; spec §8c.3 item 4, §4.1, plan Task 6, R2-4, FIN-4,
--- F2-Q15). Run as the migration owner, which sees every clinic. Runs inside one transaction and ROLLS BACK,
+-- The finance releases (0063 for F1, 0067 for F2 and 0070 for F3; spec §8c.3 item 4, §4.1, plan Task 6, R2-4,
+-- FIN-4, F2-Q15, F3-Q9 b). Run as the migration owner, which sees every clinic. Runs inside one transaction and ROLLS BACK,
 -- so it is safe on any database that has the db/sql baseline.
 -- Usage: psql -v ON_ERROR_STOP=1 -f db/tests/finance-release.sql
 
 BEGIN;
 
--- Invariant on every clinic: each locked clinic admin holds the twelve clinic-scope finance keys and no
+-- Invariant on every clinic: each locked clinic admin holds the fifteen clinic-scope finance keys and no
 -- branch or `own` one (the role is locked, so this lasts). Other roles are not checked here: after the
 -- release the admin may grant them finance keys.
 DO $$
@@ -75,21 +75,22 @@ DECLARE
   got text;
   want text;
   rid text;
-  twelve constant text := 'create:cash_closings:clinic,create:discounts:clinic,create:invoices:clinic,create:payments:clinic,'
+  fifteen constant text := 'create:cash_closings:clinic,create:discounts:clinic,create:invoices:clinic,create:payments:clinic,'
     'create:refunds:clinic,deactivate:invoices:clinic,update:invoices:clinic,update:prices:clinic,'
-    'view:cash_closings:clinic,view:invoices:clinic,view:payments:clinic,view:prices:clinic';
+    'view:cash_closings:clinic,view:invoices:clinic,view:payments:clinic,view:prices:clinic,'
+    'view:report_analytics:clinic,view:report_patients:clinic,view:report_takings:clinic';
   added bigint := (SELECT count(*) FROM role_permissions)
                   - current_setting('finance_release.before')::bigint;
 BEGIN
   -- Per role: the finance keys it holds after the release. Only the locked admins gain any.
   FOR rid, want IN VALUES
-    ('00000000-0000-7000-8000-0000000063b1', twelve),
+    ('00000000-0000-7000-8000-0000000063b1', fifteen),
     ('00000000-0000-7000-8000-0000000063b2', ''),
     ('00000000-0000-7000-8000-0000000063b3', ''),
     ('00000000-0000-7000-8000-0000000063b4', ''),
     ('00000000-0000-7000-8000-0000000063b5', ''),
     ('00000000-0000-7000-8000-0000000063c1', ''),
-    ('00000000-0000-7000-8000-0000000063d1', twelve)
+    ('00000000-0000-7000-8000-0000000063d1', fifteen)
   LOOP
     SELECT coalesce(string_agg(p.key, ',' ORDER BY p.key COLLATE "C"), '') INTO got
       FROM role_permissions rp JOIN permissions p ON p.id = rp.permission_id
@@ -98,8 +99,8 @@ BEGIN
       RAISE EXCEPTION 'FINANCE-RELEASE: role % holds finance keys "%", expected "%"', rid, got, want;
     END IF;
   END LOOP;
-  -- Twelve for clinic A's admin, eleven for clinic C's (it already held one): no other key moved.
-  IF added <> 23 THEN RAISE EXCEPTION 'FINANCE-RELEASE: the release added % keys, expected 23', added; END IF;
+  -- Fifteen for clinic A's admin, fourteen for clinic C's (it already held one): no other key moved.
+  IF added <> 29 THEN RAISE EXCEPTION 'FINANCE-RELEASE: the release added % keys, expected 29', added; END IF;
   IF (SELECT default_module_finance FROM platform_settings) THEN
     RAISE EXCEPTION 'FINANCE-RELEASE: the new-clinic default for finance is on';
   END IF;
@@ -115,6 +116,16 @@ BEGIN
     RAISE EXCEPTION 'FINANCE-RELEASE: 0067 added keys';
   END IF;
   PERFORM set_config('finance_release.before', (SELECT count(*) FROM role_permissions)::text, true);
+END $$;
+
+-- 0070 (F3): the same statement once more adds nothing to a clinic 0063's predicate already reached.
+\ir ../sql/0070_finance_reports_release.sql
+
+DO $$
+BEGIN
+  IF (SELECT count(*) FROM role_permissions) <> current_setting('finance_release.before')::bigint THEN
+    RAISE EXCEPTION 'FINANCE-RELEASE: 0070 added keys';
+  END IF;
 END $$;
 
 -- The post-deploy catch-up (0063's statement) changes nothing on a clinic the release already reached.

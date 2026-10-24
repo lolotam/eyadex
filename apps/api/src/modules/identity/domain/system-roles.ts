@@ -50,6 +50,8 @@ export const SYSTEM_ROLES: readonly SystemRoleTemplate[] = [
       "view:medicines:clinic",
       // Finance F1 (FIN-4): the invoices of its own patients, read only.
       "view:invoices:own",
+      // Finance F3 (F3-Q9, EY-10.1): the summary of its own billed lines (R10), nothing more.
+      "view:report_own:own",
     ],
   },
   {
@@ -79,6 +81,8 @@ export const SYSTEM_ROLES: readonly SystemRoleTemplate[] = [
       "create:payments:branch",
       "view:cash_closings:branch",
       "create:cash_closings:branch",
+      // Finance F3 (EY-9.14 a, EY-10.1): its branches' takings, period summary and closings (R1, R2, R9).
+      "view:report_takings:branch",
     ],
   },
   {

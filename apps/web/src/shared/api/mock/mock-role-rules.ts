@@ -110,14 +110,16 @@ export function enforceNotLocked(role: Role): void {
 type Reach = { allBranches: boolean; branchIds: readonly string[] };
 
 // P2 spec §2: the locked clinic admin may delegate the clinical keys (visits, medical) to other roles
-// without holding them; their `own` keys are clinic-bound like `view:patients:own`.
+// without holding them; their `own` keys are clinic-bound like `view:patients:own`. The doctor's own
+// report has no clinic key of its own: the clinic key of R4 covers it, as in the API's grant-rules.ts.
 const DELEGATED = new Set(["visits", "medical"]);
-const CLINIC_BOUND = new Set([
-  "view:patients:own",
-  "view:visits:own",
-  "view:medical:own",
-  "update:medical:own",
-  "view:invoices:own",
+const CLINIC_BOUND: ReadonlyMap<string, string> = new Map([
+  ["view:patients:own", "view:patients:clinic"],
+  ["view:visits:own", "view:visits:clinic"],
+  ["view:medical:own", "view:medical:clinic"],
+  ["update:medical:own", "update:medical:clinic"],
+  ["view:invoices:own", "view:invoices:clinic"],
+  ["view:report_own:own", "view:report_analytics:clinic"],
 ]);
 
 /**
@@ -129,8 +131,10 @@ function covers(actor: Actor, key: string): boolean {
   const held = actor.role.permissions;
   const [action, resource, scope] = key.split(":");
   if (actor.role.isLocked && DELEGATED.has(resource ?? "")) return true;
+  // The bound key is checked first, as the API's uncoveredKeys does: holding the own key itself is not enough.
+  const bound = CLINIC_BOUND.get(key);
+  if (bound !== undefined) return held.includes(bound);
   if (held.includes(key) || held.includes(`${action}:${resource}:clinic`)) return true;
-  if (CLINIC_BOUND.has(key)) return false;
   return scope === "own" && held.includes(`${action}:${resource}:branch`);
 }
 

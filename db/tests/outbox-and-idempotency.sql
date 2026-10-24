@@ -59,9 +59,10 @@ BEGIN
     RAISE EXCEPTION 'IDEMPOTENCY: platform can rewrite a key';
   END IF;
   -- 23 MVP keys (0026) + 17 of the appointments module (0042) + view:patients:own (0044)
-  -- + 10 of the medical module (0046) + 13 of the finance module (0060) + 10 of finance F2 (0064).
-  IF (SELECT count(*) FROM permissions) <> 74 THEN
-    RAISE EXCEPTION 'CATALOGUE: expected 74 permissions, found %', (SELECT count(*) FROM permissions);
+  -- + 10 of the medical module (0046) + 13 of the finance module (0060) + 10 of finance F2 (0064)
+  -- + 7 report keys of finance F3 (0068).
+  IF (SELECT count(*) FROM permissions) <> 81 THEN
+    RAISE EXCEPTION 'CATALOGUE: expected 81 permissions, found %', (SELECT count(*) FROM permissions);
   END IF;
 END $$;
 

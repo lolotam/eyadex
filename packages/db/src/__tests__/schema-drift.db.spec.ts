@@ -55,8 +55,15 @@ function isTable(value: unknown): value is PgTable {
 
 // information_schema spells `time` in full (0042, ADR-0026) and calls char(n) `character` (0060); Drizzle
 // prints the short forms.
+// information_schema names every array type ARRAY (finance_report_exports.patient_ids, 0068).
 const sqlTypeOf = (type: string): string =>
-  type === "time" ? "time without time zone" : /^char\(\d+\)$/.test(type) ? "character" : type;
+  type === "time"
+    ? "time without time zone"
+    : /^char\(\d+\)$/.test(type)
+      ? "character"
+      : type.endsWith("[]")
+        ? "ARRAY"
+        : type;
 
 // drizzle-orm 0.45 cannot declare NULLS NOT DISTINCT on an index, only on a unique constraint. 0062 turned
 // the notifications' one-message constraint into a partial unique index that keeps it, so the mirror names
@@ -304,7 +311,7 @@ describe("Drizzle schema mirror vs db/sql", () => {
       views.map((view) => {
         const config = getViewConfig(view);
         const fields = Object.values(config.selectedFields as Record<string, PgColumn>);
-        return [config.name, fields.map((c) => `${c.name}:${c.getSQLType()}`)] as const;
+        return [config.name, fields.map((c) => `${c.name}:${sqlTypeOf(c.getSQLType())}`)] as const;
       }),
     );
     expect(inMirror).toEqual(inDatabase);

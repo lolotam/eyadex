@@ -25,6 +25,8 @@ export const DOCTOR_ROLE_COVER = [
   "view:medicines:clinic",
   // Finance F1: a new clinic's doctor holds view:invoices:own, covered only by its clinic key.
   "view:invoices:clinic",
+  // Finance F3: its view:report_own:own is covered only by view:report_analytics:clinic (grant-rules.ts).
+  "view:report_analytics:clinic",
 ] as const;
 
 /** A custom role holding exactly these permission keys (written as the owner). */

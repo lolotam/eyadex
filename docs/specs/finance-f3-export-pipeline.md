@@ -648,8 +648,9 @@ Checks:
 - `attempt >= 0`,
 - `byte_size` is null or above 0,
 - `row_count` is null or not below 0,
-- `storage_key` is null, or matches
-  `^clinic/[0-9a-f-]{36}/finance-exports/[0-9a-f-]{36}/[0-9]+\.(csv|xlsx)$`.
+- `storage_key` is null, or equals the key built from the row itself:
+  `clinic/<clinic_id>/finance-exports/<id>/<attempt>.<format>` (PR #124 review: a row never names
+  another clinic's, another export's or another attempt's object).
 
 Primary key `(clinic_id, id)`.
 
@@ -711,8 +712,8 @@ Checks:
 - `attempt >= 1`,
 - `state` in (`allocated`, `uploaded`, `published`, `deleted`, `gone`),
 - `deleted_at` is not null exactly when the state is `deleted` or `gone`,
-- `storage_key` matches
-  `^clinic/[0-9a-f-]{36}/finance-exports/[0-9a-f-]{36}/[0-9]+\.(csv|xlsx)$`.
+- `storage_key` equals the key built from the row itself,
+  `clinic/<clinic_id>/finance-exports/<export_id>/<attempt>.csv` or `.xlsx`.
 
 Index `(clinic_id, state, updated_at)` — the sweep of §6.
 The re-delete reads the `deleted` rows through it: a row's `deleted_at` is the moment it became

@@ -31,6 +31,8 @@ export const ROLE_TEMPLATES: Record<SystemRoleKey, RoleTemplate> = {
       "view:medicines:clinic",
       // Finance F1: invoices of its own patients only.
       "view:invoices:own",
+      // Finance F3 (F3-Q9, EY-10.1): the summary of its own billed lines (R10).
+      "view:report_own:own",
     ],
   },
   receptionist: {
@@ -59,6 +61,8 @@ export const ROLE_TEMPLATES: Record<SystemRoleKey, RoleTemplate> = {
       "create:payments:branch",
       "view:cash_closings:branch",
       "create:cash_closings:branch",
+      // Finance F3 (EY-9.14 a, EY-10.1): its branches' takings, period summary and closings (R1, R2, R9).
+      "view:report_takings:branch",
     ],
   },
   technician: {
