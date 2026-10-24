@@ -27,6 +27,7 @@ import {
   type InvoiceFormValues,
 } from "./invoice-form-draft";
 import { InvoiceLineRow } from "./invoice-line-row";
+import { linePriceMinor, useLinePrices } from "./line-price";
 import { useInvoiceOptions } from "./invoice-options";
 import { InvoicePatientPicker } from "./invoice-patient-picker";
 import { InvoiceTotalsPanel } from "./invoice-totals-panel";
@@ -63,6 +64,17 @@ export function InvoiceForm(p: Props) {
   const taxRateBp = p.editing?.taxRateBp ?? money.taxRateBp;
   const totals = liveTotals(values, exponent, taxRateBp);
   const [error, setError] = useState<string | null>(null);
+  const prices = useLinePrices();
+  /** The price for a service + doctor pick; null when prices are not readable (lines stay manual). */
+  const priceFor = (serviceId: string, providerId: string | null) =>
+    prices.data ? money.toMajor(linePriceMinor(prices.data, serviceId, providerId) ?? "0") : null;
+  // Only a pick on the line refills it, never a load or refetch: saved and typed prices stay.
+  const refill = (index: number) => {
+    const line = form.getValues(`lines.${index}`);
+    if (line?.kind !== "service") return;
+    const price = priceFor(line.serviceId, line.providerId);
+    if (price !== null) form.setValue(`lines.${index}.unitPrice`, price);
+  };
 
   const save = useMutation({
     mutationFn: async () => {
@@ -93,7 +105,17 @@ export function InvoiceForm(p: Props) {
       ),
   });
   const conflict = save.error instanceof ApiError && save.error.code === "version_conflict";
+  const unpricedAt = (i: number) => {
+    const line = values.lines[i];
+    return (
+      !!prices.data &&
+      line?.kind === "service" &&
+      line.serviceId !== "" &&
+      linePriceMinor(prices.data, line.serviceId, line.providerId) === null
+    );
+  };
   const missingAt = (i: number) =>
+    unpricedAt(i) ||
     (p.priceMissing && values.lines[i]?.unitPrice === money.toMajor("0")) ||
     (save.error instanceof ApiError &&
       save.error.code === "price_missing" &&
@@ -162,6 +184,7 @@ export function InvoiceForm(p: Props) {
               mayDiscount={mayDiscount}
               lineTotal={lineTotal}
               priceMissing={missingAt(index)}
+              onPicked={() => refill(index)}
               onRemove={() => lines.remove(index)}
             />
           );
@@ -172,16 +195,17 @@ export function InvoiceForm(p: Props) {
               type="button"
               variant="outline"
               size="sm"
-              onClick={() =>
+              onClick={() => {
+                const serviceId = options.services[0]?.id ?? "";
                 lines.append({
                   kind: "service",
-                  serviceId: options.services[0]?.id ?? "",
+                  serviceId,
                   providerId: null,
                   quantity: 1,
-                  unitPrice: money.toMajor("0"),
+                  unitPrice: (serviceId && priceFor(serviceId, null)) || money.toMajor("0"),
                   discount: null,
-                })
-              }
+                });
+              }}
             >
               <ListPlus className="size-4" />
               {t("finance.invoice.addService")}
