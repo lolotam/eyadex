@@ -90,6 +90,7 @@ export async function ownSummary(
 ) {
   // This is the invoice list's patient predicate; line ownership only narrows that same reach.
   const own = patients.ownPatientFilter(membershipId, sql`i.patient_id`);
+  // As in SQL 0068, widen the index prefilter so repeated midnight cannot cut off part of a day.
   const rows = await tx.execute<OwnRow>(sql`
     SELECT to_char(i.issued_at AT TIME ZONE c.timezone, 'YYYY-MM') AS period,
       sum(l.line_total_minor)::text AS "billedMinor", i.currency
@@ -98,8 +99,8 @@ export async function ownSummary(
     WHERE i.clinic_id = ${ctx.clinicId} AND i.status = 'issued'
       AND i.branch_id = ANY(${uuidArray(ctx.branchIds)}) AND ${own}
       AND l.archived_at IS NULL AND l.provider_id = ${membershipId}::uuid
-      AND i.issued_at >= (${query.from}::date::timestamp AT TIME ZONE c.timezone)
-      AND i.issued_at < ((${query.to}::date + 1)::timestamp AT TIME ZONE c.timezone)
+      AND i.issued_at >= ${query.from}::date - 2 AND i.issued_at < ${query.to}::date + 3
+      AND (i.issued_at AT TIME ZONE c.timezone)::date BETWEEN ${query.from}::date AND ${query.to}::date
     GROUP BY 1, i.currency ORDER BY 1`);
   return { rows: [...rows], totals: { billedMinor: sumReportMoney(rows, "billedMinor") } };
 }

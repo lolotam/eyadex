@@ -127,36 +127,82 @@ describe("R10 doctor's own billed lines", () => {
     await expectForbidden(f, "outstanding", f.C.doctor.cookie);
   });
 
-  it("keeps both range boundaries at clinic midnight when filtering issue instants", async () => {
-    const { h, C } = f;
-    const invoiceId = visible[0]!;
-    const [original] = await h.owner<
-      { issued_at: string }[]
-    >`SELECT issued_at::text AS issued_at FROM invoices
-      WHERE clinic_id = ${C.clinicId} AND id = ${invoiceId}`;
-    try {
-      for (const [instant, expected] of [
+  it.each([
+    {
+      timezone: "Asia/Kuwait",
+      day: "2026-06-15",
+      instants: [
         ["2026-06-14T20:59:59.999Z", "0"],
         ["2026-06-14T21:00:00Z", "600"],
         ["2026-06-15T20:59:59.999Z", "600"],
         ["2026-06-15T21:00:00Z", "0"],
-      ]) {
-        await h.owner`UPDATE invoices SET issued_at = ${instant!}::timestamptz
+      ],
+    },
+    {
+      timezone: "America/Havana",
+      day: "2026-11-01",
+      instants: [
+        ["2026-11-01T03:59:59.999Z", "0"],
+        ["2026-11-01T04:00:00Z", "600"],
+        ["2026-11-01T04:30:00Z", "600"],
+        ["2026-11-01T05:00:00Z", "600"],
+        ["2026-11-01T05:30:00Z", "600"],
+        ["2026-11-02T04:59:59.999Z", "600"],
+        ["2026-11-02T05:00:00Z", "0"],
+      ],
+    },
+    {
+      timezone: "America/Havana",
+      day: "2026-10-31",
+      instants: [
+        ["2026-10-31T04:00:00Z", "600"],
+        ["2026-11-01T03:59:59.999Z", "600"],
+        ["2026-11-01T04:00:00Z", "0"],
+        ["2026-11-01T04:30:00Z", "0"],
+        ["2026-11-01T05:00:00Z", "0"],
+      ],
+    },
+    {
+      timezone: "America/Havana",
+      day: "2026-03-08",
+      instants: [
+        ["2026-03-08T04:59:59.999Z", "0"],
+        ["2026-03-08T05:00:00Z", "600"],
+        ["2026-03-09T03:59:59.999Z", "600"],
+        ["2026-03-09T04:00:00Z", "0"],
+      ],
+    },
+  ])(
+    "keeps the exact clinic day $day in $timezone across clock changes",
+    async ({ timezone, day, instants }) => {
+      const { h, C } = f;
+      const invoiceId = visible[0]!;
+      const [original] = await h.owner<
+        { issued_at: string }[]
+      >`SELECT issued_at::text AS issued_at FROM invoices
+      WHERE clinic_id = ${C.clinicId} AND id = ${invoiceId}`;
+      const [clinic] = await h.owner<{ timezone: string }[]>`SELECT timezone FROM clinics
+      WHERE id = ${C.clinicId}`;
+      try {
+        await h.owner`UPDATE clinics SET timezone = ${timezone} WHERE id = ${C.clinicId}`;
+        await f.invalidate.clinicChanged(C.clinicId);
+        for (const [instant, expected] of instants) {
+          await h.owner`UPDATE invoices SET issued_at = ${instant!}::timestamptz
           WHERE clinic_id = ${C.clinicId} AND id = ${invoiceId}`;
-        const res = await f.get(
-          "own-summary",
-          C.doctor.cookie,
-          "",
-          "from=2026-06-15&to=2026-06-15",
-        );
-        expect(res.statusCode, res.body).toBe(200);
-        expect(reportOwnSummaryResponseSchema.parse(res.json()).totals.billedMinor).toBe(expected);
-      }
-    } finally {
-      await h.owner`UPDATE invoices SET issued_at = ${original!.issued_at}::timestamptz
+          const res = await f.get("own-summary", C.doctor.cookie, "", `from=${day}&to=${day}`);
+          expect(res.statusCode, res.body).toBe(200);
+          expect(reportOwnSummaryResponseSchema.parse(res.json()).totals.billedMinor).toBe(
+            expected,
+          );
+        }
+      } finally {
+        await h.owner`UPDATE invoices SET issued_at = ${original!.issued_at}::timestamptz
         WHERE clinic_id = ${C.clinicId} AND id = ${invoiceId}`;
-    }
-  });
+        await h.owner`UPDATE clinics SET timezone = ${clinic!.timezone} WHERE id = ${C.clinicId}`;
+        await f.invalidate.clinicChanged(C.clinicId);
+      }
+    },
+  );
 
   it("clinic and branch report keys never open R10, and wider invoices keys never stand in for own", async () => {
     await expectForbidden(f, "own-summary", f.C.admin.cookie);
