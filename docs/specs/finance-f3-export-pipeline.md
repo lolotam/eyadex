@@ -236,7 +236,12 @@ exists for the race only, and the sweeper reads it like `allocated` (§6).
 
 **Step 9 — the fenced publish.**
 
-One short transaction, on the app pool inside `withTenant(clinicId)`:
+One short transaction, on the app pool inside `withTenant(clinicId)`. It first locks the export row
+(`SELECT … FROM finance_report_exports WHERE clinic_id = $clinic AND id = $export FOR UPDATE`), and
+only then runs the fenced statements below. A lease check that ran before a lock wait could pass on
+a lease that ended while it waited, if the other holder released the row without changing it (a
+claim that defers). After the lock, every lease check reads `clock_timestamp()` at a moment when no
+one else can change or take the lease.
 
 ```sql
 UPDATE finance_report_exports

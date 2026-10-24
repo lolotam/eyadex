@@ -311,7 +311,7 @@ table, and it meets these binding requirements:
    a build slot and the build itself (pipeline §3).
 3. **Attempt-specific blob keys**: each attempt uploads to its own key
    `clinic/<clinic_id>/finance-exports/<export_id>/<attempt>.<ext>`; only the fenced winner (the
-   `UPDATE … WHERE id AND attempt = :mine AND lease_owner = :me AND lease_until > now()`) is published;
+   `UPDATE … WHERE id AND attempt = :mine AND lease_owner = :me AND lease_until > clock_timestamp()`, after the row is locked; export pipeline §2 step 9 and §3) is published;
    a losing or stale upload is deleted (pipeline §4 and §6).
 4. **A cleanup path for every key ever allocated**, failed and partial uploads included: the table
    `finance_report_export_blobs` holds one row per allocated key, written before the upload, and a
