@@ -275,7 +275,7 @@ export const ar: Dictionary = {
     version_conflict: "عدّل شخص آخر هذه الفاتورة للتو؛ أعد تحميلها ثم أعد المحاولة",
     send_request_conflict: "طلب الإرسال هذا مستخدم لفاتورة أو قناة أخرى",
     invoice_link_expired: "رابط الفاتورة غير صالح أو انتهت صلاحيته؛ اطلب رابطاً جديداً من العيادة",
-    // Finance F2 (spec §4.6, §7); these reach the UI as `unknown` with the code in `details.code`.
+    // Finance F2 (spec §4.6, §7); the web catalogue carries these codes, so they reach the UI as themselves.
     payment_method_disabled: "طريقة الدفع هذه موقوفة في إعدادات العيادة.",
     payment_exceeds_balance: "المبلغ أكبر من المتبقي على الفاتورة.",
     invoice_settled: "الفاتورة مدفوعة بالكامل.",

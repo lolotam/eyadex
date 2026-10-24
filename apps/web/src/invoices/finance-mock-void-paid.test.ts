@@ -61,8 +61,8 @@ describe("the mock voids as the API does", () => {
     const audits = getState().clinicAudit.length;
     const error = await errorOf(api.finance.voidInvoice(admin(), invoice.id, 1, "خطأ", "0"));
     expect(errorKeyOf(error)).toBe("invoice_paid_changed");
-    // The F2 code is outside the web catalogue: it travels inside `unknown`, as the HTTP adapter has it.
-    expect(errorCodeOf(error)).toBe("unknown");
+    // The F2 code is in the web catalogue: the refusal is its own code, as the HTTP adapter has it.
+    expect(errorCodeOf(error)).toBe("invoice_paid_changed");
     // Nothing was written: the invoice is still issued and no audit row was added.
     expect((await api.finance.getInvoice(admin(), invoice.id)).status).toBe("issued");
     expect(getState().clinicAudit.length).toBe(audits);

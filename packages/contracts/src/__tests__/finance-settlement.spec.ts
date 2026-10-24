@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { apiErrorCodeSchema, webErrorCodeSchema } from "../common.ts";
+import { apiErrorCodeSchema, FINANCE_F2_ERROR_CODES, webErrorCodeSchema } from "../common.ts";
 import {
   financeSettingsSchema,
   invoiceListItemSchema,
@@ -241,7 +241,7 @@ describe("F1 response compatibility", () => {
 });
 
 describe("the finance error catalogue (F2 §4.6, F3 §4 and §7.4)", () => {
-  const codes = [
+  const f2Codes = [
     "payment_method_disabled",
     "payment_exceeds_balance",
     "invoice_settled",
@@ -253,16 +253,22 @@ describe("the finance error catalogue (F2 §4.6, F3 §4 and §7.4)", () => {
     "cash_closing_exists",
     "closing_note_required",
     "cash_drawer_out_of_range",
-    "export_busy",
-    "report_range_too_long",
-    "export_amount_too_large",
   ];
+  const f3Codes = ["export_busy", "report_range_too_long", "export_amount_too_large"];
 
-  it.each(codes)("includes API code %s", (code) => {
+  it.each([...f2Codes, ...f3Codes])("includes API code %s", (code) => {
     expect(apiErrorCodeSchema.parse(code)).toBe(code);
   });
 
-  it.each(codes)("leaves %s to the web's fallback until it ships", (code) => {
+  it("the shared F2 list is the one the API and the web catalogue share", () => {
+    expect([...FINANCE_F2_ERROR_CODES]).toEqual(f2Codes);
+  });
+
+  it.each(f2Codes)("includes web code %s: the web already has its message", (code) => {
+    expect(webErrorCodeSchema.parse(code)).toBe(code);
+  });
+
+  it.each(f3Codes)("leaves %s to the web's fallback until it ships", (code) => {
     expect(webErrorCodeSchema.safeParse(code).success).toBe(false);
   });
 
@@ -275,7 +281,7 @@ describe("the finance error catalogue (F2 §4.6, F3 §4 and §7.4)", () => {
 
   it("keeps API codes first and appends the two web-only codes", () => {
     expect(webErrorCodeSchema.options).toEqual([
-      ...apiErrorCodeSchema.options.filter((code) => !codes.includes(code)),
+      ...apiErrorCodeSchema.options.filter((code) => !f3Codes.includes(code)),
       "conflict",
       "not_implemented",
     ]);

@@ -17,7 +17,11 @@ export type Page<T> = {
   total: number;
 };
 
-/** Shared by the API catalogue and its messages so F2 codes cannot drift between them. */
+/**
+ * Shared by the API catalogue and its messages so F2 codes cannot drift between them. The web
+ * catalogue carries them too: the web already has every one of their messages in `errors.*`, so they
+ * are read like any other code and need no `details.code` workaround.
+ */
 export const FINANCE_F2_ERROR_CODES = [
   "payment_method_disabled",
   "payment_exceeds_balance",
@@ -42,8 +46,12 @@ export const FINANCE_F3_ERROR_CODES = [
   "export_amount_too_large",
 ] as const;
 
-/** The finance codes the API owns and the web does not yet translate (F2 and F3). */
-const financeApiOnlyErrorCodes = [...FINANCE_F2_ERROR_CODES, ...FINANCE_F3_ERROR_CODES] as const;
+/**
+ * The finance codes the API owns and the web does not yet translate: the F3 codes of the reports and
+ * their exports, whose web translations come with the F3 web slice. The F2 codes are no longer here
+ * — the web already carries every one of their messages, so it reads them as catalogued codes.
+ */
+const financeApiOnlyErrorCodes = [...FINANCE_F3_ERROR_CODES] as const;
 
 const baseApiErrorCodes = [
   "not_found",
@@ -140,8 +148,9 @@ export type ApiErrorCode = z.infer<typeof apiErrorCodeSchema>;
  * The codes the current web slice supports, plus two the API never sends. `conflict` is a 409
  * whose code the web does not know; `not_implemented` is a method the HTTP adapter has no route for
  * yet. Kept apart from `apiErrorCodeSchema` because the API's message table must cover exactly the
- * codes the API can return. The F2 and F3 codes stay API-only until their web slices add their
- * translations; the HTTP adapter already falls back for codes its web catalogue does not recognise.
+ * codes the API can return. The finance F2 codes are in the web catalogue — the web carries their
+ * messages in `errors.*` — while the F3 codes stay API-only until their web slice adds their
+ * translations; the HTTP adapter falls back for codes its web catalogue does not recognise.
  */
 export const webErrorCodeSchema = z.enum([
   ...baseApiErrorCodes,
