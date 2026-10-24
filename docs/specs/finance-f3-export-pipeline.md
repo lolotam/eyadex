@@ -33,8 +33,9 @@ Out of scope:
 - the download route and the re-check it repeats (parent §7.4),
 - the content of the audit rows (parent §7.4),
 - the web screen (parent slice 5),
-- the blob deletion itself: the `delete` on the port and the `s3:DeleteObject` grant are a server
-  change that lands before slice 4 and that slices 1 to 3 never need (§11).
+- the blob deletion itself: the `delete` and `exists` on the port, the `s3:DeleteObject` grant and
+  the bucket's lifecycle rule for export objects are a server change that lands before slice 4 and
+  that slices 1 to 3 never need (§11).
 
 Where the code goes (parent slice 4): `apps/worker/src/finance-exports/`.
 
@@ -210,7 +211,7 @@ row from `allocated` to `uploaded`, in one short transaction fenced on the row:
 
 ```sql
 UPDATE finance_report_export_blobs
-   SET state = 'uploaded', updated_at = $now
+   SET state = 'uploaded', updated_at = now()
  WHERE clinic_id = $clinic AND export_id = $export AND attempt = $mine AND state = 'allocated'
 ```
 
@@ -231,7 +232,7 @@ One short transaction, on the app pool inside `withTenant(clinicId)`:
 UPDATE finance_report_exports
    SET status = 'done', storage_key = $key, byte_size = $size, row_count = $rows,
        patient_ids = $patients,
-       finished_at = $now, expires_at = $now + interval '24 hours', error_code = NULL,
+       finished_at = now(), expires_at = now() + interval '24 hours', error_code = NULL,
        lease_owner = NULL, lease_until = NULL
  WHERE clinic_id = $clinic AND id = $export AND attempt = $mine AND lease_owner = $me
    AND lease_until > now()
@@ -257,7 +258,7 @@ The same transaction moves the blob row from `uploaded` to `published`:
 
 ```sql
 UPDATE finance_report_export_blobs
-   SET state = 'published', updated_at = $now
+   SET state = 'published', updated_at = now()
  WHERE clinic_id = $clinic AND export_id = $export AND attempt = $mine AND state = 'uploaded'
 ```
 
@@ -317,7 +318,7 @@ unfinished, so the handler reads the export row and takes one branch:
 | `queued` and `attempt` at the limit          | returns `failed`                                                                                            | `status = 'failed'`, `error_code = 'attempts_exhausted'`                                                           |
 | no row at all                                | returns `failed`: the export was never written, or the clinic is gone                                       | nothing: there is no row to write                                                                                  |
 
-The lease write of step 3 is `attempt + 1`, `lease_owner`, `lease_until = now + 60 s`,
+The lease write of step 3 is `attempt + 1`, `lease_owner`, `lease_until = now() + 60 s`,
 `status = 'running'` and `started_at` set once on the first attempt.
 The limit is 5 attempts (§5): a new attempt needs `attempt < 5`, and `attempt` never goes above 5.
 
@@ -338,11 +339,15 @@ row lock decides, and the loser sees a live lease and defers.
 - The heartbeat is one short `withTenant` transaction:
 
 ```sql
-UPDATE finance_report_exports SET lease_until = $now + interval '60 seconds'
+UPDATE finance_report_exports SET lease_until = now() + interval '60 seconds'
  WHERE clinic_id = $clinic AND id = $export AND attempt = $mine AND lease_owner = $me
    AND status = 'running' AND lease_until > now()
 ```
 
+- **One clock.** Every lease and publish timestamp is the database's `now()`: the lease write, the
+  heartbeat, the publish and the sweep's age checks. A lease is written and checked on the same
+  clock, so a skewed worker clock can neither shorten a live lease nor stretch an expired one. The
+  worker's own clock times only its local timers (the heartbeat interval and the build budget).
 - The heartbeat carries the fence of §4: `attempt = $mine AND lease_owner = $me`.
   Every write an attempt makes to the export row carries it: the heartbeat, the publish, the
   failure, the release and the abandon.
@@ -469,14 +474,29 @@ one row per key ever allocated (§8.2).
 - `published` — the fenced publish won, and this key is the file the download serves.
 - `deleted` — the bytes were deleted, and the row carries its `deleted_at`. The row is not final yet:
   a PUT that was still in flight can land after the delete.
-- `gone` — the key was deleted a second time, after the grace period. The row is final, and it is
-  never swept again.
+- `gone` — the key was deleted a second time after the grace period, and a stat of the key found
+  nothing. The row is final, and it is never swept again; a write that still lands later is removed
+  by the bucket's lifecycle rule (below).
 
 **A key is never final at its first delete.** The first delete marks the row `deleted` with its
 `deleted_at`, and that is not the end of the story: a PUT that was in flight when the sweep ran can
 land after the delete, and the key would then sit in the store forever, because the bucket is never
 listed. So the `deleted` row is deleted once more after the grace period, and its state becomes
 `gone`, which is final.
+
+**A client timeout bounds nothing at the store.** The 5-minute PUT timeout (§9) only ends the
+worker's wait: a PUT the store accepted can still complete after it, and a worker can pause between
+its pre-upload check of the blob row and sending the PUT. So no time-based rule in the table can
+prove that the last delete was the last write. The guarantee comes from the store itself:
+
+- every export object is written with the object tag `eyadex-kind=finance-export`,
+- the bucket carries a lifecycle rule that expires objects with that tag **2 days** after their
+  creation. A published file lives 24 hours (§7), so the rule never removes a file the download
+  still serves, and any object the table lost track of is removed by the store within 2 days.
+
+The table's cleanup keeps its job: it removes every known key as soon as it is dead, so a file
+outlives its row only in the rare late-write case, and never past the lifecycle rule. The rule is a
+server change, listed in §11.
 
 The sweeper is a periodic job (`EXPORT_SWEEP_INTERVAL_MS`).
 It deletes a key only when it is sure that no live attempt still needs it.
@@ -495,19 +515,20 @@ current `attempt` and its lease before it deletes anything.
 - every `published` row whose export's `expires_at` has passed is deleted and set to `deleted` with
   its `deleted_at`, and its export becomes `expired` (§7),
 - a `deleted` row whose `deleted_at` is **older than the grace period** has its key deleted once
-  more and its state set to `gone`: a key that was marked `deleted` while an upload was still in
-  flight can reappear in the store after the sweep, and the bucket is never listed, so only the table
-  can catch it. The grace period is **longer than the maximum PUT time** (5 min, §9), so no PUT can
-  still be in flight by then and the second delete is the last one,
-- a `gone` row is never swept again: its key was deleted twice, and nothing can land under it any
-  more,
+  more, then the sweeper stats the key. Absent: the state becomes `gone`. Still there (a write
+  landed between the delete and the stat): the row stays `deleted`, its `deleted_at` moves to now,
+  and the next pass after a new grace period tries again. The grace period is longer than the
+  build budget, the lease and the PUT timeout together (§9), so a late write is rare, but the rule
+  does not rely on it: the lifecycle rule above is the backstop,
+- a `gone` row is never swept again: its key was deleted twice and found absent, and a write that
+  lands after that is removed by the lifecycle rule,
 - a key that is not there is not an error: the sweep is idempotent, and a second run deletes nothing.
 
 The order is always the same: the bytes first, then the row state.
 A crash between the two leaves a row that claims a key which is already gone; the next sweep deletes
 the missing key and marks the row.
-The re-delete of a `deleted` row keeps that order too: the bytes first, then the state becomes
-`gone`.
+The re-delete of a `deleted` row keeps that order too: the bytes first, then the stat, then the
+state becomes `gone`.
 
 The sweeper never lists the bucket. It reads the keys from the table and deletes them one by one.
 
@@ -520,8 +541,9 @@ The blob store port:
 
 - The port today (`apps/api/src/shared/blob/blob-store.ts`) has `put` and `get` only, and the MinIO
   policy has no `s3:DeleteObject`.
-- The pipeline needs a third operation, `delete(key)`: the bytes of a losing attempt, an expired file
-  and a refused `own` export are deleted.
+- The pipeline needs two more operations: `delete(key)` (the bytes of a losing attempt, an expired
+  file and a refused `own` export) and `exists(key)` (the stat before a row becomes `gone`). `put`
+  also takes the object tag `eyadex-kind=finance-export` for the export keys.
 - A missing object is not an error (a delete is idempotent). A 5xx or an unreachable store is an
   error, and the sweep is retried at the next run.
 - What is missing today, on the code and on the storage side, is a prerequisite of slice 4 and is
@@ -542,7 +564,8 @@ The blob store port:
   reach, the file is purged at once.
   The API deletes the key, sets the blob row `deleted` with its `deleted_at`, and sets the export
   `purged` with `storage_key = NULL`.
-  The sweeper moves that blob row to `gone` on its next pass (§6).
+  The sweeper moves that blob row to `gone` once its grace period has passed and a stat finds the
+  key absent (§6).
   The purge does **not** clear `patient_ids`: they are cleared when the row expires, as parent §7.4
   says (EY-10.4).
   The row stays for the audit trail, and the requester must ask for a new export.
@@ -716,9 +739,9 @@ There is no `DELETE`: the rows are the trail of every key ever allocated.
   `status = 'failed'` and `error_code = 'attempts_exhausted'` (§5).
 - The upload's own budget: a PUT that is not answered in 5 minutes is `store_unavailable` (§5). The
   attempt gives up on it, deletes its own upload and retries on a new attempt, which writes a new
-  key. A PUT that lands after that delete is caught by the sweeper's re-delete (§6): the blob row is
-  `deleted` with its `deleted_at`, and the re-delete runs after the grace period, which is longer
-  than the maximum PUT time.
+  key. The timeout ends the worker's wait only, not the store's write: a PUT that lands after that
+  delete is caught by the sweeper's re-delete and stat (§6), and one that lands even later is removed
+  by the bucket's lifecycle rule (§6, §11).
 
 ## 10. Tests
 
@@ -784,7 +807,10 @@ Integration (against PostgreSQL, as `eyadex_app`):
   row is deleted and its export becomes `expired`, and a second run deletes nothing,
 - the re-delete of a swept key: a `deleted` row whose `deleted_at` is older than the grace period has
   its key deleted once more, so a key that reappeared after the sweep is caught, and the row becomes
-  `gone`,
+  `gone` only when the stat finds the key absent,
+- the late write at the stat: a key that is still there after the re-delete keeps the row `deleted`,
+  moves its `deleted_at` and is tried again on a later pass,
+- the export tag: every export `put` carries `eyadex-kind=finance-export`, and no other key does,
 - the `gone` row is final: a `gone` row is never swept again, and a second run over it deletes
   nothing,
 - the retention: at `expires_at` the key is gone, the row is `expired`, and `storage_key` and
@@ -831,7 +857,13 @@ The worker's storage user needs `s3:DeleteObject` on the `clinic/*/finance-expor
 the API's user needs it on the same prefix for the purge.
 The attachments' keys stay undeletable: the export prefix is the only one that gets the permission.
 
-**Both are a server change, and the owner says yes before slice 4 ships.** The grant lives on the
-storage side (the bucket policy and the worker's storage user), not in the code, so it is prepared
+**The bucket has no lifecycle rule for exports.** The store needs a rule that expires objects tagged
+`eyadex-kind=finance-export` 2 days after creation (§6), and the storage users need
+`s3:PutObjectTagging` for the tag. The rule is filtered by the tag, so it can never touch an
+attachment.
+
+**All three are a server change, and the owner says yes before slice 4 ships.** The grants and the
+rule live on the storage side (the bucket policy, the lifecycle rule and the worker's storage user),
+not in the code, so they are prepared
 and applied with the owner's own yes, like the production SQL of parent §8.
 Until it is in place, the export slice does not ship: a stale key could never be cleaned up.
