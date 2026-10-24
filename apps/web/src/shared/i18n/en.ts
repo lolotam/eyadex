@@ -281,7 +281,7 @@ export const en = {
     version_conflict: "Someone else just changed this invoice; reload it and try again",
     send_request_conflict: "This send request was already used for another invoice or channel",
     invoice_link_expired: "This invoice link is no longer valid; ask the clinic for a new one",
-    // Finance F2 (spec §4.6, §7); these reach the UI as `unknown` with the code in `details.code`.
+    // Finance F2 (spec §4.6, §7); the web catalogue carries these codes, so they reach the UI as themselves.
     payment_method_disabled: "This payment method is turned off in the clinic settings.",
     payment_exceeds_balance: "The amount is more than the invoice still owes.",
     invoice_settled: "The invoice is already fully paid.",

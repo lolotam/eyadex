@@ -188,9 +188,7 @@ describe("the void dialog and the confirmed paid amount", () => {
   it("stays open and shows the error when the paid amount changed", async () => {
     const errorToast = vi.spyOn(toast, "error");
     h.getInvoice.mockResolvedValue(invoicePaid("1000"));
-    h.voidInvoice.mockRejectedValue(
-      new ApiError("unknown", undefined, { code: "invoice_paid_changed" }),
-    );
+    h.voidInvoice.mockRejectedValue(new ApiError("invoice_paid_changed"));
     const { button } = open(invoicePaid("1000"));
     await press(button);
     await waitFor(() => expect(errorToast).toHaveBeenCalledWith(ar.errors.invoice_paid_changed));

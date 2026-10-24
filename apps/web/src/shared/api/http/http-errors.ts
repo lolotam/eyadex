@@ -26,7 +26,14 @@ export function flattenDetails(details: unknown): Record<string, string | number
   return flat;
 }
 
-/** The error a failed response becomes: the envelope's code when the web knows it. */
+/**
+ * The error a failed response becomes: the envelope's code when the web knows it.
+ *
+ * The finance F2 codes are in the web catalogue, so a refusal arrives as its own code and the screen
+ * reads `errors.<code>` — the same message it read before, when the code travelled in `details.code`.
+ * A code the web does not catalogue yet (the F3 report codes, until their web slice ships their
+ * translations) still falls back to `unknown` with the raw code readable under `details.code`.
+ */
 export function errorFromResponse(status: number, body: unknown): ApiError {
   const envelope = envelopeSchema.safeParse(body);
   if (!envelope.success) {
@@ -37,7 +44,8 @@ export function errorFromResponse(status: number, body: unknown): ApiError {
   const code = webErrorCodeSchema.safeParse(envelope.data.code);
   if (code.success)
     return new ApiError(code.data, undefined, flattenDetails(envelope.data.details));
-  // An uncatalogued code (e.g. WhatsApp's `unavailable`) stays readable under `details.code`.
+  // A code the web does not catalogue (e.g. WhatsApp's `unavailable`, the F3 report codes) stays
+  // readable under `details.code`.
   return new ApiError("unknown", undefined, {
     ...flattenDetails(envelope.data.details),
     code: envelope.data.code,

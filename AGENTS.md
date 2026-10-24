@@ -50,7 +50,7 @@ When reviewing a pull request, report only real defects, ranked by severity. Che
 - The visual system uses flat clinical surfaces, compact 8px-or-less radii, thin borders, and semantic tokens; deep teal is reserved for actions, active states, and focus — keeping dense administration screens calm and scannable.
 - Marketing site (/ and /en, apps/web/src/marketing, scoped .mk styles): follow .lovable/plan/marketing-landing.md.
 - Eyadex serves every clinic specialty with one shared core; specialty-specific sections are roadmap additions, and the default front-desk role key is `receptionist`.
-- Finance F2 error codes are outside the web error catalogue, so both adapters carry them as `unknown` with the API code in `details.code`; screens read them through `errorKeyOf` — keeps `packages/contracts` untouched.
+- Finance F2 error codes are in the web error catalogue (`webErrorCodeSchema`): both adapters raise them as their own code (`financeError(code)` in the mock), and screens read `errors.<code>` through `errorKeyOf`. Only the F3 report codes stay outside it, as `unknown` with the API code in `details.code`, until their web slice ships.
 - Payments live in `apps/web/src/payments`; the invoice page receives the payment panel as a route slot, so `invoices/` and `payments/` never import each other (ADR-0030).
 - Cash closings live in `apps/web/src/cash-closings` and import no other business area; branch names come from the payments branch options through the `ApiClient`, keeping area boundaries intact.
 - The platform audit API builds its rows from platform events plus clinic entries that are administrative and not about a patient, filtered at the source — so patient activity can never reach the platform, whatever the UI asks.
