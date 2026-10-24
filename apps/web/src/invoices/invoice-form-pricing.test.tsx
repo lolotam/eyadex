@@ -73,7 +73,14 @@ const LIST = {
 const MISSING = "لا يوجد سعر لهذه الخدمة";
 
 function line(unitPrice: string): InvoiceFormValues["lines"][number] {
-  return { kind: "service", serviceId: S1, providerId: null, quantity: 1, unitPrice, discount: null };
+  return {
+    kind: "service",
+    serviceId: S1,
+    providerId: null,
+    quantity: 1,
+    unitPrice,
+    discount: null,
+  };
 }
 
 function show(initial: InvoiceFormValues, editing: Invoice | null = null) {
@@ -102,7 +109,8 @@ const values = (lines: InvoiceFormValues["lines"]): InvoiceFormValues => ({
   invoiceDiscount: null,
 });
 const price = () => screen.getByLabelText("سعر الوحدة") as HTMLInputElement;
-const [service, doctor] = [0, 1].map((i) => () => screen.getAllByRole("combobox")[i]!);
+const service = () => screen.getAllByRole("combobox")[0]!;
+const doctor = () => screen.getAllByRole("combobox")[1]!;
 const loaded = async () => {
   await waitFor(() => expect(state.prices).toHaveBeenCalled());
   await act(async () => new Promise((r) => setTimeout(r, 0)));
