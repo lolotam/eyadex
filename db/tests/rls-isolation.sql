@@ -105,6 +105,15 @@ BEGIN
     INSERT INTO branch_cash_drawers (clinic_id, id, branch_id, last_cash_seq, last_closed_seq, last_closing_id, created_at, updated_at)
       VALUES (c, ('00000000-0000-7000-8000-0000000005'||s||'9')::uuid, ('00000000-0000-7000-8000-0000000001'||s||'2')::uuid, 1, 1,
         ('00000000-0000-7000-8000-0000000005'||s||'7')::uuid, now(), now());
+    -- Finance F3 (0068): one export request and the blob key of its first attempt.
+    INSERT INTO finance_report_exports (clinic_id, id, requested_by, report, params, format, scope, status, created_at)
+      VALUES (c, ('00000000-0000-7000-8000-0000000006'||s||'1')::uuid, ('00000000-0000-7000-8000-0000000001'||s||'5')::uuid,
+        'daily_takings', '{}'::jsonb, 'csv', 'clinic', 'queued', now());
+    INSERT INTO finance_report_export_blobs (clinic_id, id, export_id, attempt, storage_key, state, created_at, updated_at)
+      VALUES (c, ('00000000-0000-7000-8000-0000000006'||s||'2')::uuid, ('00000000-0000-7000-8000-0000000006'||s||'1')::uuid, 1,
+        'clinic/'||c||'/finance-exports/00000000-0000-7000-8000-0000000006'||s||'1/1.csv', 'allocated', now(), now());
+    -- An export of an aggregate report is administrative, yet never the platform's (0068).
+    INSERT INTO audit_log VALUES (c, ('00000000-0000-7000-8000-0000000006'||s||'3')::uuid, ('00000000-0000-7000-8000-0000000002'||s||'5')::uuid, 'finance_report.exported', 'administrative', 'finance_report_export', ('00000000-0000-7000-8000-0000000006'||s||'1')::uuid, null, '{"report":"daily_takings"}', now());
     -- An appointment's audit row names a patient's booking: administrative, yet never the platform's (0043).
     INSERT INTO audit_log VALUES (c, ('00000000-0000-7000-8000-0000000003'||s||'4')::uuid, ('00000000-0000-7000-8000-0000000002'||s||'5')::uuid, 'appointment.booked', 'administrative', 'appointment', ('00000000-0000-7000-8000-0000000003'||s||'3')::uuid, null, '{}', now());
     INSERT INTO audit_log VALUES (c, ('00000000-0000-7000-8000-0000000001'||s||'a')::uuid, ('00000000-0000-7000-8000-0000000002'||s||'5')::uuid, 'user.invited', 'administrative', 'user', null, null, '{}', now());
@@ -120,6 +129,13 @@ BEGIN
       '00000000-0000-7000-8000-0000000002a5', 'patient.updated', 'administrative', 'patient',
       null, null, '{}', now());
     RAISE EXCEPTION 'PLAT-01: a patient event was accepted as administrative';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  -- Spec §7.4, EY-9.15 a: an export of R5–R8 holds patient names, so its audit row is patient access.
+  BEGIN
+    INSERT INTO audit_log VALUES ('00000000-0000-7000-8000-00000000000a', gen_random_uuid(),
+      '00000000-0000-7000-8000-0000000002a5', 'finance_report.exported', 'administrative', 'finance_report_export',
+      '00000000-0000-7000-8000-0000000006a1', null, '{"report":"outstanding"}', now());
+    RAISE EXCEPTION 'PLAT-01: a patient-named export was accepted as administrative';
   EXCEPTION WHEN check_violation THEN NULL; END;
 END $$;
 
@@ -139,7 +155,8 @@ BEGIN
       'patient_attachments','clinic_notification_settings','patient_notifications',
       'clinic_whatsapp_channels','used_invoice_prefixes','service_provider_prices','invoice_sequences',
       'invoices','invoice_lines','invoice_links','clinic_payment_methods','receipt_sequences','payments',
-      'payment_allocations','patient_credits','refunds','refund_sources','cash_closings','branch_cash_drawers'] LOOP
+      'payment_allocations','patient_credits','refunds','refund_sources','cash_closings','branch_cash_drawers',
+      'finance_report_exports','finance_report_export_blobs'] LOOP
     EXECUTE format('SELECT count(*) FROM %I WHERE clinic_id = $1', t) INTO n USING other;
     IF n <> 0 THEN RAISE EXCEPTION 'ISO-01 read leak: % shows % rows of another clinic', t, n; END IF;
     EXECUTE format('SELECT count(*) FROM %I', t) INTO n;
@@ -148,6 +165,52 @@ BEGIN
   SELECT count(*) INTO n FROM clinics;
   IF n <> 1 THEN RAISE EXCEPTION 'ISO-01: clinics shows % rows, expected only its own', n; END IF;
 END $$;
+
+-- Spec §5.1, §8: the invoker view and the report functions run under the caller's RLS. Clinic A sees
+-- nothing of clinic B even when it names B's branch, and its own seed rows are there.
+DO $$
+DECLARE n bigint; mine uuid[] := ARRAY['00000000-0000-7000-8000-0000000001a2']::uuid[];
+  theirs uuid[] := ARRAY['00000000-0000-7000-8000-0000000001b2']::uuid[];
+  d0 date := current_date - 5; d1 date := current_date + 5;
+BEGIN
+  SELECT count(*) INTO n FROM finance_invoice_balances WHERE clinic_id = '00000000-0000-7000-8000-00000000000b';
+  IF n <> 0 THEN RAISE EXCEPTION 'ISO-01 read leak: finance_invoice_balances shows % rows of another clinic', n; END IF;
+  SELECT count(*) INTO n FROM finance_invoice_balances;
+  IF n = 0 THEN RAISE EXCEPTION 'ISO-01 setup: finance_invoice_balances shows no rows of its own clinic'; END IF;
+  SELECT (SELECT count(*) FROM finance_report_daily_takings(d0, d1, theirs))
+    + (SELECT count(*) FROM finance_report_period_summary(d0, d1, theirs))
+    + (SELECT count(*) FROM finance_report_by_service(d0, d1, theirs))
+    + (SELECT count(*) FROM finance_report_by_doctor(d0, d1, theirs))
+    + (SELECT count(*) FROM finance_report_cash_closings(d0, d1, theirs)) INTO n;
+  IF n <> 0 THEN RAISE EXCEPTION 'ISO-01 read leak: the report functions show % rows of another clinic', n; END IF;
+  SELECT count(*) INTO n FROM finance_report_daily_takings(d0, d1, mine);
+  IF n = 0 THEN RAISE EXCEPTION 'ISO-01 setup: finance_report_daily_takings shows no own rows'; END IF;
+  SELECT count(*) INTO n FROM finance_report_period_summary(d0, d1, mine);
+  IF n = 0 THEN RAISE EXCEPTION 'ISO-01 setup: finance_report_period_summary shows no own rows'; END IF;
+  SELECT count(*) INTO n FROM finance_report_by_service(d0, d1, mine);
+  IF n = 0 THEN RAISE EXCEPTION 'ISO-01 setup: finance_report_by_service shows no own rows'; END IF;
+  SELECT count(*) INTO n FROM finance_report_by_doctor(d0, d1, mine);
+  IF n = 0 THEN RAISE EXCEPTION 'ISO-01 setup: finance_report_by_doctor shows no own rows'; END IF;
+  SELECT count(*) INTO n FROM finance_report_cash_closings(d0, d1, mine);
+  IF n = 0 THEN RAISE EXCEPTION 'ISO-01 setup: finance_report_cash_closings shows no own rows'; END IF;
+END $$;
+
+-- CLAUDE.md §5: with no clinic context the view and the functions return zero rows and no error.
+SET LOCAL app.clinic_id = '';
+DO $$
+DECLARE n bigint;
+  both_branches uuid[] := ARRAY['00000000-0000-7000-8000-0000000001a2', '00000000-0000-7000-8000-0000000001b2']::uuid[];
+  d0 date := current_date - 5; d1 date := current_date + 5;
+BEGIN
+  SELECT (SELECT count(*) FROM finance_invoice_balances)
+    + (SELECT count(*) FROM finance_report_daily_takings(d0, d1, both_branches))
+    + (SELECT count(*) FROM finance_report_period_summary(d0, d1, both_branches))
+    + (SELECT count(*) FROM finance_report_by_service(d0, d1, both_branches))
+    + (SELECT count(*) FROM finance_report_by_doctor(d0, d1, both_branches))
+    + (SELECT count(*) FROM finance_report_cash_closings(d0, d1, both_branches)) INTO n;
+  IF n <> 0 THEN RAISE EXCEPTION 'ISO-01: with no clinic context the reports show % rows', n; END IF;
+END $$;
+SET LOCAL app.clinic_id = '00000000-0000-7000-8000-00000000000a';
 
 -- Writes into another clinic must fail (RLS WITH CHECK), one probe per writable table.
 DO $$
@@ -359,6 +422,19 @@ BEGIN
     RAISE EXCEPTION 'ISO-01 write leak: branch_cash_drawers';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   BEGIN
+    INSERT INTO finance_report_exports (clinic_id, id, requested_by, report, params, format, scope, status, created_at)
+      VALUES (b, gen_random_uuid(), '00000000-0000-7000-8000-0000000001b5', 'daily_takings', '{}'::jsonb, 'csv', 'clinic',
+        'queued', now());
+    RAISE EXCEPTION 'ISO-01 write leak: finance_report_exports';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    INSERT INTO finance_report_export_blobs (clinic_id, id, export_id, attempt, storage_key, state, created_at, updated_at)
+      VALUES (b, gen_random_uuid(), '00000000-0000-7000-8000-0000000006b1', 2,
+        'clinic/00000000-0000-7000-8000-00000000000b/finance-exports/00000000-0000-7000-8000-0000000006b1/2.csv',
+        'allocated', now(), now());
+    RAISE EXCEPTION 'ISO-01 write leak: finance_report_export_blobs';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
     INSERT INTO audit_log VALUES (b, gen_random_uuid(), gen_random_uuid(), 'user.invited', 'administrative', 'user', null, null, '{}', now());
     RAISE EXCEPTION 'ISO-01 write leak: audit_log';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
@@ -372,7 +448,7 @@ BEGIN
         'clinic_medicines','patient_attachments','clinic_notification_settings',
         'patient_notifications','clinic_whatsapp_channels','service_provider_prices','invoice_sequences',
         'invoices','invoice_lines','invoice_links','used_invoice_prefixes','clinic_payment_methods',
-        'receipt_sequences','branch_cash_drawers'] LOOP
+        'receipt_sequences','branch_cash_drawers','finance_report_exports','finance_report_export_blobs'] LOOP
       BEGIN
         EXECUTE format('UPDATE %I SET clinic_id = $1', t) USING b;
         RAISE EXCEPTION 'ISO-01 write leak: % rows can be moved to another clinic', t;
@@ -442,6 +518,14 @@ BEGIN
     BEGIN EXECUTE format('DELETE FROM %I', m); RAISE EXCEPTION '% are hard-deletable', m;
     EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   END LOOP;
+  -- Finance F3 (0068, pipeline §8): the export rows and their blob keys are the trail, never deleted.
+  FOREACH m IN ARRAY ARRAY['finance_report_exports','finance_report_export_blobs'] LOOP
+    BEGIN EXECUTE format('DELETE FROM %I', m); RAISE EXCEPTION '% are hard-deletable', m;
+    EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  END LOOP;
+  UPDATE finance_report_exports SET status = 'failed' WHERE clinic_id = b;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 0 THEN RAISE EXCEPTION 'ISO-01 write leak: updated % exports of another clinic', n; END IF;
   UPDATE branch_cash_drawers SET last_cash_seq = last_cash_seq WHERE clinic_id = b;
   GET DIAGNOSTICS n = ROW_COUNT;
   IF n <> 0 THEN RAISE EXCEPTION 'ISO-01 write leak: updated % cash drawers of another clinic', n; END IF;
@@ -542,10 +626,16 @@ BEGIN
   -- Finance (0060): no platform privilege on any finance table.
   FOREACH t IN ARRAY ARRAY['used_invoice_prefixes','service_provider_prices','invoice_sequences','invoices','invoice_lines','invoice_links',
       'clinic_payment_methods','receipt_sequences','payments','payment_allocations','patient_credits','refunds',
-      'refund_sources','cash_closings','branch_cash_drawers'] LOOP
+      'refund_sources','cash_closings','branch_cash_drawers','finance_report_exports',
+      'finance_report_export_blobs','finance_invoice_balances'] LOOP
     BEGIN EXECUTE format('SELECT 1 FROM %I LIMIT 1', t); RAISE EXCEPTION 'PLAT-01: platform can read %', t;
     EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   END LOOP;
+  BEGIN PERFORM 1 FROM finance_report_daily_takings(current_date, current_date, ARRAY[]::uuid[]);
+    RAISE EXCEPTION 'PLAT-01: platform can run the report functions';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  SELECT count(*) INTO n FROM platform_clinic_admin_audit WHERE entity_type = 'finance_report_export';
+  IF n <> 0 THEN RAISE EXCEPTION 'PLAT-01: admin audit view exposes report exports'; END IF;
   -- 0059: the pre-tenant routing of Meta's webhook is the clinic API's only.
   BEGIN PERFORM whatsapp_clinic_for_phone_number('12345'); RAISE EXCEPTION 'PLAT: platform can route a Meta number';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;

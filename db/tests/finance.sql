@@ -15,7 +15,8 @@ INSERT INTO patients (clinic_id, id, file_number, full_name, phone, birth_date, 
     '00000000-0000-7000-8000-0000000f0002','f1.1.iv.body.tag',repeat('f',64),'0000','active',now(),now());
 INSERT INTO clinic_services VALUES ('00000000-0000-7000-8000-0000000f000a','00000000-0000-7000-8000-0000000f000f','ليزر','Laser',30,'active',now(),now());
 
--- The catalogue holds exactly the 23 finance keys (F1 Task 2 and F2 §4.1) (an exact set, not a count), in the 0x34–0x4a ids.
+-- The catalogue holds exactly the 30 finance keys (F1 Task 2, F2 §4.1 and the F3 report keys of EY-10.1) (an exact
+-- set, not a count), in the 0x34–0x51 ids.
 DO $$
 DECLARE expected text[] := ARRAY['view:invoices:clinic','view:invoices:branch','view:invoices:own',
   'create:invoices:clinic','create:invoices:branch','update:invoices:clinic','update:invoices:branch',
@@ -23,7 +24,9 @@ DECLARE expected text[] := ARRAY['view:invoices:clinic','view:invoices:branch','
   'view:prices:clinic','update:prices:clinic',
   'view:payments:clinic','view:payments:branch','create:payments:clinic','create:payments:branch',
   'create:refunds:clinic','create:refunds:branch',
-  'view:cash_closings:clinic','view:cash_closings:branch','create:cash_closings:clinic','create:cash_closings:branch'];
+  'view:cash_closings:clinic','view:cash_closings:branch','create:cash_closings:clinic','create:cash_closings:branch',
+  'view:report_takings:clinic','view:report_takings:branch','view:report_analytics:clinic','view:report_analytics:branch',
+  'view:report_patients:clinic','view:report_patients:branch','view:report_own:own'];
   actual text[];
 BEGIN
   SELECT array_agg(key ORDER BY id) INTO actual FROM permissions WHERE module = 'finance';
@@ -31,8 +34,8 @@ BEGIN
     RAISE EXCEPTION 'FIN: finance keys are %, expected %', actual, expected;
   END IF;
   IF (SELECT min(id::text) FROM permissions WHERE module = 'finance') <> '00000000-0000-7000-8000-0000000c0034'
-     OR (SELECT max(id::text) FROM permissions WHERE module = 'finance') <> '00000000-0000-7000-8000-0000000c004a' THEN
-    RAISE EXCEPTION 'FIN: finance key ids are not 0x34–0x4a';
+     OR (SELECT max(id::text) FROM permissions WHERE module = 'finance') <> '00000000-0000-7000-8000-0000000c0051' THEN
+    RAISE EXCEPTION 'FIN: finance key ids are not 0x34–0x51';
   END IF;
 END $$;
 
