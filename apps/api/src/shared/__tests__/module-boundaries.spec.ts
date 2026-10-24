@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
+import { BILLING_RELATIONS } from "./billing-relations.ts";
+
 // apps/api/AGENTS.md: a Pg adapter is bound in `<module>.module.ts` and injected through its port, so
 // the HTTP layer depends on ports only and every cross-module read is wired in one place.
 const modulesDir = fileURLToPath(new URL("../../modules/", import.meta.url));
@@ -142,35 +144,6 @@ const importsOfMedical = (module: string): string[] =>
       ([, target = ""]) => `${file.slice(modulesDir.length)}: ${target}`,
     ),
   );
-// Finance F1 and F2 (plan Task 8): billing names its own tables, the price column of clinic_services, and
-// branches and clinics for the invoice prefix and the currency; patients, appointments, visits and members
-// come through its ports, bound in billing.module.ts to the adapters their owners export from index.ts.
-const BILLING_RELATIONS = [
-  "clinic_services",
-  "service_provider_prices",
-  "invoices",
-  "invoice_lines",
-  "invoice_sequences",
-  "used_invoice_prefixes",
-  "invoice_links",
-  // 0062: the patient link lookup, SECURITY DEFINER over invoice_links.
-  "invoice_link_lookup",
-  // Finance F2 (0064): the payment tables billing owns (spec §4.2).
-  "clinic_payment_methods",
-  "receipt_sequences",
-  "payments",
-  "payment_allocations",
-  "patient_credits",
-  "refunds",
-  "refund_sources",
-  "branch_cash_drawers",
-  // Finance F2 slice 5: the daily cash closings.
-  "cash_closings",
-  // The jsonb set function its id lists read.
-  "jsonb_array_elements_text",
-  "branches",
-  "clinics",
-];
 const billingSqlRelations = (): string[] =>
   sourceFiles(join(modulesDir, "billing")).flatMap((file) =>
     [...readFileSync(file, "utf8").matchAll(/\b(?:FROM|JOIN|UPDATE|INTO)\s+([a-z_][a-z0-9_]*)/g)]
