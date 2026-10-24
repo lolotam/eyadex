@@ -16,10 +16,14 @@ import {
   AuthModule,
   ClinicAreaGuard,
   PgBillingLineDoctors,
+  PgProviderDirectory,
   PublicRateLimitGuard,
 } from "../identity/index.ts";
 import { CLOCK, PgFilingBranches, TenancyModule, type Clock } from "../tenancy/index.ts";
 import { InvoicePdfController } from "./http/invoice-pdf.controller.ts";
+import { FinanceReportsController } from "./http/finance-reports.controller.ts";
+import type { BillingReportStaff } from "./ports/billing-report-staff.ts";
+import { FinanceReports } from "./use-cases/reports/reports.ts";
 import { InvoiceSendController } from "./http/invoice-send.controller.ts";
 import { CashClosingsController } from "./http/cash-closings.controller.ts";
 import { InvoicesController } from "./http/invoices.controller.ts";
@@ -47,6 +51,7 @@ import {
   INVOICE_REFUNDS,
   INVOICE_SENDS,
   FINANCE_SETTINGS,
+  FINANCE_REPORTS,
   PAYMENT_READS,
   PRICE_CHANGES,
   PUBLIC_INVOICE_LINKS,
@@ -78,6 +83,7 @@ const sources = {
 const patients: BillingPatientReader = new PgBillingPatients();
 const branches: BillingBranchReader = new PgFilingBranches();
 const members: BillingLineDoctorLocks = new PgBillingLineDoctors();
+const reportStaff: BillingReportStaff = new PgProviderDirectory();
 
 /**
  * موديول المالية (finance F1 و F2): أسعار الخدمات، والفواتير، ومدفوعاتها ورصيد المراجع. كل الشغل على
@@ -110,8 +116,15 @@ export class BillingModule {
         PaymentsController,
         RefundsController,
         CashClosingsController,
+        FinanceReportsController,
       ],
       providers: [
+        {
+          provide: FINANCE_REPORTS,
+          inject: [DATABASE, CLOCK],
+          useFactory: (db: Database, clock: Clock) =>
+            new FinanceReports({ db, clock, patients, staff: reportStaff }),
+        },
         ClinicAreaGuard,
         PublicRateLimitGuard,
         {

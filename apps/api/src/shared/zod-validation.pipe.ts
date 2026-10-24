@@ -18,6 +18,9 @@ export class ZodValidationPipe<T extends z.ZodType> implements PipeTransform<unk
   transform(value: unknown): z.output<T> {
     const result = this.#schema.safeParse(value);
     if (!result.success) {
+      if (result.error.issues.some((issue) => issue.message === "validation.rangeTooLong")) {
+        throw new ApiError("report_range_too_long");
+      }
       throw new ApiError(
         "validation",
         result.error.issues.map((issue) => ({ path: issue.path.map(String), code: issue.code })),
