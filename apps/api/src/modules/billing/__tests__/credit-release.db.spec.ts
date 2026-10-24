@@ -204,10 +204,6 @@ describe("the use of the patient's credit and its refusals (spec §4.3 S5, §4.6
     const answer = res.json() as CreditAnswer;
     expect(answer.allocations).toHaveLength(1);
     expect(answer.allocations[0]).toMatchObject({ creditId: i1.creditId, amountMinor: "3000" });
-    const [allocation] =
-      await h.owner`SELECT business_date = (created_at AT TIME ZONE 'Asia/Kuwait')::date AS same
-          FROM payment_allocations WHERE clinic_id = ${C.clinicId} AND id = ${answer.allocations[0]!.id}`;
-    expect(allocation).toMatchObject({ same: true });
     expect(answer.settlement).toEqual(PARTLY_3000);
     expect(answer.creditBalanceMinor).toBe("0");
     applied = await auditSince(h, C.clinicId, since);

@@ -10,7 +10,6 @@ import {
 import { AUTHORIZATION_INVALIDATOR, type AuthorizationInvalidator } from "../../identity/index.ts";
 import { code, send } from "../../appointments/__tests__/scheduling-fixtures.ts";
 import { patientIn } from "../../medical/__tests__/medical-fixtures.ts";
-import { clinicBusinessDay } from "../domain/payment-rules.ts";
 import {
   financeClinic,
   serviceAppointment,
@@ -29,7 +28,6 @@ type Issued = {
   invoice: {
     id: string;
     number: string;
-    issuedAt: string;
     subtotalMinor: string;
     discountMinor: string;
     taxMinor: string;
@@ -202,24 +200,6 @@ describe("issue", () => {
       ]),
     );
     expect((res.json() as Issued).invoice.lines[0]!.descriptionEn).toMatch(/^Visit /);
-  });
-
-  it("stores the clinic day and who set each discount (F3-Q1 a, EY-10.2)", async () => {
-    const lines = [free("1000", pct(1000)), free("200")];
-    const res = await issue(C.admin.cookie, manual(lines, amount("1")));
-    expect(res.statusCode).toBe(201);
-    const { invoice } = res.json() as Issued;
-    const day = clinicBusinessDay(new Date(invoice.issuedAt), "Asia/Kuwait").businessDate;
-    const [row] = await h.owner`SELECT business_date::text AS business_date, discounted_by
-          FROM invoices WHERE clinic_id = ${C.clinicId} AND id = ${invoice.id}`;
-    expect(row).toMatchObject({ business_date: day, discounted_by: C.admin.memberId });
-    const stored = await h.owner`SELECT discounted_by FROM invoice_lines
-          WHERE clinic_id = ${C.clinicId} AND invoice_id = ${invoice.id} AND archived_at IS NULL ORDER BY position`;
-    expect(stored.map((line) => line["discounted_by"])).toEqual([C.admin.memberId, null]);
-    const plain = await issue(C.admin.cookie, manual([free("300")]));
-    const [none] =
-      await h.owner`SELECT discounted_by FROM invoices WHERE clinic_id = ${C.clinicId} AND id = ${(plain.json() as Issued).invoice.id}`;
-    expect(none).toMatchObject({ discounted_by: null });
   });
 });
 

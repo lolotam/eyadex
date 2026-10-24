@@ -413,7 +413,7 @@ The exact columns, types, checks and indexes of both tables are in
    after the locks like `payments.business_date`.
 3. **Backfill and verify** (`db/maintenance/invoice-business-date-backfill.sql` and the new
    `db/maintenance/allocation-business-date-backfill.sql`, run by the orchestrator after step 2 is live): fill
-   the rows still `NULL` (invoices from `issued_at`; a payment-funded allocation from its payment's `business_date`, a credit-funded one from its `created_at`) in the clinic timezone, in batches; then a check query proves no
+   the rows still `NULL` (invoices from `issued_at`; a payment-funded allocation from its payment's `business_date`, a credit-funded one from its `created_at`) in the clinic timezone, in one transaction (production held no finance rows when 2b shipped; batch it only if a run ever needs it); then a check query proves no
    row is `NULL`.
 4. **Contract** (0072): adds `NOT NULL` on both columns and their indexes (`invoices (clinic_id, branch_id, business_date)`,
    `payment_allocations (clinic_id, business_date)`). It is released together with 0071 (the platform totals) and 0073 (the report functions and the
