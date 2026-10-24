@@ -1,41 +1,77 @@
-# Invoice line price fills from the service price (owner decision 2026-10-24)
+# F3 slice 3, card A: on-screen finance reports API (R1 to R10)
 
-Web only. No contract, mock, API or SQL change. No lockfile change.
+## Before starting (needs your confirmation)
+1. **Who edits `apps/api`:** my project knowledge says I never touch `apps/api` or `packages/*` unless the brief says so. This brief does say so, and I'll take that as permission for `apps/api` only. `packages/contracts` stays unchanged unless point 3 below needs a change.
+2. **db specs:** this sandbox has none of the `EYADEX_TEST_*_URL` databases. I can write the `*.db.spec.ts` files and run the unit specs, typecheck and lint here. The db specs will only run in CI or locally on your side. Should I report it that way, or do you want to give me a test database?
+3. **Contract fit:** before writing any code I'll read all of `finance-reports.ts` and `finance-reports-rows.ts`. If a field the spec needs is missing (R6 oldest-credit day, R7 `source`, R8 `discountedBy`), I'll stop and ask rather than change the contract.
 
-## Behaviour
+## Files (all under `apps/api/src/modules/billing/` unless noted)
 
-1. Picking or changing a service on a service line, or picking/changing its doctor, sets the line's unit price: the doctor's price for that service if one exists, else the base price.
-2. «إضافة خدمة» fills the new line's price for the pre-selected first service the same way.
-3. A typed price is never overwritten by re-renders or background refetches of the price list; only a new service or doctor pick on that line refills it.
-4. The edit form and a sourced draft never get repriced on load: filling runs only from user picks (event handlers), never from an effect.
-5. A pick with no price at all (no doctor price and no base price) resets the line to 0.000 and shows «لا يوجد سعر لهذه الخدمة…» (existing key `errors.price_missing`, ar + en already present) under the line at once. The owner answered on 2026-10-24: the old price does not stay.
-6. While the price list is still on its way, «إضافة خدمة» and the service and doctor selects of every service line are disabled: a pick before the prices arrive would be lost. They open again once the list is there. The free-item button stays open.
-7. When the price request fails, one note above the lines says so (new key `finance.invoice.pricesUnavailable`, in the finance dictionaries) with a retry button (`common.retry`); the selects are open again and the lines stay manual until a retry works.
-8. Without `view:prices:clinic` the price list is never requested, and a cached list is never read either; lines stay manual and no early "no price" message is shown (we cannot know). The existing server `price_missing` after «إصدار» still shows.
-9. In the edit form a saved line the user did not change (same service, same doctor, same price) is not flagged as unpriced: the API keeps a saved line's price even when the price was removed (`checkServiceLines`). A line the user changed is flagged as before.
+### Domain (pure, Arabic JSDoc)
+- `domain/report-scope.ts`
+  - `REPORT_KEYS`: one row per report, holding its `@Require` base key and its covering keys (the table in the brief).
+  - `decideReportScope(report, permissions, member, clinicBranchIds, branchFilter)` returns `{ scope: "clinic"|"branch"|"own", branchIds }` or `forbidden`.
+  - Clinic scope = every branch of the clinic, inactive ones included. Branch scope = the member's branches. Own scope applies to R10 only.
+  - Every covering key is checked with `viewScopeCovers` at the decided scope. For R10, only an `own` key counts.
+  - A `branchId` outside the reach answers `forbidden`.
+- `domain/report-aging.ts`: `ageBucket(issueDay, today)` gives 0–30 / 31–60 / 61–90 / 90+.
+- `domain/report-rollup.ts`: rolls days up into months for R1/R2, plus the totals reducers (bigint over minor-unit strings).
 
-## Technical details
+### Ports and wiring
+- `ports/billing-staff.ts`: `BillingStaffNames.findMany(tx, clinicId, membershipIds)`. It is bound in `billing.module.ts` to identity's `PgProviderDirectory.findMany`, exported through `identity/index.ts` if it isn't exported yet.
+- `ports/tokens.ts`: adds `FINANCE_REPORTS`.
+- `ports/billing-branches.ts`: reuse `listForOptions` for clinic-wide branch ids and names (no new port).
 
-- The lookup lives in `invoices/line-price.ts`: `linePriceMinor(list, serviceId, providerId)` (the doctor's price via `providerPrices[].memberId === providerId`, else `priceMinor`), `pickedPriceMajor(...)` (the price a pick writes, 0.000 when the service has none), `isUnpricedLine(...)` (the "no price" message, skipping a saved unchanged line) and `useLinePrices()` (the query, with `loading` and `failed` for the form).
-- `useLinePrices` asks for the list only with `view:prices:clinic` and the finance module explicitly on (as `usePriceList` reads it), and hands back no data at all without the key, so a cached list is never shown to a member who may not read prices.
-- `invoice-form.tsx`: `priceFor` writes the looked-up price on a pick only (`refill(index)`); the note and its retry sit above the lines; the add-service button and the line selects are disabled while the list loads. The form stays under 300 lines (274 now).
-- `invoice-line-row.tsx`: the service and doctor selects take `disabled` from the form; their `onValueChange` calls `field.onChange(v)` then `p.onPicked()`.
-- Mock: none needed; `finance.prices` already exists and the API accepts any submitted unit price.
+### Queries (each ≤ 300 lines, split by responsibility)
+- `queries/report-sql.ts`: `uuidArray` copied from `audit-sql.ts`, plus `reportCursor` (reuses `list-cursor.ts`).
+- `queries/report-takings.ts`: R1, R2 and R9 through `finance_report_daily_takings`, `_period_summary` and `_cash_closings`.
+- `queries/report-analytics.ts`: R3 and R4 through `finance_report_by_service` and `_by_doctor`, tax row kept.
+- `queries/report-outstanding.ts`: R5 from the `finance_invoice_balances` view, where `owed_minor > 0`, the invoice is issued and its issue day is in range. Ordered by id, with a cursor. The summary per bucket and branch comes from the same query.
+- `queries/report-patient-credit.ts`: R6, credits − funded allocations − refund_sources per patient, keeping only balances > 0, with `min(day)`. Keyed by patient id.
+- `queries/report-refunds.ts`: R7, one row per refund. `source = payment` when the spent credit's `cause = 'refund'`, otherwise `credit`.
+- `queries/report-discounts.ts`: R8, a UNION of live discounted lines (`archived_at IS NULL`) and invoice discounts, on issued invoices in range, with `discounted_by`.
+- `queries/report-own-summary.ts`: R10, live lines of non-void invoices where `provider_id = membershipId` and `ownPatientFilter(membershipId, sql\`i.patient_id\`)`, grouped by clinic month.
 
-## Tests (each reverted to prove it fails)
+### Use case and HTTP
+- `persistence/pg-finance-reports.ts`, the `FinanceReports` use case, which:
+  - runs inside `withTenant`;
+  - calls `decideReportScope`;
+  - runs the query;
+  - resolves names in one batch each: patients through `displayNames` (no audit row), staff through the new port, and branch or service names by `preferredLanguage`;
+  - attaches the money facts from `clinicMoneyFacts`;
+  - takes "today" from the injected `Clock` in the clinic timezone;
+  - parses each answer with its response schema.
+- `http/finance-reports.controller.ts`: ten `GET /v1/finance-reports/<id>` handlers. Each has `@RequiresFeature("finance")` plus one `@Require` and uses `ZodValidationPipe(contract query)`. If this goes over 300 lines, I'll split it into `finance-reports-lists.controller.ts` (R5 to R8).
+- `apps/api/src/shared/zod-validation.pipe.ts`: when an issue's message is `validation.rangeTooLong`, it throws `report_range_too_long`.
+- `apps/api/src/shared/errors.ts`: adds the 400 status line for `report_range_too_long`. The ar/en messages already exist in `finance-error-messages.ts`.
 
-- `invoice-form-pricing.test.tsx`: picking a service fills the base price; a doctor's own price wins and changing the doctor refills; a typed price survives a re-render and a background refetch; an unpriced service resets to 0.000 and shows the message at once; without `view:prices` no request is made and the line stays manual; the edit form keeps the saved prices after the list loads; the picks wait for the list and fill the price once it arrives; a failed list shows the note and a retry fills the price again; without `view:prices` a cached list fills nothing; a saved unchanged line is not flagged and a changed one is.
-- There is no `line-price.test.ts`: the lookup is covered through the form, which is where the rules live.
-- Existing `new-invoice-issuance.test.tsx` / `invoice-edit-discounts.test.tsx` need no change: their mocked sessions hold no `view:prices`, so the list is never asked for.
+### Module boundaries
+- Move the billing list out to `apps/api/src/shared/__tests__/billing-relations.ts`. Add `finance_invoice_balances` and the five `finance_report_*` functions to it, and import it into `module-boundaries.spec.ts`, which brings that file back under 300 lines.
+
+## Tests
+- Unit tests, which run here:
+  - `report-scope.spec.ts`: every report at clinic, branch and own scope; a missing covering key; a `branchId` outside the reach; a branch key never standing in for `own`; inactive branches included at clinic scope.
+  - `report-aging.spec.ts`: the 30/31/60/61/90/91 edges.
+  - `report-rollup.spec.ts`
+  - the range-too-long mapping in the pipe.
+- db specs, which run in CI:
+  - `reports-takings.db.spec.ts` (R1, R2, R9)
+  - `reports-analytics.db.spec.ts` (R3, R4, the tax row, the «No doctor» row)
+  - `reports-patients.db.spec.ts` (R5 to R8: numbers, cursor, names, no `patient_access` row)
+  - `reports-credit.db.spec.ts` (R6)
+  - `reports-own.db.spec.ts`: R10 matches `GET /v1/invoices` for the same doctor, and only his own lines count.
+  - `reports-access.db.spec.ts`:
+    - a receptionist reaches R1, R2 and R9 only;
+    - `report_patients` without `view:invoices` gets nothing from R5;
+    - `report_own` never opens R5;
+    - a 367-day range answers 400 `report_range_too_long`;
+    - another clinic's data never shows up.
+  - Shared fixtures go in `__tests__/report-fixtures.ts`.
+  - Every spec checks the clinic, branch and own scopes and connects as `eyadex_app`.
+- Revert-proof: every rule is disabled once and its test is shown to fail.
+
+## Out of scope
+The web ApiClient and the mock (card B), exports, and any `db/sql` change.
 
 ## Gates
-
-typecheck, lint 0 errors, vitest with counts, prettier on touched files, Arabic/English 1440/390 preview check, review-lessons checklist.
-
-## Open product questions
-
-All three are answered by the owner on 2026-10-24:
-
-1. The price list keys doctor prices by `memberId` and the line's doctor is a `membershipId`: they are the same id, as the services price screen does.
-2. A pick with no price resets the line to 0.000 and shows «لا يوجد سعر لهذه الخدمة…» at once.
-3. A sourced (appointment/visit) form refills on a pick like any other form: it only reacts to picks.
+Typecheck, lint, unit tests, Prettier, every file ≤ 300 lines, no lockfile change, plus the `api-image` build if it can run here. The report will give the commit SHA, the changed lines and the test counts, and will name the db specs that were not run here.
