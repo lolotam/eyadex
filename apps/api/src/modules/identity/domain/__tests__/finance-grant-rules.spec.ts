@@ -13,7 +13,7 @@ const financeKeys = (scope?: string) =>
   ).map((p) => p.key);
 
 describe("finance keys of the new clinics' system roles (FIN-4)", () => {
-  it("give the locked admin exactly the twelve clinic-scope finance keys", () => {
+  it("give the locked admin exactly the fifteen clinic-scope finance keys", () => {
     const admin = roleKeys("clinic_admin").filter((k) => financeKeys().includes(k));
     expect(admin.sort()).toEqual(
       [
@@ -29,6 +29,9 @@ describe("finance keys of the new clinics' system roles (FIN-4)", () => {
         "create:refunds:clinic",
         "view:cash_closings:clinic",
         "create:cash_closings:clinic",
+        "view:report_takings:clinic",
+        "view:report_analytics:clinic",
+        "view:report_patients:clinic",
       ].sort(),
     );
     expect(admin.sort()).toEqual(financeKeys("clinic").sort());
@@ -46,6 +49,7 @@ describe("finance keys of the new clinics' system roles (FIN-4)", () => {
         "create:payments:branch",
         "view:cash_closings:branch",
         "create:cash_closings:branch",
+        "view:report_takings:branch",
       ].sort(),
     );
   });
@@ -54,14 +58,31 @@ describe("finance keys of the new clinics' system roles (FIN-4)", () => {
     expect(roleKeys("receptionist").some((k) => k.includes(":refunds:"))).toBe(false);
   });
 
-  it("let the doctor read its own patients' invoices only", () => {
+  it("let the doctor read its own patients' invoices and its own report only", () => {
     expect(roleKeys("doctor").filter((k) => financeKeys().includes(k))).toEqual([
       "view:invoices:own",
+      "view:report_own:own",
     ]);
   });
 
   it("give the technician no finance key", () => {
     expect(roleKeys("technician").filter((k) => financeKeys().includes(k))).toEqual([]);
+  });
+});
+
+describe("granting view:report_own:own (spec §3, R1-12)", () => {
+  it("needs view:report_analytics:clinic — no branch or own key covers it", () => {
+    expect(uncoveredKeys(["view:report_analytics:branch"], ["view:report_own:own"])).toEqual([
+      "view:report_own:own",
+    ]);
+    expect(uncoveredKeys(["view:report_own:own"], ["view:report_own:own"])).toEqual([
+      "view:report_own:own",
+    ]);
+    expect(uncoveredKeys(["view:report_analytics:clinic"], ["view:report_own:own"])).toEqual([]);
+  });
+
+  it("is within the locked admin's own keys, so the admin grants it to the doctor role", () => {
+    expect(uncoveredKeys(roleKeys("clinic_admin"), ["view:report_own:own"])).toEqual([]);
   });
 });
 

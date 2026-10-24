@@ -3,6 +3,7 @@
 # statement, so running it after the deploy grants what the migration granted and nothing else.
 # It is also 0067's statement (finance F2, spec §4.5): the catch-up is reused as is and grants the five
 # F2 clinic-scope keys too, so the two releases never drift apart.
+# 0070 (finance F3, spec §8) reuses it once more for the three clinic-scope report keys.
 # db/tests/finance-release.sql checks what the statement does; this checks the two never drift apart.
 # Usage: sh db/tests/finance-release-catch-up.sh
 set -eu
@@ -25,3 +26,7 @@ statement "$t_dir/../sql/0067_finance_payments_release.sql" >"$work/migration-00
 [ -s "$work/migration-0067.sql" ] || fail "0067 has no role statement"
 cmp -s "$work/migration-0067.sql" "$work/catch-up.sql" || fail "the catch-up differs from 0067's statement"
 pass "the catch-up is 0067's role statement"
+statement "$t_dir/../sql/0070_finance_reports_release.sql" >"$work/migration-0070.sql"
+[ -s "$work/migration-0070.sql" ] || fail "0070 has no role statement"
+cmp -s "$work/migration-0070.sql" "$work/catch-up.sql" || fail "the catch-up differs from 0070's statement"
+pass "the catch-up is 0070's role statement"

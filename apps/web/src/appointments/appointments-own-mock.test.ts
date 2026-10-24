@@ -53,7 +53,7 @@ const book = (provider: string, time: string, persona = as("clinic_admin")) =>
 beforeEach(() => resetMockData());
 
 describe("view:appointments:own in the mock (ADR-0026 A3)", () => {
-  it("the new clinics' doctor holds only the own keys (plus the clinic medicines list, P2, and own invoices, F1)", () => {
+  it("the new clinics' doctor holds only the own keys (plus the clinic medicines list, P2, own invoices, F1, and its own report, F3)", () => {
     expect(roleOf("doctor").permissions).toEqual([
       "view:appointments:own",
       "view:patients:own",
@@ -63,6 +63,7 @@ describe("view:appointments:own in the mock (ADR-0026 A3)", () => {
       "update:medical:own",
       "view:medicines:clinic",
       "view:invoices:own",
+      "view:report_own:own",
     ]);
   });
 

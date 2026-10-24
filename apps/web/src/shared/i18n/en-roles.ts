@@ -57,6 +57,10 @@ export const enRoles = {
       payments: "Payments",
       refunds: "Refunds",
       cash_closings: "Cash closing",
+      report_takings: "Takings reports",
+      report_analytics: "Service and doctor reports",
+      report_patients: "Patient reports",
+      report_own: "My billing summary",
     },
     actions: {
       view: "View",

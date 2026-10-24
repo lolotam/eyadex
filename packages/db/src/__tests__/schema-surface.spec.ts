@@ -53,6 +53,8 @@ describe("@eyadex/db/schema", () => {
       schema.refundSources,
       schema.cashClosings,
       schema.branchCashDrawers,
+      schema.financeReportExports,
+      schema.financeReportExportBlobs,
     ];
     for (const table of clinicOwned) {
       const pk = getTableConfig(table).primaryKeys[0]?.columns.map((c) => c.name);

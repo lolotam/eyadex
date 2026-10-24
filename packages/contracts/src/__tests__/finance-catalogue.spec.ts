@@ -4,9 +4,10 @@ import { moduleDependencyGap } from "../onboarding.ts";
 import { PERMISSION_CATALOG, PERMISSION_KEYS } from "../permissions.ts";
 import { permissionKeysSchema } from "../roles.ts";
 
-// docs/specs/finance-design.md §3.1, §4.1 and §8c.3: exactly 23 finance keys — invoices 9, discounts 2,
-// prices 2 (F1 §3.1) and payments 4, refunds 2, cash_closings 4 (F2 §4.1) — in the order buildCatalog()
-// emits (resource, then action, then scope), which the 0060 and 0064 seed ids follow (0x34–0x4a).
+// docs/specs/finance-design.md §3.1, §4.1 and §8c.3: exactly 30 finance keys — invoices 9, discounts 2,
+// prices 2 (F1 §3.1), payments 4, refunds 2, cash_closings 4 (F2 §4.1) and the seven report keys (F3,
+// EY-10.1) — in the order buildCatalog() emits (resource, then action, then scope), which the 0060, 0064
+// and 0068 seed ids follow (0x34–0x51).
 const FINANCE_KEYS = [
   "view:invoices:clinic",
   "view:invoices:branch",
@@ -31,29 +32,47 @@ const FINANCE_KEYS = [
   "view:cash_closings:branch",
   "create:cash_closings:clinic",
   "create:cash_closings:branch",
+  "view:report_takings:clinic",
+  "view:report_takings:branch",
+  "view:report_analytics:clinic",
+  "view:report_analytics:branch",
+  "view:report_patients:clinic",
+  "view:report_patients:branch",
+  "view:report_own:own",
 ];
 
-describe("finance permissions (F1 §3.1, F2 §4.1)", () => {
-  it("are exactly the 23 finance keys, in catalogue order, all gated by the finance module", () => {
+describe("finance permissions (F1 §3.1, F2 §4.1, F3 EY-10.1)", () => {
+  it("are exactly the 30 finance keys, in catalogue order, all gated by the finance module", () => {
     const finance = PERMISSION_CATALOG.filter((p) => p.module === "finance");
     expect(finance.map((p) => p.key)).toEqual(FINANCE_KEYS);
     expect(new Set(finance.map((p) => p.resource))).toEqual(
-      new Set(["invoices", "discounts", "prices", "payments", "refunds", "cash_closings"]),
+      new Set([
+        "invoices",
+        "discounts",
+        "prices",
+        "payments",
+        "refunds",
+        "cash_closings",
+        "report_takings",
+        "report_analytics",
+        "report_patients",
+        "report_own",
+      ]),
     );
   });
 
   it("follow every non-finance key, so the existing seed ids keep their order", () => {
     const keys = PERMISSION_CATALOG.map((p) => p.key);
-    expect(keys.slice(-23)).toEqual(FINANCE_KEYS);
+    expect(keys.slice(-30)).toEqual(FINANCE_KEYS);
   });
 
   it("are written out in PERMISSION_KEYS", () => {
     expect(PERMISSION_KEYS.filter((k) => FINANCE_KEYS.includes(k))).toEqual(FINANCE_KEYS);
   });
 
-  it("allow `own` only to view invoices", () => {
+  it("allow `own` only to view invoices and the doctor's own report (R10)", () => {
     const own = PERMISSION_CATALOG.filter((p) => p.module === "finance" && p.scope === "own");
-    expect(own.map((p) => p.key)).toEqual(["view:invoices:own"]);
+    expect(own.map((p) => p.key)).toEqual(["view:invoices:own", "view:report_own:own"]);
   });
 });
 

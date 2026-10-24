@@ -55,6 +55,10 @@ export const arRoles = {
       payments: "المدفوعات",
       refunds: "الاسترداد",
       cash_closings: "إقفال الصندوق",
+      report_takings: "تقارير الإيراد",
+      report_analytics: "تقارير الخدمات والأطباء",
+      report_patients: "تقارير المراجعين",
+      report_own: "ملخص فواتيري",
     },
     actions: {
       view: "عرض",

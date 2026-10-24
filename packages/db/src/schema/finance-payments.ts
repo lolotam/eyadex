@@ -190,6 +190,8 @@ export const paymentAllocations = pgTable(
     amountMinor: minor("amount_minor").notNull(),
     createdBy: uuid("created_by").notNull(),
     createdAt: timestamp("created_at", tz).notNull(),
+    // Finance F3 (0068, EY-10.5): the frozen business day, nullable until the contract step (0072).
+    businessDate: date("business_date", { mode: "string" }),
   },
   // The two tables reference each other; an explicit return type stops TypeScript inferring a cycle.
   (t): PgTableExtraConfigValue[] => [
