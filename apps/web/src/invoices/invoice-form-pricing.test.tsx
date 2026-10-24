@@ -103,7 +103,10 @@ const values = (lines: InvoiceFormValues["lines"]): InvoiceFormValues => ({
 });
 const price = () => screen.getByLabelText("سعر الوحدة") as HTMLInputElement;
 const [service, doctor] = [0, 1].map((i) => () => screen.getAllByRole("combobox")[i]!);
-const loaded = () => waitFor(() => expect(state.prices).toHaveBeenCalled());
+const loaded = async () => {
+  await waitFor(() => expect(state.prices).toHaveBeenCalled());
+  await act(async () => new Promise((r) => setTimeout(r, 0)));
+};
 
 beforeEach(() => {
   state.permissions = ["create:invoices:branch", "view:prices:clinic"];
