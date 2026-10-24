@@ -13,6 +13,7 @@ import { ApiError } from "../../../../shared/errors.ts";
 import { invoiceAuditSnapshot, writeFinanceAudit } from "../../../../shared/finance-audit.ts";
 import type { Clock } from "../../../tenancy/index.ts";
 import type { BillingActor } from "../../domain/billing-actor.ts";
+import { discountAuthors, discountsOf } from "../../domain/invoice-discounts.ts";
 import { branchReach, reachesBranch } from "../../domain/invoice-reach.ts";
 import { invoiceTotals, mayDiscount } from "../../domain/invoice-rules.ts";
 import { settle } from "../../domain/payment-rules.ts";
@@ -21,6 +22,7 @@ import {
   archiveLines,
   invoiceOwner,
   lockInvoice,
+  readDiscountAuthors,
   revokeLinks,
   saveEditedTotals,
   voidInvoiceRow,
@@ -46,49 +48,11 @@ export interface ChangeDeps {
   readonly members: BillingLineDoctorLocks;
 }
 
-type DiscountLike = Invoice["invoiceDiscount"] | UpdateInvoiceRequest["invoiceDiscount"];
-
-interface DiscountedLine {
-  readonly kind: string;
-  readonly serviceId?: string | null;
-  readonly providerId?: string | null;
-  readonly quantity: number;
-  readonly unitPriceMinor: string;
-  readonly discount: DiscountLike;
-}
-
 /** رصيد اتكتب من release واحدة: معرّفه والحركة اللي خرجت منها. */
 interface ReleasedCredit {
   readonly creditId: string;
   readonly release: Release;
 }
-
-// R1-14: what the discount key guards — every discount's kind, value and reason, with the line it sits
-// on and that line's position, so it can neither change nor move, not even between two identical lines.
-// An undiscounted line is not part of it: adding or removing one after the discounted lines needs no
-// discount key (PR #78 review). Built field by field, since jsonb gives the stored discount back
-// with its keys in another order.
-const canonical = (d: DiscountLike) =>
-  d === null ? null : [d.kind, d.kind === "pct" ? d.bp : d.minor, d.reason];
-const discountsOf = (invoice: {
-  readonly lines: readonly DiscountedLine[];
-  readonly invoiceDiscount: DiscountLike;
-}) =>
-  JSON.stringify([
-    invoice.lines
-      .map((l, position) => ({ l, position }))
-      .filter(({ l }) => l.discount !== null)
-      .map(({ l, position }) => [
-        position,
-        l.kind,
-        l.serviceId ?? null,
-        l.providerId ?? null,
-        l.quantity,
-        l.unitPriceMinor,
-        canonical(l.discount),
-      ]),
-    canonical(invoice.invoiceDiscount),
-  ]);
 
 /**
  * تعديل الفاتورة وإلغاؤها (FIN-A5، FIN-8، spec §8 rules 8 و10). القفل بالترتيب: عضوية أطباء السطور،
@@ -135,12 +99,23 @@ export class InvoiceChanges {
           totalMinor: BigInt(before.totalMinor),
         };
         const releases = settle(() => planEditRelease(money, invoice, totals.totalMinor));
+        // The discount authors are read before the lines are archived: afterwards they are gone.
+        const authors = await readDiscountAuthors(tx, actor.clinicId, id);
+        const who = discountAuthors({
+          before: { lines: before.lines, invoiceDiscount: before.invoiceDiscount },
+          authors: { invoice: authors.invoice, lines: authors.lines },
+          after: body,
+          editor: actor.membershipId,
+        });
         await archiveLines(tx, actor.clinicId, id, now);
         await insertLines(
           tx,
           actor.clinicId,
           id,
-          storedLines(this.deps.ids, body.lines, names, totals),
+          storedLines(this.deps.ids, body.lines, names, totals).map((line, position) => ({
+            ...line,
+            discountedBy: who.lines[position] ?? null,
+          })),
           now,
         );
         await saveEditedTotals(
@@ -153,6 +128,7 @@ export class InvoiceChanges {
             taxMinor: totals.taxMinor.toString(),
             totalMinor: totals.totalMinor.toString(),
             invoiceDiscount: body.invoiceDiscount,
+            discountedBy: who.invoice,
           },
           now,
         );

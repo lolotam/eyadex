@@ -180,6 +180,7 @@ export class InvoicePayments {
       paymentId,
       creditId: null,
       amountMinor: body.amountMinor,
+      businessDate: day.businessDate,
       createdBy: actor.membershipId,
       createdAt: now,
     });

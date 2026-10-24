@@ -203,6 +203,7 @@ export interface NewAllocationRow {
   readonly paymentId: string | null;
   readonly creditId: string | null;
   readonly amountMinor: string;
+  readonly businessDate: string;
   readonly createdBy: string;
   readonly createdAt: Date;
 }
@@ -216,9 +217,10 @@ export async function insertAllocation(
   const at = row.createdAt.toISOString();
   await tx.execute(
     sql`INSERT INTO payment_allocations (clinic_id, id, invoice_id, patient_id, payment_id, credit_id,
-          amount_minor, created_by, created_at)
+          amount_minor, business_date, created_by, created_at)
         VALUES (${clinicId}, ${row.id}, ${row.invoiceId}, ${row.patientId}, ${row.paymentId},
-          ${row.creditId}, ${row.amountMinor}::bigint, ${row.createdBy}, ${at}::timestamptz)`,
+          ${row.creditId}, ${row.amountMinor}::bigint, ${row.businessDate}::date, ${row.createdBy},
+          ${at}::timestamptz)`,
   );
 }
 

@@ -10,12 +10,13 @@ import { readInvoiceMoney } from "./pg-patient-money.ts";
 // runs inside the caller's withTenant(clinicId). Amounts travel as text both ways, so a bigint never
 // passes through a JS number. The numbering has its own file (pg-invoice-numbering.ts).
 
-/** What an issue reads of the clinic, and the clinic-timezone year of the issue instant (rule 8). */
+/** What an issue reads of the clinic, and its year and business day of the issue instant (rule 8). */
 export interface IssueClinicFacts {
   readonly currency: CurrencyCode;
   readonly currencyExponent: number;
   readonly taxRateBp: number;
   readonly year: number;
+  readonly businessDate: string;
 }
 
 export async function issueClinicFacts(
@@ -28,9 +29,11 @@ export async function issueClinicFacts(
     currency_exponent: number;
     tax_rate_bp: number;
     year: number;
+    business_date: string;
   }>(
     sql`SELECT currency, currency_exponent, tax_rate_bp,
-          extract(year FROM ${issuedAt.toISOString()}::timestamptz AT TIME ZONE timezone)::int AS year
+          extract(year FROM ${issuedAt.toISOString()}::timestamptz AT TIME ZONE timezone)::int AS year,
+          (${issuedAt.toISOString()}::timestamptz AT TIME ZONE timezone)::date::text AS business_date
         FROM clinics WHERE id = ${clinicId}`,
   );
   return {
@@ -38,6 +41,7 @@ export async function issueClinicFacts(
     currencyExponent: row!.currency_exponent,
     taxRateBp: row!.tax_rate_bp,
     year: row!.year,
+    businessDate: row!.business_date,
   };
 }
 
@@ -94,22 +98,26 @@ export interface NewInvoiceRow {
   readonly taxMinor: string;
   readonly totalMinor: string;
   readonly invoiceDiscount: Invoice["invoiceDiscount"];
+  readonly businessDate: string;
+  readonly discountedBy: string | null;
   readonly createdBy: string;
 }
 
 export async function insertInvoice(tx: Tx, clinicId: string, row: NewInvoiceRow): Promise<void> {
   const at = row.issuedAt.toISOString();
+  const discountedBy = row.discountedBy === null ? sql`NULL` : sql`${row.discountedBy}::uuid`;
   await tx.execute(
     sql`INSERT INTO invoices (clinic_id, id, branch_id, patient_id, year, number_seq, number, status,
           source, source_id, issued_at, currency, currency_exponent, subtotal_minor, discount_minor,
           tax_rate_bp, tax_minor, total_minor, invoice_discount, void_reason, voided_at, version,
-          created_by, created_at, updated_at)
+          created_by, created_at, updated_at, business_date, discounted_by)
         VALUES (${clinicId}, ${row.id}, ${row.branchId}, ${row.patientId}, ${row.year},
           ${row.numberSeq}, ${row.number}, 'issued', ${row.source}, ${row.sourceId},
           ${at}::timestamptz, ${row.currency}, ${row.currencyExponent}, ${row.subtotalMinor}::bigint,
           ${row.discountMinor}::bigint, ${row.taxRateBp}, ${row.taxMinor}::bigint,
           ${row.totalMinor}::bigint, ${jsonOrNull(row.invoiceDiscount)}, NULL, NULL, 1,
-          ${row.createdBy}, ${at}::timestamptz, ${at}::timestamptz)`,
+          ${row.createdBy}, ${at}::timestamptz, ${at}::timestamptz, ${row.businessDate}::date,
+          ${discountedBy})`,
   );
 }
 
@@ -120,19 +128,21 @@ export async function insertLines(
   tx: Tx,
   clinicId: string,
   invoiceId: string,
-  lines: readonly StoredLine[],
+  lines: readonly (StoredLine & { readonly discountedBy: string | null })[],
   now: Date,
 ): Promise<void> {
   const at = now.toISOString();
   for (const line of lines) {
+    const discountedBy = line.discountedBy === null ? sql`NULL` : sql`${line.discountedBy}::uuid`;
     await tx.execute(
       sql`INSERT INTO invoice_lines (clinic_id, id, invoice_id, position, kind, service_id,
             provider_id, description_ar, description_en, quantity, unit_price_minor, line_discount,
-            line_total_minor, archived_at, created_at, updated_at)
+            line_total_minor, archived_at, created_at, updated_at, discounted_by)
           VALUES (${clinicId}, ${line.id}, ${invoiceId}, ${line.position}, ${line.kind},
             ${line.serviceId}, ${line.providerId}, ${line.descriptionAr}, ${line.descriptionEn},
             ${line.quantity}, ${line.unitPriceMinor}::bigint, ${jsonOrNull(line.discount)},
-            ${line.lineTotalMinor}::bigint, NULL, ${at}::timestamptz, ${at}::timestamptz)`,
+            ${line.lineTotalMinor}::bigint, NULL, ${at}::timestamptz, ${at}::timestamptz,
+            ${discountedBy})`,
     );
   }
 }

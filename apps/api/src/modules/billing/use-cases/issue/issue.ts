@@ -167,9 +167,14 @@ export class InvoiceIssues {
       taxMinor: totals.taxMinor.toString(),
       totalMinor: totals.totalMinor.toString(),
       invoiceDiscount: body.invoiceDiscount,
+      businessDate: facts.businessDate,
+      discountedBy: body.invoiceDiscount === null ? null : actor.membershipId,
       createdBy: actor.membershipId,
     });
-    const lines = storedLines(ids, body.lines, names, totals);
+    const lines = storedLines(ids, body.lines, names, totals).map((line) => ({
+      ...line,
+      discountedBy: line.discount === null ? null : actor.membershipId,
+    }));
     await insertLines(tx, actor.clinicId, invoiceId, lines, now);
     await recordPrefix(tx, ids, actor.clinicId, branchId, prefix, now);
     const invoice = (await readInvoice(tx, actor.clinicId, invoiceId))!;
