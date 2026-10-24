@@ -359,7 +359,11 @@ row lock decides, and the loser sees a live lease and defers.
 - The lease is taken when the hand-off is recorded and it is released when the attempt ends, whatever
   the outcome.
 - The lease lasts 60 s. The heartbeat runs every 20 s, so two missed beats still leave 20 s of lease.
-- The heartbeat is one short `withTenant` transaction:
+- The heartbeat is one short `withTenant` transaction. Like the publish (§2 step 9), it first locks
+  the export row (`SELECT … FOR UPDATE`) and only then runs its fenced `UPDATE`, so its
+  `clock_timestamp()` check runs while no one else can hold or change the lease. **Every fenced write
+  of an attempt** (the heartbeat, the publish, the failure, the release and the abandon) takes that
+  lock first:
 
 ```sql
 UPDATE finance_report_exports SET lease_until = clock_timestamp() + interval '60 seconds'
