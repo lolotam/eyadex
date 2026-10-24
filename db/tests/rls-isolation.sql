@@ -137,6 +137,26 @@ BEGIN
       '00000000-0000-7000-8000-0000000006a1', null, '{"report":"outstanding"}', now());
     RAISE EXCEPTION 'PLAT-01: a patient-named export was accepted as administrative';
   EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    INSERT INTO audit_log VALUES ('00000000-0000-7000-8000-00000000000a', gen_random_uuid(),
+      '00000000-0000-7000-8000-0000000002a5', 'finance_report.exported', 'administrative', 'finance_report_export',
+      '00000000-0000-7000-8000-0000000006a1', null, '{}', now());
+    RAISE EXCEPTION 'PLAT-01: an export with no report was accepted as administrative';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  -- PR #124 review: an export row names only its own object, in its own clinic.
+  BEGIN
+    UPDATE finance_report_exports SET storage_key =
+      'clinic/00000000-0000-7000-8000-00000000000b/finance-exports/00000000-0000-7000-8000-0000000006a1/0.csv'
+      WHERE id = '00000000-0000-7000-8000-0000000006a1';
+    RAISE EXCEPTION 'ISO-01: an export accepted another clinic''s storage key';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    INSERT INTO finance_report_export_blobs (clinic_id, id, export_id, attempt, storage_key, state, created_at, updated_at)
+      VALUES ('00000000-0000-7000-8000-00000000000a', gen_random_uuid(), '00000000-0000-7000-8000-0000000006a1', 2,
+        'clinic/00000000-0000-7000-8000-00000000000a/finance-exports/00000000-0000-7000-8000-0000000006a1/3.csv',
+        'allocated', now(), now());
+    RAISE EXCEPTION 'ISO-01: a blob row accepted another attempt''s key';
+  EXCEPTION WHEN check_violation THEN NULL; END;
 END $$;
 
 -- ISO-01 as the runtime role scoped to clinic A.

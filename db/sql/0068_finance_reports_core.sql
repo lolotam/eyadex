@@ -44,8 +44,11 @@ CREATE TABLE finance_report_exports (
   lease_owner     text NULL,
   lease_until     timestamptz NULL,
   next_attempt_at timestamptz NULL,
-  storage_key     text NULL
-    CHECK (storage_key ~ '^clinic/[0-9a-f-]{36}/finance-exports/[0-9a-f-]{36}/[0-9]+\.(csv|xlsx)$'),
+  -- Pipeline §4: the published key is the winning attempt's own key, built from this row (PR #124 review),
+  -- so a row can never name another clinic's, another export's or another attempt's object.
+  storage_key     text NULL CONSTRAINT finance_report_exports_storage_key_check
+    CHECK (storage_key = 'clinic/' || clinic_id::text || '/finance-exports/' || id::text
+    || '/' || attempt::text || '.' || format),
   byte_size       integer NULL CHECK (byte_size > 0),
   row_count       integer NULL CHECK (row_count >= 0),
   error_code      text NULL,
@@ -70,8 +73,11 @@ CREATE TABLE finance_report_export_blobs (
   id          uuid NOT NULL,
   export_id   uuid NOT NULL,
   attempt     integer NOT NULL CHECK (attempt >= 1),
-  storage_key text NOT NULL
-    CHECK (storage_key ~ '^clinic/[0-9a-f-]{36}/finance-exports/[0-9a-f-]{36}/[0-9]+\.(csv|xlsx)$'),
+  -- Pipeline §4: the key is built from the row itself, in either format of its export (PR #124 review).
+  storage_key text NOT NULL CONSTRAINT finance_report_export_blobs_storage_key_check
+    CHECK (storage_key IN (
+    'clinic/' || clinic_id::text || '/finance-exports/' || export_id::text || '/' || attempt::text || '.csv',
+    'clinic/' || clinic_id::text || '/finance-exports/' || export_id::text || '/' || attempt::text || '.xlsx')),
   state       text NOT NULL CHECK (state IN ('allocated', 'uploaded', 'published', 'deleted', 'gone')),
   deleted_at  timestamptz NULL,
   created_at  timestamptz NOT NULL,
@@ -105,10 +111,12 @@ REVOKE ALL ON finance_report_exports, finance_report_export_blobs FROM eyadex_pl
 
 -- Spec §7.4, EY-9.15 a: an export of R5–R8 holds patient names, so its audit row is patient access; the
 -- other reports' exports are administrative. Either way the platform never sees an export row (FIN-3).
+-- Only a named aggregate report may be administrative: a missing or unknown report is patient access.
 ALTER TABLE audit_log ADD CONSTRAINT audit_log_patient_report_exports_are_patient_access
   CHECK (entity_type <> 'finance_report_export'
-    OR details ->> 'report' NOT IN ('outstanding', 'patient_credit', 'refunds', 'discounts')
-    OR category = 'patient_access');
+    OR category = 'patient_access'
+    OR coalesce(details ->> 'report', '') IN ('daily_takings', 'period_summary', 'by_service', 'by_doctor',
+      'cash_closings', 'own_summary'));
 
 CREATE OR REPLACE VIEW platform_clinic_admin_audit WITH (security_barrier = true) AS
   SELECT clinic_id, id, actor_user_id, action, entity_type, entity_id, branch_id, details, created_at

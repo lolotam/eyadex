@@ -21,9 +21,9 @@ import {
 import { clinics } from "./clinics.ts";
 import { tz } from "./finance-columns.ts";
 
-// The export of 0068 (finance F3 spec §7.3, pipeline §8): one key per attempt, under the clinic's prefix.
-const STORAGE_KEY =
-  "'^clinic/[0-9a-f-]{36}/finance-exports/[0-9a-f-]{36}/[0-9]+\\.(csv|xlsx)$'::text";
+// The key of 0068 (finance F3 spec §7.3, pipeline §4): built from the blob row itself, in either format.
+const BLOB_KEY =
+  "((((('clinic/'::text || (clinic_id)::text) || '/finance-exports/'::text) || (export_id)::text) || '/'::text) || (attempt)::text)";
 
 const REPORTS = [
   "daily_takings",
@@ -102,7 +102,12 @@ export const financeReportExports = pgTable(
       sql.raw(anyOf("scope", ["clinic", "branch", "own"])),
     ),
     check("finance_report_exports_status_check", sql.raw(anyOf("status", EXPORT_STATUSES))),
-    check("finance_report_exports_storage_key_check", sql.raw(`(storage_key ~ ${STORAGE_KEY})`)),
+    check(
+      "finance_report_exports_storage_key_check",
+      sql.raw(
+        "(storage_key = ((((((('clinic/'::text || (clinic_id)::text) || '/finance-exports/'::text) || (id)::text) || '/'::text) || (attempt)::text) || '.'::text) || format))",
+      ),
+    ),
   ],
 );
 
@@ -142,7 +147,9 @@ export const financeReportExportBlobs = pgTable(
     check("finance_report_export_blobs_state_check", sql.raw(anyOf("state", BLOB_STATES))),
     check(
       "finance_report_export_blobs_storage_key_check",
-      sql.raw(`(storage_key ~ ${STORAGE_KEY})`),
+      sql.raw(
+        `((storage_key = (${BLOB_KEY} || '.csv'::text)) OR (storage_key = (${BLOB_KEY} || '.xlsx'::text)))`,
+      ),
     ),
   ],
 );

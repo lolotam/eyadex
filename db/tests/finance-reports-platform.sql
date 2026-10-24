@@ -46,6 +46,8 @@ INSERT INTO clinics VALUES
 INSERT INTO audit_log VALUES ('00000000-0000-7000-8000-0000000f310a', gen_random_uuid(), gen_random_uuid(),
   'finance_report.exported', 'administrative', 'finance_report_export', gen_random_uuid(), null,
   '{"report":"daily_takings"}', now());
+-- The clinic context is set, so the platform's insert policy can refuse only on the entity (PR #124 review).
+SET LOCAL app.clinic_id = '00000000-0000-7000-8000-0000000f310a';
 SET LOCAL ROLE eyadex_platform;
 DO $$
 BEGIN
@@ -57,6 +59,9 @@ BEGIN
       'finance_report.exported', 'administrative', 'finance_report_export', gen_random_uuid(), null, '{}', now());
     RAISE EXCEPTION 'F3-GRANTS: the platform wrote a report export audit row';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  -- The control: the same insert with an administrative entity the platform may write is accepted.
+  INSERT INTO audit_log VALUES ('00000000-0000-7000-8000-0000000f310a', gen_random_uuid(), gen_random_uuid(),
+    'clinic.updated', 'administrative', 'clinic', null, null, '{}', now());
 END $$;
 RESET ROLE;
 

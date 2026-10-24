@@ -131,9 +131,10 @@ function covers(actor: Actor, key: string): boolean {
   const held = actor.role.permissions;
   const [action, resource, scope] = key.split(":");
   if (actor.role.isLocked && DELEGATED.has(resource ?? "")) return true;
-  if (held.includes(key) || held.includes(`${action}:${resource}:clinic`)) return true;
+  // The bound key is checked first, as the API's uncoveredKeys does: holding the own key itself is not enough.
   const bound = CLINIC_BOUND.get(key);
   if (bound !== undefined) return held.includes(bound);
+  if (held.includes(key) || held.includes(`${action}:${resource}:clinic`)) return true;
   return scope === "own" && held.includes(`${action}:${resource}:branch`);
 }
 
