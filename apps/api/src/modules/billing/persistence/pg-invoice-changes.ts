@@ -89,6 +89,32 @@ export async function archiveLines(
   );
 }
 
+/**
+ * Who set each discount of the invoice (EY-10.2): the membership of the staff member behind every live
+ * line's discount and behind the invoice discount. Read before the lines are archived: afterwards they
+ * are gone.
+ *
+ * @returns the invoice's discount author and the live lines' authors by position
+ */
+export async function readDiscountAuthors(
+  tx: Tx,
+  clinicId: string,
+  invoiceId: string,
+): Promise<{ invoice: string | null; lines: Map<number, string | null> }> {
+  const [row] = await tx.execute<{ discounted_by: string | null }>(
+    sql`SELECT discounted_by FROM invoices WHERE clinic_id = ${clinicId} AND id = ${invoiceId}`,
+  );
+  const lines = await tx.execute<{ position: number; discounted_by: string | null }>(
+    sql`SELECT position, discounted_by FROM invoice_lines
+        WHERE clinic_id = ${clinicId} AND invoice_id = ${invoiceId} AND archived_at IS NULL
+        ORDER BY position`,
+  );
+  return {
+    invoice: row?.discounted_by ?? null,
+    lines: new Map(lines.map((line) => [line.position, line.discounted_by])),
+  };
+}
+
 /** The recomputed totals and invoice discount of an edit, one version up. */
 export async function saveEditedTotals(
   tx: Tx,
@@ -100,6 +126,7 @@ export async function saveEditedTotals(
     readonly taxMinor: string;
     readonly totalMinor: string;
     readonly invoiceDiscount: Invoice["invoiceDiscount"];
+    readonly discountedBy: string | null;
   },
   now: Date,
 ): Promise<void> {
@@ -107,10 +134,12 @@ export async function saveEditedTotals(
     totals.invoiceDiscount === null
       ? sql`NULL`
       : sql`${JSON.stringify(totals.invoiceDiscount)}::jsonb`;
+  const discountedBy = totals.discountedBy === null ? sql`NULL` : sql`${totals.discountedBy}::uuid`;
   await tx.execute(
     sql`UPDATE invoices SET subtotal_minor = ${totals.subtotalMinor}::bigint,
           discount_minor = ${totals.discountMinor}::bigint, tax_minor = ${totals.taxMinor}::bigint,
           total_minor = ${totals.totalMinor}::bigint, invoice_discount = ${discount},
+          discounted_by = ${discountedBy},
           version = version + 1, updated_at = ${now.toISOString()}::timestamptz
         WHERE clinic_id = ${clinicId} AND id = ${id}`,
   );

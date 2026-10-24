@@ -286,14 +286,15 @@ describe("what the database keeps of a payment (spec §4.2)", () => {
     });
     expect(Number(row!["receipt_seq"])).toBe(seqOf(answer.payment.receiptNumber));
     const allocations =
-      await h.owner`SELECT invoice_id, payment_id, amount_minor::text AS amount_minor
-          FROM payment_allocations
+      await h.owner`SELECT invoice_id, payment_id, amount_minor::text AS amount_minor,
+          business_date::text AS business_date FROM payment_allocations
           WHERE clinic_id = ${C.clinicId} AND payment_id = ${answer.payment.id}`;
     expect(allocations).toHaveLength(1);
     expect(allocations[0]).toMatchObject({
       invoice_id: invoice.id,
       payment_id: answer.payment.id,
       amount_minor: "1000",
+      business_date: answer.payment.businessDate,
     });
   });
 });

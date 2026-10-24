@@ -9,6 +9,7 @@ import {
   openHarness,
   type Harness,
 } from "../../identity/auth/__tests__/auth-http-harness.ts";
+import { memberOn, roleIdOf } from "../../identity/__tests__/user-fixtures.ts";
 import { AUTHORIZATION_INVALIDATOR, type AuthorizationInvalidator } from "../../identity/index.ts";
 import { code, send } from "../../appointments/__tests__/scheduling-fixtures.ts";
 import { patientIn } from "../../medical/__tests__/medical-fixtures.ts";
@@ -25,6 +26,8 @@ import {
 let h: Harness;
 let C: FinanceClinic;
 let invalidate: AuthorizationInvalidator;
+/** The second admin: the member who edits the invoice and holds the discount key (EY-10.2). */
+let editor: { memberId: string; cookie: string };
 
 type Answer = {
   invoice: { id: string; number: string; status: string; version: number; totalMinor: string };
@@ -40,18 +43,23 @@ const free = (unitPriceMinor: string, discount: unknown = null) => ({
 });
 const pct = (bp: number, reason = "courtesy") => ({ kind: "pct", bp, reason });
 
-async function issued(branchId: string, lines: unknown[], sourceId: string | null = null) {
+async function issued(
+  branchId: string,
+  lines: unknown[],
+  sourceId: string | null = null,
+  invoiceDiscount: unknown = null,
+) {
   const patient = await patientIn(h, C, branchId);
   const body =
     sourceId === null
-      ? { source: "manual", sourceId, patientId: patient, branchId, lines, invoiceDiscount: null }
+      ? { source: "manual", sourceId, patientId: patient, branchId, lines, invoiceDiscount }
       : {
           source: "appointment",
           sourceId,
           patientId: null,
           branchId: null,
           lines,
-          invoiceDiscount: null,
+          invoiceDiscount,
         };
   const res = await send(h, C.admin.cookie, "POST", "/v1/invoices", body, randomUUID());
   if (res.statusCode !== 201) throw new Error(`issue ${res.statusCode} ${res.body}`);
@@ -73,16 +81,31 @@ const write = (
     body,
     ...(ifMatch === undefined ? {} : { headers: { "if-match": ifMatch } }),
   });
-const edit = (cookie: string, id: string, lines: unknown[], ifMatch?: string) =>
-  write(cookie, "PATCH", `/v1/invoices/${id}`, { lines, invoiceDiscount: null }, ifMatch);
+const edit = (
+  cookie: string,
+  id: string,
+  lines: unknown[],
+  ifMatch?: string,
+  invoiceDiscount: unknown = null,
+) => write(cookie, "PATCH", `/v1/invoices/${id}`, { lines, invoiceDiscount }, ifMatch);
 const voidIt = (cookie: string, id: string, ifMatch?: string) =>
   write(cookie, "POST", `/v1/invoices/${id}/void`, { reason: "issued twice" }, ifMatch);
+
+const authorsOf = async (invoiceId: string) => {
+  const [invoice] =
+    await h.owner`SELECT discounted_by FROM invoices WHERE clinic_id = ${C.clinicId} AND id = ${invoiceId}`;
+  const lines =
+    await h.owner`SELECT discounted_by FROM invoice_lines WHERE clinic_id = ${C.clinicId} AND invoice_id = ${invoiceId} AND archived_at IS NULL ORDER BY position`;
+  return [invoice!["discounted_by"], ...lines.map((line) => line["discounted_by"])];
+};
 
 beforeAll(async () => {
   h = await openHarness({}, true);
   invalidate = h.app.get<AuthorizationInvalidator>(AUTHORIZATION_INVALIDATOR);
   C = await financeClinic(h, invalidate);
   await setPrefixes(h, C);
+  editor = await memberOn(h, C.admin, await roleIdOf(h, C.clinicId, "clinic_admin"));
+  await invalidate.clinicChanged(C.clinicId);
 });
 
 afterAll(() => closeHarness(h));
@@ -224,6 +247,27 @@ describe("discounts on edit (R1-14)", () => {
       '"1"',
     );
     expect(res.statusCode).toBe(403);
+  });
+});
+
+describe("the author of a discount (EY-10.2)", () => {
+  it("keeps the author of an unchanged discount and gives a changed one to the editor", async () => {
+    const invoice = await issued(C.branchR, [free("1000", pct(1000))], null, pct(500));
+    const kept = await edit(editor.cookie, invoice.id, [free("1000", pct(1000))], '"1"', pct(500));
+    expect(kept.statusCode).toBe(200);
+    expect(await authorsOf(invoice.id)).toEqual([C.admin.memberId, C.admin.memberId]);
+    const changed = await edit(
+      editor.cookie,
+      invoice.id,
+      [free("1000", pct(2000))],
+      '"2"',
+      pct(500),
+    );
+    expect(changed.statusCode).toBe(200);
+    expect(await authorsOf(invoice.id)).toEqual([C.admin.memberId, editor.memberId]);
+    const dropped = await edit(editor.cookie, invoice.id, [free("1000", pct(2000))], '"3"', null);
+    expect(dropped.statusCode).toBe(200);
+    expect(await authorsOf(invoice.id)).toEqual([null, editor.memberId]);
   });
 });
 

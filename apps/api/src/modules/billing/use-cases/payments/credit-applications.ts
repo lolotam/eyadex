@@ -11,7 +11,7 @@ import { writeFinanceAudit } from "../../../../shared/finance-audit.ts";
 import type { BillingActor, MemberBranches } from "../../domain/billing-actor.ts";
 import { reachesBranch } from "../../domain/invoice-reach.ts";
 import { paymentsReach } from "../../domain/money-reach.ts";
-import { settle } from "../../domain/payment-rules.ts";
+import { clinicBusinessDay, settle } from "../../domain/payment-rules.ts";
 import { invoiceOwner, lockInvoice } from "../../persistence/pg-invoice-changes.ts";
 import { readInvoice } from "../../persistence/pg-invoice-store.ts";
 import { readPatientMoney } from "../../persistence/pg-patient-money.ts";
@@ -135,6 +135,8 @@ export class CreditApplications {
     // would mean the balance changed under the lock, so it is refused as an insufficient balance.
     if (first === undefined) throw new ApiError("credit_insufficient");
     const now = clock.now();
+    // The allocation freezes its own business day (EY-10.5): the clinic-timezone day of this moment.
+    const businessDate = clinicBusinessDay(now, facts.timezone).businessDate;
     const allocationIds: string[] = [];
     for (const spend of spends) {
       const allocationId = ids.newId();
@@ -145,6 +147,7 @@ export class CreditApplications {
         paymentId: null,
         creditId: spend.creditId,
         amountMinor: String(spend.amountMinor),
+        businessDate,
         createdBy: actor.membershipId,
         createdAt: now,
       });
