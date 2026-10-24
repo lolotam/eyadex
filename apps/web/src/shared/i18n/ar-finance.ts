@@ -91,6 +91,8 @@ export const arFinance: Strings<typeof enFinance> = {
       reload: "إعادة التحميل",
       noLines: "أضف بندًا واحدًا على الأقل",
       draftError: "تعذّر تجهيز الفاتورة",
+      // The price list did not load: the lines stay manual until a retry works.
+      pricesUnavailable: "تعذّر تحميل الأسعار؛ اكتب السعر يدويًا أو أعد المحاولة",
     },
     list: {
       title: "الفواتير",

@@ -90,6 +90,8 @@ export const enFinance = {
       reload: "Reload",
       noLines: "Add at least one line",
       draftError: "The invoice could not be prepared",
+      // The price list did not load: the lines stay manual until a retry works.
+      pricesUnavailable: "Prices could not be loaded; type the price or retry",
     },
     list: {
       title: "Invoices",

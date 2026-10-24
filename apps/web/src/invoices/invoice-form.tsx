@@ -27,6 +27,7 @@ import {
   type InvoiceFormValues,
 } from "./invoice-form-draft";
 import { InvoiceLineRow } from "./invoice-line-row";
+import { isUnpricedLine, pickedPriceMajor, useLinePrices } from "./line-price";
 import { useInvoiceOptions } from "./invoice-options";
 import { InvoicePatientPicker } from "./invoice-patient-picker";
 import { InvoiceTotalsPanel } from "./invoice-totals-panel";
@@ -63,6 +64,19 @@ export function InvoiceForm(p: Props) {
   const taxRateBp = p.editing?.taxRateBp ?? money.taxRateBp;
   const totals = liveTotals(values, exponent, taxRateBp);
   const [error, setError] = useState<string | null>(null);
+  const prices = useLinePrices();
+  /** The price for a service + doctor pick; null when prices are not readable (lines stay manual). */
+  const priceFor = (serviceId: string, providerId: string | null) =>
+    pickedPriceMajor(prices.data, serviceId, providerId, exponent);
+  // Only a pick on the line refills it, never a load or refetch: saved and typed prices stay.
+  const refill = (index: number) => {
+    const line = form.getValues(`lines.${index}`);
+    if (line?.kind !== "service") return;
+    const price = priceFor(line.serviceId, line.providerId);
+    if (price !== null) form.setValue(`lines.${index}.unitPrice`, price);
+  };
+  // The list is asked again after a failure; the lines stay manual until it arrives.
+  const retryPrices = () => void prices.refetch();
 
   const save = useMutation({
     mutationFn: async () => {
@@ -93,7 +107,13 @@ export function InvoiceForm(p: Props) {
       ),
   });
   const conflict = save.error instanceof ApiError && save.error.code === "version_conflict";
+  const unpricedAt = (i: number) => {
+    const line = values.lines[i];
+    if (!line) return false;
+    return isUnpricedLine(line, prices.data, p.editing?.lines ?? [], exponent);
+  };
   const missingAt = (i: number) =>
+    unpricedAt(i) ||
     (p.priceMissing && values.lines[i]?.unitPrice === money.toMajor("0")) ||
     (save.error instanceof ApiError &&
       save.error.code === "price_missing" &&
@@ -147,6 +167,14 @@ export function InvoiceForm(p: Props) {
       )}
       <section className="flex flex-col gap-2">
         <h3 className="text-sm font-semibold">{t("finance.invoice.lines")}</h3>
+        {prices.failed && (
+          <div className="flex flex-wrap items-center gap-2 text-sm text-destructive" role="alert">
+            <span>{t("finance.invoice.pricesUnavailable")}</span>
+            <Button type="button" variant="outline" size="sm" onClick={retryPrices}>
+              {t("common.retry")}
+            </Button>
+          </div>
+        )}
         {lines.fields.map((field, index) => {
           const lineTotal =
             totals && totals !== "discount_exceeds_total"
@@ -162,6 +190,8 @@ export function InvoiceForm(p: Props) {
               mayDiscount={mayDiscount}
               lineTotal={lineTotal}
               priceMissing={missingAt(index)}
+              pricesLoading={prices.loading}
+              onPicked={() => refill(index)}
               onRemove={() => lines.remove(index)}
             />
           );
@@ -172,16 +202,18 @@ export function InvoiceForm(p: Props) {
               type="button"
               variant="outline"
               size="sm"
-              onClick={() =>
+              disabled={prices.loading}
+              onClick={() => {
+                const serviceId = options.services[0]?.id ?? "";
                 lines.append({
                   kind: "service",
-                  serviceId: options.services[0]?.id ?? "",
+                  serviceId,
                   providerId: null,
                   quantity: 1,
-                  unitPrice: money.toMajor("0"),
+                  unitPrice: (serviceId && priceFor(serviceId, null)) || money.toMajor("0"),
                   discount: null,
-                })
-              }
+                });
+              }}
             >
               <ListPlus className="size-4" />
               {t("finance.invoice.addService")}
