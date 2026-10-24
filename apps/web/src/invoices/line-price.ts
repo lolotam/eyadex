@@ -1,9 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import type { PriceList } from "@eyadex/contracts/finance";
+import { formatMinor, parseMajorToMinor } from "@eyadex/contracts/money";
+import type { Invoice, PriceList } from "@eyadex/contracts/finance";
 import { ApiError } from "@/shared/api/api-error";
 import { useApi } from "@/shared/api/api-provider";
 import { can } from "@/shared/permissions/can";
 import { usePersona, useSession } from "@/shared/persona/persona-provider";
+import type { LineValues } from "./invoice-form-draft";
 
 const retry = (count: number, error: unknown) => !(error instanceof ApiError) && count < 2;
 
@@ -23,6 +25,58 @@ export function linePriceMinor(
 }
 
 /**
+ * The price a pick puts on the line: the doctor's price, else the base price, else 0.000 (the owner
+ * decided on 2026-10-24 that a pick with no price resets the line). Null when no list may be read at
+ * all — the line then keeps the price it had.
+ */
+export function pickedPriceMajor(
+  list: PriceList | undefined,
+  serviceId: string,
+  providerId: string | null,
+  exponent: number,
+): string | null {
+  if (!list) return null;
+  return formatMinor(linePriceMinor(list, serviceId, providerId) ?? "0", exponent);
+}
+
+/**
+ * True when the line is still the saved one (same service, same doctor, same price): the API keeps a
+ * saved line's price even when the price was removed (checkServiceLines), so the form must not call
+ * such a line unpriced.
+ */
+function isSavedLine(
+  line: LineValues,
+  saved: readonly Invoice["lines"][number][],
+  exponent: number,
+): boolean {
+  if (line.kind !== "service") return false;
+  const minor = parseMajorToMinor(line.unitPrice, exponent);
+  if (minor === null) return false;
+  return saved.some(
+    (s) =>
+      s.kind === "service" &&
+      s.serviceId === line.serviceId &&
+      s.providerId === line.providerId &&
+      s.unitPriceMinor === minor,
+  );
+}
+
+/**
+ * True when the line has no price in the list and the form must say so: a service with no price at
+ * all (no doctor price and no base price). A saved line the user did not change is not one of them.
+ */
+export function isUnpricedLine(
+  line: LineValues,
+  list: PriceList | undefined,
+  saved: readonly Invoice["lines"][number][],
+  exponent: number,
+): boolean {
+  if (!list || line.kind !== "service" || line.serviceId === "") return false;
+  if (linePriceMinor(list, line.serviceId, line.providerId) !== null) return false;
+  return !isSavedLine(line, saved, exponent);
+}
+
+/**
  * `GET /v1/prices` for filling invoice lines; asked only with `view:prices` and finance on, so a role
  * without the key never sends it and keeps typing prices by hand. Kept here: areas never import others.
  */
@@ -31,11 +85,23 @@ export function useLinePrices() {
   const { persona, ready } = usePersona();
   const { session } = useSession();
   const allowed =
-    !!session && can(session.permissions, "view", "prices") && session.features?.finance !== false;
-  return useQuery({
+    !!session &&
+    can(session.permissions, "view", "prices") &&
+    // The finance module must be explicitly on, as `usePriceList` reads it; no flags count as off.
+    session.features?.finance === true;
+  const query = useQuery({
     queryKey: ["clinic", "prices", persona.clinicId, persona.memberId],
     queryFn: () => api.finance.prices(persona),
     enabled: ready && Boolean(persona.clinicId) && allowed,
     retry,
   });
+  return {
+    ...query,
+    // A member without `view:prices` must not read the list, not even one the cache still holds.
+    data: allowed ? query.data : undefined,
+    /** The list is on its way and no price is known yet: a pick now would be lost, so the form waits. */
+    loading: allowed && query.data === undefined && query.fetchStatus === "fetching",
+    /** The request failed and no list arrived: the lines stay manual until a retry succeeds. */
+    failed: allowed && query.isError && query.data === undefined,
+  };
 }

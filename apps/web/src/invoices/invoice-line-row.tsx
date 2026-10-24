@@ -26,6 +26,8 @@ type Props = {
   /** The line's total, already formatted, or null while it does not parse. */
   lineTotal: string | null;
   priceMissing: boolean;
+  /** The price list is still on its way: a pick now would be lost, so the selects wait. */
+  pricesLoading: boolean;
   /** A service or doctor was picked on this line: refill its price. */
   onPicked: () => void;
   onRemove: () => void;
@@ -61,6 +63,7 @@ export function InvoiceLineRow(p: Props) {
             render={({ field }) => (
               <Select
                 value={field.value}
+                disabled={p.pricesLoading}
                 onValueChange={(v) => {
                   field.onChange(v);
                   p.onPicked();
@@ -85,6 +88,7 @@ export function InvoiceLineRow(p: Props) {
             render={({ field }) => (
               <Select
                 value={(field.value as string | null) ?? NO_PROVIDER}
+                disabled={p.pricesLoading}
                 onValueChange={(v) => {
                   field.onChange(v === NO_PROVIDER ? null : v);
                   p.onPicked();
