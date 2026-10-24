@@ -5,7 +5,7 @@ import { ApiError } from "@/shared/api/api-error";
 import { useApi } from "@/shared/api/api-provider";
 import { can } from "@/shared/permissions/can";
 import { usePersona, useSession } from "@/shared/persona/persona-provider";
-import type { LineValues } from "./invoice-form-draft";
+import { toDiscountInput, type LineValues } from "./invoice-form-draft";
 
 const retry = (count: number, error: unknown) => !(error instanceof ApiError) && count < 2;
 
@@ -39,10 +39,15 @@ export function pickedPriceMajor(
   return formatMinor(linePriceMinor(list, serviceId, providerId) ?? "0", exponent);
 }
 
+/** One discount as the API compares it: kind, amount (bp or minor) and reason. */
+const discountKey = (d: Invoice["lines"][number]["discount"]) =>
+  d === null ? null : [d.kind, d.kind === "pct" ? d.bp : d.minor, d.reason];
+
 /**
- * True when the line is still the saved one (same service, same doctor, same price): the API keeps a
- * saved line's price even when the price was removed (checkServiceLines), so the form must not call
- * such a line unpriced.
+ * True when the line is still a saved one, matched exactly as the API's `serviceKey` matches it
+ * (service, doctor, quantity, unit price and discount): the API keeps such a line's price even when
+ * the current price was removed (checkServiceLines), so the form must not call it unpriced. A change
+ * to any of them makes it a new line, which needs a current price.
  */
 function isSavedLine(
   line: LineValues,
@@ -51,13 +56,17 @@ function isSavedLine(
 ): boolean {
   if (line.kind !== "service") return false;
   const minor = parseMajorToMinor(line.unitPrice, exponent);
-  if (minor === null) return false;
+  const discount = toDiscountInput(line.discount, exponent);
+  if (minor === null || discount === "invalid") return false;
+  const key = JSON.stringify(discountKey(discount));
   return saved.some(
     (s) =>
       s.kind === "service" &&
       s.serviceId === line.serviceId &&
       s.providerId === line.providerId &&
-      s.unitPriceMinor === minor,
+      s.quantity === line.quantity &&
+      s.unitPriceMinor === minor &&
+      JSON.stringify(discountKey(s.discount)) === key,
   );
 }
 

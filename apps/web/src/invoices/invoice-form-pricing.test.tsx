@@ -275,4 +275,31 @@ describe("invoice line price fills from the price list (owner decision 2026-10-2
     fireEvent.change(doctor(), { target: { value: D1 } });
     expect(await screen.findByText(new RegExp(MISSING))).toBeTruthy();
   });
+
+  it("a saved line whose quantity changed is flagged, as the API's serviceKey does", async () => {
+    const editing = {
+      id: "i",
+      version: 1,
+      taxRateBp: 0,
+      lines: [
+        {
+          position: 0,
+          kind: "service",
+          serviceId: S2,
+          providerId: null,
+          descriptionAr: "",
+          descriptionEn: "",
+          quantity: 1,
+          unitPriceMinor: "4000",
+          discount: null,
+          lineTotalMinor: "4000",
+        },
+      ],
+    } as unknown as Invoice;
+    show(values([serviceLine(S2, "4.000")]), editing);
+    await loaded();
+    expect(screen.queryByText(new RegExp(MISSING))).toBeNull();
+    fireEvent.change(screen.getByLabelText("الكمية"), { target: { value: "2" } });
+    expect(await screen.findByText(new RegExp(MISSING))).toBeTruthy();
+  });
 });
