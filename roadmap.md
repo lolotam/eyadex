@@ -130,6 +130,7 @@
   - [x] Card 1b: receipts list and receipt page, «المدفوعات» tab, receipt link in the success toast
   - [x] Card 2a: refunds (dialog, movements, refunds list), finance strip as nav, platform collected/refunded
   - [x] Card 2b: the cash closing (preview, close dialog, history, detail, menu entry) — in review as a PR to main; the create-only role seeing no branches is accepted (owner decision 2026-10-23)
+- [x] Invoice line price fills from the service price (doctor price first; owner decision 2026-10-24)
 - [ ] F2: the receipt PDF — deferred with 8g
 - [ ] F3: reports (outline, `finance-design.md` §5)
 - [ ] F4: online payment and insurance (outline, `finance-design.md` §6)
