@@ -22,7 +22,12 @@ type Line = CreateInvoiceRequest["lines"][number];
 
 /** A priced service line of the clinic, billed by the given doctor. */
 function serviceLine(providerId: string, unitPriceMinor: string): Line {
-  const service = getState().services.find((s) => s.clinicId === clinicIdAt(0) && s.isActive)!;
+  const service = getState().services.find(
+    (s) => s.clinicId === clinicIdAt(0) && s.status === "active",
+  );
+  if (!service) throw new Error("seed");
+  // A priced service, so the issue does not stop at price_missing.
+  financeState(getState()).prices[service.id] = { priceMinor: unitPriceMinor, providerPrices: [] };
   return {
     kind: "service",
     serviceId: service.id,
