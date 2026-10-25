@@ -6,7 +6,8 @@ import type { MockState } from "./mock-store";
 
 /** The invoice as the API answers it: without its clinic, with its branch's current names. */
 export function strip(db: MockState, invoice: StoredInvoice): Invoice {
-  const { clinicId, ...rest } = invoice;
+  // The report-only fields never reach an invoice answer: the contract does not carry them.
+  const { clinicId, businessDate: _day, discountedBy: _by, lineMeta: _meta, ...rest } = invoice;
   const branch = db.branches.find((b) => b.id === invoice.branchId && b.clinicId === clinicId);
   if (!branch) throw new ApiError("not_found");
   return {

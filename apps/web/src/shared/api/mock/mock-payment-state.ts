@@ -16,6 +16,8 @@ export type StoredAllocation = {
   creditId: string | null;
   amountMinor: string;
   createdAt: string;
+  /** A payment's allocation takes the payment's day, a credit application its own (slice 2b). */
+  businessDate?: string;
   by: string;
 };
 
