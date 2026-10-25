@@ -37,8 +37,8 @@ export const FINANCE_F2_ERROR_CODES = [
 ] as const;
 
 /**
- * The F3 codes of the reports and their exports (spec §4, §7.1, §7.4). They are shared by the API
- * catalogue and its messages, and they stay API-only until the F3 web slice ships their translations.
+ * The F3 codes of the reports and their exports (spec §4, §7.1, §7.4), shared by the API catalogue and
+ * its messages. The on-screen reports' code is web-catalogued; the export codes wait for their slice.
  */
 export const FINANCE_F3_ERROR_CODES = [
   "export_busy",
@@ -47,11 +47,23 @@ export const FINANCE_F3_ERROR_CODES = [
 ] as const;
 
 /**
- * The finance codes the API owns and the web does not yet translate: the F3 codes of the reports and
- * their exports, whose web translations come with the F3 web slice. The F2 codes are no longer here
- * — the web already carries every one of their messages, so it reads them as catalogued codes.
+ * The finance codes the API owns and the web does not yet translate: the export codes, whose web
+ * translations come with the export slice. `report_range_too_long` left this list with the web reports
+ * client (F3 slice 3 card B), so the web reads it as a catalogued code.
  */
-const financeApiOnlyErrorCodes = [...FINANCE_F3_ERROR_CODES] as const;
+type ApiOnlyFinanceCodes<Codes extends readonly string[]> = Codes extends readonly [
+  infer Code extends string,
+  ...infer Rest extends readonly string[],
+]
+  ? Code extends "report_range_too_long"
+    ? ApiOnlyFinanceCodes<Rest>
+    : readonly [Code, ...ApiOnlyFinanceCodes<Rest>]
+  : readonly [];
+
+export const FINANCE_API_ONLY_ERROR_CODES = FINANCE_F3_ERROR_CODES.filter(
+  (code) => code !== "report_range_too_long",
+) as unknown as ApiOnlyFinanceCodes<typeof FINANCE_F3_ERROR_CODES>;
+const financeApiOnlyErrorCodes = FINANCE_API_ONLY_ERROR_CODES;
 
 const baseApiErrorCodes = [
   "not_found",

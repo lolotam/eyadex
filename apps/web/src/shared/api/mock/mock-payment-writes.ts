@@ -81,7 +81,9 @@ export function recordPayment(
     receivedBy: a.member.id,
   };
   s.payments.push(payment);
-  s.allocations.push(allocation(invoice, payment.id, null, body.amountMinor, at, a.member.id));
+  s.allocations.push(
+    allocation(invoice, payment.id, null, body.amountMinor, at, a.member.id, payment.businessDate),
+  );
   // The reference and the patient's name stay out: they are typed text (finance-audit-snapshot.ts).
   const snapshot: PaymentAuditSnapshot = {
     receiptNumber: payment.receiptNumber,
@@ -117,6 +119,7 @@ function allocation(
   amountMinor: string,
   createdAt: string,
   by: string,
+  businessDate: string,
 ): StoredAllocation {
   return {
     clinicId: invoice.clinicId,
@@ -127,6 +130,7 @@ function allocation(
     creditId,
     amountMinor,
     createdAt,
+    businessDate,
     by,
   };
 }
@@ -154,15 +158,11 @@ export function applyCredit(
   const spends = settle(() =>
     planCreditApplication(money, settlementInvoice(invoice), BigInt(body.amountMinor)),
   );
+  // All lots belong to one application, so advancing time per lot could split its clinic day.
+  const at = movementTime(now);
+  const day = dayInTimeZone(at, a.clinic.timezone);
   const rows = spends.map((spend) =>
-    allocation(
-      invoice,
-      null,
-      spend.creditId,
-      String(spend.amountMinor),
-      movementTime(now),
-      a.member.id,
-    ),
+    allocation(invoice, null, spend.creditId, String(spend.amountMinor), at, a.member.id, day),
   );
   paymentState(db).allocations.push(...rows);
   const snapshot: CreditAuditSnapshot = {
