@@ -15,7 +15,7 @@ import {
 } from "./mock-report-kit";
 import { settlementOf } from "./mock-settlement";
 
-type PageQuery = { from: string; to: string; cursor?: string; limit: number };
+type PageQuery = { from: string; to: string; cursor?: string | undefined; limit: number };
 
 const daysBetween = (from: string, to: string) =>
   Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);

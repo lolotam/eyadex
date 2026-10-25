@@ -15,7 +15,11 @@ type LineLike = {
   unitPriceMinor: string;
   discount: Discount;
 };
-type Meta = Pick<StoredInvoice, "businessDate" | "discountedBy" | "lineMeta">;
+type Meta = {
+  businessDate: string | undefined;
+  discountedBy: string | null;
+  lineMeta: { id: string; discountedBy: string | null }[];
+};
 
 // Built field by field, so two discounts compare by value whatever their key order.
 const canonical = (d: Discount) =>

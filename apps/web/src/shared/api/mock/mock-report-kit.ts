@@ -67,7 +67,7 @@ export function staffNameOf(ctx: ReportContext, membershipId: string): string | 
 /** `reportPage`: newest id first, the cursor is the last id without dashes, the total ignores it. */
 export function reportPage<T extends { rowId: string }>(
   rows: readonly T[],
-  query: { cursor?: string; limit: number },
+  query: { cursor?: string | undefined; limit: number },
 ): { rows: Omit<T, "rowId">[]; nextCursor: string | null; total: number } {
   const after = query.cursor === undefined ? null : fromCursor(query.cursor);
   const sorted = [...rows].sort((a, b) => (a.rowId < b.rowId ? 1 : a.rowId > b.rowId ? -1 : 0));

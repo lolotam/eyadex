@@ -11,7 +11,7 @@ import {
   staffNameOf,
 } from "./mock-report-kit";
 
-type PageQuery = { from: string; to: string; cursor?: string; limit: number };
+type PageQuery = { from: string; to: string; cursor?: string | undefined; limit: number };
 type Discount = StoredInvoice["invoiceDiscount"];
 
 /** R7: one row per refund; `payment` when it spent a credit released by a refund of a receipt. */
