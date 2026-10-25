@@ -40,7 +40,12 @@ export function groupBy<T>(rows: readonly T[], key: (row: T) => string): Map<str
   const groups = new Map<string, T[]>();
   for (const row of rows) {
     const k = key(row);
-    groups.set(k, [...(groups.get(k) ?? []), row]);
+    let bucket = groups.get(k);
+    if (bucket === undefined) {
+      bucket = [];
+      groups.set(k, bucket);
+    }
+    bucket.push(row);
   }
   return groups;
 }

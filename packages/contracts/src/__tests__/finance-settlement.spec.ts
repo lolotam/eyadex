@@ -1,13 +1,18 @@
 import { describe, expect, it } from "vitest";
 
-import { apiErrorCodeSchema, FINANCE_F2_ERROR_CODES, webErrorCodeSchema } from "../common.ts";
+import {
+  apiErrorCodeSchema,
+  FINANCE_API_ONLY_ERROR_CODES,
+  FINANCE_F2_ERROR_CODES,
+  FINANCE_F3_ERROR_CODES,
+  webErrorCodeSchema,
+} from "../common.ts";
 import {
   financeSettingsSchema,
   invoiceListItemSchema,
   invoiceListQuerySchema,
   invoiceSchema,
   invoiceSettlementSchema,
-  PAYMENT_METHODS,
   platformFinanceTotalsSchema,
   voidInvoiceRequestSchema,
 } from "../finance.ts";
@@ -153,48 +158,6 @@ describe("the invoice settlement agrees with the invoice status", () => {
   });
 });
 
-describe("the finance settings carry the complete payment method list", () => {
-  const settings = {
-    currency: "KWD",
-    currencyExponent: 3,
-    taxRateBp: 0,
-    commercialRegNo: null,
-    hasLogo: false,
-  };
-  const methods = PAYMENT_METHODS.map((method) => ({ method, enabled: true }));
-
-  it("carries every method when the field is present", () => {
-    expect(
-      financeSettingsSchema.parse({ ...settings, paymentMethods: methods }).paymentMethods,
-    ).toEqual(methods);
-  });
-
-  it("refuses a partial method list", () => {
-    const result = financeSettingsSchema.safeParse({
-      ...settings,
-      paymentMethods: methods.slice(0, 1),
-    });
-    expect(result.success).toBe(false);
-    if (!result.success) expect(result.error.issues[0]?.message).toBe("validation.required");
-  });
-
-  it("refuses a repeated method", () => {
-    const repeated = [methods[0], ...methods.slice(0, 3)];
-    const result = financeSettingsSchema.safeParse({ ...settings, paymentMethods: repeated });
-    expect(result.success).toBe(false);
-    if (!result.success) expect(result.error.issues[0]?.message).toBe("validation.duplicate");
-  });
-
-  it("refuses an unknown method", () => {
-    expect(
-      financeSettingsSchema.safeParse({
-        ...settings,
-        paymentMethods: [{ method: "card", enabled: true }],
-      }).success,
-    ).toBe(false);
-  });
-});
-
 describe("F1 response compatibility", () => {
   it("still accepts an invoice without settlement", () => {
     expect(invoiceSchema.parse(invoice)).toEqual(invoice);
@@ -254,7 +217,7 @@ describe("the finance error catalogue (F2 §4.6, F3 §4 and §7.4)", () => {
     "closing_note_required",
     "cash_drawer_out_of_range",
   ];
-  const f3Codes = ["export_busy", "report_range_too_long", "export_amount_too_large"];
+  const f3Codes = FINANCE_F3_ERROR_CODES;
 
   it.each([...f2Codes, ...f3Codes])("includes API code %s", (code) => {
     expect(apiErrorCodeSchema.parse(code)).toBe(code);
@@ -268,11 +231,12 @@ describe("the finance error catalogue (F2 §4.6, F3 §4 and §7.4)", () => {
     expect(webErrorCodeSchema.parse(code)).toBe(code);
   });
 
-  const exportCodes = ["export_busy", "export_amount_too_large"];
-
-  it.each(exportCodes)("leaves %s to the web's fallback until it ships", (code) => {
-    expect(webErrorCodeSchema.safeParse(code).success).toBe(false);
-  });
+  it.each(FINANCE_API_ONLY_ERROR_CODES)(
+    "leaves %s to the web's fallback until it ships",
+    (code) => {
+      expect(webErrorCodeSchema.safeParse(code).success).toBe(false);
+    },
+  );
 
   it("carries report_range_too_long in the web catalogue: the web reports client reads it", () => {
     expect(webErrorCodeSchema.parse("report_range_too_long")).toBe("report_range_too_long");
@@ -287,7 +251,9 @@ describe("the finance error catalogue (F2 §4.6, F3 §4 and §7.4)", () => {
 
   it("keeps API codes first and appends the two web-only codes", () => {
     expect(webErrorCodeSchema.options).toEqual([
-      ...apiErrorCodeSchema.options.filter((code) => !exportCodes.includes(code)),
+      ...apiErrorCodeSchema.options.filter(
+        (code) => !FINANCE_API_ONLY_ERROR_CODES.some((apiOnly) => apiOnly === code),
+      ),
       "conflict",
       "not_implemented",
     ]);

@@ -51,7 +51,18 @@ export const FINANCE_F3_ERROR_CODES = [
  * translations come with the export slice. `report_range_too_long` left this list with the web reports
  * client (F3 slice 3 card B), so the web reads it as a catalogued code.
  */
-export const FINANCE_API_ONLY_ERROR_CODES = ["export_busy", "export_amount_too_large"] as const;
+type ApiOnlyFinanceCodes<Codes extends readonly string[]> = Codes extends readonly [
+  infer Code extends string,
+  ...infer Rest extends readonly string[],
+]
+  ? Code extends "report_range_too_long"
+    ? ApiOnlyFinanceCodes<Rest>
+    : readonly [Code, ...ApiOnlyFinanceCodes<Rest>]
+  : readonly [];
+
+export const FINANCE_API_ONLY_ERROR_CODES = FINANCE_F3_ERROR_CODES.filter(
+  (code) => code !== "report_range_too_long",
+) as unknown as ApiOnlyFinanceCodes<typeof FINANCE_F3_ERROR_CODES>;
 const financeApiOnlyErrorCodes = FINANCE_API_ONLY_ERROR_CODES;
 
 const baseApiErrorCodes = [
