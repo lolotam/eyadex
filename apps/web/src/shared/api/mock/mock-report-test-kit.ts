@@ -62,7 +62,12 @@ export function issue(
 }
 
 export const pay = (invoiceId: string, amountMinor: string) =>
-  api.payments.recordPayment(admin(), invoiceId, { method: "cash", amountMinor }, crypto.randomUUID());
+  api.payments.recordPayment(
+    admin(),
+    invoiceId,
+    { method: "cash", amountMinor },
+    crypto.randomUUID(),
+  );
 
 /** A custom role holding exactly these keys, on a fresh member of the clinic; the persona that uses it. */
 export function personaWith(keys: string[], branchIds: string[] | null = null): Persona {

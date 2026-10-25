@@ -23,7 +23,13 @@ const all = (p = admin()) => {
 async function reachable(p: ReturnType<typeof admin>) {
   const open: string[] = [];
   for (const [id, read] of Object.entries(all(p))) {
-    if (await read().then(() => true, () => false)) open.push(id);
+    if (
+      await read().then(
+        () => true,
+        () => false,
+      )
+    )
+      open.push(id);
   }
   return open;
 }
@@ -54,7 +60,17 @@ describe("report keys (spec §8 key splits)", () => {
   });
 
   it("the admin reaches every report but the own summary (it holds no own key)", async () => {
-    expect(await reachable(admin())).toEqual(["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9"]);
+    expect(await reachable(admin())).toEqual([
+      "R1",
+      "R2",
+      "R3",
+      "R4",
+      "R5",
+      "R6",
+      "R7",
+      "R8",
+      "R9",
+    ]);
   });
 });
 

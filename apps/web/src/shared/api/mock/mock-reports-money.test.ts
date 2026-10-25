@@ -98,7 +98,11 @@ describe("R3 and R4", () => {
     await issue([freeLine("10000")]);
     const r3 = await api.reports.byService(admin(), range());
     expect(r3.rows.at(-1)).toMatchObject({ kind: "tax", amountMinor: "1000", lineCount: 0 });
-    expect(r3.totals).toMatchObject({ billedMinor: "10000", taxMinor: "1000", totalMinor: "11000" });
+    expect(r3.totals).toMatchObject({
+      billedMinor: "10000",
+      taxMinor: "1000",
+      totalMinor: "11000",
+    });
   });
 });
 

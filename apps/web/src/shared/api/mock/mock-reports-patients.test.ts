@@ -94,7 +94,13 @@ describe("R7 refunds and R8 discounts", () => {
     await api.payments.refund(
       admin(),
       a.id,
-      { source: "payment", paymentId: payment.id, amountMinor: "1000", method: "cash", reason: "أ" },
+      {
+        source: "payment",
+        paymentId: payment.id,
+        amountMinor: "1000",
+        method: "cash",
+        reason: "أ",
+      },
       crypto.randomUUID(),
     );
     await voidIt(a.id);
@@ -120,9 +126,7 @@ describe("R7 refunds and R8 discounts", () => {
     const r8 = await api.reports.discounts(admin(), range());
     const byKind = Object.fromEntries(r8.items.map((r) => [r.kind, r]));
     expect(byKind["line"]).toMatchObject({ discountMinor: "1000", reason: "خصم" });
-    expect(BigInt(byKind["invoice"]!.discountMinor)).toBe(
-      BigInt(invoice.discountMinor) - 1000n,
-    );
+    expect(BigInt(byKind["invoice"]!.discountMinor)).toBe(BigInt(invoice.discountMinor) - 1000n);
     for (const row of r8.items) {
       expect(row.discountedBy).toBe(memberOf("clinic_admin").id);
       expect(row.discountedByName).toBe(memberOf("clinic_admin").fullName);
