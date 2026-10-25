@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { resetMockData } from "./mock-test-kit";
 import { ageBucket } from "./mock-report-balances";
+import { financeState } from "./mock-finance-state";
 import { createMockReports } from "./mock-reports";
 import {
   admin,
   api,
   freeLine,
+  getState,
   issue,
   memberOf,
   pay,
@@ -88,6 +90,37 @@ describe("R6 patient credit", () => {
 });
 
 describe("R7 refunds and R8 discounts", () => {
+  it("walks every legacy discount exactly once with limit 1, with stable cursors", async () => {
+    const amount = (minor: string) => ({ kind: "amount" as const, minor, reason: minor });
+    for (const suffix of ["00", "01"]) {
+      const invoice = await issue(
+        [freeLine("10000", amount("1000")), freeLine("5000", amount("500"))],
+        patientAt(),
+        amount("100"),
+      );
+      const stored = financeState(getState()).invoices.find((i) => i.id === invoice.id)!;
+      stored.id = `00000000-0000-7000-8000-0000000001${suffix}`;
+      delete stored.lineMeta;
+    }
+    const expected = await api.reports.discounts(admin(), range());
+    expect(expected.total).toBe(6);
+    const items: typeof expected.items = [];
+    let cursor: string | undefined;
+    do {
+      const page = await api.reports.discounts(admin(), { ...range(), limit: 1, cursor });
+      expect(page.total).toBe(6);
+      expect(page.items).toHaveLength(1);
+      items.push(...page.items);
+      cursor = page.nextCursor ?? undefined;
+      expect(items.length).toBeLessThanOrEqual(6);
+    } while (cursor !== undefined);
+    expect(items).toEqual(expected.items);
+    expect(new Set(items.map((r) => `${r.invoiceId}|${r.kind}|${r.reason}`)).size).toBe(6);
+    const repeated = await api.reports.discounts(admin(), { ...range(), limit: 1 });
+    const first = await api.reports.discounts(admin(), { ...range(), limit: 1 });
+    expect(repeated.nextCursor).toBe(first.nextCursor);
+  });
+
   it("a receipt refund is source payment, a credit refund source credit", async () => {
     const a = await issue([freeLine("3000")]);
     const { payment } = await pay(a.id, "3000");

@@ -1,6 +1,7 @@
 import { financeState, type StoredInvoice } from "./mock-finance-state";
 import { paymentState } from "./mock-payment-state";
 import type { ReportContext } from "./mock-report-access";
+import { newId } from "./mock-store";
 import {
   branchNameOf,
   dayOf,
@@ -63,12 +64,28 @@ function lineDiscountMinor(discount: Discount, gross: bigint): bigint {
   return (gross * BigInt(discount.bp) + 5000n) / 10000n;
 }
 
+// Legacy lines need saved identities: deriving one from the invoice id can collapse cursor rows.
+function restoreLineMeta(invoice: StoredInvoice, occupied: Set<string>) {
+  invoice.lineMeta = invoice.lines.map((_, position) => {
+    const saved = invoice.lineMeta?.[position];
+    if (saved) return saved;
+    let id = newId();
+    while (occupied.has(id)) id = newId();
+    occupied.add(id);
+    return { id, discountedBy: null };
+  });
+  return invoice.lineMeta;
+}
+
 /** R8: each discounted live line and the invoice's own discount, on issued invoices issued in range. */
 export function discounts(ctx: ReportContext, q: PageQuery) {
-  const rows = financeState(ctx.db).invoices.flatMap((i) => {
+  const invoices = financeState(ctx.db).invoices;
+  const occupied = new Set(invoices.flatMap((i) => [i.id, ...(i.lineMeta ?? []).map((l) => l.id)]));
+  const rows = invoices.flatMap((i) => {
     const day = dayOf(i.issuedAt, ctx);
     if (i.clinicId !== ctx.clinicId || i.status !== "issued") return [];
     if (!reaches(ctx, i.branchId) || !inRange(day, q)) return [];
+    const lineMeta = restoreLineMeta(i, occupied);
     const base = {
       invoiceId: i.id,
       invoiceNumber: i.number,
@@ -86,12 +103,10 @@ export function discounts(ctx: ReportContext, q: PageQuery) {
         : [
             {
               ...base,
-              rowId:
-                i.lineMeta?.[position]?.id ??
-                `${i.id.slice(0, -2)}${String(position).padStart(2, "0")}`,
+              rowId: lineMeta[position]!.id,
               kind: "line" as const,
               discountMinor: lineAmounts[position]!.toString(),
-              discountedBy: i.lineMeta?.[position]?.discountedBy ?? null,
+              discountedBy: lineMeta[position]!.discountedBy,
               reason: l.discount.reason,
             },
           ],

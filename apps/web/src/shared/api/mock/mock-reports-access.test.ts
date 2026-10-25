@@ -1,6 +1,18 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { resetMockData } from "./mock-test-kit";
-import { admin, api, as, getState, personaWith, range, refusal } from "./mock-report-test-kit";
+import {
+  admin,
+  api,
+  as,
+  clinicIdAt,
+  freeLine,
+  getState,
+  issue,
+  pay,
+  personaWith,
+  range,
+  refusal,
+} from "./mock-report-test-kit";
 
 beforeEach(() => resetMockData());
 
@@ -75,15 +87,61 @@ describe("report keys (spec §8 key splits)", () => {
 });
 
 describe("branch filter and range", () => {
+  it("R6 excludes real credit activity from another clinic", async () => {
+    for (const [index, amountMinor] of [
+      [0, "1500"],
+      [1, "9000"],
+    ] as const) {
+      getState().features[clinicIdAt(index)]!.finance = true;
+      const persona = as("clinic_admin", index);
+      const patient = getState().patients.find((p) => p.clinicId === clinicIdAt(index))!;
+      const invoice = await issue([freeLine(amountMinor)], patient, null, persona);
+      await api.payments.recordPayment(
+        persona,
+        invoice.id,
+        { method: "cash", amountMinor },
+        crypto.randomUUID(),
+      );
+      const current = await api.finance.getInvoice(persona, invoice.id);
+      await api.finance.voidInvoice(persona, invoice.id, current.version, "اختبار");
+    }
+    const report = await api.reports.patientCredit(admin(), range());
+    expect(report.total).toBe(1);
+    expect(report.items).toEqual([
+      expect.objectContaining({
+        patientId: getState().patients.find((p) => p.clinicId === clinicIdAt(0))!.id,
+        balanceMinor: "1500",
+      }),
+    ]);
+    const other = await api.reports.patientCredit(as("clinic_admin", 1), range());
+    expect(other.items).toEqual([expect.objectContaining({ balanceMinor: "9000" })]);
+  });
+
   it("a branch outside the reach is forbidden; one inside narrows the rows", async () => {
     const db = getState();
     const [b1, b2] = db.branches.filter((b) => b.clinicId === db.clinics[0]!.id);
+    for (const [branch, amount] of [
+      [b1!, "1500"],
+      [b2!, "9000"],
+    ] as const) {
+      const patient = db.patients.find(
+        (p) => p.clinicId === clinicIdAt(0) && p.registrationBranchId === branch.id,
+      )!;
+      const invoice = await issue([freeLine(amount)], patient);
+      await pay(invoice.id, amount);
+    }
     const p = personaWith(["view:report_takings:branch", "view:payments:branch"], [b1!.id]);
     const r = range();
     expect(await refusal(api.reports.dailyTakings(p, { ...r, branchId: b2!.id }))).toBe(
       "forbidden",
     );
-    await expect(api.reports.dailyTakings(p, { ...r, branchId: b1!.id })).resolves.toBeDefined();
+    const report = await api.reports.dailyTakings(p, r);
+    expect(report.rows).toEqual([
+      expect.objectContaining({ branchId: b1!.id, inMinor: "1500", netMinor: "1500" }),
+    ]);
+    expect(report.totals).toEqual({ inMinor: "1500", outMinor: "0", netMinor: "1500" });
+    expect(await api.reports.dailyTakings(p, { ...r, branchId: b1!.id })).toEqual(report);
+    expect((await api.reports.dailyTakings(admin(), r)).totals.inMinor).toBe("10500");
   });
 
   it("366 days pass, 367 days answer report_range_too_long", async () => {

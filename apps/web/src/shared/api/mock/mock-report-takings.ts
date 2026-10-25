@@ -90,7 +90,8 @@ export function periodSummary(ctx: ReportContext, q: Grouped) {
   const byId = new Map(financeState(ctx.db).invoices.map((i) => [i.id, i]));
   const credits = paymentState(ctx.db).allocations.flatMap((a) => {
     const invoice = byId.get(a.invoiceId);
-    const day = a.businessDate ?? dayOf(a.createdAt, ctx);
+    // SQL 0068 uses the current timezone until the stored-day contract step ships.
+    const day = dayOf(a.createdAt, ctx);
     if (a.creditId === null || a.clinicId !== ctx.clinicId || !invoice) return [];
     if (!reaches(ctx, invoice.branchId) || !inRange(day, q)) return [];
     return [{ day, branchId: invoice.branchId, currency: invoice.currency, a }];

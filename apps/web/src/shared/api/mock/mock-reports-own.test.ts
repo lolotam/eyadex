@@ -7,6 +7,7 @@ import {
   admin,
   api,
   as,
+  clinic,
   clinicIdAt,
   freeLine,
   getState,
@@ -39,6 +40,26 @@ function serviceLine(providerId: string, unitPriceMinor: string): Line {
 }
 
 describe("R10 own summary", () => {
+  it("uses the invoice timestamp in the current timezone even when its stored day differs", async () => {
+    clinic().timezone = "Asia/Kuwait";
+    const doctor = memberOf("doctor");
+    const db = getState();
+    const own = db.patients.find(
+      (p) => p.clinicId === clinicIdAt(0) && isOwnPatient(db, clinicIdAt(0), doctor.id, p.id),
+    )!;
+    const invoice = await issue([serviceLine(doctor.id, "4000")], own);
+    const stored = financeState(db).invoices.find((i) => i.id === invoice.id)!;
+    stored.issuedAt = "2026-10-01T22:30:00.000Z";
+    stored.businessDate = "2026-10-02";
+    const first = { from: "2026-10-01", to: "2026-10-01" };
+    const second = { from: "2026-10-02", to: "2026-10-02" };
+    expect((await api.reports.ownSummary(as("doctor"), second)).totals.billedMinor).toBe("4000");
+    clinic().timezone = "UTC";
+    expect((await api.reports.ownSummary(as("doctor"), first)).totals.billedMinor).toBe("4000");
+    expect((await api.reports.ownSummary(as("doctor"), second)).rows).toEqual([]);
+    expect(stored.businessDate).toBe("2026-10-02");
+  });
+
   it("counts only the doctor's own lines on his own patients, matching his invoice list", async () => {
     const doctor = memberOf("doctor");
     const db = getState();
