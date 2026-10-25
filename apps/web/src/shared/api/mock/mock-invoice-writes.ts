@@ -28,6 +28,7 @@ import {
 } from "./mock-invoice-rules";
 import { actorReplayKey, requireIdempotencyKey } from "./mock-idempotency";
 import { auditInvoice } from "./mock-finance-audit";
+import { editedMeta, issuedMeta } from "./mock-discount-authors";
 import { releaseOnChange } from "./mock-invoice-releases";
 import { strip } from "./mock-invoice-view";
 import { parse } from "./mock-medical-access";
@@ -58,10 +59,8 @@ function sourceOf(db: MockState, clinicId: string, source: "appointment" | "visi
   };
 }
 
-/**
- * As the API, after the reach check so an unreachable source stays not_found: a no-show or cancelled
- * appointment carries no invoice of its own (FIN-9); its fee is a manual invoice.
- */
+/** After the reach check (unreachable stays not_found): a no-show or cancelled appointment
+ * carries no invoice of its own (FIN-9); its fee is a manual invoice. */
 function requireBillable(s: { status: AppointmentStatus | null }) {
   if (s.status !== null && !isBillable(s.status)) throw new ApiError("appointment_not_billable");
 }
@@ -207,6 +206,7 @@ export function issueInvoice(
     voidReason: null,
     voidedAt: null,
     version: 1,
+    ...issuedMeta(body, a.member.id, now.toISOString(), a.clinic.timezone),
   };
   state.invoices.push(invoice);
   state.idempotentInvoices[ledgerKey] = { invoiceId: invoice.id, fingerprint };
@@ -255,6 +255,7 @@ export function editInvoice(
   const before = strip(db, invoice);
   const auditCredits = releaseOnChange(db, a, invoice, totals.totalMinor);
   Object.assign(invoice, {
+    ...editedMeta(invoice, body, a.member.id),
     ...totalsFields(totals),
     invoiceDiscount: body.invoiceDiscount,
     lines: storedLines(db, body.lines, totals),

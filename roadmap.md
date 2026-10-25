@@ -133,4 +133,6 @@
 - [x] Invoice line price fills from the service price (doctor price first; owner decision 2026-10-24)
 - [ ] F2: the receipt PDF — deferred with 8g
 - [ ] F3: reports (outline, `finance-design.md` §5)
+  - [x] Slice 3 card B: web `reports` client (HTTP + mock R1–R10), slice 2b stored fields in the mock, `report_range_too_long` in the web catalogue
+  - [ ] Slice 5: the report screens
 - [ ] F4: online payment and insurance (outline, `finance-design.md` §6)

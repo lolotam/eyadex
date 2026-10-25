@@ -268,8 +268,14 @@ describe("the finance error catalogue (F2 §4.6, F3 §4 and §7.4)", () => {
     expect(webErrorCodeSchema.parse(code)).toBe(code);
   });
 
-  it.each(f3Codes)("leaves %s to the web's fallback until it ships", (code) => {
+  const exportCodes = ["export_busy", "export_amount_too_large"];
+
+  it.each(exportCodes)("leaves %s to the web's fallback until it ships", (code) => {
     expect(webErrorCodeSchema.safeParse(code).success).toBe(false);
+  });
+
+  it("carries report_range_too_long in the web catalogue: the web reports client reads it", () => {
+    expect(webErrorCodeSchema.parse("report_range_too_long")).toBe("report_range_too_long");
   });
 
   it.each(["invoice_void", "version_conflict", "conflict", "not_implemented"])(
@@ -281,7 +287,7 @@ describe("the finance error catalogue (F2 §4.6, F3 §4 and §7.4)", () => {
 
   it("keeps API codes first and appends the two web-only codes", () => {
     expect(webErrorCodeSchema.options).toEqual([
-      ...apiErrorCodeSchema.options.filter((code) => !f3Codes.includes(code)),
+      ...apiErrorCodeSchema.options.filter((code) => !exportCodes.includes(code)),
       "conflict",
       "not_implemented",
     ]);

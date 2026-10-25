@@ -295,5 +295,6 @@ export const en = {
     closing_note_required: "Write a note when there is a difference.",
     cash_drawer_out_of_range:
       "The period's net cash is beyond the allowed limit, so the drawer cannot be closed",
+    report_range_too_long: "The period is longer than allowed (366 days at most).",
   },
 } as const;

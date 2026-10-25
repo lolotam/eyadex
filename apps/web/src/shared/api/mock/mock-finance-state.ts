@@ -12,8 +12,20 @@ export type StoredPrice = {
   priceMinor: string | null;
   providerPrices: { memberId: string; priceMinor: string }[];
 };
-/** As the API stores it: the branch names are read with the invoice, never kept on it. */
-export type StoredInvoice = Omit<Invoice, "branchNameAr" | "branchNameEn"> & { clinicId: string };
+/**
+ * As the API stores it: the branch names are read with the invoice, never kept on it. The day, the
+ * discount authors and the line ids (slice 2b, PR #125) feed the reports only, never an invoice answer;
+ * they are optional so a state saved before them still reads.
+ */
+export type StoredInvoice = Omit<Invoice, "branchNameAr" | "branchNameEn"> & {
+  clinicId: string;
+  /** The clinic-timezone day at issue. */
+  businessDate?: string | undefined;
+  /** Who set the invoice discount; null without one. */
+  discountedBy?: string | null;
+  /** One per line, by position: the line's id and who set its discount. */
+  lineMeta?: { id: string; discountedBy: string | null }[];
+};
 
 export type FinanceMockState = {
   clinics: Record<string, StoredClinicFinance>;
