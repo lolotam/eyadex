@@ -86,7 +86,9 @@ export function discounts(ctx: ReportContext, q: PageQuery) {
         : [
             {
               ...base,
-              rowId: i.lineMeta?.[position]?.id ?? `${i.id.slice(0, -2)}${String(position).padStart(2, "0")}`,
+              rowId:
+                i.lineMeta?.[position]?.id ??
+                `${i.id.slice(0, -2)}${String(position).padStart(2, "0")}`,
               kind: "line" as const,
               discountMinor: lineAmounts[position]!.toString(),
               discountedBy: i.lineMeta?.[position]?.discountedBy ?? null,

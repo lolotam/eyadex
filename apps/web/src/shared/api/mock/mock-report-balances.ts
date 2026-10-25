@@ -92,12 +92,15 @@ export function patientCredit(ctx: ReportContext, q: PageQuery) {
   const credits = s.credits
     .filter((c) => c.clinicId === ctx.clinicId)
     .map((c) => {
-      const spent = s.allocations
-        .filter((a) => a.clinicId === ctx.clinicId && a.creditId === c.id)
-        .concat(
-          s.refundSources.filter((r) => r.clinicId === ctx.clinicId && r.creditId === c.id) as never[],
-        )
-        .reduce((sum, x: { amountMinor: string }) => sum + BigInt(x.amountMinor), 0n);
+      const funded = s.allocations.filter(
+        (a) => a.clinicId === ctx.clinicId && a.creditId === c.id,
+      );
+      const refunded = s.refundSources.filter(
+        (r) => r.clinicId === ctx.clinicId && r.creditId === c.id,
+      );
+      const spent =
+        BigInt(sumMinor(funded, (a) => a.amountMinor)) +
+        BigInt(sumMinor(refunded, (r) => r.amountMinor));
       return { c, remaining: BigInt(c.amountMinor) - spent };
     });
   const rows = [...groupBy(credits, (x) => x.c.patientId).values()].flatMap((g) => {

@@ -24,7 +24,9 @@ type SummaryRow = z.infer<typeof reports.reportPeriodSummaryRowSchema>;
 /** The movements of the range in reach: each keeps its stored day and its own branch (F2-Q8). */
 function movements(ctx: ReportContext, q: Range) {
   const s = paymentState(ctx.db);
-  const mine = <T extends { clinicId: string; branchId: string; businessDate: string }>(rows: T[]) =>
+  const mine = <T extends { clinicId: string; branchId: string; businessDate: string }>(
+    rows: T[],
+  ) =>
     rows.filter(
       (r) => r.clinicId === ctx.clinicId && reaches(ctx, r.branchId) && inRange(r.businessDate, q),
     );
@@ -57,7 +59,13 @@ export function dailyTakings(ctx: ReportContext, q: Grouped) {
         currency: first.currency,
       };
     })
-    .sort(byKeys<TakingsRow>((r) => r.period, (r) => r.branchId, (r) => r.method));
+    .sort(
+      byKeys<TakingsRow>(
+        (r) => r.period,
+        (r) => r.branchId,
+        (r) => r.method,
+      ),
+    );
   return {
     rows,
     totals: {
@@ -140,7 +148,12 @@ export function periodSummary(ctx: ReportContext, q: Grouped) {
         currency: first.currency,
       };
     })
-    .sort(byKeys<SummaryRow>((r) => r.period, (r) => r.branchId));
+    .sort(
+      byKeys<SummaryRow>(
+        (r) => r.period,
+        (r) => r.branchId,
+      ),
+    );
   const total = (k: keyof SummaryRow) => sumMinor(rows, (r) => r[k] as string);
   return {
     rows,

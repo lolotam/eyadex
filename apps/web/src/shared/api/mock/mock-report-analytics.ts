@@ -1,15 +1,7 @@
 import { financeState, type StoredInvoice } from "./mock-finance-state";
 import { isOwnPatient } from "./mock-own-scope";
 import type { ReportContext } from "./mock-report-access";
-import {
-  byKeys,
-  dayOf,
-  groupBy,
-  inRange,
-  reaches,
-  staffNameOf,
-  sumMinor,
-} from "./mock-report-kit";
+import { byKeys, dayOf, groupBy, inRange, reaches, staffNameOf, sumMinor } from "./mock-report-kit";
 
 type Range = { from: string; to: string };
 type Line = StoredInvoice["lines"][number];
@@ -72,7 +64,9 @@ function rowsOf<K extends string>(
 }
 
 /** The API's `analyticsTotals`: the tax is part of the total, not of the billed lines nor their count. */
-function totalsOf(rows: readonly { kind: string; lineCount: number; quantity: number; amountMinor: string }[]) {
+function totalsOf(
+  rows: readonly { kind: string; lineCount: number; quantity: number; amountMinor: string }[],
+) {
   return {
     lineCount: rows.reduce((n, r) => n + r.lineCount, 0),
     quantity: rows.reduce((n, r) => n + r.quantity, 0),
