@@ -166,16 +166,12 @@ export function applyCredit(
   const spends = settle(() =>
     planCreditApplication(money, settlementInvoice(invoice), BigInt(body.amountMinor)),
   );
-  const rows = spends.map((spend) =>
-    allocation(
-      invoice,
-      null,
-      spend.creditId,
-      String(spend.amountMinor),
-      movementTime(now),
-      a.member.id,
-    ),
-  );
+  const rows = spends.map((spend) => {
+    const at = movementTime(now);
+    // A credit application is its own movement, so it takes its own clinic day.
+    const day = dayInTimeZone(at, a.clinic.timezone);
+    return allocation(invoice, null, spend.creditId, String(spend.amountMinor), at, a.member.id, day);
+  });
   paymentState(db).allocations.push(...rows);
   const snapshot: CreditAuditSnapshot = {
     invoiceNumber: invoice.number,
