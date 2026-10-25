@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { resetMockData } from "./mock-test-kit";
-import { financeState } from "./mock-finance-state";
+import { clinicFinanceOf, financeState } from "./mock-finance-state";
 import { paymentState } from "./mock-payment-state";
 import {
   admin,
@@ -93,8 +93,7 @@ describe("R3 and R4", () => {
   });
 
   it("the tax is a row of its own, in the total but not in the billed lines", async () => {
-    getState().finance ??= financeState(getState());
-    financeState(getState()).clinics[getState().clinics[0]!.id]!.taxRateBp = 1000;
+    clinicFinanceOf(getState(), getState().clinics[0]!.id).taxRateBp = 1000;
     await issue([freeLine("10000")]);
     const r3 = await api.reports.byService(admin(), range());
     expect(r3.rows.at(-1)).toMatchObject({ kind: "tax", amountMinor: "1000", lineCount: 0 });
