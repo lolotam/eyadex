@@ -20,7 +20,7 @@ export type StoredPrice = {
 export type StoredInvoice = Omit<Invoice, "branchNameAr" | "branchNameEn"> & {
   clinicId: string;
   /** The clinic-timezone day at issue. */
-  businessDate?: string;
+  businessDate?: string | undefined;
   /** Who set the invoice discount; null without one. */
   discountedBy?: string | null;
   /** One per line, by position: the line's id and who set its discount. */
