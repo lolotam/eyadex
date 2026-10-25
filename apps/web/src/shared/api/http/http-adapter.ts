@@ -16,6 +16,7 @@ import {
   createHttpPlatformSettings,
   createHttpPlatformTeam,
 } from "./http-platform-console";
+import { createHttpReports } from "./http-reports";
 import { createHttpRoles } from "./http-roles";
 import { createHttpAppointments } from "./http-appointments";
 import { createHttpScheduling } from "./http-scheduling";
@@ -49,6 +50,7 @@ export function createHttpApiClient(
     finance: createHttpFinance(ctx),
     payments: createHttpPayments(ctx),
     cashClosings: createHttpCashClosings(ctx),
+    reports: createHttpReports(ctx),
     audit: createHttpAudit(ctx),
     clinicSettings: createHttpClinicSettings(ctx),
     account: createHttpAccount(ctx),
