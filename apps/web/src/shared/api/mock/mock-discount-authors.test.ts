@@ -16,7 +16,12 @@ function editor(): { persona: Persona; id: string } {
   return { persona: { kind: "clinic_admin", clinicId: base.clinicId, memberId: id }, id };
 }
 
-async function edit(id: string, persona: Persona, lines: ReturnType<typeof freeLine>[], inv = null as ReturnType<typeof off> | null) {
+async function edit(
+  id: string,
+  persona: Persona,
+  lines: ReturnType<typeof freeLine>[],
+  inv = null as ReturnType<typeof off> | null,
+) {
   const v = await api.finance.getInvoice(admin(), id);
   return api.finance.edit(persona, id, v.version, { lines, invoiceDiscount: inv });
 }
