@@ -1,5 +1,7 @@
 import { createClinicInputSchema } from "@eyadex/contracts/clinics";
+import { legacyInteger } from "@eyadex/contracts/integer-compat";
 import { currencyCodeSchema, type CurrencyCode } from "@eyadex/contracts/money";
+import { legacyNumber } from "@eyadex/contracts/number-compat";
 import { z } from "zod";
 
 /**
@@ -12,16 +14,19 @@ export type NewClinicFinance = { currency?: CurrencyCode; taxRateBp?: number };
 /** The two optional fields on their own (the mock reads them off the create request). */
 export const newClinicFinanceSchema = z.object({
   currency: currencyCodeSchema.optional(),
-  taxRateBp: z.number().int().min(0).max(10000).optional(),
+  taxRateBp: legacyNumber()
+    .check(legacyInteger())
+    .check(z.gte(0))
+    .check(z.lte(10000))
+    .optional(),
 });
 
 export const DEFAULT_NEW_CLINIC_FINANCE = { currency: "KWD", taxRateBp: 0 } as const;
 
 /**
- * The tax rate's wrong-type message under both Zod majors (migration to Zod 4): Zod 3 reads
- * `invalid_type_error` and gives a missing value its default "Required"; Zod 4 ignores that key and
- * reads `error`, which returns the same two messages. Passed as a variable so each major's parameter
- * type accepts the other's key; no global error map.
+ * The tax rate's wrong-type message: a missing value keeps Zod 3's "Required", any other wrong type
+ * reads `validation.number`. `legacyNumber` reads `error`; `invalid_type_error` stays for any Zod 3
+ * reader of this exported object. No global error map.
  */
 export const taxRateNumberParams = {
   invalid_type_error: "validation.number",
@@ -29,12 +34,13 @@ export const taxRateNumberParams = {
     issue.input === undefined ? "Required" : "validation.number",
 };
 
+// legacyNumber/legacyInteger keep Zod 3's order: integer and range issues both report, and ±Infinity
+// reaches the bounds instead of stopping at the number type.
 export const createClinicFormSchema = createClinicInputSchema.extend({
   currency: currencyCodeSchema,
-  taxRateBp: z
-    .number(taxRateNumberParams)
-    .int("validation.number")
-    .min(0, "validation.outOfRange")
-    .max(10000, "validation.outOfRange"),
+  taxRateBp: legacyNumber(taxRateNumberParams.error)
+    .check(legacyInteger("validation.number"))
+    .check(z.gte(0, "validation.outOfRange"))
+    .check(z.lte(10000, "validation.outOfRange")),
 });
 export type CreateClinicFormValues = z.infer<typeof createClinicFormSchema>;
