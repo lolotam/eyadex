@@ -1,43 +1,58 @@
 import { describe, expect, it } from "vitest";
 import * as z4 from "zod/v4";
+import { NO_FEATURES } from "@eyadex/contracts/clinics";
 import { createClinicFormSchema, taxRateNumberParams } from "./new-clinic-finance";
 
-// One table for the installed default parser and the v4 subpath: the tax rate messages must match.
-const CASES: [label: string, value: unknown, message: string | null][] = [
-  ["undefined", undefined, "Required"],
-  ["null", null, "validation.number"],
-  ["text", "abc", "validation.number"],
-  ["NaN", Number.NaN, "validation.number"],
-  ["boolean", true, "validation.number"],
-  ["fraction", 1.5, "validation.number"],
-  ["below 0", -1, "validation.outOfRange"],
-  ["above 10000", 10001, "validation.outOfRange"],
-  ["0", 0, null],
-  ["10000", 10000, null],
+// One explicit table for the installed default parser and the v4 subpath. `accepted` cases must
+// parse to the same number; the others must fail with exactly this message on the tax rate.
+type Case =
+  | [label: string, value: unknown, outcome: { accepted: number }]
+  | [label: string, value: unknown, outcome: { message: string }];
+
+const CASES: Case[] = [
+  ["undefined", undefined, { message: "Required" }],
+  ["null", null, { message: "validation.number" }],
+  ["text", "abc", { message: "validation.number" }],
+  ["NaN", Number.NaN, { message: "validation.number" }],
+  ["boolean", true, { message: "validation.number" }],
+  ["fraction", 1.5, { message: "validation.number" }],
+  ["below 0", -1, { message: "validation.outOfRange" }],
+  ["above 10000", 10001, { message: "validation.outOfRange" }],
+  ["0", 0, { accepted: 0 }],
+  ["10000", 10000, { accepted: 10000 }],
 ];
 
-type Parser = {
-  safeParse(input: unknown): {
-    success: boolean;
-    error?: { issues: { path: PropertyKey[]; message: string }[] };
-  };
+// A complete synthetic clinic (no real data) that passes every other field on its own.
+const VALID_BASE = {
+  nameAr: "عيادة الاختبار",
+  nameEn: "Test Clinic",
+  slug: "test-clinic",
+  specialty: "dental",
+  defaultLanguage: "en",
+  timezone: "Asia/Kuwait",
+  adminName: "First Admin",
+  adminEmail: "first.admin@example.com",
+  maxUsers: 10,
+  maxBranches: 3,
+  modules: { ...NO_FEATURES },
+  currency: "KWD",
 };
 
-const firstMessage = (parser: Parser, input: unknown, path: PropertyKey[]) => {
-  const result = parser.safeParse(input);
-  if (result.success) return null;
-  const issue = result.error?.issues.find((i) => path.every((p, n) => i.path[n] === p));
-  return issue?.message ?? "(no issue on the field)";
-};
+describe("[installed default parser (baseline 3.25.76)] createClinicFormSchema taxRateBp", () => {
+  it("the base alone is valid, so every failure below is the tax rate's", () => {
+    expect(createClinicFormSchema.safeParse({ ...VALID_BASE, taxRateBp: 500 }).success).toBe(true);
+  });
 
-describe("[installed default parser (baseline 3.25.76)] createClinicFormSchema taxRateBp messages", () => {
-  it.each(CASES)("%s", (_label, value, message) => {
-    // Only the tax rate's own issue is read, so the other fields' validity does not matter.
-    const parsed = createClinicFormSchema.safeParse({ taxRateBp: value, currency: "KWD" });
-    const issue = parsed.success
-      ? undefined
-      : parsed.error.issues.find((i) => i.path[0] === "taxRateBp");
-    expect(issue?.message ?? null).toBe(message);
+  it.each(CASES)("%s", (_label, value, outcome) => {
+    const parsed = createClinicFormSchema.safeParse({ ...VALID_BASE, taxRateBp: value });
+    if ("accepted" in outcome) {
+      expect(parsed.success).toBe(true);
+      expect(parsed.data?.taxRateBp).toBe(outcome.accepted);
+    } else {
+      expect(parsed.success).toBe(false);
+      const issues = parsed.error?.issues.map((i) => ({ path: i.path, message: i.message }));
+      expect(issues).toEqual([{ path: ["taxRateBp"], message: outcome.message }]);
+    }
   });
 });
 
@@ -47,7 +62,15 @@ describe("[v4 subpath — preflight evidence only, not 4.6.6 proof] taxRateNumbe
     .int("validation.number")
     .min(0, "validation.outOfRange")
     .max(10000, "validation.outOfRange");
-  it.each(CASES)("%s", (_label, value, message) => {
-    expect(firstMessage(schema, value, [])).toBe(message);
+
+  it.each(CASES)("%s", (_label, value, outcome) => {
+    const parsed = schema.safeParse(value);
+    if ("accepted" in outcome) {
+      expect(parsed.success).toBe(true);
+      expect(parsed.data).toBe(outcome.accepted);
+    } else {
+      expect(parsed.success).toBe(false);
+      expect(parsed.error?.issues.map((i) => i.message)).toEqual([outcome.message]);
+    }
   });
 });
