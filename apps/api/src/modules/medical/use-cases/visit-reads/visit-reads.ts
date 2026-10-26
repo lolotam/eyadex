@@ -12,6 +12,7 @@ import type {
 import type { z } from "zod";
 import type { walkInBranchesSchema } from "@eyadex/contracts/visits";
 
+import { parseContract } from "../../../../shared/contract-parser.ts";
 import { ApiError } from "../../../../shared/errors.ts";
 import {
   medicalReach,
@@ -78,7 +79,7 @@ export class VisitReads {
     return this.deps.db.withTenant(actor.clinicId, async (tx) => {
       const { visit } = await seeVisit(readContext(this.deps, tx), actor, visitId);
       const history = await this.deps.notifications.history(tx, actor.clinicId, visit.id);
-      return patientNotificationListSchema.parse(history);
+      return parseContract(patientNotificationListSchema, history);
     });
   }
 
