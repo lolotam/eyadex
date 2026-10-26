@@ -27,27 +27,40 @@ Replace the inline `{ invalid_type_error: ... }` with one exported options varia
 export const taxRateNumberParams = {
   invalid_type_error: "validation.number",                       // read by Zod 3
   error: (issue: { input?: unknown }) =>                          // read by Zod 4
-    issue.input === undefined ? undefined : "validation.number",
+    issue.input === undefined ? "Required" : "validation.number",
 };
 z.number(taxRateNumberParams).int("validation.number").min(0, "validation.outOfRange").max(10000, "validation.outOfRange")
 ```
-- Zod 3 ignores `error`. It has no `required_error`, so undefined keeps today's default message, `"Required"`.
-- Zod 4 ignores `invalid_type_error`. For undefined, returning `undefined` falls back to Zod 4's default message.
+- **Zod 3:** ignores `error`. It keeps `invalid_type_error`, and with no `required_error` an undefined value gets today's default message, `"Required"`. Nothing changes.
+- **Zod 4:** ignores `invalid_type_error`. The callback returns `"Required"` for undefined and `validation.number` for every other wrong type (null, text, NaN, boolean). The message is the same under both majors.
+- `.int` / `.min` / `.max` set their own string messages, so the callback never sees those issues.
 - It is passed as a variable, not a literal, so both versions' parameter types accept the extra key. No global error map.
 - The `.int` / `.min` / `.max` string messages work the same in both versions.
 
 ## Tests (vitest, each fails without its change)
-- `apps/web/src/shared/api/new-clinic-finance.test.ts` (new): runs `createClinicFormSchema` against a valid base and checks the `taxRateBp` issue message for each input:
-  - `null`, `"abc"` and `NaN` → `validation.number`;
+Every test is labelled as one of three kinds:
+- **[Zod 3, current]**: runs on the installed major today.
+- **[v4 stand-in]**: uses the `zod/v4` subpath inside 3.25.76. This is evidence only, not 4.6.6 verification.
+- **[4.6.6, pending]**: the same file re-run by Sol after the switch.
+
+- `apps/web/src/shared/api/new-clinic-finance.test.ts` (new). One shared table of cases for `taxRateBp` and its expected message:
+  - `undefined` → `"Required"`;
+  - `null`, `"abc"`, `NaN`, `true` → `validation.number`;
   - `1.5` → `validation.number`;
-  - `-1` and `10001` → `validation.outOfRange`;
-  - `undefined` → `"Required"` (today's Zod 3 behaviour, pinned);
-  - `0` and `10000` pass.
+  - `-1`, `10001` → `validation.outOfRange`;
+  - `0`, `10000` → pass.
 
-  A second block builds `z.number(taxRateNumberParams)` from `zod/v4`, which ships inside the current package, so no dependency change. It shows `null`, `"abc"` and `NaN` give `validation.number`, and `undefined` does not.
-- `apps/web/src/visits/use-list-flush.types.test.ts` (new): type-level plus runtime check that a Zod 3 schema and a `zod/v4` schema of `{ items: T[] }` are both assignable to the hook's parser type, and that `data.items` keeps its element type (`expectTypeOf`). The existing visit sign/flush tests cover the behaviour.
+  The file has two blocks:
+  - **[Zod 3, current]**: runs the table on `createClinicFormSchema` with a valid base.
+  - **[v4 stand-in]**: runs the same table, `undefined` → `"Required"` included, on `z.number(taxRateNumberParams).int(...).min(...).max(...)` built from `zod/v4`.
 
-Both test files import `zod/v4` only as a test stand-in. If importing the subpath is unwanted, I can drop those blocks and leave the cross-major proof to Sol's Zod 4 run.
+  Both blocks assert the same messages, so undefined is proven the same under both majors.
+- `apps/web/src/visits/use-list-flush.types.test.ts` (new), with two checks:
+  - **[Zod 3, current]** and **[v4 stand-in]**: a `{ items: T[] }` schema of each major is assignable to `ItemsParser<T>`, and `data.items` keeps its element type (`expectTypeOf`).
+  - **Runtime**: `safeParse` success and failure narrow correctly.
+
+  The existing visit sign/flush tests still cover the behaviour.
+- Both files are **[4.6.6, pending]**: Sol re-runs them unchanged after the switch.
 
 ## Stage 1 gates (current Zod 3)
 - `pnpm --filter @eyadex/web typecheck`, lint (0 errors), the vitest suite, Prettier on touched files, node-server build.
@@ -55,6 +68,5 @@ Both test files import `zod/v4` only as a test stand-in. If importing the subpat
 - No UI, copy or behaviour change.
 
 ## Open blockers (true ones only)
-1. **Undefined tax rate under Zod 4:** the message changes from `"Required"` to Zod 4's default text. That only matters if a screen shows it. The form always sends a number (`valueAsNumber` gives `NaN`, never undefined), so I expect no visible change, but I did not confirm this in the browser. Owner choice: accept the change, or have the `error` function return `"Required"` for undefined under Zod 4 too.
-2. **Real 4.6.6 not inspected:** the `ZodTypeAny` alias and the `normalizeParams` behaviour were checked on the `zod/v4` subpath of 3.25.76, not on 4.6.6. Sol should re-run the two new test files after the switch.
-3. **Contract-owned messages:** the web reads contract issue messages (`validation.rangeTooLong`, `validation.*`). These depend on Grok keeping those messages exactly, which is outside the frontend.
+1. **Patched 4.6.6 runtime proof is pending:** the stand-in tests run on the `zod/v4` subpath of 3.25.76. The manager has confirmed 4.6.6 still exports `ZodTypeAny` (`v4/classic/compat.d.ts:39`), so aliases stay in place. After the switch, Sol must re-run both new test files on 4.6.6 to prove that `error` takes priority and `invalid_type_error` is ignored there.
+2. **Contract-owned messages:** the web reads contract issue messages (`validation.rangeTooLong`, `validation.*`). These depend on Grok keeping those messages exactly, which is outside the frontend.
