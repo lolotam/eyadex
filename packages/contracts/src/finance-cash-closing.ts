@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { legacyNumber, legacyCoercedNumber } from "./number-compat.ts";
+import { legacyInteger } from "./integer-compat.ts";
+import { utcDatetime } from "./datetime-compat.ts";
 import { idSchema } from "./common.ts";
 import { dateSchema } from "./finance-list.ts";
 import { cashSeqSchema, paymentMethodSchema } from "./finance-payments.ts";
@@ -27,7 +30,7 @@ export const cashMovementSchema = z.discriminatedUnion("kind", [
       receiptNumber: z.string(),
       cashSeq: cashSeqSchema,
       amountMinor: positiveMinorAmountSchema,
-      at: z.string().datetime(),
+      at: utcDatetime(),
     })
     .strict(),
   z
@@ -37,7 +40,7 @@ export const cashMovementSchema = z.discriminatedUnion("kind", [
       refundNumber: z.string(),
       cashSeq: cashSeqSchema,
       amountMinor: positiveMinorAmountSchema,
-      at: z.string().datetime(),
+      at: utcDatetime(),
     })
     .strict(),
 ]);
@@ -80,7 +83,7 @@ export const cashClosingPreviewResponseSchema = z
     methodTotals: z.array(methodTotalSchema),
     movements: z.array(cashMovementSchema),
     currency: currencyCodeSchema,
-    currencyExponent: z.number().int(),
+    currencyExponent: legacyNumber().check(legacyInteger()),
   })
   .strict()
   .superRefine(expectedMatchesFlows);
@@ -140,9 +143,9 @@ export const cashClosingObjectSchema = z
     methodTotals: z.array(methodTotalSchema),
     note: noteSchema,
     currency: currencyCodeSchema,
-    currencyExponent: z.number().int(),
+    currencyExponent: legacyNumber().check(legacyInteger()),
     closedBy: idSchema,
-    closedAt: z.string().datetime(),
+    closedAt: utcDatetime(),
   })
   .strict();
 
@@ -169,7 +172,11 @@ export const cashClosingListQuerySchema = z
       .string()
       .regex(/^[A-Za-z0-9_-]{1,64}$/)
       .optional(),
-    limit: z.coerce.number().int().min(1).max(100).default(50),
+    limit: legacyCoercedNumber()
+      .check(legacyInteger())
+      .check(z.gte(1))
+      .check(z.lte(100))
+      .default(50),
     branchId: idSchema.optional(),
     from: dateSchema.optional(),
     to: dateSchema.optional(),
@@ -182,6 +189,6 @@ export const cashClosingListResponseSchema = z
   .object({
     items: z.array(cashClosingSchema),
     nextCursor: z.string().nullable(),
-    total: z.number().int().nonnegative(),
+    total: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
   })
   .strict();

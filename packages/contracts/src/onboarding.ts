@@ -1,7 +1,10 @@
 import { z } from "zod";
+import { legacyNumber } from "./number-compat.ts";
+import { legacyInteger } from "./integer-compat.ts";
+import { offsetDatetime, utcDatetime } from "./datetime-compat.ts";
 
-// Self-contained on purpose (imports zod only): apps/api loads this file at runtime through Node's
-// type stripping, which cannot follow the extensionless relative imports the other contract files use.
+// apps/api loads this file at runtime through Node's type stripping, which cannot follow an
+// extensionless relative import. The datetime pair is imported with its `.ts` extension for that reason.
 
 /** Slugs a clinic may never take: they are, or will be, Eyadex's own subdomains (PRD §4.15). */
 export const RESERVED_CLINIC_SLUGS = [
@@ -118,27 +121,25 @@ export const createClinicRequestSchema = z
      * EITHER an explicit instant OR `trialDays`, never both (ADR-0016). Neither = the platform's
      * default trial days, read by the server when it creates the clinic (ADR-0020).
      */
-    expiresAt: z.string().datetime({ offset: true }).optional(),
+    expiresAt: offsetDatetime().optional(),
     /** Days after the clinic's local today, ending 23:59:59 there; counted on the server clock. */
-    trialDays: z.number().int().min(1).max(365).optional(),
-    maxUsers: z
-      .number()
-      .int()
-      .min(CLINIC_LIMIT_BOUNDS.maxUsers.min)
-      .max(CLINIC_LIMIT_BOUNDS.maxUsers.max),
-    maxBranches: z
-      .number()
-      .int()
-      .min(CLINIC_LIMIT_BOUNDS.maxBranches.min)
-      .max(CLINIC_LIMIT_BOUNDS.maxBranches.max),
+    trialDays: legacyNumber().check(legacyInteger()).check(z.gte(1)).check(z.lte(365)).optional(),
+    maxUsers: legacyNumber()
+      .check(legacyInteger())
+      .check(z.gte(CLINIC_LIMIT_BOUNDS.maxUsers.min))
+      .check(z.lte(CLINIC_LIMIT_BOUNDS.maxUsers.max)),
+    maxBranches: legacyNumber()
+      .check(legacyInteger())
+      .check(z.gte(CLINIC_LIMIT_BOUNDS.maxBranches.min))
+      .check(z.lte(CLINIC_LIMIT_BOUNDS.maxBranches.max)),
     // One platform-wide default the form pre-fills (owner decision 2026-10-09), not PRD §4.8's
     // "by specialty" table: the value sent is always the super admin's.
     modules: moduleFlagsSchema.strict().superRefine(refineModuleDependencies),
     // Finance F1 (spec §8 rule 6): the clinic's currency and tax rate; the server keeps KWD and 0 when
-    // they are left out. The list repeats money.ts's currencyCodeSchema (this file imports zod only);
+    // they are left out. The list repeats money.ts's currencyCodeSchema (kept inline so this file does not import money);
     // finance-contracts.spec.ts pins the two together.
     currency: z.enum(["KWD", "BHD", "OMR", "SAR", "AED", "QAR"]).optional(),
-    taxRateBp: z.number().int().min(0).max(10000).optional(),
+    taxRateBp: legacyNumber().check(legacyInteger()).check(z.gte(0)).check(z.lte(10000)).optional(),
     admin: z
       .object({
         fullName: name,
@@ -163,12 +164,12 @@ export const idempotencyKeySchema = z
 
 /** The answer — identifiers only. The invitation link is never returned: it is emailed (PRD story 7). */
 export const createClinicResponseSchema = z.object({
-  clinicId: z.string().uuid(),
+  clinicId: z.string().guid(),
   slug: z.string(),
   invitation: z.object({
-    id: z.string().uuid(),
+    id: z.string().guid(),
     email: z.string(),
-    expiresAt: z.string().datetime(),
+    expiresAt: utcDatetime(),
   }),
 });
 export type CreateClinicResponse = z.infer<typeof createClinicResponseSchema>;

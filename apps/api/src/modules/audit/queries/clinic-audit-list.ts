@@ -9,6 +9,7 @@ import type { Database } from "@eyadex/db";
 import { scrubAuditText } from "@eyadex/observability";
 import { sql } from "drizzle-orm";
 
+import { parseContract } from "../../../shared/contract-parser.ts";
 import { matchActors } from "../domain/audit-actors.ts";
 import { refIdsOf, withRefNames } from "../domain/audit-refs.ts";
 import { auditSnapshots } from "../domain/audit-snapshot.ts";
@@ -113,14 +114,14 @@ export async function listClinicAudit(
           )
         : new Map(members.map((m) => [m.userId, m.fullName]));
     const items = page.map((row) => {
-      const entity = clinicAuditEntitySchema.parse(row.entity);
+      const entity = parseContract(clinicAuditEntitySchema, row.entity);
       return {
         id: row.id,
         at: new Date(row.at_key).toISOString(),
         actorName: scrubAuditText(actorNames.get(row.actor_user_id) ?? UNNAMED_ACTOR),
         action: row.action,
         entity,
-        category: auditCategorySchema.parse(row.category),
+        category: parseContract(auditCategorySchema, row.category),
         entityId: row.entity_id,
         ...auditSnapshots(entity, parseDetails(row.details)),
       };
@@ -131,7 +132,7 @@ export async function listClinicAudit(
       scope.clinicId,
       refIdsOf(items.flatMap((item) => [item.before, item.after])),
     );
-    return clinicAuditListResponseSchema.parse({
+    return parseContract(clinicAuditListResponseSchema, {
       items: items.map((item) => ({
         ...item,
         before: withRefNames(item.before, names),

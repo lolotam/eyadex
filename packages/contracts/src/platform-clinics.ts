@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { legacyNumber, legacyCoercedNumber } from "./number-compat.ts";
+import { legacyInteger } from "./integer-compat.ts";
+import { offsetDatetime, utcDatetime } from "./datetime-compat.ts";
 import { idSchema } from "./common.ts";
 import {
   clinicStatusSchema,
@@ -23,8 +26,12 @@ export type SetFeatureRequest = z.infer<typeof setFeatureRequestSchema>;
 export const updateSubscriptionRequestSchema = z
   .object({
     status: clinicStatusSchema.optional(),
-    durationDays: z.number().int().min(1).max(3650).optional(),
-    expiresAt: z.string().datetime({ offset: true }).optional(),
+    durationDays: legacyNumber()
+      .check(legacyInteger())
+      .check(z.gte(1))
+      .check(z.lte(3650))
+      .optional(),
+    expiresAt: offsetDatetime().optional(),
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -43,8 +50,8 @@ export type UpdateSubscriptionRequest = z.infer<typeof updateSubscriptionRequest
  */
 export const updateLimitsRequestSchema = z
   .object({
-    maxUsers: z.number().int().min(1).max(1000).optional(),
-    maxBranches: z.number().int().min(1).max(100).optional(),
+    maxUsers: legacyNumber().check(legacyInteger()).check(z.gte(1)).check(z.lte(1000)).optional(),
+    maxBranches: legacyNumber().check(legacyInteger()).check(z.gte(1)).check(z.lte(100)).optional(),
   })
   .strict()
   .refine((v) => v.maxUsers !== undefined || v.maxBranches !== undefined, {
@@ -53,7 +60,10 @@ export const updateLimitsRequestSchema = z
 export type UpdateLimitsRequest = z.infer<typeof updateLimitsRequestSchema>;
 
 const usageSchema = z
-  .object({ used: z.number().int().nonnegative(), max: z.number().int().positive() })
+  .object({
+    used: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
+    max: legacyNumber().check(legacyInteger()).check(z.positive()),
+  })
   .strict();
 
 /**
@@ -70,11 +80,11 @@ export const platformClinicDetailSchema = z
     specialty: specialtySchema,
     status: clinicStatusSchema,
     access: z.enum(["allowed", "suspended", "expired"]),
-    expiresAt: z.string().datetime(),
+    expiresAt: utcDatetime(),
     defaultLanguage: z.enum(["ar", "en"]),
     /** IANA zone the clinic's dates are shown and counted in. */
     timezone: z.string(),
-    createdAt: z.string().datetime(),
+    createdAt: utcDatetime(),
     modules: featuresSchema.strict(),
     usage: z.object({ users: usageSchema, branches: usageSchema }).strict(),
   })
@@ -91,7 +101,11 @@ export const featureModuleParamSchema = moduleSchema;
 export const platformClinicListQuerySchema = z
   .object({
     cursor: z.string().min(1).max(200).optional(),
-    limit: z.coerce.number().int().min(1).max(100).default(50),
+    limit: legacyCoercedNumber()
+      .check(legacyInteger())
+      .check(z.gte(1))
+      .check(z.lte(100))
+      .default(50),
     search: z.string().trim().min(1).max(100).optional(),
     /** Effective status (ADR-0020): "expired" is computed on the server clock, never stored. */
     status: effectiveClinicStatusSchema.optional(),
@@ -105,7 +119,7 @@ export const platformClinicListResponseSchema = z
   .object({
     items: z.array(platformClinicDetailSchema),
     nextCursor: z.string().nullable(),
-    total: z.number().int().nonnegative(),
+    total: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
   })
   .strict();
 export type PlatformClinicListResponse = z.infer<typeof platformClinicListResponseSchema>;

@@ -10,6 +10,7 @@ import {
   type PlatformSettingsBody,
 } from "@eyadex/contracts/platform-console";
 
+import { parseContract } from "../../../shared/contract-parser.ts";
 import { ZodValidationPipe } from "../../../shared/zod-validation.pipe.ts";
 import {
   PLATFORM_TEAM_CHANGES,
@@ -42,19 +43,22 @@ export class PlatformConsoleController {
   @Get("me")
   @PlatformStaff()
   async me(@Req() request: AuthenticatedRequest): Promise<PlatformMeResponse> {
-    return platformMeResponseSchema.parse(await this.team.me(request.areaSession.session.user.id));
+    return parseContract(
+      platformMeResponseSchema,
+      await this.team.me(request.areaSession.session.user.id),
+    );
   }
 
   @Get("overview")
   @PlatformStaff()
   async readOverview(): Promise<PlatformOverviewResponse> {
-    return platformOverviewResponseSchema.parse(await this.overview());
+    return parseContract(platformOverviewResponseSchema, await this.overview());
   }
 
   @Get("settings")
   @PlatformStaff()
   async readSettings(): Promise<PlatformSettingsBody> {
-    return platformSettingsResponseSchema.parse(await this.settings());
+    return parseContract(platformSettingsResponseSchema, await this.settings());
   }
 
   @Put("settings")
@@ -64,6 +68,6 @@ export class PlatformConsoleController {
     @Body(new ZodValidationPipe(platformSettingsRequestSchema)) body: PlatformSettingsBody,
   ): Promise<PlatformSettingsBody> {
     const saved = await this.settingsChanges.update(request.areaSession.session.user.id, body);
-    return platformSettingsResponseSchema.parse(saved);
+    return parseContract(platformSettingsResponseSchema, saved);
   }
 }

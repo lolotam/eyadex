@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { legacyNumber } from "./number-compat.ts";
+import { legacyInteger } from "./integer-compat.ts";
+import { utcDatetime } from "./datetime-compat.ts";
 import { messageLanguageSchema } from "./notifications.ts";
 import { idSchema, pageQuerySchema, stripInvisibleControls } from "./common.ts";
 
@@ -121,7 +124,7 @@ export function civilIdBirthDate(id: string): string | null {
 export const patientSchema = z.object({
   id: idSchema,
   clinicId: idSchema,
-  fileNumber: z.number().int().positive(),
+  fileNumber: legacyNumber().check(legacyInteger()).check(z.positive()),
   fullName: z.string(),
   /** Canonical +965XXXXXXXX. */
   phone: z.string(),
@@ -136,7 +139,7 @@ export const patientSchema = z.object({
   /** The patient asked for no reminders; other messages still go out (N-2). */
   notificationsOptOut: z.boolean(),
   status: patientStatusSchema,
-  createdAt: z.string().datetime(),
+  createdAt: utcDatetime(),
 });
 export type Patient = z.infer<typeof patientSchema>;
 
@@ -203,7 +206,7 @@ export type PatientRecordActions = z.infer<typeof patientRecordActionsSchema>;
 /** List rows never carry the full civil ID, only its last 4 digits. */
 export const patientListItemSchema = z.object({
   id: idSchema,
-  fileNumber: z.number().int().positive(),
+  fileNumber: legacyNumber().check(legacyInteger()).check(z.positive()),
   fullName: z.string(),
   phone: z.string(),
   registrationBranchId: idSchema,
@@ -246,7 +249,7 @@ export function formatFileNumber(n: number): string {
  */
 export const patientWriteResultSchema = z.object({
   id: idSchema,
-  fileNumber: z.number().int().positive(),
+  fileNumber: legacyNumber().check(legacyInteger()).check(z.positive()),
   detail: patientDetailSchema.nullable(),
 });
 export type PatientWriteResult = z.infer<typeof patientWriteResultSchema>;
