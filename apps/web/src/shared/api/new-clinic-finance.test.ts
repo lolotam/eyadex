@@ -31,8 +31,6 @@ const firstMessage = (parser: Parser, input: unknown, path: PropertyKey[]) => {
 };
 
 describe("[Zod 3, current] createClinicFormSchema taxRateBp messages", () => {
-  const valid = createClinicFormSchema.parse.length; // the schema exists; base built per case
-  void valid;
   it.each(CASES)("%s", (_label, value, message) => {
     // Only the tax rate's own issue is read, so the other fields' validity does not matter.
     const parsed = createClinicFormSchema.safeParse({ taxRateBp: value, currency: "KWD" });
