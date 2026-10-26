@@ -17,10 +17,22 @@ export const newClinicFinanceSchema = z.object({
 
 export const DEFAULT_NEW_CLINIC_FINANCE = { currency: "KWD", taxRateBp: 0 } as const;
 
+/**
+ * The tax rate's wrong-type message under both Zod majors (migration to Zod 4): Zod 3 reads
+ * `invalid_type_error` and gives a missing value its default "Required"; Zod 4 ignores that key and
+ * reads `error`, which returns the same two messages. Passed as a variable so each major's parameter
+ * type accepts the other's key; no global error map.
+ */
+export const taxRateNumberParams = {
+  invalid_type_error: "validation.number",
+  error: (issue: { input?: unknown }) =>
+    issue.input === undefined ? "Required" : "validation.number",
+};
+
 export const createClinicFormSchema = createClinicInputSchema.extend({
   currency: currencyCodeSchema,
   taxRateBp: z
-    .number({ invalid_type_error: "validation.number" })
+    .number(taxRateNumberParams)
     .int("validation.number")
     .min(0, "validation.outOfRange")
     .max(10000, "validation.outOfRange"),

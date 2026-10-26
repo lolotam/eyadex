@@ -1,10 +1,17 @@
 import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { UseFormReturn } from "react-hook-form";
-import type { z } from "zod";
 import type { VisitDetail } from "@eyadex/contracts/visits";
 import { medicalKeys, useClinicPersona } from "./medical-queries";
 import { SectionInvalidError, type SectionSaves } from "./visit-section-saves";
+
+/**
+ * Only what the flush calls, written structurally so a Zod 3 and a Zod 4 schema both fit; Zod 4 has
+ * no `ZodTypeDef`, so the generic `z.ZodType<O, Def, I>` form cannot span the migration.
+ */
+export type ItemsParser<T> = {
+  safeParse(input: unknown): { success: true; data: { items: T[] } } | { success: false };
+};
 
 // A blank optional field and a stored null are the same value (the API's `sectionValue`).
 const fieldsOf = <T>(items: readonly T[], key: (item: T) => readonly unknown[]) =>
