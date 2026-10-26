@@ -3,7 +3,7 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import { ZodError } from "zod";
 
 import { ApiError, codeForStatus } from "./errors.ts";
-import { envelopeIssue } from "./zod-envelope.ts";
+import { envelopeIssue, withoutAbortedLengthArtifacts } from "./zod-envelope.ts";
 
 /**
  * Every error leaves the API as `{ code, message_ar, message_en, details? }` (CLAUDE.md §6). An unexpected
@@ -29,7 +29,10 @@ function toApiError(exception: unknown): ApiError {
   if (exception instanceof ApiError) return exception;
   // A contract parsed outside a pipe — a query, a path parameter — reaches here as a raw ZodError.
   if (exception instanceof ZodError) {
-    return new ApiError("validation", exception.issues.map(envelopeIssue));
+    return new ApiError(
+      "validation",
+      withoutAbortedLengthArtifacts(exception.issues).map(envelopeIssue),
+    );
   }
   if (exception instanceof HttpException) return new ApiError(codeForStatus(exception.getStatus()));
   const status = (exception as { statusCode?: unknown } | null)?.statusCode;

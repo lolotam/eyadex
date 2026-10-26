@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Post } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import type { NestFastifyApplication } from "@nestjs/platform-fastify";
+import { createBranchRequestSchema } from "@eyadex/contracts/branches";
 import { changeRoleInputSchema } from "@eyadex/contracts/users";
 import { idSchema } from "@eyadex/contracts/common";
 import { invitePlatformAccountInputSchema } from "@eyadex/contracts/platform";
@@ -18,6 +19,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { apiAdapter, apiModule, startApi } from "../../app.ts";
 import { Public } from "../../modules/identity/access/access-rules.ts";
 import { PinoNestLogger } from "../nest-logger.ts";
+import { parseContract } from "../contract-parser.ts";
 import { ZodValidationPipe } from "../zod-validation.pipe.ts";
 
 const VALIDATION = {
@@ -25,6 +27,33 @@ const VALIDATION = {
   message_ar: "بعض الحقول غير صحيحة",
   message_en: "Some fields are invalid",
 };
+const NAME_MARKER = "length-marker";
+const EMAIL_MARKER = "email-marker";
+const LONG_NAME = "n".repeat(101);
+const branchShapes: Record<string, Record<string, unknown>> = {
+  empty: { nameAr: [], nameEn: "Synthetic" },
+  oversized: { nameAr: Array<string>(121).fill(NAME_MARKER), nameEn: "Synthetic" },
+  zero: { nameAr: { length: 0 }, nameEn: "Synthetic" },
+  huge: { nameAr: { length: 999 }, nameEn: "Synthetic" },
+  short: { nameAr: "", nameEn: "Synthetic" },
+  long: { nameAr: LONG_NAME, nameEn: "Synthetic" },
+};
+
+function branchShape(shape: string): Record<string, unknown> {
+  const input = branchShapes[shape];
+  if (input === undefined) throw new Error(`unknown branch shape: ${shape}`);
+  return input;
+}
+function expectEnv(
+  res: { status: number; body: Record<string, unknown> },
+  details: { path: string[]; code: string }[],
+): void {
+  expect(res.status).toBe(400);
+  expect(res.body).toEqual({ ...VALIDATION, details });
+  expect(JSON.stringify(res.body)).not.toMatch(
+    /length-marker|email-marker|Synthetic|a@b\.co|999|length|array|unknown|pattern|"inst"|"input"|synthetic-marker|n{101}/,
+  );
+}
 
 @Controller("zod-migration")
 class ZodMigrationController {
@@ -39,6 +68,12 @@ class ZodMigrationController {
   platformInvite(
     @Body(new ZodValidationPipe(invitePlatformAccountInputSchema)) body: unknown,
   ): unknown {
+    return body;
+  }
+
+  @Post("i")
+  @Public()
+  invite(@Body(new ZodValidationPipe(invitePlatformAccountInputSchema)) body: unknown): unknown {
     return body;
   }
 
@@ -72,6 +107,29 @@ class ZodMigrationController {
   @Public()
   range(@Body(new ZodValidationPipe(reportDailyTakingsQuerySchema)) body: unknown): unknown {
     return body;
+  }
+
+  @Post("branch")
+  @Public()
+  branch(@Body(new ZodValidationPipe(createBranchRequestSchema)) body: unknown): unknown {
+    return body;
+  }
+
+  @Post("held/:boundary/:shape")
+  @Public()
+  held(@Param("boundary") boundary: string, @Param("shape") shape: string): unknown {
+    if (boundary === "enum") {
+      const parsed = updateSubscriptionRequestSchema.safeParse({ status: "synthetic-marker" });
+      if (parsed.success) throw new Error("expected an enum failure");
+      throw parsed.error;
+    }
+    const input = branchShape(shape);
+    if (boundary === "raw") {
+      const parsed = createBranchRequestSchema.safeParse(input);
+      if (parsed.success) throw new Error("expected a branch failure");
+      throw parsed.error;
+    }
+    return parseContract(createBranchRequestSchema, input);
   }
 
   @Get("raw-id")
@@ -187,5 +245,50 @@ describe("a raw ZodError through EnvelopeExceptionFilter", () => {
       details: [{ path: [], code: "invalid_string" }],
     });
     expect(JSON.stringify(res.body)).not.toContain("not-a-uuid");
+  });
+});
+
+describe("aborted string-length artifacts", () => {
+  const typeOnly = [{ path: ["nameAr"], code: "invalid_type" }];
+  const at = (path: string, code: string) => [{ path: [path], code }];
+  const post = (url: string, payload?: Record<string, unknown>) =>
+    request("POST", `/v1/zod-migration/${url}`, payload);
+
+  it("omits them on the pipe, the raw filter, and response parse", async () => {
+    for (const shape of ["empty", "oversized", "zero", "huge"] as const) {
+      expectEnv(await post("branch", branchShapes[shape]), typeOnly);
+      expectEnv(await post(`held/raw/${shape}`, branchShapes["short"]), typeOnly);
+      expectEnv(await post(`held/response/${shape}`, branchShapes["long"]), typeOnly);
+    }
+  });
+
+  it("keeps real string bounds, a sibling bound, and a raw unknown-string enum", async () => {
+    const short = await post("branch", branchShapes["short"]);
+    expectEnv(short, at("nameAr", "too_small"));
+    expect((await post("held/raw/short", branchShapes["empty"])).body).toEqual(short.body);
+    expectEnv(await post("branch", branchShapes["long"]), at("nameAr", "too_big"));
+    expectEnv(await post("branch", { nameAr: [], nameEn: "" }), [
+      { path: ["nameAr"], code: "invalid_type" },
+      { path: ["nameEn"], code: "too_small" },
+    ]);
+    expectEnv(await post("branch", { nameAr: [], nameEn: LONG_NAME }), [
+      { path: ["nameAr"], code: "invalid_type" },
+      { path: ["nameEn"], code: "too_big" },
+    ]);
+    expectEnv(await post("held/enum/marker", { status: null }), at("status", "invalid_enum_value"));
+  });
+
+  it("omits invite fullName and email length artifacts and keeps real name bounds", async () => {
+    const names = [[], Array<string>(121).fill(NAME_MARKER), { length: 0 }, { length: 999 }];
+    for (const fullName of names) {
+      expectEnv(await post("i", { fullName, email: "a@b.co" }), at("fullName", "invalid_type"));
+    }
+    const emails = [[], Array<string>(300).fill(EMAIL_MARKER), { length: 0 }, { length: 999 }];
+    for (const email of emails) {
+      const body = { fullName: "Synthetic Staff", email };
+      expectEnv(await post("i", body), at("email", "invalid_type"));
+    }
+    expectEnv(await post("i", { fullName: "A", email: "a@b.co" }), at("fullName", "too_small"));
+    expectEnv(await post("i", { fullName: LONG_NAME, email: "a@b.co" }), at("fullName", "too_big"));
   });
 });

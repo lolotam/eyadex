@@ -21,10 +21,24 @@ export function envelopeIssues(
   issues: readonly ZodIssue[],
   input: unknown,
 ): { path: string[]; code: string }[] {
-  return issues.map((issue) => ({
+  return withoutAbortedLengthArtifacts(issues).map((issue) => ({
     path: issue.path.map(String),
     code: publicCode(issue, { value: valueAt(input, issue.path) }),
   }));
+}
+
+/**
+ * Zod 4 keeps running a length check after a wrong-type abort when the value has `length`.
+ * Zod 3 stopped at `invalid_type`. Drop only that continuation, using the issue's own origin,
+ * expected, and path. `expected: "int"` continues into a real numeric bound, so that pair stays.
+ * A real short or long string has no type abort on its path, and a sibling path is left alone.
+ * The original issue list is not mutated.
+ */
+export function withoutAbortedLengthArtifacts(issues: readonly ZodIssue[]): readonly ZodIssue[] {
+  if (!issues.some((issue) => issue.code === "invalid_type" && issue.expected !== "int")) {
+    return issues;
+  }
+  return issues.filter((issue) => !isAbortedLengthArtifact(issue, issues));
 }
 
 function publicCode(
@@ -47,6 +61,27 @@ function publicCode(
     return "invalid_enum_value";
   }
   return issue.code;
+}
+
+function isAbortedLengthArtifact(issue: ZodIssue, issues: readonly ZodIssue[]): boolean {
+  if (issue.code !== "too_small" && issue.code !== "too_big") return false;
+  if (isNumericBoundOrigin(issue.origin)) return false;
+  const key = pathKey(issue.path);
+  return issues.some(
+    (other) =>
+      other.code === "invalid_type" &&
+      other.expected !== "int" &&
+      other.expected !== issue.origin &&
+      pathKey(other.path) === key,
+  );
+}
+
+function isNumericBoundOrigin(origin: string | undefined): boolean {
+  return origin === "number" || origin === "int" || origin === "bigint" || origin === "date";
+}
+
+function pathKey(path: readonly PropertyKey[]): string {
+  return path.map((key) => `${typeof key}:${String(key)}`).join("\0");
 }
 
 function valueAt(input: unknown, path: readonly PropertyKey[]): unknown {
