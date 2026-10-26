@@ -39,12 +39,13 @@ const ROWS = {
   own_summary: reportOwnSummaryRowSchema,
 } as const satisfies Record<ReportId, z.ZodTypeAny>;
 
+type ReportRowSchema = (typeof ROWS)[keyof typeof ROWS];
+
 /** The fields of a row, read from its schema. */
-const rowShape = (row: z.ZodTypeAny): Record<string, z.ZodTypeAny> =>
-  (row as z.ZodObject<z.ZodRawShape>).shape;
+const rowShape = (row: ReportRowSchema): Record<string, z.ZodTypeAny> => row.shape;
 
 /** The fields that name the staff member who did it: their membership id. */
-const staffIdFields = (row: z.ZodTypeAny): string[] =>
+const staffIdFields = (row: ReportRowSchema): string[] =>
   Object.keys(rowShape(row)).filter((key) => key.endsWith("By"));
 
 /** Is the field a membership id? The uuid check of `idSchema`, read from the schema itself. */

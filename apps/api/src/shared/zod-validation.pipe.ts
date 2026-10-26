@@ -2,6 +2,7 @@ import type { PipeTransform } from "@nestjs/common";
 import type { z } from "zod";
 
 import { ApiError } from "./errors.ts";
+import { envelopeIssue } from "./zod-envelope.ts";
 
 /**
  * Validates a request part against a contract from `@eyadex/contracts` and returns the parsed value
@@ -21,10 +22,7 @@ export class ZodValidationPipe<T extends z.ZodType> implements PipeTransform<unk
       if (result.error.issues.some((issue) => issue.message === "validation.rangeTooLong")) {
         throw new ApiError("report_range_too_long");
       }
-      throw new ApiError(
-        "validation",
-        result.error.issues.map((issue) => ({ path: issue.path.map(String), code: issue.code })),
-      );
+      throw new ApiError("validation", result.error.issues.map(envelopeIssue));
     }
     return result.data;
   }
