@@ -44,7 +44,9 @@ const MINUS_OVERFLOW = (JSON.parse('{"taxRateBp":-1e999}') as { taxRateBp: numbe
 type Issue = { code: string; path: PropertyKey[]; message?: string };
 const issuesOf = (error: { issues: Issue[] } | undefined, withMessage = true) =>
   error?.issues.map((i) =>
-    withMessage ? { code: i.code, path: i.path, message: i.message } : { code: i.code, path: i.path },
+    withMessage
+      ? { code: i.code, path: i.path, message: i.message }
+      : { code: i.code, path: i.path },
   );
 
 describe("[installed zod 4.6.6] createClinicFormSchema taxRateBp", () => {
