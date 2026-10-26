@@ -25,12 +25,14 @@
     "nodemailer": "10.0.15",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2",
+    "write-excel-file": "4.1.1",
     "zod": "3.25.76"
   },
   "devDependencies": {
     "@eyadex/config": "workspace:*",
     "@types/node": "24.13.6",
     "eslint": "9.39.5",
+    "fflate": "0.8.3",
     "typescript": "5.9.3",
     "vitest": "4.1.11"
   }
