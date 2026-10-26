@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import * as z4 from "zod/v4";
 import { createClinicFormSchema, taxRateNumberParams } from "./new-clinic-finance";
 
-// One table for both majors: the tax rate's messages must not change across the Zod 4 migration.
+// One table for the installed default parser and the v4 subpath: the tax rate messages must match.
 const CASES: [label: string, value: unknown, message: string | null][] = [
   ["undefined", undefined, "Required"],
   ["null", null, "validation.number"],
@@ -30,7 +30,7 @@ const firstMessage = (parser: Parser, input: unknown, path: PropertyKey[]) => {
   return issue?.message ?? "(no issue on the field)";
 };
 
-describe("[Zod 3, current] createClinicFormSchema taxRateBp messages", () => {
+describe("[installed default parser (baseline 3.25.76)] createClinicFormSchema taxRateBp messages", () => {
   it.each(CASES)("%s", (_label, value, message) => {
     // Only the tax rate's own issue is read, so the other fields' validity does not matter.
     const parsed = createClinicFormSchema.safeParse({ taxRateBp: value, currency: "KWD" });
@@ -41,7 +41,7 @@ describe("[Zod 3, current] createClinicFormSchema taxRateBp messages", () => {
   });
 });
 
-describe("[v4 stand-in, zod/v4 inside 3.25.76 — not 4.6.6 verification] taxRateNumberParams", () => {
+describe("[v4 subpath — preflight evidence only, not 4.6.6 proof] taxRateNumberParams", () => {
   const schema = z4
     .number(taxRateNumberParams)
     .int("validation.number")
