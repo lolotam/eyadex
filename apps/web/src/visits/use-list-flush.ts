@@ -30,7 +30,7 @@ export function useListFlush<T>(options: {
   saves: SectionSaves | undefined;
   editable: boolean;
   form: UseFormReturn<{ items: T[] }>;
-  schema: z.ZodType<{ items: T[] }, z.ZodTypeDef, unknown>;
+  schema: ItemsParser<T>;
   serverItems: (detail: VisitDetail) => T[];
   key: (item: T) => readonly unknown[];
   submit: (input: { items: T[] }) => Promise<unknown>;
