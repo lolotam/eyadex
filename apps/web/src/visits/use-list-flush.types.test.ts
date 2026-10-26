@@ -6,7 +6,7 @@ import type { ItemsParser } from "./use-list-flush";
 type Row = { code: string };
 
 describe("ItemsParser fits both Zod majors", () => {
-  it("[Zod 3, current] a schema of { items } is a parser and keeps its row type", () => {
+  it("[installed default parser (baseline 3.25.76)] a schema of { items } is a parser and keeps its row type", () => {
     const schema = z3.object({ items: z3.array(z3.object({ code: z3.string() })) });
     const parser: ItemsParser<Row> = schema;
     const ok = parser.safeParse({ items: [{ code: "A" }] });
@@ -18,7 +18,7 @@ describe("ItemsParser fits both Zod majors", () => {
     expect(parser.safeParse({ items: [{ code: 1 }] }).success).toBe(false);
   });
 
-  it("[v4 stand-in, zod/v4 inside 3.25.76 — not 4.6.6 verification] same contract", () => {
+  it("[v4 subpath — preflight evidence only, not 4.6.6 proof] same contract", () => {
     const schema = z4.object({ items: z4.array(z4.object({ code: z4.string() })) });
     const parser: ItemsParser<Row> = schema;
     const ok = parser.safeParse({ items: [{ code: "B" }] });
