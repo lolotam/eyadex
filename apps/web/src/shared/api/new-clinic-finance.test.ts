@@ -38,8 +38,8 @@ const VALID_BASE = {
 };
 
 // Raw JSON overflow parses to ±Infinity, as a request body would.
-const PLUS_OVERFLOW = (JSON.parse('{"taxRateBp":1e999}') as { taxRateBp: number }).taxRateBp;
-const MINUS_OVERFLOW = (JSON.parse('{"taxRateBp":-1e999}') as { taxRateBp: number }).taxRateBp;
+const PLUS_OVERFLOW: number = JSON.parse('{"taxRateBp":1e999}').taxRateBp;
+const MINUS_OVERFLOW: number = JSON.parse('{"taxRateBp":-1e999}').taxRateBp;
 
 type Issue = { code: string; path: PropertyKey[]; message?: string };
 const issuesOf = (error: { issues: Issue[] } | undefined, withMessage = true) =>
@@ -105,7 +105,7 @@ describe("[installed zod 4.6.6] form tax rate keeps the Zod 3 integer and range 
   it.each([0, 10000])("%s parses to the same data", (value) => {
     const parsed = createClinicFormSchema.safeParse({ ...VALID_BASE, taxRateBp: value });
     expect(parsed.success).toBe(true);
-    expect(parsed.data).toEqual({ ...VALID_BASE, taxRateBp: value });
+    expect(parsed.data).toStrictEqual({ ...VALID_BASE, taxRateBp: value });
   });
 });
 
@@ -113,7 +113,7 @@ describe("[installed zod 4.6.6] newClinicFinanceSchema taxRateBp (unconfigured)"
   it.each([{}, { taxRateBp: undefined }])("accepts %o unchanged", (input) => {
     const parsed = newClinicFinanceSchema.safeParse(input);
     expect(parsed.success).toBe(true);
-    expect(parsed.data).toEqual(input);
+    expect(parsed.data).toStrictEqual(input);
   });
 
   const int = { code: "invalid_type", path: ["taxRateBp"] };
