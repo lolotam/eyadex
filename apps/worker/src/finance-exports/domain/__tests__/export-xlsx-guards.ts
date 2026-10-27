@@ -95,7 +95,7 @@ describe("writeReportXlsx formula guard", () => {
     ["crlf", "keep\r\nmid", "keep\r\nmid"],
     ["leading-crlf", "\r\nSUM", "'\r\nSUM"],
     ["tab", "\tSUM", "'\tSUM"],
-    ["lf", "\nSUM", "\nSUM"],
+    ["lf", "\nSUM", "'\nSUM"],
     ["literal-entity", "&#13;", "&#13;"],
     ["literal-named", "&lt;>", "&lt;>"],
   ] as const)(
