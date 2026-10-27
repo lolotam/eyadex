@@ -40,9 +40,13 @@ async function receive(
   return SealedFile.receive(
     Readable.from(
       (async function* () {
-        // Network chunk boundaries are unrelated to authenticated record boundaries.
-        for (let index = 0; index < bytes.length; index += 137)
-          yield bytes.subarray(index, index + 137);
+        // Split the magic/header and cross record boundaries without thousands of tiny disk writes.
+        const sizes = [1, 3, 137, 4093];
+        for (let offset = 0, index = 0; offset < bytes.length; index++) {
+          const size = sizes[Math.min(index, sizes.length - 1)]!;
+          yield bytes.subarray(offset, offset + size);
+          offset += size;
+        }
       })(),
     ),
     targetCipher,
