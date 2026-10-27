@@ -1,3 +1,6 @@
+import type { ReportExportFormat, ReportId } from "@eyadex/contracts/finance-reports";
+import type { PermissionScope } from "@eyadex/contracts/permissions";
+
 import type { ExportFailureKind } from "../domain/export-failures.ts";
 
 /** سياج الكتابة: العيادة والتصدير والمحاولة والمالك. */
@@ -14,6 +17,18 @@ export type ClaimDecision =
   | { readonly kind: "failed"; readonly error: string }
   | { readonly kind: "deferred"; readonly nextAttemptAt: Date }
   | { readonly kind: "leased"; readonly attempt: number; readonly leaseUntil: Date };
+
+/**
+ * لقطة الطلب المجمّدة لتأجير جاري ومملوك وحي. مش تفويض حالي:
+ * `scope` سقف مخزّن مش منحة، و`params` كائن JSON غير متحقّق.
+ */
+export interface LeasedExportJob {
+  readonly requestedBy: string;
+  readonly report: ReportId;
+  readonly format: ReportExportFormat;
+  readonly scope: PermissionScope;
+  readonly params: unknown;
+}
 
 /** كتابة مسوّرة: اتطبقت، أو إعادة القراءة قالت نجاح المحاولة، أو التأجير ضاع. */
 export type FenceAnswer =
@@ -124,4 +139,12 @@ export interface ExportStore extends ExportClaimPort {
    * @returns نجاح المحاولة أو ضياع التأجير
    */
   reread(fence: ExportFence): Promise<"own_success" | "lost_lease">;
+  /**
+   * يقرأ الخمسة حقول المجمّدة بعد قفل الصف، وفقط لو التأجير جاري ومملوك وحي.
+   * اللقطة مش تفويض: `scope` سقف مش منحة، و`params` ما يتفسّرش ولا يتوسّع هنا.
+   *
+   * @param fence سياج المحاولة
+   * @returns الحقول الخمسة، أو `null` لو الصف مش التأجير الحي المملوك
+   */
+  readLeasedJob(fence: ExportFence): Promise<LeasedExportJob | null>;
 }
