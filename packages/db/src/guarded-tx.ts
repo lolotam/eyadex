@@ -4,6 +4,7 @@ import { TenantContextViolationError, type TenantContextBreach } from "./context
 import { asDatabaseError } from "./database-error.ts";
 import { renderOnce, sendRendered, type RawTx } from "./single-render.ts";
 import { assertStatementAllowed } from "./statement-guard.ts";
+import { openTenantCursor, type TenantCursor } from "./tenant-cursor.ts";
 import {
   assertLive,
   closeLifetime,
@@ -34,14 +35,14 @@ export type { RawTx } from "./single-render.ts";
  * أي اسم تاني — `session` و`_` و`dialect` و`$client` و`query` و`constructor` و`select` — بيرمي
  * `TypeError`.
  */
-export const TX_MEMBERS = ["execute", "rollback", "transaction"] as const;
+export const TX_MEMBERS = ["execute", "cursor", "rollback", "transaction"] as const;
 
 export type TxMember = (typeof TX_MEMBERS)[number];
 
 const ALLOWED = new Set<string>(TX_MEMBERS);
 
 const REACHED_DRIVER =
-  "tx is a guarded transaction: only execute() (statement-guarded, rendered once), transaction() " +
+  "tx is a guarded transaction: only execute() (statement-guarded, rendered once), cursor(), transaction() " +
   "and rollback() are reachable, the driver behind them is not — tx.execute() is the way to run " +
   "SQL (ADR-0002)";
 
@@ -70,6 +71,12 @@ const askedFor = (property: string | symbol): string =>
  */
 export type Tx = {
   execute<TRow = unknown>(query: SQL): Promise<TRow[]>;
+  /**
+   * ???? ????? SELECT ?????? ?????? ??? ???? SQL ?????? ?? ??? ????? ??? driver ?? ????? ???? ???????.
+   * @param query ??????? ??????? ???????
+   * @returns cursor ??? ?????????? ?? read ??? ???? 500 ??? ???????? ????? ????
+   */
+  cursor<TRow = unknown>(query: SQL): Promise<TenantCursor<TRow>>;
   rollback: RawTx["rollback"];
   /** Savepoint جوه نفس الـ transaction، والـ callback بياخد `Tx` محمي تاني. */
   transaction<T>(fn: (tx: Tx) => Promise<T>): Promise<T>;
@@ -162,6 +169,8 @@ const makeHandler = (
     if (typeof property !== "string" || !ALLOWED.has(property)) {
       throw new TypeError(`${REACHED_DRIVER} (asked for ${askedFor(property)})`);
     }
+    if (property === "cursor")
+      return <TRow>(query: SQL) => openTenantCursor<TRow>(target, lifetime, query);
     if (property === "execute") {
       return guardedExecute(target, lifetime) as unknown as Tx["execute"];
     }

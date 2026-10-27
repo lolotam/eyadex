@@ -157,6 +157,9 @@ export const track = <T>(
   work: Promise<T>,
   abort?: () => Promise<void>,
 ): Promise<T> => {
+  // A long cursor can issue many awaited page/check statements. Completed observed work cannot
+  // affect closing checks; unobserved work must stay, even when it finished, to force rollback.
+  for (const previous of set) if (previous.observed && previous.settled) set.delete(previous);
   const entry: Tracked =
     abort === undefined
       ? { work, settled: false, observed: false }
