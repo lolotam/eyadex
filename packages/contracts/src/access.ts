@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { legacyNumber, legacyCoercedNumber } from "./number-compat.ts";
+import { legacyInteger } from "./integer-compat.ts";
+import { utcDatetime } from "./datetime-compat.ts";
 import { idSchema, languageSchema } from "./common.ts";
 import { clinicStatusSchema, moduleSchema } from "./clinics.ts";
 import { systemRoleKeySchema } from "./organization.ts";
@@ -21,7 +24,7 @@ export const meResponseSchema = z.object({
     nameEn: z.string(),
     timezone: z.string(),
     status: clinicStatusSchema,
-    expiresAt: z.string().datetime(),
+    expiresAt: utcDatetime(),
   }),
   role: z.object({ id: idSchema, nameAr: z.string(), nameEn: z.string() }),
   /** The caller's membership in this clinic: a visit's or appointment's provider is a membership (P2). */
@@ -36,7 +39,7 @@ export const meResponseSchema = z.object({
    * Story 30 (ADR-0020): whole days left when the expiry is inside the platform's alert window,
    * counted on the server clock; null = no banner.
    */
-  expiresInDays: z.number().int().nonnegative().nullable(),
+  expiresInDays: legacyNumber().check(legacyInteger()).check(z.nonnegative()).nullable(),
 });
 export type MeResponse = z.infer<typeof meResponseSchema>;
 
@@ -66,8 +69,8 @@ export const roleSummarySchema = z.object({
   isLocked: z.boolean(),
   isActive: z.boolean(),
   /** Active members holding the role (PRD story 50). */
-  activeUserCount: z.number().int().nonnegative(),
-  memberCount: z.number().int().nonnegative(), // memberships in any status (slice 8: role_in_use)
+  activeUserCount: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
+  memberCount: legacyNumber().check(legacyInteger()).check(z.nonnegative()), // memberships in any status (slice 8: role_in_use)
   permissionKeys: z.array(z.string()),
 });
 export type RoleSummary = z.infer<typeof roleSummarySchema>;
@@ -79,7 +82,11 @@ export const roleListQuerySchema = z
       .string()
       .regex(/^[A-Za-z0-9_-]{1,64}$/)
       .optional(),
-    limit: z.coerce.number().int().min(1).max(100).default(50),
+    limit: legacyCoercedNumber()
+      .check(legacyInteger())
+      .check(z.gte(1))
+      .check(z.lte(100))
+      .default(50),
   })
   .strict();
 export type RoleListQuery = z.infer<typeof roleListQuerySchema>;
@@ -87,6 +94,6 @@ export type RoleListQuery = z.infer<typeof roleListQuerySchema>;
 export const roleListResponseSchema = z.object({
   items: z.array(roleSummarySchema),
   nextCursor: z.string().nullable(),
-  total: z.number().int().nonnegative(),
+  total: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
 });
 export type RoleListResponse = z.infer<typeof roleListResponseSchema>;

@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { legacyNumber } from "./number-compat.ts";
+import { legacyInteger } from "./integer-compat.ts";
 import { idSchema, stripInvisibleControls } from "./common.ts";
 import { systemRoleKeySchema } from "./organization.ts";
 import {
@@ -26,7 +28,7 @@ export const roleListItemSchema = z.object({
   isLocked: z.boolean(),
   isActive: z.boolean(),
   /** Members holding the role, in any status. */
-  memberCount: z.number().int().nonnegative(),
+  memberCount: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
   permissionKeys: z.array(z.string()),
 });
 export type RoleListItem = z.infer<typeof roleListItemSchema>;

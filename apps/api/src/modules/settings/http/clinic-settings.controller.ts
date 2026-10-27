@@ -6,6 +6,7 @@ import {
   type ClinicSettingsResponse,
 } from "@eyadex/contracts/settings-http";
 
+import { parseContract } from "../../../shared/contract-parser.ts";
 import { ZodValidationPipe } from "../../../shared/zod-validation.pipe.ts";
 // The one identity import a module may make: guards and request types (ADR-0014, owner decision 2026-10-07).
 import {
@@ -30,7 +31,8 @@ export class ClinicSettingsController {
   @Get()
   @Require("view:clinic_settings:clinic")
   async view(@Req() request: ClinicRequest): Promise<ClinicSettingsResponse> {
-    return clinicSettingsResponseSchema.parse(
+    return parseContract(
+      clinicSettingsResponseSchema,
       await this.changes.read(request.clinicContext.clinicId),
     );
   }
@@ -49,6 +51,6 @@ export class ClinicSettingsController {
     } catch {
       logger.warn("authorization cache invalidation failed; relying on the 30 s TTL");
     }
-    return clinicSettingsResponseSchema.parse(saved);
+    return parseContract(clinicSettingsResponseSchema, saved);
   }
 }

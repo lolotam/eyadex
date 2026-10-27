@@ -4,6 +4,7 @@ import {
 } from "@eyadex/contracts/notifications";
 import type { Database } from "@eyadex/db";
 
+import { parseContract } from "../../../shared/contract-parser.ts";
 import { ApiError } from "../../../shared/errors.ts";
 import { actorViewReach, viewSees, type AppointmentActor } from "../domain/booking-rules.ts";
 import { findAppointment } from "../persistence/pg-appointment-store.ts";
@@ -29,6 +30,9 @@ export function readAppointmentNotifications(
   return db.withTenant(actor.clinicId, async (tx) => {
     const row = await findAppointment(tx, actor.clinicId, id);
     if (row === null || !viewSees(actorViewReach(actor), row)) throw new ApiError("not_found");
-    return patientNotificationListSchema.parse(await notifications.history(tx, actor.clinicId, id));
+    return parseContract(
+      patientNotificationListSchema,
+      await notifications.history(tx, actor.clinicId, id),
+    );
   });
 }

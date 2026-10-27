@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { utcDatetime } from "./datetime-compat.ts";
 import { stripInvisibleControls } from "./common.ts";
 
 const section = z
@@ -29,7 +30,7 @@ export const medicalProfileSchema = z
         familyHistory: z.string().nullable(),
       })
       .strict(),
-    updatedAt: z.string().datetime().nullable(),
+    updatedAt: utcDatetime().nullable(),
     updatedByName: z.string().nullable(),
     can: z.object({ update: z.boolean() }).strict(),
   })

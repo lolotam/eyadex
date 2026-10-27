@@ -173,7 +173,7 @@ describe("prices, prefixes, sending and the platform", () => {
 
 describe("the create-clinic currency (spec §8 rule 6)", () => {
   it("offers exactly the supported currencies, which onboarding.ts repeats inline", () => {
-    const currency = createClinicRequestSchema.innerType().shape.currency.unwrap();
+    const currency = createClinicRequestSchema.shape.currency.unwrap();
     expect(currency.options).toEqual(currencyCodeSchema.options);
   });
 });

@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { legacyNumber, legacyCoercedNumber } from "./number-compat.ts";
+import { legacyInteger } from "./integer-compat.ts";
 
 import { idSchema } from "./common.ts";
 import { dateSchema } from "./finance-list.ts";
@@ -101,7 +103,7 @@ export const cursorFields = {
     .string()
     .regex(/^[A-Za-z0-9_-]{1,64}$/)
     .optional(),
-  limit: z.coerce.number().int().min(1).max(100).default(50),
+  limit: legacyCoercedNumber().check(legacyInteger()).check(z.gte(1)).check(z.lte(100)).default(50),
 };
 
 /** R1: the takings of one clinic business day, one branch and one payment method (spec §4, R1). */
@@ -132,7 +134,7 @@ export const reportPeriodSummaryRowSchema = z
     refundedMinor: minorAmountSchema,
     /** Credit applied to an invoice is information, never collected money (R1-17). */
     creditAppliedMinor: minorAmountSchema,
-    voidCount: z.number().int().nonnegative(),
+    voidCount: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
     currency: currencyCodeSchema,
   })
   .strict();
@@ -146,8 +148,8 @@ export const reportByServiceRowSchema = z
     kind: z.enum(["service", "free", "tax"]),
     serviceId: idSchema.nullable(),
     name: z.string(),
-    lineCount: z.number().int().nonnegative(),
-    quantity: z.number().int().nonnegative(),
+    lineCount: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
+    quantity: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
     /** The billed amount of the rows, net of both discounts; the tax row carries the tax itself. */
     amountMinor: minorAmountSchema,
     currency: currencyCodeSchema,
@@ -160,8 +162,8 @@ export const reportByDoctorRowSchema = z
     kind: z.enum(["doctor", "none", "tax"]),
     providerId: idSchema.nullable(),
     name: z.string(),
-    lineCount: z.number().int().nonnegative(),
-    quantity: z.number().int().nonnegative(),
+    lineCount: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
+    quantity: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
     amountMinor: minorAmountSchema,
     currency: currencyCodeSchema,
   })
@@ -194,7 +196,7 @@ export const reportOutstandingSummaryRowSchema = z
   .object({
     ageBucket: reportAgeBucketSchema,
     branchId: idSchema,
-    invoiceCount: z.number().int().nonnegative(),
+    invoiceCount: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
     owedMinor: minorAmountSchema,
   })
   .strict();

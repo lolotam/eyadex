@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { utcDatetime } from "./datetime-compat.ts";
 
 /**
  * Accepting an invitation over HTTP (Phase B slice 3b, ADR-0008). The token travels in the request
@@ -21,7 +22,7 @@ export const inspectInvitationResponseSchema = z.object({
   clinicNameEn: z.string(),
   email: z.string(),
   fullName: z.string(),
-  expiresAt: z.string().datetime(),
+  expiresAt: utcDatetime(),
 });
 export type InspectInvitationResponse = z.infer<typeof inspectInvitationResponseSchema>;
 
@@ -35,7 +36,7 @@ export type AcceptInvitationRequest = z.infer<typeof acceptInvitationRequestSche
 
 /** No session and no cookie: the user signs in normally afterwards (ADR-0008). */
 export const acceptInvitationResponseSchema = z.object({
-  clinicId: z.string().uuid(),
+  clinicId: z.string().guid(),
   email: z.string(),
 });
 export type AcceptInvitationResponse = z.infer<typeof acceptInvitationResponseSchema>;
