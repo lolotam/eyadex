@@ -71,6 +71,7 @@ export class PgExportSweeper {
           JOIN finance_report_exports e ON e.clinic_id = s.clinic_id AND e.id = s.export_id
           WHERE s.clinic_id = ${clinicId} AND s.patient_id IS NOT NULL
             AND (e.expires_at <= clock_timestamp() OR (b.state IN ('deleted', 'gone')
+              AND NOT (e.status IN ('done', 'purged') AND e.attempt = s.attempt)
               AND NOT (e.status = 'running' AND e.attempt = s.attempt AND e.lease_until > clock_timestamp())))
           ORDER BY s.id LIMIT 500 FOR UPDATE OF s SKIP LOCKED) RETURNING id`),
       );

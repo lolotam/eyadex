@@ -64,3 +64,10 @@ Patient-credit is the current clinic-wide remaining balance across the complete 
 Dates are still validated by the shared request, but do not filter this report. Explain in both
 languages on the R6 screen and export action that the selected period does not limit these balances.
 Do not add a credit-creation-date filter to the mock or HTTP adapter.
+
+## Metadata presentation follow-up
+
+The current `byteSize` field counts the stored artifact, while the verified attachment has a different
+byte length. Omit the file-size display until the orchestrator's follow-up exposes the attachment
+size; do not label this field as the downloaded file size or add storage implementation details to
+the UI. Request, history, status and download behavior remain in scope.

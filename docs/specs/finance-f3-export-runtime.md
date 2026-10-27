@@ -21,6 +21,10 @@ Export metadata contains only the frozen contract's eight fields: `id`, `report`
 The list is newest first by `(created_at, id)`. The download is `private, no-store` with an id-only
 attachment filename and a MIME type matching the format. No signed storage URL is returned.
 
+Known non-blocking metadata follow-up: `byteSize` currently counts the stored encrypted artifact;
+the attachment's `Content-Length` is its verified plaintext size. Do not display the metadata value
+as the downloaded file size. A later forward-only change will separate the two persisted lengths.
+
 Download authorization is read from the database before storage I/O and again afterwards. A lost
 permission is `forbidden`; narrower reach is `not_found`. Another requester or clinic, an unfinished,
 expired or purged job, or an own export without its patient set is `not_found`. Own patient reach uses
@@ -68,8 +72,10 @@ Own summaries stream per-patient monthly values into bounded monthly buckets, re
 SQL pages. The ledger and completion marker commit only after the complete read/writer succeeds.
 Publication requires the winning attempt's complete ledger and current patient reach. Downloads
 check that set in SQL; no complete patient-id array leaves PostgreSQL. Legacy array records are
-checked in SQL as well. Identifiers are redacted in bounded sweep pages once their file is deleted or
-expired; no user entity or attempt trail is hard-deleted.
+checked in SQL as well. The winning published/purged attempt retains its patient identifiers until
+the original expiry, even after immediate file deletion. Failed/unpublished attempts can redact once
+their file is deleted and they hold no live lease. Redaction uses bounded sweep pages; no user entity
+or opaque attempt trail is hard-deleted.
 
 CSV preserves the reviewed formula/precision rules one row at a time. XLSX uses sequential ZIP64,
 inline text cells and explicit text money, with no shared-string table or whole-sheet XML buffer.

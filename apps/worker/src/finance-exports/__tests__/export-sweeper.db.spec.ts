@@ -8,6 +8,7 @@ import {
   insertExport,
   markRunning,
   owner,
+  ownerJson,
   readBlobs,
   readExport,
   seedWorld,
@@ -140,5 +141,49 @@ describe("durable export cleanup without bucket listing", () => {
       status: "purged",
       patient_ids: null,
     });
+  });
+
+  it("preserves the winning purged ledger until original expiry while clearing a losing attempt", async () => {
+    const t = setup("published");
+    insertBlob(t.clinicId, t.exportId, 1, "gone", "csv");
+    const winningPatient = randomUUID();
+    const losingPatient = randomUUID();
+    owner(`UPDATE finance_report_exports SET status = 'purged', storage_key = NULL, patient_set_mode = 'ledger'
+      WHERE clinic_id = '${t.clinicId}' AND id = '${t.exportId}';
+      UPDATE finance_report_export_blobs SET state = 'deleted', deleted_at = clock_timestamp()
+      WHERE clinic_id = '${t.clinicId}' AND id = '${t.blobId}';
+      INSERT INTO finance_report_export_patients
+        (clinic_id, id, export_id, attempt, patient_id, is_complete, created_at) VALUES
+        ('${t.clinicId}', '${randomUUID()}', '${t.exportId}', 1, '${losingPatient}', false, clock_timestamp()),
+        ('${t.clinicId}', '${randomUUID()}', '${t.exportId}', 2, '${winningPatient}', false, clock_timestamp()),
+        ('${t.clinicId}', '${randomUUID()}', '${t.exportId}', 2, NULL, true, clock_timestamp())`);
+    t.files.delete(t.key);
+    const ledger = () =>
+      ownerJson<{
+        attempt: number;
+        patient_id: string | null;
+        is_complete: boolean;
+        cleared: boolean;
+      }>(
+        `SELECT attempt, patient_id, is_complete, cleared_at IS NOT NULL AS cleared
+         FROM finance_report_export_patients WHERE clinic_id = '${t.clinicId}' AND export_id = '${t.exportId}'
+         ORDER BY attempt, is_complete`,
+      );
+    await t.sweep();
+    expect(ledger()).toEqual([
+      { attempt: 1, patient_id: null, is_complete: false, cleared: true },
+      { attempt: 2, patient_id: winningPatient, is_complete: false, cleared: false },
+      { attempt: 2, patient_id: null, is_complete: true, cleared: false },
+    ]);
+    expect(t.files.has(t.key)).toBe(false);
+    owner(`UPDATE finance_report_exports SET expires_at = clock_timestamp() - interval '1 second'
+      WHERE clinic_id = '${t.clinicId}' AND id = '${t.exportId}'`);
+    await t.sweep();
+    expect(ledger()).toEqual([
+      { attempt: 1, patient_id: null, is_complete: false, cleared: true },
+      { attempt: 2, patient_id: null, is_complete: false, cleared: true },
+      { attempt: 2, patient_id: null, is_complete: true, cleared: false },
+    ]);
+    expect(readExport(t.clinicId, t.exportId)?.status).toBe("purged");
   });
 });

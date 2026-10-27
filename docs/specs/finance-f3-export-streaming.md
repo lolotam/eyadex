@@ -99,8 +99,12 @@ remain a separate owner operational gate.
   regression fails on the original code and passes with the fix; the 38 affected writer tests pass.
 - The second independent local review of `2ff97579` found no further reproducible defect and
   confirmed both fixes. It ran 66 writer/runner/continuation/S3 tests and 44 secrets tests. Subsequent
-  changes are the fragmented-reception test fixture, documentation and the standalone diagnostic;
-  production runtime source is identical to that reviewed commit.
+  test-fixture and CI scheduling changes preserve all assertions and deadlines.
+- A later hosted review found that the new ledger cleanup cleared a purged winner before its original
+  expiry. The PostgreSQL regression fails on the old query. The correction retains the winning
+  done/purged attempt until expiry, still redacts a deleted losing attempt immediately, then redacts
+  the winner at expiry without deleting its opaque rows/marker. All 11 sweeper database cases and
+  all 777 worker unit cases pass. This runtime correction requires current-head hosted review.
 
 These are local checks, not actual staging storage policy or deployment resource acceptance.
 
