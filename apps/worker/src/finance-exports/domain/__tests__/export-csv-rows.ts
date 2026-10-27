@@ -3,7 +3,7 @@ import { expect } from "vitest";
 
 import { writeReportCsv, type ExportCell, type ReportCsvResult } from "../export-csv.ts";
 
-export const TRIGGERS = ["=", "+", "-", "@", "\t", "\r"] as const;
+export const TRIGGERS = ["=", "+", "-", "@", "\t", "\n", "\r"] as const;
 export const FITS = 999999999999999n;
 export const OVER = 1000000000000001n;
 
