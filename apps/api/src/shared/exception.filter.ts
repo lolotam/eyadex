@@ -3,6 +3,7 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import { ZodError } from "zod";
 
 import { ApiError, codeForStatus } from "./errors.ts";
+import { envelopeIssue, withoutAbortedLengthArtifacts } from "./zod-envelope.ts";
 
 /**
  * Every error leaves the API as `{ code, message_ar, message_en, details? }` (CLAUDE.md §6). An unexpected
@@ -30,7 +31,7 @@ function toApiError(exception: unknown): ApiError {
   if (exception instanceof ZodError) {
     return new ApiError(
       "validation",
-      exception.issues.map((issue) => ({ path: issue.path.map(String), code: issue.code })),
+      withoutAbortedLengthArtifacts(exception.issues).map(envelopeIssue),
     );
   }
   if (exception instanceof HttpException) return new ApiError(codeForStatus(exception.getStatus()));

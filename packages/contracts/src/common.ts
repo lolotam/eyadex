@@ -1,13 +1,15 @@
 import { z } from "zod";
+import { legacyNumber } from "./number-compat.ts";
+import { legacyInteger } from "./integer-compat.ts";
 
-export const idSchema = z.string().uuid();
+export const idSchema = z.string().guid();
 
 export const languageSchema = z.enum(["ar", "en"]);
 export type Language = z.infer<typeof languageSchema>;
 
 export const pageQuerySchema = z.object({
   cursor: z.string().nullable(),
-  limit: z.number().int().min(1).max(100),
+  limit: legacyNumber().check(legacyInteger()).check(z.gte(1)).check(z.lte(100)),
 });
 export type PageQuery = z.infer<typeof pageQuerySchema>;
 

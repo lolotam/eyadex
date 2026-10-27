@@ -1,4 +1,8 @@
 import { z } from "zod";
+import { legacyNumber, legacyCoercedNumber } from "./number-compat.ts";
+import { legacyInteger } from "./integer-compat.ts";
+import { utcDatetime } from "./datetime-compat.ts";
+import { requiredOr } from "./type-message.ts";
 import { idSchema, pageQuerySchema, stripInvisibleControls } from "./common.ts";
 
 /** D-15: any service, appointment or provider default lasts 5 minutes to 8 hours. */
@@ -7,11 +11,10 @@ export const DURATION_MAX_MINUTES = 480;
 /** D-15: a provider's default duration until the clinic admin changes it. */
 export const DEFAULT_PROVIDER_DURATION_MINUTES = 20;
 
-export const durationMinutesSchema = z
-  .number({ invalid_type_error: "validation.number" })
-  .int("validation.number")
-  .min(DURATION_MIN_MINUTES, "validation.outOfRange")
-  .max(DURATION_MAX_MINUTES, "validation.outOfRange");
+export const durationMinutesSchema = legacyNumber(requiredOr("validation.number"))
+  .check(legacyInteger("validation.number"))
+  .check(z.gte(DURATION_MIN_MINUTES, "validation.outOfRange"))
+  .check(z.lte(DURATION_MAX_MINUTES, "validation.outOfRange"));
 
 // Invisible controls are dropped first, as role and patient names (they could only spoof or split).
 const serviceName = z
@@ -33,9 +36,9 @@ export const clinicServiceSchema = z
     id: idSchema,
     nameAr: z.string(),
     nameEn: z.string(),
-    durationMinutes: z.number().int(),
+    durationMinutes: legacyNumber().check(legacyInteger()),
     status: serviceStatusSchema,
-    createdAt: z.string().datetime(),
+    createdAt: utcDatetime(),
   })
   .strict();
 export type ClinicService = z.infer<typeof clinicServiceSchema>;
@@ -47,7 +50,11 @@ export const serviceListHttpQuerySchema = z
       .string()
       .regex(/^[A-Za-z0-9_-]{1,64}$/)
       .optional(),
-    limit: z.coerce.number().int().min(1).max(100).default(50),
+    limit: legacyCoercedNumber()
+      .check(legacyInteger())
+      .check(z.gte(1))
+      .check(z.lte(100))
+      .default(50),
     status: serviceStatusSchema.optional(),
   })
   .strict();
@@ -57,7 +64,7 @@ export const serviceListResponseSchema = z
   .object({
     items: z.array(clinicServiceSchema),
     nextCursor: z.string().nullable(),
-    total: z.number().int().nonnegative(),
+    total: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
   })
   .strict();
 export type ServiceListResponse = z.infer<typeof serviceListResponseSchema>;

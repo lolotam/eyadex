@@ -24,6 +24,7 @@ import {
   type PlatformTeamListResponse,
 } from "@eyadex/contracts/platform-console";
 
+import { parseContract } from "../../../shared/contract-parser.ts";
 import { ApiError } from "../../../shared/errors.ts";
 import { ZodValidationPipe } from "../../../shared/zod-validation.pipe.ts";
 import {
@@ -60,7 +61,7 @@ export class PlatformTeamController {
   async list(
     @Query(new ZodValidationPipe(platformTeamListQuerySchema)) query: PlatformTeamListQuery,
   ): Promise<PlatformTeamListResponse> {
-    return platformTeamListResponseSchema.parse(await this.team.list(query));
+    return parseContract(platformTeamListResponseSchema, await this.team.list(query));
   }
 
   @Post()
@@ -77,7 +78,7 @@ export class PlatformTeamController {
       throw new ApiError("validation", [{ path: ["Idempotency-Key"], code: "required" }]);
     }
     const account = await this.team.invite(actorOf(request), body, key.data);
-    return platformAccountResponseSchema.parse(account);
+    return parseContract(platformAccountResponseSchema, account);
   }
 
   @Post(":id/deactivate")
@@ -110,6 +111,6 @@ export class PlatformTeamController {
         logger.warn("platform session revocation failed; the gate still refuses the account");
       }
     }
-    return platformAccountResponseSchema.parse(change.account);
+    return parseContract(platformAccountResponseSchema, change.account);
   }
 }

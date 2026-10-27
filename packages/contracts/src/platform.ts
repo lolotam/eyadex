@@ -1,4 +1,8 @@
 import { z } from "zod";
+import { legacyNumber } from "./number-compat.ts";
+import { legacyInteger } from "./integer-compat.ts";
+import { utcDatetime } from "./datetime-compat.ts";
+import { requiredOr } from "./type-message.ts";
 import { idSchema } from "./common.ts";
 import {
   CLINIC_LIMIT_BOUNDS,
@@ -16,11 +20,10 @@ export { effectiveClinicStatus, effectiveClinicStatusSchema, type EffectiveClini
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const intIn = (min: number, max: number) =>
-  z
-    .number({ invalid_type_error: "validation.number" })
-    .int("validation.number")
-    .min(min, "validation.outOfRange")
-    .max(max, "validation.outOfRange");
+  legacyNumber(requiredOr("validation.number"))
+    .check(legacyInteger("validation.number"))
+    .check(z.gte(min, "validation.outOfRange"))
+    .check(z.lte(max, "validation.outOfRange"));
 
 /** Story 26: platform-wide defaults. Bounds are part of the contract, not the UI. */
 export const platformSettingsSchema = z.object({
@@ -86,8 +89,8 @@ export const platformAccountSchema = z.object({
   email: z.string().email(),
   status: platformAccountStatusSchema,
   /** Set once the account has signed in; reactivating returns it to active or invited. */
-  joinedAt: z.string().datetime().nullable(),
-  createdAt: z.string().datetime(),
+  joinedAt: utcDatetime().nullable(),
+  createdAt: utcDatetime(),
 });
 export type PlatformAccount = z.infer<typeof platformAccountSchema>;
 
@@ -102,15 +105,18 @@ export const expiringClinicSchema = z.object({
   nameAr: z.string(),
   nameEn: z.string(),
   status: clinicStatusSchema,
-  expiresAt: z.string().datetime(),
-  daysLeft: z.number().int(),
+  expiresAt: utcDatetime(),
+  daysLeft: legacyNumber().check(legacyInteger()),
 });
 export type ExpiringClinic = z.infer<typeof expiringClinicSchema>;
 
 /** Stories 3–4. Clinic names and statuses only: no patient data or counts by construction. */
 export const platformOverviewSchema = z.object({
-  counts: z.record(effectiveClinicStatusSchema, z.number().int().nonnegative()),
-  alertDaysBeforeExpiry: z.number().int(),
+  counts: z.partialRecord(
+    effectiveClinicStatusSchema,
+    legacyNumber().check(legacyInteger()).check(z.nonnegative()),
+  ),
+  alertDaysBeforeExpiry: legacyNumber().check(legacyInteger()),
   expiringSoon: z.array(expiringClinicSchema),
 });
 export type PlatformOverview = z.infer<typeof platformOverviewSchema>;

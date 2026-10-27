@@ -1,17 +1,18 @@
 import { ConfigurationError } from "@eyadex/observability";
 import { LOG_LEVELS } from "@eyadex/observability";
+import { legacyCoercedNumber } from "@eyadex/contracts/number-compat";
+import { legacyInteger } from "@eyadex/contracts/integer-compat";
 import { z } from "zod";
 
-// TODO(spec) — packages/contracts is still TypeScript source imported by bundler, and Node refuses to load
-// a .ts file out of node_modules, so the API cannot import it at runtime yet: everything here is read from
-// the environment, and the bilingual table next door is tied to the contract's ApiErrorCode union at
-// compile time instead. Both notes disappear when packages/contracts ships compiled output (and when the
-// API moves to zod 4 with it — contracts stays on zod 3 until then).
-
 // Read once at startup; a missing or malformed value stops the process instead of failing later.
+// Number checks come from `@eyadex/contracts`, which the compiled runtime loads from dist.
 const schema = z.object({
   HOST: z.string().min(1).default("0.0.0.0"),
-  PORT: z.coerce.number().int().min(1).max(65_535).default(3001),
+  PORT: legacyCoercedNumber()
+    .check(legacyInteger())
+    .check(z.gte(1))
+    .check(z.lte(65_535))
+    .default(3001),
   // Validated here so an invalid value never reaches pino, whose error message would print it.
   LOG_LEVEL: z.enum(LOG_LEVELS).default("info"),
   // Optional until the first module is mounted; the eyadex_app role (PRD §4.5), never the owner.

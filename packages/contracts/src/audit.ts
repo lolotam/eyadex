@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { utcDatetime } from "./datetime-compat.ts";
 import { idSchema, pageQuerySchema } from "./common.ts";
 import { clinicAuditEntitySchema } from "./organization.ts";
 
@@ -29,7 +30,7 @@ export type ClinicAuditListQuery = z.infer<typeof clinicAuditListQuerySchema>;
 
 export const clinicAuditItemSchema = z.object({
   id: idSchema,
-  at: z.string().datetime(),
+  at: utcDatetime(),
   actorName: z.string(),
   action: z.string(),
   entity: clinicAuditEntitySchema,
@@ -67,7 +68,7 @@ export type PlatformAuditListQuery = z.infer<typeof platformAuditListQuerySchema
 
 export const platformAuditItemSchema = z.object({
   id: idSchema,
-  at: z.string().datetime(),
+  at: utcDatetime(),
   actorName: z.string(),
   action: z.string(),
   source: platformAuditSourceSchema,
