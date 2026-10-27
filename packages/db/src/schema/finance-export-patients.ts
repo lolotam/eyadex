@@ -3,6 +3,7 @@ import {
   boolean,
   check,
   foreignKey,
+  index,
   integer,
   pgTable,
   primaryKey,
@@ -42,6 +43,7 @@ export const financeReportExportPatients = pgTable(
         financeReportExportBlobs.attempt,
       ],
     }),
+    index("finance_report_export_patients_attempt_idx").on(t.clinicId, t.exportId, t.attempt),
     uniqueIndex("finance_report_export_patients_member_idx")
       .on(t.clinicId, t.exportId, t.attempt, t.patientId)
       .where(sql.raw("patient_id IS NOT NULL")),

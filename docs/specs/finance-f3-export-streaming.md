@@ -68,13 +68,16 @@ remain a separate owner operational gate.
 
 ## Runtime local acceptance evidence
 
-- Worker unit tests: 776/43 files. API unit tests: 821/80 files. Secrets tests: 44/3 files.
+- Worker unit tests: 777/44 files. API unit tests: 821/80 files. Secrets tests: 44/3 files.
   Typecheck and lint pass for the API, worker, database and secrets packages. Changed-file Prettier
   and `git diff --check` pass.
 - Full worker finance-export PostgreSQL suite: 102/9 files. API export PostgreSQL/Redis suite:
   21/4 files, including the separate worker process and signed storage transport. Migration 0074
-  was applied only to the local PostgreSQL 18 instance through the migration runner; forced-RLS
-  isolation SQL and the 63-case schema mirror check pass.
+  and its forward-only index correction 0075 were applied only to the local PostgreSQL 18 instance
+  through the migration runner. All 30 SQL check files and the migration-runner self-test pass on
+  a fresh scratch database, which was removed afterwards. The database suite passes 208/21 files.
+  The initial fresh-schema FK-index check caught the missing non-partial attempt index; 0075 fixes
+  it without changing applied 0074.
 - The incremental workbook continuation test writes 1,048,576 data rows through the production
   writer, with 1,048,575 data rows plus the header on sheet 1 and a repeated header plus the final
   data row on sheet 2. Independent streaming ZIP parsing verifies both complete entries.
@@ -89,5 +92,10 @@ remain a separate owner operational gate.
   whole-object verification after the first record makes the corrupt-final HTTP test fail with an
   interrupted response instead of its required safe 503. All mutated sources and built secrets
   output were restored; all 44 secrets and five download-stream tests then passed.
+- Independent local review of `e4c75453` found the missing complete foreign-key index and a ZIP
+  destination-failure deadlock. The latter is reproduced with a rejecting encrypted destination:
+  the original sheet write and disposal both stall. ZIP rejection now errors the TransformStream
+  controller, so pending writes reject and disposal completes even after cancellation. The new
+  regression fails on the original code and passes with the fix; the 38 affected writer tests pass.
 
 These are local checks, not actual staging storage policy or deployment resource acceptance.

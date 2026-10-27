@@ -35,7 +35,7 @@ is open for this slice.
    the plan before writing.
 5. Visibility follows report permission strings and their covering keys, never role names. Platform
    sees no finance report or export. Keep Arabic-first RTL, English LTR, logical CSS and the existing
-   clinical visual system. Do not add reports, PDF generation, a new financial write, 0071–0073, or
+   clinical visual system. Do not add reports, PDF generation, a new financial write, 0076–0078, or
    specialty features. Browser print is already the decided PDF alternative.
 
 ## Tests and acceptance

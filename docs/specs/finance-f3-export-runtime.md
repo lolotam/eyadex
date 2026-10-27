@@ -1,7 +1,7 @@
 # F3 export runtime and rollout
 
 Status: implemented locally, not deployed or accepted on staging. This extends the decided export
-pipeline, not F3's product scope. The stored-business-day release (0071–0073) stays separate. These
+pipeline, not F3's product scope. The stored-business-day release (0076–0078) stays separate. These
 queries intentionally use the same pre-contract business days as the on-screen API.
 
 ## API for the web slice
@@ -60,8 +60,10 @@ the read, so the heartbeat can renew. Pages feed the encrypted local writer with
 network storage I/O runs in that transaction. Failed reads discard their local artifact and allocated
 blob; a failed or revoked read cannot upload or publish.
 
-Migration `0074_finance_export_patient_sets.sql` (0071-0073 remain reserved for the separate stored-day
-release) adds a forced-RLS per-attempt own ledger and widens file-size/row-count metadata to bigint.
+Migration `0074_finance_export_patient_sets.sql` adds a forced-RLS per-attempt own ledger and widens
+file-size/row-count metadata to bigint. `0075_finance_export_patient_attempt_index.sql` indexes every
+referencing row, including completion markers and redacted rows. The unshipped stored-day release
+is reserved at 0076-0078 so the runner never receives a later file below an applied 0074.
 Own summaries stream per-patient monthly values into bounded monthly buckets, recording patients in
 SQL pages. The ledger and completion marker commit only after the complete read/writer succeeds.
 Publication requires the winning attempt's complete ledger and current patient reach. Downloads
@@ -96,7 +98,8 @@ Before enabling, record creation of the new never-versioned bucket, versioning m
 allowed; worker tagging or deleting an attachment denied; API tagging or PUT on exports denied; API
 export GET/delete allowed; lifecycle rule read back from the bucket. A document or an HTTP test
 double does not prove these grants. Owner approval is still required before any policy or lifecycle
-mutation. The additive 0074 migration needs a separately approved server plan; no production SQL, backfill or server storage mutation has been performed.
+mutation. The additive 0074–0075 migrations need a separately approved server plan; no production
+SQL, backfill or server storage mutation has been performed.
 
 ## Verification and remaining acceptance
 

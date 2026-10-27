@@ -3,6 +3,7 @@ import {
   ReadableStream,
   TransformStream,
   WritableStream,
+  type TransformStreamDefaultController,
   type WritableStreamDefaultWriter,
 } from "node:stream/web";
 import type { PreparedField } from "./domain/export-cells.ts";
@@ -44,11 +45,16 @@ export class ExportXlsxStream {
 
   async #startSheet(): Promise<void> {
     this.signal.throwIfAborted();
-    const stream = new TransformStream<Uint8Array, Uint8Array>();
+    let controller!: TransformStreamDefaultController<Uint8Array>;
+    const stream = new TransformStream<Uint8Array, Uint8Array>({
+      start(value) {
+        controller = value;
+      },
+    });
     this.#sheet = stream.writable.getWriter();
     this.#added = this.#zip.add(`xl/worksheets/sheet${++this.#sheetNumber}.xml`, stream.readable);
     // A failing ZIP must reject writes too; the pending add is always awaited on completion/disposal.
-    void this.#added.catch(() => undefined);
+    void this.#added.catch((error: unknown) => controller.error(error));
     this.#rows = 0;
     await this.#sheet.write(Buffer.from(sheetStartXml(this.rtl)));
     await this.#sheet.write(
