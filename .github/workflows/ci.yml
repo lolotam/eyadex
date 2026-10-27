@@ -125,6 +125,8 @@ jobs:
           EYADEX_TEST_APP_URL: postgres://eyadex_app:ci-only-app@localhost:5432/eyadex
           EYADEX_TEST_AUTH_URL: postgres://eyadex_auth:ci-only-auth@localhost:5432/eyadex
           EYADEX_TEST_PLATFORM_URL: postgres://eyadex_platform:ci-only-platform@localhost:5432/eyadex
+          # The export flow forks a separate worker using its own dispatcher role.
+          EYADEX_TEST_DISPATCHER_URL: postgres://eyadex_dispatcher:ci-only-dispatcher@localhost:5432/eyadex
           EYADEX_TEST_REDIS_URL: redis://localhost:6379/0
           MEDICAL_BLOB_S3_TEST_ENDPOINT: http://127.0.0.1:9000
           MEDICAL_BLOB_S3_TEST_BUCKET: eyadex-medical-ci

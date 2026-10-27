@@ -23,6 +23,8 @@ const tags = new Map<string, string>();
 let storage: Record<string, string>;
 
 beforeAll(async () => {
+  if (!process.env["EYADEX_TEST_DISPATCHER_URL"])
+    throw new Error("EYADEX_TEST_DISPATCHER_URL is not set — the export flow needs a worker");
   server = createServer(async (req, res) => {
     if (!req.headers.authorization?.startsWith("AWS4-HMAC-SHA256 ")) {
       res.writeHead(403).end();
