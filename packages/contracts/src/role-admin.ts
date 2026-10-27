@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { legacyNumber } from "./number-compat.ts";
+import { legacyInteger } from "./integer-compat.ts";
 import { roleListQuerySchema } from "./access.ts";
 import { roleInputSchema } from "./roles.ts";
 import { branchOptionSchema, roleOptionSchema } from "./users.ts";
@@ -27,7 +29,7 @@ export type OptionListQuery = z.infer<typeof optionListQuerySchema>;
 export const roleOptionListResponseSchema = z.object({
   items: z.array(roleOptionSchema),
   nextCursor: z.string().nullable(),
-  total: z.number().int().nonnegative(),
+  total: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
 });
 export type RoleOptionListResponse = z.infer<typeof roleOptionListResponseSchema>;
 
@@ -35,6 +37,6 @@ export type RoleOptionListResponse = z.infer<typeof roleOptionListResponseSchema
 export const branchOptionListResponseSchema = z.object({
   items: z.array(branchOptionSchema),
   nextCursor: z.string().nullable(),
-  total: z.number().int().nonnegative(),
+  total: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
 });
 export type BranchOptionListResponse = z.infer<typeof branchOptionListResponseSchema>;

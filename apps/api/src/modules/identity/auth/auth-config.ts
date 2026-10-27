@@ -1,3 +1,5 @@
+import { legacyCoercedNumber } from "@eyadex/contracts/number-compat";
+import { legacyInteger } from "@eyadex/contracts/integer-compat";
 import { z } from "zod";
 
 // Read only when the auth module is mounted. Values are never echoed: the error names the keys.
@@ -12,7 +14,11 @@ const schema = z.object({
     .url()
     .refine((value) => /^rediss?:\/\//.test(value)),
   // 0 = the API is reached directly and Host is authoritative; N = exactly N reverse proxies in front.
-  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(10).default(0),
+  TRUST_PROXY_HOPS: legacyCoercedNumber()
+    .check(legacyInteger())
+    .check(z.gte(0))
+    .check(z.lte(10))
+    .default(0),
   // ADR-0021: each environment names its cookies apart (`eyadex-staging` → eyadex-staging-clinic.*).
   // Unset keeps production's `eyadex-<area>`; @eyadex/auth checks the format before any pool opens.
   AUTH_COOKIE_PREFIX: z.preprocess((v) => (v === "" ? undefined : v), z.string().optional()),

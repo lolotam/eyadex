@@ -1,6 +1,8 @@
 import { ConfigurationError } from "@eyadex/observability";
 import { LOG_LEVELS } from "@eyadex/observability";
 import { fieldCipherFromEnv, type FieldCipher } from "@eyadex/secrets";
+import { legacyCoercedNumber } from "@eyadex/contracts/number-compat";
+import { legacyInteger } from "@eyadex/contracts/integer-compat";
 import { z } from "zod";
 
 // An empty value (the `.env.example` default) counts as unset.
@@ -14,7 +16,11 @@ const EVOLUTION_KEYS = ["EVOLUTION_API_URL", "EVOLUTION_API_KEY"] as const;
 const schema = z
   .object({
     WORKER_HOST: z.string().min(1).default("0.0.0.0"),
-    WORKER_PORT: z.coerce.number().int().min(1).max(65_535).default(3002),
+    WORKER_PORT: legacyCoercedNumber()
+      .check(legacyInteger())
+      .check(z.gte(1))
+      .check(z.lte(65_535))
+      .default(3002),
     // Validated here so an invalid value never reaches pino, whose error message would print it.
     LOG_LEVEL: z.enum(LOG_LEVELS).default("info"),
     // ADR-0013: eyadex_app reads the invitation under its clinic; eyadex_dispatcher touches the outbox only
@@ -37,15 +43,22 @@ const schema = z
       .url()
       .transform((v) => v.replace(/\/+$/, "")),
     // How often the expiry reminder scan runs; the ledger makes a reminder once per expiry date anyway.
-    EXPIRY_SCAN_INTERVAL_MS: z.coerce.number().int().min(60_000).max(86_400_000).default(3_600_000),
+    EXPIRY_SCAN_INTERVAL_MS: legacyCoercedNumber()
+      .check(legacyInteger())
+      .check(z.gte(60_000))
+      .check(z.lte(86_400_000))
+      .default(3_600_000),
     // How often the appointment reminder scan runs (spec §3.2); the ledger makes a reminder once per start.
-    REMINDER_SCAN_INTERVAL_MS: z.coerce.number().int().min(60_000).max(86_400_000).default(300_000),
+    REMINDER_SCAN_INTERVAL_MS: legacyCoercedNumber()
+      .check(legacyInteger())
+      .check(z.gte(60_000))
+      .check(z.lte(86_400_000))
+      .default(300_000),
     // How often the retention purge runs (ADR-0022); the database decides what is old enough to go.
-    RETENTION_PURGE_INTERVAL_MS: z.coerce
-      .number()
-      .int()
-      .min(60_000)
-      .max(86_400_000)
+    RETENTION_PURGE_INTERVAL_MS: legacyCoercedNumber()
+      .check(legacyInteger())
+      .check(z.gte(60_000))
+      .check(z.lte(86_400_000))
       .default(3_600_000),
     // ADR-0014 (7c-2): opens clinic mail credentials, bound to the provider row id. Not OUTBOX_SEAL_KEY.
     MAIL_PROVIDER_SEAL_KEY: z
@@ -58,10 +71,16 @@ const schema = z
     ),
     RESEND_API_KEY: z.string().min(1),
     MAIL_FROM: z.string().min(3),
-    OUTBOX_POLL_INTERVAL_MS: z.coerce.number().int().min(100).max(60_000).default(2_000),
+    OUTBOX_POLL_INTERVAL_MS: legacyCoercedNumber()
+      .check(legacyInteger())
+      .check(z.gte(100))
+      .check(z.lte(60_000))
+      .default(2_000),
     // ADR-0014: the platform SMTP fallback — all four or none.
     SMTP_HOST: optional(z.string().min(1)),
-    SMTP_PORT: optional(z.coerce.number().int().min(1).max(65_535)),
+    SMTP_PORT: optional(
+      legacyCoercedNumber().check(legacyInteger()).check(z.gte(1)).check(z.lte(65_535)),
+    ),
     SMTP_USER: optional(z.string().min(1)),
     SMTP_PASSWORD: optional(z.string().min(1)),
     // Spec §7.1 (N2): the internal Evolution API and its key — both or neither; neither = no WhatsApp.

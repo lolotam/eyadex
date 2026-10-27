@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { legacyNumber, legacyCoercedNumber } from "./number-compat.ts";
+import { legacyInteger } from "./integer-compat.ts";
 import {
   auditCategorySchema,
   clinicAuditItemSchema,
@@ -52,7 +54,7 @@ const filters = {
     .string()
     .regex(/^[A-Za-z0-9_-]{1,256}$/)
     .optional(),
-  limit: z.coerce.number().int().min(1).max(100).default(50),
+  limit: legacyCoercedNumber().check(legacyInteger()).check(z.gte(1)).check(z.lte(100)).default(50),
   /** Case-insensitive part of the actor's shown name. */
   actor: z.string().trim().min(1).max(100).optional(),
   action: z.string().trim().min(1).max(60).optional(),
@@ -86,7 +88,7 @@ const page = <T extends z.ZodTypeAny>(item: T) =>
       items: z.array(item),
       nextCursor: z.string().nullable(),
       /** Every entry matching the filters, counted on its own statement (not off the page). */
-      total: z.number().int().nonnegative(),
+      total: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
     })
     .strict();
 

@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { legacyNumber } from "./number-compat.ts";
+import { legacyInteger } from "./integer-compat.ts";
+import { utcDatetime } from "./datetime-compat.ts";
 import { idSchema, pageQuerySchema } from "./common.ts";
 
 const requiredName = z.string().trim().min(1, "validation.required").max(100, "validation.tooLong");
@@ -16,7 +19,7 @@ export const branchSchema = z.object({
   address: z.string().nullable(),
   phone: z.string().nullable(),
   isActive: z.boolean(),
-  createdAt: z.string().datetime(),
+  createdAt: utcDatetime(),
 });
 export type Branch = z.infer<typeof branchSchema>;
 
@@ -35,8 +38,8 @@ export const branchInputSchema = z.object({
 export type BranchInput = z.infer<typeof branchInputSchema>;
 
 export const branchUsageSchema = z.object({
-  active: z.number().int().nonnegative(),
-  limit: z.number().int().positive(),
+  active: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
+  limit: legacyNumber().check(legacyInteger()).check(z.positive()),
 });
 export type BranchUsage = z.infer<typeof branchUsageSchema>;
 
@@ -83,7 +86,7 @@ export const clinicAuditEntrySchema = z.object({
   entityId: idSchema,
   before: z.record(z.string(), z.unknown()).nullable(),
   after: z.record(z.string(), z.unknown()).nullable(),
-  createdAt: z.string().datetime(),
+  createdAt: utcDatetime(),
 });
 export type ClinicAuditEntry = z.infer<typeof clinicAuditEntrySchema>;
 

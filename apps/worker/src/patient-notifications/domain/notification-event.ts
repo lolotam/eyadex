@@ -4,7 +4,7 @@ import { z } from "zod";
 export const PATIENT_NOTIFICATION_REQUESTED = "patient.notification_requested";
 
 // The payload is the ledger id only: no address and no text ever enters the outbox (spec §2).
-const schema = z.object({ notificationId: z.string().uuid() }).strict();
+const schema = z.object({ notificationId: z.string().guid() }).strict();
 
 /** الحدث بعد التحقق: العيادة من صف الـ outbox، والصف من الـ payload. */
 export interface NotificationEvent {

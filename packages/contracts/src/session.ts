@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { legacyNumber } from "./number-compat.ts";
+import { legacyInteger } from "./integer-compat.ts";
+import { utcDatetime } from "./datetime-compat.ts";
 import { idSchema, languageSchema } from "./common.ts";
 import { clinicStatusSchema, featuresSchema } from "./clinics.ts";
 
@@ -59,7 +62,7 @@ export const sessionContextSchema = z.object({
   features: featuresSchema,
   blocked: z.enum(["suspended", "expired"]).nullable(),
   /** Days left when the expiry is within the platform alert window; null = no banner. */
-  expiresInDays: z.number().int().nullable(),
+  expiresInDays: legacyNumber().check(legacyInteger()).nullable(),
 });
 export type SessionContext = z.infer<typeof sessionContextSchema>;
 
@@ -75,6 +78,6 @@ export const platformAuditEntrySchema = z.object({
   /** Allowlisted values before/after the change, rendered field by field and translated. */
   before: z.record(z.string(), z.unknown()).nullable(),
   after: z.record(z.string(), z.unknown()).nullable(),
-  createdAt: z.string().datetime(),
+  createdAt: utcDatetime(),
 });
 export type PlatformAuditEntry = z.infer<typeof platformAuditEntrySchema>;

@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { legacyNumber } from "./number-compat.ts";
+import { legacyInteger } from "./integer-compat.ts";
+import { utcDatetime } from "./datetime-compat.ts";
 import { idSchema, languageSchema, pageQuerySchema } from "./common.ts";
 
 export const membershipUserStatusSchema = z.enum(["active", "deactivated"]);
@@ -15,8 +18,8 @@ export const membershipUserSchema = z.object({
   branchIds: z.array(idSchema),
   status: membershipUserStatusSchema,
   preferredLanguage: languageSchema,
-  lastLoginAt: z.string().datetime().nullable(),
-  createdAt: z.string().datetime(),
+  lastLoginAt: utcDatetime().nullable(),
+  createdAt: utcDatetime(),
 });
 export type MembershipUser = z.infer<typeof membershipUserSchema>;
 
@@ -56,15 +59,15 @@ export const inviteUserInputSchema = z
   .object({
     fullName: z.string().trim().min(2, "validation.tooShort").max(100, "validation.tooLong"),
     email: z.string().trim().toLowerCase().email("validation.email").max(255, "validation.tooLong"),
-    roleId: z.string().uuid("validation.required"),
+    roleId: z.string().guid("validation.required"),
     ...branchAccessShape,
   })
   .refine(hasBranchAccess, branchAccessIssue);
 export type InviteUserInput = z.infer<typeof inviteUserInputSchema>;
 
 export const userUsageSchema = z.object({
-  used: z.number().int().nonnegative(),
-  limit: z.number().int().positive(),
+  used: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
+  limit: legacyNumber().check(legacyInteger()).check(z.positive()),
 });
 export type UserUsage = z.infer<typeof userUsageSchema>;
 
