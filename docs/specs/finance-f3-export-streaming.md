@@ -97,5 +97,36 @@ remain a separate owner operational gate.
   the original sheet write and disposal both stall. ZIP rejection now errors the TransformStream
   controller, so pending writes reject and disposal completes even after cancellation. The new
   regression fails on the original code and passes with the fix; the 38 affected writer tests pass.
+- The second independent local review of `2ff97579` found no further reproducible defect and
+  confirmed both fixes. It ran 66 writer/runner/continuation/S3 tests and 44 secrets tests. Subsequent
+  changes are the fragmented-reception test fixture, documentation and the standalone diagnostic;
+  production runtime source is identical to that reviewed commit.
 
 These are local checks, not actual staging storage policy or deployment resource acceptance.
+
+## Local image artifact resource diagnostic
+
+On production worker image `2ff97579`, `docker/finance-export-capacity.mjs` builds two concurrent
+synthetic outstanding reports, receives their ciphertext into separate encrypted spools, verifies
+both complete objects and decrypts them to a discard sink. All files are disposed. The containers
+have `--memory 384m --memory-swap 384m`, with no server credentials, database or network storage.
+
+| Format | Rows per file | Plain bytes per file | Stored bytes per file | Maximum RSS, MiB | Cgroup peak, MiB |
+| ------ | ------------- | -------------------- | --------------------- | ---------------- | ---------------- |
+| CSV    | 10,000        | 3,370,075            | 4,496,180             | 93               | 122              |
+| CSV    | 100,000       | 33,700,075           | 44,959,639            | 102              | 218              |
+| XLSX   | 10,000        | 942,590              | 1,257,659             | 119              | 111              |
+| XLSX   | 100,000       | 9,460,510            | 12,621,472            | 133              | 116              |
+
+Reproduce with the corresponding built worker image and the committed diagnostic mounted read-only:
+
+```sh
+docker run --rm --memory 384m --memory-swap 384m \
+  -v "$PWD/docker/finance-export-capacity.mjs:/tmp/f3-capacity.mjs:ro" \
+  eyadex-f3-worker:2ff97579 node --conditions=eyadex-runtime /tmp/f3-capacity.mjs csv 100000 2
+```
+
+Repeat with `xlsx` and the smaller row count. This measures the actual image's artifact path, including
+encrypted disk I/O and full verification, but excludes Nest, SQL reading, SDK transport and actual
+HTTP responses. It is not full-pipeline or staging-capacity acceptance. Node-server `build:all` and
+both production Dockerfile builds, including frozen-lockfile installation, also pass at `2ff97579`.
