@@ -1,8 +1,8 @@
 # F3 bounded export implementation
 
-Owner-approved direction: ADR-0036. Runtime remains disabled; implementation and staging acceptance
-are incomplete. This document narrows the resource correction, without new finance behavior or a
-business row cap.
+Owner-approved direction: ADR-0036. Runtime integration is implemented locally; staging acceptance
+is incomplete and exports remain disabled. This document narrows the resource correction, without
+new finance behavior or a business row cap.
 
 ## Increment 1: bounded primitives
 
@@ -29,7 +29,7 @@ response. The descriptor stays private and the finalized file cannot be appended
 record is authenticated again. Success, failure, abort and shutdown dispose the file. The runtime
 must hold a bounded download slot until response completion, with no waiting queue.
 
-## Subsequent integration increments
+## Runtime integration
 
 - Allocate the attempt blob before reading. Derive the frozen request from the live fence inside the
   read transaction and recheck current authority/fencing before and after every page, using plain
@@ -65,3 +65,29 @@ remain a separate owner operational gate.
   22,382,704 ciphertext bytes at 68 MiB observed write RSS; 128 MiB produced 179,060,848 bytes at
   70 MiB observed write RSS. Both verified and were removed. These are primitive measurements,
   not full-pipeline deployment-capacity acceptance.
+
+## Runtime local acceptance evidence
+
+- Worker unit tests: 776/43 files. API unit tests: 821/80 files. Secrets tests: 44/3 files.
+  Typecheck and lint pass for the API, worker, database and secrets packages. Changed-file Prettier
+  and `git diff --check` pass.
+- Full worker finance-export PostgreSQL suite: 102/9 files. API export PostgreSQL/Redis suite:
+  21/4 files, including the separate worker process and signed storage transport. Migration 0074
+  was applied only to the local PostgreSQL 18 instance through the migration runner; forced-RLS
+  isolation SQL and the 63-case schema mirror check pass.
+- The incremental workbook continuation test writes 1,048,576 data rows through the production
+  writer, with 1,048,575 data rows plus the header on sheet 1 and a repeated header plus the final
+  data row on sheet 2. Independent streaming ZIP parsing verifies both complete entries.
+- A PostgreSQL test captures 1,001 own patients in SQL while emitting one monthly row, and renews
+  the lease with the read transaction still open. Lost own reach during finalization rolls back the
+  capture/marker; lost reach during upload refuses publication.
+- HTTP tests cover late corruption/truncation with no attachment bytes, two active slots and
+  immediate refusal of a third request, release after completion, ledger reach purge and shutdown
+  cancellation of a source stalled after its first chunk.
+- Guard-removal checks fail when the expected ciphertext-length bound, final read authorization,
+  current own reach at publication, or post-storage download authorization is removed. Stopping
+  whole-object verification after the first record makes the corrupt-final HTTP test fail with an
+  interrupted response instead of its required safe 503. All mutated sources and built secrets
+  output were restored; all 44 secrets and five download-stream tests then passed.
+
+These are local checks, not actual staging storage policy or deployment resource acceptance.

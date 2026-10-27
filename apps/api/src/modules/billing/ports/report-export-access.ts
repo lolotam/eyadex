@@ -1,4 +1,5 @@
 import type { Tx } from "@eyadex/db";
+import type { Readable } from "node:stream";
 
 /** لقطة تفويض تنزيل، من الهوية دلوقتي من غير كاش أو بيانات شخصية. */
 export interface ReportExportAccess {
@@ -32,9 +33,10 @@ export interface ReportExportFiles {
   /**
    * يقرأ الملف الخاص؛ أي رد غير متوقع يرفض.
    * @param key مفتاح محاولة تصدير
-   * @returns البايتات المخزّنة
+   * @param signal إلغاء التنزيل، ويقفل تدفق التخزين نفسه
+   * @returns تدفق ciphertext قابل للإغلاق؛ مفيش تجميع الملف في الذاكرة
    */
-  get(key: string): Promise<Buffer>;
+  get(key: string, signal: AbortSignal): Promise<Readable>;
   /**
    * يمسح ملف own المرفوض؛ غياب المفتاح نجاح.
    * @param key مفتاح محاولة تصدير، مفيش مفاتيح مرفقات

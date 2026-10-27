@@ -1,7 +1,6 @@
 import type { FieldCipher } from "@eyadex/secrets";
 
-import { writeReportCsv } from "./domain/export-csv.ts";
-import { writeReportXlsx } from "./domain/export-xlsx.ts";
+import { ExportFileWriter } from "./export-file-writer.ts";
 import type { ExportFailureKind } from "./domain/export-failures.ts";
 import { ExportReadRefused } from "./domain/export-read-refused.ts";
 import { ExportHeartbeat } from "./export-heartbeat.ts";
@@ -18,7 +17,7 @@ export interface ExportRunnerDeps {
   readonly ledger: ExportAttemptBlobs;
   readonly blobs: ExportBlobStore;
   readonly reader: ExportReportReader;
-  readonly cipher: Pick<FieldCipher, "sealBytes">;
+  readonly cipher: FieldCipher;
   readonly heartbeatMs?: number;
   readonly budgetMs?: number;
 }
@@ -54,6 +53,7 @@ export class ExportRunner {
     const pulse = new ExportHeartbeat(this.deps.store, fence, controller, this.deps.heartbeatMs);
     let published = false;
     let failure: ExportFailureKind | null = null;
+    let writer: ExportFileWriter | undefined;
     try {
       const prepared = await this.deps.store.prepareLeasedJob(fence);
       if (prepared.kind === "lost_lease") return;
@@ -62,51 +62,37 @@ export class ExportRunner {
       }
       controller.signal.throwIfAborted();
       const { job } = prepared;
-      const data = await untilAborted(
-        this.deps.reader.read(fence, job, controller.signal),
-        controller.signal,
-      );
-      controller.signal.throwIfAborted();
-      const input = { report: job.report, language: job.params.language, rows: data.rows };
-      let written;
-      try {
-        written =
-          job.format === "csv"
-            ? writeReportCsv(input)
-            : await untilAborted(writeReportXlsx(input), controller.signal);
-      } catch {
-        throw new AttemptFailure("build_failed");
-      }
-      controller.signal.throwIfAborted();
-      if (!written.ok) {
-        throw new AttemptFailure(
-          written.code === "export_amount_too_large" ? written.code : "build_failed",
-        );
-      }
-      const sensitive = ["outstanding", "patient_credit", "refunds", "discounts"].includes(
-        job.report,
-      );
-      const bytes = sensitive
-        ? Buffer.from(
-            this.deps.cipher.sealBytes(
-              fence.clinicId,
-              {
-                table: "finance_report_exports",
-                column: "blob",
-                rowId: `${fence.exportId}:${fence.attempt}`,
-              },
-              written.bytes,
-            ),
-            "utf8",
-          )
-        : written.bytes;
       const allocated = await this.deps.store.allocateBlob(fence);
       if (allocated.kind === "lost_lease") return;
+      // Await the cooperative reader, so no delayed file creation/write can escape cleanup.
+      const data = await this.deps.reader.read(fence, job, controller.signal, {
+        start: async (current) => {
+          writer = await ExportFileWriter.create(
+            fence,
+            current,
+            this.deps.cipher,
+            controller.signal,
+          );
+        },
+        write: async (row) => {
+          if (!writer) throw new Error("export_writer_missing");
+          await writer.write(row);
+        },
+        finish: async () => {
+          if (!writer) throw new Error("export_writer_missing");
+          await writer.finish();
+        },
+      });
+      controller.signal.throwIfAborted();
+      if (!writer) throw new AttemptFailure("build_failed");
       const key = await this.deps.ledger.uploadable(fence);
       if (key === null || key !== allocated.storageKey) return;
       controller.signal.throwIfAborted();
       try {
-        await untilAborted(this.deps.blobs.put(key, bytes, controller.signal), controller.signal);
+        await untilAborted(
+          this.deps.blobs.put(key, writer.file, controller.signal),
+          controller.signal,
+        );
       } catch {
         throw new AttemptFailure("store_unavailable");
       }
@@ -115,9 +101,10 @@ export class ExportRunner {
       controller.signal.throwIfAborted();
       // A publish already sent is awaited even on cancellation, before any cleanup decision.
       const result = await this.deps.store.publish(fence, {
-        byteSize: bytes.length,
-        rowCount: written.rowCount,
-        patientIds: data.patientIds,
+        byteSize: writer.file.storedLength,
+        rowCount: writer.rowCount,
+        patientIds: data.patientSet === "ledger" ? [] : null,
+        patientSet: data.patientSet,
       });
       published = result.kind === "published" || result.kind === "own_success";
       if (result.kind === "refused") throw new AttemptFailure("build_failed");
@@ -131,11 +118,20 @@ export class ExportRunner {
               : error.reason === "lost_lease"
                 ? "lease_lost"
                 : "build_failed"
-            : "db_error";
+            : error instanceof Error && error.message === "export_amount_too_large"
+              ? "export_amount_too_large"
+              : error instanceof Error && error.message === "export_value_invalid"
+                ? "build_failed"
+                : "db_error";
     } finally {
       clearTimeout(budget);
       stopping.removeEventListener("abort", cancel);
       await pulse.stop();
+      try {
+        await writer?.dispose();
+      } catch {
+        failure ??= "db_error";
+      }
       // Even a thrown commit response can be durable. A DB outage leaves cleanup to the sweeper.
       try {
         if (!published && pulse.outcome !== "own_success") {

@@ -55,6 +55,9 @@ export const financeReportExports = pgTable(
     scope: text("scope", { enum: ["clinic", "branch", "own"] }).notNull(),
     // The patients of an `own` export only, cleared when the file expires (EY-10.4, EY-10.6).
     patientIds: uuid("patient_ids").array(),
+    patientSetMode: text("patient_set_mode", { enum: ["array", "ledger"] })
+      .notNull()
+      .default(sql`'array'::text`),
     status: text("status", { enum: EXPORT_STATUSES })
       .notNull()
       .default(sql`'queued'::text`),
@@ -63,8 +66,8 @@ export const financeReportExports = pgTable(
     leaseUntil: timestamp("lease_until", tz),
     nextAttemptAt: timestamp("next_attempt_at", tz),
     storageKey: text("storage_key"),
-    byteSize: integer("byte_size"),
-    rowCount: integer("row_count"),
+    byteSize: bigint("byte_size", { mode: "number" }),
+    rowCount: bigint("row_count", { mode: "number" }),
     errorCode: text("error_code"),
     createdAt: timestamp("created_at", tz).notNull(),
     startedAt: timestamp("started_at", tz),
@@ -84,6 +87,10 @@ export const financeReportExports = pgTable(
       .on(t.clinicId, t.requestedBy)
       .where(sql.raw("status = 'running'::text")),
     index("finance_report_exports_expiry_idx").on(t.clinicId, t.status, t.expiresAt),
+    check(
+      "finance_report_exports_patient_set_mode_check",
+      sql.raw(anyOf("patient_set_mode", ["array", "ledger"])),
+    ),
     check("finance_report_exports_attempt_check", sql.raw("(attempt >= 0)")),
     check("finance_report_exports_byte_size_check", sql.raw("(byte_size > 0)")),
     check("finance_report_exports_format_check", sql.raw(anyOf("format", ["csv", "xlsx"]))),

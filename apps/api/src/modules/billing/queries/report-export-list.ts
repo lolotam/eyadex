@@ -24,8 +24,8 @@ export async function reportExportList(
     status: string;
     createdAt: Date | string;
     expiresAt: Date | string | null;
-    byteSize: number | null;
-    rowCount: number | null;
+    byteSize: number | string | null;
+    rowCount: number | string | null;
   }>(sql`SELECT id, report, format, status, created_at AS "createdAt", expires_at AS "expiresAt",
     byte_size AS "byteSize", row_count AS "rowCount" FROM finance_report_exports
     WHERE clinic_id = ${clinicId} AND requested_by = ${membershipId} ${cursor}
@@ -36,6 +36,8 @@ export async function reportExportList(
     WHERE clinic_id = ${clinicId} AND requested_by = ${membershipId}`);
   const items = rows.slice(0, query.limit).map((row) => ({
     ...row,
+    byteSize: row.byteSize === null ? null : Number(row.byteSize),
+    rowCount: row.rowCount === null ? null : Number(row.rowCount),
     createdAt: new Date(row.createdAt).toISOString(),
     expiresAt: row.expiresAt === null ? null : new Date(row.expiresAt).toISOString(),
   }));

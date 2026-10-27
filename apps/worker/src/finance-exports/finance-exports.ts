@@ -42,7 +42,7 @@ export function createFinanceExports(deps: {
     blobs,
     cipher,
     ledger: new PgExportAttemptBlobs(deps.app),
-    reader: new PgExportReports(deps.app, deps.clock),
+    reader: new PgExportReports(deps.app, deps.clock, deps.ids),
   });
   const queue = new ExportHandoffQueue({
     execute: runner.execute,
