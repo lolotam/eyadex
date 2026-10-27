@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -13,7 +14,7 @@ import "./__tests__/export-handoff-lifecycle.ts";
 import { ExportHandoffQueue } from "./export-handoff-queue.ts";
 import type { LeasedExportIdentity } from "./ports/export-lease-handoff.ts";
 
-const SECRET = "patient-row-secret-not-for-logs";
+const PRIVATE_ROW_MARKER = `synthetic-row-${randomUUID()}`;
 
 describe("ExportHandoffQueue config", () => {
   it("rejects a missing callback and a concurrency that is not a positive safe integer", () => {
@@ -87,7 +88,7 @@ describe("ExportHandoffQueue record", () => {
     });
     const evil = new Proxy(identity(EXPORT_B), {
       get(target, prop, receiver) {
-        if (prop === "leaseOwner") throw new Error(SECRET);
+        if (prop === "leaseOwner") throw new Error(PRIVATE_ROW_MARKER);
         return Reflect.get(target, prop, receiver);
       },
     });
@@ -126,8 +127,8 @@ describe("ExportHandoffQueue record", () => {
     });
     const input = {
       ...identity(EXPORT_A, 3),
-      payload: SECRET,
-      rows: [SECRET],
+      payload: PRIVATE_ROW_MARKER,
+      rows: [PRIVATE_ROW_MARKER],
       name: "synthetic-patient",
     };
     try {

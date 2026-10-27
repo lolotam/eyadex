@@ -7,8 +7,35 @@ import type { ReportId } from "@eyadex/contracts/finance-reports";
 import { PgExportReports } from "../persistence/pg-export-reports.ts";
 import { writeReportCsv } from "../domain/export-csv.ts";
 import type { PreparedExportJob } from "../ports/export-store.ts";
-import { seedWorld, urls } from "./export-fixtures.ts";
+import { seedMember, seedWorld, urls } from "./export-fixtures.ts";
 import { reportData } from "./export-report-data.ts";
+import { leaseExport, openMember } from "./export-prepare-fixtures.ts";
+import { PgExportStore } from "../persistence/pg-export-store.ts";
+import { ExportReadRefused } from "../domain/export-read-refused.ts";
+
+const keys = [
+  "view:report_takings:clinic",
+  "view:report_analytics:clinic",
+  "view:report_patients:clinic",
+  "view:report_own:own",
+  "view:invoices:clinic",
+  "view:invoices:own",
+  "view:payments:clinic",
+  "view:cash_closings:clinic",
+];
+
+async function leased(world: ReturnType<typeof seedWorld>, job: PreparedExportJob) {
+  const { exportId } = leaseExport(world, {
+    report: job.report,
+    scope: job.scope,
+    branchIds: job.params.branchIds,
+    ...(job.params.groupBy === undefined ? {} : { groupBy: job.params.groupBy }),
+  });
+  const fence = { clinicId: world.clinicId, exportId, attempt: 1, leaseOwner: "worker-a" };
+  const prepared = await new PgExportStore(db, { newId: randomUUID }).prepareLeasedJob(fence);
+  expect(prepared.kind).toBe("ready");
+  return fence;
+}
 
 let db: Database;
 let reader: PgExportReports;
@@ -22,7 +49,7 @@ describe("all finance export reads under RLS", () => {
   it.each(Object.keys(REPORT_EXPORT_COLUMNS) as ReportId[])(
     "runs %s without a screen pagination or a money write",
     async (report) => {
-      const w = seedWorld();
+      const w = openMember(keys);
       const job: PreparedExportJob = {
         report,
         format: "csv",
@@ -39,18 +66,14 @@ describe("all finance export reads under RLS", () => {
             : {}),
         },
       };
-      const answer = await reader.read(
-        { clinicId: w.clinicId, exportId: randomUUID(), attempt: 1, leaseOwner: "worker" },
-        job,
-        new AbortController().signal,
-      );
+      const answer = await reader.read(await leased(w, job), job, new AbortController().signal);
       expect(answer.rows).toEqual([]);
       expect(answer.patientIds).toEqual(job.scope === "own" ? [] : null);
     },
   );
 
   it("R5 exports all eligible rows with guarded names, exact amounts and clinic-timezone age", async () => {
-    const w = seedWorld();
+    const w = openMember(keys);
     const data = reportData(w);
     const job: PreparedExportJob = {
       report: "outstanding",
@@ -60,12 +83,7 @@ describe("all finance export reads under RLS", () => {
       userId: w.userId,
       params: { from: "2026-01-01", to: "2026-12-31", branchIds: [data.branchId], language: "en" },
     };
-    const fence = {
-      clinicId: w.clinicId,
-      exportId: randomUUID(),
-      attempt: 1,
-      leaseOwner: "worker",
-    };
+    const fence = await leased(w, job);
     const result = await reader.read(fence, job, new AbortController().signal);
     expect(result.rows).toHaveLength(1);
     expect(result.rows[0]?.["ageBucket"]).toEqual({ kind: "text", value: "31_60" });
@@ -79,23 +97,17 @@ describe("all finance export reads under RLS", () => {
           new AbortController().signal,
         )
       ).rows,
-    ).toEqual([]);
+    ).toEqual(result.rows);
     const foreign = seedWorld();
-    expect(
-      (
-        await reader.read(
-          { ...fence, clinicId: foreign.clinicId },
-          job,
-          new AbortController().signal,
-        )
-      ).rows,
-    ).toEqual([]);
+    await expect(
+      reader.read({ ...fence, clinicId: foreign.clinicId }, job, new AbortController().signal),
+    ).rejects.toEqual(new ExportReadRefused("lost_lease"));
   });
 
   it("R10 uses both patient reach and line ownership, and collects only the file's patients", async () => {
-    const w = seedWorld();
+    const w = openMember(keys);
     const data = reportData(w, true);
-    const outside = reportData(seedWorld(), true);
+    reportData(seedWorld(), true);
     const job: PreparedExportJob = {
       report: "own_summary",
       format: "csv",
@@ -105,16 +117,11 @@ describe("all finance export reads under RLS", () => {
       params: {
         from: "2026-01-01",
         to: "2026-12-31",
-        branchIds: [data.branchId, outside.branchId],
+        branchIds: [data.branchId],
         language: "en",
       },
     };
-    const fence = {
-      clinicId: w.clinicId,
-      exportId: randomUUID(),
-      attempt: 1,
-      leaseOwner: "worker",
-    };
+    const fence = await leased(w, job);
     const result = await reader.read(fence, job, new AbortController().signal);
     expect(result.patientIds).toEqual([data.patientId]);
     expect(result.rows[0]?.["billedMinor"]).toEqual({ kind: "money", minor: "12500", exponent: 3 });
@@ -126,6 +133,14 @@ describe("all finance export reads under RLS", () => {
           new AbortController().signal,
         )
       ).rows,
-    ).toEqual([]);
+    ).toEqual(result.rows);
+    const colleague = { ...w, ...seedMember(w) };
+    const ownJob = { ...job, requestedBy: colleague.membershipId, userId: colleague.userId };
+    const ownRows = await reader.read(
+      await leased(colleague, ownJob),
+      ownJob,
+      new AbortController().signal,
+    );
+    expect(ownRows).toEqual({ rows: [], patientIds: [] });
   });
 });

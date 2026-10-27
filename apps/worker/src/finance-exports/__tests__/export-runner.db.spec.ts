@@ -4,9 +4,10 @@ import { createDatabase, type Database } from "@eyadex/db";
 
 import { PgExportStore } from "../persistence/pg-export-store.ts";
 import { PgExportAttemptBlobs } from "../persistence/pg-export-attempt-blobs.ts";
+import { PgExportReports } from "../persistence/pg-export-reports.ts";
 import { ExportRunner } from "../export-runner.ts";
 import { insertBlob, owner, readAudits, readBlobs, readExport, urls } from "./export-fixtures.ts";
-import { leaseExport, openMember } from "./export-prepare-fixtures.ts";
+import { leaseExport, openMember, revoke } from "./export-prepare-fixtures.ts";
 
 let db: Database;
 let store: PgExportStore;
@@ -80,6 +81,31 @@ describe("export runner on the application role", () => {
     });
     await runner.execute(t.fence, new AbortController().signal);
     expect(read).not.toHaveBeenCalled();
+    expect(put).not.toHaveBeenCalled();
+    expect(readExport(t.clinicId, t.fence.exportId)).toMatchObject({
+      status: "failed",
+      error_code: "forbidden",
+    });
+    expect(readBlobs(t.clinicId, t.fence.exportId)).toEqual([]);
+  });
+
+  it("refuses revocation between preflight and the production report reader, without a blob", async () => {
+    const t = setup();
+    const reader = new PgExportReports(db, { now: () => new Date() });
+    const put = vi.fn();
+    const runner = new ExportRunner({
+      store,
+      ledger,
+      reader: {
+        async read(...args) {
+          revoke(t.clinicId, t.roleId, "view:invoices:own");
+          return reader.read(...args);
+        },
+      },
+      blobs: { put, delete: vi.fn(), exists: vi.fn() },
+      cipher: { sealBytes: vi.fn() },
+    });
+    await runner.execute(t.fence, new AbortController().signal);
     expect(put).not.toHaveBeenCalled();
     expect(readExport(t.clinicId, t.fence.exportId)).toMatchObject({
       status: "failed",

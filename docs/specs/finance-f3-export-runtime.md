@@ -48,6 +48,11 @@ five-minute timeout and the tag `eyadex-kind=finance-export`. The 50-row-per-cli
 leases, expires published files at their stored 24-hour expiry, and re-deletes a `deleted` key after
 22 minutes (longer than build + lease + PUT budgets). Only a missing stat makes it `gone`.
 
+A ready preflight is only metadata. The production reader derives the frozen job from the live
+fence again and checks current access before and after its SQL callback in one `withTenant`
+transaction. A revocation committed before or during that read rejects the rows as `forbidden`
+before file construction or blob allocation. No storage I/O runs in that transaction.
+
 ## Storage actions prepared for owner approval, not applied
 
 Keep the bucket private. The existing attachment policies remain separate. Additional resources

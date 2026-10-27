@@ -6,6 +6,7 @@ import type { ExportCell, ExportCsvRow } from "../domain/export-cells.ts";
 import type { ExportReportReader } from "../ports/export-builder.ts";
 import type { ExportFence, PreparedExportJob } from "../ports/export-store.ts";
 import { exportReportQuery } from "./export-report-queries.ts";
+import { readAuthorizedExport } from "./pg-export-authorized-read.ts";
 
 type Raw = Record<string, unknown>;
 type Clock = { now(): Date };
@@ -18,9 +19,9 @@ export class PgExportReports implements ExportReportReader {
   ) {}
 
   /** @inheritdoc */
-  async read(fence: ExportFence, job: PreparedExportJob, signal: AbortSignal) {
+  async read(fence: ExportFence, _preflight: PreparedExportJob, signal: AbortSignal) {
     const startedAt = this.clock.now();
-    return this.db.withTenant(fence.clinicId, async (tx) => {
+    return readAuthorizedExport(this.db, fence, async (tx, job) => {
       signal.throwIfAborted();
       const clinic = await tx.execute<{ today: string }>(sql`SELECT
         (${startedAt.toISOString()}::timestamptz AT TIME ZONE timezone)::date::text AS today

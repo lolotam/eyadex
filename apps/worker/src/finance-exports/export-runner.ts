@@ -3,6 +3,7 @@ import type { FieldCipher } from "@eyadex/secrets";
 import { writeReportCsv } from "./domain/export-csv.ts";
 import { writeReportXlsx } from "./domain/export-xlsx.ts";
 import type { ExportFailureKind } from "./domain/export-failures.ts";
+import { ExportReadRefused } from "./domain/export-read-refused.ts";
 import { ExportHeartbeat } from "./export-heartbeat.ts";
 import type {
   ExportAttemptBlobs,
@@ -121,7 +122,16 @@ export class ExportRunner {
       published = result.kind === "published" || result.kind === "own_success";
       if (result.kind === "refused") throw new AttemptFailure("build_failed");
     } catch (error) {
-      failure = error instanceof AttemptFailure ? error.kind : "db_error";
+      failure =
+        error instanceof AttemptFailure
+          ? error.kind
+          : error instanceof ExportReadRefused
+            ? error.reason === "forbidden"
+              ? "forbidden"
+              : error.reason === "lost_lease"
+                ? "lease_lost"
+                : "build_failed"
+            : "db_error";
     } finally {
       clearTimeout(budget);
       stopping.removeEventListener("abort", cancel);

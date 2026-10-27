@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { expect, it } from "vitest";
 
 import {
@@ -13,12 +14,12 @@ import {
 } from "./export-handoff-fixtures.ts";
 import type { LeasedExportIdentity } from "../ports/export-lease-handoff.ts";
 
-const SECRET = "patient-row-secret-not-for-logs";
+const PRIVATE_ROW_MARKER = `synthetic-row-${randomUUID()}`;
 
 type Execute = (identity: LeasedExportIdentity, signal: AbortSignal) => Promise<void>;
 
 function syncThrow(): never {
-  throw new Error(SECRET);
+  throw new Error(PRIVATE_ROW_MARKER);
 }
 
 interface Step {
@@ -53,7 +54,7 @@ async function recover(step: Step): Promise<void> {
 }
 
 it.each<[string, () => Step]>([
-  ["rejected promise", () => ({ execute: () => Promise.reject(new Error(SECRET)) })],
+  ["rejected promise", () => ({ execute: () => Promise.reject(new Error(PRIVATE_ROW_MARKER)) })],
   ["synchronous throw", () => ({ execute: syncThrow })],
   [
     "visible hold",
@@ -79,7 +80,7 @@ it("keeps capacity and avoids an unhandled rejection when the diagnostic logger 
   const { calls, logger } = recordingLogger(true);
   const queue = queueWith(
     async () => {
-      throw new Error(SECRET);
+      throw new Error(PRIVATE_ROW_MARKER);
     },
     { concurrency: 1, logger },
   );
@@ -94,7 +95,7 @@ it("keeps capacity and avoids an unhandled rejection when the diagnostic logger 
     queue.afterClaim();
     await flush();
     expect(queue.canClaim()).toBe(true);
-    expect(JSON.stringify(calls)).not.toContain(SECRET);
+    expect(JSON.stringify(calls)).not.toContain(PRIVATE_ROW_MARKER);
     expect(calls[0]?.[0]).toEqual({
       exportHandoff: {
         clinicId: identity().clinicId,
@@ -114,7 +115,7 @@ it("logs only the allowlisted ids and a static code through the real logger", as
   const { lines, logger } = sinkLogger();
   const queue = queueWith(
     async () => {
-      throw new Error(`${SECRET} stack must stay out`);
+      throw new Error(`${PRIVATE_ROW_MARKER} stack must stay out`);
     },
     { concurrency: 1, logger },
   );
@@ -126,7 +127,7 @@ it("logs only the allowlisted ids and a static code through the real logger", as
     const text = lines.join("\n");
     expect(text).toContain(EXPORT_B);
     expect(text).toContain("execution_failed");
-    expect(text).not.toContain(SECRET);
+    expect(text).not.toContain(PRIVATE_ROW_MARKER);
     expect(text).not.toContain(LEASE_OWNER);
     expect(text).not.toContain("log message withheld");
   } finally {

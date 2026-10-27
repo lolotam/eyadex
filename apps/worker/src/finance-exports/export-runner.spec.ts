@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { FieldCipher } from "@eyadex/secrets";
 
 import { ExportRunner } from "./export-runner.ts";
+import { ExportReadRefused } from "./domain/export-read-refused.ts";
 import type { ExportStore, PreparedExportJob } from "./ports/export-store.ts";
 import type {
   ExportAttemptBlobs,
@@ -146,6 +147,19 @@ describe("export attempt after commit", () => {
         );
     },
   );
+
+  it.each([
+    ["forbidden", "forbidden"],
+    ["lost_lease", "lease_lost"],
+    ["invalid_params", "build_failed"],
+  ] as const)("stops before allocation when the actual read refuses %s", async (reason, kind) => {
+    const t = setup();
+    t.reader.read.mockRejectedValue(new ExportReadRefused(reason));
+    await t.run();
+    expect(t.store.recordFailure).toHaveBeenCalledWith(fence, kind);
+    expect(t.store.allocateBlob).not.toHaveBeenCalled();
+    expect(t.blobs.put).not.toHaveBeenCalled();
+  });
 
   it("refuses wide CSV money without allocating or uploading", async () => {
     const t = setup();
