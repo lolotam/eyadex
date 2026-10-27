@@ -1,3 +1,4 @@
+import type { FrozenReportExportParams } from "@eyadex/contracts/finance-reports-export";
 import type { ReportExportFormat, ReportId } from "@eyadex/contracts/finance-reports";
 import type { PermissionScope } from "@eyadex/contracts/permissions";
 
@@ -29,6 +30,26 @@ export interface LeasedExportJob {
   readonly scope: PermissionScope;
   readonly params: unknown;
 }
+
+/**
+ * الطلب بعد إعادة التفويض. الخمسة حقول المجمّدة، و`params` متفسّرة، و`userId` من العضوية الحالية.
+ * `scope` السقف المخزّن مش النطاق الأوسع. مفيش مفاتيح ولا أسماء ولا مرضى ولا تأجير.
+ */
+export interface PreparedExportJob {
+  readonly requestedBy: string;
+  readonly report: ReportId;
+  readonly format: ReportExportFormat;
+  readonly scope: PermissionScope;
+  readonly params: FrozenReportExportParams;
+  readonly userId: string;
+}
+
+/** تجهيز قراءة لاحقة: جاهز، أو التأجير ضاع، أو التفويض سقط، أو الـ params فاسدة. */
+export type PrepareExportAnswer =
+  | { readonly kind: "ready"; readonly job: PreparedExportJob }
+  | { readonly kind: "lost_lease" }
+  | { readonly kind: "forbidden" }
+  | { readonly kind: "invalid_params" };
 
 /** كتابة مسوّرة: اتطبقت، أو إعادة القراءة قالت نجاح المحاولة، أو التأجير ضاع. */
 export type FenceAnswer =
@@ -147,4 +168,12 @@ export interface ExportStore extends ExportClaimPort {
    * @returns الحقول الخمسة، أو `null` لو الصف مش التأجير الحي المملوك
    */
   readLeasedJob(fence: ExportFence): Promise<LeasedExportJob | null>;
+  /**
+   * يعيد تفويض التأجير الحي قبل قراءة صفوف التقرير. السياج بس هو المدخل.
+   * السقف المخزّن ما يتوسّعش، ومفيش كتابة ولا تجديد.
+   *
+   * @param fence سياج المحاولة
+   * @returns الجاهز أو سبب التوقف
+   */
+  prepareLeasedJob(fence: ExportFence): Promise<PrepareExportAnswer>;
 }

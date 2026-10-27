@@ -1,10 +1,26 @@
 import type { ReportId } from "@eyadex/contracts/finance-reports";
 import type { PermissionScope } from "@eyadex/contracts/permissions";
-import type { Database } from "@eyadex/db";
+import type { Database, Tx } from "@eyadex/db";
 
 import { heartbeatMayRenew } from "../domain/export-failures.ts";
 import type { ExportFence, LeasedExportJob } from "../ports/export-store.ts";
 import { attemptOf, lockExport, type LockedExport } from "./export-sql.ts";
+
+/**
+ * نفس قراءة التأجير الحي جوّه معاملة المنادي. القفل ثم ساعة القاعدة في statement تانية.
+ *
+ * @param tx معاملة `withTenant`
+ * @param fence سياج المحاولة
+ * @returns الحقول الخمسة، أو `null` لو الصف مش التأجير الحي المملوك
+ */
+export async function readLockedLeasedExportJob(
+  tx: Tx,
+  fence: ExportFence,
+): Promise<LeasedExportJob | null> {
+  const row = await lockExport(tx, fence.clinicId, fence.exportId);
+  if (row === undefined || !ownsLiveLease(row, fence)) return null;
+  return leasedJob(row);
+}
 
 /**
  * يقرأ لقطة الطلب لتأجير جاري ومملوك وحي. القفل الأول، وساعة القاعدة بعد القفل جوّه
@@ -18,12 +34,7 @@ export async function readLeasedExportJob(
   db: Database,
   fence: ExportFence,
 ): Promise<LeasedExportJob | null> {
-  return db.withTenant(fence.clinicId, async (tx) => {
-    const row = await lockExport(tx, fence.clinicId, fence.exportId);
-    if (row === undefined) return null;
-    if (!ownsLiveLease(row, fence)) return null;
-    return leasedJob(row);
-  });
+  return db.withTenant(fence.clinicId, (tx) => readLockedLeasedExportJob(tx, fence));
 }
 
 function ownsLiveLease(row: LockedExport, fence: ExportFence): boolean {
