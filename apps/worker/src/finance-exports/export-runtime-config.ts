@@ -2,7 +2,7 @@ import { ConfigurationError } from "@eyadex/observability";
 import { z } from "zod";
 
 const schema = z.object({
-  MEDICAL_BLOB_S3_ENDPOINT: z
+  FINANCE_EXPORT_BLOB_S3_ENDPOINT: z
     .string()
     .url()
     .refine((value) => {
@@ -20,10 +20,10 @@ const schema = z.object({
         return false;
       }
     }),
-  MEDICAL_BLOB_S3_BUCKET: z.string().regex(/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/),
-  MEDICAL_BLOB_S3_ACCESS_KEY: z.string().min(1),
-  MEDICAL_BLOB_S3_SECRET_KEY: z.string().min(1),
-  MEDICAL_BLOB_S3_REGION: z
+  FINANCE_EXPORT_BLOB_S3_BUCKET: z.string().regex(/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/),
+  FINANCE_EXPORT_BLOB_S3_ACCESS_KEY: z.string().min(1),
+  FINANCE_EXPORT_BLOB_S3_SECRET_KEY: z.string().min(1),
+  FINANCE_EXPORT_BLOB_S3_REGION: z
     .string()
     .regex(/^[a-z0-9-]+$/)
     .default("us-east-1"),

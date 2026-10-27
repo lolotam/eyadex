@@ -5,13 +5,22 @@ import { reportExportRuntimeFromEnv } from "../report-export-config.ts";
 const configured = () => ({
   FINANCE_EXPORTS_ENABLED: "true",
   FINANCE_EXPORT_MAX_QUEUED: "10",
-  MEDICAL_BLOB_S3_ENDPOINT: "http://storage.test:9000",
-  MEDICAL_BLOB_S3_BUCKET: "exports-test",
-  MEDICAL_BLOB_S3_ACCESS_KEY: randomBytes(12).toString("hex"),
-  MEDICAL_BLOB_S3_SECRET_KEY: randomBytes(24).toString("hex"),
+  FINANCE_EXPORT_BLOB_S3_ENDPOINT: "http://storage.test:9000",
+  FINANCE_EXPORT_BLOB_S3_BUCKET: "exports-test",
+  FINANCE_EXPORT_BLOB_S3_ACCESS_KEY: randomBytes(12).toString("hex"),
+  FINANCE_EXPORT_BLOB_S3_SECRET_KEY: randomBytes(24).toString("hex"),
 });
 
 describe("explicit finance export rollout", () => {
+  it("never falls back to attachment credentials", () => {
+    const env = Object.fromEntries(
+      Object.entries(configured()).map(([key, value]) => [
+        key.replace("FINANCE_EXPORT_BLOB_S3_", "MEDICAL_BLOB_S3_"),
+        value,
+      ]),
+    );
+    expect(() => reportExportRuntimeFromEnv(env)).toThrow("FINANCE_EXPORT_BLOB_S3_ENDPOINT");
+  });
   it("does not mount routes implicitly", () => {
     expect(reportExportRuntimeFromEnv({})).toBeUndefined();
     expect(reportExportRuntimeFromEnv({ FINANCE_EXPORTS_ENABLED: "false" })).toBeUndefined();
@@ -33,7 +42,7 @@ describe("explicit finance export rollout", () => {
         FINANCE_EXPORTS_ENABLED: "true",
         FINANCE_EXPORT_MAX_QUEUED: "10",
       }),
-    ).toThrow("MEDICAL_BLOB_S3_ENDPOINT");
+    ).toThrow("FINANCE_EXPORT_BLOB_S3_ENDPOINT");
   });
   it("injects the approved 10 explicitly and exposes no API put or tagging operation", () => {
     const runtime = reportExportRuntimeFromEnv(configured())!;

@@ -1,7 +1,9 @@
 # F3 export review decisions — proposed, not approved
 
-Review baseline: `d0b9d974` / PR #133. Export rollout remains disabled. This document proposes
-corrections within the existing export scope; it does not authorize storage mutations or deployment.
+Review baseline: `d0b9d974` / PR #133. Export rollout remains disabled. Owner approved all three recommended choices on 2026-10-27: a new never-versioned export bucket,
+R6 current balances without the period filter, and incremental encrypted temporary files without a
+new business row cap. This authorizes design and local implementation only, not server storage,
+policy, lifecycle or SQL mutations or deployment.
 
 ## Evidence collected locally
 
@@ -27,10 +29,10 @@ References: [AWS DeleteObject](https://docs.aws.amazon.com/AmazonS3/latest/API/A
 
 ## Decision 1 — export storage
 
-Recommended: provision a new exports-only bucket per environment which has never had versioning
+Approved: provision a new exports-only bucket per environment which has never had versioning
 enabled. Keep the medical attachment bucket and its versioning unchanged.
 
-Concrete implementation after design approval:
+Concrete implementation under the approved design:
 
 - Require independent `FINANCE_EXPORT_BLOB_S3_ENDPOINT`, `_BUCKET`, `_ACCESS_KEY`, `_SECRET_KEY`
   and optional `_REGION` settings in API and worker. No fallback to attachment storage settings.
@@ -43,7 +45,7 @@ Concrete implementation after design approval:
 - Verify missing-key stat behavior with the actual least-privilege principals on staging. A 403
   fails closed and cannot advance the blob ledger to gone.
 
-Alternative: keep shared versioned storage and design a complete version ledger/reconciliation,
+Rejected alternative: keep shared versioned storage and design a complete version ledger/reconciliation,
 version-specific deletion and noncurrent-version cleanup. Recording only successful PUT version IDs
 misses writes whose responses were lost. That alternative is larger and changes the cleanup model.
 
@@ -52,7 +54,7 @@ configuration and verification commands are reviewed. No server action has been 
 
 ## Decision 2 — R6 patient-credit range semantics
 
-Recommended: preserve the existing current clinic-wide remaining-balance calculation, and explicitly
+Approved: preserve the existing current clinic-wide remaining-balance calculation, and explicitly
 exempt R6 from the date filter in the specification and UI. The date range remains validated by the
 shared request shape, but must not be described as limiting R6's current balance.
 
@@ -60,18 +62,18 @@ The current screen, mock and export subtract all funded allocations and credit r
 later spending. Existing tests deliberately expect the same balance for a different selected period.
 The broad sentence in the parent specification does not explicitly settle this exception.
 
-Alternatives requiring different finance behavior:
+Alternatives not selected:
 
 - A historical balance as of `to`, with a defined treatment of earlier credit, later allocations and
   later refunds; `from` would not by itself define a balance.
 - Current remaining balances restricted to credits originating within `from`/`to`.
 
-Do not add a `created_at` WHERE clause before this decision: it silently chooses one interpretation.
+Do not add a `created_at` WHERE clause: it silently chooses one interpretation.
 Add an acceptance case with credit before the range and spending after it for the selected meaning.
 
 ## Decision 3 — bounded file handling
 
-Recommended: implement incremental report/file handling with encrypted temporary files, rather than
+Approved: implement incremental report/file handling with encrypted temporary files, rather than
 introducing an unapproved business row/byte cap or truncating successful exports.
 
 Required properties of the implementation design:
@@ -94,7 +96,7 @@ Required properties of the implementation design:
 
 Keep the storage/config correction in #133. If the resource correction exceeds the delivery slice
 limit, put it in an additional dependent PR; the full stack stays unmerged and disabled until ready.
-Freeze the web API only after these decisions and checks, then send Lovable its web-only brief.
+Freeze the web API only after implementing these decisions and passing the checks, then send Lovable its web-only brief.
 
 Acceptance: growing valid datasets under deployment resource limits; exact CSV/XLSX money and formula
 guards; no partial successful file; responsive heartbeat/cancellation; no bytes on integrity failure;

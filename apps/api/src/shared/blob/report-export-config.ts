@@ -1,5 +1,5 @@
 import { ConfigurationError } from "@eyadex/observability";
-import { s3BlobOptionsFromEnv } from "./blob-store-config.ts";
+import { exportS3OptionsFromEnv } from "./report-export-storage-config.ts";
 import { S3ReportExportFiles } from "./s3-report-export-files.ts";
 
 /** Rollout switch: API routes stay absent until storage policy and the worker are ready together. */
@@ -12,7 +12,6 @@ export function reportExportRuntimeFromEnv(env: NodeJS.ProcessEnv) {
   if (!/^[1-9][0-9]*$/.test(raw) || !Number.isSafeInteger(value)) {
     throw new ConfigurationError("API", ["FINANCE_EXPORT_MAX_QUEUED"]);
   }
-  const options = s3BlobOptionsFromEnv(env);
-  if (options === null) throw new ConfigurationError("API", ["MEDICAL_BLOB_S3_ENDPOINT"]);
+  const options = exportS3OptionsFromEnv(env);
   return { maxQueuedPerClinic: value, files: new S3ReportExportFiles(options) };
 }

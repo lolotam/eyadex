@@ -1,6 +1,8 @@
+import { ConfigurationError } from "@eyadex/observability";
 import {
   DeleteObjectCommand,
   HeadObjectCommand,
+  GetBucketVersioningCommand,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -33,6 +35,23 @@ export class S3ExportBlobs implements ExportBlobStore {
       forcePathStyle: true,
       credentials: { accessKeyId: options.accessKey, secretAccessKey: options.secretKey },
     });
+  }
+
+  /** Check metadata before claiming any job; suspending versioning cannot erase old versions. */
+  async verifyBucket(): Promise<void> {
+    try {
+      const result = await this.#client.send(
+        new GetBucketVersioningCommand({ Bucket: this.options.bucket }),
+        { abortSignal: AbortSignal.timeout(30_000) },
+      );
+      if (result.Status !== undefined) throw new Error("versioned");
+    } catch {
+      throw new ConfigurationError(
+        "worker",
+        ["FINANCE_EXPORT_BLOB_S3_BUCKET"],
+        "requires a verified never-versioned export bucket",
+      );
+    }
   }
 
   /** @inheritdoc */

@@ -228,12 +228,12 @@ try {
   // Only the stop signals: an empty list would also catch SIGSEGV/SIGABRT and turn a crash into exit 0.
   worker.enableShutdownHooks(["SIGTERM", "SIGINT"], { useProcessExit: true });
   watchShutdown({ logger, timeoutMs: SHUTDOWN_WATCHDOG_MS });
+  await exportsRuntime?.start();
   await worker.listen({ host: config.WORKER_HOST, port: config.WORKER_PORT });
   poller.start();
   scanner.start();
   reminders.start();
   retention.start();
-  exportsRuntime?.start();
   logger.info({ capability: { name: "WORKER", state: "LISTENING" } }, "worker started");
 } catch (error) {
   // Only the sanitised diagnostic is logged — the error's message can carry an environment value.

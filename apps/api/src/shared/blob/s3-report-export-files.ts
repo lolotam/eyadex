@@ -1,4 +1,10 @@
-import { DeleteObjectCommand, GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { ConfigurationError } from "@eyadex/observability";
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  GetBucketVersioningCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 import { ApiError, ServiceUnavailableError } from "../errors.ts";
 import type { S3BlobStoreOptions } from "./s3-blob-store.ts";
 
@@ -15,6 +21,23 @@ export class S3ReportExportFiles {
       forcePathStyle: true,
       credentials: { accessKeyId: options.accessKey, secretAccessKey: options.secretKey },
     });
+  }
+
+  /** Refuse versioned or suspended buckets before Nest opens the export routes. */
+  async onModuleInit(): Promise<void> {
+    try {
+      const result = await this.#client.send(
+        new GetBucketVersioningCommand({ Bucket: this.options.bucket }),
+        { abortSignal: AbortSignal.timeout(30_000) },
+      );
+      if (result.Status !== undefined) throw new Error("versioned");
+    } catch {
+      throw new ConfigurationError(
+        "API",
+        ["FINANCE_EXPORT_BLOB_S3_BUCKET"],
+        "requires a verified never-versioned export bucket",
+      );
+    }
   }
 
   async get(key: string): Promise<Buffer> {

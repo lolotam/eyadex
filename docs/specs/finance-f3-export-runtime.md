@@ -38,7 +38,7 @@ enabled together only after the private-store prerequisites below pass.
 For the enabled API, `FINANCE_EXPORT_MAX_QUEUED=10` explicitly injects the owner-approved queue bound.
 A missing, zero, negative, fractional or unsafe integer refuses boot. There is no implicit queue
 value. `EXPORT_CONCURRENCY=2` is the separate worker-local build bound;
-`EXPORT_SWEEP_INTERVAL_MS=60000` controls its periodic cleanup. The worker needs `MEDICAL_BLOB_S3_*`
+`EXPORT_SWEEP_INTERVAL_MS=60000` controls its periodic cleanup. Both processes require independent `FINANCE_EXPORT_BLOB_S3_*` settings
 and the same versioned medical keys as the API. Do not copy credentials into a brief, command, log,
 source file or review artifact.
 
@@ -55,7 +55,10 @@ before file construction or blob allocation. No storage I/O runs in that transac
 
 ## Storage actions prepared for owner approval, not applied
 
-Keep the bucket private. The existing attachment policies remain separate. Additional resources
+Use a newly created private exports-only bucket that has never had versioning enabled (owner design
+approval 2026-10-27; ADR-0036). There is no fallback to `MEDICAL_BLOB_S3_*`. Both processes read bucket
+versioning metadata before starting exports; Enabled, Suspended or inaccessible metadata refuses boot.
+The existing attachment bucket and its versioning/policies remain unchanged. Additional resources
 below use the actual bucket name only on the server:
 
 | Principal           | Additional operations                                                    | Resource suffix              |
@@ -63,12 +66,12 @@ below use the actual bucket name only on the server:
 | API storage user    | `s3:GetObject`, `s3:DeleteObject`                                        | `clinic/*/finance-exports/*` |
 | Worker storage user | `s3:GetObject`, `s3:PutObject`, `s3:DeleteObject`, `s3:PutObjectTagging` | `clinic/*/finance-exports/*` |
 
-Neither principal receives bucket listing. The API receives no export PUT or tagging grant. Neither
+Both principals also need `s3:GetBucketVersioning` on the export bucket itself. Neither principal receives bucket listing. The API receives no export PUT or tagging grant. Neither
 export delete grant includes attachment keys. The lifecycle rule has only the tag filter
 `eyadex-kind=finance-export` and `Expiration.Days=2`; it is the eventual backstop for a PUT that lands
 after its key was marked `gone`, and does not shorten the published 24-hour retention.
 
-Before enabling, record actual server checks: anonymous GET denied; worker export PUT/tag/delete/stat
+Before enabling, record creation of the new never-versioned bucket, versioning metadata readback, and actual server checks: anonymous GET denied; worker export PUT/tag/delete/stat
 allowed; worker tagging or deleting an attachment denied; API tagging or PUT on exports denied; API
 export GET/delete allowed; lifecycle rule read back from the bucket. A document or an HTTP test
 double does not prove these grants. Owner approval is still required before any policy or lifecycle

@@ -30,6 +30,11 @@ beforeAll(async () => {
       res.writeHead(403).end();
       return;
     }
+    if (new URL(req.url!, "http://storage.test").searchParams.has("versioning")) {
+      res.writeHead(200, { "content-type": "application/xml" });
+      res.end('<VersioningConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/"/>');
+      return;
+    }
     const key = new URL(req.url!, "http://storage.test").pathname.replace(/^\/exports-test\//, "");
     if (req.method === "PUT") {
       const chunks = [];
@@ -55,19 +60,19 @@ beforeAll(async () => {
   const address = server.address();
   if (!address || typeof address === "string") throw new Error("no port");
   storage = {
-    MEDICAL_BLOB_S3_ENDPOINT: `http://127.0.0.1:${address.port}`,
-    MEDICAL_BLOB_S3_BUCKET: "exports-test",
-    MEDICAL_BLOB_S3_ACCESS_KEY: randomBytes(12).toString("hex"),
-    MEDICAL_BLOB_S3_SECRET_KEY: randomBytes(24).toString("hex"),
+    FINANCE_EXPORT_BLOB_S3_ENDPOINT: `http://127.0.0.1:${address.port}`,
+    FINANCE_EXPORT_BLOB_S3_BUCKET: "exports-test",
+    FINANCE_EXPORT_BLOB_S3_ACCESS_KEY: randomBytes(12).toString("hex"),
+    FINANCE_EXPORT_BLOB_S3_SECRET_KEY: randomBytes(24).toString("hex"),
   };
   f = await reportFixture({
     maxQueuedPerClinic: 10,
     files: new S3ReportExportFiles({
-      endpoint: new URL(storage["MEDICAL_BLOB_S3_ENDPOINT"]!),
+      endpoint: new URL(storage["FINANCE_EXPORT_BLOB_S3_ENDPOINT"]!),
       bucket: "exports-test",
       region: "us-east-1",
-      accessKey: storage["MEDICAL_BLOB_S3_ACCESS_KEY"]!,
-      secretKey: storage["MEDICAL_BLOB_S3_SECRET_KEY"]!,
+      accessKey: storage["FINANCE_EXPORT_BLOB_S3_ACCESS_KEY"]!,
+      secretKey: storage["FINANCE_EXPORT_BLOB_S3_SECRET_KEY"]!,
     }),
   });
 }, 60_000);

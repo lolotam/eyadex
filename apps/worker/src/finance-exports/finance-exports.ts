@@ -30,11 +30,11 @@ export function createFinanceExports(deps: {
   const cipher = medicalCipher(deps.env);
   if (cipher === null) throw new ConfigurationError("worker", ["MEDICAL_MASTER_KEY_V1"]);
   const blobs = new S3ExportBlobs({
-    endpoint: config.MEDICAL_BLOB_S3_ENDPOINT,
-    bucket: config.MEDICAL_BLOB_S3_BUCKET,
-    region: config.MEDICAL_BLOB_S3_REGION,
-    accessKey: config.MEDICAL_BLOB_S3_ACCESS_KEY,
-    secretKey: config.MEDICAL_BLOB_S3_SECRET_KEY,
+    endpoint: config.FINANCE_EXPORT_BLOB_S3_ENDPOINT,
+    bucket: config.FINANCE_EXPORT_BLOB_S3_BUCKET,
+    region: config.FINANCE_EXPORT_BLOB_S3_REGION,
+    accessKey: config.FINANCE_EXPORT_BLOB_S3_ACCESS_KEY,
+    secretKey: config.FINANCE_EXPORT_BLOB_S3_SECRET_KEY,
   });
   const store = new PgExportStore(deps.app, deps.ids);
   const runner = new ExportRunner({
@@ -94,7 +94,8 @@ export function createFinanceExports(deps: {
     }
   }, config.EXPORT_SWEEP_INTERVAL_MS);
   return {
-    start() {
+    async start() {
+      await blobs.verifyBucket();
       poller.start();
       sweep.start();
     },

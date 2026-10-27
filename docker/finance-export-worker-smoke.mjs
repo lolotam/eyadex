@@ -26,7 +26,7 @@ const runtime = createFinanceExports({
   logger: createLogger("error"),
 });
 if (runtime === null) throw new Error("export_runtime_not_enabled");
-runtime.start();
+await runtime.start();
 process.send?.("ready");
 let stopping = false;
 async function stop() {

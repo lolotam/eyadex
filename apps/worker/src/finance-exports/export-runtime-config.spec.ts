@@ -4,13 +4,22 @@ import { readExportRuntimeConfig } from "./export-runtime-config.ts";
 
 const configured = () => ({
   FINANCE_EXPORTS_ENABLED: "true",
-  MEDICAL_BLOB_S3_ENDPOINT: "http://storage.test:9000",
-  MEDICAL_BLOB_S3_BUCKET: "exports-test",
-  MEDICAL_BLOB_S3_ACCESS_KEY: randomBytes(12).toString("hex"),
-  MEDICAL_BLOB_S3_SECRET_KEY: randomBytes(24).toString("hex"),
+  FINANCE_EXPORT_BLOB_S3_ENDPOINT: "http://storage.test:9000",
+  FINANCE_EXPORT_BLOB_S3_BUCKET: "exports-test",
+  FINANCE_EXPORT_BLOB_S3_ACCESS_KEY: randomBytes(12).toString("hex"),
+  FINANCE_EXPORT_BLOB_S3_SECRET_KEY: randomBytes(24).toString("hex"),
 });
 
 describe("export worker configuration", () => {
+  it("never falls back to attachment credentials", () => {
+    const env = Object.fromEntries(
+      Object.entries(configured()).map(([key, value]) => [
+        key.replace("FINANCE_EXPORT_BLOB_S3_", "MEDICAL_BLOB_S3_"),
+        value,
+      ]),
+    );
+    expect(() => readExportRuntimeConfig(env)).toThrow("FINANCE_EXPORT_BLOB_S3_ENDPOINT");
+  });
   it("is disabled unless explicitly enabled", () => {
     expect(readExportRuntimeConfig({})).toBeNull();
     expect(readExportRuntimeConfig({ FINANCE_EXPORTS_ENABLED: "false" })).toBeNull();
@@ -25,8 +34,8 @@ describe("export worker configuration", () => {
     "rejects unsafe endpoint %s without exposing it",
     (endpoint) => {
       const test = () =>
-        readExportRuntimeConfig({ ...configured(), MEDICAL_BLOB_S3_ENDPOINT: endpoint });
-      expect(test).toThrow("MEDICAL_BLOB_S3_ENDPOINT");
+        readExportRuntimeConfig({ ...configured(), FINANCE_EXPORT_BLOB_S3_ENDPOINT: endpoint });
+      expect(test).toThrow("FINANCE_EXPORT_BLOB_S3_ENDPOINT");
       try {
         test();
       } catch (e) {
@@ -37,8 +46,8 @@ describe("export worker configuration", () => {
   it("rejects credentials in the endpoint without reflecting their values", () => {
     const endpoint = `http://${randomBytes(8).toString("hex")}:${randomBytes(8).toString("hex")}@storage.test`;
     const test = () =>
-      readExportRuntimeConfig({ ...configured(), MEDICAL_BLOB_S3_ENDPOINT: endpoint });
-    expect(test).toThrow("MEDICAL_BLOB_S3_ENDPOINT");
+      readExportRuntimeConfig({ ...configured(), FINANCE_EXPORT_BLOB_S3_ENDPOINT: endpoint });
+    expect(test).toThrow("FINANCE_EXPORT_BLOB_S3_ENDPOINT");
     try {
       test();
     } catch (e) {
@@ -47,7 +56,7 @@ describe("export worker configuration", () => {
   });
   it("refuses missing storage and malformed concurrency", () => {
     expect(() => readExportRuntimeConfig({ FINANCE_EXPORTS_ENABLED: "true" })).toThrow(
-      "MEDICAL_BLOB_S3",
+      "FINANCE_EXPORT_BLOB_S3",
     );
     expect(() => readExportRuntimeConfig({ ...configured(), EXPORT_CONCURRENCY: "0" })).toThrow(
       "EXPORT_CONCURRENCY",

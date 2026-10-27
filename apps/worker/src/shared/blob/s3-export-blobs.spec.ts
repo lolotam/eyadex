@@ -6,10 +6,18 @@ import { S3ExportBlobs } from "./s3-export-blobs.ts";
 let server: Server;
 let store: S3ExportBlobs;
 let status = 200;
+let versioning: string | undefined;
 const requests: { method: string; path: string; tag: string | undefined; bytes: Buffer }[] = [];
 const key = `clinic/${randomUUID()}/finance-exports/${randomUUID()}/1.csv`;
 beforeAll(async () => {
   server = createServer(async (req, res) => {
+    if (new URL(req.url!, "http://storage.test").searchParams.has("versioning")) {
+      res.writeHead(status, { "content-type": "application/xml" });
+      res.end(
+        `<VersioningConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">${versioning === undefined ? "" : `<Status>${versioning}</Status>`}</VersioningConfiguration>`,
+      );
+      return;
+    }
     const chunks = [];
     for await (const chunk of req) chunks.push(Buffer.from(chunk));
     requests.push({
@@ -38,6 +46,20 @@ afterAll(async () => {
 });
 
 describe("export-only S3 transport", () => {
+  it("accepts a never-versioned bucket without bucket listing", async () => {
+    status = 200;
+    versioning = undefined;
+    await expect(store.verifyBucket()).resolves.toBeUndefined();
+  });
+  it.each(["Enabled", "Suspended"])("refuses %s versioning before claiming jobs", async (value) => {
+    status = 200;
+    versioning = value;
+    await expect(store.verifyBucket()).rejects.toThrow("FINANCE_EXPORT_BLOB_S3_BUCKET");
+  });
+  it("fails closed when bucket metadata is denied", async () => {
+    status = 403;
+    await expect(store.verifyBucket()).rejects.toThrow("FINANCE_EXPORT_BLOB_S3_BUCKET");
+  });
   it("uploads with the lifecycle tag in the actual signed HTTP request", async () => {
     status = 200;
     await store.put(key, Buffer.from("sample"), new AbortController().signal);

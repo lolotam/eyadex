@@ -57,3 +57,10 @@ slice. No `apps/api`, `apps/worker`, `packages/*`, `db/sql`, Cloud, Supabase or 
 logic. No adapter import from a screen. All copy through i18n. One component per file, at most 300
 lines per file. Format every touched file. Do not mark F3 complete, deploy or merge. Return changed
 files, test counts and the checked language/viewport/persona matrix.
+
+## Approved R6 exception (2026-10-27)
+
+Patient-credit is the current clinic-wide remaining balance across the complete credit ledger.
+Dates are still validated by the shared request, but do not filter this report. Explain in both
+languages on the R6 screen and export action that the selected period does not limit these balances.
+Do not add a credit-creation-date filter to the mock or HTTP adapter.

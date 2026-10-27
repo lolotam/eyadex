@@ -69,7 +69,7 @@ export function blobStoreFromEnv(env: NodeJS.ProcessEnv): BlobStore {
   return options === null ? new UnconfiguredBlobStore() : new S3BlobStore(options);
 }
 
-/** Validated private S3 options, shared by the attachment and export-only clients. */
+/** Validated private S3 options for medical attachments only. */
 export function s3BlobOptionsFromEnv(env: NodeJS.ProcessEnv): S3BlobStoreOptions | null {
   const value = (name: string): string => env[name] ?? "";
   const region = value(REGION);
