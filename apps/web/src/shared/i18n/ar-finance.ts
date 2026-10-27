@@ -1,6 +1,12 @@
-import type { enFinance } from "./en-finance";
+import type { enFinance, enReportExportErrors } from "./en-finance";
 
 type Strings<T> = { [K in keyof T]: T[K] extends string ? string : Strings<T[K]> };
+
+export const arReportExportErrors: Strings<typeof enReportExportErrors> = {
+  report_range_too_long: "الفترة المطلوبة أطول من المسموح.",
+  export_busy: "التصدير مشغول حاليًا؛ حاول مرة تانية بعد شوية.",
+  export_amount_too_large: "المبلغ أكبر من دقة ملف CSV؛ صدّر Excel بدل CSV.",
+};
 
 export const arFinance: Strings<typeof enFinance> = {
   finance: {

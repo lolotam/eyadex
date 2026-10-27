@@ -1,8 +1,9 @@
 # F3 export web slice — prepared brief, not sent
 
-Status: pending API review/freeze and a permitted Lovable connection. The orchestrator has not sent
-this brief or requested a build. Use the reviewed runtime commit on Lovable's working branch before
-starting; do not reconstruct backend code from this brief.
+Status: API frozen at reviewed runtime `2810c698`; frontend preparation is on `feat/f3-export-web`.
+The orchestrator has not sent this brief or requested a build. Verify the working branch contains
+that runtime and the web error catalogue preparation before starting; do not reconstruct backend
+code from this brief.
 
 ## Read first
 
@@ -24,10 +25,9 @@ is open for this slice.
    unmount. Disable duplicate submission while the request is pending. Show loading, empty, queued,
    running, done, failed, expired and purged states with translated text, icons and labels.
 3. Download through the client when a job is done. Refused/expired access must not open a file or
-   leave a stale download button. Treat the API's error as authoritative. Add the export error keys
-   `export_busy` and `export_amount_too_large` to the web catalogue with Arabic/English messages and
-   adjust the API-only error list through an orchestrator contract change if needed. Ask for that
-   contract change in the plan; do not edit `packages/contracts` yourself.
+   leave a stale download button. Treat the API's error as authoritative. The orchestrator supplies
+   the web catalogue entries and Arabic/English messages for `export_busy` and
+   `export_amount_too_large`. Preserve them; do not edit `packages/contracts` yourself.
 4. The mock mirrors the API's access order and requester/clinic isolation. Use current report data;
    do not use canned successful jobs, pretend authorization, patient data in metadata, CSV renamed
    as XLSX, or public object URLs. Keep file generation and business rules in the mock, never a React
