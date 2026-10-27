@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { legacyNumber } from "./number-compat.ts";
+import { legacyInteger } from "./integer-compat.ts";
+import { utcDatetime } from "./datetime-compat.ts";
 
 import { idSchema, languageSchema } from "./common.ts";
 import {
@@ -95,10 +98,10 @@ export const reportExportSchema = z
     report: reportIdSchema,
     format: reportExportFormatSchema,
     status: reportExportStatusSchema,
-    createdAt: z.string().datetime(),
-    expiresAt: z.string().datetime().nullable(),
-    byteSize: z.number().int().nonnegative().nullable(),
-    rowCount: z.number().int().nonnegative().nullable(),
+    createdAt: utcDatetime(),
+    expiresAt: utcDatetime().nullable(),
+    byteSize: legacyNumber().check(legacyInteger()).check(z.nonnegative()).nullable(),
+    rowCount: legacyNumber().check(legacyInteger()).check(z.nonnegative()).nullable(),
   })
   .strict();
 export type ReportExport = z.infer<typeof reportExportSchema>;
@@ -111,7 +114,7 @@ export const reportExportListResponseSchema = z
   .object({
     items: z.array(reportExportSchema),
     nextCursor: z.string().nullable(),
-    total: z.number().int().nonnegative(),
+    total: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
   })
   .strict();
 

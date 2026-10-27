@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Eyadex worker — the NestJS container that runs the outbox dispatcher (invitation email)",
+  "description": "Eyadex worker \u2014 the NestJS container that runs the outbox dispatcher (invitation email)",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
@@ -27,7 +27,7 @@
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2",
     "write-excel-file": "4.1.1",
-    "zod": "3.25.76"
+    "zod": "4.6.6"
   },
   "devDependencies": {
     "@eyadex/config": "workspace:*",

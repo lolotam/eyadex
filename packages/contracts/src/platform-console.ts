@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { legacyNumber, legacyCoercedNumber } from "./number-compat.ts";
+import { legacyInteger } from "./integer-compat.ts";
+import { utcDatetime } from "./datetime-compat.ts";
 import { effectiveClinicStatusSchema } from "./clinics.ts";
 import { idSchema } from "./common.ts";
 import {
@@ -12,7 +15,7 @@ import {
 // Phase B slice 11 (ADR-0020): the platform console over HTTP. Every shape is strict: no clinic
 // detail beyond names, statuses and dates, and no patient field or count can slip in (PLAT-02).
 
-const count = z.number().int().nonnegative();
+const count = legacyNumber().check(legacyInteger()).check(z.nonnegative());
 
 /** `GET /v1/platform/overview` (stories 3–4): counts by effective status, clinics expiring soon. */
 export const platformOverviewResponseSchema = z
@@ -25,7 +28,7 @@ export const platformOverviewResponseSchema = z
         >,
       )
       .strict(),
-    alertDaysBeforeExpiry: z.number().int().positive(),
+    alertDaysBeforeExpiry: legacyNumber().check(legacyInteger()).check(z.positive()),
     expiringSoon: z.array(expiringClinicSchema.strict()),
   })
   .strict();
@@ -49,7 +52,11 @@ export const platformTeamListQuerySchema = z
       .string()
       .regex(/^[A-Za-z0-9_-]{1,200}$/)
       .optional(),
-    limit: z.coerce.number().int().min(1).max(100).default(50),
+    limit: legacyCoercedNumber()
+      .check(legacyInteger())
+      .check(z.gte(1))
+      .check(z.lte(100))
+      .default(50),
   })
   .strict();
 export type PlatformTeamListQuery = z.infer<typeof platformTeamListQuerySchema>;
@@ -75,7 +82,7 @@ export type InvitePlatformAccountRequest = z.infer<typeof invitePlatformAccountR
  * `inspectInvitationRequestSchema`). Answered only for a usable link.
  */
 export const inspectPlatformInvitationResponseSchema = z
-  .object({ fullName: z.string(), email: z.string(), expiresAt: z.string().datetime() })
+  .object({ fullName: z.string(), email: z.string(), expiresAt: utcDatetime() })
   .strict();
 export type InspectPlatformInvitationResponse = z.infer<
   typeof inspectPlatformInvitationResponseSchema

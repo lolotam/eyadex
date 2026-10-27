@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { utcDatetime } from "./datetime-compat.ts";
 import { NOTIFICATION_KINDS, type NotificationKind } from "./notifications.ts";
 
 // Phase 3 N2: patient notifications over WhatsApp (docs/specs/notifications-design.md §7, decisions
@@ -61,7 +62,7 @@ export const whatsappChannelViewSchema = z
       .string()
       .regex(/^\d{4}$/)
       .nullable(),
-    riskAcceptedAt: z.string().datetime().nullable(),
+    riskAcceptedAt: utcDatetime().nullable(),
     /** Coexistence only: whether Meta credentials are stored (write-only). */
     hasCredentials: z.boolean(),
     /** Meta phone number identifier, not a phone number or credential; coexistence only. */
@@ -75,7 +76,7 @@ export const whatsappChannelViewSchema = z
       .regex(/^\d{5,30}$/)
       .nullable(),
     templates: templateSlots,
-    connectedAt: z.string().datetime().nullable(),
+    connectedAt: utcDatetime().nullable(),
     lastError: z.string().nullable(),
   })
   .strict();

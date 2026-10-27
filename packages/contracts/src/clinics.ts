@@ -1,4 +1,8 @@
 import { z } from "zod";
+import { legacyNumber } from "./number-compat.ts";
+import { legacyInteger } from "./integer-compat.ts";
+import { utcDatetime } from "./datetime-compat.ts";
+import { requiredOr } from "./type-message.ts";
 import { idSchema, languageSchema, pageQuerySchema } from "./common.ts";
 import {
   CLINIC_LIMIT_BOUNDS,
@@ -12,11 +16,10 @@ import {
 export { CLINIC_LIMIT_BOUNDS, RESERVED_CLINIC_SLUGS, timezoneOptions };
 
 const limitSchema = ({ min, max }: { min: number; max: number }) =>
-  z
-    .number({ invalid_type_error: "validation.number" })
-    .int("validation.number")
-    .min(min, "validation.min")
-    .max(max, "validation.outOfRange");
+  legacyNumber(requiredOr("validation.number"))
+    .check(legacyInteger("validation.number"))
+    .check(z.gte(min, "validation.min"))
+    .check(z.lte(max, "validation.outOfRange"));
 
 /** A clinic's user limit as a form value: the API's bounds, with the form's messages. */
 export const maxUsersSchema = limitSchema(CLINIC_LIMIT_BOUNDS.maxUsers);
@@ -83,16 +86,16 @@ export const clinicSchema = z.object({
   defaultLanguage: languageSchema,
   timezone: z.string(),
   status: clinicStatusSchema,
-  expiresAt: z.string().datetime(),
-  maxUsers: z.number().int(),
-  maxBranches: z.number().int(),
-  createdAt: z.string().datetime(),
+  expiresAt: utcDatetime(),
+  maxUsers: legacyNumber().check(legacyInteger()),
+  maxBranches: legacyNumber().check(legacyInteger()),
+  createdAt: utcDatetime(),
 });
 export type Clinic = z.infer<typeof clinicSchema>;
 
 export const clinicUsageSchema = z.object({
-  usersCount: z.number().int(),
-  branchesCount: z.number().int(),
+  usersCount: legacyNumber().check(legacyInteger()),
+  branchesCount: legacyNumber().check(legacyInteger()),
 });
 
 export const clinicListItemSchema = clinicSchema.merge(clinicUsageSchema);
@@ -138,11 +141,10 @@ export const subscriptionInputSchema = z
   .object({
     status: clinicStatusSchema,
     expiryMode: z.enum(["duration", "date"]),
-    durationMonths: z
-      .number({ invalid_type_error: "validation.number" })
-      .int()
-      .min(1, "validation.min")
-      .max(60),
+    durationMonths: legacyNumber(requiredOr("validation.number"))
+      .check(legacyInteger("validation.number"))
+      .check(z.gte(1, "validation.min"))
+      .check(z.lte(60)),
     expiresOn: z.string(),
     maxUsers: maxUsersSchema,
     maxBranches: maxBranchesSchema,
@@ -166,7 +168,7 @@ export const firstAdminInviteLinkSchema = z.object({
   email: z.string(),
   /** null = the link was emailed and is never returned (the API; PRD story 7). */
   token: z.string().nullable(),
-  expiresAt: z.string().datetime(),
+  expiresAt: utcDatetime(),
 });
 export type FirstAdminInviteLink = z.infer<typeof firstAdminInviteLinkSchema>;
 
@@ -181,7 +183,7 @@ export const firstAdminInviteStatusSchema = z.object({
   email: z.string(),
   fullName: z.string(),
   status: z.enum(["pending", "expired", "cancelled"]),
-  expiresAt: z.string().datetime(),
+  expiresAt: utcDatetime(),
 });
 export type FirstAdminInviteStatus = z.infer<typeof firstAdminInviteStatusSchema>;
 

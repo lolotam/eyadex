@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { legacyNumber } from "./number-compat.ts";
+import { legacyInteger } from "./integer-compat.ts";
 
 import { currencyCodeSchema, minorAmountSchema, signedMinorAmountSchema } from "./money.ts";
 import {
@@ -102,7 +104,7 @@ export const reportDailyTakingsResponseSchema = z
       })
       .strict(),
     currency: currencyCodeSchema,
-    currencyExponent: z.number().int(),
+    currencyExponent: legacyNumber().check(legacyInteger()),
   })
   .strict();
 
@@ -118,11 +120,11 @@ export const reportPeriodSummaryResponseSchema = z
         collectedMinor: minorAmountSchema,
         refundedMinor: minorAmountSchema,
         creditAppliedMinor: minorAmountSchema,
-        voidCount: z.number().int().nonnegative(),
+        voidCount: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
       })
       .strict(),
     currency: currencyCodeSchema,
-    currencyExponent: z.number().int(),
+    currencyExponent: legacyNumber().check(legacyInteger()),
   })
   .strict();
 
@@ -135,15 +137,15 @@ export const reportByServiceResponseSchema = z
     rows: z.array(reportByServiceRowSchema),
     totals: z
       .object({
-        lineCount: z.number().int().nonnegative(),
-        quantity: z.number().int().nonnegative(),
+        lineCount: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
+        quantity: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
         billedMinor: minorAmountSchema,
         taxMinor: minorAmountSchema,
         totalMinor: minorAmountSchema,
       })
       .strict(),
     currency: currencyCodeSchema,
-    currencyExponent: z.number().int(),
+    currencyExponent: legacyNumber().check(legacyInteger()),
   })
   .strict();
 
@@ -153,15 +155,15 @@ export const reportByDoctorResponseSchema = z
     rows: z.array(reportByDoctorRowSchema),
     totals: z
       .object({
-        lineCount: z.number().int().nonnegative(),
-        quantity: z.number().int().nonnegative(),
+        lineCount: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
+        quantity: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
         billedMinor: minorAmountSchema,
         taxMinor: minorAmountSchema,
         totalMinor: minorAmountSchema,
       })
       .strict(),
     currency: currencyCodeSchema,
-    currencyExponent: z.number().int(),
+    currencyExponent: legacyNumber().check(legacyInteger()),
   })
   .strict();
 
@@ -170,10 +172,10 @@ export const reportOutstandingResponseSchema = z
   .object({
     items: z.array(reportOutstandingRowSchema),
     nextCursor: z.string().nullable(),
-    total: z.number().int().nonnegative(),
+    total: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
     summary: z.array(reportOutstandingSummaryRowSchema),
     currency: currencyCodeSchema,
-    currencyExponent: z.number().int(),
+    currencyExponent: legacyNumber().check(legacyInteger()),
   })
   .strict();
 
@@ -182,9 +184,9 @@ export const reportPatientCreditResponseSchema = z
   .object({
     items: z.array(reportPatientCreditRowSchema),
     nextCursor: z.string().nullable(),
-    total: z.number().int().nonnegative(),
+    total: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
     currency: currencyCodeSchema,
-    currencyExponent: z.number().int(),
+    currencyExponent: legacyNumber().check(legacyInteger()),
   })
   .strict();
 
@@ -193,9 +195,9 @@ export const reportRefundResponseSchema = z
   .object({
     items: z.array(reportRefundRowSchema),
     nextCursor: z.string().nullable(),
-    total: z.number().int().nonnegative(),
+    total: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
     currency: currencyCodeSchema,
-    currencyExponent: z.number().int(),
+    currencyExponent: legacyNumber().check(legacyInteger()),
   })
   .strict();
 
@@ -204,9 +206,9 @@ export const reportDiscountResponseSchema = z
   .object({
     items: z.array(reportDiscountRowSchema),
     nextCursor: z.string().nullable(),
-    total: z.number().int().nonnegative(),
+    total: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
     currency: currencyCodeSchema,
-    currencyExponent: z.number().int(),
+    currencyExponent: legacyNumber().check(legacyInteger()),
   })
   .strict();
 
@@ -222,7 +224,7 @@ export const reportCashClosingResponseSchema = z
       })
       .strict(),
     currency: currencyCodeSchema,
-    currencyExponent: z.number().int(),
+    currencyExponent: legacyNumber().check(legacyInteger()),
   })
   .strict();
 
@@ -232,6 +234,6 @@ export const reportOwnSummaryResponseSchema = z
     rows: z.array(reportOwnSummaryRowSchema),
     totals: z.object({ billedMinor: minorAmountSchema }).strict(),
     currency: currencyCodeSchema,
-    currencyExponent: z.number().int(),
+    currencyExponent: legacyNumber().check(legacyInteger()),
   })
   .strict();

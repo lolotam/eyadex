@@ -1,3 +1,4 @@
+import { legacyNumber } from "@eyadex/contracts/number-compat";
 import { z } from "zod";
 
 const envelope = z.object({
@@ -6,7 +7,7 @@ const envelope = z.object({
   data: z.unknown().optional(),
 });
 const message = z.object({
-  status: z.union([z.string(), z.number()]).optional(),
+  status: z.union([z.string(), legacyNumber()]).optional(),
   keyId: z.string().min(1).max(200).optional(),
   key: z.object({ id: z.string().min(1).max(200).optional() }).optional(),
 });
@@ -44,7 +45,7 @@ const OUTCOMES = new Map<string | number, EvolutionMessageOutcome>([
 export function parseEvolutionWebhook(body: unknown): EvolutionWebhookEvent[] {
   const parsed = envelope.safeParse(body);
   if (!parsed.success || !parsed.data.instance.startsWith("eyadex-")) return [];
-  const uuid = z.string().uuid().safeParse(parsed.data.instance.slice(7));
+  const uuid = z.string().guid().safeParse(parsed.data.instance.slice(7));
   if (!uuid.success) return [];
   const clinicId = uuid.data;
   const event = parsed.data.event.toUpperCase().replaceAll(".", "_");
