@@ -14,6 +14,7 @@ export interface ExportLeaseHandoff {
    * يسجّل محاولة اتأجّرت في معاملة التطبيق.
    *
    * @param identity العيادة والتصدير والمحاولة والمالك
+   * @returns من غير قيمة؛ يسجّل الهوية بس ولا يبني التقرير
    */
   record(identity: LeasedExportIdentity): void;
 }
