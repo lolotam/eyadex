@@ -94,7 +94,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       # apps/api test:db imports its workspace dependencies from dist (observability, contracts, ids…).
-      - run: pnpm --filter @eyadex/db... --filter @eyadex/auth... --filter "@eyadex/api^..." --filter "@eyadex/worker^..." build
+      - run: pnpm --filter @eyadex/db... --filter @eyadex/auth... --filter "@eyadex/api^..." --filter "@eyadex/worker..." build
       - name: Tenant wrapper database tests (@eyadex/db)
         run: pnpm --filter @eyadex/db test:db
         env:

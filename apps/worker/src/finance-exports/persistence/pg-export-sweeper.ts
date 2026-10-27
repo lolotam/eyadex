@@ -25,7 +25,7 @@ export class PgExportSweeper {
     private readonly blobs: ExportBlobStore,
   ) {}
 
-  async sweepClinic(clinicId: string): Promise<void> {
+  async sweepClinic(clinicId: string, signal?: AbortSignal): Promise<void> {
     const candidates = await this.db.withTenant(clinicId, (tx) =>
       tx.execute<Candidate>(sql`
       SELECT b.export_id, b.attempt, b.storage_key, b.state FROM finance_report_export_blobs b
@@ -33,12 +33,15 @@ export class PgExportSweeper {
       WHERE b.clinic_id = ${clinicId} AND ${due} ORDER BY b.updated_at, b.id LIMIT 50`),
     );
     for (const candidate of candidates) {
+      if (signal?.aborted) return;
       const current = await this.db.withTenant(clinicId, (tx) =>
         this.#current(tx, clinicId, candidate),
       );
       if (current === null) continue;
       await this.blobs.delete(current.storage_key);
+      if (signal?.aborted) return;
       const gone = current.state === "deleted" && !(await this.blobs.exists(current.storage_key));
+      if (signal?.aborted) return;
       await this.db.withTenant(clinicId, async (tx) => {
         const still = await this.#current(tx, clinicId, candidate);
         if (still === null || still.state !== current.state) return;

@@ -47,6 +47,7 @@ import { medicalCipher, readConfig } from "./shared/config.ts";
 import { WORKER_LOG_EVENTS } from "./shared/log-events.ts";
 import { OutboxPoller } from "./shared/outbox-poller.ts";
 import { createWorker, SHUTDOWN_WATCHDOG_MS, watchShutdown } from "./worker.ts";
+import { createFinanceExports } from "./finance-exports/finance-exports.ts";
 
 const config = readConfig(process.env);
 const logger = createLogger(config.LOG_LEVEL, { events: WORKER_LOG_EVENTS });
@@ -186,10 +187,26 @@ try {
     logger,
     intervalMs: config.RETENTION_PURGE_INTERVAL_MS,
   });
+  const exportsRuntime = createFinanceExports({
+    env: process.env,
+    app,
+    platform,
+    outbox,
+    ids,
+    logger,
+    clock,
+    intervalMs: config.OUTBOX_POLL_INTERVAL_MS,
+  });
   const worker = await createWorker(
     {
       stop: async () => {
-        await Promise.all([poller.stop(), scanner.stop(), reminders.stop(), retention.stop()]);
+        await Promise.all([
+          poller.stop(),
+          scanner.stop(),
+          reminders.stop(),
+          retention.stop(),
+          exportsRuntime?.stop(),
+        ]);
       },
       readiness: {
         app: () => app.ping(),
@@ -198,6 +215,7 @@ try {
       },
       release: async () => {
         smtp?.close();
+        exportsRuntime?.close();
         await Promise.all([app.close(), outbox.close(), platform.close(), settings.close()]);
       },
     },
@@ -215,6 +233,7 @@ try {
   scanner.start();
   reminders.start();
   retention.start();
+  exportsRuntime?.start();
   logger.info({ capability: { name: "WORKER", state: "LISTENING" } }, "worker started");
 } catch (error) {
   // Only the sanitised diagnostic is logged — the error's message can carry an environment value.

@@ -1,7 +1,7 @@
 import { ConfigurationError } from "@eyadex/observability";
 import { ServiceUnavailableError } from "../errors.ts";
 import type { BlobStore } from "./blob-store.ts";
-import { S3BlobStore } from "./s3-blob-store.ts";
+import { S3BlobStore, type S3BlobStoreOptions } from "./s3-blob-store.ts";
 
 // The four values the bucket cannot work without; the region is optional and defaults below.
 const REQUIRED = [
@@ -65,10 +65,16 @@ const endpointFrom = (raw: string): URL => {
  * @returns the S3 store, or the unconfigured one
  */
 export function blobStoreFromEnv(env: NodeJS.ProcessEnv): BlobStore {
+  const options = s3BlobOptionsFromEnv(env);
+  return options === null ? new UnconfiguredBlobStore() : new S3BlobStore(options);
+}
+
+/** Validated private S3 options, shared by the attachment and export-only clients. */
+export function s3BlobOptionsFromEnv(env: NodeJS.ProcessEnv): S3BlobStoreOptions | null {
   const value = (name: string): string => env[name] ?? "";
   const region = value(REGION);
   const missing = REQUIRED.filter((name) => value(name) === "");
-  if (missing.length === REQUIRED.length && region === "") return new UnconfiguredBlobStore();
+  if (missing.length === REQUIRED.length && region === "") return null;
   if (missing.length > 0) {
     throw invalid(missing, "must be set with the other MEDICAL_BLOB_S3_* variables");
   }
@@ -78,11 +84,11 @@ export function blobStoreFromEnv(env: NodeJS.ProcessEnv): BlobStore {
   if (region !== "" && !REGION_SHAPE.test(region)) {
     throw invalid(["MEDICAL_BLOB_S3_REGION"], "must be a region name");
   }
-  return new S3BlobStore({
+  return {
     endpoint: endpointFrom(value("MEDICAL_BLOB_S3_ENDPOINT")),
     bucket,
     region: region === "" ? DEFAULT_REGION : region,
     accessKey: value("MEDICAL_BLOB_S3_ACCESS_KEY"),
     secretKey: value("MEDICAL_BLOB_S3_SECRET_KEY"),
-  });
+  };
 }
