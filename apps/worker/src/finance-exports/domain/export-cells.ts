@@ -67,7 +67,7 @@ export type PreparedReport =
     }
   | { readonly ok: false; readonly code: "export_value_invalid" };
 
-const FORMULA_FIRST = new Set([0x3d, 0x2b, 0x2d, 0x40, 0x09, 0x0d]);
+const FORMULA_FIRST = new Set([0x3d, 0x2b, 0x2d, 0x40, 0x09, 0x0a, 0x0d]);
 const SIGNED_INTEGER = /^-?(0|[1-9][0-9]*)$/;
 const UNSIGNED_INTEGER = /^(0|[1-9][0-9]*)$/;
 
@@ -95,7 +95,7 @@ function readRawCell(row: Record<string, unknown>, key: string): RawCell | null 
   };
 }
 
-/** أول حرف `= + - @` أو TAB أو CR يتسابقه `'` قبل التغليف، من غير قص. */
+/** أول حرف `= + - @` أو TAB أو LF أو CR يتسابقه `'` قبل التغليف، من غير قص. */
 function guardFormula(value: string): string {
   if (value.length === 0 || !FORMULA_FIRST.has(value.charCodeAt(0))) return value;
   return `'${value}`;
@@ -174,9 +174,12 @@ function prepareRow(
  * @returns ترويسة وصفوف جاهزة، أو `export_value_invalid` من غير القيمة
  */
 export function prepareReportExport(input: ReportExportInput): PreparedReport {
+  if (!isRecord(input)) return invalid();
   if (input.language !== "ar" && input.language !== "en") return invalid();
+  if (typeof input.report !== "string" || !Object.hasOwn(REPORT_EXPORT_COLUMNS, input.report))
+    return invalid();
   const columns = REPORT_EXPORT_COLUMNS[input.report];
-  if (columns === undefined || !Array.isArray(input.rows)) return invalid();
+  if (!Array.isArray(columns) || !Array.isArray(input.rows)) return invalid();
   const rows: PreparedField[][] = [];
   for (const rawRow of input.rows) {
     const row = prepareRow(columns, rawRow);
