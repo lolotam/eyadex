@@ -1,4 +1,5 @@
 import { createServer, type Server } from "node:http";
+import { Readable } from "node:stream";
 import { randomBytes, randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { S3ExportBlobs } from "./s3-export-blobs.ts";
@@ -8,6 +9,10 @@ let store: S3ExportBlobs;
 let status = 200;
 let versioning: string | undefined;
 const requests: { method: string; path: string; tag: string | undefined; bytes: Buffer }[] = [];
+const sample = () => ({
+  storedLength: 6,
+  ciphertext: () => Readable.from([Buffer.from("sample")]),
+});
 const key = `clinic/${randomUUID()}/finance-exports/${randomUUID()}/1.csv`;
 beforeAll(async () => {
   server = createServer(async (req, res) => {
@@ -62,7 +67,7 @@ describe("export-only S3 transport", () => {
   });
   it("uploads with the lifecycle tag in the actual signed HTTP request", async () => {
     status = 200;
-    await store.put(key, Buffer.from("sample"), new AbortController().signal);
+    await store.put(key, sample(), new AbortController().signal);
     expect(requests.at(-1)).toMatchObject({
       method: "PUT",
       tag: "eyadex-kind=finance-export",
@@ -85,9 +90,9 @@ describe("export-only S3 transport", () => {
     const count = requests.length;
     const attachment = `clinic/${randomUUID()}/${randomUUID()}`;
     await expect(store.delete(attachment)).rejects.toThrow("invalid_export_key");
-    await expect(
-      store.put(attachment, Buffer.from("sample"), new AbortController().signal),
-    ).rejects.toThrow("invalid_export_key");
+    await expect(store.put(attachment, sample(), new AbortController().signal)).rejects.toThrow(
+      "invalid_export_key",
+    );
     expect(requests).toHaveLength(count);
   });
   it("refuses a denied stat and strips the SDK's key and bucket from errors", async () => {

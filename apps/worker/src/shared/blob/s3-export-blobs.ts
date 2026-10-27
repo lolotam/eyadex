@@ -33,6 +33,9 @@ export class S3ExportBlobs implements ExportBlobStore {
       endpoint: options.endpoint,
       region: options.region,
       forcePathStyle: true,
+      // Known-length ciphertext already has authenticated records/footer; avoid optional AWS chunk
+      // trailers so compatible private stores receive the exact sealed object and ContentLength.
+      requestChecksumCalculation: "WHEN_REQUIRED",
       credentials: { accessKeyId: options.accessKey, secretAccessKey: options.secretKey },
     });
   }
@@ -55,15 +58,25 @@ export class S3ExportBlobs implements ExportBlobStore {
   }
 
   /** @inheritdoc */
-  async put(key: string, bytes: Buffer, signal: AbortSignal): Promise<void> {
+  async put(
+    key: string,
+    file: Parameters<ExportBlobStore["put"]>[1],
+    signal: AbortSignal,
+  ): Promise<void> {
     requireKey(key);
+    signal.throwIfAborted();
+    const body = file.ciphertext();
+    const stop = () => {
+      body.destroy();
+    };
+    signal.addEventListener("abort", stop, { once: true });
     try {
       await this.#client.send(
         new PutObjectCommand({
           Bucket: this.options.bucket,
           Key: key,
-          Body: bytes,
-          ContentLength: bytes.length,
+          Body: body,
+          ContentLength: file.storedLength,
           ContentType: "application/octet-stream",
           Tagging: "eyadex-kind=finance-export",
         }),
@@ -71,6 +84,9 @@ export class S3ExportBlobs implements ExportBlobStore {
       );
     } catch {
       throw new Error("export_store_unavailable");
+    } finally {
+      signal.removeEventListener("abort", stop);
+      body.destroy();
     }
   }
 

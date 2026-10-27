@@ -1,7 +1,7 @@
 # F3 export runtime and rollout
 
 Status: implemented locally, not deployed or accepted on staging. This extends the decided export
-pipeline, not F3's product scope. The stored-business-day release (0071–0073) stays separate. These
+pipeline, not F3's product scope. The stored-business-day release (0076–0078) stays separate. These
 queries intentionally use the same pre-contract business days as the on-screen API.
 
 ## API for the web slice
@@ -21,13 +21,21 @@ Export metadata contains only the frozen contract's eight fields: `id`, `report`
 The list is newest first by `(created_at, id)`. The download is `private, no-store` with an id-only
 attachment filename and a MIME type matching the format. No signed storage URL is returned.
 
+Known non-blocking metadata follow-up: `byteSize` currently counts the stored encrypted artifact;
+the attachment's `Content-Length` is its verified plaintext size. Do not display the metadata value
+as the downloaded file size. A later forward-only change will separate the two persisted lengths.
+
 Download authorization is read from the database before storage I/O and again afterwards. A lost
 permission is `forbidden`; narrower reach is `not_found`. Another requester or clinic, an unfinished,
 expired or purged job, or an own export without its patient set is `not_found`. Own patient reach uses
 `BillingPatientReader.ownPatientFilter`; a file containing a patient who left that reach is deleted
 before the blob marker and export are changed to `deleted` and `purged`. Patient ids clear at expiry.
-R5–R8 bytes use `FieldCipher` with additional data
-`finance_report_exports:blob:<clinic_id>:<export_id>:<attempt>`.
+All new export artifacts use the bounded `EYADEXE1` encrypted record format (ADR-0036), with
+FieldCipher f1 key versions and clinic/export/attempt/index binding. Downloads authenticate the whole
+object before the final authority check and first response byte. The API uses at most two active
+download slots per process, rejects excess work with 503 without waiting, and keeps a slot and its
+encrypted temporary file until response completion/abort. Expected ciphertext length comes from the
+published metadata; an oversized source is destroyed before consuming its remaining body.
 
 ## Enabling the runtime
 
@@ -48,10 +56,31 @@ five-minute timeout and the tag `eyadex-kind=finance-export`. The 50-row-per-cli
 leases, expires published files at their stored 24-hour expiry, and re-deletes a `deleted` key after
 22 minutes (longer than build + lease + PUT budgets). Only a missing stat makes it `gone`.
 
-A ready preflight is only metadata. The production reader derives the frozen job from the live
-fence again and checks current access before and after its SQL callback in one `withTenant`
-transaction. A revocation committed before or during that read rejects the rows as `forbidden`
-before file construction or blob allocation. No storage I/O runs in that transaction.
+A ready preflight is only metadata. After allocating the attempt blob, the production reader derives
+the frozen job from the live fence again inside `withTenant`. One non-holdable SELECT cursor retains
+the financial snapshot and transfers 500 rows at a time. Plain SELECT authority/fence checks run
+before and after pages, after name resolution and after writer finalization; no export-row lock spans
+the read, so the heartbeat can renew. Pages feed the encrypted local writer with backpressure. No
+network storage I/O runs in that transaction. Failed reads discard their local artifact and allocated
+blob; a failed or revoked read cannot upload or publish.
+
+Migration `0074_finance_export_patient_sets.sql` adds a forced-RLS per-attempt own ledger and widens
+file-size/row-count metadata to bigint. `0075_finance_export_patient_attempt_index.sql` indexes every
+referencing row, including completion markers and redacted rows. The unshipped stored-day release
+is reserved at 0076-0078 so the runner never receives a later file below an applied 0074.
+Own summaries stream per-patient monthly values into bounded monthly buckets, recording patients in
+SQL pages. The ledger and completion marker commit only after the complete read/writer succeeds.
+Publication requires the winning attempt's complete ledger and current patient reach. Downloads
+check that set in SQL; no complete patient-id array leaves PostgreSQL. Legacy array records are
+checked in SQL as well. The winning published/purged attempt retains its patient identifiers until
+the original expiry, even after immediate file deletion. Failed/unpublished attempts can redact once
+their file is deleted and they hold no live lease. Redaction uses bounded sweep pages; no user entity
+or opaque attempt trail is hard-deleted.
+
+CSV preserves the reviewed formula/precision rules one row at a time. XLSX uses sequential ZIP64,
+inline text cells and explicit text money, with no shared-string table or whole-sheet XML buffer.
+After 1,048,575 data rows it opens another worksheet and repeats headers. All report rows remain in
+the workbook. See `finance-f3-export-streaming.md` for the authenticated record format and tests.
 
 ## Storage actions prepared for owner approval, not applied
 
@@ -75,7 +104,8 @@ Before enabling, record creation of the new never-versioned bucket, versioning m
 allowed; worker tagging or deleting an attachment denied; API tagging or PUT on exports denied; API
 export GET/delete allowed; lifecycle rule read back from the bucket. A document or an HTTP test
 double does not prove these grants. Owner approval is still required before any policy or lifecycle
-mutation. No production SQL or backfill is part of this runtime change.
+mutation. The additive 0074–0075 migrations need a separately approved server plan; no production
+SQL, backfill or server storage mutation has been performed.
 
 ## Verification and remaining acceptance
 

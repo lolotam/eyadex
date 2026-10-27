@@ -65,7 +65,20 @@ export class ReportExportsController {
     @Res() reply: FastifyReply,
   ) {
     const id = idOf(raw);
-    const file = await this.downloads.download(actorOf(request), id);
+    const stop = new AbortController();
+    const disconnected = () => stop.abort();
+    reply.raw.once("close", disconnected);
+    let file;
+    try {
+      file = await this.downloads.download(actorOf(request), id, stop.signal);
+    } catch (error) {
+      reply.raw.off("close", disconnected);
+      throw error;
+    }
+    reply.raw.once("finish", () => {
+      reply.raw.off("close", disconnected);
+      void file.release().catch(() => undefined);
+    });
     return reply
       .header("cache-control", "private, no-store")
       .header("x-content-type-options", "nosniff")
@@ -75,6 +88,7 @@ export class ReportExportsController {
           ? "text/csv; charset=utf-8"
           : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       )
-      .send(file.bytes);
+      .header("content-length", file.byteSize)
+      .send(file.stream);
   }
 }

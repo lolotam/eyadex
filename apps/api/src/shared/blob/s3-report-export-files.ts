@@ -1,4 +1,5 @@
 import { ConfigurationError } from "@eyadex/observability";
+import { PassThrough, Readable } from "node:stream";
 import {
   DeleteObjectCommand,
   GetObjectCommand,
@@ -40,15 +41,31 @@ export class S3ReportExportFiles {
     }
   }
 
-  async get(key: string): Promise<Buffer> {
+  async get(key: string, signal: AbortSignal): Promise<Readable> {
     if (!keyAllowed(key)) throw new ApiError("not_found");
+    signal.throwIfAborted();
     try {
       const result = await this.#client.send(
         new GetObjectCommand({ Bucket: this.options.bucket, Key: key }),
-        { abortSignal: AbortSignal.timeout(30_000) },
+        { abortSignal: AbortSignal.any([signal, AbortSignal.timeout(300_000)]) },
       );
-      if (result.Body === undefined) throw new ServiceUnavailableError();
-      return Buffer.from(await result.Body.transformToByteArray());
+      if (!(result.Body instanceof Readable)) throw new ServiceUnavailableError();
+      const body = result.Body;
+      const safe = new PassThrough({ highWaterMark: 65_536 });
+      safe.on("error", () => undefined);
+      const stop = () => {
+        body.destroy();
+        safe.destroy();
+      };
+      body.on("error", () => safe.destroy(new ServiceUnavailableError()));
+      safe.once("close", () => {
+        signal.removeEventListener("abort", stop);
+        body.destroy();
+      });
+      signal.addEventListener("abort", stop, { once: true });
+      body.pipe(safe);
+      if (signal.aborted) stop();
+      return safe;
     } catch (e) {
       if (status(e) === 404) throw new ApiError("not_found");
       throw new ServiceUnavailableError();
