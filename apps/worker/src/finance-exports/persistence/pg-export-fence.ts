@@ -35,7 +35,7 @@ export async function heartbeatExport(db: Database, fence: ExportFence): Promise
 }
 
 /**
- * يكتب الفشل ويفك التأجير على نفس المالك. الخامس نهائي، والباقي يرجع `queued`.
+ * يكتب الفشل على تأجير جاري وحي لنفس المالك فقط. الخامس نهائي، والباقي يرجع `queued`.
  *
  * @param db تجمع التطبيق
  * @param fence سياج المحاولة
@@ -102,6 +102,7 @@ function failureUpdate(
           SET status = 'failed', error_code = ${kind}, next_attempt_at = NULL, lease_owner = NULL, lease_until = NULL
         WHERE clinic_id = ${fence.clinicId} AND id = ${fence.exportId}
           AND attempt = ${fence.attempt} AND lease_owner = ${fence.leaseOwner}
+          AND status = 'running' AND lease_until > clock_timestamp()
         RETURNING id`) as Promise<{ id: string }[]>;
   }
   return queuedRelease(tx, fence, minutes, kind);
@@ -119,9 +120,12 @@ function queuedRelease(
     kind === null
       ? sql`status = 'queued', next_attempt_at = ${next}, lease_owner = NULL, lease_until = NULL`
       : sql`status = 'queued', error_code = ${kind}, next_attempt_at = ${next}, lease_owner = NULL, lease_until = NULL`;
+  const liveFailure =
+    kind === null ? sql`` : sql`AND status = 'running' AND lease_until > clock_timestamp()`;
   return tx.execute(sql`UPDATE finance_report_exports
         SET ${assignment}
       WHERE clinic_id = ${fence.clinicId} AND id = ${fence.exportId}
         AND attempt = ${fence.attempt} AND lease_owner = ${fence.leaseOwner}
+        ${liveFailure}
       RETURNING id`) as Promise<{ id: string }[]>;
 }
