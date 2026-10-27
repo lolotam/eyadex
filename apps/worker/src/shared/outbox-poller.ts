@@ -8,11 +8,26 @@ export interface PollerDeps {
   readonly now: () => Date;
   readonly intervalMs: number;
   readonly logger: Logger;
+  /**
+   * قبل `claimNext`. لو راجع `false` مفيش claim: لا الساعة ولا الـ handler ولا `afterClaim`،
+   * و`runOnce` بيرجع `false`. حلقة الخلفية بتنام `intervalMs` بدل ما تلف. غيابه = السلوك القديم.
+   * متزامن ومن غير I/O — سؤال عن عدّاد في الذاكرة، مش بناء.
+   *
+   * @returns `false` يمنع الـ claim؛ غير كده الـ claim يكمل
+   */
+  readonly canClaim?: () => boolean;
+  /**
+   * بعد ما `claimNext` يخلّص، يعني بعد الـ COMMIT، حتى لو النتيجة `null`. ما بيتناداش والـ claim
+   * لسه فاتح، ولا جوه الـ handler، ولا لو `claimNext` رمى، ولا لو `canClaim` منع الـ claim.
+   * غيابه = السلوك القديم. متزامن ومن غير انتظار: صحيان طابور في الذاكرة، مش بناء ومش SQL.
+   */
+  readonly afterClaim?: () => void;
 }
 
 /**
- * الحلقة: claim واحد، ولو لقى حدث يكمل على طول، ولو ما لقاش ينام `intervalMs`. `stop()` بيوقف أي
- * claim جديد وبيستنى الحدث اللي شغال يكتب نتيجته — الـ shutdown بيقفل الـ pools بعده بس.
+ * الحلقة: claim واحد، ولو لقى حدث يكمل على طول، ولو ما لقاش ينام `intervalMs`. `canClaim` الاختياري
+ * يمنع الـ claim قبل ما يبدأ، و`afterClaim` الاختياري بيصحى بعد الـ COMMIT. `stop()` بيوقف أي claim
+ * جديد وبيستنى الحدث اللي شغال يكتب نتيجته — الـ shutdown بيقفل الـ pools بعده بس.
  */
 export class OutboxPoller {
   readonly #deps: PollerDeps;
@@ -24,10 +39,18 @@ export class OutboxPoller {
     this.#deps = deps;
   }
 
-  /** حدث واحد بالظبط (أو ولا حاجة). `true` لو اتمسك حدث. */
+  /**
+   * حدث واحد بالظبط (أو ولا حاجة). `canClaim` لو راجع `false` بيخرج قبل أي claim. `afterClaim` لو
+   * موجود بيتنادى بعد ما الـ claim يخلّص، ومش بيغيّر القيمة الراجعة.
+   *
+   * @returns `true` لو `claimNext` رجّع حدث؛ `false` لو رجّع `null` أو الـ backpressure منع الـ claim
+   */
   async runOnce(): Promise<boolean> {
-    const { outbox, types, handle, now } = this.#deps;
-    return (await outbox.claimNext(types, now(), handle)) !== null;
+    const { outbox, types, handle, now, canClaim, afterClaim } = this.#deps;
+    if (canClaim?.() === false) return false;
+    const claimed = await outbox.claimNext(types, now(), handle);
+    afterClaim?.();
+    return claimed !== null;
   }
 
   start(): void {
@@ -47,7 +70,8 @@ export class OutboxPoller {
       try {
         claimed = await this.runOnce();
       } catch (error) {
-        // The transaction rolled back: the event is untouched and is claimed again on the next tick.
+        // A claim rejection rolls the transaction back: the event is untouched and is claimed again
+        // on the next tick. A post-commit hook failure can also land here, after that claim committed.
         this.#deps.logger.error({ err: error }, "outbox poll failed");
       }
       if (!claimed && !this.#stopped) await this.#sleep();
