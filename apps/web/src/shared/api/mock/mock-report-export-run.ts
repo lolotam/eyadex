@@ -48,10 +48,8 @@ async function build(db: MockState, job: ExportJobRecord, clock: () => Date): Pr
     if (!result.ok) return fail(job);
     // A ready reader context grants nothing across writing: both keys and the exact contributing
     // own set must still be valid. Empty own exports have a complete, valid empty set.
-    if (
-      recheckExportAccess(db, job, clock()).kind !== "ready" ||
-      !ownsContributions(db, job, data.ownPatientIds)
-    )
+    const postWriteAccess = recheckExportAccess(db, job, clock());
+    if (postWriteAccess.kind !== "ready" || !ownsContributions(db, job, data.ownPatientIds))
       return fail(job);
     const details = reportExportAuditDetailsSchema.parse({
       report: job.report,
