@@ -5,10 +5,7 @@ import {
   type ReportId,
 } from "@eyadex/contracts/finance-reports";
 import { ApiError } from "../api-error";
-import {
-  admitReportExport,
-  EXPORT_QUEUE_LIMIT,
-} from "./mock-report-export-admission";
+import { admitReportExport, EXPORT_QUEUE_LIMIT } from "./mock-report-export-admission";
 import { exportJobsOf, insertExportJob, type ExportJobRecord } from "./mock-report-export-state";
 import { admin, clinicIdAt, getState, personaWith } from "./mock-report-test-kit";
 import { resetMockData } from "./mock-test-kit";
@@ -87,7 +84,12 @@ it("admits a queued job and answers the strict eight-field envelope", () => {
 });
 
 it("freezes the group defaults and keeps an explicit groupBy", () => {
-  const summary = admitReportExport(getState(), admin(), request({ report: "period_summary" }), NOW);
+  const summary = admitReportExport(
+    getState(),
+    admin(),
+    request({ report: "period_summary" }),
+    NOW,
+  );
   const job = exportJobsOf(getState()).at(-1);
   expect(summary.export.report).toBe("period_summary");
   expect(job?.params.groupBy).toBe("month");
@@ -112,20 +114,32 @@ it("accepts 1096 inclusive days and refuses 1097 as report_range_too_long", () =
     NOW,
   );
   expect(ok.export.status).toBe("queued");
-  expect(codeOf(() => admitReportExport(getState(), admin(), request({ from: "2024-01-01", to: "2027-01-01" }), NOW))).toBe(
-    "report_range_too_long",
-  );
+  expect(
+    codeOf(() =>
+      admitReportExport(
+        getState(),
+        admin(),
+        request({ from: "2024-01-01", to: "2027-01-01" }),
+        NOW,
+      ),
+    ),
+  ).toBe("report_range_too_long");
 });
 
 it("refuses a groupBy on a non-grouped report and an unknown key as validation", () => {
   expect(
     codeOf(() =>
-      admitReportExport(getState(), admin(), request({ report: "outstanding", groupBy: "day" }), NOW),
+      admitReportExport(
+        getState(),
+        admin(),
+        request({ report: "outstanding", groupBy: "day" }),
+        NOW,
+      ),
     ),
   ).toBe("validation");
-  expect(
-    codeOf(() => admitReportExport(getState(), admin(), request({ extra: true }), NOW)),
-  ).toBe("validation");
+  expect(codeOf(() => admitReportExport(getState(), admin(), request({ extra: true }), NOW))).toBe(
+    "validation",
+  );
 });
 
 it("checks the guard before the body: a suspended clinic with malformed input is blocked", () => {
@@ -139,7 +153,9 @@ it("checks the guard before the body: a suspended clinic with malformed input is
 
 it("a missing report key or a missing covering key is forbidden", () => {
   expect(
-    codeOf(() => admitReportExport(getState(), personaWith(["view:payments:clinic"]), request(), NOW)),
+    codeOf(() =>
+      admitReportExport(getState(), personaWith(["view:payments:clinic"]), request(), NOW),
+    ),
   ).toBe("forbidden");
   expect(
     codeOf(() =>
@@ -185,12 +201,7 @@ it("branch scope freezes active assigned branches; clinic scope keeps inactive o
   expect(exportJobsOf(getState()).at(-1)?.params.branchIds).toStrictEqual([a.id, b.id]);
   expect(
     codeOf(() =>
-      admitReportExport(
-        getState(),
-        personaWith(keys, [a.id]),
-        request({ branchId: b.id }),
-        NOW,
-      ),
+      admitReportExport(getState(), personaWith(keys, [a.id]), request({ branchId: b.id }), NOW),
     ),
   ).toBe("forbidden");
   admitReportExport(getState(), personaWith(keys, [a.id]), request({ branchId: a.id }), NOW);

@@ -135,7 +135,9 @@ it("a widened scope keeps exactly the frozen branches and adds none", () => {
   const job = admitted({}, persona);
   expect(job.scope).toBe("branch");
   expect(job.params.branchIds).toStrictEqual([a.id, b.id]);
-  const role = getState().roles.find((r) => r.id === getState().members.find((m) => m.id === persona.memberId)?.roleId);
+  const role = getState().roles.find(
+    (r) => r.id === getState().members.find((m) => m.id === persona.memberId)?.roleId,
+  );
   if (!role) throw new Error("missing role");
   role.permissions = ["view:report_takings:clinic", "view:payments:clinic"];
   const outcome = recheckExportAccess(getState(), job, NOW);
@@ -145,7 +147,10 @@ it("a widened scope keeps exactly the frozen branches and adds none", () => {
 
 it("an own job whose invoice key became branch or clinic scope is forbidden", () => {
   const doctor = memberOf("doctor");
-  const job = admitted({ report: "own_summary" }, { kind: "doctor", clinicId: clinicIdAt(0), memberId: null });
+  const job = admitted(
+    { report: "own_summary" },
+    { kind: "doctor", clinicId: clinicIdAt(0), memberId: null },
+  );
   expect(job.scope).toBe("own");
   const role = getState().roles.find((r) => r.id === doctor.roleId);
   if (!role) throw new Error("seed");
@@ -169,7 +174,12 @@ it("two independent states never share jobs, and a foreign job is not_found ther
   const second = buildSeed();
   const clinic = first.clinics[0];
   if (!clinic) throw new Error("seed");
-  admitReportExport(first, { kind: "clinic_admin", clinicId: clinic.id, memberId: null }, request(), NOW);
+  admitReportExport(
+    first,
+    { kind: "clinic_admin", clinicId: clinic.id, memberId: null },
+    request(),
+    NOW,
+  );
   expect(exportJobsOf(first)).toHaveLength(1);
   expect(exportJobsOf(second)).toHaveLength(0);
   const job = exportJobsOf(first)[0];

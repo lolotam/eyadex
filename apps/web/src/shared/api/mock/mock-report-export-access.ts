@@ -15,11 +15,7 @@ import type { MockState } from "./mock-store";
 // one missing frozen branch refuses the whole job; a wider scope never adds a branch.
 
 export type ExportAccessDenial =
-  | "account_disabled"
-  | "not_found"
-  | "subscription_blocked"
-  | "module_disabled"
-  | "forbidden";
+  "account_disabled" | "not_found" | "subscription_blocked" | "module_disabled" | "forbidden";
 
 export type ExportAccessOutcome =
   | { readonly kind: "ready"; readonly ctx: ReportContext }
