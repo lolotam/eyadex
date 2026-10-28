@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { Persona, SessionContext } from "@eyadex/contracts/session";
 import type { ApiClient } from "@/shared/api/api-client";
@@ -78,9 +78,18 @@ async function sessionOf(api: ApiClient, persona: Persona) {
   return pending;
 }
 let setLang: (l: "ar" | "en") => void = () => undefined;
-function LangProbe() {
+let bump: () => void = () => undefined;
+/** Renders fresh form elements on `bump`, so a changed session reaches the real hooks. */
+function Harness({ history }: { history: boolean }) {
   setLang = useI18n().setLang;
-  return null;
+  const [, setTick] = useState(0);
+  bump = () => setTick((n) => n + 1);
+  return (
+    <>
+      <ExportRequestForm />
+      {history ? <ExportHistory /> : null}
+    </>
+  );
 }
 async function setup(keys: string[], history = false) {
   const f = fixture();
@@ -94,20 +103,19 @@ async function setup(keys: string[], history = false) {
   const api = createMockApiClient();
   const persona = personaWith(keys, null);
   Object.assign(context, { api, persona, session: await sessionOf(api, persona) });
+  const real = api.reports.requestExport.bind(api.reports);
   const post = vi.spyOn(api.reports, "requestExport");
   const view = render(
     <QueryClientProvider
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
     >
       <I18nProvider>
-        <LangProbe />
-        <ExportRequestForm />
-        {history ? <ExportHistory /> : null}
+        <Harness history={history} />
       </I18nProvider>
     </QueryClientProvider>,
   );
   await flush();
-  return { f, api, persona, post, view };
+  return { f, api, persona, post, real, view };
 }
 const R = ar.reportExports.request;
 const E = en.reportExports.request;
@@ -155,13 +163,14 @@ it("lists real bilingual branch names, the inactive one marked, and all branches
   await setup(ANALYTICS);
   pickIn(R.report, "by_service");
   await flush();
-  console.log("DBG1", [...document.querySelectorAll("label")].map((l) => l.textContent));
   const texts = () =>
     [...(screen.getByLabelText(R.branch) as HTMLSelectElement).options].map((o) => o.text);
   expect(texts()).toContain(R.allBranches);
   expect(texts()).toContain("فرع أ");
   expect(texts()).toContain(R.inactive.replace("{name}", "فرع قديم"));
   act(() => setLang("en"));
+  const texts = () =>
+    [...(screen.getByLabelText(E.branch) as HTMLSelectElement).options].map((o) => o.text);
   expect(texts()).toContain(E.inactive.replace("{name}", "Old branch"));
   expect(texts()).toContain("Branch A");
   expect((screen.getByLabelText(E.branch) as HTMLSelectElement).value).toBe("__all__");
@@ -208,7 +217,6 @@ it("R6 shows the clinic-wide balance note in both languages and still requires i
   await flush();
   expect(screen.getByRole("note").textContent).toBe(R.creditNote);
   await submit();
-  console.log("DBG2", document.body.textContent);
   expect(post).not.toHaveBeenCalled();
   expect(screen.getByLabelText(R.from).getAttribute("aria-invalid")).toBe("true");
   expect(screen.getAllByText(R.issues.date).length).toBe(2);
@@ -256,7 +264,7 @@ it("no report, failed branches or a reach-invalid branch never POST; retry recov
     getState().branches.filter((x) => x.clinicId === persona.clinicId)[0]!.id,
   ];
   context.session = await sessionOf(api, persona);
-  await submit();
+  act(() => bump());
   await flush();
   expect((screen.getByLabelText(R.branch) as HTMLSelectElement).value).toBe("__unavailable__");
   expect(screen.getAllByText(R.fields.branchUnavailable).length).toBeGreaterThan(0);
@@ -269,8 +277,7 @@ it("no report, failed branches or a reach-invalid branch never POST; retry recov
 });
 
 it("a double click sends one POST and disables every control while pending", async () => {
-  const { post, api } = await setup(TAKINGS);
-  const real = api.reports.requestExport.bind(api.reports);
+  const { post, real } = await setup(TAKINGS);
   let release = () => undefined as void;
   post.mockImplementation(async (...a) => {
     await new Promise<void>((r) => (release = r));
@@ -290,7 +297,6 @@ it("a double click sends one POST and disables every control while pending", asy
   expect(screen.queryByText(R.queued)).toBeNull();
   release();
   await flush();
-  console.log("DBG3", post.mock.calls.length, document.body.textContent);
   expect(screen.getByText(R.queued)).toBeTruthy();
 });
 
@@ -306,7 +312,7 @@ it("losing the report key marks the form unavailable while own history stays", a
   )!;
   role.permissions = ["view:report_takings:branch"];
   context.session = await sessionOf(api, persona);
-  pickIn(R.format, "xlsx");
+  act(() => bump());
   await flush();
   expect(screen.getAllByText(R.fields.reportUnavailable).length).toBeGreaterThan(0);
   expect((screen.getByLabelText(R.report) as HTMLSelectElement).value).toBe("daily_takings");
