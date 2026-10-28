@@ -79,7 +79,7 @@ export interface ReportExportsApi {
   /** `GET /v1/finance-reports/exports`: the caller's own exports, newest first. */
   listExports(
     persona: Persona,
-    query: z.input<typeof reports.reportExportListQuerySchema>,
+    query: Partial<z.infer<typeof reports.reportExportListQuerySchema>>,
   ): Promise<z.infer<typeof reports.reportExportListResponseSchema>>;
   /** `GET /v1/finance-reports/exports/:id`: one of the caller's exports. */
   getExport(persona: Persona, exportId: string): Promise<ExportResponse>;

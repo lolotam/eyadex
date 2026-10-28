@@ -40,7 +40,10 @@ function exportsWith(answer: (seen: Seen) => Answer) {
     seen.push(call);
     const a = answer(call);
     if (a.bytes) {
-      return new Response(a.bytes, { status: a.status ?? 200, headers: { "content-type": a.type! } });
+      return new Response(a.bytes, {
+        status: a.status ?? 200,
+        headers: { "content-type": a.type! },
+      });
     }
     return new Response(a.body === undefined ? "" : JSON.stringify(a.body), {
       status: a.status ?? 200,
