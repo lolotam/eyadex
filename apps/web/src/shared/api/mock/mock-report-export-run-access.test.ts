@@ -284,7 +284,7 @@ it.each(["permission", "own reach"])(
       }
       return f.clock();
     });
-    expect(calls).toBe(3);
     await f.failed();
+    expect(calls).toBe(4);
   },
 );
