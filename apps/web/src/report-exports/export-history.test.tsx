@@ -144,11 +144,11 @@ it("keeps own history after report-key loss but hides a refused download", async
 });
 
 it("shows head errors with manual retry, keeps rows on refresh error and drops them on identity change", async () => {
-  let list: { mockRejectedValueOnce: (e: unknown) => unknown } | null = null;
+  const holder: { list?: { mockRejectedValueOnce: (e: unknown) => unknown } } = {};
   let calls = () => 0;
   const f = await mount((api) => {
     const spy = vi.spyOn(api.reports, "listExports");
-    list = spy;
+    holder.list = spy;
     calls = () => spy.mock.calls.length;
     spy.mockRejectedValueOnce(new ApiError("module_disabled"));
   });
@@ -162,7 +162,7 @@ it("shows head errors with manual retry, keeps rows on refresh error and drops t
   fireEvent.click(screen.getByRole("button", { name: t.retry }));
   await flush(200);
   expect(screen.getAllByTestId("export-row")).toHaveLength(1);
-  list?.mockRejectedValueOnce(new ApiError("unknown"));
+  holder.list?.mockRejectedValueOnce(new ApiError("unknown"));
   fireEvent.click(screen.getByRole("button", { name: t.refresh }));
   await flush(200);
   expect(screen.getByRole("alert")).toBeInTheDocument();
