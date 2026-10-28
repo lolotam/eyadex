@@ -147,6 +147,8 @@ it("uses the real schema: 1096 days passes, over-range, inverted and wrong group
     expect(outcome.status).toBe("invalid");
     expect(h.result.current.issues.map((i) => i.message)).toContain(message);
   }
+  const shape = await run({ ...body(), extra: 1 } as ReportExportRequest);
+  expect(shape).toEqual({ status: "invalid", issues: [{ path: "", message: null }] });
   expect(post).not.toHaveBeenCalled();
 });
 
