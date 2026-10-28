@@ -28,7 +28,9 @@ const paths = (keys: string[], features?: { finance: boolean }) =>
 function renderPage() {
   const list = vi.spyOn(context.api!.reports, "listExports");
   const view = render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
       <I18nProvider>
         <ReportsPage />
       </I18nProvider>
@@ -83,6 +85,7 @@ it("keeps the own history after report keys are revoked, while the form refuses 
   context.session = await sessionOf(context.api!, persona);
   expect(context.session.permissions).toEqual([]);
   const post = vi.spyOn(context.api!.reports, "requestExport");
+  const before = post.mock.calls.length;
   view.unmount();
   list.mockRestore();
   renderPage();
@@ -90,13 +93,17 @@ it("keeps the own history after report keys are revoked, while the form refuses 
   expect(screen.getByRole("heading", { level: 2, name: H.title })).toBeTruthy();
   expect(screen.getAllByText(H.reports.daily_takings).length).toBeGreaterThan(0);
   expect(screen.getByText(R.noReports)).toBeTruthy();
-  expect(post).not.toHaveBeenCalled();
+  await submit();
+  expect(post.mock.calls.length).toBe(before);
 });
 
 it("finance off shows the module message and never calls the exports API", async () => {
   await setup(TAKINGS);
   document.body.innerHTML = "";
-  context.session = { ...context.session!, features: { ...context.session!.features, finance: false } };
+  context.session = {
+    ...context.session!,
+    features: { ...context.session!.features, finance: false },
+  };
   const { list } = renderPage();
   await flush();
   expect(screen.getByText(ar.errors.module_disabled)).toBeTruthy();
