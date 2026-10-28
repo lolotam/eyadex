@@ -78,7 +78,7 @@ const revoke: Record<string, (f: RunFixture) => void> = {
     f.db.branches = f.db.branches.filter((b) => b.id !== f.b.id);
   },
   "inactive account": (f) => {
-    f.member.status = "inactive";
+    f.member.status = "deactivated";
   },
   "inactive role": (f) => {
     f.role.isActive = false;
@@ -200,7 +200,7 @@ it("CSV common await boundary also rechecks live access", async () => {
   if (!job) throw new Error("Missing CSV job");
   await advanceReportExport(f.db, job, () => new Date(NOW.getTime() + EXPORT_STEP_MS));
   const work = advanceReportExport(f.db, job, () => new Date(NOW.getTime() + 2 * EXPORT_STEP_MS));
-  f.member.status = "inactive";
+  f.member.status = "deactivated";
   await work;
   expect(job.status).toBe("failed");
   expect(job.artifact).toBeNull();
