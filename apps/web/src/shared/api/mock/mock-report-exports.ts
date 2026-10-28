@@ -42,7 +42,9 @@ function requesterJobs(db: MockState, actor: Actor): ExportJobRecord[] {
 function requesterJob(db: MockState, actor: Actor, input: string): ExportJobRecord {
   const parsed = idSchema.safeParse(input);
   if (!parsed.success) throw new ApiError("not_found");
-  const job = requesterJobs(db, actor).find((row) => row.id.toLowerCase() === parsed.data.toLowerCase());
+  const job = requesterJobs(db, actor).find(
+    (row) => row.id.toLowerCase() === parsed.data.toLowerCase(),
+  );
   if (!job) throw new ApiError("not_found");
   return job;
 }
@@ -107,7 +109,9 @@ export function createMockReportExports(clock: () => Date = () => new Date()): R
       const job = requesterJob(db, actor, exportId);
       await advance(db, [job]);
       const live = actorAfter(db, persona, actor);
-      return reportExportResponseSchema.parse({ export: publicExportOf(requesterJob(db, live, job.id)) });
+      return reportExportResponseSchema.parse({
+        export: publicExportOf(requesterJob(db, live, job.id)),
+      });
     },
     async listExports(persona, input) {
       const db = getState();
@@ -118,8 +122,16 @@ export function createMockReportExports(clock: () => Date = () => new Date()): R
       const live = actorAfter(db, persona, actor);
       const rows = requesterJobs(db, live).sort(newest);
       const { cursor, limit } = parsed.data;
-      const anchor = cursor === undefined ? undefined : rows.find((row) => row.id.toLowerCase() === cursor.toLowerCase());
-      const remaining = cursor === undefined ? rows : anchor === undefined ? [] : rows.filter((row) => newest(row, anchor) > 0);
+      const anchor =
+        cursor === undefined
+          ? undefined
+          : rows.find((row) => row.id.toLowerCase() === cursor.toLowerCase());
+      const remaining =
+        cursor === undefined
+          ? rows
+          : anchor === undefined
+            ? []
+            : rows.filter((row) => newest(row, anchor) > 0);
       const page = remaining.slice(0, limit);
       return reportExportListResponseSchema.parse({
         items: page.map(publicExportOf),
@@ -139,7 +151,10 @@ export function createMockReportExports(clock: () => Date = () => new Date()): R
       const copy = new Uint8Array(bytes.byteLength);
       copy.set(bytes);
       const blob = new Blob([copy.buffer], {
-        type: job.format === "csv" ? "text/csv; charset=utf-8" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        type:
+          job.format === "csv"
+            ? "text/csv; charset=utf-8"
+            : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
       // Real byte-copy/Blob preparation crosses an await; a prior grant cannot authorize return.
       await Promise.resolve(blob);

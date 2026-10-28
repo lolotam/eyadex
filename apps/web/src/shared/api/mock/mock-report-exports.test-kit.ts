@@ -10,7 +10,9 @@ export function setup(own = false) {
   f.db.appointments = [];
   f.db.medical.visits = [];
   const persona = personaWith(
-    own ? ["view:report_own:own", "view:invoices:own"] : ["view:report_takings:branch", "view:payments:branch"],
+    own
+      ? ["view:report_own:own", "view:invoices:own"]
+      : ["view:report_takings:branch", "view:payments:branch"],
     [f.a.id, f.b.id],
   );
   const member = f.db.members.find((m) => m.id === persona.memberId);
@@ -27,10 +29,15 @@ export function setup(own = false) {
   const clock = () => new Date(time);
   const api = createMockReportExports(clock);
   const body: ReportExportRequest = {
-    report: own ? "own_summary" : "daily_takings", format: "csv", language: "en",
-    from: "2026-01-01", to: "2026-12-31",
+    report: own ? "own_summary" : "daily_takings",
+    format: "csv",
+    language: "en",
+    from: "2026-01-01",
+    to: "2026-12-31",
   };
-  const tick = (ms = EXPORT_STEP_MS) => { time += ms; };
+  const tick = (ms = EXPORT_STEP_MS) => {
+    time += ms;
+  };
   const request = async (changes: Partial<ReportExportRequest> = {}) => {
     const response = await api.requestExport(persona, { ...body, ...changes });
     const job = exportJobsOf(f.db).find((j) => j.id === response.export.id);
