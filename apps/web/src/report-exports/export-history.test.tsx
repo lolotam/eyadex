@@ -25,7 +25,9 @@ vi.mock("@/shared/persona/persona-provider", () => ({
 const t = en.reportExports;
 let client: QueryClient;
 beforeEach(() => {
-  vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval", "setTimeout", "clearTimeout"] });
+  vi.useFakeTimers({
+    toFake: ["Date", "setInterval", "clearInterval", "setTimeout", "clearTimeout"],
+  });
   window.localStorage.setItem("eyadex:language", "en");
 });
 afterEach(() => {
@@ -88,7 +90,11 @@ it("follows a real job queued -> running -> done and downloads once with the rea
   expect(screen.getByText("Showing 1 of 1")).toBeInTheDocument();
   await advance(f);
   expect(screen.getByTestId("export-row")).toHaveTextContent(t.statuses.running);
-  for (let i = 0; i < 4 && !screen.getByTestId("export-row").textContent?.includes(t.statuses.done); i += 1)
+  for (
+    let i = 0;
+    i < 4 && !screen.getByTestId("export-row").textContent?.includes(t.statuses.done);
+    i += 1
+  )
     await advance(f);
   const row = screen.getByTestId("export-row");
   expect(row).toHaveTextContent(t.statuses.done);
@@ -96,7 +102,9 @@ it("follows a real job queued -> running -> done and downloads once with the rea
   const create = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:synthetic-export");
   const revoke = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
   let filename = "";
-  vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+  vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+    this: HTMLAnchorElement,
+  ) {
     filename = this.download;
   });
   const call = vi.spyOn(f.root.reports, "downloadExport");
@@ -172,7 +180,8 @@ it("loads more pages, and a page error keeps rows with manual retry", async () =
   await flush(200);
   await act(async () => {
     for (let i = 0; i < 13; i += 1) await f.finish();
-    for (let i = 0; i < 10; i += 1) await f.root.reports.requestExport(f.persona, f.body).catch(() => null);
+    for (let i = 0; i < 10; i += 1)
+      await f.root.reports.requestExport(f.persona, f.body).catch(() => null);
   });
   vi.setSystemTime(f.clock());
   fireEvent.click(screen.getByRole("button", { name: t.refresh }));

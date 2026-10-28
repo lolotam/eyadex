@@ -27,7 +27,14 @@ type Props = {
 };
 
 /** One requester-owned export: only its public metadata, never its size, filters or contents. */
-export function ExportHistoryRow({ row, canDownload, pending, unavailable, error, onDownload }: Props) {
+export function ExportHistoryRow({
+  row,
+  canDownload,
+  pending,
+  unavailable,
+  error,
+  onDownload,
+}: Props) {
   const { t, tDynamic, lang } = useI18n();
   const { session } = useSession();
   const formatter = new Intl.DateTimeFormat(lang === "ar" ? "ar-KW" : "en-GB", {
@@ -42,9 +49,7 @@ export function ExportHistoryRow({ row, canDownload, pending, unavailable, error
   const detail = (label: string, value: string, iso?: string) => (
     <div className="flex justify-between gap-3 md:block">
       <dt className="text-xs text-muted-foreground md:sr-only">{label}</dt>
-      <dd className="text-sm tabular-nums">
-        {iso ? <time dateTime={iso}>{value}</time> : value}
-      </dd>
+      <dd className="text-sm tabular-nums">{iso ? <time dateTime={iso}>{value}</time> : value}</dd>
     </div>
   );
   return (
@@ -63,13 +68,25 @@ export function ExportHistoryRow({ row, canDownload, pending, unavailable, error
         </span>
       </div>
       <dl className="contents">
-        {detail(t("reportExports.created"), formatter.format(new Date(row.createdAt)), row.createdAt)}
-        {row.expiresAt
-          ? detail(t("reportExports.expires"), formatter.format(new Date(row.expiresAt)), row.expiresAt)
-          : <span className="hidden md:block" />}
-        {row.rowCount !== null
-          ? detail(t("reportExports.rows"), String(row.rowCount))
-          : <span className="hidden md:block" />}
+        {detail(
+          t("reportExports.created"),
+          formatter.format(new Date(row.createdAt)),
+          row.createdAt,
+        )}
+        {row.expiresAt ? (
+          detail(
+            t("reportExports.expires"),
+            formatter.format(new Date(row.expiresAt)),
+            row.expiresAt,
+          )
+        ) : (
+          <span className="hidden md:block" />
+        )}
+        {row.rowCount !== null ? (
+          detail(t("reportExports.rows"), String(row.rowCount))
+        ) : (
+          <span className="hidden md:block" />
+        )}
       </dl>
       <div className="flex flex-col items-stretch gap-1 md:items-end">
         {canDownload && !unavailable ? (

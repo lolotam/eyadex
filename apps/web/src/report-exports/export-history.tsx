@@ -20,7 +20,13 @@ export function ExportHistory() {
         <AlertCircle className="size-4 shrink-0" aria-hidden />
         {label ?? tDynamic(`errors.${code}`)}
       </span>
-      <Button type="button" variant="outline" size="sm" className="min-h-11 md:min-h-9" onClick={() => void retry()}>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="min-h-11 md:min-h-9"
+        onClick={() => void retry()}
+      >
         {t("reportExports.retry")}
       </Button>
     </div>
@@ -42,7 +48,10 @@ export function ExportHistory() {
           disabled={history.isRefreshing || history.isLoading}
           onClick={() => void history.refresh()}
         >
-          <RefreshCw className={history.isRefreshing ? "size-4 animate-spin" : "size-4"} aria-hidden />
+          <RefreshCw
+            className={history.isRefreshing ? "size-4 animate-spin" : "size-4"}
+            aria-hidden
+          />
           {history.isRefreshing ? t("reportExports.refreshing") : t("reportExports.refresh")}
         </Button>
       </header>

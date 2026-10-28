@@ -28,7 +28,11 @@ const base = reportExportSchema.parse({
   createdAt: "2026-03-01T21:30:00.000Z",
   expiresAt: "2026-03-02T21:30:00.000Z",
 });
-function show(row: ReportExport, lang: "ar" | "en" = "en", extra: Partial<Parameters<typeof ExportHistoryRow>[0]> = {}) {
+function show(
+  row: ReportExport,
+  lang: "ar" | "en" = "en",
+  extra: Partial<Parameters<typeof ExportHistoryRow>[0]> = {},
+) {
   window.localStorage.setItem("eyadex:language", lang);
   const onDownload = vi.fn();
   render(
