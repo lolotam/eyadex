@@ -49,15 +49,15 @@ it("ready carries exactly the frozen branches and the request language", () => {
 
 it("a removed report key or covering key is forbidden", () => {
   const job = admitted();
-  adminRole().permissions = adminRole().permissions.filter(
-    (key) => key !== "view:report_takings:clinic",
-  );
+  const second = admitted();
+  const role = adminRole();
+  const original = [...role.permissions];
+  role.permissions = original.filter((key) => key !== "view:report_takings:clinic");
   expect(recheckExportAccess(getState(), job, NOW)).toStrictEqual({
     kind: "denied",
     code: "forbidden",
   });
-  const second = admitted();
-  adminRole().permissions = adminRole().permissions.filter((key) => key !== "view:payments:clinic");
+  role.permissions = original.filter((key) => key !== "view:payments:clinic");
   expect(recheckExportAccess(getState(), second, NOW)).toStrictEqual({
     kind: "denied",
     code: "forbidden",
