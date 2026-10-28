@@ -173,7 +173,11 @@ it("two independent states never share jobs, and a foreign job is not_found ther
   expect(exportJobsOf(second)).toHaveLength(0);
   const job = exportJobsOf(first)[0];
   if (!job) throw new Error("missing job");
-  expect(recheckExportAccess(second, job, NOW)).toStrictEqual({ kind: "denied", code: "not_found" });
+  const foreign = { ...job, clinicId: "00000000-0000-4000-8000-000000000099" };
+  expect(recheckExportAccess(second, foreign, NOW)).toStrictEqual({
+    kind: "denied",
+    code: "not_found",
+  });
 });
 
 it("a reset state cannot see the old jobs", () => {

@@ -260,10 +260,10 @@ it("the check and the insert are one synchronous step with no async gap", () => 
 
 it("admission and refusal write no audit row and no artifact", () => {
   const before = structuredClone(getState().clinicAudit);
-  admitReportExport(getState(), admin(), request(), NOW);
   for (let index = 0; index < EXPORT_QUEUE_LIMIT; index += 1) {
-    codeOf(() => admitReportExport(getState(), admin(), request(), NOW));
+    admitReportExport(getState(), admin(), request(), NOW);
   }
+  expect(codeOf(() => admitReportExport(getState(), admin(), request(), NOW))).toBe("export_busy");
   expect(getState().clinicAudit).toStrictEqual(before);
   expect(exportJobsOf(getState()).every((job) => job.artifact === null)).toBe(true);
 });
