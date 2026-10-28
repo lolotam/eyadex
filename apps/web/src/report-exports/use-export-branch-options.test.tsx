@@ -97,7 +97,11 @@ it("loads every opaque cursor page sequentially at 100 with real names, inactive
     all.map(({ id, nameAr, nameEn, isActive }) => ({ id, nameAr, nameEn, isActive })),
   );
   expect(h.result.current.items.find((b) => b.id === id(20007))?.isActive).toBe(false);
-  expect(h.result.current.items.some((b) => b.clinicId !== undefined)).toBe(false);
+  expect(
+    h.result.current.items.every(
+      (b) => Object.keys(b).sort().join() === "id,isActive,nameAr,nameEn",
+    ),
+  ).toBe(true);
   expect(h.result.current.isReady).toBe(true);
   expect(f.db.branches.some((b) => b.clinicId !== f.ctx.clinicId)).toBe(true);
 });
