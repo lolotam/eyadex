@@ -8,6 +8,7 @@ import { discounts, refunds } from "./mock-report-adjustments";
 import { byDoctor, byService, ownSummary } from "./mock-report-analytics";
 import { outstanding, patientCredit } from "./mock-report-balances";
 import { cashClosings, dailyTakings, periodSummary } from "./mock-report-takings";
+import { createMockReportExports } from "./mock-report-exports";
 import { delay, getState, type MockState } from "./mock-store";
 
 /**
@@ -41,6 +42,7 @@ export function createMockReports(now: () => Date = () => new Date()): ReportsAp
       return readReport(getState(), persona, report, q, r, raw, build);
     };
   return {
+    ...createMockReportExports(now),
     dailyTakings: run(
       "daily_takings",
       reports.reportDailyTakingsQuerySchema,
