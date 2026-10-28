@@ -53,15 +53,17 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
     mounted.current = true;
     return () => {
       mounted.current = false;
-      generation.current.value += 1;
     };
   }, []);
   useEffect(() => {
     unavailable.current.clear();
     setState({ scope, pending: new Set(), unavailable: new Set(), errors: {} });
   }, [scope]);
-  const current = () => mounted.current && live.current.scope === scope &&
-    generation.current.value === epoch && live.current.ready;
+  const current = () =>
+    mounted.current &&
+    live.current.scope === scope &&
+    generation.current.value === epoch &&
+    live.current.ready;
   function update(change: (old: DownloadState) => DownloadState) {
     if (current())
       setState((old) =>

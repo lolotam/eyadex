@@ -42,12 +42,12 @@ export function useExportHistory() {
     session.clinic?.id === persona.clinicId &&
     session.persona.kind === persona.kind &&
     session.persona.memberId === persona.memberId;
-  const current = () => mounted.current && identity.current === scope && generation.current === epoch;
+  const current = () =>
+    mounted.current && identity.current === scope && generation.current === epoch;
   useEffect(() => {
     mounted.current = true;
     return () => {
       mounted.current = false;
-      generation.current += 1;
     };
   }, []);
 
@@ -81,7 +81,8 @@ export function useExportHistory() {
       };
     },
     refetchInterval: (q) =>
-      !q.state.error && !client.getQueryData([...key, "page-error"]) &&
+      !q.state.error &&
+      !client.getQueryData([...key, "page-error"]) &&
       q.state.data?.items.some((row) => row.status === "queued" || row.status === "running")
         ? 2000
         : false,
