@@ -54,6 +54,7 @@ export const enAudit = {
       payment_methods: "Payment methods",
       refund: "Refund",
       cash_closing: "Cash closing",
+      finance_report_export: "Finance report export",
     },
     actions: {
       branch: {
@@ -152,6 +153,7 @@ export const enAudit = {
       payment_methods: { changed: "Payment methods changed" },
       refund: { recorded: "Refund recorded" },
       cash_closing: { closed: "Cash drawer closed" },
+      finance_report: { exported: "Finance report exported" },
       ...enMedicalAuditActions,
     },
     fields: {
@@ -188,6 +190,10 @@ export const enAudit = {
       roleId: "Role",
       allBranches: "All branches",
       branchIds: "Branches",
+      report: "Report",
+      from: "Period start",
+      to: "Period end",
+      rowCount: "Rows",
       status: "Status",
       expiresAt: "Expires",
       permissionKeys: "Permissions",

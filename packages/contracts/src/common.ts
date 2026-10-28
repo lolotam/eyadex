@@ -40,32 +40,13 @@ export const FINANCE_F2_ERROR_CODES = [
 
 /**
  * The F3 codes of the reports and their exports (spec §4, §7.1, §7.4), shared by the API catalogue and
- * its messages. The on-screen reports' code is web-catalogued; the export codes wait for their slice.
+ * its messages. The web catalogue includes them so report and export screens use `errors.*`.
  */
 export const FINANCE_F3_ERROR_CODES = [
   "export_busy",
   "report_range_too_long",
   "export_amount_too_large",
 ] as const;
-
-/**
- * The finance codes the API owns and the web does not yet translate: the export codes, whose web
- * translations come with the export slice. `report_range_too_long` left this list with the web reports
- * client (F3 slice 3 card B), so the web reads it as a catalogued code.
- */
-type ApiOnlyFinanceCodes<Codes extends readonly string[]> = Codes extends readonly [
-  infer Code extends string,
-  ...infer Rest extends readonly string[],
-]
-  ? Code extends "report_range_too_long"
-    ? ApiOnlyFinanceCodes<Rest>
-    : readonly [Code, ...ApiOnlyFinanceCodes<Rest>]
-  : readonly [];
-
-export const FINANCE_API_ONLY_ERROR_CODES = FINANCE_F3_ERROR_CODES.filter(
-  (code) => code !== "report_range_too_long",
-) as unknown as ApiOnlyFinanceCodes<typeof FINANCE_F3_ERROR_CODES>;
-const financeApiOnlyErrorCodes = FINANCE_API_ONLY_ERROR_CODES;
 
 const baseApiErrorCodes = [
   "not_found",
@@ -126,8 +107,6 @@ const baseApiErrorCodes = [
   "role_self_change",
 ] as const;
 
-// Zod 3's enum exclusion exceeds TypeScript's recursion limit on the full catalogue; exclude only
-// from this smaller finance tuple, since the base codes contain no F2 or F3 entries.
 const financeApiErrorCodeSchema = z.enum([
   // Finance F1 (spec §3.3, R1-6/8/9/10/16, R2-5).
   "price_missing",
@@ -162,13 +141,12 @@ export type ApiErrorCode = z.infer<typeof apiErrorCodeSchema>;
  * The codes the current web slice supports, plus two the API never sends. `conflict` is a 409
  * whose code the web does not know; `not_implemented` is a method the HTTP adapter has no route for
  * yet. Kept apart from `apiErrorCodeSchema` because the API's message table must cover exactly the
- * codes the API can return. The finance F2 codes are in the web catalogue — the web carries their
- * messages in `errors.*` — while the F3 codes stay API-only until their web slice adds their
- * translations; the HTTP adapter falls back for codes its web catalogue does not recognise.
+ * codes the API can return. Finance F2 and F3 messages live in the web's `errors.*`; the HTTP adapter
+ * falls back for codes its web catalogue does not recognise.
  */
 export const webErrorCodeSchema = z.enum([
   ...baseApiErrorCodes,
-  ...financeApiErrorCodeSchema.exclude(financeApiOnlyErrorCodes).options,
+  ...financeApiErrorCodeSchema.options,
   "conflict",
   "not_implemented",
 ]);

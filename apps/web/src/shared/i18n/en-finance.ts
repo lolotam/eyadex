@@ -1,5 +1,10 @@
-// Finance F1 screen strings (prices, finance settings, invoices, platform finance). Error copy stays
-// in en.ts `errors`.
+export const enReportExportErrors = {
+  report_range_too_long: "The requested period is longer than allowed.",
+  export_busy: "Exports are busy; try again shortly.",
+  export_amount_too_large: "The amount is too large for a CSV file; export an XLSX instead.",
+};
+
+// Finance F1 screen strings (prices, finance settings, invoices, platform finance).
 export const enFinance = {
   finance: {
     noPrice: "No price",

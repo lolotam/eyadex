@@ -1,4 +1,4 @@
-import { arFinance } from "./ar-finance";
+import { arFinance, arReportExportErrors } from "./ar-finance";
 import { arPayments } from "./ar-payments";
 import { arCashClosings } from "./ar-cash-closings";
 import { arNotifications } from "./ar-notifications";
@@ -289,6 +289,6 @@ export const ar: Dictionary = {
     closing_note_required: "اكتب ملاحظة عند وجود فرق.",
     cash_drawer_out_of_range:
       "صافي النقد في هذه الفترة يتجاوز الحد المسموح، ولا يمكن إقفال الصندوق",
-    report_range_too_long: "الفترة أطول من المسموح (366 يومًا على الأكثر).",
+    ...arReportExportErrors,
   },
 };

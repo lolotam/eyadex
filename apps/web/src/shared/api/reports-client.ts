@@ -63,3 +63,26 @@ export interface ReportsApi {
     typeof reports.reportOwnSummaryResponseSchema
   >;
 }
+
+type ExportResponse = z.infer<typeof reports.reportExportResponseSchema>;
+
+/**
+ * Finance F3 exports (spec §7): every export is a job for the requester alone. The request body and
+ * list query go as typed, so the API judges them; the download is the file's bytes, never a URL.
+ */
+export interface ReportExportsApi {
+  /** `POST /v1/finance-reports/exports`: queues one export (202). */
+  requestExport(
+    persona: Persona,
+    body: z.input<typeof reports.reportExportRequestSchema>,
+  ): Promise<ExportResponse>;
+  /** `GET /v1/finance-reports/exports`: the caller's own exports, newest first. */
+  listExports(
+    persona: Persona,
+    query: Partial<z.infer<typeof reports.reportExportListQuerySchema>>,
+  ): Promise<z.infer<typeof reports.reportExportListResponseSchema>>;
+  /** `GET /v1/finance-reports/exports/:id`: one of the caller's exports. */
+  getExport(persona: Persona, exportId: string): Promise<ExportResponse>;
+  /** `GET /v1/finance-reports/exports/:id/download`: the finished file. */
+  downloadExport(persona: Persona, exportId: string): Promise<Blob>;
+}

@@ -90,11 +90,31 @@ The owner set this loop on 2026-10-06 and tightened it on 2026-10-17 (small slic
 
 6. **Loop.** Send the next slice (step 1).
 
+## Handle Lovable pauses (owner decision 2026-10-28)
+
+`awaiting_input` is a checkpoint to investigate, not an automatic reason to ask the owner. The owner
+delegates routine pause handling within the already-authorized slice to the orchestrator:
+
+1. Read the latest `get_message` result, the paused tool, its parameters and the relevant plan/code.
+   Identify why Lovable stopped and check the proposed action against the approved scope and rules.
+2. Resolve implementation questions and give concrete corrections yourself. Approve a reviewed plan
+   or routine tool action that fits the existing authorization; reject an incorrect proposal with
+   specific feedback and direct Lovable to correct it. Do not ask the owner to repeat an approval.
+3. For a pending tool, use `respond_to_approval` with its current `event_id` and the original user
+   `message_id`, not the assistant message id. Do not use `send_message` to answer a pending approval:
+   that rejects the pending tool. Re-read an already-answered or changed pause before acting again.
+4. Verify Lovable resumed or produced the requested correction, then continue the delivery loop.
+   A plan correction is not permission to implement unless implementation is already authorized.
+
+Ask the owner only when the pause actually needs a new product/architectural decision, authority
+outside the existing approval, or an owner-only action under the rules below. Preserve the existing
+security, server-operation and release gates. If `requires_secure_form=true`, direct the owner to
+the supplied editor URL; never collect, read or submit credentials in chat or `user_input`.
+
 ## Stop and ask the owner
 
 - A product decision: `TODO(spec)`, or anything the PRD doesn't settle. Get an independent read-only advisor (a Plan subagent) first and bring its recommendation.
 - An architectural change, or a security finding you can't fix confidently.
-- Lovable paused on `awaiting_input`.
 - A blocking finding still open after 3 fix rounds.
 - A slice that cannot be split under the size limit (step 1).
 - Any production action, for example applying `db/sql` to the production database over SSH. Back up first (`pg_dump -Fc` plus roles), run read-only pre-checks, then `migrate.sh --status` / `--dry-run` / apply / `--status`, then the `db/tests` files.
