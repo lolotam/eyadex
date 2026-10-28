@@ -75,10 +75,7 @@ it.each([false, true])(
     expect(f.create).toHaveBeenCalledTimes(1);
     expect(filename).toBe(`finance-report-${f.row.id}.csv`);
     const blob = f.create.mock.calls[0]?.[0];
-    if (!blob || !f.job) {
-      /* fixture owns real job */
-    }
-    if (!blob || !f.row) throw new Error("Missing real Blob");
+    if (!blob) throw new Error("Missing real Blob");
     const bytes = await blobBytes(blob);
     expect([...bytes.slice(0, 3)]).toStrictEqual([239, 187, 191]);
     expect(new TextDecoder().decode(bytes)).toContain("Branch A,cash,3.000,0.000,3.000,KWD\r\n");

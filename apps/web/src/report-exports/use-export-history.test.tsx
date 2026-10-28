@@ -51,7 +51,9 @@ async function fixture() {
   const api = createMockApiClient();
   context.api = api;
   context.persona = f.persona;
-  context.session = await api.session.getContext(f.persona);
+  const session = api.session.getContext(f.persona);
+  await vi.advanceTimersByTimeAsync(80);
+  context.session = await session;
   return { ...f, root: api };
 }
 
@@ -151,7 +153,9 @@ it("coalesces slow polls and discards an old request when membership changes, wi
   expect(read).toHaveBeenCalledTimes(1);
   const other = personaWith([]);
   context.persona = other;
-  context.session = await f.root.session.getContext(other);
+  const session = f.root.session.getContext(other);
+  await vi.advanceTimersByTimeAsync(80);
+  context.session = await session;
   h.rerender();
   expect(h.result.current.items).toStrictEqual([]);
   read.mockImplementation(actual);
