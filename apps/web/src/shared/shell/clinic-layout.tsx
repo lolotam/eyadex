@@ -32,7 +32,7 @@ export function ClinicLayout() {
   }
 
   const permissions = session?.permissions ?? [];
-  const items = session?.blocked ? [] : navItemsFor(CLINIC_NAV, permissions);
+  const items = session?.blocked ? [] : navItemsFor(CLINIC_NAV, permissions, session?.features);
   const subtitle = session?.clinic ? pick(session.clinic.nameAr, session.clinic.nameEn) : undefined;
 
   const signInLink = (

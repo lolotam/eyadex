@@ -21,6 +21,7 @@ import { Route as ClinicAppointmentsRouteImport } from './routes/clinic.appointm
 import { Route as ClinicAuditRouteImport } from './routes/clinic.audit'
 import { Route as ClinicBranchesRouteImport } from './routes/clinic.branches'
 import { Route as ClinicPaymentsRouteImport } from './routes/clinic.payments'
+import { Route as ClinicReportsRouteImport } from './routes/clinic.reports'
 import { Route as ClinicRolesRouteImport } from './routes/clinic.roles'
 import { Route as ClinicUsersRouteImport } from './routes/clinic.users'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
@@ -108,6 +109,11 @@ const ClinicBranchesRoute = ClinicBranchesRouteImport.update({
 const ClinicPaymentsRoute = ClinicPaymentsRouteImport.update({
   id: '/payments',
   path: '/payments',
+  getParentRoute: () => ClinicRoute,
+} as any)
+const ClinicReportsRoute = ClinicReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
   getParentRoute: () => ClinicRoute,
 } as any)
 const ClinicRolesRoute = ClinicRolesRouteImport.update({
@@ -265,6 +271,7 @@ export interface FileRoutesByFullPath {
   '/clinic/audit': typeof ClinicAuditRoute
   '/clinic/branches': typeof ClinicBranchesRoute
   '/clinic/payments': typeof ClinicPaymentsRoute
+  '/clinic/reports': typeof ClinicReportsRoute
   '/clinic/roles': typeof ClinicRolesRoute
   '/clinic/users': typeof ClinicUsersRoute
   '/invite/$token': typeof InviteTokenRoute
@@ -305,6 +312,7 @@ export interface FileRoutesByTo {
   '/clinic/audit': typeof ClinicAuditRoute
   '/clinic/branches': typeof ClinicBranchesRoute
   '/clinic/payments': typeof ClinicPaymentsRoute
+  '/clinic/reports': typeof ClinicReportsRoute
   '/clinic/roles': typeof ClinicRolesRoute
   '/clinic/users': typeof ClinicUsersRoute
   '/invite/$token': typeof InviteTokenRoute
@@ -348,6 +356,7 @@ export interface FileRoutesById {
   '/clinic/audit': typeof ClinicAuditRoute
   '/clinic/branches': typeof ClinicBranchesRoute
   '/clinic/payments': typeof ClinicPaymentsRoute
+  '/clinic/reports': typeof ClinicReportsRoute
   '/clinic/roles': typeof ClinicRolesRoute
   '/clinic/users': typeof ClinicUsersRoute
   '/invite/$token': typeof InviteTokenRoute
@@ -392,6 +401,7 @@ export interface FileRouteTypes {
     | '/clinic/audit'
     | '/clinic/branches'
     | '/clinic/payments'
+    | '/clinic/reports'
     | '/clinic/roles'
     | '/clinic/users'
     | '/invite/$token'
@@ -432,6 +442,7 @@ export interface FileRouteTypes {
     | '/clinic/audit'
     | '/clinic/branches'
     | '/clinic/payments'
+    | '/clinic/reports'
     | '/clinic/roles'
     | '/clinic/users'
     | '/invite/$token'
@@ -474,6 +485,7 @@ export interface FileRouteTypes {
     | '/clinic/audit'
     | '/clinic/branches'
     | '/clinic/payments'
+    | '/clinic/reports'
     | '/clinic/roles'
     | '/clinic/users'
     | '/invite/$token'
@@ -599,6 +611,13 @@ declare module '@tanstack/react-router' {
       path: '/payments'
       fullPath: '/clinic/payments'
       preLoaderRoute: typeof ClinicPaymentsRouteImport
+      parentRoute: typeof ClinicRoute
+    }
+    '/clinic/reports': {
+      id: '/clinic/reports'
+      path: '/reports'
+      fullPath: '/clinic/reports'
+      preLoaderRoute: typeof ClinicReportsRouteImport
       parentRoute: typeof ClinicRoute
     }
     '/clinic/roles': {
@@ -806,6 +825,7 @@ interface ClinicRouteChildren {
   ClinicAuditRoute: typeof ClinicAuditRoute
   ClinicBranchesRoute: typeof ClinicBranchesRoute
   ClinicPaymentsRoute: typeof ClinicPaymentsRoute
+  ClinicReportsRoute: typeof ClinicReportsRoute
   ClinicRolesRoute: typeof ClinicRolesRoute
   ClinicUsersRoute: typeof ClinicUsersRoute
   ClinicIndexRoute: typeof ClinicIndexRoute
@@ -835,6 +855,7 @@ const ClinicRouteChildren: ClinicRouteChildren = {
   ClinicAuditRoute: ClinicAuditRoute,
   ClinicBranchesRoute: ClinicBranchesRoute,
   ClinicPaymentsRoute: ClinicPaymentsRoute,
+  ClinicReportsRoute: ClinicReportsRoute,
   ClinicRolesRoute: ClinicRolesRoute,
   ClinicUsersRoute: ClinicUsersRoute,
   ClinicIndexRoute: ClinicIndexRoute,
