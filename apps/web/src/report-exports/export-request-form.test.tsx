@@ -84,13 +84,21 @@ function LangProbe() {
 }
 async function setup(keys: string[], history = false) {
   const f = fixture();
-  f.db.branches.push({ ...f.a, id: id(30000), nameAr: "فرع قديم", nameEn: "Old branch", isActive: false });
+  f.db.branches.push({
+    ...f.a,
+    id: id(30000),
+    nameAr: "فرع قديم",
+    nameEn: "Old branch",
+    isActive: false,
+  });
   const api = createMockApiClient();
   const persona = personaWith(keys, null);
   Object.assign(context, { api, persona, session: await sessionOf(api, persona) });
   const post = vi.spyOn(api.reports, "requestExport");
   const view = render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
       <I18nProvider>
         <LangProbe />
         <ExportRequestForm />
@@ -118,7 +126,11 @@ it("labels every field in Arabic and English with only the reports the actor may
   await setup([...TAKINGS, "view:report_analytics:clinic", "view:invoices:branch"]);
   const options = () =>
     [...(screen.getByLabelText(R.report) as HTMLSelectElement).options].map((o) => o.text);
-  expect(options()).toEqual([R.reportPlaceholder, ar.reportExports.reports.daily_takings, ar.reportExports.reports.period_summary]);
+  expect(options()).toEqual([
+    R.reportPlaceholder,
+    ar.reportExports.reports.daily_takings,
+    ar.reportExports.reports.period_summary,
+  ]);
   for (const label of [R.report, R.from, R.to, R.branch, R.format, R.language])
     expect(screen.getByLabelText(label)).toBeTruthy();
   expect(screen.queryByLabelText(R.groupBy)).toBeNull();
@@ -155,25 +167,38 @@ it("lists real bilingual branch names, the inactive one marked, and all branches
   noRawKeys();
 });
 
-it.each(["csv", "xlsx"] as const)("queues the exact %s body and the row appears in own history", async (format) => {
-  const { post, persona } = await setup(ANALYTICS, true);
-  pickIn(R.report, "by_service");
-  type(R.from, "2026-01-01");
-  type(R.to, "2026-03-31");
-  await flush();
-  pickIn(R.branch, id(30000));
-  pickIn(R.format, format);
-  pickIn(R.language, "en");
-  await submit();
-  expect(post.mock.calls).toEqual([
-    [persona, { report: "by_service", from: "2026-01-01", to: "2026-03-31", branchId: id(30000), format, language: "en" }],
-  ]);
-  expect(screen.getByText(R.queued)).toBeTruthy();
-  expect(screen.queryByText(ar.reportExports.empty)).toBeNull();
-  expect(screen.getAllByText(ar.reportExports.reports.by_service).length).toBeGreaterThan(1);
-  expect((screen.getByLabelText(R.from) as HTMLInputElement).value).toBe("2026-01-01");
-  noRawKeys();
-});
+it.each(["csv", "xlsx"] as const)(
+  "queues the exact %s body and the row appears in own history",
+  async (format) => {
+    const { post, persona } = await setup(ANALYTICS, true);
+    pickIn(R.report, "by_service");
+    type(R.from, "2026-01-01");
+    type(R.to, "2026-03-31");
+    await flush();
+    pickIn(R.branch, id(30000));
+    pickIn(R.format, format);
+    pickIn(R.language, "en");
+    await submit();
+    expect(post.mock.calls).toEqual([
+      [
+        persona,
+        {
+          report: "by_service",
+          from: "2026-01-01",
+          to: "2026-03-31",
+          branchId: id(30000),
+          format,
+          language: "en",
+        },
+      ],
+    ]);
+    expect(screen.getByText(R.queued)).toBeTruthy();
+    expect(screen.queryByText(ar.reportExports.empty)).toBeNull();
+    expect(screen.getAllByText(ar.reportExports.reports.by_service).length).toBeGreaterThan(1);
+    expect((screen.getByLabelText(R.from) as HTMLInputElement).value).toBe("2026-01-01");
+    noRawKeys();
+  },
+);
 
 it("R6 shows the clinic-wide balance note in both languages and still requires its dates", async () => {
   const { post } = await setup(CREDIT);
@@ -194,7 +219,11 @@ it("R6 shows the clinic-wide balance note in both languages and still requires i
   type(E.from, "2026-01-01");
   type(E.to, "2026-01-31");
   await submit(E.submit);
-  expect(post.mock.calls[0]![1]).toMatchObject({ report: "patient_credit", from: "2026-01-01", to: "2026-01-31" });
+  expect(post.mock.calls[0]![1]).toMatchObject({
+    report: "patient_credit",
+    from: "2026-01-01",
+    to: "2026-01-31",
+  });
   noRawKeys();
 });
 
