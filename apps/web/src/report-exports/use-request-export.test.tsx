@@ -87,7 +87,7 @@ it.each([
   [body({ format: "xlsx", language: "en", groupBy: "day" }), "xlsx"],
 ] as const)("queues the exact validated %#body and refreshes only the requester history", async (input) => {
   const { f, post, persona } = await setup();
-  const withBranch = { ...input, branchIds: [f.a.id] };
+  const withBranch = { ...input, branchId: f.a.id };
   const h = mount();
   const mine = historyKey(context.session!, persona);
   const other = ["clinic", "report-exports", "custom", persona.clinicId, "someone-else", 0];
