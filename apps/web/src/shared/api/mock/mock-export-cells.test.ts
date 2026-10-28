@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { REPORT_EXPORT_COLUMNS } from "@eyadex/contracts/finance-reports";
 import { prepareReportExport } from "./mock-export-cells";
 import { artifact, money, refused, row, text } from "./mock-export-fixtures.test-kit";
@@ -70,10 +70,10 @@ describe("standalone cell validation", () => {
   it("guards header text from the catalogue too", () => {
     const header = REPORT_EXPORT_COLUMNS.own_summary[0]?.header;
     if (!header) throw new Error("Missing catalogue header");
-    const spy = vi.spyOn(header, "en", "get");
-    spy.mockReturnValue("=synthetic-header");
+    const original = header.en;
+    header.en = "=synthetic-header";
     try {
       expect(artifact("own_summary", []).records[0]?.[0]).toBe("'=synthetic-header");
-    } finally { spy.mockRestore(); }
+    } finally { header.en = original; }
   });
 });
