@@ -45,8 +45,8 @@ async function fixture() {
   vi.stubGlobal(
     "URL",
     class extends URL {
-      static createObjectURL = create;
-      static revokeObjectURL = revoke;
+      static override createObjectURL = create;
+      static override revokeObjectURL = revoke;
     },
   );
   const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});

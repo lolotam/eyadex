@@ -24,6 +24,10 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
     session?.membershipId,
   ]);
   const live = useRef({ scope, rows, ready: false });
+  const generation = useRef({ scope, value: 0 });
+  if (generation.current.scope !== scope)
+    generation.current = { scope, value: generation.current.value + 1 };
+  const epoch = generation.current.value;
   live.current = {
     scope,
     rows,
@@ -49,13 +53,15 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
     mounted.current = true;
     return () => {
       mounted.current = false;
+      generation.current.value += 1;
     };
   }, []);
   useEffect(() => {
     unavailable.current.clear();
     setState({ scope, pending: new Set(), unavailable: new Set(), errors: {} });
   }, [scope]);
-  const current = () => mounted.current && live.current.scope === scope && live.current.ready;
+  const current = () => mounted.current && live.current.scope === scope &&
+    generation.current.value === epoch && live.current.ready;
   function update(change: (old: DownloadState) => DownloadState) {
     if (current())
       setState((old) =>
@@ -154,7 +160,7 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
     inFlight.current.set(token, work);
     return work;
   }
-  const visible =
+  const visible: Omit<DownloadState, "scope"> =
     state.scope === scope
       ? state
       : { pending: new Set<string>(), unavailable: new Set<string>(), errors: {} };

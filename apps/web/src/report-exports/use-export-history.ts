@@ -28,7 +28,10 @@ export function useExportHistory() {
   ] as const;
   const scope = JSON.stringify(key);
   const identity = useRef(scope);
+  const generation = useRef(0);
+  if (identity.current !== scope) generation.current += 1;
   identity.current = scope;
+  const epoch = generation.current;
   const mounted = useRef(false);
   const pending = useRef<{ scope: string; work: Promise<void> } | null>(null);
   const enabled =
@@ -39,11 +42,12 @@ export function useExportHistory() {
     session.clinic?.id === persona.clinicId &&
     session.persona.kind === persona.kind &&
     session.persona.memberId === persona.memberId;
-  const current = () => mounted.current && identity.current === scope;
+  const current = () => mounted.current && identity.current === scope && generation.current === epoch;
   useEffect(() => {
     mounted.current = true;
     return () => {
       mounted.current = false;
+      generation.current += 1;
     };
   }, []);
 
@@ -54,6 +58,8 @@ export function useExportHistory() {
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     queryFn: async ({ signal }): Promise<History> => {
+      if (pending.current?.scope === scope) await pending.current.work;
+      if (signal.aborted || !current()) throw new Error("Cancelled export history");
       const previous = client.getQueryData<History>(key);
       const head = await api.reports.listExports(persona, {});
       // Keep loaded tails when newly queued jobs shift the head. Refresh their real metadata,
@@ -75,7 +81,7 @@ export function useExportHistory() {
       };
     },
     refetchInterval: (q) =>
-      !q.state.error &&
+      !q.state.error && !client.getQueryData([...key, "page-error"]) &&
       q.state.data?.items.some((row) => row.status === "queued" || row.status === "running")
         ? 2000
         : false,
