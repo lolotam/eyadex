@@ -35,8 +35,7 @@ export type ExportFormFieldIssue =
   | { field: "report"; code: "required" | "unavailable" }
   | { field: "branchId"; code: "not_ready" | "unavailable" };
 export type ExportFormOutcome =
-  | RequestExportOutcome
-  | { status: "blocked"; issues: ExportFormFieldIssue[] };
+  RequestExportOutcome | { status: "blocked"; issues: ExportFormFieldIssue[] };
 
 const INITIAL: ExportFormDraft = {
   report: null,
@@ -74,9 +73,10 @@ export function useExportForm() {
     epoch,
     draft: INITIAL,
   });
-  const [fieldState, setFieldState] = useState<{ epoch: number; issues: ExportFormFieldIssue[] }>(
-    { epoch, issues: [] },
-  );
+  const [fieldState, setFieldState] = useState<{ epoch: number; issues: ExportFormFieldIssue[] }>({
+    epoch,
+    issues: [],
+  });
   const draft = stored.epoch === epoch ? stored.draft : INITIAL;
   const fieldIssues = fieldState.epoch === epoch ? fieldState.issues : [];
   const language = draft.language ?? lang;

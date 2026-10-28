@@ -82,7 +82,12 @@ async function fill(h: H, report: Parameters<H["result"]["current"]["form"]["set
 }
 
 it("lists only reports with the report key and its covering key; a wider uncovered key adds none", async () => {
-  await setup([...TAKINGS, "view:report_analytics:clinic", "view:invoices:branch", "view:users:clinic"]);
+  await setup([
+    ...TAKINGS,
+    "view:report_analytics:clinic",
+    "view:invoices:branch",
+    "view:users:clinic",
+  ]);
   const h = mount();
   expect(h.result.current.form.eligibleReports).toEqual(["daily_takings", "period_summary"]);
   act(() => h.result.current.form.setReport("by_service"));
@@ -217,8 +222,7 @@ it("while branches load or fail nothing POSTs; manual retry recovers", async () 
 });
 
 it("a reach change keeps the stale branch and blocks it, never widening to all", async () => {
-  const { f, post, persona, api } = await setup(TAKINGS, [f0(), f1()]);
-  void f;
+  const { post, persona, api } = await setup(TAKINGS, [f0(), f1()]);
   const h = mount();
   await fill(h, "daily_takings");
   act(() => h.result.current.form.setBranchId(f1()));
