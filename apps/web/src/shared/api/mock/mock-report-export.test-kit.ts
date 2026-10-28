@@ -188,7 +188,7 @@ export function credit(f: Fixture, number: number, patientId = f.patient.id) {
     patientId,
     originAllocationId: id(60000 + number),
     amountMinor: "7000",
-    cause: "void" as const,
+    cause: "invoice_voided" as const,
     createdAt: "2024-01-01T12:00:00.000Z",
     by: f.member.id,
   };
@@ -234,7 +234,7 @@ export function makeOwn(f: Fixture, patientId: string, cancelled = false) {
     serviceId: null,
     startsAt: "2026-05-10T10:00:00.000Z",
     endsAt: "2026-05-10T11:00:00.000Z",
-    status: cancelled ? "cancelled" : "confirmed",
+    status: cancelled ? "cancelled" : "booked",
     overbooked: false,
     cancelReason: null,
     cancelNote: null,

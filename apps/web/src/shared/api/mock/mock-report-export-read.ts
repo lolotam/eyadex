@@ -15,6 +15,15 @@ import { cashClosings, dailyTakings, periodSummary } from "./mock-report-takings
 type RawRow = Record<string, unknown>;
 type PageQuery = { from: string; to: string; limit: number; cursor?: string };
 
+/** A writer refusal stays internal; it is not a code in the public API error catalogue. */
+class ExportValueInvalid extends Error {
+  readonly code = "export_value_invalid";
+
+  constructor() {
+    super("export_value_invalid");
+  }
+}
+
 function allPages<T>(
   read: (query: PageQuery) => { items: T[]; nextCursor: string | null },
   params: FrozenReportExportParams,
@@ -57,7 +66,7 @@ function exportContext(current: ReportContext, params: FrozenReportExportParams)
 
 function cells(report: ReportId, raw: RawRow, language: "ar" | "en"): ExportCsvRow {
   const currency = currencyCodeSchema.safeParse(raw["currency"]);
-  if (!currency.success) throw new ApiError("export_value_invalid");
+  if (!currency.success) throw new ExportValueInvalid();
   const exponent = SUPPORTED_CURRENCIES[currency.data];
   const result: Record<string, ExportCell> = {};
   for (const column of REPORT_EXPORT_COLUMNS[report]) {
@@ -78,7 +87,7 @@ function cells(report: ReportId, raw: RawRow, language: "ar" | "en"): ExportCsvR
       };
     else if (column.kind === "text" && (typeof value === "string" || value === null))
       result[column.key] = { kind: "text", value };
-    else throw new ApiError("export_value_invalid");
+    else throw new ExportValueInvalid();
   }
   return result;
 }
