@@ -91,40 +91,37 @@ const historyKey = (s: SessionContext, p: Persona, epoch = 0) => [
 ];
 
 it.each([
-  [body({ format: "csv", language: "ar", groupBy: "month" }), "csv"],
-  [body({ format: "xlsx", language: "en", groupBy: "day" }), "xlsx"],
-] as const)(
-  "queues the exact validated %#body and refreshes only the requester history",
-  async (input) => {
-    const { f, post, persona } = await setup();
-    const withBranch = { ...input, branchId: f.a.id };
-    const h = mount();
-    const mine = historyKey(context.session!, persona);
-    const other = ["clinic", "report-exports", "custom", persona.clinicId, "someone-else", 0];
-    client.setQueryData(mine, { items: [] });
-    client.setQueryData(other, { items: [] });
-    let outcome: Awaited<ReturnType<typeof h.result.current.submit>> | undefined;
-    await act(async () => {
-      outcome = await h.result.current.submit(withBranch);
-    });
-    expect(outcome?.status === "invalid" ? outcome.issues : []).toEqual([]);
-    expect(post).toHaveBeenCalledTimes(1);
-    expect(post.mock.calls[0]).toEqual([persona, reportExportRequestSchema.parse(withBranch)]);
-    const job = exportJobsOf(f.db).at(-1)!;
-    expect(outcome).toEqual({
-      status: "queued",
-      export: expect.objectContaining({ id: job.id, status: "queued" }),
-    });
-    expect(h.result.current.queued?.id).toBe(job.id);
-    expect(job.params).toMatchObject({
-      language: withBranch.language,
-      groupBy: withBranch.groupBy,
-      branchIds: [f.a.id],
-    });
-    expect(client.getQueryState(mine)?.isInvalidated).toBe(true);
-    expect(client.getQueryState(other)?.isInvalidated).toBe(false);
-  },
-);
+  [body({ format: "csv", language: "ar", groupBy: "month" })],
+  [body({ format: "xlsx", language: "en", groupBy: "day" })],
+])("queues the exact validated body %# and refreshes only the requester history", async (input) => {
+  const { f, post, persona } = await setup();
+  const withBranch = { ...input, branchId: f.a.id };
+  const h = mount();
+  const mine = historyKey(context.session!, persona);
+  const other = ["clinic", "report-exports", "custom", persona.clinicId, "someone-else", 0];
+  client.setQueryData(mine, { items: [] });
+  client.setQueryData(other, { items: [] });
+  let outcome: Awaited<ReturnType<typeof h.result.current.submit>> | undefined;
+  await act(async () => {
+    outcome = await h.result.current.submit(withBranch);
+  });
+  expect(outcome?.status === "invalid" ? outcome.issues : []).toEqual([]);
+  expect(post).toHaveBeenCalledTimes(1);
+  expect(post.mock.calls[0]).toEqual([persona, reportExportRequestSchema.parse(withBranch)]);
+  const job = exportJobsOf(f.db).at(-1)!;
+  expect(outcome).toEqual({
+    status: "queued",
+    export: expect.objectContaining({ id: job.id, status: "queued" }),
+  });
+  expect(h.result.current.queued?.id).toBe(job.id);
+  expect(job.params).toMatchObject({
+    language: withBranch.language,
+    groupBy: withBranch.groupBy,
+    branchIds: [f.a.id],
+  });
+  expect(client.getQueryState(mine)?.isInvalidated).toBe(true);
+  expect(client.getQueryState(other)?.isInvalidated).toBe(false);
+});
 
 it("uses the real schema: 1096 days passes, over-range, inverted and wrong grouping never POST", async () => {
   const { post } = await setup([
