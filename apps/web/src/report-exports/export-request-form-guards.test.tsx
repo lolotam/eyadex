@@ -5,19 +5,14 @@ import { id } from "@/shared/api/mock/mock-report-export.test-kit";
 import { ar } from "@/shared/i18n/ar";
 import * as kit from "./export-request-form.test-kit";
 
-vi.mock("@/shared/api/api-provider", async () => {
-  const { context } = await import("./export-request-form.test-kit");
-  return { useApi: () => context.api };
-});
-vi.mock("@/shared/persona/persona-provider", async () => {
-  const { context } = await import("./export-request-form.test-kit");
-  return {
-    usePersona: () => ({ persona: context.persona, ready: true }),
-    useSession: () => ({ session: context.session, isLoading: false, error: null }),
-  };
-});
-vi.mock("./export-select-field", async () => ({
-  ExportSelectField: (await import("./export-request-form.test-kit")).NativeSelect,
+// The closures read the kit only when a hook runs, after every import has resolved.
+vi.mock("@/shared/api/api-provider", () => ({ useApi: () => kit.context.api }));
+vi.mock("@/shared/persona/persona-provider", () => ({
+  usePersona: () => ({ persona: kit.context.persona, ready: true }),
+  useSession: () => ({ session: kit.context.session, isLoading: false, error: null }),
+}));
+vi.mock("./export-select-field", () => ({
+  ExportSelectField: (p: Parameters<typeof kit.NativeSelect>[0]) => kit.NativeSelect(p),
 }));
 
 const {
