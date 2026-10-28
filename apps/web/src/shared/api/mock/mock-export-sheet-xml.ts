@@ -14,23 +14,29 @@ function xmlText(value: string): string {
     if (
       code === undefined ||
       !(
-        code === 9 || code === 10 || code === 13 ||
+        code === 9 ||
+        code === 10 ||
+        code === 13 ||
         (code >= 0x20 && code <= 0xd7ff) ||
         (code >= 0xe000 && code <= 0xfffd) ||
         (code >= 0x10000 && code <= 0x10ffff)
       )
-    ) throw new Error("export_value_invalid");
+    )
+      throw new Error("export_value_invalid");
   }
   // One replacement pass prevents recursively escaping the inserted Xstring prefix.
-  return value.replace(/_x(?=[0-9a-fA-F]{4}_)/g, "_x005F_x")
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+  return value
+    .replace(/_x(?=[0-9a-fA-F]{4}_)/g, "_x005F_x")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
     .replace(/\r/g, "&#13;");
 }
 
 function columnLetters(column: number): string {
   let result = "";
   do {
-    result = String.fromCharCode(65 + column % 26) + result;
+    result = String.fromCharCode(65 + (column % 26)) + result;
     column = Math.floor(column / 26) - 1;
   } while (column >= 0);
   return result;
@@ -57,9 +63,16 @@ export function* reportSheetXmls(
   rtl: boolean,
   dataRowsPerSheet = XLSX_DATA_ROWS_PER_SHEET,
 ): Generator<string> {
-  if (!Number.isSafeInteger(dataRowsPerSheet) || dataRowsPerSheet < 1 ||
-      dataRowsPerSheet > XLSX_DATA_ROWS_PER_SHEET) throw new Error("export_value_invalid");
-  const headerXml = rowXml(header.map((value) => ({ kind: "text", value })), 1);
+  if (
+    !Number.isSafeInteger(dataRowsPerSheet) ||
+    dataRowsPerSheet < 1 ||
+    dataRowsPerSheet > XLSX_DATA_ROWS_PER_SHEET
+  )
+    throw new Error("export_value_invalid");
+  const headerXml = rowXml(
+    header.map((value) => ({ kind: "text", value })),
+    1,
+  );
   let start = 0;
   do {
     const end = Math.min(start + dataRowsPerSheet, rows.length);
@@ -81,7 +94,11 @@ export function workbookParts(sheets: number): ReadonlyArray<readonly [string, s
   const relations = `${XML}<Relationships xmlns="${PACKAGE_REL}">${numbers.map((n) => `<Relationship Id="rId${n}" Type="${REL}/worksheet" Target="worksheets/sheet${n}.xml"/>`).join("")}<Relationship Id="rIdStyles" Type="${REL}/styles" Target="styles.xml"/></Relationships>`;
   const root = `${XML}<Relationships xmlns="${PACKAGE_REL}"><Relationship Id="rId1" Type="${REL}/officeDocument" Target="xl/workbook.xml"/></Relationships>`;
   const styles = `${XML}<styleSheet xmlns="${MAIN}"><numFmts count="1"><numFmt numFmtId="164" formatCode="@"/></numFmts><fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/><xf numFmtId="164" fontId="0" fillId="0" borderId="0" applyNumberFormat="1"/></cellXfs></styleSheet>`;
-  return [["[Content_Types].xml", types], ["_rels/.rels", root],
-    ["xl/workbook.xml", workbook], ["xl/_rels/workbook.xml.rels", relations],
-    ["xl/styles.xml", styles]];
+  return [
+    ["[Content_Types].xml", types],
+    ["_rels/.rels", root],
+    ["xl/workbook.xml", workbook],
+    ["xl/_rels/workbook.xml.rels", relations],
+    ["xl/styles.xml", styles],
+  ];
 }

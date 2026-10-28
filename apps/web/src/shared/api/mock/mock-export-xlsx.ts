@@ -16,7 +16,10 @@ export async function encodePreparedXlsx(
     // Validate all XML/counts first. Even a later sheet failure exposes no partial ZIP.
     const sheets = [...reportSheetXmls(prepared.header, prepared.rows, rtl, dataRowsPerSheet)];
     const zip = new ZipWriter(new Uint8ArrayWriter(), {
-      level: 0, zip64: true, useWebWorkers: false, keepOrder: true,
+      level: 0,
+      zip64: true,
+      useWebWorkers: false,
+      keepOrder: true,
     });
     for (const [index, xml] of sheets.entries())
       await zip.add(`xl/worksheets/sheet${index + 1}.xml`, new TextReader(xml));
@@ -34,8 +37,10 @@ export async function writeReportXlsx(input: unknown): Promise<ReportXlsxResult>
   const prepared = prepareReportExport(input);
   if (!prepared.ok) return prepared;
   try {
-    const language = typeof input === "object" && input !== null && "language" in input
-      ? input.language : undefined;
+    const language =
+      typeof input === "object" && input !== null && "language" in input
+        ? input.language
+        : undefined;
     return await encodePreparedXlsx(prepared, language === "ar");
   } catch {
     return { ok: false, code: "export_value_invalid" };

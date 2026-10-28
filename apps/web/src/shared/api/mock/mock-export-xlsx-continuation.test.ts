@@ -10,8 +10,13 @@ it("uses Excel's full format capacity, not a business row cap", () => {
 });
 
 it.each([0, 1, 3, 4, 6, 7])("sheet continuation retains all %s rows exactly once", async (size) => {
-  const prepared = prepareReportExport({ report: "own_summary", language: "ar",
-    rows: Array.from({ length: size }, (_, i) => row("own_summary", { period: date(`synthetic-${i}`) })) });
+  const prepared = prepareReportExport({
+    report: "own_summary",
+    language: "ar",
+    rows: Array.from({ length: size }, (_, i) =>
+      row("own_summary", { period: date(`synthetic-${i}`) }),
+    ),
+  });
   if (!prepared.ok) throw new Error("Invalid synthetic fixture");
   // The same split helper serves the real writer; only this internal seam injects a small limit.
   const artifact = await readXlsx(await encodePreparedXlsx(prepared, true, 3));
@@ -25,8 +30,11 @@ it.each([0, 1, 3, 4, 6, 7])("sheet continuation retains all %s rows exactly once
     expect(elements(sheet, "sheetView")[0]?.getAttribute("rightToLeft")).toBe("1");
     for (const [rowIndex, record] of elements(sheet, "row").entries()) {
       expect(record.getAttribute("r")).toBe(String(rowIndex + 1));
-      expect(elements(record, "c").map((cell) => cell.getAttribute("r")))
-        .toStrictEqual([`A${rowIndex + 1}`, `B${rowIndex + 1}`, `C${rowIndex + 1}`]);
+      expect(elements(record, "c").map((cell) => cell.getAttribute("r"))).toStrictEqual([
+        `A${rowIndex + 1}`,
+        `B${rowIndex + 1}`,
+        `C${rowIndex + 1}`,
+      ]);
     }
     actual.push(...values.slice(1).map((cells) => cells[0] ?? "missing"));
   }
@@ -41,19 +49,31 @@ it("the public default split helper uses the same header-only behavior", () => {
   expect(cellValues(document)).toStrictEqual([["Synthetic"]]);
 });
 
-it.each([0, -1, 1.5, NaN, Infinity, 1_048_576])("refuses invalid injected format limit %s", async (limit) => {
-  const prepared = prepareReportExport({ report: "own_summary", language: "en", rows: [] });
-  if (!prepared.ok) throw new Error("Invalid synthetic fixture");
-  expect(await encodePreparedXlsx(prepared, false, limit))
-    .toStrictEqual({ ok: false, code: "export_value_invalid" });
-});
+it.each([0, -1, 1.5, NaN, Infinity, 1_048_576])(
+  "refuses invalid injected format limit %s",
+  async (limit) => {
+    const prepared = prepareReportExport({ report: "own_summary", language: "en", rows: [] });
+    if (!prepared.ok) throw new Error("Invalid synthetic fixture");
+    expect(await encodePreparedXlsx(prepared, false, limit)).toStrictEqual({
+      ok: false,
+      code: "export_value_invalid",
+    });
+  },
+);
 
 it("invalid XML on a later continuation sheet yields no partial ZIP", async () => {
-  const prepared = prepareReportExport({ report: "own_summary", language: "en", rows: [
-    row("own_summary"), row("own_summary"),
-    row("own_summary", { period: date("synthetic-private-marker\u0001") }),
-  ] });
+  const prepared = prepareReportExport({
+    report: "own_summary",
+    language: "en",
+    rows: [
+      row("own_summary"),
+      row("own_summary"),
+      row("own_summary", { period: date("synthetic-private-marker\u0001") }),
+    ],
+  });
   if (!prepared.ok) throw new Error("Invalid synthetic fixture");
-  expect(await encodePreparedXlsx(prepared, false, 2))
-    .toStrictEqual({ ok: false, code: "export_value_invalid" });
+  expect(await encodePreparedXlsx(prepared, false, 2)).toStrictEqual({
+    ok: false,
+    code: "export_value_invalid",
+  });
 });
