@@ -25,6 +25,7 @@ import {
 export * from "./finance-reports-rows.ts";
 export * from "./finance-reports-export.ts";
 export * from "./finance-reports-export-list.ts";
+export * from "./finance-report-export-audit.ts";
 
 /** R1: the daily takings of a range, grouped by a day or by a month (spec §4, R1). */
 export const reportDailyTakingsQuerySchema = z

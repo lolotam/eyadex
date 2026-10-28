@@ -54,6 +54,7 @@ export const arAudit = {
       payment_methods: "طرق الدفع",
       refund: "استرداد",
       cash_closing: "إقفال الصندوق",
+      finance_report_export: "تصدير تقرير مالي",
     },
     actions: {
       branch: {
@@ -152,6 +153,7 @@ export const arAudit = {
       payment_methods: { changed: "تعديل طرق الدفع" },
       refund: { recorded: "تسجيل استرداد" },
       cash_closing: { closed: "إقفال الصندوق" },
+      finance_report: { exported: "تصدير تقرير مالي" },
       ...arMedicalAuditActions,
     },
     fields: {
@@ -188,6 +190,10 @@ export const arAudit = {
       roleId: "الدور",
       allBranches: "كل الفروع",
       branchIds: "الفروع",
+      report: "التقرير",
+      from: "بداية الفترة",
+      to: "نهاية الفترة",
+      rowCount: "عدد الصفوف",
       status: "الحالة",
       expiresAt: "تاريخ الانتهاء",
       permissionKeys: "الصلاحيات",

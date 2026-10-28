@@ -1,4 +1,5 @@
 import type { PlatformAuditEntity } from "@eyadex/contracts/audit";
+import { reportExportAuditDetailsSchema } from "@eyadex/contracts/finance-reports";
 import {
   CASH_CLOSING_AUDIT_FIELDS,
   REFUND_AUDIT_FIELDS,
@@ -130,6 +131,7 @@ const ALLOWED: Record<AuditEntity, readonly string[]> = {
   refund: REFUND_AUDIT_FIELDS,
   // Finance F2 slice 5: a cash closing's day, cash period, amounts and note length; never the note.
   cash_closing: CASH_CLOSING_AUDIT_FIELDS,
+  finance_report_export: ["report", "from", "to", "branchIds", "rowCount"],
   // ADR-0020: the platform team and settings writers. No link, hash or user id is ever recorded.
   platform_account: ["fullName", "email", "status"],
   platform_settings: [
@@ -182,8 +184,8 @@ function project(entity: AuditEntity, side: unknown, context: Snapshot): Snapsho
 }
 
 /**
- * لقطتين قبل/بعد اللي بيظهروا في السجل: من `details.before` و`details.after` بس، بالحقول المسموحة
- * للكيان ده، والسرّي (توكن، باسورد، رقم مدني) بيتشال، والتليفونات بآخر 3 أرقام.
+ * اللقطتين اللي بيظهروا في السجل بالحقول المسموحة فقط. اكتمال تصدير F3 بيقرأ بياناته
+ * المسطّحة بعد فحص شكلها؛ باقي الكيانات من `details.before` و`details.after` مع إخفاء السرّي.
  *
  * @param entity الكيان زي ما بيظهر في العقد
  * @param details عمود `details` زي ما اتخزن
@@ -194,6 +196,11 @@ export function auditSnapshots(
   details: unknown,
 ): { before: Snapshot | null; after: Snapshot | null } {
   if (!isPlainObject(details)) return { before: null, after: null };
+  // The worker stores this completion event flat. Only shape-checked metadata bypasses scrubbing.
+  if (entity === "finance_report_export") {
+    const parsed = reportExportAuditDetailsSchema.safeParse(details);
+    return { before: null, after: parsed.success ? parsed.data : null };
+  }
   const context: Snapshot = {};
   for (const key of CONTEXT_KEYS) if (key in details) context[key] = details[key];
   return {

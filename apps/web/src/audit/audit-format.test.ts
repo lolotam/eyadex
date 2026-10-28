@@ -102,6 +102,8 @@ describe("audit value translations", () => {
     // Written by the worker, not the API (ADR-0013 §12): both screens must still offer and label it.
     expect(clinic).toContain("invitation.auto_cancelled");
     expect(platform).toContain("invitation.auto_cancelled");
+    expect(clinic).toContain("finance_report.exported");
+    expect(platform).not.toContain("finance_report.exported");
   });
 });
 
