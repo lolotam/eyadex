@@ -4,7 +4,8 @@ import { recheckExportAccess } from "./mock-report-export-access";
 import { exportJobsOf, type ExportJobRecord } from "./mock-report-export-state";
 import { buildSeed } from "./seed";
 import { admin, clinicIdAt, getState, memberOf, personaWith } from "./mock-report-test-kit";
-import { persist, resetMockData } from "./mock-test-kit";
+import { persist } from "./mock-store";
+import { resetMockData } from "./mock-test-kit";
 
 const NOW = new Date("2026-10-28T12:00:00.000Z");
 
@@ -66,7 +67,7 @@ it("a removed report key or covering key is forbidden", () => {
 it("a deactivated account is account_disabled; a deactivated role is forbidden", () => {
   const job = admitted();
   const member = memberOf("clinic_admin");
-  member.status = "disabled";
+  member.status = "deactivated";
   expect(recheckExportAccess(getState(), job, NOW)).toStrictEqual({
     kind: "denied",
     code: "account_disabled",
