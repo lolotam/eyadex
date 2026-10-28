@@ -91,7 +91,7 @@ function Harness({ history }: { history: boolean }) {
     </>
   );
 }
-async function setup(keys: string[], history = false) {
+async function setup(keys: string[], history = false, reach: number | null = null) {
   const f = fixture();
   f.db.branches.push({
     ...f.a,
@@ -101,7 +101,8 @@ async function setup(keys: string[], history = false) {
     isActive: false,
   });
   const api = createMockApiClient();
-  const persona = personaWith(keys, null);
+  const own = f.db.branches.filter((b) => b.clinicId === f.ctx.clinicId).map((b) => b.id);
+  const persona = personaWith(keys, reach === null ? null : own.slice(0, reach));
   Object.assign(context, { api, persona, session: await sessionOf(api, persona) });
   const real = api.reports.requestExport.bind(api.reports);
   const post = vi.spyOn(api.reports, "requestExport");
@@ -236,7 +237,7 @@ it("R6 shows the clinic-wide balance note in both languages and still requires i
 });
 
 it("no report, failed branches or a reach-invalid branch never POST; retry recovers", async () => {
-  const { post, api, persona } = await setup(TAKINGS);
+  const { post, api, persona } = await setup(TAKINGS, false, 2);
   await submit();
   expect(screen.getByText(R.fields.reportRequired)).toBeTruthy();
   const real = api.reports.branchOptions.bind(api.reports);
