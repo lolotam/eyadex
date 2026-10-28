@@ -138,6 +138,7 @@ it("coalesces slow polls and discards an old request when membership changes, wi
   const f = await fixture();
   await f.root.reports.requestExport(f.persona, f.body);
   const actual = f.root.reports.listExports;
+  const originalSession = context.session;
   let release: (() => void) | undefined;
   const gate = new Promise<void>((resolve) => {
     release = resolve;
@@ -159,12 +160,17 @@ it("coalesces slow polls and discards an old request when membership changes, wi
   h.rerender();
   expect(h.result.current.items).toStrictEqual([]);
   read.mockImplementation(actual);
+  await flush();
+  context.persona = f.persona;
+  context.session = originalSession;
+  h.rerender();
+  expect(h.result.current.items).toStrictEqual([]);
+  await flush();
   release?.();
   await flush();
-  expect(h.result.current.items).toStrictEqual([]);
+  expect(h.result.current.items[0]?.status).toBe("running");
   expect(h.result.current.error).toBeNull();
-  await flush(4000);
-  expect(read).toHaveBeenCalledTimes(2);
+  expect(read).toHaveBeenCalledTimes(3);
 });
 
 it("unmount cancels active polling even while queued and discards a late page", async () => {
