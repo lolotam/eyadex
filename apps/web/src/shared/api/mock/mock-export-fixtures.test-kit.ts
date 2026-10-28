@@ -34,7 +34,9 @@ export function artifact(report: ReportId, rows: readonly unknown[], language: "
   const result = writeReportCsv({ report, language, rows });
   expect(result.ok).toBe(true);
   if (!result.ok) throw new Error("Expected complete CSV artifact");
-  expect(result.bytes).toBeInstanceOf(Uint8Array);
+  // TextEncoder's realm differs from jsdom's; check the actual typed-array brand and view.
+  expect(Object.prototype.toString.call(result.bytes)).toBe("[object Uint8Array]");
+  expect(ArrayBuffer.isView(result.bytes)).toBe(true);
   expect([...result.bytes.subarray(0, 3)]).toStrictEqual([0xef, 0xbb, 0xbf]);
   const body = new TextDecoder().decode(result.bytes.subarray(3));
   expect(body.endsWith("\r\n")).toBe(true);
