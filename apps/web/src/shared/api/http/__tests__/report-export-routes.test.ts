@@ -40,7 +40,7 @@ function exportsWith(answer: (seen: Seen) => Answer) {
     seen.push(call);
     const a = answer(call);
     if (a.bytes) {
-      return new Response(new Blob([a.bytes]), {
+      return new Response(a.bytes, {
         status: a.status ?? 200,
         headers: { "content-type": a.type! },
       });
@@ -166,7 +166,7 @@ describe("one export's status over HTTP", () => {
 
 describe("downloading an export over HTTP", () => {
   it.each([
-    ["text/csv; charset=utf-8", new Uint8Array([0xef, 0xbb, 0xbf, 0x41, 0x2c, 0x42])],
+    ["text/csv;charset=utf-8", new Uint8Array([0xef, 0xbb, 0xbf, 0x41, 0x2c, 0x42])],
     [XLSX, new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0x00, 0xff])],
   ])("passes the %s bytes through as a Blob", async (type, bytes) => {
     const h = exportsWith(() => ({ bytes, type }));
