@@ -77,7 +77,7 @@ function hold(post: ReturnType<typeof vi.spyOn>, real: ApiClient["reports"]["req
     await new Promise<void>((r) => gates.push(r));
     return real(...args);
   });
-  return () => gates.splice(0).forEach((r) => r());
+  return () => gates.shift()?.();
 }
 const historyKey = (s: SessionContext, p: Persona, epoch = 0) =>
   ["clinic", "report-exports", p.kind, p.clinicId, p.memberId, s.clinic?.id, s.membershipId, epoch];
@@ -97,6 +97,7 @@ it.each([
   await act(async () => {
     outcome = await h.result.current.submit(withBranch);
   });
+  expect(outcome?.status === "invalid" ? outcome.issues : []).toEqual([]);
   expect(post).toHaveBeenCalledTimes(1);
   expect(post.mock.calls[0]).toEqual([persona, reportExportRequestSchema.parse(withBranch)]);
   const job = exportJobsOf(f.db).at(-1)!;
