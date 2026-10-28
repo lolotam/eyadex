@@ -47,6 +47,7 @@ afterEach(() => {
 
 const TAKINGS = ["view:report_takings:branch", "view:payments:branch"];
 const ANALYTICS = ["view:report_analytics:clinic", "view:invoices:clinic"];
+const WIDER = ["view:report_analytics:clinic", "view:invoices:branch", "view:users:clinic"];
 const CREDIT = ["view:report_patients:clinic", "view:payments:clinic"];
 async function sessionOf(api: ApiClient, persona: Persona) {
   const pending = api.session.getContext(persona);
@@ -59,9 +60,7 @@ async function setup(keys: string[], branchIds: string[] | null = null, extra = 
     f.db.branches.push({ ...f.a, id: id(20000 + i), nameEn: `B${i}`, isActive: i !== 7 });
   const api = createMockApiClient();
   const persona = personaWith(keys, branchIds);
-  context.api = api;
-  context.persona = persona;
-  context.session = await sessionOf(api, persona);
+  Object.assign(context, { api, persona, session: await sessionOf(api, persona) });
   const realOptions = api.reports.branchOptions.bind(api.reports);
   const options = vi.spyOn(api.reports, "branchOptions");
   const post = vi.spyOn(api.reports, "requestExport");
@@ -80,12 +79,7 @@ async function fill(h: H, report: Parameters<H["result"]["current"]["form"]["set
 }
 
 it("lists only reports with the report key and its covering key; a wider uncovered key adds none", async () => {
-  await setup([
-    ...TAKINGS,
-    "view:report_analytics:clinic",
-    "view:invoices:branch",
-    "view:users:clinic",
-  ]);
+  await setup([...TAKINGS, ...WIDER]);
   const h = mount();
   expect(h.result.current.form.eligibleReports).toEqual(["daily_takings", "period_summary"]);
   act(() => h.result.current.form.setReport("by_service"));
@@ -96,15 +90,8 @@ it("lists only reports with the report key and its covering key; a wider uncover
 it("starts empty with CSV; header language follows the UI until picked, then stays", async () => {
   await setup(TAKINGS);
   const h = mount();
-  expect(h.result.current.form.draft).toEqual({
-    report: null,
-    from: "",
-    to: "",
-    branchId: null,
-    groupBy: null,
-    format: "csv",
-    language: "ar",
-  });
+  const empty = { report: null, from: "", to: "", branchId: null, groupBy: null };
+  expect(h.result.current.form.draft).toEqual({ ...empty, format: "csv", language: "ar" });
   act(() => h.result.current.i18n.setLang("en"));
   expect(h.result.current.form.draft.language).toBe("en");
   act(() => h.result.current.form.setLanguage("ar"));
