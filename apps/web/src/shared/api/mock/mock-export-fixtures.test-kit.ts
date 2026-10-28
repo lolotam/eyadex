@@ -5,13 +5,27 @@ import { writeReportCsv } from "./mock-export-csv";
 
 export const text = (value: string | null): ExportCell => ({ kind: "text", value });
 export const date = (value: string): ExportCell => ({ kind: "date", value });
-export const money = (minor: bigint | string, exponent = 3): ExportCell => ({ kind: "money", minor, exponent });
+export const money = (minor: bigint | string, exponent = 3): ExportCell => ({
+  kind: "money",
+  minor,
+  exponent,
+});
 export const count = (value: bigint | string | number): ExportCell => ({ kind: "count", value });
 
-export function row(report: ReportId, overrides: Record<string, unknown> = {}): Record<string, unknown> {
+export function row(
+  report: ReportId,
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   for (const column of REPORT_EXPORT_COLUMNS[report]) {
-    result[column.key] = column.kind === "money" ? money("12500") : column.kind === "count" ? count(2n) : column.kind === "date" ? date("2026-10-28") : text(`sample-${column.key}`);
+    result[column.key] =
+      column.kind === "money"
+        ? money("12500")
+        : column.kind === "count"
+          ? count(2n)
+          : column.kind === "date"
+            ? date("2026-10-28")
+            : text(`sample-${column.key}`);
   }
   return { ...result, ...overrides };
 }
@@ -62,7 +76,9 @@ function parseCsv(source: string): string[][] {
 
 export function refused(input: unknown, code = "export_value_invalid") {
   let result: unknown;
-  expect(() => { result = writeReportCsv(input); }).not.toThrow();
+  expect(() => {
+    result = writeReportCsv(input);
+  }).not.toThrow();
   expect(result).toStrictEqual({ ok: false, code });
   expect(result).not.toHaveProperty("bytes");
   expect(JSON.stringify(result)).not.toContain("synthetic-private-marker");

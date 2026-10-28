@@ -100,7 +100,12 @@ function prepareRow(
     const minor = readMoney(own(cell, "minor"));
     const exponent = readExponent(own(cell, "exponent"));
     if (minor === null || exponent === null) return null;
-    fields.push({ kind: "money", minor, exponent, text: formatSignedMinor(minor.toString(), exponent) });
+    fields.push({
+      kind: "money",
+      minor,
+      exponent,
+      text: formatSignedMinor(minor.toString(), exponent),
+    });
   }
   return fields;
 }
@@ -114,7 +119,8 @@ export function prepareReportExport(input: unknown): PreparedReport {
     const language = own(input, "language");
     const rawRows = own(input, "rows");
     if (language !== "ar" && language !== "en") return invalid();
-    if (typeof report !== "string" || !Object.hasOwn(REPORT_EXPORT_COLUMNS, report)) return invalid();
+    if (typeof report !== "string" || !Object.hasOwn(REPORT_EXPORT_COLUMNS, report))
+      return invalid();
     const entry = Object.entries(REPORT_EXPORT_COLUMNS).find(([key]) => key === report);
     if (!entry || !Array.isArray(rawRows)) return invalid();
     const columns = entry[1];
@@ -124,7 +130,11 @@ export function prepareReportExport(input: unknown): PreparedReport {
       if (row === null) return invalid();
       rows.push(row);
     }
-    return { ok: true, header: columns.map((column) => guardFormula(column.header[language])), rows };
+    return {
+      ok: true,
+      header: columns.map((column) => guardFormula(column.header[language])),
+      rows,
+    };
   } catch {
     return invalid();
   }

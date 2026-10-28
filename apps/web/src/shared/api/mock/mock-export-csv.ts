@@ -1,5 +1,9 @@
 import { formatSignedMinor } from "@eyadex/contracts/money";
-import { prepareReportExport, type PreparedField, type ReportExportInput } from "./mock-export-cells";
+import {
+  prepareReportExport,
+  type PreparedField,
+  type ReportExportInput,
+} from "./mock-export-cells";
 
 export type ReportCsvInput = ReportExportInput;
 export type ReportCsvResult =
