@@ -65,7 +65,7 @@ it("a removed report key or covering key is forbidden", () => {
   });
 });
 
-it("a deactivated account is account_disabled; a deactivated role is forbidden", () => {
+it("late rechecks treat an inactive account or role as account_disabled before module access", () => {
   const job = admitted();
   const member = memberOf("clinic_admin");
   member.status = "deactivated";
@@ -77,7 +77,12 @@ it("a deactivated account is account_disabled; a deactivated role is forbidden",
   adminRole().isActive = false;
   expect(recheckExportAccess(getState(), job, NOW)).toStrictEqual({
     kind: "denied",
-    code: "forbidden",
+    code: "account_disabled",
+  });
+  getState().features[clinicIdAt(0)] = { ...NO_FEATURES, finance: false };
+  expect(recheckExportAccess(getState(), job, NOW)).toStrictEqual({
+    kind: "denied",
+    code: "account_disabled",
   });
 });
 

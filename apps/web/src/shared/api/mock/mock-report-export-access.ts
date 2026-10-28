@@ -38,7 +38,7 @@ export function recheckExportAccess(
   const member = db.members.find((m) => m.clinicId === clinic.id && m.id === job.requestedBy);
   if (!member || member.status !== "active") return denied("account_disabled");
   const role = db.roles.find((r) => r.clinicId === clinic.id && r.id === member.roleId);
-  if (!role) return denied("forbidden");
+  if (!role || !role.isActive) return denied("account_disabled");
   const status = effectiveClinicStatus(clinic, now.getTime());
   if (status === "suspended" || status === "expired") return denied("subscription_blocked");
   if (!(db.features[clinic.id] ?? NO_FEATURES).finance) return denied("module_disabled");
