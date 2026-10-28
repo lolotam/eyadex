@@ -162,14 +162,14 @@ describe("genuine browser XLSX artifacts", () => {
       "_x005F_x005F_",
       "_x005F_xAbCd_",
       "_x005F_x0041__x005F_x0042_",
-      "_x005F_x005F_x0041_",
+      "_x005F_x005F_x005F_x0041_",
       "",
       "",
     ]);
     const source = artifact.parts.get("xl/worksheets/sheet1.xml");
     expect(source).toContain("&amp;&lt;&gt;");
     expect(source).toContain("a&#13;b\nc\td");
-    expect(source).not.toContain("_x005F_x005F_x0041_");
+    expect(cellValues(sheet)[6]?.[2]).toBe("_x005F_x0041_");
   });
 
   it.each([0, 1, 8, 11, 12, 14, 31, 0xfffe, 0xffff, 0xd800, 0xdc00])(
@@ -203,6 +203,35 @@ describe("genuine browser XLSX artifacts", () => {
       language: "en",
       rows: [row("own_summary", { period: date("synthetic\ud800") })],
     });
+  });
+
+  it("guards catalogue header text without changing nontrigger text or null", async () => {
+    const header = REPORT_EXPORT_COLUMNS.own_summary[0]?.header;
+    if (!header) throw new Error("Missing header");
+    const previous = header.en;
+    header.en = "=synthetic-header";
+    try {
+      const artifact = await xlsxArtifact("own_summary", [row("own_summary", {
+        period: date("x\tsecond"), currency: text(null),
+      })]);
+      const sheet = artifact.sheets[0];
+      if (!sheet) throw new Error("Missing sheet");
+      expect(cellValues(sheet)).toStrictEqual([
+        ["'=synthetic-header", "Billed", "Currency"], ["x\tsecond", "12.500", ""],
+      ]);
+    } finally { header.en = previous; }
+  });
+
+  it("keeps the XML 1.0 boundary codepoints and paired supplementary characters", async () => {
+    const value = "x\u0020\ud7ff\ue000\ufffd\ud800\udc00\udbff\udfff";
+    const artifact = await xlsxArtifact("own_summary", [row("own_summary", { currency: text(value) })]);
+    const sheet = artifact.sheets[0];
+    if (!sheet) throw new Error("Missing sheet");
+    expect(cellValues(sheet)[1]?.[2]).toBe(value);
+  });
+
+  it("returns stable refusal for throwing input accessors", async () => {
+    await xlsxRefused({ get report() { throw new Error("synthetic-private-marker"); } });
   });
 
   it.each([
