@@ -1,4 +1,5 @@
 import { expect, it } from "vitest";
+import { NO_FEATURES } from "@eyadex/contracts/clinics";
 import { reportExportSchema } from "@eyadex/contracts/finance-reports";
 import { setup, blobBytes } from "./mock-report-exports.test-kit";
 import { createMockReportExports } from "./mock-report-exports";
@@ -118,7 +119,10 @@ it("requester and clinic isolation applies to get/list/download and never advanc
   const foreign = personaWith(["view:report_takings:clinic", "view:payments:clinic"]);
   const otherClinic = f.db.clinics[1];
   if (!otherClinic) throw new Error("Missing clinic");
-  f.db.features[otherClinic.id] = { ...f.db.features[f.ctx.clinicId], finance: true };
+  f.db.features[otherClinic.id] = {
+    ...(f.db.features[f.ctx.clinicId] ?? NO_FEATURES),
+    finance: true,
+  };
   f.tick();
   for (const actor of [foreign, as("clinic_admin", 1)]) {
     await expect(f.api.getExport(actor, job.id)).rejects.toMatchObject({ code: "not_found" });
@@ -158,7 +162,10 @@ it("stable >20 pagination, tie order, cursor isolation, limits and no store reor
   const foreign = await f.api.requestExport(other, f.body);
   const otherClinic = f.db.clinics[1];
   if (!otherClinic) throw new Error("Missing clinic");
-  f.db.features[otherClinic.id] = { ...f.db.features[f.ctx.clinicId], finance: true };
+  f.db.features[otherClinic.id] = {
+    ...(f.db.features[f.ctx.clinicId] ?? NO_FEATURES),
+    finance: true,
+  };
   const cross = await f.api.requestExport(as("clinic_admin", 1), f.body);
   for (const cursor of [id(88888), foreign.export.id, cross.export.id])
     expect(await f.api.listExports(f.persona, { cursor })).toStrictEqual({
