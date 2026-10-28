@@ -1,4 +1,5 @@
 import type * as reports from "@eyadex/contracts/finance-reports";
+import type { BranchOptionListResponse, OptionListQuery } from "@eyadex/contracts/role-admin";
 import type { Persona } from "@eyadex/contracts/session";
 import type { z } from "zod";
 
@@ -12,6 +13,12 @@ type Report<Q extends z.ZodTypeAny, R extends z.ZodTypeAny> = (
  * it reads, at the report's scope; a range is at most 366 clinic days (`report_range_too_long`).
  */
 export interface ReportsApi extends ReportExportsApi {
+  /** Names and activity of branches within this report's existing scope, including historical branches. */
+  branchOptions(
+    persona: Persona,
+    report: reports.ReportId,
+    query: Partial<OptionListQuery>,
+  ): Promise<BranchOptionListResponse>;
   /** R1: money in and out per day (or month), branch and method. */
   dailyTakings: Report<
     typeof reports.reportDailyTakingsQuerySchema,

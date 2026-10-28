@@ -9,6 +9,7 @@ import { byDoctor, byService, ownSummary } from "./mock-report-analytics";
 import { outstanding, patientCredit } from "./mock-report-balances";
 import { cashClosings, dailyTakings, periodSummary } from "./mock-report-takings";
 import { createMockReportExports } from "./mock-report-exports";
+import { reportBranchOptions } from "./mock-report-branch-options";
 import { delay, getState, type MockState } from "./mock-store";
 
 /**
@@ -43,6 +44,10 @@ export function createMockReports(now: () => Date = () => new Date()): ReportsAp
     };
   return {
     ...createMockReportExports(now),
+    branchOptions: async (persona, report, query) => (
+      await delay(),
+      reportBranchOptions(getState(), persona, report, query)
+    ),
     dailyTakings: run(
       "daily_takings",
       reports.reportDailyTakingsQuerySchema,

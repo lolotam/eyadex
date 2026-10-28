@@ -1,4 +1,5 @@
 import * as reports from "@eyadex/contracts/finance-reports";
+import { branchOptionListResponseSchema } from "@eyadex/contracts/role-admin";
 import type { z } from "zod";
 import type { ReportsApi } from "../reports-client";
 import type { HttpContext } from "./http-context";
@@ -19,6 +20,15 @@ export function createHttpReports(ctx: HttpContext): ReportsApi {
       });
   return {
     ...createHttpReportExports(ctx),
+    branchOptions: (_persona, report, query) =>
+      transport.send(
+        "GET",
+        `/v1/finance-reports/${encodeURIComponent(report.replaceAll("_", "-"))}/branch-options`,
+        {
+          schema: branchOptionListResponseSchema,
+          query,
+        },
+      ),
     dailyTakings: get(
       "daily-takings",
       reports.reportDailyTakingsQuerySchema,

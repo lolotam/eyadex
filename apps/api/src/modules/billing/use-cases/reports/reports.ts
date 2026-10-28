@@ -1,5 +1,6 @@
 import { instantToWall } from "@eyadex/contracts/clinic-time";
 import type { ReportId } from "@eyadex/contracts/finance-reports";
+import type { OptionListQuery } from "@eyadex/contracts/role-admin";
 import type { Database, Tx } from "@eyadex/db";
 
 import { ApiError } from "../../../../shared/errors.ts";
@@ -15,6 +16,7 @@ import { reportRefunds, reportDiscounts } from "../../queries/report-adjustments
 import { byService, byDoctor, ownSummary } from "../../queries/report-analytics.ts";
 import { outstanding, patientCredit } from "../../queries/report-balances.ts";
 import { dailyTakings, periodSummary, reportCashClosings } from "../../queries/report-takings.ts";
+import { listReportBranchOptions } from "../../queries/report-branch-options.ts";
 import {
   type ReportContext,
   type ReportPageQuery,
@@ -35,6 +37,15 @@ export class FinanceReports {
       readonly branches: BillingBranchReader;
     },
   ) {}
+
+  /** أسماء الفروع لفلتر التقرير، بنفس مفاتيح ومدى التصدير ومن غير اشتراط إدارة الفروع. */
+  branchOptions(actor: BillingActor, report: ReportId, query: OptionListQuery) {
+    const scope = reportScope(actor, report);
+    if (scope === null) throw new ApiError("forbidden");
+    return this.deps.db.withTenant(actor.clinicId, (tx) =>
+      listReportBranchOptions(tx, actor.clinicId, scope, query, this.deps.branches),
+    );
+  }
 
   dailyTakings(actor: BillingActor, query: Grouped, language: Language) {
     return this.read("daily_takings", actor, query, language, (tx, ctx) =>
