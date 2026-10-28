@@ -67,10 +67,8 @@ async function setup(keys: string[], branchIds: string[] | null = null, extra = 
   const post = vi.spyOn(api.reports, "requestExport");
   return { f, api, persona, post, options, realOptions };
 }
-const roleOf = (p: Persona) =>
-  getState().roles.find(
-    (r) => r.id === getState().members.find((m) => m.id === p.memberId)!.roleId,
-  )!;
+const memberOf = (p: Persona) => getState().members.find((m) => m.id === p.memberId)!;
+const roleOf = (p: Persona) => getState().roles.find((r) => r.id === memberOf(p).roleId)!;
 type H = ReturnType<typeof mount>;
 async function fill(h: H, report: Parameters<H["result"]["current"]["form"]["setReport"]>[0]) {
   act(() => {
@@ -110,8 +108,6 @@ it("starts empty with CSV; header language follows the UI until picked, then sta
   act(() => h.result.current.i18n.setLang("en"));
   expect(h.result.current.form.draft.language).toBe("en");
   act(() => h.result.current.form.setLanguage("ar"));
-  act(() => h.result.current.i18n.setLang("en"));
-  act(() => h.result.current.i18n.setLang("ar"));
   act(() => h.result.current.i18n.setLang("en"));
   expect(h.result.current.form.draft.language).toBe("ar");
 });
@@ -226,7 +222,7 @@ it("a reach change keeps the stale branch and blocks it, never widening to all",
   const h = mount();
   await fill(h, "daily_takings");
   act(() => h.result.current.form.setBranchId(f1()));
-  getState().members.find((m) => m.id === persona.memberId)!.branchIds = [f0()];
+  memberOf(persona).branchIds = [f0()];
   context.session = await sessionOf(api, persona);
   h.rerender();
   await flush();
@@ -240,8 +236,9 @@ it("a reach change keeps the stale branch and blocks it, never widening to all",
   act(() => h.result.current.form.setBranchId(null));
   expect((await act(() => h.result.current.form.submit())).status).toBe("queued");
 });
-const f0 = () => getState().branches.filter((b) => b.clinicId === getState().clinics[0]!.id)[0]!.id;
-const f1 = () => getState().branches.filter((b) => b.clinicId === getState().clinics[0]!.id)[1]!.id;
+const seeded = () => getState().branches.filter((b) => b.clinicId === getState().clinics[0]!.id);
+const f0 = () => seeded()[0]!.id;
+const f1 = () => seeded()[1]!.id;
 
 it("a new report resets branch and grouping but keeps format, dates and language", async () => {
   await setup([...TAKINGS, ...ANALYTICS]);
