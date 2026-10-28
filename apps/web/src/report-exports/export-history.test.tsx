@@ -144,10 +144,13 @@ it("keeps own history after report-key loss but hides a refused download", async
 });
 
 it("shows head errors with manual retry, keeps rows on refresh error and drops them on identity change", async () => {
-  let list = null as unknown as ReturnType<typeof vi.spyOn<ApiClient["reports"], "listExports">>;
+  let list: { mockRejectedValueOnce: (e: unknown) => unknown } | null = null;
+  let calls = () => 0;
   const f = await mount((api) => {
-    list = vi.spyOn(api.reports, "listExports");
-    list.mockRejectedValueOnce(new ApiError("module_disabled", 403));
+    const spy = vi.spyOn(api.reports, "listExports");
+    list = spy;
+    calls = () => spy.mock.calls.length;
+    spy.mockRejectedValueOnce(new ApiError("module_disabled"));
   });
   await flush(200);
   expect(screen.getByRole("alert")).toHaveTextContent(en.errors.module_disabled);
@@ -159,14 +162,14 @@ it("shows head errors with manual retry, keeps rows on refresh error and drops t
   fireEvent.click(screen.getByRole("button", { name: t.retry }));
   await flush(200);
   expect(screen.getAllByTestId("export-row")).toHaveLength(1);
-  list.mockRejectedValueOnce(new ApiError("unknown", 500));
+  list?.mockRejectedValueOnce(new ApiError("unknown"));
   fireEvent.click(screen.getByRole("button", { name: t.refresh }));
   await flush(200);
   expect(screen.getByRole("alert")).toBeInTheDocument();
   expect(screen.getAllByTestId("export-row")).toHaveLength(1);
   expect(screen.queryByText(t.empty)).toBeNull();
   await flush(5000);
-  expect(list).toHaveBeenCalledTimes(3);
+  expect(calls()).toBe(3);
   context.persona = personaWith([]);
   const next = f.root.session.getContext(context.persona);
   await vi.advanceTimersByTimeAsync(80);
@@ -189,7 +192,7 @@ it("loads more pages, and a page error keeps rows with manual retry", async () =
   const shown = screen.getAllByTestId("export-row").length;
   expect(shown).toBe(20);
   const list = vi.spyOn(f.root.reports, "listExports");
-  list.mockRejectedValueOnce(new ApiError("unknown", 500));
+  list.mockRejectedValueOnce(new ApiError("unknown"));
   fireEvent.click(screen.getByRole("button", { name: t.loadMore }));
   await flush(100);
   expect(screen.getByRole("alert")).toHaveTextContent(t.pageError);
