@@ -155,6 +155,7 @@ it("lists real bilingual branch names, the inactive one marked, and all branches
   await setup(ANALYTICS);
   pickIn(R.report, "by_service");
   await flush();
+  console.log("DBG1", [...document.querySelectorAll("label")].map((l) => l.textContent));
   const texts = () =>
     [...(screen.getByLabelText(R.branch) as HTMLSelectElement).options].map((o) => o.text);
   expect(texts()).toContain(R.allBranches);
@@ -207,6 +208,7 @@ it("R6 shows the clinic-wide balance note in both languages and still requires i
   await flush();
   expect(screen.getByRole("note").textContent).toBe(R.creditNote);
   await submit();
+  console.log("DBG2", document.body.textContent);
   expect(post).not.toHaveBeenCalled();
   expect(screen.getByLabelText(R.from).getAttribute("aria-invalid")).toBe("true");
   expect(screen.getAllByText(R.issues.date).length).toBe(2);
@@ -288,6 +290,7 @@ it("a double click sends one POST and disables every control while pending", asy
   expect(screen.queryByText(R.queued)).toBeNull();
   release();
   await flush();
+  console.log("DBG3", post.mock.calls.length, document.body.textContent);
   expect(screen.getByText(R.queued)).toBeTruthy();
 });
 
