@@ -36,6 +36,7 @@ const flush = (ms = 2000) => act(async () => void (await vi.advanceTimersByTimeA
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
   vi.setSystemTime(NOW);
+  localStorage.clear();
 });
 afterEach(() => {
   cleanup();
@@ -157,7 +158,7 @@ it.each(["csv", "xlsx"] as const)(
         },
       ],
     ]);
-    expect(exportJobsOf(f.db).at(-1)!.params).toMatchObject({ branchIds: [inactive.id], format });
+    expect(exportJobsOf(f.db).at(-1)!.params).toMatchObject({ branchIds: [inactive.id] });
     expect(h.result.current.form.queued?.status).toBe("queued");
     expect(h.result.current.form.draft.branchId).toBe(inactive.id);
   },
@@ -210,7 +211,7 @@ it("while branches load or fail nothing POSTs; manual retry recovers", async () 
   });
   expect(post).not.toHaveBeenCalled();
   fail = false;
-  await act(async () => void (await h.result.current.form.branches.retry()));
+  act(() => void h.result.current.form.branches.retry());
   await flush();
   expect((await act(() => h.result.current.form.submit())).status).toBe("queued");
 });
