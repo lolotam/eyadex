@@ -143,7 +143,9 @@ it("shows head errors with manual retry, keeps rows on refresh error and drops t
   await flush(200);
   expect(screen.getByRole("alert")).toHaveTextContent(en.errors.module_disabled);
   await act(async () => {
-    await f.root.reports.requestExport(f.persona, f.body);
+    const pending = f.root.reports.requestExport(f.persona, f.body);
+    await vi.advanceTimersByTimeAsync(100);
+    await pending;
   });
   fireEvent.click(screen.getByRole("button", { name: t.retry }));
   await flush(200);
@@ -166,8 +168,8 @@ it("loads more pages, and a page error keeps rows with manual retry", async () =
   const f = await mount();
   await flush(200);
   await act(async () => {
-    for (let i = 0; i < 5; i += 1) await f.finish();
-    for (let i = 0; i < 18; i += 1) await f.root.reports.requestExport(f.persona, f.body).catch(() => null);
+    for (let i = 0; i < 13; i += 1) await f.finish();
+    for (let i = 0; i < 10; i += 1) await f.root.reports.requestExport(f.persona, f.body).catch(() => null);
   });
   vi.setSystemTime(f.clock());
   fireEvent.click(screen.getByRole("button", { name: t.refresh }));
