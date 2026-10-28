@@ -67,9 +67,9 @@ it.each(["csv", "xlsx"] as const)(
     const original = structuredClone(f.db.clinicAudit);
     bytes.fill(0);
     done.export.status = "failed";
-    expect([...(await blobBytes(await f.api.downloadExport(f.persona, job.id)))]).toStrictEqual(
-      [...(job.artifact ?? [])],
-    );
+    expect([...(await blobBytes(await f.api.downloadExport(f.persona, job.id)))]).toStrictEqual([
+      ...(job.artifact ?? []),
+    ]);
     expect(job.status).toBe("done");
     await f.api.getExport(f.persona, job.id);
     await f.api.listExports(f.persona, {});
