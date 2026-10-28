@@ -135,7 +135,12 @@ export function ownContributions(ctx: ReportContext, q: Range) {
     .flatMap((i) =>
       i.lines
         .filter((l) => l.providerId === me)
-        .map((l) => ({ patientId: i.patientId, period: dayOf(i.issuedAt, ctx).slice(0, 7), l, currency: i.currency })),
+        .map((l) => ({
+          patientId: i.patientId,
+          period: dayOf(i.issuedAt, ctx).slice(0, 7),
+          l,
+          currency: i.currency,
+        })),
     );
 }
 
