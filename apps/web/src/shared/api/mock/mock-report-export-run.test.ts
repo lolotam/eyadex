@@ -4,7 +4,16 @@ import { scrubAuditText } from "@eyadex/observability/audit-text";
 import { admitReportExport } from "./mock-report-export-admission";
 import { exportJobsOf, publicExportOf } from "./mock-report-export-state";
 import { advanceReportExport, EXPORT_LIFETIME_MS, EXPORT_STEP_MS } from "./mock-report-export-run";
-import { fixture, invoice, payment, refund, credit, closing, makeOwn, NOW } from "./mock-report-export.test-kit";
+import {
+  fixture,
+  invoice,
+  payment,
+  refund,
+  credit,
+  closing,
+  makeOwn,
+  NOW,
+} from "./mock-report-export.test-kit";
 import { admin, as, personaWith } from "./mock-report-test-kit";
 import { artifact } from "./mock-export-fixtures.test-kit";
 import { cellValues, readXlsx } from "./mock-export-xlsx.test-kit";
@@ -22,16 +31,32 @@ function setup(report: ReportId = "daily_takings", format: "csv" | "xlsx" = "csv
   credit(f, 1);
   closing(f, 1, "synthetic-private-note");
   const actor = report === "own_summary" ? as("doctor") : admin();
-  admitReportExport(f.db, actor, {
-    report, format, language: "en", from: "2026-01-01", to: "2026-12-31",
-  }, NOW);
+  admitReportExport(
+    f.db,
+    actor,
+    {
+      report,
+      format,
+      language: "en",
+      from: "2026-01-01",
+      to: "2026-12-31",
+    },
+    NOW,
+  );
   const job = exportJobsOf(f.db)[0];
   if (!job) throw new Error("Missing admitted job");
   let time = NOW.getTime();
   const clock = () => new Date(time);
   const advance = () => advanceReportExport(f.db, job, clock);
-  const tick = (delta = EXPORT_STEP_MS) => { time += delta; };
-  const finish = async () => { tick(); await advance(); tick(); await advance(); };
+  const tick = (delta = EXPORT_STEP_MS) => {
+    time += delta;
+  };
+  const finish = async () => {
+    tick();
+    await advance();
+    tick();
+    await advance();
+  };
   const audits = () => f.db.clinicAudit.filter((row) => row.entityId === job.id);
   return { ...f, job, clock, advance, tick, finish, audits, inv };
 }
@@ -86,7 +111,9 @@ it("a clock jump still exposes running and the next fixed step builds from curre
   payment(f, 2, f.inv, { amountMinor: "4000" });
   f.tick();
   await f.advance();
-  expect(new TextDecoder().decode(f.job.artifact ?? new Uint8Array())).toContain("7.000,1.000,6.000");
+  expect(new TextDecoder().decode(f.job.artifact ?? new Uint8Array())).toContain(
+    "7.000,1.000,6.000",
+  );
 });
 
 it("concurrent real XLSX builds coalesce and keep exactly one genuine artifact and audit", async () => {
@@ -104,7 +131,17 @@ it("concurrent real XLSX builds coalesce and keep exactly one genuine artifact a
   const sheet = xlsx.sheets[0];
   if (!sheet) throw new Error("Missing sheet");
   expect(cellValues(sheet).slice(1)).toStrictEqual([
-    ["INV-1", "Branch A", "2026-05-10", f.patient.fullName, "9.000", "3.000", "6.000", "over_90", "KWD"],
+    [
+      "INV-1",
+      "Branch A",
+      "2026-05-10",
+      f.patient.fullName,
+      "9.000",
+      "3.000",
+      "6.000",
+      "over_90",
+      "KWD",
+    ],
   ]);
   expect(f.job.rowCount).toBe(1);
   expect(f.job.byteSize).toBe(bytes.byteLength);
@@ -115,45 +152,67 @@ it("concurrent real XLSX builds coalesce and keep exactly one genuine artifact a
   expect(f.audits()).toHaveLength(1);
 });
 
-it.each(REPORT_IDS)("publication category and exact validated details for %s survive expiry", async (report) => {
-  const f = setup(report);
-  await f.finish();
-  expect(f.job.status).toBe("done");
-  expect(f.audits()).toHaveLength(1);
-  const row = f.audits()[0];
-  if (!row) throw new Error("Missing publication audit");
-  expect(row.category).toBe(
-    ["outstanding", "patient_credit", "refunds", "discounts"].includes(report)
-      ? "patient_access" : "administrative",
-  );
-  expect(row.action).toBe("finance_report.exported");
-  expect(row.entity).toBe("finance_report_export");
-  expect(row.before).toBeNull();
-  expect(row.actorName).toBe(scrubAuditText(report === "own_summary" ? f.doctor.fullName : f.member.fullName));
-  expect(row.after).toStrictEqual({
-    report, from: "2026-01-01", to: "2026-12-31",
-    branchIds: f.job.params.branchIds.map((id) => id.toLowerCase()), rowCount: 1,
-  });
-  expect(Object.keys(row.after ?? {}).sort()).toStrictEqual(["branchIds", "from", "report", "rowCount", "to"]);
-  const detail = JSON.stringify(row.after);
-  for (const forbidden of [f.patient.id, f.patient.fullName, f.doctor.fullName, "synthetic-private-note", "synthetic refund", "synthetic discount"])
-    expect(detail).not.toContain(forbidden);
-  expect(f.db.platformAudit.filter((event) => event.entityId === f.job.id)).toHaveLength(0);
-  const original = structuredClone(row);
-  const metadata = publicExportOf(f.job);
-  f.tick(EXPORT_LIFETIME_MS - 1);
-  await f.advance();
-  expect(f.job.status).toBe("done");
-  expect(f.job.artifact).not.toBeNull();
-  f.tick(1);
-  await f.advance();
-  expect(f.job.status).toBe("expired");
-  expect(f.job.artifact).toBeNull();
-  expect(f.job.ownPatientIds).toBeNull();
-  expect(publicExportOf(f.job)).toStrictEqual({ ...metadata, status: "expired" });
-  expect(f.audits()).toStrictEqual([original]);
-  expect(exportJobsOf(f.db)).toContain(f.job);
-});
+it.each(REPORT_IDS)(
+  "publication category and exact validated details for %s survive expiry",
+  async (report) => {
+    const f = setup(report);
+    await f.finish();
+    expect(f.job.status).toBe("done");
+    expect(f.audits()).toHaveLength(1);
+    const row = f.audits()[0];
+    if (!row) throw new Error("Missing publication audit");
+    expect(row.category).toBe(
+      ["outstanding", "patient_credit", "refunds", "discounts"].includes(report)
+        ? "patient_access"
+        : "administrative",
+    );
+    expect(row.action).toBe("finance_report.exported");
+    expect(row.entity).toBe("finance_report_export");
+    expect(row.before).toBeNull();
+    expect(row.actorName).toBe(
+      scrubAuditText(report === "own_summary" ? f.doctor.fullName : f.member.fullName),
+    );
+    expect(row.after).toStrictEqual({
+      report,
+      from: "2026-01-01",
+      to: "2026-12-31",
+      branchIds: f.job.params.branchIds.map((id) => id.toLowerCase()),
+      rowCount: 1,
+    });
+    expect(Object.keys(row.after ?? {}).sort()).toStrictEqual([
+      "branchIds",
+      "from",
+      "report",
+      "rowCount",
+      "to",
+    ]);
+    const detail = JSON.stringify(row.after);
+    for (const forbidden of [
+      f.patient.id,
+      f.patient.fullName,
+      f.doctor.fullName,
+      "synthetic-private-note",
+      "synthetic refund",
+      "synthetic discount",
+    ])
+      expect(detail).not.toContain(forbidden);
+    expect(f.db.platformAudit.filter((event) => event.entityId === f.job.id)).toHaveLength(0);
+    const original = structuredClone(row);
+    const metadata = publicExportOf(f.job);
+    f.tick(EXPORT_LIFETIME_MS - 1);
+    await f.advance();
+    expect(f.job.status).toBe("done");
+    expect(f.job.artifact).not.toBeNull();
+    f.tick(1);
+    await f.advance();
+    expect(f.job.status).toBe("expired");
+    expect(f.job.artifact).toBeNull();
+    expect(f.job.ownPatientIds).toBeNull();
+    expect(publicExportOf(f.job)).toStrictEqual({ ...metadata, status: "expired" });
+    expect(f.audits()).toStrictEqual([original]);
+    expect(exportJobsOf(f.db)).toContain(f.job);
+  },
+);
 
 it("own set is exactly qualifying contributions, including a valid empty complete set", async () => {
   const f = setup("own_summary");
@@ -201,8 +260,22 @@ it("widening branch scope freezes A/B and never includes C rows", async () => {
     const inv = invoice(f, index + 1, { branchId: branch.id });
     payment(f, index + 1, inv);
   }
-  const persona = personaWith(["view:report_takings:branch", "view:payments:branch"], [f.a.id, f.b.id]);
-  admitReportExport(f.db, persona, { report: "daily_takings", format: "csv", language: "en", from: "2026-01-01", to: "2026-12-31" }, NOW);
+  const persona = personaWith(
+    ["view:report_takings:branch", "view:payments:branch"],
+    [f.a.id, f.b.id],
+  );
+  admitReportExport(
+    f.db,
+    persona,
+    {
+      report: "daily_takings",
+      format: "csv",
+      language: "en",
+      from: "2026-01-01",
+      to: "2026-12-31",
+    },
+    NOW,
+  );
   const job = exportJobsOf(f.db)[0];
   const member = f.db.members.find((m) => m.id === persona.memberId);
   const role = f.db.roles.find((r) => r.id === member?.roleId);

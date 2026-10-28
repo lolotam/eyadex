@@ -62,10 +62,7 @@ async function build(db: MockState, job: ExportJobRecord, clock: () => Date): Pr
     });
     const finish = clock();
     const publicationAccess = recheckExportAccess(db, job, finish);
-    if (
-      publicationAccess.kind !== "ready" ||
-      !ownsContributions(db, job, data.ownPatientIds)
-    )
+    if (publicationAccess.kind !== "ready" || !ownsContributions(db, job, data.ownPatientIds))
       return fail(job);
     const expiresAt = new Date(finish.getTime() + EXPORT_LIFETIME_MS).toISOString();
     // No await from the final live checks through this sole audit writer and publication. A
