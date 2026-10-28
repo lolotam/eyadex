@@ -1,4 +1,5 @@
 // Shared setup for the export request form tests: real root mock client, real hooks and providers.
+/* eslint-disable react-refresh/only-export-components -- a test kit, never hot-reloaded */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useState, type ReactNode } from "react";
