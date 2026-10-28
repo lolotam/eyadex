@@ -27,7 +27,11 @@
   `done` with `rowCount`, `expiresAt = finish + 24 h`. Category from `domain/export-audit.ts`:
   `daily_takings`, `period_summary`, `by_service`, `by_doctor`, `cash_closings`, `own_summary` →
   `administrative`; R5–R8 (and any unknown key) → `patient_access`. Details exactly
-  `{ report, from, to, branchIds (lower-case), rowCount }`. Failed or refused jobs write no export row.
+  `{ report, from, to, branchIds (lower-case), rowCount }`. Failed or refused attempts keep their
+  failed job row but write no successful-export audit row. Later expiry or purge adds no event.
+- Run-time access (`apps/worker/src/finance-exports/domain/export-access.ts`, `decideExportAccess`):
+  a narrower current scope or **any** missing frozen branch refuses the job; a wider scope never adds
+  a branch; stored `own` must still be `own`.
 - Cells (`domain/export-cells.ts`): guard prefixes `'` when the first code unit is `=` `+` `-` `@`
   TAB **LF** CR (`0x3d 0x2b 0x2d 0x40 0x09 0x0a 0x0d`); text is never trimmed; `null` text → empty;
   date cells are guarded text; money = `formatSignedMinor(minor, exponent)` with exponent 0|2|3 only;
@@ -58,29 +62,43 @@
 
 ### Inc 2 — mock admission, lifecycle, full-data read and audit (~650 lines, `shared/api/mock/`)
 - `mock-report-export-admission.ts`: the API admission order above, reusing `guardFinance`,
-  `grantFor`/`ROUTE_KEY` and `reportScope`; freezes `{ from, to, language, branchIds, groupBy? }`,
-  `scope`, `requestedBy`, clinic. Queue rule: caller running or clinic queued ≥ 10 → `export_busy`.
-- `mock-report-export-read.ts` (full data, no screen page): builds a `ReportContext` from the
-  **frozen** params (branch reach = frozen ids ∩ current reach; names in the request language), then
-  calls the same builders directly, bypassing `openReport`'s 366-day check (the 1096-day check already
-  ran at admission):
+  `grantFor`/`ROUTE_KEY` and `reportScope`. Stored on the job: frozen params
+  `{ from, to, language, branchIds, groupBy? }` (ids only, no branch-name field), the granted `scope`,
+  `requestedBy`, clinic. Queue rule: caller running or clinic queued ≥ 10 → `export_busy`.
+- `mock-report-export-access.ts`: mirrors `decideExportAccess`
+  (`apps/worker/src/finance-exports/domain/export-access.ts`), used at run **and** at download:
+  active account and role, clinic open (server-clock expiry), finance on, scope supported for the
+  report, current scope from report + covering keys (`null` → refuse), stored `own` requires current
+  `own`, `viewScopeCovers(current, stored)` else refuse (narrower scope refuses), and **every** frozen
+  branch id must be in the current reach else refuse. A wider scope never adds a branch.
+- `mock-report-export-read.ts` (full data, no screen page): runs only after the access check is
+  ready, with a `ReportContext` whose branch list is **exactly** the frozen ids (names in the request
+  language, resolved at run time), then calls the same builders directly, bypassing `openReport`'s
+  366-day check (the 1096-day check already ran at admission):
   - aggregates: `dailyTakings` / `periodSummary` with the frozen `groupBy`, `byService`, `byDoctor`,
     `cashClosings`, `ownSummary` (own reach from the current own-patient rule);
   - lists: `outstanding`, `patientCredit`, `refunds`, `discounts` looped page by page with the
     maximum page size until `nextCursor` is null, concatenated in order; a test proves the row count
     equals the full matching set beyond one page (no silent truncation, no business row cap).
   - R6 keeps the approved rule: current clinic-wide balances; the period does not filter.
+- Own patient set: for an `own` export the read captures the set of patients whose rows went into
+  the file and keeps it on the internal job record only (never in the eight public fields, list,
+  status, audit details or browser storage). At download it is re-checked against the current own
+  reach; a patient who left reach → the artifact is deleted, the job becomes `purged`, and the answer
+  is `not_found`. The set is cleared at expiry.
 - `mock-report-exports.ts`: deterministic progress inside the adapter on the injected mock clock
-  (queued → running → done/failed when status/list is read after fixed steps). At run: re-check
-  account, clinic, module, report key, covering key and reach exactly like the worker; a lost key →
-  `failed` with no artifact; build from **current** data (no canned artifact). At publish, in one step:
-  store the artifact, write **one** audit row through `mock-audit.ts` (sole writer) with the category
-  and details above, and set `done`. A flag on the job makes publication happen once: polling,
-  repeated status reads, list reads, retries and repeated downloads never add a row. Failed, revoked,
-  expired or purged jobs never write an export row.
-- Download: re-check permission (lost → `forbidden`; narrower reach / not done / expired / purged /
-  other requester or clinic → `not_found`); own export with a patient who left reach → `purged` and the
-  artifact deleted. Bytes live in memory only (never browser storage, never an object URL in the mock).
+  (queued → running → done/failed when status/list is read after fixed steps). At run: access check
+  above; refused → job `failed` (its failed job row stays), no artifact and no successful-export audit
+  row; otherwise build from **current** data (no canned artifact). At publish, in one step: store the
+  artifact, write **one** `finance_report.exported` row through `mock-audit.ts` (sole writer) with the
+  category and details above, and set `done`. A flag on the job makes publication happen once:
+  polling, repeated status and list reads, retries and repeated downloads never add a row. Later expiry
+  or purge of a published job adds no event and deletes none; its one original row stays.
+- Download: requester and clinic only; not done / expired / purged / other requester or clinic →
+  `not_found`; then the same access check: lost report or covering key, or own → other scope →
+  `forbidden`; narrower branch reach (a frozen branch lost) → `not_found`, matching the API's
+  distinctions; then the own patient-set re-check. Bytes live in memory only (never browser storage,
+  never an object URL in the mock).
 - Metadata: only the eight contract fields; `byteSize` set but not displayed.
 
 ### Inc 3 — cell preparation, CSV and XLSX for the mock (~350 lines, `shared/api/mock/`)
@@ -100,10 +118,10 @@
   `[Content_Types].xml`, sheet XML cells and types) and parse CSV text separately from the writer.
 
 ### Inc 4 — export controls and history only (~800 lines, new area `apps/web/src/report-exports/`)
-- Bounded placement (no on-screen reports): one thin route `/clinic/reports` that holds only the
-  "New export" dialog and the caller's export history, and a finance nav item visible when the caller
-  holds any report key. Slice 5 later adds the ten on-screen reports to this page; nothing of slice 5
-  is built here. Platform area gets nothing.
+- Placement (resolved): one thin route `/clinic/reports` holding only the "New export" dialog and
+  the caller's export history, with a finance nav item visible when the caller holds a report key
+  plus its covering key. The ten on-screen report tables stay deferred to slice 5; none is built here.
+  No platform entry.
 - Export dialog: reports the caller can open (report key + covering key via `can()`, never role
   names), CSV/XLSX, header language, from/to (≤ 1096 clinic days, clinic time zone), branch filter
   from that report's permission reach, `groupBy` for R1/R2 only. On R6 the approved ar/en note: the
@@ -124,10 +142,21 @@
   queued → failed, no artifact, no export audit row; revocation after done → download `forbidden`;
   expiry; purge; 1096 days ok, 1097 `report_range_too_long`; `groupBy` on a non-grouped report →
   `validation`; full-data read beyond one page for all four list reports.
+- Frozen reach (run and download): request [A, B], lose B while queued → `failed`, no artifact, no
+  successful-export audit row (never an A-only file); lose B after done → download refused with the
+  API's distinction (`not_found` for narrower reach) and no bytes; scope narrowed clinic → branch
+  while queued → `failed`; scope widened branch → clinic while queued → `done` with exactly the rows
+  of [A, B] (a third branch C adds no row); own job whose key becomes branch/clinic scope only →
+  `failed`, and at download → `forbidden`; lost report or covering key at download → `forbidden`.
+- Own patient set: done own export records its set internally; a patient leaving own reach makes the
+  next download `not_found`, deletes the artifact and turns the job `purged`; the eight public fields
+  never reveal the set (asserted on status and list answers).
 - Audit parity: exactly one `finance_report.exported` row per done job; category per report (all ten
   asserted); details keys exactly `report/from/to/branchIds/rowCount`; no row on admission; still one
-  after repeated polling, list reads and three downloads; no row for failed/revoked jobs; a scan of
-  the row proves no patient id, patient name, staff name, reason or note appears.
+  after repeated polling, list reads and three downloads; failed/revoked jobs keep their failed job
+  row but write no successful-export row; a done job later expired or purged still has exactly its
+  one original row (none added, none deleted); a scan of the row proves no patient id, patient name,
+  staff name, reason or note appears.
 - Cells/CSV: each of the 7 triggers incl. leading LF; a non-trigger second character is untouched;
   untrimmed text; quoting of comma/quote/CR/LF; money for exponents 0, 2 and 3 including negatives;
   15 significant digits accepted, 16 refused with no bytes.
@@ -142,11 +171,12 @@
   without a report key; record only what was checked; synthetic data only.
 - `AGENTS.md` quick rule for the new area; `roadmap.md` progress (F3 stays unchecked).
 
-## 3. Open items (placement/technical only)
+## 3. Resolved items and prerequisite
 
-- Q1. Confirm the bounded placement in Inc 4 (export controls + history on `/clinic/reports`, no
-  on-screen reports), or name another existing page.
-- Q2. The direct dependency in §4 must be added by the orchestrator before Inc 3 starts.
+- Placement resolved (orchestrator, 2026-10-27): thin `/clinic/reports` entry with export controls
+  and requester history only; not to be asked again.
+- Prerequisite (orchestrator): add the pinned `@zip.js/zip.js` 2.24.0 direct web dependency (§4)
+  after review, before Inc 3 starts. Lovable changes no manifest or lock.
 
 ## 4. XLSX path and dependency (for orchestrator review; Lovable edits no manifest or lock)
 
