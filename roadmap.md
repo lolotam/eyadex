@@ -134,5 +134,7 @@
 - [ ] F2: the receipt PDF — deferred with 8g
 - [ ] F3: reports (outline, `finance-design.md` §5)
   - [x] Slice 3 card B: web `reports` client (HTTP + mock R1–R10), slice 2b stored fields in the mock, `report_range_too_long` in the web catalogue
+  - [x] F3 export web inc 1–3B: HTTP export client, CSV/XLSX writers, full-data reader, mock admission + ephemeral job memory + current-access recheck (no lifecycle/wiring/UI yet)
+  - [ ] F3 export web inc 4: real job lifecycle, status/list/download, audit, factory wiring (after 3B review)
   - [ ] Slice 5: the report screens
 - [ ] F4: online payment and insurance (outline, `finance-design.md` §6)
