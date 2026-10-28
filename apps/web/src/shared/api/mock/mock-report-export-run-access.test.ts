@@ -21,6 +21,7 @@ function setup(own = false) {
   if (!appointment) throw new Error("Missing own appointment");
   appointment.providerMembershipId = member.id;
   const inv = invoice(f, 1);
+  for (const line of inv.lines) line.providerId = member.id;
   payment(f, 1, inv);
   admitReportExport(f.db, persona, {
     report: own ? "own_summary" : "daily_takings", format: "xlsx", language: "en",
@@ -174,5 +175,25 @@ it("publication performs a separate immediate live check after the post-write ch
     return f.clock();
   });
   expect(calls).toBe(4);
+  await f.failed();
+});
+
+it.each(["permission", "own reach"])("post-write %s denial cannot be rescued by a later grant", async (kind) => {
+  const f = setup(true);
+  f.tick(); await f.advance(); f.tick();
+  let calls = 0;
+  await advanceReportExport(f.db, f.job, () => {
+    calls += 1;
+    if (calls === 3) {
+      if (kind === "permission") f.role.permissions = [];
+      else f.appointment.status = "cancelled";
+    }
+    if (calls === 4) {
+      f.role.permissions = ["view:report_own:own", "view:invoices:own"];
+      f.appointment.status = "booked";
+    }
+    return f.clock();
+  });
+  expect(calls).toBe(3);
   await f.failed();
 });
