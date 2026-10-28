@@ -24,7 +24,10 @@ export async function encodePreparedXlsx(
     // Typed-array readers avoid depending on Blob.stream/arrayBuffer in jsdom.
     const encoder = new TextEncoder();
     for (const [index, xml] of sheets.entries())
-      await zip.add(`xl/worksheets/sheet${index + 1}.xml`, new Uint8ArrayReader(encoder.encode(xml)));
+      await zip.add(
+        `xl/worksheets/sheet${index + 1}.xml`,
+        new Uint8ArrayReader(encoder.encode(xml)),
+      );
     for (const [name, xml] of workbookParts(sheets.length))
       await zip.add(name, new Uint8ArrayReader(encoder.encode(xml)));
     const bytes = await zip.close();

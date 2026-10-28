@@ -211,27 +211,39 @@ describe("genuine browser XLSX artifacts", () => {
     const previous = header.en;
     header.en = "=synthetic-header";
     try {
-      const artifact = await xlsxArtifact("own_summary", [row("own_summary", {
-        period: date("x\tsecond"), currency: text(null),
-      })]);
+      const artifact = await xlsxArtifact("own_summary", [
+        row("own_summary", {
+          period: date("x\tsecond"),
+          currency: text(null),
+        }),
+      ]);
       const sheet = artifact.sheets[0];
       if (!sheet) throw new Error("Missing sheet");
       expect(cellValues(sheet)).toStrictEqual([
-        ["'=synthetic-header", "Billed", "Currency"], ["x\tsecond", "12.500", ""],
+        ["'=synthetic-header", "Billed", "Currency"],
+        ["x\tsecond", "12.500", ""],
       ]);
-    } finally { header.en = previous; }
+    } finally {
+      header.en = previous;
+    }
   });
 
   it("keeps the XML 1.0 boundary codepoints and paired supplementary characters", async () => {
     const value = "x\u0020\ud7ff\ue000\ufffd\ud800\udc00\udbff\udfff";
-    const artifact = await xlsxArtifact("own_summary", [row("own_summary", { currency: text(value) })]);
+    const artifact = await xlsxArtifact("own_summary", [
+      row("own_summary", { currency: text(value) }),
+    ]);
     const sheet = artifact.sheets[0];
     if (!sheet) throw new Error("Missing sheet");
     expect(cellValues(sheet)[1]?.[2]).toBe(value);
   });
 
   it("returns stable refusal for throwing input accessors", async () => {
-    await xlsxRefused({ get report() { throw new Error("synthetic-private-marker"); } });
+    await xlsxRefused({
+      get report() {
+        throw new Error("synthetic-private-marker");
+      },
+    });
   });
 
   it.each([
