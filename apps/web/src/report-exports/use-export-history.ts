@@ -32,6 +32,7 @@ export function useExportHistory() {
   if (identity.current !== scope) generation.current += 1;
   identity.current = scope;
   const epoch = generation.current;
+  const cacheKey = [...key, epoch] as const;
   const mounted = useRef(false);
   const pending = useRef<{ scope: string; work: Promise<void> } | null>(null);
   const enabled =
@@ -52,7 +53,7 @@ export function useExportHistory() {
   }, []);
 
   const query = useQuery({
-    queryKey: key,
+    queryKey: cacheKey,
     enabled,
     retry: false,
     refetchOnWindowFocus: false,
@@ -60,7 +61,7 @@ export function useExportHistory() {
     queryFn: async ({ signal }): Promise<History> => {
       if (pending.current?.scope === scope) await pending.current.work;
       if (signal.aborted || !current()) throw new Error("Cancelled export history");
-      const previous = client.getQueryData<History>(key);
+      const previous = client.getQueryData<History>(cacheKey);
       const head = await api.reports.listExports(persona, {});
       // Keep loaded tails when newly queued jobs shift the head. Refresh their real metadata,
       // rather than replacing server cursors with a client-generated offset.
@@ -75,14 +76,14 @@ export function useExportHistory() {
         items: merge(tail, head.items),
         total: head.total,
         nextCursor:
-          previous && previous.items.length > head.items.length
+          tail.length > 0 && previous
             ? previous.nextCursor
             : head.nextCursor,
       };
     },
     refetchInterval: (q) =>
       !q.state.error &&
-      !client.getQueryData([...key, "page-error"]) &&
+      !client.getQueryData([...cacheKey, "page-error"]) &&
       q.state.data?.items.some((row) => row.status === "queued" || row.status === "running")
         ? 2000
         : false,
@@ -97,32 +98,32 @@ export function useExportHistory() {
       try {
         const page = await api.reports.listExports(persona, { cursor });
         if (!current()) return;
-        client.setQueryData<History>(key, (old) => ({
+        client.setQueryData<History>(cacheKey, (old) => ({
           items: merge(old?.items ?? [], page.items),
           nextCursor: page.nextCursor,
           total: page.total,
         }));
-        client.setQueryData([...key, "page-error"], null);
+        client.setQueryData([...cacheKey, "page-error"], null);
       } catch (error) {
-        if (current()) client.setQueryData([...key, "page-error"], errorKeyOf(error));
+        if (current()) client.setQueryData([...cacheKey, "page-error"], errorKeyOf(error));
       }
     })();
     pending.current = { scope, work };
-    client.setQueryData([...key, "page-pending"], true);
+    client.setQueryData([...cacheKey, "page-pending"], true);
     try {
       await work;
     } finally {
       if (pending.current?.work === work) pending.current = null;
-      if (current()) client.setQueryData([...key, "page-pending"], false);
+      if (current()) client.setQueryData([...cacheKey, "page-pending"], false);
     }
   }
   const pageError = useQuery<string | null>({
-    queryKey: [...key, "page-error"],
+    queryKey: [...cacheKey, "page-error"],
     queryFn: () => null,
     enabled: false,
   });
   const pagePending = useQuery<boolean>({
-    queryKey: [...key, "page-pending"],
+    queryKey: [...cacheKey, "page-pending"],
     queryFn: () => false,
     enabled: false,
   });
