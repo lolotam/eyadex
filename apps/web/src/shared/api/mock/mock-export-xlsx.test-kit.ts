@@ -1,4 +1,4 @@
-import { TextWriter, Uint8ArrayReader, ZipReader } from "@zip.js/zip.js";
+import { Uint8ArrayWriter, Uint8ArrayReader, ZipReader } from "@zip.js/zip.js";
 import { expect } from "vitest";
 import type { ReportId } from "@eyadex/contracts/finance-reports";
 import { writeReportXlsx, type ReportXlsxResult } from "./mock-export-xlsx";
@@ -34,10 +34,11 @@ export async function readXlsx(result: ReportXlsxResult) {
       if (entry.directory) throw new Error("Unexpected directory entry");
       expect(entry.zip64).toBe(true);
       expect(entry.compressionMethod).toBe(0);
-      const source = await entry.getData(new TextWriter(), {
+      const bytes = await entry.getData(new Uint8ArrayWriter(), {
         useWebWorkers: false,
         checkSignature: true,
       });
+      const source = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
       parseXml(source);
       parts.set(entry.filename, source);
     }

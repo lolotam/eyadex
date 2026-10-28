@@ -1,4 +1,4 @@
-import { TextReader, Uint8ArrayWriter, ZipWriter } from "@zip.js/zip.js";
+import { Uint8ArrayReader, Uint8ArrayWriter, ZipWriter } from "@zip.js/zip.js";
 import { prepareReportExport, type PreparedReport } from "./mock-export-cells";
 import { reportSheetXmls, workbookParts } from "./mock-export-sheet-xml";
 
@@ -21,10 +21,12 @@ export async function encodePreparedXlsx(
       useWebWorkers: false,
       keepOrder: true,
     });
+    // Typed-array readers avoid depending on Blob.stream/arrayBuffer in jsdom.
+    const encoder = new TextEncoder();
     for (const [index, xml] of sheets.entries())
-      await zip.add(`xl/worksheets/sheet${index + 1}.xml`, new TextReader(xml));
+      await zip.add(`xl/worksheets/sheet${index + 1}.xml`, new Uint8ArrayReader(encoder.encode(xml)));
     for (const [name, xml] of workbookParts(sheets.length))
-      await zip.add(name, new TextReader(xml));
+      await zip.add(name, new Uint8ArrayReader(encoder.encode(xml)));
     const bytes = await zip.close();
     return { ok: true, bytes, rowCount: prepared.rows.length };
   } catch {
