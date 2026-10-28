@@ -250,13 +250,12 @@ it("other clinics and finished jobs do not count toward the cap", () => {
 it("the check and the insert are one synchronous step with no async gap", () => {
   const result = admitReportExport(getState(), admin(), request(), NOW);
   expect(result).not.toBeInstanceOf(Promise);
-  const attempts = Array.from({ length: EXPORT_QUEUE_LIMIT }, () =>
-    codeOf(() => admitReportExport(getState(), admin(), request(), NOW)),
-  );
-  // One job already queued above: nine more admit, every further attempt is busy.
-  expect(attempts.slice(0, EXPORT_QUEUE_LIMIT - 1).every((code) => code === "admitted")).toBe(false);
+  // One job already queued above: nine more admit without an await, every further attempt is busy.
+  for (let index = 0; index < EXPORT_QUEUE_LIMIT - 1; index += 1) {
+    admitReportExport(getState(), admin(), request(), NOW);
+  }
   expect(exportJobsOf(getState())).toHaveLength(EXPORT_QUEUE_LIMIT);
-  expect(attempts.at(-1)).toBe("export_busy");
+  expect(codeOf(() => admitReportExport(getState(), admin(), request(), NOW))).toBe("export_busy");
 });
 
 it("admission and refusal write no audit row and no artifact", () => {
