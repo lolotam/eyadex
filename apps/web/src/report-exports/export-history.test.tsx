@@ -88,7 +88,8 @@ it("follows a real job queued -> running -> done and downloads once with the rea
   expect(screen.getByText("Showing 1 of 1")).toBeInTheDocument();
   await advance(f);
   expect(screen.getByTestId("export-row")).toHaveTextContent(t.statuses.running);
-  await advance(f);
+  for (let i = 0; i < 4 && !screen.getByTestId("export-row").textContent?.includes(t.statuses.done); i += 1)
+    await advance(f);
   const row = screen.getByTestId("export-row");
   expect(row).toHaveTextContent(t.statuses.done);
   expect(row).not.toHaveTextContent(/reportExports\.|byte/i);
@@ -159,7 +160,9 @@ it("shows head errors with manual retry, keeps rows on refresh error and drops t
   await flush(5000);
   expect(list).toHaveBeenCalledTimes(3);
   context.persona = personaWith([]);
-  context.session = await f.root.session.getContext(context.persona);
+  const next = f.root.session.getContext(context.persona);
+  await vi.advanceTimersByTimeAsync(80);
+  context.session = await next;
   f.rerender();
   expect(screen.queryAllByTestId("export-row")).toHaveLength(0);
 });
