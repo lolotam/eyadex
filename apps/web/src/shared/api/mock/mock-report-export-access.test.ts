@@ -85,12 +85,12 @@ it("finance off, suspension and the exact expiry boundary refuse with their own 
   const db = getState();
   const clinic = db.clinics.find((c) => c.id === clinicIdAt(0));
   if (!clinic) throw new Error("seed");
-  db.features[clinic.id] = { ...db.features[clinic.id], finance: false };
+  db.features[clinic.id] = { ...(db.features[clinic.id] ?? NO_FEATURES), finance: false };
   expect(recheckExportAccess(db, job, NOW)).toStrictEqual({
     kind: "denied",
     code: "module_disabled",
   });
-  db.features[clinic.id] = { ...db.features[clinic.id], finance: true };
+  db.features[clinic.id] = { ...(db.features[clinic.id] ?? NO_FEATURES), finance: true };
   clinic.status = "suspended";
   expect(recheckExportAccess(db, job, NOW)).toStrictEqual({
     kind: "denied",

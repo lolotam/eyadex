@@ -15,7 +15,7 @@ import type { MockState } from "./mock-store";
  * ever reach the public projection.
  */
 export interface ExportJobRecord {
-  readonly id: ReportExportId;
+  readonly id: string;
   readonly clinicId: string;
   readonly requestedBy: string;
   readonly report: ReportId;
