@@ -75,10 +75,7 @@ export function useExportHistory() {
       return {
         items: merge(tail, head.items),
         total: head.total,
-        nextCursor:
-          tail.length > 0 && previous
-            ? previous.nextCursor
-            : head.nextCursor,
+        nextCursor: tail.length > 0 && previous ? previous.nextCursor : head.nextCursor,
       };
     },
     refetchInterval: (q) =>
