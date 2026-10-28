@@ -8,7 +8,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export type ExportSelectOption = { value: string; label: string; disabled?: boolean };
+export type ExportSelectOption = { value: string; label: string; disabled?: boolean | undefined };
 
 /** One labelled export-form picker; the error and help text are tied to it for screen readers. */
 export function ExportSelectField({
@@ -27,10 +27,10 @@ export function ExportSelectField({
   value: string;
   options: ExportSelectOption[];
   onChange: (value: string) => void;
-  disabled?: boolean;
-  placeholder?: string;
-  error?: ReactNode;
-  help?: ReactNode;
+  disabled?: boolean | undefined;
+  placeholder?: string | undefined;
+  error?: ReactNode | undefined;
+  help?: ReactNode | undefined;
 }) {
   const described = [help ? `${id}-help` : null, error ? `${id}-error` : null]
     .filter(Boolean)
@@ -38,7 +38,7 @@ export function ExportSelectField({
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
       <Label htmlFor={id}>{label}</Label>
-      <Select value={value} onValueChange={onChange} disabled={disabled}>
+      <Select value={value} onValueChange={onChange} disabled={disabled ?? false}>
         <SelectTrigger
           id={id}
           className="min-h-11 w-full bg-card md:min-h-9"
@@ -49,7 +49,7 @@ export function ExportSelectField({
         </SelectTrigger>
         <SelectContent>
           {options.map((o) => (
-            <SelectItem key={o.value} value={o.value} disabled={o.disabled}>
+            <SelectItem key={o.value} value={o.value} disabled={o.disabled ?? false}>
               {o.label}
             </SelectItem>
           ))}
