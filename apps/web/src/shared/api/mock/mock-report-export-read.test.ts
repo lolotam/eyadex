@@ -257,8 +257,10 @@ it("reader writes no audit and observes changed state, nullable staff and note a
 });
 
 it("rejects unsupported row currency without altering the frozen catalogue", () => {
-  const f = fixture(); const stored = invoice(f, 1);
+  const f = fixture();
+  const stored = invoice(f, 1);
   Object.defineProperty(stored, "currency", { value: "unsupported", configurable: true });
-  expect(() => readReportExport(f.ctx, "outstanding", params([f.a.id]), NOW))
-    .toThrow(expect.objectContaining({ code: "export_value_invalid" }));
+  expect(() => readReportExport(f.ctx, "outstanding", params([f.a.id]), NOW)).toThrow(
+    expect.objectContaining({ code: "export_value_invalid" }),
+  );
 });
