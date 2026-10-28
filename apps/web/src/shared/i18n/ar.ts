@@ -18,6 +18,7 @@ import { arScheduling, arSchedulingErrors } from "./ar-scheduling";
 import { arMedicalErrors } from "./ar-medical";
 
 import type { Dictionary } from "./dictionary";
+import { arReportExports } from "./ar-report-exports";
 
 export const ar: Dictionary = {
   app: { name: "Eyadex", tagline: "كل عياداتك في مكان واحد" },
@@ -185,6 +186,7 @@ export const ar: Dictionary = {
   ...arFinance,
   ...arPayments,
   ...arCashClosings,
+  ...arReportExports,
   validation: {
     needsView:
       "أي صلاحية إضافة أو تعديل أو تعطيل تحتاج صلاحية العرض في نفس القسم، بنطاق لا يقل عن نطاقها",
