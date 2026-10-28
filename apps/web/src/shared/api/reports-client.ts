@@ -11,7 +11,7 @@ type Report<Q extends z.ZodTypeAny, R extends z.ZodTypeAny> = (
  * Finance F3 (spec §3–§6): the ten on-screen reports. Each needs its report key and the key of the data
  * it reads, at the report's scope; a range is at most 366 clinic days (`report_range_too_long`).
  */
-export interface ReportsApi {
+export interface ReportsApi extends ReportExportsApi {
   /** R1: money in and out per day (or month), branch and method. */
   dailyTakings: Report<
     typeof reports.reportDailyTakingsQuerySchema,
