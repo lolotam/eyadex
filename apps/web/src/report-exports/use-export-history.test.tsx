@@ -184,3 +184,90 @@ it("unmount cancels active polling even while queued and discards a late page", 
   await flush(8000);
   expect(read).toHaveBeenCalledTimes(count);
 });
+
+async function pagedHistory() {
+  const f = await fixture();
+  for (let i = 0; i < 21; i++) {
+    const job = await f.root.reports.requestExport(f.persona, { ...f.body, format: "csv" });
+    vi.setSystemTime(Date.now() + 1000);
+    await f.root.reports.getExport(f.persona, job.export.id);
+    vi.setSystemTime(Date.now() + 1000);
+    await f.root.reports.getExport(f.persona, job.export.id);
+  }
+  const h = mount();
+  await flush();
+  const switchTo = async (persona: Persona) => {
+    await act(async () => {
+      context.persona = persona;
+      const session = f.root.session.getContext(persona);
+      await vi.advanceTimersByTimeAsync(80);
+      context.session = await session;
+    });
+    h.rerender();
+    await flush();
+  };
+  return { ...f, h, switchTo };
+}
+
+it("a cancelled head never starts tail reads for the previous requester", async () => {
+  const f = await pagedHistory();
+  await act(async () => {
+    await f.h.result.current.loadMore();
+  });
+  await flush();
+  expect(f.h.result.current.items).toHaveLength(21);
+  const actual = f.root.reports.listExports;
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  vi.spyOn(f.root.reports, "listExports").mockImplementationOnce(async (p, q) => {
+    const head = await actual(p, q);
+    await gate;
+    return head;
+  });
+  const tail = vi.spyOn(f.root.reports, "getExport");
+  let refresh: ReturnType<typeof f.h.result.current.refresh> | undefined;
+  await act(async () => {
+    refresh = f.h.result.current.refresh();
+  });
+  await f.switchTo(personaWith([]));
+  await act(async () => {
+    release();
+    await refresh;
+  });
+  await flush();
+  expect(tail).not.toHaveBeenCalled();
+  expect(f.h.result.current.items).toEqual([]);
+});
+
+it("A to B to A starts a fresh head without waiting on A's obsolete page", async () => {
+  const f = await pagedHistory();
+  const actual = f.root.reports.listExports;
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  vi.spyOn(f.root.reports, "listExports").mockImplementationOnce(async (p, q) => {
+    const page = await actual(p, q);
+    await gate;
+    return page;
+  });
+  let page: Promise<void> | undefined;
+  await act(async () => {
+    page = f.h.result.current.loadMore();
+  });
+  try {
+    await f.switchTo(personaWith([]));
+    await f.switchTo(f.persona);
+    expect(f.h.result.current.items).toHaveLength(20);
+    expect(f.h.result.current.isLoadingMore).toBe(false);
+  } finally {
+    await act(async () => {
+      release();
+      await page;
+    });
+  }
+  await flush();
+  expect(f.h.result.current.items).toHaveLength(20);
+});

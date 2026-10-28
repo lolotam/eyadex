@@ -34,7 +34,7 @@ export function useExportHistory() {
   const epoch = generation.current;
   const cacheKey = [...key, epoch] as const;
   const mounted = useRef(false);
-  const pending = useRef<{ scope: string; work: Promise<void> } | null>(null);
+  const pending = useRef<{ scope: string; epoch: number; work: Promise<void> } | null>(null);
   const enabled =
     ready &&
     !isLoading &&
@@ -59,10 +59,12 @@ export function useExportHistory() {
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     queryFn: async ({ signal }): Promise<History> => {
-      if (pending.current?.scope === scope) await pending.current.work;
+      if (pending.current?.scope === scope && pending.current.epoch === epoch)
+        await pending.current.work;
       if (signal.aborted || !current()) throw new Error("Cancelled export history");
       const previous = client.getQueryData<History>(cacheKey);
       const head = await api.reports.listExports(persona, {});
+      if (signal.aborted || !current()) throw new Error("Cancelled export history");
       // Keep loaded tails when newly queued jobs shift the head. Refresh their real metadata,
       // rather than replacing server cursors with a client-generated offset.
       const ids = new Set(head.items.map((row) => row.id));
@@ -89,7 +91,8 @@ export function useExportHistory() {
 
   async function loadMore() {
     if (!enabled || query.isFetching || !query.data?.nextCursor) return;
-    if (pending.current?.scope === scope) return pending.current.work;
+    if (pending.current?.scope === scope && pending.current.epoch === epoch)
+      return pending.current.work;
     const cursor = query.data.nextCursor;
     const work = (async () => {
       try {
@@ -105,7 +108,7 @@ export function useExportHistory() {
         if (current()) client.setQueryData([...cacheKey, "page-error"], errorKeyOf(error));
       }
     })();
-    pending.current = { scope, work };
+    pending.current = { scope, epoch, work };
     client.setQueryData([...cacheKey, "page-pending"], true);
     try {
       await work;

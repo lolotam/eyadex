@@ -85,7 +85,7 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
     );
   }
   function download(row: ReportExport): Promise<void> {
-    const token = JSON.stringify([scope, row.id]);
+    const token = JSON.stringify([scope, epoch, row.id]);
     const prior = inFlight.current.get(token);
     if (prior) return prior;
     if (

@@ -151,3 +151,46 @@ it.each(["forbidden", "not_found"] as const)(
     expect(f.h.result.current.errors).toStrictEqual({});
   },
 );
+
+it("A to B to A can download without inheriting A's obsolete in-flight request", async () => {
+  const f = await fixture();
+  const session = context.session;
+  const actual = f.api.reports.downloadExport;
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const call = vi.spyOn(f.api.reports, "downloadExport").mockImplementationOnce(async (p, id) => {
+    const blob = await actual(p, id);
+    await gate;
+    return blob;
+  });
+  let old: Promise<void> | undefined;
+  await act(async () => {
+    old = f.h.result.current.download(f.row);
+  });
+  context.persona = personaWith([]);
+  context.session = await f.api.session.getContext(context.persona);
+  f.h.rerender({ rows: [] });
+  context.persona = f.persona;
+  context.session = session;
+  f.h.rerender({ rows: [f.row] });
+  let fresh: Promise<void> | undefined;
+  try {
+    await act(async () => {
+      fresh = f.h.result.current.download(f.row);
+    });
+    expect(fresh).not.toBe(old);
+    expect(call).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      await fresh;
+    });
+    expect(f.create).toHaveBeenCalledTimes(1);
+  } finally {
+    await act(async () => {
+      release();
+      await old;
+    });
+  }
+  expect(f.create).toHaveBeenCalledTimes(1);
+});
