@@ -40,7 +40,7 @@ async function flush(ms = 10) {
     await vi.advanceTimersByTimeAsync(ms);
   });
 }
-async function mount() {
+async function mount(before?: (api: ApiClient) => void) {
   const f = setup();
   vi.setSystemTime(f.clock());
   const api = createMockApiClient();
@@ -49,6 +49,7 @@ async function mount() {
   const session = api.session.getContext(f.persona);
   await vi.advanceTimersByTimeAsync(80);
   context.session = await session;
+  before?.(api);
   client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
   const view = () => (
     <QueryClientProvider client={client}>
@@ -77,6 +78,7 @@ it("shows loading then empty, with a heading and no list", async () => {
 
 it("follows a real job queued -> running -> done and downloads once with the real file", async () => {
   const f = await mount();
+  await flush(200);
   await act(async () => {
     await f.root.reports.requestExport(f.persona, f.body);
   });
@@ -114,6 +116,7 @@ it("follows a real job queued -> running -> done and downloads once with the rea
 
 it("keeps own history after report-key loss but hides a refused download", async () => {
   const f = await mount();
+  await flush(200);
   await act(async () => {
     await f.finish();
   });
@@ -132,9 +135,11 @@ it("keeps own history after report-key loss but hides a refused download", async
 });
 
 it("shows head errors with manual retry, keeps rows on refresh error and drops them on identity change", async () => {
-  const f = await mount();
-  const list = vi.spyOn(f.root.reports, "listExports");
-  list.mockRejectedValueOnce(new ApiError("module_disabled", 403));
+  let list = null as unknown as ReturnType<typeof vi.spyOn<ApiClient["reports"], "listExports">>;
+  const f = await mount((api) => {
+    list = vi.spyOn(api.reports, "listExports");
+    list.mockRejectedValueOnce(new ApiError("module_disabled", 403));
+  });
   await flush(200);
   expect(screen.getByRole("alert")).toHaveTextContent(en.errors.module_disabled);
   await act(async () => {
@@ -159,6 +164,7 @@ it("shows head errors with manual retry, keeps rows on refresh error and drops t
 
 it("loads more pages, and a page error keeps rows with manual retry", async () => {
   const f = await mount();
+  await flush(200);
   await act(async () => {
     for (let i = 0; i < 5; i += 1) await f.finish();
     for (let i = 0; i < 18; i += 1) await f.root.reports.requestExport(f.persona, f.body).catch(() => null);
