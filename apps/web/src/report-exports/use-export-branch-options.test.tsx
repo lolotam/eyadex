@@ -144,7 +144,7 @@ it("publishes nothing after a later-page failure and recovers on manual retry", 
   expect(h.result.current).toMatchObject({ items: [], error: "unknown", isReady: false });
   await flush(10_000);
   expect(calls).toBe(2);
-  await act(async () => void (await h.result.current.retry()));
+  act(() => void h.result.current.retry());
   await flush();
   expect(calls).toBe(4);
   expect(h.result.current.items).toHaveLength(all.length);
@@ -175,7 +175,7 @@ it("finance off, blocked clinic, session error and denied refresh hide options w
   await flush();
   expect(h.result.current.items.length).toBeGreaterThan(100);
   roleOf(persona).permissions = ["view:report_analytics:clinic"];
-  await act(async () => void (await h.result.current.refresh()));
+  act(() => void h.result.current.refresh());
   await flush();
   expect(h.result.current).toMatchObject({ items: [], error: "forbidden" });
   void api;
