@@ -79,37 +79,59 @@ function hold(post: ReturnType<typeof vi.spyOn>, real: ApiClient["reports"]["req
   });
   return () => gates.shift()?.();
 }
-const historyKey = (s: SessionContext, p: Persona, epoch = 0) =>
-  ["clinic", "report-exports", p.kind, p.clinicId, p.memberId, s.clinic?.id, s.membershipId, epoch];
+const historyKey = (s: SessionContext, p: Persona, epoch = 0) => [
+  "clinic",
+  "report-exports",
+  p.kind,
+  p.clinicId,
+  p.memberId,
+  s.clinic?.id,
+  s.membershipId,
+  epoch,
+];
 
 it.each([
   [body({ format: "csv", language: "ar", groupBy: "month" }), "csv"],
   [body({ format: "xlsx", language: "en", groupBy: "day" }), "xlsx"],
-] as const)("queues the exact validated %#body and refreshes only the requester history", async (input) => {
-  const { f, post, persona } = await setup();
-  const withBranch = { ...input, branchId: f.a.id };
-  const h = mount();
-  const mine = historyKey(context.session!, persona);
-  const other = ["clinic", "report-exports", "custom", persona.clinicId, "someone-else", 0];
-  client.setQueryData(mine, { items: [] });
-  client.setQueryData(other, { items: [] });
-  let outcome: Awaited<ReturnType<typeof h.result.current.submit>> | undefined;
-  await act(async () => {
-    outcome = await h.result.current.submit(withBranch);
-  });
-  expect(outcome?.status === "invalid" ? outcome.issues : []).toEqual([]);
-  expect(post).toHaveBeenCalledTimes(1);
-  expect(post.mock.calls[0]).toEqual([persona, reportExportRequestSchema.parse(withBranch)]);
-  const job = exportJobsOf(f.db).at(-1)!;
-  expect(outcome).toEqual({ status: "queued", export: expect.objectContaining({ id: job.id, status: "queued" }) });
-  expect(h.result.current.queued?.id).toBe(job.id);
-  expect(job.params).toMatchObject({ language: withBranch.language, groupBy: withBranch.groupBy, branchIds: [f.a.id] });
-  expect(client.getQueryState(mine)?.isInvalidated).toBe(true);
-  expect(client.getQueryState(other)?.isInvalidated).toBe(false);
-});
+] as const)(
+  "queues the exact validated %#body and refreshes only the requester history",
+  async (input) => {
+    const { f, post, persona } = await setup();
+    const withBranch = { ...input, branchId: f.a.id };
+    const h = mount();
+    const mine = historyKey(context.session!, persona);
+    const other = ["clinic", "report-exports", "custom", persona.clinicId, "someone-else", 0];
+    client.setQueryData(mine, { items: [] });
+    client.setQueryData(other, { items: [] });
+    let outcome: Awaited<ReturnType<typeof h.result.current.submit>> | undefined;
+    await act(async () => {
+      outcome = await h.result.current.submit(withBranch);
+    });
+    expect(outcome?.status === "invalid" ? outcome.issues : []).toEqual([]);
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(post.mock.calls[0]).toEqual([persona, reportExportRequestSchema.parse(withBranch)]);
+    const job = exportJobsOf(f.db).at(-1)!;
+    expect(outcome).toEqual({
+      status: "queued",
+      export: expect.objectContaining({ id: job.id, status: "queued" }),
+    });
+    expect(h.result.current.queued?.id).toBe(job.id);
+    expect(job.params).toMatchObject({
+      language: withBranch.language,
+      groupBy: withBranch.groupBy,
+      branchIds: [f.a.id],
+    });
+    expect(client.getQueryState(mine)?.isInvalidated).toBe(true);
+    expect(client.getQueryState(other)?.isInvalidated).toBe(false);
+  },
+);
 
 it("uses the real schema: 1096 days passes, over-range, inverted and wrong grouping never POST", async () => {
-  const { post } = await setup([...TAKINGS, "view:report_analytics:branch", "view:invoices:branch"]);
+  const { post } = await setup([
+    ...TAKINGS,
+    "view:report_analytics:branch",
+    "view:invoices:branch",
+  ]);
   const h = mount();
   const run = (input: ReportExportRequest) => act(() => h.result.current.submit(input));
   expect(await run(body({ from: "2026-01-01", to: "2028-12-31" }))).toMatchObject({
@@ -138,7 +160,9 @@ it("gates on report key + covering key, refuses an uncovered wider key, needs no
   expect(post).not.toHaveBeenCalled();
   const g = await setup(["view:report_analytics:branch", "view:invoices:branch"]);
   const k = mount();
-  expect((await act(() => k.result.current.submit(body({ report: "by_service" })))).status).toBe("queued");
+  expect((await act(() => k.result.current.submit(body({ report: "by_service" })))).status).toBe(
+    "queued",
+  );
   expect(g.post).toHaveBeenCalledTimes(1);
 });
 
@@ -168,7 +192,10 @@ it("keeps real catalogue codes, never retries itself, and recovers on a manual r
   for (let i = 0; i < 10; i++) await api.reports.requestExport(persona, body());
   post.mockClear();
   const h = mount();
-  expect(await act(() => h.result.current.submit(body()))).toEqual({ status: "failed", error: "export_busy" });
+  expect(await act(() => h.result.current.submit(body()))).toEqual({
+    status: "failed",
+    error: "export_busy",
+  });
   expect(h.result.current.error).toBe("export_busy");
   await act(async () => void (await vi.advanceTimersByTimeAsync(10_000)));
   expect(post).toHaveBeenCalledTimes(1);
@@ -181,9 +208,15 @@ it("keeps real catalogue codes, never retries itself, and recovers on a manual r
     (r) => r.id === getState().members.find((m) => m.id === persona.memberId)!.roleId,
   )!;
   role.permissions = ["view:report_takings:branch"];
-  expect(await act(() => h.result.current.submit(body()))).toEqual({ status: "failed", error: "forbidden" });
+  expect(await act(() => h.result.current.submit(body()))).toEqual({
+    status: "failed",
+    error: "forbidden",
+  });
   getState().members.find((m) => m.id === persona.memberId)!.status = "deactivated";
-  expect(await act(() => h.result.current.submit(body()))).toEqual({ status: "failed", error: "account_disabled" });
+  expect(await act(() => h.result.current.submit(body()))).toEqual({
+    status: "failed",
+    error: "account_disabled",
+  });
 });
 
 it("A→B→A: the old pending POST stays stale, does not block or invalidate the current actor", async () => {

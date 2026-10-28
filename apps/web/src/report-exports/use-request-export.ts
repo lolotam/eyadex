@@ -11,8 +11,8 @@ import { useApi } from "@/shared/api/api-provider";
 import { errorKeyOf } from "@/shared/api/api-error";
 import { usePersona, useSession } from "@/shared/persona/persona-provider";
 
-/** One schema issue: the field path and the schema's own message key. */
-export type ExportRequestIssue = { path: string; message: string };
+/** One schema issue: the field path and the schema's own `validation.*` key, or null for a shape issue. */
+export type ExportRequestIssue = { path: string; message: string | null };
 export type RequestExportOutcome =
   | { status: "queued"; export: ReportExport }
   | { status: "invalid"; issues: ExportRequestIssue[] }
@@ -88,7 +88,7 @@ export function useRequestExport() {
       if (!parsed.success) {
         const issues = parsed.error.issues.map((i) => ({
           path: i.path.join("."),
-          message: i.message,
+          message: i.message.startsWith("validation.") ? i.message : null,
         }));
         setPublished({ epoch, kind: "invalid", issues });
         return { status: "invalid", issues };
