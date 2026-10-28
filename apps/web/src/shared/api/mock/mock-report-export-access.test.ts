@@ -1,4 +1,5 @@
 import { beforeEach, expect, it } from "vitest";
+import { NO_FEATURES } from "@eyadex/contracts/clinics";
 import { admitReportExport } from "./mock-report-export-admission";
 import { recheckExportAccess } from "./mock-report-export-access";
 import { exportJobsOf, type ExportJobRecord } from "./mock-report-export-state";
