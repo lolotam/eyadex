@@ -35,7 +35,7 @@ export function ExportRequestForm() {
   const issuesAt = (path: string) => form.issues.filter((i) => i.path === path);
   const pathText = (path: string) => {
     const found = issuesAt(path);
-    return found.length ? found.map((i) => issueText(i.message)).join(" ") : null;
+    return found.length ? [...new Set(found.map((i) => issueText(i.message)))].join(" ") : null;
   };
   const fieldText = (field: "report" | "branchId") => {
     const issue = form.fieldIssues.find((i) => i.field === field);

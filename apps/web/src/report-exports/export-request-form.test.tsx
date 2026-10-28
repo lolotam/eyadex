@@ -163,16 +163,14 @@ it("lists real bilingual branch names, the inactive one marked, and all branches
   await setup(ANALYTICS);
   pickIn(R.report, "by_service");
   await flush();
-  const texts = () =>
-    [...(screen.getByLabelText(R.branch) as HTMLSelectElement).options].map((o) => o.text);
-  expect(texts()).toContain(R.allBranches);
-  expect(texts()).toContain("فرع أ");
-  expect(texts()).toContain(R.inactive.replace("{name}", "فرع قديم"));
+  const texts = (label: string) =>
+    [...(screen.getByLabelText(label) as HTMLSelectElement).options].map((o) => o.text);
+  expect(texts(R.branch)).toContain(R.allBranches);
+  expect(texts(R.branch)).toContain("فرع أ");
+  expect(texts(R.branch)).toContain(R.inactive.replace("{name}", "فرع قديم"));
   act(() => setLang("en"));
-  const texts = () =>
-    [...(screen.getByLabelText(E.branch) as HTMLSelectElement).options].map((o) => o.text);
-  expect(texts()).toContain(E.inactive.replace("{name}", "Old branch"));
-  expect(texts()).toContain("Branch A");
+  expect(texts(E.branch)).toContain(E.inactive.replace("{name}", "Old branch"));
+  expect(texts(E.branch)).toContain("Branch A");
   expect((screen.getByLabelText(E.branch) as HTMLSelectElement).value).toBe("__all__");
   noRawKeys();
 });
