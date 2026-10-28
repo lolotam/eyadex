@@ -45,7 +45,7 @@ it.each(["csv", "xlsx"] as const)(
     expect(reportExportSchema.safeParse(done.export).success).toBe(true);
     const blob = await other.downloadExport(f.persona, job.id.toUpperCase());
     const bytes = await blobBytes(blob);
-    expect(bytes).toStrictEqual(job.artifact);
+    expect([...bytes]).toStrictEqual([...(job.artifact ?? [])]);
     expect(blob.size).toBe(job.byteSize);
     expect(job.rowCount).toBe(1);
     expect(job.expiresAt).toBe(new Date(f.clock().getTime() + EXPORT_LIFETIME_MS).toISOString());
@@ -67,8 +67,8 @@ it.each(["csv", "xlsx"] as const)(
     const original = structuredClone(f.db.clinicAudit);
     bytes.fill(0);
     done.export.status = "failed";
-    expect(await blobBytes(await f.api.downloadExport(f.persona, job.id))).toStrictEqual(
-      job.artifact,
+    expect([...(await blobBytes(await f.api.downloadExport(f.persona, job.id)))]).toStrictEqual(
+      [...(job.artifact ?? [])],
     );
     expect(job.status).toBe("done");
     await f.api.getExport(f.persona, job.id);
@@ -116,6 +116,9 @@ it("requester and clinic isolation applies to get/list/download and never advanc
   const f = setup();
   const job = await f.request();
   const foreign = personaWith(["view:report_takings:clinic", "view:payments:clinic"]);
+  const otherClinic = f.db.clinics[1];
+  if (!otherClinic) throw new Error("Missing clinic");
+  f.db.features[otherClinic.id] = { ...f.db.features[f.ctx.clinicId], finance: true };
   f.tick();
   for (const actor of [foreign, as("clinic_admin", 1)]) {
     await expect(f.api.getExport(actor, job.id)).rejects.toMatchObject({ code: "not_found" });
@@ -153,6 +156,9 @@ it("stable >20 pagination, tie order, cursor isolation, limits and no store reor
   expect(exportJobsOf(f.db).map((j) => j.id)).toStrictEqual(source);
   const other = personaWith(["view:report_takings:clinic", "view:payments:clinic"]);
   const foreign = await f.api.requestExport(other, f.body);
+  const otherClinic = f.db.clinics[1];
+  if (!otherClinic) throw new Error("Missing clinic");
+  f.db.features[otherClinic.id] = { ...f.db.features[f.ctx.clinicId], finance: true };
   const cross = await f.api.requestExport(as("clinic_admin", 1), f.body);
   for (const cursor of [id(88888), foreign.export.id, cross.export.id])
     expect(await f.api.listExports(f.persona, { cursor })).toStrictEqual({
