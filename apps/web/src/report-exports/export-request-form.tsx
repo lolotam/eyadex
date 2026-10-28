@@ -279,7 +279,11 @@ export function ExportRequestForm() {
           ) : null}
         </div>
         <div className="flex justify-end">
-          <Button type="submit" className="min-h-11 w-full gap-1.5 md:min-h-9 md:w-auto" disabled={disabled}>
+          <Button
+            type="submit"
+            className="min-h-11 w-full gap-1.5 md:min-h-9 md:w-auto"
+            disabled={disabled}
+          >
             {form.isPending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
             {form.isPending
               ? t("reportExports.request.submitting")
