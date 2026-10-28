@@ -146,7 +146,7 @@ it("frozen A/B excludes widened C and other-clinic data; missing B refuses entir
   );
 });
 
-it.each(["2025-01-02", "2023-01-01"])(
+it.each(["2024-12-30", "2023-01-01"])(
   "internal export reads long range from %s while screen refuses",
   async (from) => {
     const f = fixture();
@@ -254,4 +254,11 @@ it("reader writes no audit and observes changed state, nullable staff and note a
     readReportExport(f.ctx, "outstanding", params([f.a.id]), NOW).rows[0]?.["owedMinor"],
   ).toStrictEqual({ kind: "money", minor: "12000", exponent: 3 });
   expect(f.db.clinicAudit).toStrictEqual(before);
+});
+
+it("rejects unsupported row currency without altering the frozen catalogue", () => {
+  const f = fixture(); const stored = invoice(f, 1);
+  Object.defineProperty(stored, "currency", { value: "unsupported", configurable: true });
+  expect(() => readReportExport(f.ctx, "outstanding", params([f.a.id]), NOW))
+    .toThrow(expect.objectContaining({ code: "export_value_invalid" }));
 });
