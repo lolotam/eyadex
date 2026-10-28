@@ -65,7 +65,7 @@ it("root HTTP reports namespace sends all four real routes with typed filters an
 });
 
 it.each([
-  ["text/csv; charset=utf-8", [239, 187, 191, 65, 44, 66, 13, 10]],
+  ["text/csv;charset=utf-8", [239, 187, 191, 65, 44, 66, 13, 10]],
   ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", [80, 75, 3, 4, 0, 255]],
 ] as const)(
   "root HTTP download preserves exact %s bytes/MIME and encodes path",
@@ -146,20 +146,24 @@ it.each([
 );
 
 it("root HTTP keeps the existing daily takings route and forwards long filters for server validation", async () => {
-  const report = { rows: [], currency: "KWD", currencyExponent: 3 };
+  const report = {
+    rows: [],
+    totals: { inMinor: "0", outMinor: "0", netMinor: "0" },
+    currency: "KWD",
+    currencyExponent: 3,
+  };
   const h = client(() => json(report));
   expect(
     await h.api.reports.dailyTakings(actor, {
       from: body.from,
       to: body.to,
       groupBy: "month",
-      language: "en",
     }),
   ).toStrictEqual(report);
   const call = h.fetchImpl.mock.calls[0];
   if (!call) throw new Error("Missing report call");
   expect(String(call[0])).toBe(
-    "/api/v1/finance-reports/daily-takings?from=2024-01-01&to=2026-12-31&groupBy=month&language=en",
+    "/api/v1/finance-reports/daily-takings?from=2024-01-01&to=2026-12-31&groupBy=month",
   );
   expect(call[1]).toMatchObject({ method: "GET", credentials: "same-origin" });
 });

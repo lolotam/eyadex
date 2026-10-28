@@ -102,7 +102,6 @@ it("root mock preserves report data and the 366-day limit while accepting a 1096
   const report = await api.reports.dailyTakings(admin(), {
     from: body.from,
     to: body.to,
-    language: "en",
   });
   expect(report.rows).toMatchObject([{ branchId: f.a.id, inMinor: "3000", netMinor: "3000" }]);
   const long = { from: "2024-01-01", to: "2026-12-31" };
