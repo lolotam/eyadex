@@ -127,16 +127,26 @@ export function byDoctor(ctx: ReportContext, q: Range) {
   return { rows, totals: totalsOf(rows) };
 }
 
-/** R10: the doctor's own live lines on issued invoices of his own patients, per clinic month. */
-export function ownSummary(ctx: ReportContext, q: Range) {
+/** Shared contributing lines keep the export's internal patient set identical to R10. */
+export function ownContributions(ctx: ReportContext, q: Range) {
   const me = ctx.access.member.id;
-  const lines = billed(ctx, q)
+  return billed(ctx, q)
     .filter((i) => isOwnPatient(ctx.db, ctx.clinicId, me, i.patientId))
     .flatMap((i) =>
       i.lines
         .filter((l) => l.providerId === me)
-        .map((l) => ({ period: dayOf(i.issuedAt, ctx).slice(0, 7), l, currency: i.currency })),
+        .map((l) => ({
+          patientId: i.patientId,
+          period: dayOf(i.issuedAt, ctx).slice(0, 7),
+          l,
+          currency: i.currency,
+        })),
     );
+}
+
+/** R10: the doctor's own live lines on issued invoices of his own patients, per clinic month. */
+export function ownSummary(ctx: ReportContext, q: Range) {
+  const lines = ownContributions(ctx, q);
   const rows = [...groupBy(lines, (x) => `${x.period}|${x.currency}`).values()]
     .map((g) => ({
       period: g[0]!.period,
