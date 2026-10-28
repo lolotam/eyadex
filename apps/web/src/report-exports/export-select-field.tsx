@@ -38,7 +38,14 @@ export function ExportSelectField({
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
       <Label htmlFor={id}>{label}</Label>
-      <Select value={value} onValueChange={onChange} disabled={disabled ?? false}>
+      <Select
+        value={value}
+        // Radix's hidden form control emits an empty value when async options change.
+        onValueChange={(next) => {
+          if (next !== "") onChange(next);
+        }}
+        disabled={disabled ?? false}
+      >
         <SelectTrigger
           id={id}
           className="min-h-11 w-full bg-card md:min-h-9"
