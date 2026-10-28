@@ -8,7 +8,7 @@ import type { ApiClient } from "@/shared/api/api-client";
 import { ApiError } from "@/shared/api/api-error";
 import { createMockApiClient } from "@/shared/api/mock/mock-adapter";
 import { fixture, id, NOW } from "@/shared/api/mock/mock-report-export.test-kit";
-import { as, personaWith } from "@/shared/api/mock/mock-report-test-kit";
+import { getState, personaWith } from "@/shared/api/mock/mock-report-test-kit";
 import { useExportBranchOptions } from "./use-export-branch-options";
 
 const context = vi.hoisted(() => ({
@@ -37,7 +37,9 @@ function mount(initial: ReportId | null) {
 }
 const flush = (ms = 2000) => act(async () => void (await vi.advanceTimersByTimeAsync(ms)));
 beforeEach(() => {
-  vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+  vi.useFakeTimers({
+    toFake: ["Date", "setTimeout", "clearTimeout", "setInterval", "clearInterval"],
+  });
   vi.setSystemTime(NOW);
 });
 afterEach(() => {
@@ -49,6 +51,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+let real: ApiClient["reports"]["branchOptions"];
 const ANALYTICS = ["view:report_analytics:clinic", "view:invoices:clinic"];
 /** Real mock state with 150 extra branches (one inactive), the real root client and its session. */
 async function setup(keys = ANALYTICS, branchIds: string[] | null = null) {
@@ -66,6 +69,7 @@ async function setup(keys = ANALYTICS, branchIds: string[] | null = null) {
   context.api = api;
   context.persona = persona;
   await loadSession(api, persona);
+  real = api.reports.branchOptions.bind(api.reports);
   const read = vi.spyOn(api.reports, "branchOptions");
   const all = f.db.branches
     .filter((b) => b.clinicId === f.ctx.clinicId)
@@ -128,86 +132,91 @@ it("makes no branch call without a report, a covering key, or with an uncovered 
 
 it("publishes nothing after a later-page failure and recovers on manual retry", async () => {
   const { read, all } = await setup();
-  const real = read.getMockImplementation() ?? null;
-  expect(real).toBeNull();
   let calls = 0;
-  const original = context.api!.reports.branchOptions;
   read.mockImplementation(async (...args) => {
     calls += 1;
     if (calls === 2) throw new ApiError("unknown");
-    return read.mock.calls.length ? await callThrough(original, args) : await callThrough(original, args);
+    return real(...args);
   });
   const h = mount("by_service");
   await flush();
-  expect(h.result.current.items).toEqual([]);
-  expect(h.result.current.error).toBe("unknown");
+  expect(calls).toBe(2);
+  expect(h.result.current).toMatchObject({ items: [], error: "unknown", isReady: false });
+  await flush(10_000);
   expect(calls).toBe(2);
   await act(async () => void (await h.result.current.retry()));
   await flush();
+  expect(calls).toBe(4);
   expect(h.result.current.items).toHaveLength(all.length);
   expect(h.result.current.error).toBeNull();
 });
-function callThrough(fn: ApiClient["reports"]["branchOptions"], args: unknown[]) {
-  return vi.mocked(fn).getMockImplementation()
-    ? (Object.getPrototypeOf(fn) as never)
-    : (vi.mocked(fn) as unknown as { mock: unknown }) && originalOf(fn)(...(args as [never, never, never]));
-}
-function originalOf(fn: ApiClient["reports"]["branchOptions"]) {
-  return (fn as unknown as { __original: typeof fn }).__original;
-}
 
 it("finance off, blocked clinic, session error and denied refresh hide options without calls", async () => {
-  const { read, api, persona, f } = await setup();
+  const { read, api, persona } = await setup();
   const h = mount("by_service");
   await flush();
   expect(h.result.current.items.length).toBeGreaterThan(100);
   read.mockClear();
-  context.session = { ...context.session!, features: { ...context.session!.features, finance: false } };
+  const ok = context.session!;
+  context.session = { ...ok, features: { ...ok.features, finance: false } };
   h.rerender({ report: "by_service" });
   expect(h.result.current.items).toEqual([]);
-  context.session = { ...context.session!, features: { ...context.session!.features, finance: true }, blocked: "suspended" };
+  context.session = { ...ok, blocked: "suspended" };
   h.rerender({ report: "by_service" });
   expect(h.result.current.items).toEqual([]);
+  context.session = ok;
   context.sessionError = new ApiError("unknown");
   h.rerender({ report: "by_service" });
   await flush();
   expect(read).not.toHaveBeenCalled();
   expect(h.result.current).toMatchObject({ items: [], error: "unknown" });
   context.sessionError = null;
-  await loadSession(api, persona);
   h.rerender({ report: "by_service" });
   await flush();
   expect(h.result.current.items.length).toBeGreaterThan(100);
-  const role = f.db.roles.find((r) => r.id === f.db.members.find((m) => m.id === persona.memberId)!.roleId)!;
-  role.permissions = ["view:report_analytics:clinic"];
+  roleOf(persona).permissions = ["view:report_analytics:clinic"];
   await act(async () => void (await h.result.current.refresh()));
   await flush();
   expect(h.result.current).toMatchObject({ items: [], error: "forbidden" });
+  void api;
 });
 
-it("report and reach changes discard old options; A→B→A and unmount never start an old tail", async () => {
-  const { read, api, persona, f } = await setup(
-    ["view:report_analytics:branch", "view:invoices:branch", "view:report_takings:clinic", "view:payments:clinic"],
-    [f0()],
-  );
-  void f;
+it("a reach change discards old options before the new reach loads", async () => {
+  const f = fixture();
+  const api = createMockApiClient();
+  context.api = api;
+  const persona = personaWith(["view:report_analytics:branch", "view:invoices:branch"], [f.a.id]);
+  context.persona = persona;
+  await loadSession(api, persona);
   const h = mount("by_service");
-  await flush(50);
-  expect(read).toHaveBeenCalledTimes(1);
-  h.rerender({ report: "daily_takings" });
-  expect(h.result.current.items).toEqual([]);
-  h.rerender({ report: "by_service" });
-  expect(h.result.current.items).toEqual([]);
   await flush();
-  // the first by_service run was aborted after its slow first page: no old tail call was started
-  const tails = read.mock.calls.filter((c) => c[2].cursor !== undefined);
-  expect(tails.every((c) => c[1] === "by_service")).toBe(true);
-  expect(h.result.current.items.map((b) => b.id)).toEqual([f0()]);
-  const member = getMember(persona);
-  member.branchIds = [];
+  expect(h.result.current.items.map((b) => b.id)).toEqual([f.a.id]);
+  getState().members.find((m) => m.id === persona.memberId)!.branchIds = [f.b.id];
   await loadSession(api, persona);
   h.rerender({ report: "by_service" });
   expect(h.result.current.items).toEqual([]);
+  await flush();
+  expect(h.result.current.items.map((b) => b.id)).toEqual([f.b.id]);
+});
+
+it("A→B→A and unmount during a slow first page never start an old tail or repopulate", async () => {
+  const { read, all } = await setup([
+    ...ANALYTICS,
+    "view:report_takings:clinic",
+    "view:payments:clinic",
+  ]);
+  const h = mount("by_service");
+  await flush(50);
+  h.rerender({ report: "daily_takings" });
+  expect(h.result.current.items).toEqual([]);
+  await flush(50);
+  h.rerender({ report: "by_service" });
+  expect(h.result.current.items).toEqual([]);
+  await flush();
+  const tails = read.mock.calls.filter((c) => c[2].cursor !== undefined);
+  expect(tails.map((c) => c[1])).toEqual(["by_service"]);
+  expect(read.mock.calls.filter((c) => c[1] === "daily_takings")).toHaveLength(1);
+  expect(h.result.current.items).toHaveLength(all.length);
   read.mockClear();
   const g = mount("daily_takings");
   await flush(50);
@@ -215,11 +224,9 @@ it("report and reach changes discard old options; A→B→A and unmount never st
   await flush();
   expect(read.mock.calls.filter((c) => c[1] === "daily_takings")).toHaveLength(1);
 });
-let firstBranch = "";
-function f0() {
-  return firstBranch;
+
+function roleOf(persona: Persona) {
+  const db = getState();
+  const member = db.members.find((m) => m.id === persona.memberId)!;
+  return db.roles.find((r) => r.id === member.roleId)!;
 }
-function getMember(persona: Persona) {
-  return getStateMember(persona);
-}
-declare function getStateMember(p: Persona): { branchIds: string[] };
