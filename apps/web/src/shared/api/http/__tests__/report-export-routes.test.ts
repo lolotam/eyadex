@@ -26,7 +26,7 @@ const row = (over: Record<string, unknown> = {}) => ({
 });
 
 type Seen = { url: string; method: string; body: unknown; headers: Record<string, string> };
-type Answer = { status?: number; body?: unknown; bytes?: Uint8Array; type?: string };
+type Answer = { status?: number; body?: unknown; bytes?: Uint8Array<ArrayBuffer>; type?: string };
 
 function exportsWith(answer: (seen: Seen) => Answer) {
   const seen: Seen[] = [];
@@ -40,7 +40,7 @@ function exportsWith(answer: (seen: Seen) => Answer) {
     seen.push(call);
     const a = answer(call);
     if (a.bytes) {
-      return new Response(a.bytes, {
+      return new Response(new Blob([a.bytes]), {
         status: a.status ?? 200,
         headers: { "content-type": a.type! },
       });
