@@ -58,7 +58,8 @@ function guardFormula(value: string): string {
 function readMoney(value: unknown): bigint | null {
   if (typeof value === "bigint") return value;
   if (typeof value !== "string" || value === "-0" || !SIGNED_INTEGER.test(value)) return null;
-  return BigInt(value);
+  const minor = BigInt(value);
+  return minor.toString() === value ? minor : null;
 }
 
 function readCount(value: unknown): bigint | null {
@@ -66,7 +67,8 @@ function readCount(value: unknown): bigint | null {
   if (typeof value === "number")
     return Number.isSafeInteger(value) && value >= 0 ? BigInt(value) : null;
   if (typeof value !== "string" || !UNSIGNED_INTEGER.test(value)) return null;
-  return BigInt(value);
+  const count = BigInt(value);
+  return count.toString() === value ? count : null;
 }
 
 function readExponent(value: unknown): 0 | 2 | 3 | null {
