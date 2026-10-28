@@ -67,14 +67,17 @@ export function ExportRequestForm() {
   };
 
   const reportLost = draft.report !== null && !form.reportEligible;
-  const reportError =
-    fieldText("report") ??
-    (reportLost ? t("reportExports.request.fields.reportUnavailable") : null) ??
-    pathText("report");
-  const branchError =
-    fieldText("branchId") ??
-    (form.branchUnavailable ? t("reportExports.request.fields.branchUnavailable") : null) ??
-    pathText("branchId");
+  // Live state wins over the last submit's field issues, so a fixed field never shows an old error.
+  const reportError = reportLost
+    ? t("reportExports.request.fields.reportUnavailable")
+    : draft.report === null
+      ? fieldText("report")
+      : pathText("report");
+  const branchError = form.branchUnavailable
+    ? t("reportExports.request.fields.branchUnavailable")
+    : !branches.isReady
+      ? fieldText("branchId")
+      : pathText("branchId");
   const branchValue = !branches.isReady
     ? ""
     : form.branchUnavailable
