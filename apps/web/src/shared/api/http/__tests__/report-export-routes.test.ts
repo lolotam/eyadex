@@ -67,6 +67,21 @@ const BODY = {
   language: "ar",
 } as const;
 
+/** Read native and jsdom Blobs without changing the transport or replacing their bytes. */
+async function bytesOf(blob: Blob): Promise<Uint8Array> {
+  if (typeof blob.arrayBuffer === "function") return new Uint8Array(await blob.arrayBuffer());
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (reader.result === null || typeof reader.result === "string") {
+        reject(new Error("expected binary Blob contents"));
+      } else resolve(new Uint8Array(reader.result));
+    };
+    reader.onerror = () => reject(reader.error ?? new Error("Blob read failed"));
+    reader.readAsArrayBuffer(blob);
+  });
+}
+
 describe("requesting an export over HTTP", () => {
   it("POSTs the body as typed and reads the 202 envelope", async () => {
     const h = exportsWith(() => ({ status: 202, body: { export: row() } }));
@@ -172,7 +187,7 @@ describe("downloading an export over HTTP", () => {
     const h = exportsWith(() => ({ bytes, type }));
     const blob = await h.api.downloadExport(P, EXPORT);
     expect(blob.type).toBe(type);
-    expect(new Uint8Array(await blob.arrayBuffer())).toStrictEqual(bytes);
+    expect(await bytesOf(blob)).toStrictEqual(bytes);
     expect(h.seen[0]!.url).toBe(`/api/v1/finance-reports/exports/${EXPORT}/download`);
     expect(h.seen[0]!.method).toBe("GET");
   });
