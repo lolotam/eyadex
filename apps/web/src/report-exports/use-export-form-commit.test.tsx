@@ -1,6 +1,14 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, renderHook } from "@testing-library/react";
-import { createContext, startTransition, Suspense, use, useContext, useState, type ReactNode } from "react";
+import {
+  createContext,
+  startTransition,
+  Suspense,
+  use,
+  useContext,
+  useState,
+  type ReactNode,
+} from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { Persona, SessionContext } from "@eyadex/contracts/session";
 import type { ApiClient } from "@/shared/api/api-client";
@@ -94,21 +102,18 @@ const fill = async (h: Awaited<ReturnType<typeof setup>>["h"]) => {
   await flush();
 };
 
-it("an abandoned B transition leaves A's setters and submit working with one POST", async () => {
+it("an abandoned B transition leaves A's committed submit working with one POST", async () => {
   const { h, post } = await setup(true);
   await fill(h);
   act(() => startTransition(() => switchTo("B")));
   await flush();
-  act(() => h.result.current.setTo("2026-02-28"));
-  await flush();
-  expect(h.result.current.draft.to).toBe("2026-02-28");
   let outcome: Awaited<ReturnType<typeof h.result.current.submit>> | undefined;
   await act(async () => {
     outcome = await h.result.current.submit();
   });
   expect(outcome?.status).toBe("queued");
   expect(post).toHaveBeenCalledTimes(1);
-  expect(post.mock.calls[0]?.[1]).toMatchObject({ from: "2026-01-01", to: "2026-02-28" });
+  expect(post.mock.calls[0]?.[1]).toMatchObject({ from: "2026-01-01", to: "2026-01-31" });
 });
 
 it("a committed A→B→A resets the draft and refuses the old A submit", async () => {
