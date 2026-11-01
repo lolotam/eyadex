@@ -105,3 +105,12 @@ it("disables while pending and hides an unavailable done row", () => {
   show(base, "en", { canDownload: false });
   expect(screen.queryByRole("button")).toBeNull();
 });
+
+it("formats the row count with the same numerals as the dates in each language", () => {
+  const { item } = show({ ...base, rowCount: 100000 }, "ar");
+  expect(item).toHaveTextContent("١٠٠٬٠٠٠");
+  expect(item).not.toHaveTextContent("100000");
+  expect(item.querySelector("time")?.textContent).toMatch(/[٠-٩]/);
+  cleanup();
+  expect(show({ ...base, rowCount: 100000 }, "en").item).toHaveTextContent("100,000");
+});

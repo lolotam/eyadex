@@ -42,6 +42,7 @@ export function ExportHistoryRow({
     timeStyle: "short",
     timeZone: session?.clinic?.timezone ?? "Asia/Kuwait",
   });
+  const numbers = new Intl.NumberFormat(lang === "ar" ? "ar-KW" : "en-GB");
   const look = LOOK[row.status];
   const Icon = look.icon;
   const report = t(`reportExports.reports.${row.report}`);
@@ -54,7 +55,7 @@ export function ExportHistoryRow({
   );
   return (
     <li
-      className="grid gap-2 border-b px-3 py-3 last:border-b-0 md:grid-cols-[minmax(0,2fr)_minmax(0,1.4fr)_minmax(0,1.4fr)_5rem_auto] md:items-center md:gap-4"
+      className="grid gap-2 border-b px-3 py-3 last:border-b-0 md:grid-cols-[minmax(0,2fr)_minmax(0,1.4fr)_minmax(0,1.4fr)_6rem_8rem] md:items-center md:gap-4"
       data-testid="export-row"
     >
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 md:block">
@@ -83,7 +84,7 @@ export function ExportHistoryRow({
           <span className="hidden md:block" />
         )}
         {row.rowCount !== null ? (
-          detail(t("reportExports.rows"), String(row.rowCount))
+          detail(t("reportExports.rows"), numbers.format(row.rowCount))
         ) : (
           <span className="hidden md:block" />
         )}

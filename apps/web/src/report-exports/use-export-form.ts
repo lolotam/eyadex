@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   REPORT_IDS,
   type ReportExportFormat,
@@ -9,6 +9,7 @@ import {
 import type { Language } from "@eyadex/contracts/common";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { usePersona, useSession } from "@/shared/persona/persona-provider";
+import { useCommittedEpoch } from "./use-committed-epoch";
 import { useExportBranchOptions } from "./use-export-branch-options";
 import { useRequestExport, type RequestExportOutcome } from "./use-request-export";
 
@@ -63,34 +64,42 @@ export function useExportForm() {
     session?.clinic?.id ?? null,
     session?.membershipId ?? null,
   ]);
-  const seen = useRef(identity);
-  const generation = useRef(0);
-  if (seen.current !== identity) generation.current += 1;
-  seen.current = identity;
-  const epoch = generation.current;
+  const { epoch, isCurrent } = useCommittedEpoch(identity);
 
   const [stored, setStored] = useState<{ epoch: number; draft: ExportFormDraft }>({
     epoch,
     draft: INITIAL,
   });
-  const [fieldState, setFieldState] = useState<{ epoch: number; issues: ExportFormFieldIssue[] }>({
-    epoch,
-    issues: [],
-  });
+  const [fieldState, setFieldState] = useState<{
+    epoch: number;
+    issues: ExportFormFieldIssue[];
+    draft: ExportFormDraft;
+  }>({ epoch, issues: [], draft: INITIAL });
   const draft = stored.epoch === epoch ? stored.draft : INITIAL;
-  const fieldIssues = fieldState.epoch === epoch ? fieldState.issues : [];
+  // Feedback belongs to the draft it was raised for: editing a field drops its old issues.
+  const sent = fieldState.epoch === epoch ? fieldState.draft : null;
+  const changed = (path: string) => {
+    if (!sent) return true;
+    if (path === "from" || path === "to") return sent.from !== draft.from || sent.to !== draft.to;
+    if (path === "branchId")
+      return sent.branchId !== draft.branchId || sent.report !== draft.report;
+    if (path in draft)
+      return sent[path as keyof ExportFormDraft] !== draft[path as keyof ExportFormDraft];
+    return false;
+  };
+  const fieldIssues = sent ? fieldState.issues.filter((i) => !changed(i.field)) : [];
   const language = draft.language ?? lang;
   const branches = useExportBranchOptions(draft.report);
 
   const patch = useCallback(
     (change: Partial<ExportFormDraft>) => {
-      if (generation.current !== epoch) return;
+      if (!isCurrent(epoch)) return;
       setStored((prev) => ({
         epoch,
         draft: { ...(prev.epoch === epoch ? prev.draft : INITIAL), ...change },
       }));
     },
-    [epoch],
+    [epoch, isCurrent],
   );
 
   const eligibleReports = REPORT_IDS.filter((r) => request.isEligibleFor(r));
@@ -111,9 +120,9 @@ export function useExportForm() {
   };
 
   const submit = async (): Promise<ExportFormOutcome> => {
-    if (generation.current !== epoch) return { status: "stale" };
+    if (!isCurrent(epoch)) return { status: "stale" };
     const issues = check();
-    setFieldState({ epoch, issues });
+    setFieldState({ epoch, issues, draft });
     if (issues.length > 0 || draft.report === null) return { status: "blocked", issues };
     const body: ReportExportRequest = {
       report: draft.report,
@@ -157,7 +166,7 @@ export function useExportForm() {
     canSubmit: check().length === 0 && !request.isPending,
     submit,
     isPending: request.isPending,
-    issues: request.issues,
+    issues: sent ? request.issues.filter((i) => !changed(i.path)) : [],
     error: request.error,
     queued: request.queued,
   };
