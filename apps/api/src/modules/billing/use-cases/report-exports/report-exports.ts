@@ -17,6 +17,8 @@ import { reportScope } from "../../domain/report-scope.ts";
 import { publishReportExportRequested } from "../../events/published.ts";
 import type { BillingBranchReader } from "../../ports/billing-branches.ts";
 import type { ReportExportStore } from "../../ports/report-export-store.ts";
+import { reportExportList } from "../../queries/report-export-list.ts";
+import type { ReportExportListQuery } from "@eyadex/contracts/finance-reports";
 
 type ReportExportResponseShape = z.infer<typeof reportExportResponseSchema>;
 
@@ -109,6 +111,13 @@ export class ReportExports {
       if (row === null) throw new ApiError("not_found");
       return reportExportResponseSchema.parse({ export: row });
     });
+  }
+
+  /** Requester-only history; the guard has checked the active account, clinic and finance module. */
+  list(actor: BillingActor, query: ReportExportListQuery) {
+    return this.deps.db.withTenant(actor.clinicId, (tx) =>
+      reportExportList(tx, actor.clinicId, actor.membershipId, query),
+    );
   }
 
   private append(tx: Tx, event: OutboxEvent): Promise<void> {
