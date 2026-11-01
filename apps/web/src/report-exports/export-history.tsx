@@ -67,7 +67,22 @@ export function ExportHistory() {
         </p>
       ) : rows.length > 0 ? (
         <>
-          <ul className="rounded-md border bg-card" aria-labelledby="report-exports-title">
+          {/* Desktop column labels; each row keeps its own screen-reader labels. */}
+          <div
+            aria-hidden
+            className="-mb-3 hidden gap-4 rounded-t-md border border-b-0 bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground md:grid md:grid-cols-[minmax(0,2fr)_minmax(0,1.4fr)_minmax(0,1.4fr)_6rem_8rem]"
+            data-testid="export-history-columns"
+          >
+            <span>{t("reportExports.columns.report")}</span>
+            <span>{t("reportExports.created")}</span>
+            <span>{t("reportExports.expires")}</span>
+            <span>{t("reportExports.rows")}</span>
+            <span className="text-end">{t("reportExports.columns.action")}</span>
+          </div>
+          <ul
+            className="rounded-md border bg-card md:rounded-t-none"
+            aria-labelledby="report-exports-title"
+          >
             {rows.map((row) => (
               <ExportHistoryRow
                 key={row.id}
