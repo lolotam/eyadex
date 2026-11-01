@@ -1,5 +1,6 @@
 import {
   reportExportRequestSchema,
+  type FrozenReportExportParams,
   type ReportExportRequest,
   type ReportId,
 } from "@eyadex/contracts/finance-reports";
@@ -18,13 +19,7 @@ const GROUP_DEFAULTS = {
 export interface FrozenExportAdmission {
   readonly scope: PermissionScope;
   readonly branchIds: readonly string[];
-  readonly params: {
-    readonly from: string;
-    readonly to: string;
-    readonly language: "ar" | "en";
-    readonly branchIds: readonly string[];
-    readonly groupBy?: "day" | "month";
-  };
+  readonly params: FrozenReportExportParams;
 }
 
 /**

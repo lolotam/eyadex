@@ -6,12 +6,16 @@ import type {
   ExportFence,
   ExportStore,
   FenceAnswer,
+  LeasedExportJob,
+  PrepareExportAnswer,
   PublishAnswer,
 } from "../ports/export-store.ts";
 import { decideExportClaim } from "./pg-export-claim.ts";
 import { abandonExport, failExport, heartbeatExport, releaseExport } from "./pg-export-fence.ts";
 import { allocateExportBlob, markExportUploaded, publishExport } from "./pg-export-publish.ts";
 import { rereadAttempt } from "./export-sql.ts";
+import { readLeasedExportJob } from "./pg-export-job.ts";
+import { prepareLeasedExportJob } from "./pg-export-prepare.ts";
 
 /**
  * مخزن PostgreSQL للتصدير. كل دخول إنتاجي `withTenant` على `eyadex_app`، من غير عميل خام.
@@ -72,5 +76,15 @@ export class PgExportStore implements ExportStore {
   /** @inheritdoc */
   reread(fence: ExportFence): Promise<"own_success" | "lost_lease"> {
     return rereadAttempt(this.db, fence);
+  }
+
+  /** @inheritdoc */
+  readLeasedJob(fence: ExportFence): Promise<LeasedExportJob | null> {
+    return readLeasedExportJob(this.db, fence);
+  }
+
+  /** @inheritdoc */
+  prepareLeasedJob(fence: ExportFence): Promise<PrepareExportAnswer> {
+    return prepareLeasedExportJob(this.db, fence);
   }
 }

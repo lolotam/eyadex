@@ -1,3 +1,7 @@
+import type { FrozenReportExportParams } from "@eyadex/contracts/finance-reports-export";
+import type { ReportExportFormat, ReportId } from "@eyadex/contracts/finance-reports";
+import type { PermissionScope } from "@eyadex/contracts/permissions";
+
 import type { ExportFailureKind } from "../domain/export-failures.ts";
 
 /** سياج الكتابة: العيادة والتصدير والمحاولة والمالك. */
@@ -14,6 +18,39 @@ export type ClaimDecision =
   | { readonly kind: "failed"; readonly error: string }
   | { readonly kind: "deferred"; readonly nextAttemptAt: Date }
   | { readonly kind: "leased"; readonly attempt: number; readonly leaseUntil: Date };
+
+/**
+ * لقطة الطلب المجمّدة لتأجير جاري ومملوك وحي. مش تفويض حالي:
+ * `scope` سقف مخزّن مش منحة، و`params` كائن JSON غير متحقّق.
+ */
+export interface LeasedExportJob {
+  readonly requestedBy: string;
+  readonly report: ReportId;
+  readonly format: ReportExportFormat;
+  readonly scope: PermissionScope;
+  readonly params: unknown;
+}
+
+/**
+ * لقطة تمهيدية بعد الفحص. مش منحة لقراءة لاحقة: القارئ يعيد التفويض داخل معاملة قراءة الصفوف.
+ * الخمسة حقول المجمّدة، و`params` متفسّرة، و`userId` من العضوية وقت الفحص.
+ * `scope` السقف المخزّن مش النطاق الأوسع. مفيش مفاتيح ولا أسماء ولا مرضى ولا تأجير.
+ */
+export interface PreparedExportJob {
+  readonly requestedBy: string;
+  readonly report: ReportId;
+  readonly format: ReportExportFormat;
+  readonly scope: PermissionScope;
+  readonly params: FrozenReportExportParams;
+  readonly userId: string;
+}
+
+/** تجهيز قراءة لاحقة: جاهز، أو التأجير ضاع، أو التفويض سقط، أو الـ params فاسدة. */
+export type PrepareExportAnswer =
+  | { readonly kind: "ready"; readonly job: PreparedExportJob }
+  | { readonly kind: "lost_lease" }
+  | { readonly kind: "forbidden" }
+  | { readonly kind: "invalid_params" };
 
 /** كتابة مسوّرة: اتطبقت، أو إعادة القراءة قالت نجاح المحاولة، أو التأجير ضاع. */
 export type FenceAnswer =
@@ -124,4 +161,20 @@ export interface ExportStore extends ExportClaimPort {
    * @returns نجاح المحاولة أو ضياع التأجير
    */
   reread(fence: ExportFence): Promise<"own_success" | "lost_lease">;
+  /**
+   * يقرأ الخمسة حقول المجمّدة بعد قفل الصف، وفقط لو التأجير جاري ومملوك وحي.
+   * اللقطة مش تفويض: `scope` سقف مش منحة، و`params` ما يتفسّرش ولا يتوسّع هنا.
+   *
+   * @param fence سياج المحاولة
+   * @returns الحقول الخمسة، أو `null` لو الصف مش التأجير الحي المملوك
+   */
+  readLeasedJob(fence: ExportFence): Promise<LeasedExportJob | null>;
+  /**
+   * يفحص التأجير الحي تمهيديًا. السياج بس هو المدخل، والنتيجة مش تفويض قراءة لاحقة.
+   * السقف المخزّن ما يتوسّعش، ومفيش كتابة ولا تجديد.
+   *
+   * @param fence سياج المحاولة
+   * @returns الجاهز أو سبب التوقف
+   */
+  prepareLeasedJob(fence: ExportFence): Promise<PrepareExportAnswer>;
 }
