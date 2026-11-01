@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { legacyNumber } from "./number-compat.ts";
+import { legacyInteger } from "./integer-compat.ts";
+import { utcDatetime } from "./datetime-compat.ts";
 import { idSchema, stripInvisibleControls } from "./common.ts";
 import { attachmentSchema } from "./attachments.ts";
 
@@ -84,8 +87,8 @@ export const visitSummarySchema = z
     providerName: z.string(),
     appointmentId: idSchema.nullable(),
     status: visitStatusSchema,
-    startedAt: z.string().datetime(),
-    signedAt: z.string().datetime().nullable(),
+    startedAt: utcDatetime(),
+    signedAt: utcDatetime().nullable(),
     /** The assessment's first 160 characters; `null` without `view:medical:*`. */
     preview: z.string().nullable(),
     /** Why a cancelled draft was cancelled: a fixed choice, metadata (`null` unless cancelled). */
@@ -138,7 +141,11 @@ export const walkInCandidatesSchema = z
     items: z
       .array(
         z
-          .object({ patientId: idSchema, fullName: z.string(), fileNumber: z.number().int() })
+          .object({
+            patientId: idSchema,
+            fullName: z.string(),
+            fileNumber: legacyNumber().check(legacyInteger()),
+          })
           .strict(),
       )
       .max(20),
@@ -148,21 +155,21 @@ export type WalkInCandidates = z.infer<typeof walkInCandidatesSchema>;
 
 export const diagnosisSchema = z
   .object({
-    position: z.number().int(),
+    position: legacyNumber().check(legacyInteger()),
     kind: z.enum(["icd10", "text"]),
     code: z.string().nullable(),
     text: z.string(),
   })
   .strict();
 export const prescriptionItemSchema = prescriptionItemInputSchema.extend({
-  position: z.number().int(),
+  position: legacyNumber().check(legacyInteger()),
 });
 export const addendumSchema = z
   .object({
     id: idSchema,
     authorName: z.string(),
     body: z.string(),
-    createdAt: z.string().datetime(),
+    createdAt: utcDatetime(),
   })
   .strict();
 
@@ -171,7 +178,9 @@ export const visitDetailSchema = z
   .object({
     visit: visitSummarySchema,
     /** Shown on the visit page without `view:patients:*` (R3): name, file number, branch names only. */
-    patient: z.object({ fullName: z.string(), fileNumber: z.number().int() }).strict(),
+    patient: z
+      .object({ fullName: z.string(), fileNumber: legacyNumber().check(legacyInteger()) })
+      .strict(),
     branch: z.object({ nameAr: z.string(), nameEn: z.string() }).strict(),
     content: z
       .object({
@@ -214,10 +223,12 @@ export const prescriptionPrintSchema = z
   .object({
     clinic: z.object({ nameAr: z.string(), nameEn: z.string() }).strict(),
     branch: z.object({ nameAr: z.string(), nameEn: z.string() }).strict(),
-    patient: z.object({ fullName: z.string(), fileNumber: z.number().int() }).strict(),
+    patient: z
+      .object({ fullName: z.string(), fileNumber: legacyNumber().check(legacyInteger()) })
+      .strict(),
     providerName: z.string(),
-    startedAt: z.string().datetime(),
-    signedAt: z.string().datetime().nullable(),
+    startedAt: utcDatetime(),
+    signedAt: utcDatetime().nullable(),
     items: z.array(prescriptionItemSchema),
   })
   .strict();

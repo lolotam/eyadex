@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { utcDatetime } from "./datetime-compat.ts";
 import { idSchema } from "./common.ts";
 
 // Patient notifications (docs/specs/notifications-design.md, phase 3 N1). The patient is not a user:
@@ -117,14 +118,14 @@ export const patientNotificationSchema = z
     status: notificationStatusSchema,
     skipReason: notificationSkipReasonSchema.nullable(),
     route: notificationRouteSchema.nullable(),
-    createdAt: z.string().datetime(),
-    sentAt: z.string().datetime().nullable(),
+    createdAt: utcDatetime(),
+    sentAt: utcDatetime().nullable(),
     /** Why a `failed` row failed, in coarse words; `null` for every other status. */
     failureReason: notificationFailureReasonSchema.nullable(),
     /** WhatsApp only (N3): when the patient's phone received it; `null` until the provider says so. */
-    deliveredAt: z.string().datetime().nullable(),
+    deliveredAt: utcDatetime().nullable(),
     /** WhatsApp only (N3): when the patient opened it; set only after `deliveredAt`. */
-    readAt: z.string().datetime().nullable(),
+    readAt: utcDatetime().nullable(),
   })
   .strict();
 export type PatientNotification = z.infer<typeof patientNotificationSchema>;

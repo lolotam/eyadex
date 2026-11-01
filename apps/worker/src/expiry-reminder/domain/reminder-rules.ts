@@ -1,3 +1,6 @@
+import { utcDatetime } from "@eyadex/contracts/datetime-compat";
+import { legacyInteger } from "@eyadex/contracts/integer-compat";
+import { legacyNumber } from "@eyadex/contracts/number-compat";
 import { z } from "zod";
 
 /** الحدث اللي الفحص بيكتبه لما عيادة تدخل نافذة التنبيه (ADR-0020، story 79). */
@@ -39,11 +42,11 @@ export interface ReminderEvent {
 
 const payloadSchema = z
   .object({
-    clinicId: z.string().uuid(),
-    reminderId: z.string().uuid(),
-    expiresAt: z.string().datetime(),
-    membershipId: z.string().uuid(),
-    daysLeft: z.number().int().min(1).max(60),
+    clinicId: z.string().guid(),
+    reminderId: z.string().guid(),
+    expiresAt: utcDatetime(),
+    membershipId: z.string().guid(),
+    daysLeft: legacyNumber().check(legacyInteger()).check(z.gte(1)).check(z.lte(60)),
   })
   .strict();
 

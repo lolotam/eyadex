@@ -1,4 +1,4 @@
-import { arFinance } from "./ar-finance";
+import { arFinance, arReportExportErrors } from "./ar-finance";
 import { arPayments } from "./ar-payments";
 import { arCashClosings } from "./ar-cash-closings";
 import { arNotifications } from "./ar-notifications";
@@ -18,6 +18,7 @@ import { arScheduling, arSchedulingErrors } from "./ar-scheduling";
 import { arMedicalErrors } from "./ar-medical";
 
 import type { Dictionary } from "./dictionary";
+import { arReportExports } from "./ar-report-exports";
 
 export const ar: Dictionary = {
   app: { name: "Eyadex", tagline: "كل عياداتك في مكان واحد" },
@@ -185,6 +186,7 @@ export const ar: Dictionary = {
   ...arFinance,
   ...arPayments,
   ...arCashClosings,
+  ...arReportExports,
   validation: {
     needsView:
       "أي صلاحية إضافة أو تعديل أو تعطيل تحتاج صلاحية العرض في نفس القسم، بنطاق لا يقل عن نطاقها",
@@ -289,6 +291,6 @@ export const ar: Dictionary = {
     closing_note_required: "اكتب ملاحظة عند وجود فرق.",
     cash_drawer_out_of_range:
       "صافي النقد في هذه الفترة يتجاوز الحد المسموح، ولا يمكن إقفال الصندوق",
-    report_range_too_long: "الفترة أطول من المسموح (366 يومًا على الأكثر).",
+    ...arReportExportErrors,
   },
 };

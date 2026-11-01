@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { legacyNumber } from "./number-compat.ts";
+import { legacyInteger } from "./integer-compat.ts";
+import { requiredOr } from "./type-message.ts";
 import { idSchema } from "./common.ts";
 import { currencyCodeSchema, minorAmountSchema, minorLineAmountSchema } from "./money.ts";
 import { notificationChannelSchema } from "./notifications.ts";
@@ -19,14 +22,13 @@ export * from "./finance-cash-closing.ts";
 /** Spec §3.2: 2–6 upper-case letters or digits, unique per clinic, locked after the first invoice. */
 export const invoicePrefixSchema = z.string().regex(/^[A-Z0-9]{2,6}$/, "validation.invoicePrefix");
 
-const basisPointsSchema = z
-  .number({ invalid_type_error: "validation.number" })
-  .int("validation.number")
-  .min(0, "validation.outOfRange")
-  .max(10000, "validation.outOfRange");
+const basisPointsSchema = legacyNumber(requiredOr("validation.number"))
+  .check(legacyInteger("validation.number"))
+  .check(z.gte(0, "validation.outOfRange"))
+  .check(z.lte(10000, "validation.outOfRange"));
 
 // FIN-A7: a percentage (basis points) or an amount, always with a written reason.
-const discountInput = (amount: z.ZodType<string>) =>
+const discountInput = (amount: z.ZodType<string, string>) =>
   z.discriminatedUnion("kind", [
     z.object({ kind: z.literal("pct"), bp: basisPointsSchema, reason: requiredText(300) }).strict(),
     z.object({ kind: z.literal("amount"), minor: amount, reason: requiredText(300) }).strict(),
@@ -35,11 +37,10 @@ export const lineDiscountInputSchema = discountInput(minorLineAmountSchema);
 export const invoiceDiscountInputSchema = discountInput(minorAmountSchema);
 export type DiscountInput = z.infer<typeof invoiceDiscountInputSchema>;
 
-const quantitySchema = z
-  .number({ invalid_type_error: "validation.number" })
-  .int("validation.number")
-  .min(1, "validation.outOfRange")
-  .max(999, "validation.outOfRange");
+const quantitySchema = legacyNumber(requiredOr("validation.number"))
+  .check(legacyInteger("validation.number"))
+  .check(z.gte(1, "validation.outOfRange"))
+  .check(z.lte(999, "validation.outOfRange"));
 
 /** One line; its position is its index in the request array. */
 export const invoiceLineInputSchema = z.discriminatedUnion("kind", [
@@ -181,7 +182,7 @@ export const priceListItemSchema = servicePriceSchema
 export const priceListResponseSchema = z
   .object({
     currency: currencyCodeSchema,
-    currencyExponent: z.number().int(),
+    currencyExponent: legacyNumber().check(legacyInteger()),
     items: z.array(priceListItemSchema),
   })
   .strict();
@@ -208,8 +209,8 @@ export type SendInvoiceResponse = z.infer<typeof sendInvoiceResponseSchema>;
 export const financeSettingsSchema = z
   .object({
     currency: currencyCodeSchema,
-    currencyExponent: z.number().int(),
-    taxRateBp: z.number().int(),
+    currencyExponent: legacyNumber().check(legacyInteger()),
+    taxRateBp: legacyNumber().check(legacyInteger()),
     commercialRegNo: z.string().nullable(),
     hasLogo: z.boolean(),
     // Optional so existing F1 API and mock responses remain valid until payment settings ship.
@@ -255,8 +256,8 @@ export type PlatformClinicFinanceRequest = z.infer<typeof platformClinicFinanceR
 export const platformClinicFinanceSchema = z
   .object({
     currency: currencyCodeSchema,
-    currencyExponent: z.number().int(),
-    taxRateBp: z.number().int(),
+    currencyExponent: legacyNumber().check(legacyInteger()),
+    taxRateBp: legacyNumber().check(legacyInteger()),
   })
   .strict();
 export type PlatformClinicFinance = z.infer<typeof platformClinicFinanceSchema>;

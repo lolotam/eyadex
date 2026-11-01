@@ -46,3 +46,5 @@ export {
   financeReportExportBlobs,
   financeInvoiceBalances,
 } from "./finance-reports.ts";
+
+export { financeReportExportPatients } from "./finance-export-patients.ts";

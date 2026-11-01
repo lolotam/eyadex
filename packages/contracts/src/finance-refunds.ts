@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { legacyNumber } from "./number-compat.ts";
+import { legacyInteger } from "./integer-compat.ts";
+import { utcDatetime } from "./datetime-compat.ts";
 import { idSchema } from "./common.ts";
 import { invoiceSettlementSchema } from "./finance-invoice.ts";
 import { dateSchema } from "./finance-list.ts";
@@ -49,9 +52,9 @@ export const refundSchema = z
     method: paymentMethodSchema,
     amountMinor: positiveMinorAmountSchema,
     currency: currencyCodeSchema,
-    currencyExponent: z.number().int(),
+    currencyExponent: legacyNumber().check(legacyInteger()),
     reason: requiredText(300),
-    refundedAt: z.string().datetime(),
+    refundedAt: utcDatetime(),
     businessDate: dateSchema,
     cashSeq: cashSeqSchema.nullable(),
     refundedBy: idSchema,
@@ -105,7 +108,7 @@ const invoicePaymentMovementUnion = z.discriminatedUnion("kind", [
       method: paymentMethodSchema,
       amountMinor: positiveMinorAmountSchema,
       refundableMinor: minorAmountSchema,
-      at: z.string().datetime(),
+      at: utcDatetime(),
       by: idSchema,
     })
     .strict(),
@@ -115,7 +118,7 @@ const invoicePaymentMovementUnion = z.discriminatedUnion("kind", [
       allocationId: idSchema,
       creditId: idSchema,
       amountMinor: positiveMinorAmountSchema,
-      at: z.string().datetime(),
+      at: utcDatetime(),
       by: idSchema,
     })
     .strict(),
@@ -126,7 +129,7 @@ const invoicePaymentMovementUnion = z.discriminatedUnion("kind", [
       originAllocationId: idSchema,
       amountMinor: positiveMinorAmountSchema,
       cause: creditReleaseCauseSchema,
-      at: z.string().datetime(),
+      at: utcDatetime(),
       by: idSchema,
     })
     .strict(),
@@ -138,7 +141,7 @@ const invoicePaymentMovementUnion = z.discriminatedUnion("kind", [
       method: paymentMethodSchema,
       amountMinor: positiveMinorAmountSchema,
       reason: requiredText(300),
-      at: z.string().datetime(),
+      at: utcDatetime(),
       by: idSchema,
     })
     .strict(),
@@ -153,7 +156,7 @@ export const invoicePaymentsResponseSchema = z
   .object({
     invoiceId: idSchema,
     currency: currencyCodeSchema,
-    currencyExponent: z.number().int(),
+    currencyExponent: legacyNumber().check(legacyInteger()),
     settlement: invoiceSettlementSchema.nullable(),
     creditBalanceMinor: minorAmountSchema,
     movements: z.array(invoicePaymentMovementSchema),
@@ -169,7 +172,7 @@ export const refundListResponseSchema = z
   .object({
     items: z.array(refundSchema),
     nextCursor: z.string().nullable(),
-    total: z.number().int().nonnegative(),
+    total: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
   })
   .strict();
 

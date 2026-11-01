@@ -1,4 +1,6 @@
 import { createHmac } from "node:crypto";
+import { legacyNumber } from "@eyadex/contracts/number-compat";
+import { legacyInteger } from "@eyadex/contracts/integer-compat";
 import { z } from "zod";
 
 import { metaDeliveryFailureCode, type DeliveryUpdate } from "./delivery-status.ts";
@@ -23,7 +25,7 @@ const status = z.object({
   status: z.enum(["sent", "delivered", "read", "failed"]),
   // A malformed time does not drop the status: it is dated at receipt (eventTime).
   timestamp: z.unknown().optional(),
-  errors: z.array(z.object({ code: z.number().int().optional() })).optional(),
+  errors: z.array(z.object({ code: legacyNumber().check(legacyInteger()).optional() })).optional(),
 });
 const list = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
 const field = (value: unknown, name: string): unknown =>

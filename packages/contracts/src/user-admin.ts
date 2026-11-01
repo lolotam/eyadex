@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { legacyNumber, legacyCoercedNumber } from "./number-compat.ts";
+import { legacyInteger } from "./integer-compat.ts";
 import { idSchema } from "./common.ts";
 import { invitationSchema } from "./invitations.ts";
 import { membershipUserStatusSchema, membershipUserViewSchema } from "./users.ts";
@@ -13,7 +15,11 @@ const cursor = z
   .string()
   .regex(/^[A-Za-z0-9_-]{1,64}$/)
   .optional();
-const limit = z.coerce.number().int().min(1).max(100).default(50);
+const limit = legacyCoercedNumber()
+  .check(legacyInteger())
+  .check(z.gte(1))
+  .check(z.lte(100))
+  .default(50);
 const search = z.string().trim().min(1).max(100).optional();
 
 export const userListHttpQuerySchema = z
@@ -32,7 +38,7 @@ export const userListResponseSchema = z.object({
   items: z.array(membershipUserViewSchema),
   nextCursor: z.string().nullable(),
   /** Every member matching the filters, counted on its own statement. */
-  total: z.number().int().nonnegative(),
+  total: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
 });
 export type UserListResponse = z.infer<typeof userListResponseSchema>;
 
@@ -50,7 +56,7 @@ export type InvitationListHttpQuery = z.infer<typeof invitationListHttpQuerySche
 export const invitationListResponseSchema = z.object({
   items: z.array(invitationSchema),
   nextCursor: z.string().nullable(),
-  total: z.number().int().nonnegative(),
+  total: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
 });
 export type InvitationListResponse = z.infer<typeof invitationListResponseSchema>;
 
@@ -62,7 +68,7 @@ export type DeactivateBranchRequest = z.infer<typeof deactivateBranchRequestSche
 
 /** `details` of `branch_has_exclusive_members` (409). */
 export const strandedMembersDetailsSchema = z.object({
-  count: z.number().int().positive(),
+  count: legacyNumber().check(legacyInteger()).check(z.positive()),
   members: z.array(z.object({ id: idSchema, fullName: z.string() })),
 });
 export type StrandedMembersDetails = z.infer<typeof strandedMembersDetailsSchema>;
@@ -72,6 +78,9 @@ export type StrandedMembersDetails = z.infer<typeof strandedMembersDetailsSchema
  * rule as the limit check and the platform `usage.users`.
  */
 export const userUsageResponseSchema = z
-  .object({ used: z.number().int().nonnegative(), limit: z.number().int().positive() })
+  .object({
+    used: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
+    limit: legacyNumber().check(legacyInteger()).check(z.positive()),
+  })
   .strict();
 export type UserUsageResponse = z.infer<typeof userUsageResponseSchema>;

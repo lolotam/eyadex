@@ -16,12 +16,14 @@ import {
   AuthModule,
   ClinicAreaGuard,
   PgBillingLineDoctors,
+  PgBillingExportAccess,
   PgProviderDirectory,
   PublicRateLimitGuard,
 } from "../identity/index.ts";
 import { CLOCK, PgFilingBranches, TenancyModule, type Clock } from "../tenancy/index.ts";
 import { InvoicePdfController } from "./http/invoice-pdf.controller.ts";
 import { FinanceReportsController } from "./http/finance-reports.controller.ts";
+import { ReportBranchOptionsController } from "./http/report-branch-options.controller.ts";
 import type { BillingReportStaff } from "./ports/billing-report-staff.ts";
 import type { BillingReportServices } from "./ports/billing-report-services.ts";
 import { FinanceReports } from "./use-cases/reports/reports.ts";
@@ -75,6 +77,8 @@ import { InvoicePayments } from "./use-cases/payments/payments.ts";
 import { CreditApplications } from "./use-cases/payments/credit-applications.ts";
 import { PaymentReads } from "./use-cases/payment-reads/payment-reads.ts";
 import { UnavailableInvoicePdf } from "./rendering/unavailable-invoice-pdf.ts";
+import { ReportExportsController } from "./http/report-exports.controller.ts";
+import { reportExportProviders, type ReportExportRuntime } from "./report-export-providers.ts";
 
 // Typed against the module's own ports, so no adapter can drift from what the module needs.
 const sources = {
@@ -102,7 +106,11 @@ export class BillingModule {
    * @param invoicePdf راسم بديل (الاختبارات بس)؛ غير كده `UnavailableInvoicePdf` لحد plan Task 8g
    * @returns الموديول
    */
-  static forRoot(blobStore?: BlobStore, invoicePdf?: InvoicePdfRenderer): DynamicModule {
+  static forRoot(
+    blobStore?: BlobStore,
+    invoicePdf?: InvoicePdfRenderer,
+    exports?: ReportExportRuntime,
+  ): DynamicModule {
     // One renderer for the invoice page and the patient's link (spec §3.3, §8 rule 16).
     const pdf = invoicePdf ?? new UnavailableInvoicePdf();
     return {
@@ -119,8 +127,13 @@ export class BillingModule {
         RefundsController,
         CashClosingsController,
         FinanceReportsController,
+        ReportBranchOptionsController,
+        ...(exports === undefined ? [] : [ReportExportsController]),
       ],
       providers: [
+        ...(exports === undefined
+          ? []
+          : reportExportProviders(exports, new PgBillingExportAccess(), branches, patients)),
         {
           provide: FINANCE_REPORTS,
           inject: [DATABASE, CLOCK],

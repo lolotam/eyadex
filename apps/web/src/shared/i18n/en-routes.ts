@@ -17,6 +17,7 @@ export const enRoutes = {
     visits: "Visits",
     invoices: "Invoices",
     cashClosings: "Cash closing",
+    reports: "Reports",
     account: "My account",
     menu: "Menu",
   },
@@ -51,6 +52,10 @@ export const enRoutes = {
     clinicPayments: {
       title: "Payments",
       description: "The clinic's receipts: search, filter and open one.",
+    },
+    clinicReports: {
+      title: "Reports",
+      description: "Request report exports and download your own files.",
     },
     clinicCashClosings: {
       title: "Cash closing",

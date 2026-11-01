@@ -12,6 +12,14 @@ packages:
 # vulnerability alerts.
 overrides:
   rolldown: 1.2.1
+  # Parent selectors only (pnpm docs: "qar@1>zoo"). A bare zod@4.6.5 selector rewrote unrelated
+  # peer ranges in the lockfile, including @hookform/resolvers and better-call. These three parents
+  # declare zod ^4.5.4, so 4.6.6 stays inside their range. Zod 3 consumers are not selected.
+  "@tanstack/router-generator@1.167.40>zod": "4.6.6"
+  "@tanstack/router-plugin@1.168.42>zod": "4.6.6"
+  "@tanstack/start-plugin-core@1.171.49>zod": "4.6.6"
+  # Same Vite advisory's launch-editor package. Parent range is ^2.14.1, so 2.14.2 is compatible.
+  "launch-editor@2.14.1": "2.14.2"
 
 # 24h supply-chain guard (carried over from bunfig.toml): skip package versions published less than
 # a day ago. pnpm expresses the age in minutes.

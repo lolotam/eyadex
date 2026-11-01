@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { legacyNumber } from "./number-compat.ts";
+import { legacyInteger } from "./integer-compat.ts";
+import { offsetDatetime, utcDatetime } from "./datetime-compat.ts";
 import { isAppointmentLength } from "./appointment-slots.ts";
 import { idSchema, stripInvisibleControls } from "./common.ts";
 import { scheduleBranchSchema } from "./schedules.ts";
@@ -49,10 +52,10 @@ export const isBillable = (status: AppointmentStatus): boolean =>
  * An instant on a whole minute: schedules and the grid work in minutes, so seconds could slip a slot past
  * the end of a shift unchecked (Codex A2 r2).
  */
-const instant = z
-  .string()
-  .datetime({ offset: true })
-  .refine((value) => Date.parse(value) % 60_000 === 0, "validation.time");
+const instant = offsetDatetime().refine(
+  (value) => Date.parse(value) % 60_000 === 0,
+  "validation.time",
+);
 
 const lengthRule = {
   message: "validation.duration",
@@ -117,12 +120,12 @@ export const appointmentSchema = z
     providerName: z.string(),
     patientId: idSchema,
     patientName: z.string(),
-    patientFileNumber: z.number().int(),
+    patientFileNumber: legacyNumber().check(legacyInteger()),
     serviceId: idSchema.nullable(),
     serviceNameAr: z.string().nullable(),
     serviceNameEn: z.string().nullable(),
-    startsAt: z.string().datetime(),
-    endsAt: z.string().datetime(),
+    startsAt: utcDatetime(),
+    endsAt: utcDatetime(),
     status: appointmentStatusSchema,
     overbooked: z.boolean(),
     cancelReason: cancelReasonSchema.nullable(),
@@ -159,12 +162,10 @@ export const dayProviderSchema = z
   .object({
     membershipId: idSchema,
     fullName: z.string(),
-    defaultDurationMinutes: z.number().int(),
+    defaultDurationMinutes: legacyNumber().check(legacyInteger()),
     bookable: z.boolean(),
     shifts: z.array(z.object({ startsAt: z.string(), endsAt: z.string() }).strict()),
-    timeOff: z.array(
-      z.object({ startsAt: z.string().datetime(), endsAt: z.string().datetime() }).strict(),
-    ),
+    timeOff: z.array(z.object({ startsAt: utcDatetime(), endsAt: utcDatetime() }).strict()),
   })
   .strict();
 export type DayProvider = z.infer<typeof dayProviderSchema>;

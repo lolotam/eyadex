@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { utcDatetime } from "./datetime-compat.ts";
 import { idSchema, pageQuerySchema } from "./common.ts";
 
 /** OD-3: invitations are valid for 7 days. */
@@ -20,10 +21,10 @@ export const invitationRecordSchema = z.object({
   allBranches: z.boolean(),
   branchIds: z.array(idSchema),
   status: invitationStoredStatusSchema,
-  expiresAt: z.string().datetime(),
-  createdAt: z.string().datetime(),
+  expiresAt: utcDatetime(),
+  createdAt: utcDatetime(),
   invitedBy: z.string(),
-  respondedAt: z.string().datetime().nullable(),
+  respondedAt: utcDatetime().nullable(),
   /** Hash of the current link token; the plain token is never stored on the record. */
   tokenHash: z.string(),
 });
@@ -41,7 +42,7 @@ export type Invitation = z.infer<typeof invitationSchema>;
 /** `POST /v1/invitations/:id/link`: a fresh link token, returned once (ADR-0012 §6). */
 export const invitationLinkSchema = z.object({
   token: z.string().min(1),
-  expiresAt: z.string().datetime(),
+  expiresAt: utcDatetime(),
 });
 export type InvitationLink = z.infer<typeof invitationLinkSchema>;
 

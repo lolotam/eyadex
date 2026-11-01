@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { legacyNumber } from "./number-compat.ts";
+import { legacyInteger } from "./integer-compat.ts";
+import { utcDatetime } from "./datetime-compat.ts";
 
 // A clinic's own mail provider (ADR-0014, slice 7c-2a). Credentials are write-only: they are part of the
 // request and never of any response.
@@ -41,9 +44,8 @@ export const smtpMailProviderRequestSchema = z
   .object({
     kind: z.literal("smtp"),
     host: smtpHost,
-    port: z
-      .number()
-      .int()
+    port: legacyNumber()
+      .check(legacyInteger())
       .refine((port) => (SMTP_PORTS as readonly number[]).includes(port), "validation.outOfRange"),
     user: z.string().min(1, "validation.required").max(200, "validation.tooLong"),
     password: z.string().min(1, "validation.required").max(500, "validation.tooLong"),
@@ -66,12 +68,12 @@ export const mailProviderViewSchema = z
     fromEmail: z.string(),
     replyTo: z.string().nullable(),
     smtpHost: z.string().nullable(),
-    smtpPort: z.number().int().nullable(),
+    smtpPort: legacyNumber().check(legacyInteger()).nullable(),
     smtpUser: z.string().nullable(),
     hasCredentials: z.literal(true),
-    verifiedAt: z.string().datetime().nullable(),
+    verifiedAt: utcDatetime().nullable(),
     lastError: z.string().nullable(),
-    degradedAt: z.string().datetime().nullable(),
+    degradedAt: utcDatetime().nullable(),
   })
   .strict();
 export type MailProviderView = z.infer<typeof mailProviderViewSchema>;

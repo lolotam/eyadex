@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { legacyNumber, legacyCoercedNumber } from "./number-compat.ts";
+import { legacyInteger } from "./integer-compat.ts";
 import { idSchema } from "./common.ts";
 import {
   invoiceListItemSchema,
@@ -23,7 +25,11 @@ export const invoiceListQuerySchema = z
       .string()
       .regex(/^[A-Za-z0-9_-]{1,64}$/)
       .optional(),
-    limit: z.coerce.number().int().min(1).max(100).default(50),
+    limit: legacyCoercedNumber()
+      .check(legacyInteger())
+      .check(z.gte(1))
+      .check(z.lte(100))
+      .default(50),
     branchId: idSchema.optional(),
     patientId: idSchema.optional(),
     status: invoiceStatusSchema.optional(),
@@ -60,6 +66,6 @@ export const invoiceListResponseSchema = z
   .object({
     items: z.array(invoiceListItemSchema),
     nextCursor: z.string().nullable(),
-    total: z.number().int().nonnegative(),
+    total: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
   })
   .strict();

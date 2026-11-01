@@ -1,3 +1,4 @@
+import { offsetDatetime } from "@eyadex/contracts/datetime-compat";
 import { z } from "zod";
 
 /** الحدث اللي الـ API بيكتبه مع كل تعطيل فرع ناجح (ADR-0013 §12). */
@@ -5,10 +6,10 @@ export const BRANCH_DEACTIVATED = "clinic.branch_deactivated";
 
 const schema = z
   .object({
-    clinicId: z.string().uuid(),
-    branchId: z.string().uuid(),
-    actorUserId: z.string().uuid(),
-    deactivatedAt: z.string().datetime({ offset: true }),
+    clinicId: z.string().guid(),
+    branchId: z.string().guid(),
+    actorUserId: z.string().guid(),
+    deactivatedAt: offsetDatetime(),
   })
   .strict();
 

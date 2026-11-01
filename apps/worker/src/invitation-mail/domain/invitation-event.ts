@@ -1,3 +1,4 @@
+import { offsetDatetime } from "@eyadex/contracts/datetime-compat";
 import { z } from "zod";
 
 /** الأحداث اللي الـ dispatcher ده بيبعتها؛ أي نوع تاني بيفضل في الـ outbox لـ slice تاني. */
@@ -6,14 +7,14 @@ export const USER_INVITED = "clinic.user_invited";
 export const INVITATION_EVENT_TYPES = [ADMIN_INVITED, USER_INVITED] as const;
 
 const base = {
-  clinicId: z.string().uuid(),
-  invitationId: z.string().uuid(),
+  clinicId: z.string().guid(),
+  invitationId: z.string().guid(),
   email: z.string().email(),
   fullName: z.string().min(1),
   language: z.enum(["ar", "en"]),
   clinicNameAr: z.string().min(1),
   clinicNameEn: z.string().min(1),
-  expiresAt: z.string().datetime({ offset: true }),
+  expiresAt: offsetDatetime(),
   sealedToken: z.string().min(1),
 };
 

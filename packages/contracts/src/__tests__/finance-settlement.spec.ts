@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   apiErrorCodeSchema,
-  FINANCE_API_ONLY_ERROR_CODES,
   FINANCE_F2_ERROR_CODES,
   FINANCE_F3_ERROR_CODES,
   webErrorCodeSchema,
@@ -231,15 +230,19 @@ describe("the finance error catalogue (F2 §4.6, F3 §4 and §7.4)", () => {
     expect(webErrorCodeSchema.parse(code)).toBe(code);
   });
 
-  it.each(FINANCE_API_ONLY_ERROR_CODES)(
-    "leaves %s to the web's fallback until it ships",
+  it.each(["export_busy", "report_range_too_long", "export_amount_too_large"])(
+    "carries F3 web code %s without the unknown fallback",
     (code) => {
-      expect(webErrorCodeSchema.safeParse(code).success).toBe(false);
+      expect(webErrorCodeSchema.parse(code)).toBe(code);
     },
   );
 
-  it("carries report_range_too_long in the web catalogue: the web reports client reads it", () => {
-    expect(webErrorCodeSchema.parse("report_range_too_long")).toBe("report_range_too_long");
+  it("keeps every F3 code in the shared catalogue", () => {
+    expect(FINANCE_F3_ERROR_CODES).toEqual([
+      "export_busy",
+      "report_range_too_long",
+      "export_amount_too_large",
+    ]);
   });
 
   it.each(["invoice_void", "version_conflict", "conflict", "not_implemented"])(
@@ -251,9 +254,7 @@ describe("the finance error catalogue (F2 §4.6, F3 §4 and §7.4)", () => {
 
   it("keeps API codes first and appends the two web-only codes", () => {
     expect(webErrorCodeSchema.options).toEqual([
-      ...apiErrorCodeSchema.options.filter(
-        (code) => !FINANCE_API_ONLY_ERROR_CODES.some((apiOnly) => apiOnly === code),
-      ),
+      ...apiErrorCodeSchema.options,
       "conflict",
       "not_implemented",
     ]);

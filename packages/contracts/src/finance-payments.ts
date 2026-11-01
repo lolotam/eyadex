@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { legacyNumber, legacyCoercedNumber } from "./number-compat.ts";
+import { legacyInteger } from "./integer-compat.ts";
+import { utcDatetime } from "./datetime-compat.ts";
 import { idSchema } from "./common.ts";
 import { invoiceSettlementSchema } from "./finance-invoice.ts";
 import { dateSchema } from "./finance-list.ts";
@@ -74,9 +77,9 @@ export const paymentSchema = z
     method: paymentMethodSchema,
     amountMinor: positiveMinorAmountSchema,
     currency: currencyCodeSchema,
-    currencyExponent: z.number().int(),
+    currencyExponent: legacyNumber().check(legacyInteger()),
     reference: referenceSchema,
-    receivedAt: z.string().datetime(),
+    receivedAt: utcDatetime(),
     businessDate: dateSchema,
     cashSeq: cashSeqSchema.nullable(),
     receivedBy: idSchema,
@@ -105,7 +108,7 @@ export const creditAllocationSchema = z
     id: idSchema,
     creditId: idSchema,
     amountMinor: positiveMinorAmountSchema,
-    createdAt: z.string().datetime(),
+    createdAt: utcDatetime(),
   })
   .strict();
 
@@ -125,7 +128,11 @@ export const paymentListQuerySchema = z
       .string()
       .regex(/^[A-Za-z0-9_-]{1,64}$/)
       .optional(),
-    limit: z.coerce.number().int().min(1).max(100).default(50),
+    limit: legacyCoercedNumber()
+      .check(legacyInteger())
+      .check(z.gte(1))
+      .check(z.lte(100))
+      .default(50),
     branchId: idSchema.optional(),
     method: paymentMethodSchema.optional(),
     from: dateSchema.optional(),
@@ -147,7 +154,7 @@ export const paymentListResponseSchema = z
   .object({
     items: z.array(paymentSchema),
     nextCursor: z.string().nullable(),
-    total: z.number().int().nonnegative(),
+    total: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
   })
   .strict();
 

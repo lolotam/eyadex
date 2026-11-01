@@ -1,4 +1,6 @@
 import { mailProviderSlotSchema } from "@eyadex/contracts/notifications";
+import { legacyInteger } from "@eyadex/contracts/integer-compat";
+import { legacyNumber } from "@eyadex/contracts/number-compat";
 import { z } from "zod";
 
 /** الحدث اللي الـ API بيكتبه لما الأدمن يطلب إيميل تجربة لمزود العيادة (ADR-0014، 7c-2a). */
@@ -6,12 +8,12 @@ export const MAIL_PROVIDER_TEST_REQUESTED = "clinic.mail_provider_test_requested
 
 const schema = z
   .object({
-    clinicId: z.string().uuid(),
-    providerId: z.string().uuid(),
+    clinicId: z.string().guid(),
+    providerId: z.string().guid(),
     // Pending events written before dual slots still target the primary provider.
     slot: mailProviderSlotSchema.default("primary"),
-    providerVersion: z.number().int().min(1),
-    actorUserId: z.string().uuid(),
+    providerVersion: legacyNumber().check(legacyInteger()).check(z.gte(1)),
+    actorUserId: z.string().guid(),
   })
   .strict();
 

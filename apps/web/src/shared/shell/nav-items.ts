@@ -12,8 +12,10 @@ import {
   Users,
   UsersRound,
   Vault,
+  FileSpreadsheet,
   type LucideIcon,
 } from "lucide-react";
+import type { ClinicFeatures } from "@eyadex/contracts/clinics";
 import type { PermissionResource } from "@eyadex/contracts/permissions";
 import type { TranslationKey } from "@/shared/i18n/dictionary";
 import { can } from "@/shared/permissions/can";
@@ -33,6 +35,7 @@ export type NavPath =
   | "/clinic/visits"
   | "/clinic/invoices"
   | "/clinic/cash-closings"
+  | "/clinic/reports"
   | "/clinic/audit"
   | "/clinic/settings"
   | "/clinic/account";
@@ -48,6 +51,8 @@ export type NavItem = {
   anyOf?: readonly PermissionResource[];
   /** When set, the item needs this exact key (a page whose only action is one key). */
   permission?: string;
+  /** When set, the item needs this clinic module on; it fails closed when no features are passed. */
+  feature?: keyof ClinicFeatures;
 };
 
 export const PLATFORM_NAV: NavItem[] = [
@@ -94,6 +99,8 @@ export const CLINIC_NAV: NavItem[] = [
     icon: Vault,
     resource: "cash_closings",
   },
+  // F3: report exports. Module visibility only: the requester's own history needs no report key.
+  { to: "/clinic/reports", label: "nav.reports", icon: FileSpreadsheet, feature: "finance" },
   { to: "/clinic/audit", label: "nav.audit", icon: ClipboardList, resource: "audit_log" },
   // D-17: the Settings page holds the General, Services and Work schedules tabs.
   {
@@ -106,8 +113,13 @@ export const CLINIC_NAV: NavItem[] = [
 ];
 
 /** The entries a user may see: by view permission on the entry's resource(s), never by role. */
-export function navItemsFor(items: readonly NavItem[], permissions: readonly string[]): NavItem[] {
+export function navItemsFor(
+  items: readonly NavItem[],
+  permissions: readonly string[],
+  features?: Readonly<Partial<ClinicFeatures>>,
+): NavItem[] {
   return items.filter((item) => {
+    if (item.feature && features?.[item.feature] !== true) return false;
     if (item.permission) return permissions.includes(item.permission);
     if (item.anyOf) return item.anyOf.some((resource) => can(permissions, "view", resource));
     return !item.resource || can(permissions, "view", item.resource);

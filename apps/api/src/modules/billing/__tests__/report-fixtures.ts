@@ -8,6 +8,7 @@ import { AUTHORIZATION_INVALIDATOR, type AuthorizationInvalidator } from "../../
 import { customRole, memberOn } from "../../identity/__tests__/user-fixtures.ts";
 import { code, send } from "../../appointments/__tests__/scheduling-fixtures.ts";
 import { financeClinic, namedPatient, setPrefixes } from "./billing-fixtures.ts";
+import type { ReportExportRuntime } from "../report-export-providers.ts";
 
 export const RANGE = "from=2026-01-01&to=2026-12-31";
 export const REPORT_ROUTES = [
@@ -23,8 +24,8 @@ export const REPORT_ROUTES = [
   "own-summary",
 ] as const;
 
-export async function reportFixture() {
-  const h = await openHarness({}, true);
+export async function reportFixture(financeExports?: ReportExportRuntime) {
+  const h = await openHarness({}, true, financeExports === undefined ? {} : { financeExports });
   const invalidate = h.app.get<AuthorizationInvalidator>(AUTHORIZATION_INVALIDATOR);
   const C = await financeClinic(h, invalidate);
   await setPrefixes(h, C);

@@ -6,6 +6,7 @@ import {
   type AccountResponse,
 } from "@eyadex/contracts/settings-http";
 
+import { parseContract } from "../../../shared/contract-parser.ts";
 import { ZodValidationPipe } from "../../../shared/zod-validation.pipe.ts";
 import { Authenticated } from "../access/access-rules.ts";
 import type { ClinicRequest } from "../access/access.guard.ts";
@@ -37,7 +38,7 @@ export class AccountController {
   @Get()
   @Authenticated()
   async view(@Req() request: ClinicRequest): Promise<AccountResponse> {
-    return accountResponseSchema.parse(await this.changes.read(ownerOf(request)));
+    return parseContract(accountResponseSchema, await this.changes.read(ownerOf(request)));
   }
 
   @Put()
@@ -53,6 +54,6 @@ export class AccountController {
     } catch {
       logger.warn("authorization cache invalidation failed; relying on the 30 s TTL");
     }
-    return accountResponseSchema.parse(saved);
+    return parseContract(accountResponseSchema, saved);
   }
 }

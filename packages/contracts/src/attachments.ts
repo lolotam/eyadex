@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { legacyNumber } from "./number-compat.ts";
+import { legacyInteger } from "./integer-compat.ts";
+import { utcDatetime } from "./datetime-compat.ts";
 import { idSchema } from "./common.ts";
 
 export const ATTACHMENT_TYPES = [
@@ -18,9 +21,9 @@ export const attachmentSchema = z
     visitId: idSchema.nullable(),
     name: z.string(),
     contentType: attachmentTypeSchema,
-    sizeBytes: z.number().int().positive(),
+    sizeBytes: legacyNumber().check(legacyInteger()).check(z.positive()),
     status: z.enum(["active", "archived"]),
-    uploadedAt: z.string().datetime(),
+    uploadedAt: utcDatetime(),
     uploadedByName: z.string(),
   })
   .strict();

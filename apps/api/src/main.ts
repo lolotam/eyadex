@@ -4,6 +4,7 @@ import { createLogger } from "@eyadex/observability";
 import { createApp, SHUTDOWN_WATCHDOG_MS, watchShutdown } from "./app.ts";
 import { readConfig } from "./shared/config.ts";
 import { API_LOG_EVENTS } from "./shared/log-events.ts";
+import { reportExportRuntimeFromEnv } from "./shared/blob/report-export-config.ts";
 
 const config = readConfig(process.env);
 const logger = createLogger(config.LOG_LEVEL, { events: API_LOG_EVENTS });
@@ -17,6 +18,7 @@ try {
       mountPlatform: true,
       mountInvitations: true,
       mountClinic: true,
+      financeExports: reportExportRuntimeFromEnv(process.env),
     },
     { logger },
   );

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { requiredOr } from "./type-message.ts";
 
 /**
  * The currencies a clinic can hold (finance spec R1-6) and their minor-unit exponent, which is derived from
@@ -25,7 +26,7 @@ const MINOR_TEXT = /^(0|[1-9][0-9]{0,18})$/;
 // One refine (not regex + refine): Zod runs every refine even after a failed regex, and BigInt("1.5") throws.
 const minorUpTo = (max: bigint) =>
   z
-    .string({ invalid_type_error: "validation.amount" })
+    .string({ error: requiredOr("validation.amount") })
     .refine((v) => MINOR_TEXT.test(v) && BigInt(v) <= max, "validation.amount");
 
 /**
@@ -43,7 +44,7 @@ export const positiveMinorAmountSchema = minorAmountSchema.refine(
 
 /** R3-5: drawer expectations and differences may be negative, without rounding through a float. */
 export const signedMinorAmountSchema = z
-  .string({ invalid_type_error: "validation.amount" })
+  .string({ error: requiredOr("validation.amount") })
   .refine(
     (v) =>
       /^-?(0|[1-9][0-9]{0,18})$/.test(v) &&
@@ -58,7 +59,7 @@ export const cashMinorAmountSchema = minorUpTo(MAX_CASH_MINOR);
 
 /** A drawer's expected amount: it may be negative, within the same bound as the counted amount. */
 export const signedCashMinorAmountSchema = z
-  .string({ invalid_type_error: "validation.amount" })
+  .string({ error: requiredOr("validation.amount") })
   .refine(
     (v) =>
       /^-?(0|[1-9][0-9]{0,18})$/.test(v) &&

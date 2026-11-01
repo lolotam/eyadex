@@ -113,6 +113,10 @@ BEGIN
       VALUES (c, ('00000000-0000-7000-8000-0000000006'||s||'2')::uuid, ('00000000-0000-7000-8000-0000000006'||s||'1')::uuid, 1,
         'clinic/'||c||'/finance-exports/00000000-0000-7000-8000-0000000006'||s||'1/1.csv', 'allocated', now(), now());
     -- An export of an aggregate report is administrative, yet never the platform's (0068).
+    INSERT INTO finance_report_export_patients (clinic_id, id, export_id, attempt, patient_id, created_at)
+      VALUES (c, ('00000000-0000-7000-8000-0000000006'||s||'4')::uuid,
+        ('00000000-0000-7000-8000-0000000006'||s||'1')::uuid, 1,
+        ('00000000-0000-7000-8000-0000000001'||s||'9')::uuid, now());
     INSERT INTO audit_log VALUES (c, ('00000000-0000-7000-8000-0000000006'||s||'3')::uuid, ('00000000-0000-7000-8000-0000000002'||s||'5')::uuid, 'finance_report.exported', 'administrative', 'finance_report_export', ('00000000-0000-7000-8000-0000000006'||s||'1')::uuid, null, '{"report":"daily_takings"}', now());
     -- An appointment's audit row names a patient's booking: administrative, yet never the platform's (0043).
     INSERT INTO audit_log VALUES (c, ('00000000-0000-7000-8000-0000000003'||s||'4')::uuid, ('00000000-0000-7000-8000-0000000002'||s||'5')::uuid, 'appointment.booked', 'administrative', 'appointment', ('00000000-0000-7000-8000-0000000003'||s||'3')::uuid, null, '{}', now());
@@ -176,7 +180,7 @@ BEGIN
       'clinic_whatsapp_channels','used_invoice_prefixes','service_provider_prices','invoice_sequences',
       'invoices','invoice_lines','invoice_links','clinic_payment_methods','receipt_sequences','payments',
       'payment_allocations','patient_credits','refunds','refund_sources','cash_closings','branch_cash_drawers',
-      'finance_report_exports','finance_report_export_blobs'] LOOP
+      'finance_report_exports','finance_report_export_blobs','finance_report_export_patients'] LOOP
     EXECUTE format('SELECT count(*) FROM %I WHERE clinic_id = $1', t) INTO n USING other;
     IF n <> 0 THEN RAISE EXCEPTION 'ISO-01 read leak: % shows % rows of another clinic', t, n; END IF;
     EXECUTE format('SELECT count(*) FROM %I', t) INTO n;
@@ -468,13 +472,21 @@ BEGIN
         'clinic_medicines','patient_attachments','clinic_notification_settings',
         'patient_notifications','clinic_whatsapp_channels','service_provider_prices','invoice_sequences',
         'invoices','invoice_lines','invoice_links','used_invoice_prefixes','clinic_payment_methods',
-        'receipt_sequences','branch_cash_drawers','finance_report_exports','finance_report_export_blobs'] LOOP
+        'receipt_sequences','branch_cash_drawers','finance_report_exports','finance_report_export_blobs','finance_report_export_patients'] LOOP
       BEGIN
         EXECUTE format('UPDATE %I SET clinic_id = $1', t) USING b;
         RAISE EXCEPTION 'ISO-01 write leak: % rows can be moved to another clinic', t;
       EXCEPTION WHEN insufficient_privilege OR check_violation THEN NULL; END;
     END LOOP;
   END;
+  BEGIN
+    INSERT INTO finance_report_export_patients (clinic_id, id, export_id, attempt, patient_id, created_at)
+      VALUES (b, '00000000-0000-7000-8000-0000000006bf', '00000000-0000-7000-8000-0000000006b1',
+        1, '00000000-0000-7000-8000-0000000001b9', now());
+    RAISE EXCEPTION 'ISO-01 write leak: finance_report_export_patients';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+
   -- Updating another clinic's rows silently affects nothing (rows are invisible).
   UPDATE patients SET full_name = 'hacked' WHERE clinic_id = b;
   GET DIAGNOSTICS n = ROW_COUNT;
@@ -539,7 +551,7 @@ BEGIN
     EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   END LOOP;
   -- Finance F3 (0068, pipeline §8): the export rows and their blob keys are the trail, never deleted.
-  FOREACH m IN ARRAY ARRAY['finance_report_exports','finance_report_export_blobs'] LOOP
+  FOREACH m IN ARRAY ARRAY['finance_report_exports','finance_report_export_blobs','finance_report_export_patients'] LOOP
     BEGIN EXECUTE format('DELETE FROM %I', m); RAISE EXCEPTION '% are hard-deletable', m;
     EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   END LOOP;
@@ -647,7 +659,7 @@ BEGIN
   FOREACH t IN ARRAY ARRAY['used_invoice_prefixes','service_provider_prices','invoice_sequences','invoices','invoice_lines','invoice_links',
       'clinic_payment_methods','receipt_sequences','payments','payment_allocations','patient_credits','refunds',
       'refund_sources','cash_closings','branch_cash_drawers','finance_report_exports',
-      'finance_report_export_blobs','finance_invoice_balances'] LOOP
+      'finance_report_export_blobs','finance_report_export_patients','finance_invoice_balances'] LOOP
     BEGIN EXECUTE format('SELECT 1 FROM %I LIMIT 1', t); RAISE EXCEPTION 'PLAT-01: platform can read %', t;
     EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   END LOOP;

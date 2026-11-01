@@ -1,8 +1,11 @@
 import { z } from "zod";
+import { legacyNumber } from "./number-compat.ts";
+import { legacyInteger } from "./integer-compat.ts";
+import { offsetDatetime, utcDatetime } from "./datetime-compat.ts";
 import { idSchema, stripInvisibleControls } from "./common.ts";
 
 /** 0 = Sunday … 6 = Saturday (`Date.getDay`); the clinic's week starts on Sunday. */
-export const weekdaySchema = z.number().int().min(0).max(6);
+export const weekdaySchema = legacyNumber().check(legacyInteger()).check(z.gte(0)).check(z.lte(6));
 export const MINUTES_PER_DAY = 1440;
 export const WEEK_MINUTES = 7 * MINUTES_PER_DAY;
 
@@ -53,7 +56,7 @@ export const providerSummarySchema = z
   .object({
     membershipId: idSchema,
     fullName: z.string(),
-    defaultDurationMinutes: z.number().int(),
+    defaultDurationMinutes: legacyNumber().check(legacyInteger()),
     allBranches: z.boolean(),
     branchIds: z.array(idSchema),
   })
@@ -73,8 +76,8 @@ export type ScheduleBranch = z.infer<typeof scheduleBranchSchema>;
 export const timeOffSchema = z
   .object({
     id: idSchema,
-    startsAt: z.string().datetime(),
-    endsAt: z.string().datetime(),
+    startsAt: utcDatetime(),
+    endsAt: utcDatetime(),
     note: z.string().nullable(),
   })
   .strict();
@@ -88,8 +91,8 @@ const note = z
 /** D-6: a period the provider cannot be booked in (instants with an offset; stored UTC). */
 export const timeOffInputSchema = z
   .object({
-    startsAt: z.string().datetime({ offset: true }),
-    endsAt: z.string().datetime({ offset: true }),
+    startsAt: offsetDatetime(),
+    endsAt: offsetDatetime(),
     note: note.nullable(),
   })
   .strict()

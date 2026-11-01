@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { legacyNumber } from "./number-compat.ts";
+import { legacyInteger } from "./integer-compat.ts";
+import { utcDatetime } from "./datetime-compat.ts";
 import { appointmentSchema, calendarDate } from "./appointments.ts";
 import { idSchema } from "./common.ts";
 import { scheduleBranchSchema } from "./schedules.ts";
@@ -43,9 +46,7 @@ export const weekDaySchema = z
   .object({
     date: z.string(),
     shifts: z.array(z.object({ startsAt: z.string(), endsAt: z.string() }).strict()),
-    timeOff: z.array(
-      z.object({ startsAt: z.string().datetime(), endsAt: z.string().datetime() }).strict(),
-    ),
+    timeOff: z.array(z.object({ startsAt: utcDatetime(), endsAt: utcDatetime() }).strict()),
   })
   .strict();
 export type WeekDay = z.infer<typeof weekDaySchema>;
@@ -64,7 +65,7 @@ export const appointmentWeekSchema = z
       .object({
         membershipId: idSchema,
         fullName: z.string(),
-        defaultDurationMinutes: z.number().int(),
+        defaultDurationMinutes: legacyNumber().check(legacyInteger()),
         bookable: z.boolean(),
       })
       .strict(),
@@ -95,7 +96,14 @@ export const appointmentMonthSchema = z
     branch: scheduleBranchSchema,
     month: z.string(),
     timezone: z.string(),
-    days: z.array(z.object({ date: z.string(), count: z.number().int().nonnegative() }).strict()),
+    days: z.array(
+      z
+        .object({
+          date: z.string(),
+          count: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
+        })
+        .strict(),
+    ),
   })
   .strict();
 export type AppointmentMonth = z.infer<typeof appointmentMonthSchema>;

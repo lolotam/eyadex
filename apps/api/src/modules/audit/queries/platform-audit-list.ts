@@ -14,6 +14,7 @@ import type { Database } from "@eyadex/db";
 import { scrubAuditText } from "@eyadex/observability";
 import { sql } from "drizzle-orm";
 
+import { parseContract } from "../../../shared/contract-parser.ts";
 import { matchActors } from "../domain/audit-actors.ts";
 import { refIdsOf, withRefNames, type RefNames } from "../domain/audit-refs.ts";
 import { auditSnapshots } from "../domain/audit-snapshot.ts";
@@ -140,7 +141,7 @@ export async function listPlatformAudit(
     clinicKey: row.clinic_key,
   }));
   const items = page.map((row) => {
-    const entity = platformAuditEntitySchema.parse(row.entity);
+    const entity = parseContract(platformAuditEntitySchema, row.entity);
     const clinic: BilingualName | undefined =
       row.clinic_id === null ? undefined : clinicNames.get(row.clinic_id);
     return {
@@ -148,7 +149,7 @@ export async function listPlatformAudit(
       at: new Date(row.at_key).toISOString(),
       actorName: scrubAuditText(row.actor_name),
       action: row.action,
-      source: platformAuditSourceSchema.parse(row.source),
+      source: parseContract(platformAuditSourceSchema, row.source),
       entity,
       category: "administrative" as const,
       entityId: row.entity_id,
@@ -158,7 +159,7 @@ export async function listPlatformAudit(
       ...auditSnapshots(entity, parseDetails(row.details)),
     };
   });
-  return platformAuditListResponseSchema.parse({
+  return parseContract(platformAuditListResponseSchema, {
     items: await withClinicRefNames(db, readers, items),
     nextCursor,
     total: Number(total[0]?.total ?? 0),

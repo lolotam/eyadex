@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { legacyNumber } from "./number-compat.ts";
+import { legacyInteger } from "./integer-compat.ts";
+import { utcDatetime } from "./datetime-compat.ts";
 import { idSchema } from "./common.ts";
 import { currencyCodeSchema, minorAmountSchema, readMinor } from "./money.ts";
 
@@ -6,19 +9,25 @@ export const invoiceSourceSchema = z.enum(["appointment", "visit", "manual"]);
 export type InvoiceSource = z.infer<typeof invoiceSourceSchema>;
 
 const discountSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("pct"), bp: z.number().int(), reason: z.string() }).strict(),
+  z
+    .object({
+      kind: z.literal("pct"),
+      bp: legacyNumber().check(legacyInteger()),
+      reason: z.string(),
+    })
+    .strict(),
   z.object({ kind: z.literal("amount"), minor: minorAmountSchema, reason: z.string() }).strict(),
 ]);
 
 export const invoiceLineSchema = z
   .object({
-    position: z.number().int().nonnegative(),
+    position: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
     kind: z.enum(["service", "free"]),
     serviceId: idSchema.nullable(),
     providerId: idSchema.nullable(),
     descriptionAr: z.string(),
     descriptionEn: z.string(),
-    quantity: z.number().int(),
+    quantity: legacyNumber().check(legacyInteger()),
     unitPriceMinor: minorAmountSchema,
     discount: discountSchema.nullable(),
     lineTotalMinor: minorAmountSchema,
@@ -62,12 +71,12 @@ export const invoiceObjectSchema = z
     patientId: idSchema,
     // Optional on detail so existing invoice writes and stored clients remain compatible.
     patientName: z.string().optional(),
-    issuedAt: z.string().datetime(),
+    issuedAt: utcDatetime(),
     currency: currencyCodeSchema,
-    currencyExponent: z.number().int(),
+    currencyExponent: legacyNumber().check(legacyInteger()),
     subtotalMinor: minorAmountSchema,
     discountMinor: minorAmountSchema,
-    taxRateBp: z.number().int(),
+    taxRateBp: legacyNumber().check(legacyInteger()),
     taxMinor: minorAmountSchema,
     totalMinor: minorAmountSchema,
     // Optional so existing F1 API writes and mock responses remain valid until settlement ships.
@@ -75,8 +84,8 @@ export const invoiceObjectSchema = z
     invoiceDiscount: discountSchema.nullable(),
     lines: z.array(invoiceLineSchema),
     voidReason: z.string().nullable(),
-    voidedAt: z.string().datetime().nullable(),
-    version: z.number().int().positive(),
+    voidedAt: utcDatetime().nullable(),
+    version: legacyNumber().check(legacyInteger()).check(z.positive()),
   })
   .strict();
 

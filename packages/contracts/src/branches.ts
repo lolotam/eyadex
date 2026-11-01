@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { legacyNumber, legacyCoercedNumber } from "./number-compat.ts";
+import { legacyInteger } from "./integer-compat.ts";
+import { utcDatetime } from "./datetime-compat.ts";
 import { idSchema } from "./common.ts";
 
 /**
@@ -47,7 +50,11 @@ export const branchListQuerySchema = z
       .string()
       .regex(/^[A-Za-z0-9_-]{1,64}$/)
       .optional(),
-    limit: z.coerce.number().int().min(1).max(100).default(50),
+    limit: legacyCoercedNumber()
+      .check(legacyInteger())
+      .check(z.gte(1))
+      .check(z.lte(100))
+      .default(50),
     status: z.enum(["active", "inactive"]).optional(),
     search: z.string().trim().min(1).max(100).optional(),
   })
@@ -62,9 +69,9 @@ export const branchDetailSchema = z.object({
   phone: z.string().nullable(),
   isActive: z.boolean(),
   /** Active members limited to branches whose only active branch is this one (ADR-0012). */
-  exclusiveMemberCount: z.number().int().nonnegative(),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
+  exclusiveMemberCount: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
+  createdAt: utcDatetime(),
+  updatedAt: utcDatetime(),
 });
 export type BranchDetail = z.infer<typeof branchDetailSchema>;
 
@@ -72,12 +79,15 @@ export const branchListResponseSchema = z.object({
   items: z.array(branchDetailSchema),
   nextCursor: z.string().nullable(),
   /** Every branch matching the filters, counted on its own statement (not off the page). */
-  total: z.number().int().nonnegative(),
+  total: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
 });
 export type BranchListResponse = z.infer<typeof branchListResponseSchema>;
 
 /** `GET /v1/branches/usage` (ADR-0016): active branches against the clinic's limit. */
 export const branchUsageResponseSchema = z
-  .object({ active: z.number().int().nonnegative(), limit: z.number().int().positive() })
+  .object({
+    active: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
+    limit: legacyNumber().check(legacyInteger()).check(z.positive()),
+  })
   .strict();
 export type BranchUsageResponse = z.infer<typeof branchUsageResponseSchema>;

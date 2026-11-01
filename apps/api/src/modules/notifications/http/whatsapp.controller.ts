@@ -14,6 +14,7 @@ import {
   type WhatsappSignupConfig,
 } from "@eyadex/contracts/whatsapp";
 
+import { parseContract } from "../../../shared/contract-parser.ts";
 import { ZodValidationPipe } from "../../../shared/zod-validation.pipe.ts";
 // The one identity import a module may make: guards and request types (CLAUDE.architecture.md §2.2).
 import { Require, type ClinicRequest } from "../../identity/index.ts";
@@ -42,7 +43,10 @@ export class WhatsappController {
   @Get()
   @Require("view:clinic_settings:clinic")
   async view(@Req() request: ClinicRequest): Promise<WhatsappChannelView> {
-    return whatsappChannelViewSchema.parse(await this.link.view(request.clinicContext.clinicId));
+    return parseContract(
+      whatsappChannelViewSchema,
+      await this.link.view(request.clinicContext.clinicId),
+    );
   }
 
   @Post("connect")
@@ -52,20 +56,20 @@ export class WhatsappController {
     @Req() request: ClinicRequest,
     @Body(new ZodValidationPipe(whatsappConnectRequestSchema)) body: WhatsappConnectRequest,
   ): Promise<WhatsappQrResponse> {
-    return whatsappQrResponseSchema.parse(await this.link.connect(actor(request), body));
+    return parseContract(whatsappQrResponseSchema, await this.link.connect(actor(request), body));
   }
 
   @Get("qr")
   @Require("update:clinic_settings:clinic")
   async qr(@Req() request: ClinicRequest): Promise<WhatsappQrResponse> {
-    return whatsappQrResponseSchema.parse(await this.link.refresh(actor(request)));
+    return parseContract(whatsappQrResponseSchema, await this.link.refresh(actor(request)));
   }
 
   @Post("disconnect")
   @HttpCode(200)
   @Require("update:clinic_settings:clinic")
   async disconnect(@Req() request: ClinicRequest): Promise<WhatsappChannelView> {
-    return whatsappChannelViewSchema.parse(await this.link.disconnect(actor(request)));
+    return parseContract(whatsappChannelViewSchema, await this.link.disconnect(actor(request)));
   }
 
   @Put("coexistence")
@@ -74,14 +78,17 @@ export class WhatsappController {
     @Req() request: ClinicRequest,
     @Body(new ZodValidationPipe(whatsappCoexistenceRequestSchema)) body: WhatsappCoexistenceRequest,
   ): Promise<WhatsappChannelView> {
-    return whatsappChannelViewSchema.parse(await this.coexistence.update(actor(request), body));
+    return parseContract(
+      whatsappChannelViewSchema,
+      await this.coexistence.update(actor(request), body),
+    );
   }
 
   // N3 (spec §7.2): Meta's Embedded Signup. Public ids only; 404 `unavailable` without the Meta app.
   @Get("signup-config")
   @Require("view:clinic_settings:clinic")
   signupConfig(): WhatsappSignupConfig {
-    return whatsappSignupConfigSchema.parse(this.signup.signupConfig());
+    return parseContract(whatsappSignupConfigSchema, this.signup.signupConfig());
   }
 
   @Post("embedded-signup")
@@ -92,6 +99,9 @@ export class WhatsappController {
     @Body(new ZodValidationPipe(whatsappEmbeddedSignupRequestSchema))
     body: WhatsappEmbeddedSignupRequest,
   ): Promise<WhatsappChannelView> {
-    return whatsappChannelViewSchema.parse(await this.signup.complete(actor(request), body));
+    return parseContract(
+      whatsappChannelViewSchema,
+      await this.signup.complete(actor(request), body),
+    );
   }
 }

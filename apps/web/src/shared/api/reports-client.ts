@@ -1,4 +1,5 @@
 import type * as reports from "@eyadex/contracts/finance-reports";
+import type { BranchOptionListResponse, OptionListQuery } from "@eyadex/contracts/role-admin";
 import type { Persona } from "@eyadex/contracts/session";
 import type { z } from "zod";
 
@@ -11,7 +12,13 @@ type Report<Q extends z.ZodTypeAny, R extends z.ZodTypeAny> = (
  * Finance F3 (spec §3–§6): the ten on-screen reports. Each needs its report key and the key of the data
  * it reads, at the report's scope; a range is at most 366 clinic days (`report_range_too_long`).
  */
-export interface ReportsApi {
+export interface ReportsApi extends ReportExportsApi {
+  /** Names and activity of branches within this report's existing scope, including historical branches. */
+  branchOptions(
+    persona: Persona,
+    report: reports.ReportId,
+    query: Partial<OptionListQuery>,
+  ): Promise<BranchOptionListResponse>;
   /** R1: money in and out per day (or month), branch and method. */
   dailyTakings: Report<
     typeof reports.reportDailyTakingsQuerySchema,
@@ -62,4 +69,27 @@ export interface ReportsApi {
     typeof reports.reportOwnSummaryQuerySchema,
     typeof reports.reportOwnSummaryResponseSchema
   >;
+}
+
+type ExportResponse = z.infer<typeof reports.reportExportResponseSchema>;
+
+/**
+ * Finance F3 exports (spec §7): every export is a job for the requester alone. The request body and
+ * list query go as typed, so the API judges them; the download is the file's bytes, never a URL.
+ */
+export interface ReportExportsApi {
+  /** `POST /v1/finance-reports/exports`: queues one export (202). */
+  requestExport(
+    persona: Persona,
+    body: z.input<typeof reports.reportExportRequestSchema>,
+  ): Promise<ExportResponse>;
+  /** `GET /v1/finance-reports/exports`: the caller's own exports, newest first. */
+  listExports(
+    persona: Persona,
+    query: Partial<z.infer<typeof reports.reportExportListQuerySchema>>,
+  ): Promise<z.infer<typeof reports.reportExportListResponseSchema>>;
+  /** `GET /v1/finance-reports/exports/:id`: one of the caller's exports. */
+  getExport(persona: Persona, exportId: string): Promise<ExportResponse>;
+  /** `GET /v1/finance-reports/exports/:id/download`: the finished file. */
+  downloadExport(persona: Persona, exportId: string): Promise<Blob>;
 }

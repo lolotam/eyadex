@@ -1,4 +1,5 @@
 import type { ClinicAuditEntry } from "@eyadex/contracts/organization";
+import { reportExportAuditDetailsSchema } from "@eyadex/contracts/finance-reports";
 import { scrubAuditText, scrubAuditValue } from "@eyadex/observability/audit-text";
 import { newId, type MockState } from "./mock-store";
 
@@ -66,7 +67,27 @@ export function writeClinicAudit(
     /** An invoice snapshot is shape-checked by its writer and stored as is (as the API). */
     exact?: boolean;
   } & Subject,
+  now: Date = new Date(),
 ): void {
+  // Export metadata is validated before insertion, never expanded into branch names or scrubbed
+  // as free text. Unknown reports cannot become administrative platform-visible activity.
+  const exportDetails =
+    entry.entity === "finance_report_export"
+      ? reportExportAuditDetailsSchema.parse(entry.after)
+      : null;
+  if (
+    exportDetails !== null &&
+    (entry.action !== "finance_report.exported" || entry.before !== null)
+  )
+    throw new Error("invalid export audit event");
+  const category =
+    exportDetails !== null
+      ? ["outstanding", "patient_credit", "refunds", "discounts"].includes(exportDetails.report)
+        ? "patient_access"
+        : "administrative"
+      : PATIENT_ACCESS.has(entry.entity)
+        ? "patient_access"
+        : "administrative";
   const entityId =
     entry.entityId === undefined ? (entry.after ?? entry.before)?.id : entry.entityId;
   if (entityId === undefined) return;
@@ -82,10 +103,10 @@ export function writeClinicAudit(
     actorName: scrubAuditText(entry.actorName),
     action: entry.action,
     entity: entry.entity,
-    category: PATIENT_ACCESS.has(entry.entity) ? "patient_access" : "administrative",
+    category,
     entityId,
     before: side(entry.before),
-    after: side(entry.after),
-    createdAt: new Date().toISOString(),
+    after: exportDetails === null ? side(entry.after) : structuredClone(exportDetails),
+    createdAt: now.toISOString(),
   });
 }

@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { legacyNumber } from "./number-compat.ts";
+import { legacyInteger } from "./integer-compat.ts";
+import { utcDatetime } from "./datetime-compat.ts";
 
 import { idSchema, languageSchema } from "./common.ts";
 import {
@@ -51,6 +54,41 @@ export const reportExportRequestSchema = z
 export type ReportExportRequest = z.infer<typeof reportExportRequestSchema>;
 
 /**
+ * Persisted export filters. `branchIds` is required even when empty, and R1/R2 already store
+ * `groupBy`. The shape adds no defaults and accepts no extra key.
+ */
+const frozenReportExportParamsSchema = z
+  .object({
+    from: reportFields.from,
+    to: reportFields.to,
+    language: languageSchema,
+    branchIds: z.array(idSchema).readonly(),
+    groupBy: reportGroupBySchema.optional(),
+  })
+  .strict()
+  .readonly();
+export type FrozenReportExportParams = z.infer<typeof frozenReportExportParamsSchema>;
+
+/**
+ * Reads stored export params. A missing, null, extra, or oversized value is null; the input is
+ * not mutated and the refusal carries no raw params. `branchIds` is removed before the request
+ * schema sees the other fields, so the request's optional `branchId` is never a stand-in.
+ */
+export function parseFrozenReportExportParams(
+  report: ReportId,
+  format: ReportExportFormat,
+  input: unknown,
+): FrozenReportExportParams | null {
+  const frozen = frozenReportExportParamsSchema.safeParse(input);
+  if (!frozen.success) return null;
+  const { branchIds: _branchIds, ...fields } = frozen.data;
+  const request = reportExportRequestSchema.safeParse({ ...fields, report, format });
+  if (!request.success) return null;
+  if (GROUPED_REPORTS.includes(report) && request.data.groupBy === undefined) return null;
+  return frozen.data;
+}
+
+/**
  * The export row (spec §7.3). It carries no patient field: the patients of an `own` export live in the
  * table's own column, which the download clears when the file expires (EY-10.4).
  */
@@ -60,10 +98,10 @@ export const reportExportSchema = z
     report: reportIdSchema,
     format: reportExportFormatSchema,
     status: reportExportStatusSchema,
-    createdAt: z.string().datetime(),
-    expiresAt: z.string().datetime().nullable(),
-    byteSize: z.number().int().nonnegative().nullable(),
-    rowCount: z.number().int().nonnegative().nullable(),
+    createdAt: utcDatetime(),
+    expiresAt: utcDatetime().nullable(),
+    byteSize: legacyNumber().check(legacyInteger()).check(z.nonnegative()).nullable(),
+    rowCount: legacyNumber().check(legacyInteger()).check(z.nonnegative()).nullable(),
   })
   .strict();
 export type ReportExport = z.infer<typeof reportExportSchema>;
@@ -76,7 +114,7 @@ export const reportExportListResponseSchema = z
   .object({
     items: z.array(reportExportSchema),
     nextCursor: z.string().nullable(),
-    total: z.number().int().nonnegative(),
+    total: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
   })
   .strict();
 

@@ -22,6 +22,9 @@ export const BILLING_RELATIONS = [
   "branch_cash_drawers",
   // Finance F2 slice 5: the daily cash closings.
   "cash_closings",
+  "finance_report_exports",
+  "finance_report_export_blobs",
+  "finance_report_export_patients",
   "finance_invoice_balances",
   "finance_report_daily_takings",
   "finance_report_period_summary",
@@ -30,6 +33,8 @@ export const BILLING_RELATIONS = [
   "finance_report_cash_closings",
   // The jsonb set function its id lists read.
   "jsonb_array_elements_text",
+  // PostgreSQL set-returning function for the stored own patient set, not another module table.
+  "unnest",
   "branches",
   "clinics",
 ];

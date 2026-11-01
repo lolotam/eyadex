@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { legacyNumber } from "./number-compat.ts";
+import { legacyInteger } from "./integer-compat.ts";
 import { idSchema } from "./common.ts";
 import {
   patientBranchOptionSchema,
@@ -22,7 +24,7 @@ export const patientSearchRequestSchema = z
       .string()
       .regex(/^[A-Za-z0-9_-]{1,64}$/)
       .nullable(),
-    limit: z.number().int().min(1).max(100),
+    limit: legacyNumber().check(legacyInteger()).check(z.gte(1)).check(z.lte(100)),
     q: z.string().transform(stripInvisibleControls).pipe(z.string().trim().max(100)),
     branchId: idSchema.nullable(),
     status: patientStatusSchema.nullable(),
@@ -34,7 +36,7 @@ export const patientListResponseSchema = z.object({
   items: z.array(patientListItemSchema),
   nextCursor: z.string().nullable(),
   /** Every file matching the filters inside the caller's scope, counted on its own statement. */
-  total: z.number().int().nonnegative(),
+  total: legacyNumber().check(legacyInteger()).check(z.nonnegative()),
 });
 export type PatientListResponse = z.infer<typeof patientListResponseSchema>;
 

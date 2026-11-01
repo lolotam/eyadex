@@ -1,5 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 
+import { utcDatetime } from "@eyadex/contracts/datetime-compat";
 import { z } from "zod";
 
 import { escapeHtml, type RenderedEmail } from "../../invitation-mail/domain/invitation-email.ts";
@@ -17,10 +18,10 @@ export interface TeamInviteEvent {
 
 const schema = z
   .object({
-    accountId: z.string().uuid(),
+    accountId: z.string().guid(),
     email: z.string().email(),
     fullName: z.string().min(1).max(200),
-    expiresAt: z.string().datetime(),
+    expiresAt: utcDatetime(),
     sealedToken: z.string().min(1),
   })
   .strict();

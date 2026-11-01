@@ -7,3 +7,4 @@ export {
   type FieldRef,
 } from "./field-cipher.ts";
 export { civilIdHmac, indexKeyFromEnv } from "./civil-id-index.ts";
+export { SealedFile } from "./sealed-file.ts";
