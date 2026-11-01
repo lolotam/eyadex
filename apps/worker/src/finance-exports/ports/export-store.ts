@@ -143,13 +143,14 @@ export interface ExportStore extends ExportClaimPort {
    * عشان ساعة القاعدة تشوف نهاية التأجير. غير كده المعاملة تتراجع.
    *
    * @param fence سياج المحاولة
-   * @param input الحجم والعدد ومجموعة مرضى `own`
+   * @param input حجم المرفق وحجم التخزين المشفّر وعدد الصفوف ومجموعة مرضى `own`
    * @returns النشر أو إعادة القراءة أو رفض قبل الكتابة
    */
   publish(
     fence: ExportFence,
     input: {
       readonly byteSize: number;
+      readonly storedByteSize: number;
       readonly rowCount: number;
       readonly patientIds: readonly string[] | null;
       readonly patientSet?: "ledger" | null;

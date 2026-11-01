@@ -193,6 +193,15 @@ describe("export admission domain", () => {
     );
   });
 
+  it.each([{ unknown: true }, { groupBy: "day" }, { groupBy: "year" }])(
+    "keeps a long range combined with malformed input %j as validation",
+    (extra) => {
+      expect(() =>
+        parseReportExportRequest(request("by_service", { ...TOO_LONG, ...extra })),
+      ).toThrow(expect.objectContaining({ code: "validation", status: 400 }));
+    },
+  );
+
   it("rejects a full queue or a running member, and a missing max does not typecheck", () => {
     expect(
       decideExportAdmission({ runningForMember: false, queuedCount: 2, maxQueuedPerClinic: 2 }),

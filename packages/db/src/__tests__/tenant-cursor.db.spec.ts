@@ -23,6 +23,42 @@ afterAll(async () => {
 });
 
 describe("tenant SELECT cursors", () => {
+  it("does not accumulate portals across successful savepoints, and leaves the parent cursor alive", async () => {
+    await app.withTenant(A.clinicId, async (tx) => {
+      const portals = async () =>
+        (
+          await tx.execute<{ n: number }>(
+            sql`SELECT count(*)::int AS n FROM pg_cursors WHERE name LIKE 'eyadex_cursor_%'`,
+          )
+        )[0]!.n;
+      const parent = await tx.cursor(sql`SELECT 1`);
+      const baseline = await portals();
+      for (let index = 0; index < 3; index++) {
+        const escaped = await tx.transaction(async (inner) => {
+          const cursor = await inner.cursor(sql`SELECT 1`);
+          await cursor.read();
+          return cursor;
+        });
+        expect(await portals()).toBe(baseline);
+        expect(() => escaped.read()).toThrow("no longer valid");
+      }
+      expect(await parent.read()).toHaveLength(1);
+      await parent.close();
+      expect(await portals()).toBe(baseline - 1);
+    });
+  });
+  it("retains the original PostgreSQL FETCH error with finally cleanup", async () => {
+    await expect(
+      app.withTenant(A.clinicId, async (tx) => {
+        const cursor = await tx.cursor(sql`SELECT 1 / n FROM generate_series(0, 1) n`);
+        try {
+          await cursor.read();
+        } finally {
+          await cursor.close();
+        }
+      }),
+    ).rejects.toMatchObject({ code: "22012" });
+  });
   it("binds parameters, reads bounded pages from one snapshot, and permits current checks between pages", async () => {
     await app.withTenant(A.clinicId, async (tx) => {
       const cursor = await tx.cursor<{ id: number; name: string }>(sql`SELECT n AS id,

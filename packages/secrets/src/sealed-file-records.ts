@@ -25,11 +25,18 @@ export function sealRecord(
   return Buffer.concat([length, envelope]);
 }
 
-async function readExact(file: FileHandle, position: number, length: number): Promise<Buffer> {
+async function readExact(
+  file: FileHandle,
+  position: number,
+  length: number,
+  signal: AbortSignal,
+): Promise<Buffer> {
+  signal.throwIfAborted();
   const bytes = Buffer.alloc(length);
   let offset = 0;
   while (offset < length) {
     const read = await file.read(bytes, offset, length - offset, position + offset);
+    signal.throwIfAborted();
     if (read.bytesRead === 0) throw new Error("sealed_file_truncated");
     offset += read.bytesRead;
   }
@@ -44,7 +51,7 @@ export async function* openFileRecords(
   ref: FieldRef,
   signal: AbortSignal,
 ): AsyncGenerator<Buffer> {
-  const magic = await readExact(file, 0, FILE_MAGIC.length);
+  const magic = await readExact(file, 0, FILE_MAGIC.length, signal);
   if (!magic.equals(FILE_MAGIC)) throw new Error("sealed_file_invalid");
   let position = FILE_MAGIC.length;
   let index = 0;
@@ -52,10 +59,10 @@ export async function* openFileRecords(
   const hash = createHash("sha256");
   for (;;) {
     signal.throwIfAborted();
-    const length = (await readExact(file, position, 4)).readUInt32BE();
+    const length = (await readExact(file, position, 4, signal)).readUInt32BE();
     if (length < 1 || length > MAX_RECORD_BYTES) throw new Error("sealed_file_record_invalid");
     position += 4;
-    const envelope = await readExact(file, position, length);
+    const envelope = await readExact(file, position, length, signal);
     position += length;
     const plain = cipher.openBytes(clinicId, chunkRef(ref, index++), envelope.toString("utf8"));
     if (plain[0] === 1) {
@@ -63,11 +70,13 @@ export async function* openFileRecords(
       if (
         plain.length !== 41 ||
         plain.readBigUInt64BE(1) !== BigInt(total) ||
-        !plain.subarray(9).equals(hash.digest()) ||
-        (await file.read(trailing, 0, 1, position)).bytesRead !== 0
+        !plain.subarray(9).equals(hash.digest())
       ) {
         throw new Error("sealed_file_integrity_failed");
       }
+      const end = await file.read(trailing, 0, 1, position);
+      signal.throwIfAborted();
+      if (end.bytesRead !== 0) throw new Error("sealed_file_integrity_failed");
       return;
     }
     if (plain[0] !== 0 || plain.length < 2 || plain.length > PLAIN_CHUNK_BYTES + 1)
@@ -76,6 +85,7 @@ export async function* openFileRecords(
     total += body.length;
     if (!Number.isSafeInteger(total)) throw new Error("sealed_file_size_invalid");
     hash.update(body);
+    signal.throwIfAborted();
     yield body;
   }
 }

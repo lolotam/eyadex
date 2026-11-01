@@ -16,7 +16,14 @@ BEGIN
           RAISE EXCEPTION 'F3-GRANTS: % holds % on %', r, p, t;
         END IF;
       END LOOP;
+      IF has_column_privilege(r, t, 'clinic_id', 'SELECT') THEN
+        RAISE EXCEPTION 'F3-GRANTS: % holds column access on %', r, t;
+      END IF;
     END LOOP;
+    IF has_column_privilege(r, 'finance_report_exports', 'plaintext_byte_size', 'SELECT')
+       OR has_column_privilege(r, 'finance_report_exports', 'plaintext_byte_size', 'UPDATE') THEN
+      RAISE EXCEPTION 'F3-GRANTS: % holds attachment size access', r;
+    END IF;
     FOREACH f IN ARRAY ARRAY['finance_report_daily_takings(date, date, uuid[])',
         'finance_report_period_summary(date, date, uuid[])', 'finance_report_by_service(date, date, uuid[])',
         'finance_report_by_doctor(date, date, uuid[])', 'finance_report_cash_closings(date, date, uuid[])'] LOOP
@@ -30,6 +37,7 @@ BEGIN
      OR has_table_privilege('eyadex_app', 'finance_report_exports', 'DELETE')
      OR has_table_privilege('eyadex_app', 'finance_report_export_blobs', 'DELETE')
      OR has_column_privilege('eyadex_app', 'finance_report_exports', 'requested_by', 'UPDATE')
+     OR NOT has_column_privilege('eyadex_app', 'finance_report_exports', 'plaintext_byte_size', 'UPDATE')
      OR has_column_privilege('eyadex_app', 'finance_report_export_blobs', 'storage_key', 'UPDATE')
      OR NOT has_function_privilege('eyadex_app', 'finance_report_daily_takings(date, date, uuid[])', 'EXECUTE') THEN
     RAISE EXCEPTION 'F3-GRANTS: eyadex_app does not hold exactly the F3 grants';

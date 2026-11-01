@@ -7,6 +7,22 @@ import { setup, row, job, fence, key, decodeFile } from "./__tests__/export-runn
 afterEach(() => vi.useRealTimers());
 
 describe("export attempt after commit", () => {
+  it.each(["csv", "xlsx"] as const)(
+    "publishes separate plaintext and ciphertext lengths for encrypted %s",
+    async (format) => {
+      const t = setup();
+      t.store.prepareLeasedJob.mockResolvedValue({ kind: "ready", job: { ...job, format } });
+      await t.run();
+      expect(t.store.publish).toHaveBeenCalledWith(
+        fence,
+        expect.objectContaining({
+          byteSize: t.uploads[0]!.length,
+          storedByteSize: t.stored[0]!.length,
+        }),
+      );
+      expect(t.stored[0]!.length).toBeGreaterThan(t.uploads[0]!.length);
+    },
+  );
   it("writes real CSV only after access, allocation and the last upload check", async () => {
     const t = setup();
     const order: string[] = [];

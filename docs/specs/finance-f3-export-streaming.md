@@ -13,6 +13,9 @@ tracked and expires with its tenant transaction/savepoint. Completed observed tr
 pruned, while all unobserved work remains a rollback reason. The SELECT retains one PostgreSQL
 snapshot; ordinary SELECT checks between pages see current authority under READ COMMITTED.
 No export-row lock may span the cursor read, local file work or network storage I/O.
+The cursor contract rejects all row-locking SELECT forms, including clauses split by comments.
+Successful savepoints close their cursors before release; a failed FETCH makes subsequent cleanup
+a no-op so the original PostgreSQL error survives an unconditional `finally`.
 
 `SealedFile` writes ciphertext only to a private random temporary directory (0600 file). Plaintext
 working chunks are at most 65,536 bytes. The file starts with `EYADEXE1`, followed by length-prefixed
@@ -28,6 +31,7 @@ repeat current authorization, and only then open a second bounded decryption pas
 response. The descriptor stays private and the finalized file cannot be appended. Each second-pass
 record is authenticated again. Success, failure, abort and shutdown dispose the file. The runtime
 must hold a bounded download slot until response completion, with no waiting queue.
+Empty appends and completion of writes/reads recheck cancellation before returning or yielding.
 
 ## Runtime integration
 
@@ -37,6 +41,8 @@ must hold a bounded download slot until response completion, with no waiting que
 - Stream normalized rows into an encrypted artifact. CSV retains exact precision and formula rules.
   XLSX uses incremental inline strings/money text, bounded ZIP output with ZIP64, and continuation
   worksheets after the format's per-sheet row limit, repeating headers without dropping rows.
+  Both worker XLSX writers store counts of at most 15 digits as numeric cells and larger counts as
+  exact text cells, without a business cap; Excel's 15-digit precision cannot round the latter.
 - Replace the own JSON aggregate/JS array with per-attempt forced-RLS bookkeeping. Capture patients
   from exactly the same SELECT as their amounts; record completion only after the entire read.
   Publish only the winning attempt and completed set. Download reach is a SQL boolean over that set.
@@ -46,6 +52,11 @@ must hold a bounded download slot until response completion, with no waiting que
   aggregate reports, so the temporary and persisted representation are identical.
 - Wire bounded download transport and response lifetime cleanup. Keep the public API shape and
   private attachment filenames; return no public links, storage keys or patient identifiers.
+  SQL 0076 adds `plaintext_byte_size` for public `byteSize`, matching the downloaded attachment.
+  Existing `byte_size` stays private ciphertext length for bounded reception and rolling upgrades.
+  Historical exports retain an unknown (`null`) public size because it cannot be inferred from
+  ciphertext without decryption; downloads still return their verified plaintext Content-Length.
+  The migration is written only; production application requires the owner's explicit yes.
 
 Acceptance includes growing datasets under deployment resource limits, responsive heartbeats,
 revocation during reads/downloads, no response bytes on late integrity failure, complete XLSX

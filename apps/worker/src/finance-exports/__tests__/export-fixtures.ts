@@ -49,6 +49,7 @@ export interface ExportRow {
   expires_at: string | null;
   storage_key: string | null;
   byte_size: number | null;
+  plaintext_byte_size: number | null;
   row_count: number | null;
   error_code: string | null;
   patient_ids: string[] | null;
@@ -205,7 +206,7 @@ export function readExport(clinicId: string, exportId: string): ExportRow | null
   return (
     ownerJson<ExportRow[]>(
       `SELECT status, attempt, lease_owner, lease_until::text, next_attempt_at::text, started_at::text,
-              finished_at::text, expires_at::text, storage_key, byte_size, row_count, error_code,
+              finished_at::text, expires_at::text, storage_key, byte_size, plaintext_byte_size, row_count, error_code,
               to_jsonb(patient_ids) AS patient_ids, scope, report, format, requested_by
          FROM finance_report_exports WHERE clinic_id = ${q(clinicId)} AND id = ${q(exportId)}`,
     )[0] ?? null

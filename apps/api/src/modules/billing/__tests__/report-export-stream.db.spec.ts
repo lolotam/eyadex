@@ -15,6 +15,49 @@ afterAll(async () => {
 });
 
 describe("bounded export download responses", () => {
+  it.each(["csv", "xlsx"] as const)(
+    "exposes the downloaded attachment length for encrypted %s, never its stored length",
+    async (format) => {
+      const row = await f.published(f.C.admin.cookie, "daily_takings", null, format);
+      const response = await f.call(f.C.admin.cookie, "GET", row.path);
+      expect(response.statusCode).toBe(200);
+      const size = Buffer.byteLength(response.body);
+      expect(Number(response.headers["content-length"])).toBe(size);
+      expect(f.bytes.get(row.key)!.length).toBeGreaterThan(size);
+      const status = (await f.call(f.C.admin.cookie, "GET", `/${row.id}`)).json().export;
+      const listed = (await f.call(f.C.admin.cookie, "GET", "?limit=100"))
+        .json()
+        .items.find((item: { id: string }) => item.id === row.id);
+      expect(status.byteSize).toBe(size);
+      expect(listed.byteSize).toBe(size);
+      for (const item of [status, listed]) {
+        expect(Object.keys(item).sort()).toEqual(
+          [
+            "byteSize",
+            "createdAt",
+            "expiresAt",
+            "format",
+            "id",
+            "report",
+            "rowCount",
+            "status",
+          ].sort(),
+        );
+      }
+    },
+  );
+
+  it("keeps legacy attachment size unknown while still bounding and verifying its download", async () => {
+    const row = await f.published();
+    await f.h.owner`UPDATE finance_report_exports SET plaintext_byte_size = NULL
+      WHERE clinic_id = ${f.C.clinicId} AND id = ${row.id}`;
+    const status = (await f.call(f.C.admin.cookie, "GET", `/${row.id}`)).json().export;
+    expect(status.byteSize).toBeNull();
+    const response = await f.call(f.C.admin.cookie, "GET", row.path);
+    expect(response.statusCode).toBe(200);
+    expect(Number(response.headers["content-length"])).toBe(Buffer.byteLength(response.body));
+  });
+
   it.each(["corrupt-final", "truncated"])(
     "sends no attachment bytes for %s, and releases its slot",
     async (kind) => {

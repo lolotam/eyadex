@@ -66,7 +66,9 @@ export const financeReportExports = pgTable(
     leaseUntil: timestamp("lease_until", tz),
     nextAttemptAt: timestamp("next_attempt_at", tz),
     storageKey: text("storage_key"),
-    byteSize: bigint("byte_size", { mode: "number" }),
+    // Legacy column remains the private ciphertext length for rolling compatibility.
+    storedByteSize: bigint("byte_size", { mode: "number" }),
+    byteSize: bigint("plaintext_byte_size", { mode: "number" }),
     rowCount: bigint("row_count", { mode: "number" }),
     errorCode: text("error_code"),
     createdAt: timestamp("created_at", tz).notNull(),
@@ -93,6 +95,7 @@ export const financeReportExports = pgTable(
     ),
     check("finance_report_exports_attempt_check", sql.raw("(attempt >= 0)")),
     check("finance_report_exports_byte_size_check", sql.raw("(byte_size > 0)")),
+    check("finance_report_exports_plaintext_byte_size_check", sql.raw("(plaintext_byte_size > 0)")),
     check("finance_report_exports_format_check", sql.raw(anyOf("format", ["csv", "xlsx"]))),
     check(
       "finance_report_exports_params_check",
