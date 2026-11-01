@@ -23,6 +23,7 @@ import {
 import { CLOCK, PgFilingBranches, TenancyModule, type Clock } from "../tenancy/index.ts";
 import { InvoicePdfController } from "./http/invoice-pdf.controller.ts";
 import { FinanceReportsController } from "./http/finance-reports.controller.ts";
+import { ReportBranchOptionsController } from "./http/report-branch-options.controller.ts";
 import type { BillingReportStaff } from "./ports/billing-report-staff.ts";
 import type { BillingReportServices } from "./ports/billing-report-services.ts";
 import { FinanceReports } from "./use-cases/reports/reports.ts";
@@ -126,6 +127,7 @@ export class BillingModule {
         RefundsController,
         CashClosingsController,
         FinanceReportsController,
+        ReportBranchOptionsController,
         ...(exports === undefined ? [] : [ReportExportsController]),
       ],
       providers: [
