@@ -10,6 +10,7 @@ import { reportPermissionScope } from "@eyadex/contracts/finance-report-access";
 import { useApi } from "@/shared/api/api-provider";
 import { errorKeyOf } from "@/shared/api/api-error";
 import { usePersona, useSession } from "@/shared/persona/persona-provider";
+import { useCommittedEpoch } from "./use-committed-epoch";
 
 /** One schema issue: the field path and the schema's own `validation.*` key, or null for a shape issue. */
 export type ExportRequestIssue = { path: string; message: string | null };
@@ -63,11 +64,7 @@ export function useRequestExport() {
     session?.features.finance ?? null,
     open,
   ]);
-  const identity = useRef(scope);
-  const generation = useRef(0);
-  if (identity.current !== scope) generation.current += 1;
-  identity.current = scope;
-  const epoch = generation.current;
+  const { epoch, isCurrent } = useCommittedEpoch(scope);
   const mounted = useRef(false);
   const lock = useRef<Attempt | null>(null);
   const [pending, setPending] = useState<Attempt | null>(null);
@@ -81,7 +78,7 @@ export function useRequestExport() {
 
   const submit = useCallback(
     async (input: z.input<typeof reportExportRequestSchema>): Promise<RequestExportOutcome> => {
-      const current = () => mounted.current && generation.current === epoch;
+      const current = () => mounted.current && isCurrent(epoch);
       if (!current()) return { status: "stale" };
       if (lock.current?.epoch === epoch) return { status: "duplicate" };
       const parsed = reportExportRequestSchema.safeParse(input);
@@ -123,7 +120,7 @@ export function useRequestExport() {
     },
     // `history` is derived from the same inputs as `scope`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [api, client, persona, session, open, epoch, scope],
+    [api, client, persona, session, open, epoch, scope, isCurrent],
   );
 
   const mine = published?.epoch === epoch ? published : null;
