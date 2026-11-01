@@ -1,70 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { FieldCipher } from "@eyadex/secrets";
 
-import { ExportRunner } from "./export-runner.ts";
 import { ExportReadRefused } from "./domain/export-read-refused.ts";
-import type { ExportStore, PreparedExportJob } from "./ports/export-store.ts";
-import type {
-  ExportAttemptBlobs,
-  ExportBlobStore,
-  ExportReportReader,
-} from "./ports/export-builder.ts";
-import type { ExportCsvRow } from "./domain/export-cells.ts";
 
-const fence = { clinicId: "clinic", exportId: "export", attempt: 1, leaseOwner: "worker" };
-const key = "clinic/clinic/finance-exports/export/1.csv";
-const job: PreparedExportJob = {
-  requestedBy: "member",
-  userId: "user",
-  report: "own_summary",
-  scope: "own",
-  format: "csv",
-  params: { from: "2026-10-01", to: "2026-10-27", language: "en", branchIds: ["branch"] },
-};
-const row: ExportCsvRow = {
-  period: { kind: "date", value: "2026-10" },
-  billedMinor: { kind: "money", minor: 12500n, exponent: 3 },
-  currency: { kind: "text", value: "KWD" },
-};
-function setup() {
-  const store = {
-    decideClaim: vi.fn(),
-    release: vi.fn(),
-    readLeasedJob: vi.fn(),
-    prepareLeasedJob: vi
-      .fn<ExportStore["prepareLeasedJob"]>()
-      .mockResolvedValue({ kind: "ready", job }),
-    heartbeat: vi.fn<ExportStore["heartbeat"]>().mockResolvedValue({ kind: "applied" }),
-    allocateBlob: vi
-      .fn<ExportStore["allocateBlob"]>()
-      .mockResolvedValue({ kind: "allocated", blobId: "blob", storageKey: key }),
-    markUploaded: vi.fn<ExportStore["markUploaded"]>().mockResolvedValue({ kind: "uploaded" }),
-    publish: vi.fn<ExportStore["publish"]>().mockResolvedValue({ kind: "published" }),
-    reread: vi.fn<ExportStore["reread"]>().mockResolvedValue("lost_lease"),
-    abandon: vi.fn<ExportStore["abandon"]>().mockResolvedValue({ kind: "applied" }),
-    recordFailure: vi.fn<ExportStore["recordFailure"]>().mockResolvedValue({ kind: "applied" }),
-  } satisfies ExportStore;
-  const ledger = {
-    uploadable: vi.fn<ExportAttemptBlobs["uploadable"]>().mockResolvedValue(key),
-    discardable: vi.fn<ExportAttemptBlobs["discardable"]>().mockResolvedValue(null),
-    markDeleted: vi.fn<ExportAttemptBlobs["markDeleted"]>().mockResolvedValue(),
-  };
-  const blobs = {
-    put: vi.fn<ExportBlobStore["put"]>().mockResolvedValue(),
-    delete: vi.fn<ExportBlobStore["delete"]>().mockResolvedValue(),
-    exists: vi.fn<ExportBlobStore["exists"]>().mockResolvedValue(false),
-  };
-  const reader = {
-    read: vi
-      .fn<ExportReportReader["read"]>()
-      .mockResolvedValue({ rows: [row], patientIds: ["patient"] }),
-  };
-  const cipher = { sealBytes: vi.fn<FieldCipher["sealBytes"]>().mockReturnValue("sealed") };
-  const deps = { store, ledger, blobs, reader, cipher, heartbeatMs: 20_000, budgetMs: 900_000 };
-  const run = (signal = new AbortController().signal) =>
-    new ExportRunner(deps).execute(fence, signal);
-  return { ...deps, deps, run };
-}
+import { setup, row, job, fence, key, decodeFile } from "./__tests__/export-runner-test-kit.ts";
 
 afterEach(() => vi.useRealTimers());
 
@@ -84,7 +22,8 @@ describe("export attempt after commit", () => {
       order.push("check");
       return key;
     });
-    t.blobs.put.mockImplementation(async (_, bytes) => {
+    t.blobs.put.mockImplementation(async (_, file) => {
+      const bytes = await decodeFile(file, t.cipher);
       order.push("put");
       expect(bytes.toString("utf8")).toContain("12.500");
     });
@@ -94,22 +33,23 @@ describe("export attempt after commit", () => {
     });
     t.store.publish.mockImplementation(async (_, input) => {
       order.push("publish");
-      expect(input.patientIds).toEqual(["patient"]);
+      expect(input.patientIds).toEqual([]);
+      expect(input.patientSet).toBe("ledger");
       expect(input.rowCount).toBe(1);
       return { kind: "published" };
     });
     await t.run();
-    expect(order).toEqual(["read", "allocate", "check", "put", "uploaded", "publish"]);
+    expect(order).toEqual(["allocate", "read", "check", "put", "uploaded", "publish"]);
     expect(t.blobs.delete).not.toHaveBeenCalled();
     expect(t.store.recordFailure).not.toHaveBeenCalled();
-    expect(t.cipher.sealBytes).not.toHaveBeenCalled();
+    expect(t.cipher.sealBytes).toHaveBeenCalled();
   });
 
   it("writes real XLSX instead of a CSV renamed to xlsx", async () => {
     const t = setup();
     t.store.prepareLeasedJob.mockResolvedValue({ kind: "ready", job: { ...job, format: "xlsx" } });
     await t.run();
-    expect(t.blobs.put.mock.calls[0]?.[1].subarray(0, 2).toString()).toBe("PK");
+    expect(t.uploads[0]?.subarray(0, 2).toString()).toBe("PK");
   });
 
   it("seals patient named bytes with clinic/export/attempt bound additional data", async () => {
@@ -125,11 +65,11 @@ describe("export attempt after commit", () => {
       {
         table: "finance_report_exports",
         column: "blob",
-        rowId: "export:1",
+        rowId: "export:1:chunk:0",
       },
       expect.any(Buffer),
     );
-    expect(t.blobs.put.mock.calls[0]?.[1].toString()).toBe("sealed");
+    expect(t.stored[0]?.subarray(0, 8).toString()).toBe("EYADEXE1");
   });
 
   it.each(["forbidden", "invalid_params", "lost_lease"] as const)(
@@ -152,16 +92,16 @@ describe("export attempt after commit", () => {
     ["forbidden", "forbidden"],
     ["lost_lease", "lease_lost"],
     ["invalid_params", "build_failed"],
-  ] as const)("stops before allocation when the actual read refuses %s", async (reason, kind) => {
+  ] as const)("stops before upload when the actual read refuses %s", async (reason, kind) => {
     const t = setup();
     t.reader.read.mockRejectedValue(new ExportReadRefused(reason));
     await t.run();
     expect(t.store.recordFailure).toHaveBeenCalledWith(fence, kind);
-    expect(t.store.allocateBlob).not.toHaveBeenCalled();
+    expect(t.store.allocateBlob).toHaveBeenCalledTimes(1);
     expect(t.blobs.put).not.toHaveBeenCalled();
   });
 
-  it("refuses wide CSV money without allocating or uploading", async () => {
+  it("refuses wide CSV money without uploading", async () => {
     const t = setup();
     t.reader.read.mockResolvedValue({
       rows: [{ ...row, billedMinor: { kind: "money", minor: 12345678901234567n, exponent: 3 } }],
@@ -169,7 +109,7 @@ describe("export attempt after commit", () => {
     });
     await t.run();
     expect(t.store.recordFailure).toHaveBeenCalledWith(fence, "export_amount_too_large");
-    expect(t.store.allocateBlob).not.toHaveBeenCalled();
+    expect(t.store.allocateBlob).toHaveBeenCalledTimes(1);
     expect(t.blobs.put).not.toHaveBeenCalled();
   });
 

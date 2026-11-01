@@ -35,7 +35,7 @@ is open for this slice.
    the plan before writing.
 5. Visibility follows report permission strings and their covering keys, never role names. Platform
    sees no finance report or export. Keep Arabic-first RTL, English LTR, logical CSS and the existing
-   clinical visual system. Do not add reports, PDF generation, a new financial write, 0071–0073, or
+   clinical visual system. Do not add reports, PDF generation, a new financial write, 0076–0078, or
    specialty features. Browser print is already the decided PDF alternative.
 
 ## Tests and acceptance
@@ -64,3 +64,10 @@ Patient-credit is the current clinic-wide remaining balance across the complete 
 Dates are still validated by the shared request, but do not filter this report. Explain in both
 languages on the R6 screen and export action that the selected period does not limit these balances.
 Do not add a credit-creation-date filter to the mock or HTTP adapter.
+
+## Metadata presentation follow-up
+
+The current `byteSize` field counts the stored artifact, while the verified attachment has a different
+byte length. Omit the file-size display until the orchestrator's follow-up exposes the attachment
+size; do not label this field as the downloaded file size or add storage implementation details to
+the UI. Request, history, status and download behavior remain in scope.

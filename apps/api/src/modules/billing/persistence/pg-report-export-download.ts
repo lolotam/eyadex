@@ -12,7 +12,8 @@ export interface DownloadExportRow {
   readonly params: unknown;
   readonly storage_key: string | null;
   readonly attempt: number;
-  readonly patient_ids: string[] | null;
+  readonly byte_size: number | string | null;
+  readonly has_patient_set: boolean;
   readonly unexpired: boolean;
 }
 
@@ -32,7 +33,11 @@ export async function readDownloadExport(
 ) {
   const rows =
     await tx.execute<DownloadExportRow>(sql`SELECT id, requested_by, report, format, status,
-    scope, params, storage_key, attempt, to_jsonb(patient_ids) AS patient_ids,
+    scope, params, storage_key, attempt, byte_size,
+    CASE WHEN patient_set_mode = 'ledger' THEN EXISTS (SELECT 1 FROM finance_report_export_patients s
+      WHERE s.clinic_id = finance_report_exports.clinic_id AND s.export_id = finance_report_exports.id
+        AND s.attempt = finance_report_exports.attempt AND s.is_complete)
+    ELSE patient_ids IS NOT NULL END AS has_patient_set,
     expires_at > clock_timestamp() AS unexpired
     FROM finance_report_exports WHERE clinic_id = ${clinicId} AND id = ${id} AND requested_by = ${membershipId}`);
   return rows[0] ?? null;
@@ -41,14 +46,21 @@ export async function readDownloadExport(
 /** Uses patients' canonical own predicate; billing does not name patients, visits or appointments. */
 export async function ownExportStillReachable(
   tx: Tx,
+  clinicId: string,
   membershipId: string,
-  ids: readonly string[],
+  row: DownloadExportRow,
   patients: BillingPatientReader,
 ) {
-  const rows = await tx.execute<{ missing: boolean }>(sql`SELECT EXISTS (
-    SELECT 1 FROM unnest(string_to_array(${ids.join(",")}, ',')::uuid[]) AS s(patient_id)
-    WHERE NOT ${patients.ownPatientFilter(membershipId, sql`s.patient_id`)}) AS missing`);
-  return rows[0]?.missing === false;
+  const rows = await tx.execute<{
+    reachable: boolean;
+  }>(sql`SELECT CASE WHEN e.patient_set_mode = 'ledger'
+    THEN NOT EXISTS (SELECT 1 FROM finance_report_export_patients s
+      WHERE s.clinic_id = e.clinic_id AND s.export_id = e.id AND s.attempt = e.attempt AND s.patient_id IS NOT NULL
+        AND NOT ${patients.ownPatientFilter(membershipId, sql`s.patient_id`)})
+    ELSE NOT EXISTS (SELECT 1 FROM unnest(e.patient_ids) AS s(patient_id)
+      WHERE NOT ${patients.ownPatientFilter(membershipId, sql`s.patient_id`)}) END AS reachable
+    FROM finance_report_exports e WHERE e.clinic_id = ${clinicId} AND e.id = ${row.id} AND e.attempt = ${row.attempt}`);
+  return rows[0]?.reachable === true;
 }
 
 /** Only the already-deleted attempt is purged, in one transaction with its blob marker. */

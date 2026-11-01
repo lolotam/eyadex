@@ -1,4 +1,4 @@
-# F3 export review decisions — proposed, not approved
+# F3 export review decisions — owner-approved design
 
 Review baseline: `d0b9d974` / PR #133. Export rollout remains disabled. Owner approved all three recommended choices on 2026-10-27: a new never-versioned export bucket,
 R6 current balances without the period filter, and incremental encrypted temporary files without a

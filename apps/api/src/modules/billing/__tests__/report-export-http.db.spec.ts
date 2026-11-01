@@ -81,7 +81,7 @@ describe("export HTTP privacy and current download authority", () => {
     expect((await f.call(f.C.admin.cookie, "GET", row.path)).body).toBe("sample export");
     const wrong = await f.published(f.C.admin.cookie, "outstanding");
     f.bytes.set(wrong.key, f.bytes.get(row.key)!);
-    expect((await f.call(f.C.admin.cookie, "GET", wrong.path)).statusCode).toBe(500);
+    expect((await f.call(f.C.admin.cookie, "GET", wrong.path)).statusCode).toBe(503);
   });
 
   it("denies expiry before storage and expiry during storage", async () => {

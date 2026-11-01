@@ -24,6 +24,7 @@ export const BILLING_RELATIONS = [
   "cash_closings",
   "finance_report_exports",
   "finance_report_export_blobs",
+  "finance_report_export_patients",
   "finance_invoice_balances",
   "finance_report_daily_takings",
   "finance_report_period_summary",

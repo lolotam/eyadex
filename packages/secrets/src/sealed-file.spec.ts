@@ -66,6 +66,26 @@ function records(bytes: Buffer) {
 }
 
 describe("bounded encrypted temporary files", () => {
+  it("stops an oversized source at its published length without consuming its remaining bytes", async () => {
+    let produced = 0;
+    const source = Readable.from(
+      (function* () {
+        for (; produced < 1000; produced++) yield Buffer.alloc(128);
+      })(),
+      { objectMode: false, highWaterMark: 1 },
+    );
+    await expect(SealedFile.receive(source, cipher, clinic, ref, signal, 1)).rejects.toThrow(
+      "sealed_file_size_mismatch",
+    );
+    expect(produced).toBeLessThan(5);
+    expect(source.destroyed).toBe(true);
+  });
+  it("refuses an object shorter than its published size before verification", async () => {
+    const bytes = await stored(Buffer.from("sample"));
+    await expect(
+      SealedFile.receive(Readable.from([bytes]), cipher, clinic, ref, signal, bytes.length + 1),
+    ).rejects.toThrow("sealed_file_size_mismatch");
+  });
   it("aborts a source stalled after one chunk and removes its encrypted temporary file", async () => {
     const directories = async () =>
       (await readdir(tmpdir())).filter((name) => name.startsWith("eyadex-sealed-")).sort();

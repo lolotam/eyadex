@@ -94,32 +94,33 @@ afterAll(async () => {
   if (server) await new Promise<void>((resolve) => server.close(() => resolve()));
 });
 
-it("HTTP request -> committed outbox -> separate worker -> private tagged file -> authorized HTTP download; queued revocation fails", async () => {
+it("HTTP request -> committed outbox -> separate worker -> private tagged CSV/XLSX files -> authorized HTTP downloads; queued revocation fails", async () => {
   await issueReportInvoice(f, f.patientD, f.C.branchD, [reportFreeLine("12500")]);
   const roleId = await customRole(f.h, f.C.clinicId, [
     "view:report_takings:clinic",
     "view:payments:clinic",
   ]);
   const revoked = await memberOn(f.h, f.C.admin, roleId);
-  const request = async (cookie: string, report: string) => {
+  const request = async (cookie: string, report: string, format: "csv" | "xlsx" = "csv") => {
     const response = await send(f.h, cookie, "POST", "/v1/finance-reports/exports", {
       report,
       from: "2026-01-01",
       to: "2026-12-31",
-      format: "csv",
+      format,
       language: "ar",
     });
     expect(response.statusCode, response.body).toBe(202);
     return reportExportResponseSchema.parse(response.json()).export.id;
   };
   const success = await request(f.C.admin.cookie, "period_summary");
+  const successXlsx = await request(f.C.admin.cookie, "outstanding", "xlsx");
   const denied = await request(revoked.cookie, "daily_takings");
   await f.h
     .owner`DELETE FROM role_permissions WHERE clinic_id = ${f.C.clinicId} AND role_id = ${roleId}`;
-  // Put this test's two events first without touching other events or their outcomes.
+  // Put this test's three events first without touching other events or their outcomes.
   await f.h
     .owner`UPDATE outbox_events SET created_at = (SELECT min(created_at) - interval '1 second' FROM outbox_events)
-    WHERE payload->>'exportId' IN (${success}, ${denied})`;
+    WHERE payload->>'exportId' IN (${success}, ${successXlsx}, ${denied})`;
   worker = fork(
     fileURLToPath(
       new URL("../../../../../../docker/finance-export-worker-smoke.mjs", import.meta.url),
@@ -147,10 +148,12 @@ it("HTTP request -> committed outbox -> separate worker -> private tagged file -
     reportExportResponseSchema.parse(
       (await send(f.h, cookie, "GET", `/v1/finance-reports/exports/${id}`)).json(),
     ).export.status;
-  const deadline = Date.now() + 30_000;
+  // Two formats share one requester: memberBusy intentionally defers the second job for 30s.
+  const deadline = Date.now() + 45_000;
   while (Date.now() < deadline) {
     if (
       (await status(success, f.C.admin.cookie)) === "done" &&
+      (await status(successXlsx, f.C.admin.cookie)) === "done" &&
       (await status(denied, revoked.cookie)) === "failed"
     )
       break;
@@ -158,6 +161,7 @@ it("HTTP request -> committed outbox -> separate worker -> private tagged file -
   }
   expect(await status(success, f.C.admin.cookie)).toBe("done");
   expect(await status(denied, revoked.cookie)).toBe("failed");
+  expect(await status(successXlsx, f.C.admin.cookie)).toBe("done");
   const downloaded = await send(
     f.h,
     f.C.admin.cookie,
@@ -167,6 +171,19 @@ it("HTTP request -> committed outbox -> separate worker -> private tagged file -
   expect(downloaded.statusCode, downloaded.body).toBe(200);
   expect(downloaded.body).toContain("12.500");
   expect(downloaded.body).toContain("الفترة");
+  const xlsx = await send(
+    f.h,
+    f.C.admin.cookie,
+    "GET",
+    `/v1/finance-reports/exports/${successXlsx}/download`,
+  );
+  expect(xlsx.statusCode).toBe(200);
+  expect(xlsx.rawPayload.subarray(0, 2).toString()).toBe("PK");
+  expect(xlsx.headers["content-type"]).toContain("spreadsheetml");
+  for (const bytes of objects.values()) {
+    expect(bytes.subarray(0, 8).toString()).toBe("EYADEXE1");
+    expect(bytes.toString()).not.toContain("12.500");
+  }
   const key = `clinic/${f.C.clinicId}/finance-exports/${success}/1.csv`;
   expect(tags.get(key)).toBe("eyadex-kind=finance-export");
   expect([...objects.keys()].some((key) => key.includes(denied))).toBe(false);
@@ -187,4 +204,4 @@ it("HTTP request -> committed outbox -> separate worker -> private tagged file -
     .owner`SELECT details FROM audit_log WHERE entity_type = 'finance_report_export' AND entity_id = ${success}`;
   expect(audits).toHaveLength(1);
   expect(JSON.stringify(audits)).not.toContain("patientName");
-}, 60_000);
+}, 75_000);

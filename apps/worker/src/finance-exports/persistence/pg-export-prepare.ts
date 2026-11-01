@@ -5,7 +5,7 @@ import type { Database, Tx } from "@eyadex/db";
 import { decideExportAccess } from "../domain/export-access.ts";
 import type { ExportFence, PrepareExportAnswer } from "../ports/export-store.ts";
 import { readExportAccess } from "./pg-export-access.ts";
-import { readLockedLeasedExportJob } from "./pg-export-job.ts";
+import { readCurrentLeasedExportJob, readLockedLeasedExportJob } from "./pg-export-job.ts";
 
 /**
  * يجهّز تأجيرًا حيًا قبل قراءة صفوف التقرير. القفل الأول، ثم اللقطة، ثم ساعة القاعدة تاني
@@ -26,13 +26,15 @@ export async function prepareLeasedExportJob(
 export async function prepareExportInTransaction(
   tx: Tx,
   fence: ExportFence,
+  lock = true,
 ): Promise<PrepareExportAnswer> {
-  const leased = await readLockedLeasedExportJob(tx, fence);
+  const read = lock ? readLockedLeasedExportJob : readCurrentLeasedExportJob;
+  const leased = await read(tx, fence);
   if (leased === null) return { kind: "lost_lease" };
   const params = parseFrozenReportExportParams(leased.report, leased.format, leased.params);
   if (params === null) return { kind: "invalid_params" };
   const snapshot = await readExportAccess(tx, fence.clinicId, leased.requestedBy);
-  const still = await readLockedLeasedExportJob(tx, fence);
+  const still = await read(tx, fence);
   if (still === null) return { kind: "lost_lease" };
   const storedScope = asScope(still.scope);
   if (storedScope === null) return { kind: "forbidden" };

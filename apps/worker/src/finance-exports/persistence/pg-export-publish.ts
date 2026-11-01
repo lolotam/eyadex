@@ -2,6 +2,7 @@ import { sql, type Database, type Tx } from "@eyadex/db";
 import type { IdGenerator } from "@eyadex/db";
 import { reportExportSchema } from "@eyadex/contracts/finance-reports";
 
+import { ownExportPatientsReachable } from "./pg-export-patients.ts";
 import { auditCategory, exportAuditDetails } from "../domain/export-audit.ts";
 import { financeExportKey } from "../domain/export-key.ts";
 import type { ExportFence, PublishAnswer, PublishRefusal } from "../ports/export-store.ts";
@@ -78,6 +79,7 @@ export async function publishExport(
     readonly byteSize: number;
     readonly rowCount: number;
     readonly patientIds: readonly string[] | null;
+    readonly patientSet?: "ledger" | null;
   },
 ): Promise<PublishAnswer> {
   if (!Number.isSafeInteger(input.byteSize) || input.byteSize < 1)
@@ -102,6 +104,7 @@ async function publishLocked(
     readonly byteSize: number;
     readonly rowCount: number;
     readonly patientIds: readonly string[] | null;
+    readonly patientSet?: "ledger" | null;
   },
 ): Promise<void> {
   const row = await lockExport(tx, fence.clinicId, fence.exportId);
@@ -115,6 +118,13 @@ async function publishLocked(
   if (details === null) throw new PublishRefuse("params_incomplete");
   const patients = ownPatients(row.scope, input.patientIds);
   if (patients === "missing") throw new PublishRefuse("missing_patient_set");
+  if (row.scope === "own" && input.patientSet === "ledger") {
+    const complete = await tx.execute(sql`SELECT id FROM finance_report_export_patients
+      WHERE clinic_id = ${fence.clinicId} AND export_id = ${fence.exportId}
+        AND attempt = ${fence.attempt} AND is_complete`);
+    if (complete.length !== 1 || !(await ownExportPatientsReachable(tx, fence, row.requested_by)))
+      throw new PublishRefuse("missing_patient_set");
+  }
   const storageKey = financeExportKey({
     clinicId: fence.clinicId,
     exportId: fence.exportId,
@@ -138,6 +148,7 @@ async function publishLocked(
   const exported = (await tx.execute(sql`UPDATE finance_report_exports
           SET status = 'done', storage_key = ${storageKey}, byte_size = ${input.byteSize},
               row_count = ${input.rowCount}, patient_ids = ${patients === null ? sql`NULL` : uuidArray(patients)},
+              patient_set_mode = ${row.scope === "own" && input.patientSet === "ledger" ? "ledger" : "array"},
               finished_at = clock_timestamp(), expires_at = clock_timestamp() + interval '24 hours',
               error_code = NULL, lease_owner = NULL, lease_until = NULL
         WHERE clinic_id = ${fence.clinicId} AND id = ${fence.exportId}

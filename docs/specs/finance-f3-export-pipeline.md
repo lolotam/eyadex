@@ -915,3 +915,22 @@ rule live on the storage side (the bucket policy, the lifecycle rule and the wor
 not in the code, so they are prepared
 and applied with the owner's own yes, like the production SQL of parent §8.
 Until it is in place, the export slice does not ship: a stale key could never be cleaned up.
+
+## Approved resource/storage amendment (2026-10-27)
+
+ADR-0036 and `finance-f3-export-streaming.md` supersede the whole-buffer implementation details and
+shared medical-bucket assumption for the disabled rollout. Use an independent never-versioned export
+bucket, bounded tenant SELECT cursors, incremental encrypted temporary artifacts for every report,
+ZIP64/continuation worksheets, and full download integrity plus current authority before the first
+response byte. The public export DTOs and permission order remain unchanged.
+
+Migration 0074 adds per-attempt own patient bookkeeping under forced RLS, tied to the allocated blob
+so capture never pins the export row against heartbeats. A completion marker and captured patients
+commit with the complete read; only the winning attempt can publish/use that set. New exports use
+`patient_set_mode=ledger`; existing array records remain checked on the SQL side. The encrypted-file
+representation is EYADEXE1 with bounded FieldCipher f1 records and an authenticated final byte-count
+and SHA-256 commitment. No legacy whole-buffer artifact is served by the new download path.
+
+Creating the bucket, its policies/lifecycle and applying 0074 on staging/production still need the
+separate owner operational gate. No existing applied migration is edited. Keep exports disabled and
+the stack unmerged until review, CI and actual success/denial/queued-revocation staging gates pass.

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
+import { Readable } from "node:stream";
 import { reportExportResponseSchema, type ReportId } from "@eyadex/contracts/finance-reports";
-import { fieldCipherFromEnv } from "@eyadex/secrets";
+import { SealedFile, fieldCipherFromEnv } from "@eyadex/secrets";
 import { expect } from "vitest";
 import { send } from "../../appointments/__tests__/scheduling-fixtures.ts";
 import { reportFixture } from "./report-fixtures.ts";
@@ -10,6 +11,7 @@ export async function exportHttpFixture() {
   const reads: string[] = [];
   const deletes: string[] = [];
   let onGet: (() => Promise<void>) | null = null;
+  let source: (() => Readable) | null = null;
   const f = await reportFixture({
     maxQueuedPerClinic: 10,
     files: {
@@ -18,7 +20,7 @@ export async function exportHttpFixture() {
         await onGet?.();
         const value = bytes.get(key);
         if (!value) throw new Error("missing fixture file");
-        return value;
+        return source?.() ?? Readable.from([value]);
       },
       async delete(key) {
         deletes.push(key);
@@ -45,16 +47,20 @@ export async function exportHttpFixture() {
     expect(res.statusCode, res.body).toBe(202);
     const id = reportExportResponseSchema.parse(res.json()).export.id;
     const key = `clinic/${f.C.clinicId}/finance-exports/${id}/1.csv`;
-    let file = Buffer.from("sample export");
-    if (["outstanding", "patient_credit", "refunds", "discounts"].includes(report)) {
-      file = Buffer.from(
-        fieldCipherFromEnv(process.env).sealBytes(
-          f.C.clinicId,
-          { table: "finance_report_exports", column: "blob", rowId: `${id}:1` },
-          file,
-        ),
-      );
+    const artifact = await SealedFile.create(fieldCipherFromEnv(process.env), f.C.clinicId, {
+      table: "finance_report_exports",
+      column: "blob",
+      rowId: `${id}:1`,
+    });
+    const parts = [];
+    try {
+      await artifact.append(Buffer.from("sample export"), new AbortController().signal);
+      await artifact.finish();
+      for await (const chunk of artifact.ciphertext()) parts.push(Buffer.from(chunk));
+    } finally {
+      await artifact.dispose();
     }
+    const file = Buffer.concat(parts);
     bytes.set(key, file);
     await f.h
       .owner`UPDATE finance_report_exports SET status = 'done', attempt = 1, storage_key = ${key},
@@ -74,6 +80,9 @@ export async function exportHttpFixture() {
     body,
     call,
     published,
+    onSource(fn: (() => Readable) | null) {
+      source = fn;
+    },
     onGet(fn: (() => Promise<void>) | null) {
       onGet = fn;
     },

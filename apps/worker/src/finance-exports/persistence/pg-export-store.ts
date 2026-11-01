@@ -68,7 +68,12 @@ export class PgExportStore implements ExportStore {
   /** @inheritdoc */
   publish(
     fence: ExportFence,
-    input: { byteSize: number; rowCount: number; patientIds: readonly string[] | null },
+    input: {
+      byteSize: number;
+      rowCount: number;
+      patientIds: readonly string[] | null;
+      patientSet?: "ledger" | null;
+    },
   ): Promise<PublishAnswer> {
     return publishExport(this.db, this.ids, fence, input);
   }

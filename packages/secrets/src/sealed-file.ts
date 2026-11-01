@@ -50,11 +50,19 @@ export class SealedFile {
     clinicId: string,
     ref: FieldRef,
     signal: AbortSignal,
+    expectedStoredLength?: number,
   ): Promise<SealedFile> {
     if (!(source instanceof Readable)) throw new TypeError("sealed_file_source_not_cancellable");
     const cancel = () => {
       source.destroy();
     };
+    if (
+      expectedStoredLength !== undefined &&
+      (!Number.isSafeInteger(expectedStoredLength) || expectedStoredLength < 0)
+    ) {
+      cancel();
+      throw new TypeError("sealed_file_size_invalid");
+    }
     if (signal.aborted) {
       cancel();
       signal.throwIfAborted();
@@ -70,9 +78,16 @@ export class SealedFile {
       for await (const chunk of source) {
         signal.throwIfAborted();
         if (!(chunk instanceof Uint8Array)) throw new TypeError("sealed_file_source_invalid");
+        if (
+          expectedStoredLength !== undefined &&
+          result.#stored + chunk.byteLength > expectedStoredLength
+        )
+          throw new Error("sealed_file_size_mismatch");
         await result.#write(Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength));
       }
       signal.throwIfAborted();
+      if (expectedStoredLength !== undefined && result.#stored !== expectedStoredLength)
+        throw new Error("sealed_file_size_mismatch");
       result.#finished = true;
       return result;
     } catch (error) {

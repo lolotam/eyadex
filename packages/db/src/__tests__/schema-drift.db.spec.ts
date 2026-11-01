@@ -10,6 +10,7 @@ import type { Sql } from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import * as schema from "../schema/index.ts";
+import { schemaIndexSql, sqlTypeOf } from "./schema-sql-shape.ts";
 import { createOwner } from "./test-database.ts";
 
 // db/sql is the source of truth; this test fails when the Drizzle mirror stops describing it.
@@ -52,18 +53,6 @@ function isTable(value: unknown): value is PgTable {
     return false;
   }
 }
-
-// information_schema spells `time` in full (0042, ADR-0026) and calls char(n) `character` (0060); Drizzle
-// prints the short forms.
-// information_schema names every array type ARRAY (finance_report_exports.patient_ids, 0068).
-const sqlTypeOf = (type: string): string =>
-  type === "time"
-    ? "time without time zone"
-    : /^char\(\d+\)$/.test(type)
-      ? "character"
-      : type.endsWith("[]")
-        ? "ARRAY"
-        : type;
 
 // drizzle-orm 0.45 cannot declare NULLS NOT DISTINCT on an index, only on a unique constraint. 0062 turned
 // the notifications' one-message constraint into a partial unique index that keeps it, so the mirror names
@@ -113,17 +102,6 @@ function mirrorShape(table: PgTable): [string, Shape] {
   // alone (Codex on PR #24). Expressions render as drizzle-kit would put them in an index; PostgreSQL
   // prints these lower-case identifiers unquoted.
   // A NULLS NOT DISTINCT unique constraint (0056) prints the clause after the column list.
-  const define = (
-    name: string,
-    unique: boolean,
-    method: string,
-    cols: string[],
-    where?: string,
-    nullsNotDistinct = false,
-  ) =>
-    `CREATE ${unique ? "UNIQUE " : ""}INDEX ${name} ON public.${config.name} USING ${method} (${cols.join(", ")})` +
-    (nullsNotDistinct ? " NULLS NOT DISTINCT" : "") +
-    (where === undefined ? "" : ` WHERE (${where})`);
   const expression = (value: SQL): string =>
     dialect.sqlToQuery(value, "indexes").sql.replaceAll('"', "");
   const indexes = [
@@ -141,7 +119,8 @@ function mirrorShape(table: PgTable): [string, Shape] {
       });
       const where = i.config.where === undefined ? undefined : expression(i.config.where);
       const name = i.config.name ?? "";
-      return define(
+      return schemaIndexSql(
+        config.name,
         name,
         i.config.unique,
         i.config.method ?? "btree",
@@ -151,7 +130,8 @@ function mirrorShape(table: PgTable): [string, Shape] {
       );
     }),
     ...config.uniqueConstraints.map((u) =>
-      define(
+      schemaIndexSql(
+        config.name,
         u.getName() ?? "",
         true,
         "btree",
@@ -162,7 +142,7 @@ function mirrorShape(table: PgTable): [string, Shape] {
     ),
     ...config.columns
       .filter((c) => c.isUnique)
-      .map((c) => define(c.uniqueName ?? "", true, "btree", [c.name])),
+      .map((c) => schemaIndexSql(config.name, c.uniqueName ?? "", true, "btree", [c.name])),
   ].sort();
   // Each check is written in the mirror exactly as PostgreSQL prints it (pg_get_constraintdef), so the
   // comparison is the full definition, not just the name (Codex on PR #24).

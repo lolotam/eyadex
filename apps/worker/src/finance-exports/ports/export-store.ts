@@ -152,6 +152,7 @@ export interface ExportStore extends ExportClaimPort {
       readonly byteSize: number;
       readonly rowCount: number;
       readonly patientIds: readonly string[] | null;
+      readonly patientSet?: "ledger" | null;
     },
   ): Promise<PublishAnswer>;
   /**

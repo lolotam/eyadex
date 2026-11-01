@@ -1,6 +1,6 @@
 import type { ReportId } from "@eyadex/contracts/finance-reports";
 import type { PermissionScope } from "@eyadex/contracts/permissions";
-import type { Database, Tx } from "@eyadex/db";
+import { sql, type Database, type Tx } from "@eyadex/db";
 
 import { heartbeatMayRenew } from "../domain/export-failures.ts";
 import type { ExportFence, LeasedExportJob } from "../ports/export-store.ts";
@@ -35,6 +35,24 @@ export async function readLeasedExportJob(
   fence: ExportFence,
 ): Promise<LeasedExportJob | null> {
   return db.withTenant(fence.clinicId, (tx) => readLockedLeasedExportJob(tx, fence));
+}
+
+/**
+ * يقرأ سياجًا حيًا من غير قفل صف التصدير، عشان نبض المحاولة يقدر يجدد أثناء صفحات التقرير.
+ * @param tx معاملة العيادة الحالية
+ * @param fence سياج المحاولة
+ * @returns الطلب المجمّد أو null؛ كل صفحة تعيد الفحص قبلها وبعدها
+ */
+export async function readCurrentLeasedExportJob(
+  tx: Tx,
+  fence: ExportFence,
+): Promise<LeasedExportJob | null> {
+  const rows =
+    await tx.execute<LeasedExportJob>(sql`SELECT requested_by AS "requestedBy", report, format, scope, params
+    FROM finance_report_exports WHERE clinic_id = ${fence.clinicId} AND id = ${fence.exportId}
+      AND attempt = ${fence.attempt} AND lease_owner = ${fence.leaseOwner}
+      AND status = 'running' AND lease_until > clock_timestamp()`);
+  return rows[0] ?? null;
 }
 
 function ownsLiveLease(row: LockedExport, fence: ExportFence): boolean {

@@ -1,12 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createDatabase, type Database } from "@eyadex/db";
+import { sql, createDatabase, type Database } from "@eyadex/db";
 import { REPORT_EXPORT_COLUMNS } from "@eyadex/contracts/finance-reports";
 import type { ReportId } from "@eyadex/contracts/finance-reports";
 
 import { PgExportReports } from "../persistence/pg-export-reports.ts";
+import type { ExportCsvRow } from "../domain/export-cells.ts";
 import { writeReportCsv } from "../domain/export-csv.ts";
-import type { PreparedExportJob } from "../ports/export-store.ts";
+import type { ExportFence, PreparedExportJob } from "../ports/export-store.ts";
 import { seedMember, seedWorld, urls } from "./export-fixtures.ts";
 import { reportData } from "./export-report-data.ts";
 import { leaseExport, openMember } from "./export-prepare-fixtures.ts";
@@ -32,18 +33,51 @@ async function leased(world: ReturnType<typeof seedWorld>, job: PreparedExportJo
     ...(job.params.groupBy === undefined ? {} : { groupBy: job.params.groupBy }),
   });
   const fence = { clinicId: world.clinicId, exportId, attempt: 1, leaseOwner: "worker-a" };
-  const prepared = await new PgExportStore(db, { newId: randomUUID }).prepareLeasedJob(fence);
+  const store = new PgExportStore(db, { newId: randomUUID });
+  const prepared = await store.prepareLeasedJob(fence);
   expect(prepared.kind).toBe("ready");
+  expect((await store.allocateBlob(fence)).kind).toBe("allocated");
   return fence;
 }
 
 let db: Database;
-let reader: PgExportReports;
+let reader: ReturnType<typeof collectingReader>;
 beforeAll(() => {
   db = createDatabase({ url: urls().app, role: "eyadex_app", ids: { newId: randomUUID } });
-  reader = new PgExportReports(db, { now: () => new Date("2026-02-15T00:00:00Z") });
+  reader = collectingReader(
+    new PgExportReports(db, { now: () => new Date("2026-02-15T00:00:00Z") }, { newId: randomUUID }),
+  );
 });
 afterAll(async () => db.close());
+
+// Small fixture answers are collected here only; the production reader exposes no row/id arrays.
+function collectingReader(production: PgExportReports) {
+  return {
+    async read(fence: ExportFence, job: PreparedExportJob, signal: AbortSignal) {
+      const rows: ExportCsvRow[] = [];
+      const result = await production.read(fence, job, signal, {
+        async start() {},
+        async write(row) {
+          rows.push(row);
+        },
+        async finish() {},
+      });
+      const patientIds =
+        result.patientSet === "ledger"
+          ? await db.withTenant(fence.clinicId, async (tx) =>
+              (
+                await tx.execute<{
+                  id: string;
+                }>(sql`SELECT patient_id AS id FROM finance_report_export_patients
+        WHERE clinic_id = ${fence.clinicId} AND export_id = ${fence.exportId} AND attempt = ${fence.attempt}
+          AND patient_id IS NOT NULL ORDER BY patient_id`)
+              ).map((row) => row.id),
+            )
+          : null;
+      return { rows, patientIds };
+    },
+  };
+}
 
 describe("all finance export reads under RLS", () => {
   it.each(Object.keys(REPORT_EXPORT_COLUMNS) as ReportId[])(

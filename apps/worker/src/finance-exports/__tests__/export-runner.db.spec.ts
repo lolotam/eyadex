@@ -1,5 +1,7 @@
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { FieldCipher, SealedFile } from "@eyadex/secrets";
+import { Readable } from "node:stream";
 import { createDatabase, type Database } from "@eyadex/db";
 
 import { PgExportStore } from "../persistence/pg-export-store.ts";
@@ -12,6 +14,7 @@ import { leaseExport, openMember, revoke } from "./export-prepare-fixtures.ts";
 let db: Database;
 let store: PgExportStore;
 let ledger: PgExportAttemptBlobs;
+const cipher = new FieldCipher(new Map([[1, randomBytes(32)]]), 1);
 beforeAll(() => {
   db = createDatabase({ url: urls().app, role: "eyadex_app", ids: { newId: randomUUID } });
   store = new PgExportStore(db, { newId: randomUUID });
@@ -33,14 +36,12 @@ describe("export runner on the application role", () => {
     const runner = new ExportRunner({
       store,
       ledger,
-      reader: {
-        async read() {
-          return { rows: [], patientIds: [] };
-        },
-      },
+      reader: new PgExportReports(db, { now: () => new Date() }, { newId: randomUUID }),
       blobs: {
-        async put(key, bytes) {
-          files.set(key, bytes);
+        async put(key, file) {
+          const parts = [];
+          for await (const chunk of file.ciphertext()) parts.push(Buffer.from(chunk));
+          files.set(key, Buffer.concat(parts));
         },
         async delete(key) {
           files.delete(key);
@@ -49,17 +50,25 @@ describe("export runner on the application role", () => {
           return files.has(key);
         },
       },
-      cipher: {
-        sealBytes() {
-          throw new Error("not a named report");
-        },
-      },
+      cipher,
     });
     await runner.execute(t.fence, new AbortController().signal);
     const row = readExport(t.clinicId, t.fence.exportId)!;
     expect(row.status).toBe("done");
     expect(row.patient_ids).toEqual([]);
-    expect(files.get(row.storage_key!)?.subarray(0, 3)).toEqual(Buffer.from([239, 187, 191]));
+    expect(files.get(row.storage_key!)?.subarray(0, 8).toString()).toBe("EYADEXE1");
+    const downloaded = await SealedFile.receive(
+      Readable.from([files.get(row.storage_key!)!]),
+      cipher,
+      t.clinicId,
+      { table: "finance_report_exports", column: "blob", rowId: `${t.fence.exportId}:1` },
+      new AbortController().signal,
+    );
+    try {
+      expect(await downloaded.verify(new AbortController().signal)).toBeGreaterThan(3);
+    } finally {
+      await downloaded.dispose();
+    }
     expect(readBlobs(t.clinicId, t.fence.exportId)[0]?.state).toBe("published");
     expect(readAudits(t.clinicId, t.fence.exportId)).toHaveLength(1);
     expect(row.lease_owner).toBeNull();
@@ -77,7 +86,7 @@ describe("export runner on the application role", () => {
       ledger,
       reader: { read },
       blobs: { put, delete: vi.fn(), exists: vi.fn() },
-      cipher: { sealBytes: vi.fn() },
+      cipher,
     });
     await runner.execute(t.fence, new AbortController().signal);
     expect(read).not.toHaveBeenCalled();
@@ -89,9 +98,9 @@ describe("export runner on the application role", () => {
     expect(readBlobs(t.clinicId, t.fence.exportId)).toEqual([]);
   });
 
-  it("refuses revocation between preflight and the production report reader, without a blob", async () => {
+  it("refuses revocation between preflight and the production report reader, deleting its unused allocation", async () => {
     const t = setup();
-    const reader = new PgExportReports(db, { now: () => new Date() });
+    const reader = new PgExportReports(db, { now: () => new Date() }, { newId: randomUUID });
     const put = vi.fn();
     const runner = new ExportRunner({
       store,
@@ -103,7 +112,7 @@ describe("export runner on the application role", () => {
         },
       },
       blobs: { put, delete: vi.fn(), exists: vi.fn() },
-      cipher: { sealBytes: vi.fn() },
+      cipher,
     });
     await runner.execute(t.fence, new AbortController().signal);
     expect(put).not.toHaveBeenCalled();
@@ -111,7 +120,7 @@ describe("export runner on the application role", () => {
       status: "failed",
       error_code: "forbidden",
     });
-    expect(readBlobs(t.clinicId, t.fence.exportId)).toEqual([]);
+    expect(readBlobs(t.clinicId, t.fence.exportId)).toMatchObject([{ state: "deleted" }]);
   });
 
   it("preupload requires the live matching lease and an allocated canonical key", async () => {

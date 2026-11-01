@@ -60,6 +60,23 @@ export class PgExportSweeper {
             AND status IN ('purged', 'expired') AND expires_at <= clock_timestamp()
             AND patient_ids IS NOT NULL ORDER BY expires_at, id LIMIT 50 FOR UPDATE SKIP LOCKED)`);
     });
+    // Redact patient identifiers in bounded SQL pages, including failed/unpublished attempts.
+    for (;;) {
+      if (signal?.aborted) return;
+      const cleared = await this.db.withTenant(clinicId, (tx) =>
+        tx.execute(sql`UPDATE finance_report_export_patients
+        SET patient_id = NULL, cleared_at = clock_timestamp() WHERE clinic_id = ${clinicId} AND id IN (
+          SELECT s.id FROM finance_report_export_patients s
+          JOIN finance_report_export_blobs b ON b.clinic_id = s.clinic_id AND b.export_id = s.export_id AND b.attempt = s.attempt
+          JOIN finance_report_exports e ON e.clinic_id = s.clinic_id AND e.id = s.export_id
+          WHERE s.clinic_id = ${clinicId} AND s.patient_id IS NOT NULL
+            AND (e.expires_at <= clock_timestamp() OR (b.state IN ('deleted', 'gone')
+              AND NOT (e.status IN ('done', 'purged') AND e.attempt = s.attempt)
+              AND NOT (e.status = 'running' AND e.attempt = s.attempt AND e.lease_until > clock_timestamp())))
+          ORDER BY s.id LIMIT 500 FOR UPDATE OF s SKIP LOCKED) RETURNING id`),
+      );
+      if (cleared.length < 500) break;
+    }
   }
 
   async #current(tx: Tx, clinicId: string, candidate: Candidate): Promise<Candidate | null> {

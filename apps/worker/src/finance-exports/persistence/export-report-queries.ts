@@ -72,14 +72,14 @@ export function exportReportQuery(clinicId: string, job: PreparedExportJob, toda
     }
     case "own_summary":
       return sql`SELECT to_char(i.issued_at AT TIME ZONE c.timezone, 'YYYY-MM') AS period,
-      sum(l.line_total_minor)::text AS "billedMinor", i.currency, jsonb_agg(DISTINCT i.patient_id) AS "patientIds"
+      sum(l.line_total_minor)::text AS "billedMinor", i.currency, i.patient_id AS "patientId"
       FROM invoices i JOIN clinics c ON c.id = i.clinic_id
       JOIN invoice_lines l ON l.clinic_id = i.clinic_id AND l.invoice_id = i.id
       WHERE i.clinic_id = ${clinicId} AND i.status = 'issued' AND i.branch_id = ANY(${branches})
         AND ${ownPatient(job.requestedBy)} AND l.archived_at IS NULL AND l.provider_id = ${job.requestedBy}::uuid
         AND i.issued_at >= ${from}::date - 2 AND i.issued_at < ${to}::date + 3
         AND (i.issued_at AT TIME ZONE c.timezone)::date BETWEEN ${from}::date AND ${to}::date
-      GROUP BY 1, i.currency ORDER BY 1`;
+      GROUP BY 1, i.currency, i.patient_id ORDER BY 1, i.patient_id`;
     case "refunds":
     case "discounts":
       return adjustmentQuery(clinicId, job);
