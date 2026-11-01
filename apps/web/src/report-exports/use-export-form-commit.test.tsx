@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, renderHook } from "@testing-library/react";
-import { createContext, startTransition, use, useContext, useState, type ReactNode } from "react";
+import { createContext, startTransition, Suspense, use, useContext, useState, type ReactNode } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { Persona, SessionContext } from "@eyadex/contracts/session";
 import type { ApiClient } from "@/shared/api/api-client";
@@ -72,8 +72,10 @@ async function setup(holdB: boolean) {
       <QueryClientProvider client={client}>
         <I18nProvider>
           <Actors.Provider value={actors[who]}>
-            <Hold on={holdB && who === "B"} />
             {children}
+            <Suspense fallback={null}>
+              <Hold on={holdB && who === "B"} />
+            </Suspense>
           </Actors.Provider>
         </I18nProvider>
       </QueryClientProvider>
@@ -97,9 +99,7 @@ it("an abandoned B transition leaves A's setters and submit working with one POS
   await fill(h);
   act(() => startTransition(() => switchTo("B")));
   await flush();
-  console.log("DBG", JSON.stringify(h.result.current.draft));
   act(() => h.result.current.setTo("2026-02-28"));
-  console.log("DBG2", JSON.stringify(h.result.current.draft));
   await flush();
   expect(h.result.current.draft.to).toBe("2026-02-28");
   let outcome: Awaited<ReturnType<typeof h.result.current.submit>> | undefined;
