@@ -47,6 +47,7 @@ function countingDb(db: Database): { db: Database; statements: () => number } {
       n += 1;
       return tx.execute(query);
     },
+    cursor: tx.cursor,
     rollback: tx.rollback,
     transaction: (fn) => tx.transaction((inner) => fn(counted(inner))),
   });

@@ -28,7 +28,8 @@ jobs:
       - name: Lint
         run: pnpm lint
       - name: Test
-        run: pnpm test
+        # Each package already parallelizes its files; avoid competing Vitest pools starving I/O.
+        run: pnpm exec turbo run test --concurrency=1
       - name: Build (node-server, as deployed by Dokploy)
         run: pnpm build:all
         env:

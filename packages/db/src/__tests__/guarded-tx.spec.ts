@@ -72,7 +72,7 @@ describe("the guarded Tx surface", () => {
   it("is exactly execute, transaction and rollback — the three names, written out", () => {
     // مثبّت بالحرف مش بس "يساوي TX_MEMBERS": لو حد رجّع builder في الـ allow-list، الاختبار ده
     // يقع حتى لو الـ array اتغير في نفس-PR معاه.
-    expect([...TX_MEMBERS].sort()).toEqual(["execute", "rollback", "transaction"]);
+    expect([...TX_MEMBERS].sort()).toEqual(["cursor", "execute", "rollback", "transaction"]);
   });
 
   it("shows exactly the allow-list and nothing else", () => {
