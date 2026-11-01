@@ -68,7 +68,7 @@ export async function markExportUploaded(db: Database, fence: ExportFence) {
  * @param db تجمع التطبيق
  * @param ids مولّد صف التدقيق
  * @param fence سياج المحاولة
- * @param input الحجم والعدد ومجموعة `own`
+ * @param input حجم المرفق وحجم التخزين المشفّر وعدد الصفوف ومجموعة `own`
  * @returns النشر أو إعادة القراءة أو رفض قبل الكتابة
  */
 export async function publishExport(
@@ -77,12 +77,15 @@ export async function publishExport(
   fence: ExportFence,
   input: {
     readonly byteSize: number;
+    readonly storedByteSize: number;
     readonly rowCount: number;
     readonly patientIds: readonly string[] | null;
     readonly patientSet?: "ledger" | null;
   },
 ): Promise<PublishAnswer> {
   if (!Number.isSafeInteger(input.byteSize) || input.byteSize < 1)
+    return { kind: "refused", reason: "invalid_size" };
+  if (!Number.isSafeInteger(input.storedByteSize) || input.storedByteSize < input.byteSize)
     return { kind: "refused", reason: "invalid_size" };
   if (!Number.isSafeInteger(input.rowCount) || input.rowCount < 0)
     return { kind: "refused", reason: "invalid_size" };
@@ -102,6 +105,7 @@ async function publishLocked(
   fence: ExportFence,
   input: {
     readonly byteSize: number;
+    readonly storedByteSize: number;
     readonly rowCount: number;
     readonly patientIds: readonly string[] | null;
     readonly patientSet?: "ledger" | null;
@@ -146,7 +150,8 @@ async function publishLocked(
           RETURNING id`)) as unknown as { id: string }[];
   if (audit.length !== 1) throw new FenceMiss();
   const exported = (await tx.execute(sql`UPDATE finance_report_exports
-          SET status = 'done', storage_key = ${storageKey}, byte_size = ${input.byteSize},
+          SET status = 'done', storage_key = ${storageKey}, byte_size = ${input.storedByteSize},
+              plaintext_byte_size = ${input.byteSize},
               row_count = ${input.rowCount}, patient_ids = ${patients === null ? sql`NULL` : uuidArray(patients)},
               patient_set_mode = ${row.scope === "own" && input.patientSet === "ledger" ? "ledger" : "array"},
               finished_at = clock_timestamp(), expires_at = clock_timestamp() + interval '24 hours',

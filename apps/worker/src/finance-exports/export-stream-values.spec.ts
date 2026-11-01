@@ -8,7 +8,7 @@ import { FieldCipher } from "@eyadex/secrets";
 import { describe, expect, it } from "vitest";
 import { ExportFileWriter } from "./export-file-writer.ts";
 import type { ExportCsvRow } from "./domain/export-cells.ts";
-import { row, text, TRIGGERS } from "./domain/__tests__/export-csv-rows.ts";
+import { count, row, text, TRIGGERS } from "./domain/__tests__/export-csv-rows.ts";
 import { readXlsx } from "./domain/__tests__/export-xlsx-xml.ts";
 import { sheetRowXml } from "./domain/export-sheet-xml.ts";
 
@@ -45,6 +45,24 @@ async function sheet(
 }
 
 describe("incremental workbook values", () => {
+  it.each([
+    [999_999_999_999_999n, "number"],
+    [1_000_000_000_000_000n, "text"],
+    [1_000_000_000_000_001n, "text"],
+    [9_007_199_254_740_991n, "text"],
+    [9_007_199_254_740_992n, "text"],
+    [123456789012345678901234n, "text"],
+  ] as const)(
+    "reads back streamed count %s exactly across Excel's 15-digit boundary",
+    async (value, kind) => {
+      const result = await sheet("by_service", [row("by_service", { quantity: count(value) })]);
+      const index = REPORT_EXPORT_COLUMNS.by_service.findIndex(
+        (column) => column.key === "quantity",
+      );
+      expect(result.rows[1]?.[index]).toMatchObject({ kind, value: value.toString() });
+      if (kind === "text") expect(result.rows[1]?.[index]?.format).toBe("@");
+    },
+  );
   it("escapes literal OOXML escape prefixes without converting their contents", () => {
     expect(sheetRowXml([{ kind: "text", value: "_x0041_ _x005F_ ordinary_name" }], 2)).toContain(
       "_x005F_x0041_ _x005F_x005F_ ordinary_name",

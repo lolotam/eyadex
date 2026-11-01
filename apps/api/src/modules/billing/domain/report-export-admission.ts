@@ -32,7 +32,7 @@ export interface FrozenExportAdmission {
 export function parseReportExportRequest(input: unknown): ReportExportRequest {
   const result = reportExportRequestSchema.safeParse(input);
   if (!result.success) {
-    if (result.error.issues.some((issue) => issue.message === "validation.rangeTooLong")) {
+    if (result.error.issues.every((issue) => issue.message === "validation.rangeTooLong")) {
       throw new ApiError("report_range_too_long");
     }
     throw new ApiError(

@@ -119,6 +119,7 @@ describe("bounded report snapshot and own bookkeeping", () => {
     expect(
       await store.publish(t.fence, {
         byteSize: 100,
+        storedByteSize: 200,
         rowCount: 1,
         patientIds: [],
         patientSet: "ledger",
@@ -170,6 +171,7 @@ describe("bounded report snapshot and own bookkeeping", () => {
     expect(
       await store.publish(t.fence, {
         byteSize: 100,
+        storedByteSize: 200,
         rowCount: 1,
         patientIds: [],
         patientSet: "ledger",

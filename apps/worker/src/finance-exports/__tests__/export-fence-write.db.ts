@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { DatabaseError } from "@eyadex/db";
-
 import { fence } from "./export-fence-bind.ts";
 import {
   insertBlob,
@@ -146,6 +145,7 @@ describe("export fence and publish", () => {
     insertBlob(world.clinicId, ownId, 2, "uploaded", "csv");
     const published = await fence().store.publish(owned(world, ownId, 2), {
       byteSize: 12,
+      storedByteSize: 112,
       rowCount: 2,
       patientIds: patients,
     });
@@ -154,7 +154,8 @@ describe("export fence and publish", () => {
     expect(row).toMatchObject({
       status: "done",
       storage_key: `clinic/${world.clinicId}/finance-exports/${ownId}/2.csv`,
-      byte_size: 12,
+      byte_size: 112,
+      plaintext_byte_size: 12,
       row_count: 2,
       patient_ids: patients,
       lease_owner: null,
@@ -181,6 +182,7 @@ describe("export fence and publish", () => {
     expect(
       await fence().store.publish(owned(world, ownId, 2), {
         byteSize: 12,
+        storedByteSize: 112,
         rowCount: 2,
         patientIds: patients,
       }),
@@ -196,6 +198,7 @@ describe("export fence and publish", () => {
     expect(
       await fence().store.publish(owned(world, named, 1), {
         byteSize: 8,
+        storedByteSize: 108,
         rowCount: 1,
         patientIds: patients,
       }),
@@ -217,6 +220,7 @@ describe("export fence and publish", () => {
     expect(
       await fence().store.publish(owned(world, stale, 2), {
         byteSize: 4,
+        storedByteSize: 104,
         rowCount: 1,
         patientIds: null,
       }),
@@ -229,6 +233,7 @@ describe("export fence and publish", () => {
     expect(
       await fence().store.publish(owned(world, expired, 1), {
         byteSize: 4,
+        storedByteSize: 104,
         rowCount: 1,
         patientIds: null,
       }),
@@ -238,11 +243,11 @@ describe("export fence and publish", () => {
     expect(readBlobs(world.clinicId, expired)[0]?.state).toBe("uploaded");
     for (const state of ["allocated", "deleted"] as const) {
       const exportId = running(world, 1);
-      if (state === "allocated") insertBlob(world.clinicId, exportId, 1, state, "csv");
-      else insertBlob(world.clinicId, exportId, 1, state, "csv");
+      insertBlob(world.clinicId, exportId, 1, state, "csv");
       expect(
         await fence().store.publish(owned(world, exportId, 1), {
           byteSize: 4,
+          storedByteSize: 104,
           rowCount: 0,
           patientIds: null,
         }),
@@ -257,6 +262,7 @@ describe("export fence and publish", () => {
     expect(
       await fence().store.publish(owned(world, missing, 1), {
         byteSize: 4,
+        storedByteSize: 104,
         rowCount: 0,
         patientIds: null,
       }),
@@ -281,6 +287,7 @@ describe("export fence and publish", () => {
     expect(
       await fence().store.publish(owned(world, ownId, 1), {
         byteSize: 4,
+        storedByteSize: 104,
         rowCount: 0,
         patientIds: null,
       }),

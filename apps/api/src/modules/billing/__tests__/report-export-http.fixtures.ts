@@ -42,19 +42,21 @@ export async function exportHttpFixture() {
     cookie = f.C.admin.cookie,
     report: ReportId = "daily_takings",
     patientIds: readonly string[] | null = null,
+    format: "csv" | "xlsx" = "csv",
   ) {
-    const res = await call(cookie, "POST", "", body(report));
+    const res = await call(cookie, "POST", "", body(report, { format }));
     expect(res.statusCode, res.body).toBe(202);
     const id = reportExportResponseSchema.parse(res.json()).export.id;
-    const key = `clinic/${f.C.clinicId}/finance-exports/${id}/1.csv`;
+    const key = `clinic/${f.C.clinicId}/finance-exports/${id}/1.${format}`;
     const artifact = await SealedFile.create(fieldCipherFromEnv(process.env), f.C.clinicId, {
       table: "finance_report_exports",
       column: "blob",
       rowId: `${id}:1`,
     });
     const parts = [];
+    const plaintext = Buffer.from("sample export");
     try {
-      await artifact.append(Buffer.from("sample export"), new AbortController().signal);
+      await artifact.append(plaintext, new AbortController().signal);
       await artifact.finish();
       for await (const chunk of artifact.ciphertext()) parts.push(Buffer.from(chunk));
     } finally {
@@ -64,7 +66,8 @@ export async function exportHttpFixture() {
     bytes.set(key, file);
     await f.h
       .owner`UPDATE finance_report_exports SET status = 'done', attempt = 1, storage_key = ${key},
-      byte_size = ${file.length}, row_count = 1, finished_at = clock_timestamp(), expires_at = clock_timestamp() + interval '24 hours',
+      byte_size = ${file.length}, plaintext_byte_size = ${plaintext.length}, row_count = 1,
+      finished_at = clock_timestamp(), expires_at = clock_timestamp() + interval '24 hours',
       patient_ids = CASE WHEN ${patientIds === null} THEN NULL ELSE string_to_array(${patientIds?.join(",") ?? ""}, ',')::uuid[] END
       WHERE clinic_id = ${f.C.clinicId} AND id = ${id}`;
     await f.h
