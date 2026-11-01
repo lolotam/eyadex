@@ -55,6 +55,41 @@ const platformQuery: PlatformAuditListQuery = {
 };
 
 describe("wired audit methods", () => {
+  it.each(["administrative", "patient_access"])(
+    "reads a completed finance export in the clinic audit as %s",
+    async (category) => {
+      const item = {
+        ...clinicItem,
+        action: "finance_report.exported",
+        entity: "finance_report_export",
+        category,
+        entityId: USER,
+        before: null,
+        after: {
+          report: "outstanding",
+          from: "2026-01-01",
+          to: "2026-01-31",
+          branchIds: [CLINIC],
+          rowCount: 3,
+        },
+      };
+      const h = clientWith(() => ({ body: page([item]) }));
+      expect(await h.api.audit.clinicList(ADMIN, { ...clinicQuery, entity: null })).toEqual(
+        page([item]),
+      );
+    },
+  );
+
+  it("refuses a finance export in the platform audit even when it is administrative", async () => {
+    const item = {
+      ...platformItem,
+      action: "finance_report.exported",
+      entity: "finance_report_export",
+    };
+    const h = clientWith(() => ({ body: page([item]) }));
+    expect((await code(h.api.audit.platformList(P, platformQuery))).code).toBe("unknown");
+  });
+
   it("clinicList GETs /v1/clinic/audit with the set filters only, same-origin credentials", async () => {
     const h = clientWith(() => ({ body: page([clinicItem]) }));
     const result = await h.api.audit.clinicList(ADMIN, clinicQuery);

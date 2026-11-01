@@ -32,6 +32,41 @@ describe("audit cursor", () => {
 });
 
 describe("audit snapshots", () => {
+  it("reads a worker export's flat metadata without masking valid dates, branch ids or counts", () => {
+    const details = {
+      report: "outstanding",
+      from: "2026-01-01",
+      to: "2026-01-31",
+      branchIds: [ID],
+      rowCount: 123456789,
+    };
+    expect(auditSnapshots("finance_report_export", details)).toEqual({
+      before: null,
+      after: details,
+    });
+  });
+
+  it.each([
+    { patientId: ID },
+    { ownPatientIds: [ID] },
+    { report: "synthetic private name" },
+    { from: "synthetic private note" },
+    { branchIds: ["synthetic private name"] },
+    { rowCount: "synthetic private note" },
+    { rowCount: -1 },
+  ])("refuses invalid export metadata rather than exposing unvalidated values: %j", (change) => {
+    expect(
+      auditSnapshots("finance_report_export", {
+        report: "outstanding",
+        from: "2026-01-01",
+        to: "2026-01-31",
+        branchIds: [ID],
+        rowCount: 1,
+        ...change,
+      }),
+    ).toEqual({ before: null, after: null });
+  });
+
   it("keeps the branch's invoice prefix on both sides without allowing arbitrary fields", () => {
     expect(
       auditSnapshots("branch", {

@@ -74,6 +74,8 @@ export const clinicAuditEntitySchema = z.enum([
   // finance, so it stays in the clinic log only, like every finance entity.
   "refund",
   "cash_closing",
+  // Finance F3: export completion belongs to the clinic log, never the platform log.
+  "finance_report_export",
 ]);
 
 export const clinicAuditEntrySchema = z.object({

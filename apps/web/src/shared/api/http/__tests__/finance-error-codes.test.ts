@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  FINANCE_API_ONLY_ERROR_CODES,
-  FINANCE_F2_ERROR_CODES,
-  FINANCE_F3_ERROR_CODES,
-} from "@eyadex/contracts/common";
+import { FINANCE_F2_ERROR_CODES, FINANCE_F3_ERROR_CODES } from "@eyadex/contracts/common";
 import type { Persona } from "@eyadex/contracts/session";
 import { ar } from "@/shared/i18n/ar";
 import { en } from "@/shared/i18n/en";
@@ -43,13 +39,14 @@ describe("the finance F2 codes over HTTP", () => {
   });
 });
 
-describe("the F3 export codes (API-only until their web slice ships)", () => {
-  it.each([...FINANCE_API_ONLY_ERROR_CODES])("falls back for %s", async (code) => {
+describe("the F3 export codes over HTTP", () => {
+  it.each(["export_busy", "export_amount_too_large"])("reads %s as its own code", async (code) => {
     const error = await refused(code);
-    expect(error.code).toBe("unknown");
-    expect(errorKeyOf(error)).toBe("unknown");
-    // The raw code stays readable under `details.code`, as it did before.
-    expect(error.details).toEqual({ code });
+    expect(error.code).toBe(code);
+    expect(errorKeyOf(error)).toBe(code);
+    expect(error.details).toEqual({});
+    expect(lookup(ar, `errors.${code}`)).not.toBeNull();
+    expect(lookup(en, `errors.${code}`)).not.toBeNull();
   });
 });
 

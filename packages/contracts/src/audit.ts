@@ -190,6 +190,7 @@ export const CLINIC_AUDIT_ACTIONS = [
   // Finance F2 slice 5 (spec §4.6): money out, and the daily cash closing of a branch.
   "refund.recorded",
   "cash_closing.closed",
+  "finance_report.exported",
 ] as const;
 
 /** Actions only the platform writes (its own log). */
@@ -220,9 +221,10 @@ export const PLATFORM_ONLY_AUDIT_ACTIONS = [
  * A payment, a credit or a refund names a patient, so the platform never reads it; a cash closing is
  * finance, which the platform sees as totals only (F2-Q19). `payment_methods.` does not match
  * `payment\.`, so the payment-methods change stays a platform-visible clinic setting (spec §4.6).
+ * Finance report exports stay clinic-only even when their report is administrative.
  */
 const CLINIC_ONLY_ACTION =
-  /^(patient|service|schedule|time_off|appointment|visit|medical_profile|attachment|medicine|invoice|payment|credit|refund|cash_closing)\./;
+  /^(patient|service|schedule|time_off|appointment|visit|medical_profile|attachment|medicine|invoice|payment|credit|refund|cash_closing|finance_report)\./;
 
 /** What the platform audit screen can show: its own events plus clinic administrative ones. */
 export const PLATFORM_AUDIT_ACTIONS = [
