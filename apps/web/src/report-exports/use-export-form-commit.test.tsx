@@ -97,7 +97,9 @@ it("an abandoned B transition leaves A's setters and submit working with one POS
   await fill(h);
   act(() => startTransition(() => switchTo("B")));
   await flush();
+  console.log("DBG", JSON.stringify(h.result.current.draft));
   act(() => h.result.current.setTo("2026-02-28"));
+  console.log("DBG2", JSON.stringify(h.result.current.draft));
   await flush();
   expect(h.result.current.draft.to).toBe("2026-02-28");
   let outcome: Awaited<ReturnType<typeof h.result.current.submit>> | undefined;
