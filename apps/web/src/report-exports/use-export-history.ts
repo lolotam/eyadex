@@ -69,11 +69,7 @@ export function useExportHistory() {
       let page = await api.reports.listExports(persona, {});
       if (signal.aborted || !current()) throw new Error("Cancelled export history");
       const items = [...page.items];
-      while (
-        oldest &&
-        page.nextCursor !== null &&
-        !items.some((row) => newest(row, oldest) >= 0)
-      ) {
+      while (oldest && page.nextCursor !== null && !items.some((row) => newest(row, oldest) >= 0)) {
         page = await api.reports.listExports(persona, { cursor: page.nextCursor });
         if (signal.aborted || !current()) throw new Error("Cancelled export history");
         items.push(...page.items);

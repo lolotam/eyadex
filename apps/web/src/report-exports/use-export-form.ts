@@ -81,8 +81,10 @@ export function useExportForm() {
   const changed = (path: string) => {
     if (!sent) return true;
     if (path === "from" || path === "to") return sent.from !== draft.from || sent.to !== draft.to;
-    if (path === "branchId") return sent.branchId !== draft.branchId || sent.report !== draft.report;
-    if (path in draft) return sent[path as keyof ExportFormDraft] !== draft[path as keyof ExportFormDraft];
+    if (path === "branchId")
+      return sent.branchId !== draft.branchId || sent.report !== draft.report;
+    if (path in draft)
+      return sent[path as keyof ExportFormDraft] !== draft[path as keyof ExportFormDraft];
     return false;
   };
   const fieldIssues = sent ? fieldState.issues.filter((i) => !changed(i.field)) : [];

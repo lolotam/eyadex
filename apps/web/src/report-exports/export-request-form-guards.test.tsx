@@ -4,6 +4,8 @@ import { getState } from "@/shared/api/mock/mock-report-test-kit";
 import { id } from "@/shared/api/mock/mock-report-export.test-kit";
 import { ar } from "@/shared/i18n/ar";
 import * as kit from "./export-request-form.test-kit";
+import { NativeSelect } from "./export-native-select.test-kit";
+import * as harness from "./export-form-harness.test-kit";
 
 // The closures read the kit only when a hook runs, after every import has resolved.
 vi.mock("@/shared/api/api-provider", () => ({ useApi: () => kit.context.api }));
@@ -12,7 +14,7 @@ vi.mock("@/shared/persona/persona-provider", () => ({
   useSession: () => ({ session: kit.context.session, isLoading: false, error: null }),
 }));
 vi.mock("./export-select-field", () => ({
-  ExportSelectField: (p: Parameters<typeof kit.NativeSelect>[0]) => kit.NativeSelect(p),
+  ExportSelectField: (p: Parameters<typeof NativeSelect>[0]) => NativeSelect(p),
 }));
 
 const {
@@ -30,8 +32,8 @@ const {
   context,
 } = kit;
 const type = kit.typeIn;
-const setLang = (l: "ar" | "en") => kit.setLang(l);
-const bump = () => kit.bump();
+const setLang = (l: "ar" | "en") => harness.setLang(l);
+const bump = () => harness.bump();
 kit.useFormTestClock();
 
 it("no report, failed branches or a reach-invalid branch never POST; retry recovers", async () => {

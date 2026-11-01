@@ -75,7 +75,9 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
     unavailable.current.clear();
     setState((old) => {
       const errors = Object.fromEntries(
-        Object.entries(old.errors).filter(([, code]) => code !== "forbidden" && code !== "not_found"),
+        Object.entries(old.errors).filter(
+          ([, code]) => code !== "forbidden" && code !== "not_found",
+        ),
       );
       return { ...old, unavailable: new Set(), errors };
     });

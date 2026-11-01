@@ -107,7 +107,10 @@ export function ExportRequestForm() {
         className="flex flex-col gap-4 rounded-md border bg-card p-4"
       >
         {noAccess ? (
-          <p id={ids("no-access")} className="flex items-center gap-2 text-sm text-muted-foreground">
+          <p
+            id={ids("no-access")}
+            className="flex items-center gap-2 text-sm text-muted-foreground"
+          >
             <Info className="size-4 shrink-0" aria-hidden />
             {t("reportExports.request.noReports")}
           </p>
