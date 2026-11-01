@@ -121,3 +121,23 @@ it("losing the report key marks the form unavailable while own history stays", a
   expect(screen.queryByText(ar.reportExports.empty)).toBeNull();
   noRawKeys();
 });
+
+it("with no report key every control is disabled, Enter sends nothing, and history stays", async () => {
+  const { post } = await setup([], true);
+  expect(screen.getByText(R.noReports)).toBeTruthy();
+  for (const label of [R.report, R.from, R.to, R.format, R.language])
+    expect((screen.getByLabelText(label) as HTMLInputElement).disabled).toBe(true);
+  const button = screen.getByRole("button", { name: R.submit }) as HTMLButtonElement;
+  expect(button.disabled).toBe(true);
+  fireEvent.submit(button.closest("form")!);
+  await flush();
+  expect(post).not.toHaveBeenCalled();
+  expect(screen.getByRole("heading", { name: ar.reportExports.title })).toBeTruthy();
+});
+
+it("explains the date format in Arabic and English beside the native date fields", async () => {
+  await setup(TAKINGS);
+  expect(screen.getByText(new RegExp(R.dateFormat.replace(/[()]/g, "\\$&")))).toBeTruthy();
+  act(() => setLang("en"));
+  expect(screen.getByText(new RegExp(E.dateFormat.replace(/[()]/g, "\\$&")))).toBeTruthy();
+});

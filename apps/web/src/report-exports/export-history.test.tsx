@@ -201,3 +201,25 @@ it("loads more pages, and a page error keeps rows with manual retry", async () =
   await flush(200);
   expect(screen.getAllByTestId("export-row").length).toBeGreaterThan(20);
 });
+
+it("labels the desktop columns in English and Arabic", async () => {
+  const f = await mount();
+  await act(async () => {
+    await f.root.reports.requestExport(f.persona, f.body);
+  });
+  fireEvent.click(screen.getByRole("button", { name: t.refresh }));
+  await flush(200);
+  const columns = screen.getByTestId("export-history-columns");
+  for (const label of [t.columns.report, t.created, t.expires, t.rows, t.columns.action])
+    expect(columns).toHaveTextContent(label);
+  expect(columns.className).toContain("md:grid");
+  cleanup();
+  localStorage.setItem("eyadex:language", "ar");
+  await mount();
+  await flush(200);
+  const a = ar.reportExports;
+  const arColumns = screen.getByTestId("export-history-columns");
+  for (const label of [a.columns.report, a.created, a.expires, a.rows, a.columns.action])
+    expect(arColumns).toHaveTextContent(label);
+  localStorage.clear();
+});
