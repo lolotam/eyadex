@@ -194,3 +194,37 @@ it("A to B to A can download without inheriting A's obsolete in-flight request",
   }
   expect(f.create).toHaveBeenCalledTimes(1);
 });
+
+it("a forbidden mark clears when access is restored, and a still-denied retry hides it again", async () => {
+  const f = await fixture();
+  const keys = [...f.role.permissions];
+  f.role.permissions = [];
+  context.session = await f.api.session.getContext(f.persona);
+  f.h.rerender({ rows: [f.row] });
+  await act(async () => {
+    await f.h.result.current.download(f.row);
+  });
+  expect(f.h.result.current.canDownload(f.row)).toBe(false);
+  expect(f.h.result.current.errors[f.row.id]).toBe("forbidden");
+  f.role.permissions = keys;
+  context.session = await f.api.session.getContext(f.persona);
+  await act(async () => f.h.rerender({ rows: [f.row] }));
+  expect(f.h.result.current.unavailable.has(f.row.id)).toBe(false);
+  expect(f.h.result.current.errors).toStrictEqual({});
+  expect(f.h.result.current.canDownload(f.row)).toBe(true);
+  await act(async () => {
+    await f.h.result.current.download(f.row);
+  });
+  expect(f.create).toHaveBeenCalledTimes(1);
+  const blob = f.create.mock.calls[0]?.[0];
+  if (!blob) throw new Error("Missing real Blob");
+  expect(new TextDecoder().decode(await blobBytes(blob))).toContain("Branch A");
+  f.role.permissions = [];
+  context.session = await f.api.session.getContext(f.persona);
+  await act(async () => f.h.rerender({ rows: [f.row] }));
+  await act(async () => {
+    await f.h.result.current.download(f.row);
+  });
+  expect(f.h.result.current.canDownload(f.row)).toBe(false);
+  expect(f.create).toHaveBeenCalledTimes(1);
+});
