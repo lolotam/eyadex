@@ -86,7 +86,9 @@ export function ExportRequestForm() {
   const reportOptions = form.eligibleReports.map((r) => ({ value: r, label: reportName(r) }));
   if (reportLost && draft.report)
     reportOptions.unshift({ value: draft.report, label: reportName(draft.report) });
-  const disabled = form.isPending;
+  // No exportable report: the controls are inert; the adapter still refuses on its own.
+  const noAccess = form.eligibleReports.length === 0 && !reportLost;
+  const disabled = form.isPending || noAccess;
   const zone = session?.clinic?.timezone ?? "";
 
   return (
@@ -101,10 +103,11 @@ export function ExportRequestForm() {
         noValidate
         onSubmit={(e) => void onSubmit(e)}
         aria-busy={form.isPending || undefined}
+        aria-describedby={noAccess ? ids("no-access") : undefined}
         className="flex flex-col gap-4 rounded-md border bg-card p-4"
       >
-        {form.eligibleReports.length === 0 && !reportLost ? (
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+        {noAccess ? (
+          <p id={ids("no-access")} className="flex items-center gap-2 text-sm text-muted-foreground">
             <Info className="size-4 shrink-0" aria-hidden />
             {t("reportExports.request.noReports")}
           </p>
@@ -186,7 +189,7 @@ export function ExportRequestForm() {
           />
         </div>
         <p id={ids("dates-help")} className="-mt-2 text-xs text-muted-foreground">
-          {t("reportExports.request.datesHelp", { zone })}
+          {t("reportExports.request.datesHelp", { zone })} {t("reportExports.request.dateFormat")}
         </p>
         {branches.isLoading && draft.report !== null && form.reportEligible ? (
           <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
