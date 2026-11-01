@@ -22,6 +22,7 @@ export const BILLING_RELATIONS = [
   "branch_cash_drawers",
   // Finance F2 slice 5: the daily cash closings.
   "cash_closings",
+  "finance_report_exports",
   "finance_invoice_balances",
   "finance_report_daily_takings",
   "finance_report_period_summary",
