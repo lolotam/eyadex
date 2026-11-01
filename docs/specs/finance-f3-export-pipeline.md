@@ -405,6 +405,8 @@ UPDATE finance_report_exports SET lease_until = clock_timestamp() + interval '60
   failure, the release and the abandon all carry
   `WHERE clinic_id = $clinic AND id = $export AND attempt = $mine AND lease_owner = $me`.
   The heartbeat adds `status = 'running' AND lease_until > clock_timestamp()` on top of them (§3).
+  Both failure paths (final and retryable) add that same live-running predicate, checked with the
+  database clock after the row lock; an expired owner leaves the row for claim/takeover.
   A write that updates 0 rows is a lost race, and the attempt re-reads before it deletes anything:
   the re-read of §2 step 9 asks whether this attempt's own publish is the row's `done` state. If it
   is, the attempt keeps its file and exits; otherwise it stops, deletes its own upload and exits.
