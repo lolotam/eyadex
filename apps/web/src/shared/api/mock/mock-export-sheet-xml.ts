@@ -48,9 +48,12 @@ function rowXml(fields: readonly PreparedField[], index: number): string {
     if (field.kind === "count") {
       if (field.value < 0n || field.value > BigInt(Number.MAX_SAFE_INTEGER))
         throw new Error("export_value_invalid");
-      return `<c r="${address}" t="n"><v>${field.value}</v></c>`;
+      // Excel keeps 15 significant digits; a longer count is exact text, like money.
+      if (field.value.toString().length <= 15)
+        return `<c r="${address}" t="n"><v>${field.value}</v></c>`;
     }
-    const value = field.kind === "money" ? field.text : field.value;
+    const value =
+      field.kind === "money" ? field.text : field.kind === "count" ? `${field.value}` : field.value;
     return `<c r="${address}" s="1" t="inlineStr"><is><t xml:space="preserve">${xmlText(value)}</t></is></c>`;
   });
   return `<row r="${index}">${cells.join("")}</row>`;
