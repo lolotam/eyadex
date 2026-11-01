@@ -63,22 +63,22 @@ export function useExportHistory() {
         await pending.current.work;
       if (signal.aborted || !current()) throw new Error("Cancelled export history");
       const previous = client.getQueryData<History>(cacheKey);
-      const head = await api.reports.listExports(persona, {});
+      const oldest = previous?.items.at(-1);
+      // Walk fresh server pages until they reach the oldest loaded row, so newer jobs from another
+      // tab can't strand the old cursor, and every row carries current expiry/purge metadata.
+      let page = await api.reports.listExports(persona, {});
       if (signal.aborted || !current()) throw new Error("Cancelled export history");
-      // Keep loaded tails when newly queued jobs shift the head. Refresh their real metadata,
-      // rather than replacing server cursors with a client-generated offset.
-      const ids = new Set(head.items.map((row) => row.id));
-      const tail = await Promise.all(
-        (previous?.items ?? [])
-          .filter((row) => !ids.has(row.id))
-          .map(async (row) => (await api.reports.getExport(persona, row.id)).export),
-      );
-      if (signal.aborted || !current()) throw new Error("Cancelled export history");
-      return {
-        items: merge(tail, head.items),
-        total: head.total,
-        nextCursor: tail.length > 0 && previous ? previous.nextCursor : head.nextCursor,
-      };
+      const items = [...page.items];
+      while (
+        oldest &&
+        page.nextCursor !== null &&
+        !items.some((row) => newest(row, oldest) >= 0)
+      ) {
+        page = await api.reports.listExports(persona, { cursor: page.nextCursor });
+        if (signal.aborted || !current()) throw new Error("Cancelled export history");
+        items.push(...page.items);
+      }
+      return { items: merge([], items), total: page.total, nextCursor: page.nextCursor };
     },
     refetchInterval: (q) =>
       !q.state.error &&
