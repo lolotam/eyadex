@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import type { TranslationKey } from "@/shared/i18n/dictionary";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { useSession } from "@/shared/persona/persona-provider";
+import { ExportDateField } from "./export-date-field";
 import { ExportSelectField } from "./export-select-field";
 import { useExportForm, type ExportFormOutcome } from "./use-export-form";
 
@@ -129,34 +130,18 @@ export function ExportRequestForm() {
             disabled={disabled}
             error={reportError}
           />
-          {(["from", "to"] as const).map((name) => {
-            const error = pathText(name);
-            return (
-              <div key={name} className="flex min-w-0 flex-col gap-1.5">
-                <Label htmlFor={ids(name)}>{t(`reportExports.request.${name}`)}</Label>
-                <Input
-                  id={ids(name)}
-                  type="date"
-                  required
-                  className="min-h-11 bg-card md:min-h-9"
-                  value={draft[name]}
-                  disabled={disabled}
-                  onChange={(e) =>
-                    name === "from" ? form.setFrom(e.target.value) : form.setTo(e.target.value)
-                  }
-                  aria-invalid={error ? true : undefined}
-                  aria-describedby={[ids("dates-help"), error ? ids(`${name}-error`) : null]
-                    .filter(Boolean)
-                    .join(" ")}
-                />
-                {error ? (
-                  <p id={ids(`${name}-error`)} className="text-xs text-destructive">
-                    {error}
-                  </p>
-                ) : null}
-              </div>
-            );
-          })}
+          {(["from", "to"] as const).map((name) => (
+            <ExportDateField
+              key={name}
+              id={ids(name)}
+              label={t(`reportExports.request.${name}`)}
+              value={draft[name]}
+              helpId={ids("dates-help")}
+              error={pathText(name)}
+              disabled={disabled}
+              onChange={name === "from" ? form.setFrom : form.setTo}
+            />
+          ))}
           <ExportSelectField
             id={ids("branch")}
             label={t("reportExports.request.branch")}
