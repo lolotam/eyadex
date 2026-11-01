@@ -23,6 +23,15 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
     session?.clinic?.id,
     session?.membershipId,
   ]);
+  // A denial is a fact about the access it met; when permissions, reach or module state change, the
+  // adapter is asked again instead of trusting a mark from older access.
+  const access = JSON.stringify([
+    [...(session?.permissions ?? [])].sort(),
+    session?.allBranches ?? null,
+    [...(session?.branchIds ?? [])].sort(),
+    session?.blocked ?? null,
+    session?.features.finance ?? null,
+  ]);
   const live = useRef({ scope, rows, ready: false });
   const generation = useRef({ scope, value: 0 });
   if (generation.current.scope !== scope)
@@ -59,6 +68,18 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
     unavailable.current.clear();
     setState({ scope, pending: new Set(), unavailable: new Set(), errors: {} });
   }, [scope]);
+  const seenAccess = useRef(access);
+  useEffect(() => {
+    if (seenAccess.current === access) return;
+    seenAccess.current = access;
+    unavailable.current.clear();
+    setState((old) => {
+      const errors = Object.fromEntries(
+        Object.entries(old.errors).filter(([, code]) => code !== "forbidden" && code !== "not_found"),
+      );
+      return { ...old, unavailable: new Set(), errors };
+    });
+  }, [access]);
   const current = () =>
     mounted.current &&
     live.current.scope === scope &&
