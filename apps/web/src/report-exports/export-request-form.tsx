@@ -2,8 +2,6 @@ import { useId, useState, type FormEvent } from "react";
 import { AlertCircle, CheckCircle2, Info, Loader2 } from "lucide-react";
 import type { ReportId } from "@eyadex/contracts/finance-reports";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import type { TranslationKey } from "@/shared/i18n/dictionary";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { useSession } from "@/shared/persona/persona-provider";
