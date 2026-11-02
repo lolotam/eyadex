@@ -1,6 +1,7 @@
 import { screen, within } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
-import { as, resetMockData } from "@/shared/api/mock/mock-test-kit";
+import { getState } from "@/shared/api/mock/mock-state";
+import { as, clinicIdAt, resetMockData } from "@/shared/api/mock/mock-test-kit";
 import {
   api as seedApi,
   admin,
@@ -48,12 +49,15 @@ async function closeDrawer(branchId: string, countedMinor: string, note: string 
   );
 }
 
-/** Two closings of one day: a shortage with a note, then an over without one. */
+/** Two branches' closings of one day: a shortage with a note, then an over without one. */
 async function story() {
+  const patients = getState().patients.filter((x) => x.clinicId === clinicIdAt(0));
+  const other = patients.find((x) => x.registrationBranchId !== patients[0]?.registrationBranchId);
+  if (!other) throw new Error("seed needs patients in two branches");
   const a = await issue([freeLine("10000")]);
   await pay(a.id, "3000");
   await closeDrawer(a.branchId, "2500", "عجز", KEY_1);
-  const b = await issue([freeLine("10000")]);
+  const b = await issue([freeLine("10000")], other);
   await pay(b.id, "2000");
   await closeDrawer(b.branchId, "2300", null, KEY_2);
 }
