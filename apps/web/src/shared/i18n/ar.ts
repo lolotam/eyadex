@@ -19,6 +19,7 @@ import { arMedicalErrors } from "./ar-medical";
 
 import type { Dictionary } from "./dictionary";
 import { arReportExports } from "./ar-report-exports";
+import { arFinanceReports } from "./ar-finance-reports";
 
 export const ar: Dictionary = {
   app: { name: "Eyadex", tagline: "كل عياداتك في مكان واحد" },
@@ -187,6 +188,7 @@ export const ar: Dictionary = {
   ...arPayments,
   ...arCashClosings,
   ...arReportExports,
+  ...arFinanceReports,
   validation: {
     needsView:
       "أي صلاحية إضافة أو تعديل أو تعطيل تحتاج صلاحية العرض في نفس القسم، بنطاق لا يقل عن نطاقها",

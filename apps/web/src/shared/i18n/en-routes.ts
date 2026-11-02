@@ -53,6 +53,10 @@ export const enRoutes = {
       title: "Payments",
       description: "The clinic's receipts: search, filter and open one.",
     },
+    clinicReport: {
+      title: "Report",
+      description: "View a finance report on screen, print it or export it.",
+    },
     clinicReports: {
       title: "Reports",
       description: "Request report exports and download your own files.",
