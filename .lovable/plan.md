@@ -1,45 +1,72 @@
-# Card 2 of 7: R9 Cash closings + PR #141 follow-ups (web only)
+# Card 3 of 7 — #143 follow-up + R3 «الإيراد حسب الخدمة» + R4 «الإيراد حسب الدكتور»
 
-## Contract check (what I read)
-- `reportPermissionScope`: R9 = `view:report_takings:{clinic|branch}` plus `view:cash_closings` at the same scope. `report_own` is never a path to it. Fits the spec.
-- `reportCashClosingQuerySchema` is `reportFields` only, **no cursor fields**, so R9 is a single table (no paging).
-- Response: rows `{closingId, branchId, branchName, businessDate, expectedMinor (signed), countedMinor, differenceMinor (signed), closedBy, closedByName|null, notePresent, currency}`; totals `{expectedMinor, countedMinor, differenceMinor}`, `currency`, `currencyExponent`. No method totals in the contract. Fits the spec.
-- `api.reports.cashClosings` already exists in the client and the mock (`mock-report-takings.ts`). The closing page `/clinic/cash-closings/$closingId` opens on any `view:cash_closings` key.
-- **No contract, API, worker, SQL or mock-rule change needed.**
+Web only (`apps/web`). No contract, API, worker, SQL or mock-rule change is needed (fit check at the end).
 
-## Part A: follow-ups
-1. `report-exports/screens/report-export-dialog.tsx` (46 → ~50): the export button goes inside `DialogTrigger asChild`, so Escape gives focus back to it. `onOpenChange(true)` still bumps the opening counter, so the form gets a fresh prefill each time.
-2. `report-exports/use-export-download.ts` (~+20): pending downloads are kept in a `Map<token, rowId>`. The token is created per request and carries the access fingerprint. When the fingerprint changes, old-access tokens are dropped. Each `finally` deletes only its own token, and "is pending" means some current-access token exists for the row.
-3. `screens/use-report-filters.ts` (73 → ~95) + `report-filters-bar.tsx` (94, prop only): a new `reconcileBranch(options)` effect. When options are loaded and the selected `branchId` is not among them, the selection is set back to `null` (all branches) **before** the query key is built. While options load or fail, the query is suspended, so the old branch is never sent, retry included. Synthetic test IDs only (`branch-a`, `00000000-…-0001`-style ids from the kit).
-4. File splits, no behaviour change:
-   - `shared/api/mock/mock-export-xlsx.test.ts` (302): move the numeric/count boundary group to `mock-export-xlsx-numbers.test.ts` (~90). The original drops to ~215.
-   - `shared/i18n/en.ts` (304): move one coherent inline group into a companion `en-*.ts` file and spread it back in (mirror `ar.ts` only if it keeps key parity simple). Both files go under 300.
+## Part A — deferred items
 
-## Part B: R9 screen
-New or changed files (all under `report-exports/screens/`):
-- `report-catalogue.ts` (+1): add `"cash_closings"` to `SCREEN_REPORTS`. It gets no group default, so the filters bar shows no groupBy. The card shows through `availableScreens` (permission strings only). R3–R8 and R10 stay hidden.
-- `cash-closings-report-page.tsx` (~110): the shared `ReportShell`, `useReportFilters(cash_closings, reportCashClosingQuerySchema)`, `useReportQuery(api.reports.cashClosings)`, `ReportContent` states (loading, empty, error with retry, forbidden through the existing screen page), the export dialog prefill, and print.
-- `cash-closings-report-columns.tsx` (~90): column defs for `ReportTable`. Business day, branch, expected (`SignedAmount`), counted, difference (`SignedAmount`: minus sign plus a shortage/over text token, not colour alone), closed by (`closedByName ?? "—"`), note (icon plus «فيه ملاحظة / لا» text). The business day cell is a `Link` to `/clinic/cash-closings/$closingId` when `can("view","cash_closings")` holds; otherwise plain text.
-- `cash-closings-totals.ts` (~30): BigInt sum over minor strings for expected/counted/difference. The footer shows the response totals; the test checks they equal the row sums.
-- `report-screen-page.tsx` (53, +3): dispatch `cash_closings` to the new page.
-- 390px: reuse `ReportTable`'s existing stacked-card mode (labels per cell).
-- i18n: `en-finance-reports.ts` / `ar-finance-reports.ts` (+~15 keys each): card title/description, the 7 column labels, the note yes/no labels, shortage/over tokens. «المراجع» wording kept; no «المريض».
+### A1. Issue #143 — `use-export-download.ts` (214 lines today, about 215 after)
+- Replace the render-written `generation` ref with `const { epoch, isCurrent: isCurrentScope } = useCommittedEpoch(scope)`. `current()` checks `isCurrentScope(epoch)` instead of `generation.current.value === epoch`.
+- Move the `live` snapshot write into a `useLayoutEffect` (no deps, runs after every commit). Keep the initial value from the first render (`useRef({ scope, rows, ready: <first-render readiness> })`), so a download called right after mount still sees a ready snapshot.
+- `live.current.scope === scope` now compares against the last committed scope. A speculative render for another persona or a not-ready session can no longer change it.
+- The token keeps `[scope, epoch, started, row.id]`. A speculative render produces the same epoch as the committed render, so it cannot create a second token for the same request.
+
+### A1 test — new `use-export-download-concurrent.test.tsx` (about 140 lines)
+- Uses the existing `use-export-download.test-kit.tsx` and the real mock root.
+- Start a download for persona A and hold the adapter promise. Then, inside `startTransition`, switch to persona B (and, in a second case, to a not-ready session) through a component that suspends on a never-settling promise. React renders this speculatively and never commits it. Then abandon the transition.
+- Assert: (1) `downloadExport` was called once; (2) calling `download(row)` again during or after the abandoned render returns the same promise and makes no second call; (3) once the bytes arrive, the anchor click happens and the URL is revoked, so the request was not treated as stale; (4) pending clears.
+- The test proves only this: an abandoned transition render for another scope or a not-ready session, under React 19 in jsdom, does not stale or duplicate an in-flight download. It does not prove every possible concurrent interleaving is safe.
+- Mutation proof: put back the render-time write of `live` and the generation. The test must fail. Then restore the source.
+- The existing `use-export-download.test.tsx`, `use-export-download-access.test.tsx` and test-kit stay green and unchanged.
+
+### A2. Deterministic test data
+In every test file this card touches, ids and names are fixed synthetic constants (for example `00000000-0000-7000-8000-0000000000a1`, "Service A"), with no `randomUUID` and no real-looking names or phone numbers.
+
+## Part B — R3 and R4 screens (same frame as R1/R2/R9)
+
+Access: `canOpenReport` → `reportPermissionScope`. Both reports need `report_analytics` plus covering `view:invoices`, at clinic or branch scope. No role names are checked.
+
+### Files
+| File | Change | Est. lines |
+|---|---|---|
+| `screens/report-catalogue.ts` | add `by_service`, `by_doctor` to `SCREEN_REPORTS` (no group default) | +2 |
+| `screens/report-screen-page.tsx` | dispatch both to the new pages | +4 |
+| `screens/report-shell.tsx` | report-specific help line (R3 billed-not-collected, R4 management view) | +4 |
+| `screens/revenue-rows.ts` (new) | `taxLast(rows)` stable partition (non-tax in received order, then tax); `rowLabel(kind,name,t)` for free/none/tax labels | ~35 |
+| `screens/revenue-columns.tsx` (new) | `useRevenueColumns(kindLabels, fmt)`: name, line count, quantity, amount; tax row marked with `data-tax` and a top border/muted tint | ~70 |
+| `screens/revenue-report-body.tsx` (new) | shared table + totals row (line count, quantity, billed, tax, total from response totals) + optional chart; used by both pages | ~90 |
+| `screens/revenue-chart.tsx` (new) | bar chart of amounts per non-tax row | ~70 |
+| `screens/by-service-report-page.tsx` (new) | `useReportFilters(reportByServiceQuerySchema)` + `useReportQuery(api.reports.byService)` + body | ~60 |
+| `screens/by-doctor-report-page.tsx` (new) | same for `reportByDoctorQuerySchema` / `api.reports.byDoctor` | ~60 |
+| `shared/i18n/en-finance-reports.ts` / `ar-finance-reports.ts` | names/descriptions exist already; add help lines, column labels, totals labels (billed/tax/total), kind labels («بنود حرة»/Free lines, «بدون دكتور»/No doctor, «الضريبة»/Tax), chart title, dash placeholder | 85→~115 each |
+
+`ReportTable` needs no change. Its `totals` record carries the five totals as cells under the numeric columns. Billed, tax and total show as a small labelled totals block under the table, so the totals row stays in the column layout. All files stay well under 300 lines, one component per file.
+
+### Behavior
+- Filters: From/To default to the current clinic month up to today; the branch comes from branch options; no groupBy. The card 2 branch fallback and the "checking branch" loading state carry over unchanged through `useReportFilters`.
+- States (loading, empty, error with retry, forbidden) come from `ReportContent` / `report-screen-page`.
+- Money uses the response's `currency` and `currencyExponent` through `useReportFormat`. Totals are the response's own and are never recomputed with `Number()`.
+- Export button is prefilled with the report and its filters. Print, 390px cards, RTL first and logical CSS are inherited from the frame.
+- Chart: `recharts` is already installed and `components/ui/chart.tsx` exists. Bar heights are proportions computed with BigInt (`amount * 1000n / max`), so `Number()` only ever sees a small integer from 0 to 1000. Amount labels use the formatter. The chart is hidden when printing and when fewer than 2 non-tax rows exist. Open question: drop the chart if you would rather keep this card table-only.
+- R5–R8 and R10 stay hidden.
 
 ## Tests
-- `cash-closings-report.test.tsx` (~200, new), on the real mock client:
-  - footer totals = BigInt row sums (mixed signs, a shortage row is negative with its text token);
-  - `closedByName` null shows «—»; the note shows an icon plus text; no method-total text appears;
-  - the row links to the closing page; with no link permission the cell is plain text;
-  - Arabic and English labels.
-- `report-catalogue.test.ts` (+3): receptionist with `view:report_takings:clinic`, `view:payments`, `view:invoices`, `view:cash_closings` gets R1, R2 and R9. `report_takings` without `view:cash_closings` gets no R9. `report_own` only gets no R9.
-- Route test (in `report-screens.test.tsx`, +1): `/clinic/reports/cash_closings` renders R9; a caller without access sees the forbidden state.
-- `use-report-filters-reach.test.tsx` (~110, new): reach narrows while the screen is open → selection goes to all branches → the report loads with no `branchId`; retry never resends the refused branch.
-- `report-export-dialog` test (+1): Escape returns focus to the export button; reopening gives a fresh prefill.
-- `use-export-download.test.tsx` (+2): a restored-access retry is not blocked by an old request; an old request's `finally` does not clear the newer token.
-- Mutation proofs (each reverted with `cmp`): totals sum, the R9 covering check (drop `cash_closings` from the screen gate path through `canOpenReport`), and the branch reset.
+New `screens/revenue-reports.test.tsx` (~200 lines), with a test kit split into `revenue-reports.test-kit.tsx` (~90) if needed. Real mock root, synthetic invoices with service lines, free lines, a no-doctor line and tax:
+1. R3 totals equal the BigInt sums of the rows: billed = sum of non-tax, tax = the tax row, total = billed + tax, and line count and quantity match. Same for R4.
+2. The tax row is rendered last (desktop and mobile), even when the input order puts it first (unit test on `taxLast`).
+3. Kind labels: free → «بنود حرة» / Free lines, none → «بدون دكتور» / No doctor, tax → «الضريبة» / Tax, in both languages.
+4. Permissions: `report_analytics` + `view:invoices` (clinic, and branch) opens both and shows both cards; `report_analytics` without `view:invoices` shows neither and the route shows the "not allowed" page; `report_own` alone never opens R3/R4; `report_catalogue.test.ts` is updated so a receptionist still sees only R1/R2/R9.
+5. Routes `/clinic/reports/by_service` and `/clinic/reports/by_doctor` render the right page.
+6. Empty, error with retry, and forbidden states.
+7. Help line present for each report, in ar and en.
+8. A1 concurrent test (above).
 
-## Size plan
-Every new file is under ~200 lines, one component per file. `report-screens.test.tsx` (206) only gains about 15 lines.
+Mutation proofs (each must fail a test, then the source is restored byte for byte): (a) totals cell bound to the wrong field; (b) the covering `view:invoices` check bypassed in `canOpenReport`; (c) `taxLast` returning input order; (d) the A1 layout-effect move reverted.
 
-## Checks
-Typecheck, lint (0 errors), the report-exports and i18n/mock tests touched, and one full-suite run. The build may be blocked by the sandbox's Node 22/pnpm mismatch; I won't bypass it, and I'll report it. A real browser check for clinic personas is likely blocked again (the preview opens only as platform admin), and I'll report that too.
+## Acceptance
+Typecheck, lint (0 errors) and the changed-area tests (`src/report-exports`), then the full web suite once at the end. Every file under 300 lines. The build is tried directly. If the Node 22/pnpm 10 mismatch blocks pnpm gates, I will report it without bypassing. Clinic-persona browser checks will likely stay unverified, because the preview signs in as platform admin only.
+
+## Contract / API / mock fit
+- The query schemas have `from`, `to` and an optional `branchId`, with no cursor and no groupBy, and the 366-day range is enforced. This fits.
+- Rows have `kind`, `name`, `lineCount`, `quantity`, `amountMinor` and `currency`. Totals have `lineCount`, `quantity`, `billedMinor`, `taxMinor` and `totalMinor`, plus `currency` and `currencyExponent`. This fits.
+- The mock sorts rows by kind then id, so the tax row is already last. The contract does not guarantee that order, so the UI enforces tax-last for display only. This is not a rule change.
+- `api.reports.byService` / `byDoctor` exist in the `ApiClient` and the mock. No change is needed anywhere outside `apps/web`.
