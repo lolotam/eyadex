@@ -115,7 +115,8 @@ export function ExportRequestForm() {
           </p>
         ) : null}
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
-          <ExportSelectField
+          {noAccess ? null : (
+            <ExportSelectField
             id={ids("report")}
             label={t("reportExports.request.report")}
             placeholder={t("reportExports.request.reportPlaceholder")}
@@ -128,6 +129,7 @@ export function ExportRequestForm() {
             disabled={disabled}
             error={reportError}
           />
+          )}
           {(["from", "to"] as const).map((name) => (
             <ExportDateField
               key={name}
