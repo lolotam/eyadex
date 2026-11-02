@@ -180,8 +180,7 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
         } else update((old) => ({ ...old, errors: { ...old.errors, [row.id]: code } }));
       } finally {
         inFlight.current.delete(token);
-        if (live.current.access === started)
-          update((old) => {
+        update((old) => {
           const pending = new Set(old.pending);
           pending.delete(row.id);
           return { ...old, pending };

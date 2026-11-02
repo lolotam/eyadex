@@ -86,7 +86,7 @@ export function ExportRequestForm() {
   if (reportLost && draft.report)
     reportOptions.unshift({ value: draft.report, label: reportName(draft.report) });
   // No exportable report: the controls are inert; the adapter still refuses on its own.
-  const noAccess = form.eligibleReports.length === 0 && !reportLost;
+  const noAccess = form.eligibleReports.length === 0;
   const disabled = form.isPending || noAccess;
   const zone = session?.clinic?.timezone ?? "";
 
