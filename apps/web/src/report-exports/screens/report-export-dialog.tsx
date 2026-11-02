@@ -7,6 +7,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { ExportRequestForm } from "../export-request-form";
@@ -22,18 +23,20 @@ export function ReportExportDialog({ initial }: { initial: Partial<ExportFormDra
   // A new prefill on each opening: the dialog body remounts with the filters of that moment.
   const [opening, setOpening] = useState(0);
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <Button
-        variant="outline"
-        className="print:hidden"
-        onClick={() => {
-          setOpening((n) => n + 1);
-          setOpen(true);
-        }}
-      >
-        <Download className="size-4" aria-hidden />
-        {t("financeReports.actions.export")}
-      </Button>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (next) setOpening((n) => n + 1);
+        setOpen(next);
+      }}
+    >
+      {/* The trigger owns focus return: Escape or close puts focus back on this button. */}
+      <DialogTrigger asChild>
+        <Button variant="outline" className="print:hidden">
+          <Download className="size-4" aria-hidden />
+          {t("financeReports.actions.export")}
+        </Button>
+      </DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>{t("financeReports.exportTitle")}</DialogTitle>

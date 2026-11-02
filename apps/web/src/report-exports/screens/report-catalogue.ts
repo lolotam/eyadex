@@ -5,6 +5,7 @@ import { REPORT_IDS, type ReportGroupBy, type ReportId } from "@eyadex/contracts
 export const SCREEN_REPORTS = [
   "daily_takings",
   "period_summary",
+  "cash_closings",
 ] as const satisfies readonly ReportId[];
 export type ScreenReportId = (typeof SCREEN_REPORTS)[number];
 

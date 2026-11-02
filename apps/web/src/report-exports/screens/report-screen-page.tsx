@@ -8,6 +8,7 @@ import { StatusPanel } from "@/shared/shell/status-panel";
 import { canOpenReport, isReportId, isScreenReport } from "./report-catalogue";
 import { DailyTakingsPage } from "./daily-takings-page";
 import { PeriodSummaryPage } from "./period-summary-page";
+import { CashClosingsReportPage } from "./cash-closings-report-page";
 
 /**
  * `/clinic/reports/<reportId>`: an unknown or not-yet-built report is "not found"; a report the
@@ -45,6 +46,7 @@ export function ReportScreenPage() {
       />
     );
   if (!canOpenReport(session.permissions, reportId)) return <ForbiddenPage />;
+  if (reportId === "cash_closings") return <CashClosingsReportPage key={persona.memberId} />;
   return reportId === "daily_takings" ? (
     <DailyTakingsPage key={persona.memberId} />
   ) : (

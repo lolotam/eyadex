@@ -6,7 +6,8 @@ import { usePersona, useSession } from "@/shared/persona/persona-provider";
 
 type DownloadState = {
   scope: string;
-  pending: Set<string>;
+  /** Pending requests by request token, each with the row and the access it was made under. */
+  pending: Map<string, { row: string; access: string }>;
   unavailable: Set<string>;
   errors: Record<string, string>;
 };
@@ -55,7 +56,7 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
   const unavailable = useRef(new Map<string, Set<string>>());
   const [state, setState] = useState<DownloadState>({
     scope,
-    pending: new Set(),
+    pending: new Map(),
     unavailable: new Set(),
     errors: {},
   });
@@ -67,7 +68,7 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
   }, []);
   useEffect(() => {
     unavailable.current.clear();
-    setState({ scope, pending: new Set(), unavailable: new Set(), errors: {} });
+    setState({ scope, pending: new Map(), unavailable: new Set(), errors: {} });
   }, [scope]);
   const seenAccess = useRef(access);
   useEffect(() => {
@@ -80,7 +81,9 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
           ([, code]) => code !== "forbidden" && code !== "not_found",
         ),
       );
-      return { ...old, unavailable: new Set(), errors };
+      // An older access's requests can no longer block or report; only this access's stay.
+      const pending = new Map([...old.pending].filter(([, entry]) => entry.access === access));
+      return { ...old, pending, unavailable: new Set(), errors };
     });
   }, [access]);
   const current = () =>
@@ -96,7 +99,7 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
             ? old
             : {
                 scope,
-                pending: new Set(),
+                pending: new Map(),
                 unavailable: new Set(),
                 errors: {},
               },
@@ -126,7 +129,7 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
       return Promise.resolve();
     update((old) => ({
       ...old,
-      pending: new Set(old.pending).add(row.id),
+      pending: new Map(old.pending).set(token, { row: row.id, access: started }),
       errors: Object.fromEntries(Object.entries(old.errors).filter(([id]) => id !== row.id)),
     }));
     const work = (async () => {
@@ -181,8 +184,8 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
       } finally {
         inFlight.current.delete(token);
         update((old) => {
-          const pending = new Set(old.pending);
-          pending.delete(row.id);
+          const pending = new Map(old.pending);
+          pending.delete(token);
           return { ...old, pending };
         });
       }
@@ -190,9 +193,15 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
     inFlight.current.set(token, work);
     return work;
   }
-  const visible: Omit<DownloadState, "scope"> =
-    state.scope === scope
-      ? state
-      : { pending: new Set<string>(), unavailable: new Set<string>(), errors: {} };
-  return { ...visible, canDownload, download };
+  const own = state.scope === scope;
+  const pending = new Set<string>(
+    own ? [...state.pending.values()].filter((e) => e.access === access).map((e) => e.row) : [],
+  );
+  return {
+    pending,
+    unavailable: own ? state.unavailable : new Set<string>(),
+    errors: own ? state.errors : {},
+    canDownload,
+    download,
+  };
 }

@@ -6,12 +6,20 @@ export const enFinanceReports = {
       subtitle: "Reports you can open with your permissions.",
       open: "Open report",
     },
-    names: { daily_takings: "Daily takings", period_summary: "Period summary" },
+    names: {
+      daily_takings: "Daily takings",
+      period_summary: "Period summary",
+      cash_closings: "Cash closings",
+    },
     descriptions: {
       daily_takings: "Money in and out per day or month, branch and payment method.",
       period_summary: "Invoiced, collected, refunded and credit applied per period and branch.",
+      cash_closings:
+        "Saved drawer closings per day and branch, with expected, counted and difference.",
     },
     note: "Periods are clinic business days. A month's money in on Daily takings equals that month's collected amount on Period summary.",
+    cashClosingsNote:
+      "Days are clinic business days. A shortage is a negative difference; payment-method totals are not shown.",
     creditHelp: "Credit applied is information only; it is not collected money.",
     filters: {
       title: "Filters",
@@ -58,6 +66,19 @@ export const enFinanceReports = {
       refunded: "Refunded",
       creditApplied: "Credit applied",
       voidCount: "Voided invoices",
+      businessDay: "Business day",
+      expected: "Expected",
+      counted: "Counted",
+      difference: "Difference",
+      closedBy: "Closed by",
+      note: "Note",
+    },
+    cashClosings: {
+      noteYes: "Has a note",
+      noteNo: "No note",
+      shortage: "Shortage",
+      over: "Over",
+      openClosing: "Open closing of {day}",
     },
   },
 };

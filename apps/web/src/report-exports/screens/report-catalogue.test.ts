@@ -7,10 +7,10 @@ beforeEach(() => resetMockData());
 const keysOf = async (kind: "receptionist" | "doctor" | "clinic_admin") =>
   (await api.session.getContext(as(kind))).permissions;
 
-it("a receptionist opens R1, R2 and R9 only, and sees the R1 and R2 cards", async () => {
+it("a receptionist opens R1, R2 and R9 only, and sees the R1, R2 and R9 cards", async () => {
   const keys = await keysOf("receptionist");
   expect(openableReports(keys)).toEqual(["daily_takings", "period_summary", "cash_closings"]);
-  expect(availableScreens(keys)).toEqual(["daily_takings", "period_summary"]);
+  expect(availableScreens(keys)).toEqual(["daily_takings", "period_summary", "cash_closings"]);
 });
 
 it("report_own never opens R5, whatever its own invoice key", async () => {

@@ -140,4 +140,5 @@
 ## Finance F3 — report screens
 
 - [x] Card 1: PR #140 follow-ups (A1–A5) + shared report frame + R1 «الإيراد اليومي» + R2 «ملخص الفترة»
-- [ ] Cards 2–7: R3–R10 screens (waiting for the owner's next card)
+- [x] Card 2: PR #141 follow-ups (A1–A4) + R9 «سجل إقفال الصندوق»
+- [ ] Cards 3–7: R3–R8 and R10 screens (waiting for the owner's next card)
