@@ -2,11 +2,10 @@ import { useId, useState, type FormEvent } from "react";
 import { AlertCircle, CheckCircle2, Info, Loader2 } from "lucide-react";
 import type { ReportId } from "@eyadex/contracts/finance-reports";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import type { TranslationKey } from "@/shared/i18n/dictionary";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { useSession } from "@/shared/persona/persona-provider";
+import { ExportDateField } from "./export-date-field";
 import { ExportSelectField } from "./export-select-field";
 import { useExportForm, type ExportFormOutcome } from "./use-export-form";
 
@@ -86,7 +85,9 @@ export function ExportRequestForm() {
   const reportOptions = form.eligibleReports.map((r) => ({ value: r, label: reportName(r) }));
   if (reportLost && draft.report)
     reportOptions.unshift({ value: draft.report, label: reportName(draft.report) });
-  const disabled = form.isPending;
+  // No exportable report: the controls are inert; the adapter still refuses on its own.
+  const noAccess = form.eligibleReports.length === 0 && !reportLost;
+  const disabled = form.isPending || noAccess;
   const zone = session?.clinic?.timezone ?? "";
 
   return (
@@ -101,10 +102,14 @@ export function ExportRequestForm() {
         noValidate
         onSubmit={(e) => void onSubmit(e)}
         aria-busy={form.isPending || undefined}
+        aria-describedby={noAccess ? ids("no-access") : undefined}
         className="flex flex-col gap-4 rounded-md border bg-card p-4"
       >
-        {form.eligibleReports.length === 0 && !reportLost ? (
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+        {noAccess ? (
+          <p
+            id={ids("no-access")}
+            className="flex items-center gap-2 text-sm text-muted-foreground"
+          >
             <Info className="size-4 shrink-0" aria-hidden />
             {t("reportExports.request.noReports")}
           </p>
@@ -123,34 +128,18 @@ export function ExportRequestForm() {
             disabled={disabled}
             error={reportError}
           />
-          {(["from", "to"] as const).map((name) => {
-            const error = pathText(name);
-            return (
-              <div key={name} className="flex min-w-0 flex-col gap-1.5">
-                <Label htmlFor={ids(name)}>{t(`reportExports.request.${name}`)}</Label>
-                <Input
-                  id={ids(name)}
-                  type="date"
-                  required
-                  className="min-h-11 bg-card md:min-h-9"
-                  value={draft[name]}
-                  disabled={disabled}
-                  onChange={(e) =>
-                    name === "from" ? form.setFrom(e.target.value) : form.setTo(e.target.value)
-                  }
-                  aria-invalid={error ? true : undefined}
-                  aria-describedby={[ids("dates-help"), error ? ids(`${name}-error`) : null]
-                    .filter(Boolean)
-                    .join(" ")}
-                />
-                {error ? (
-                  <p id={ids(`${name}-error`)} className="text-xs text-destructive">
-                    {error}
-                  </p>
-                ) : null}
-              </div>
-            );
-          })}
+          {(["from", "to"] as const).map((name) => (
+            <ExportDateField
+              key={name}
+              id={ids(name)}
+              label={t(`reportExports.request.${name}`)}
+              value={draft[name]}
+              helpId={ids("dates-help")}
+              error={pathText(name)}
+              disabled={disabled}
+              onChange={name === "from" ? form.setFrom : form.setTo}
+            />
+          ))}
           <ExportSelectField
             id={ids("branch")}
             label={t("reportExports.request.branch")}
@@ -186,7 +175,7 @@ export function ExportRequestForm() {
           />
         </div>
         <p id={ids("dates-help")} className="-mt-2 text-xs text-muted-foreground">
-          {t("reportExports.request.datesHelp", { zone })}
+          {t("reportExports.request.datesHelp", { zone })} {t("reportExports.request.dateFormat")}
         </p>
         {branches.isLoading && draft.report !== null && form.reportEligible ? (
           <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">

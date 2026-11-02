@@ -8,6 +8,7 @@ import { createMockApiClient } from "@/shared/api/mock/mock-adapter";
 import { blobBytes, setup } from "@/shared/api/mock/mock-report-exports.test-kit";
 import { EXPORT_STEP_MS } from "@/shared/api/mock/mock-report-export-run";
 import { personaWith } from "@/shared/api/mock/mock-report-test-kit";
+import { ar } from "@/shared/i18n/ar";
 import { en } from "@/shared/i18n/en";
 import { I18nProvider } from "@/shared/i18n/i18n-provider";
 import { ExportHistory } from "./export-history";
@@ -200,4 +201,20 @@ it("loads more pages, and a page error keeps rows with manual retry", async () =
   fireEvent.click(screen.getByRole("button", { name: t.retry }));
   await flush(200);
   expect(screen.getAllByTestId("export-row").length).toBeGreaterThan(20);
+});
+
+it.each(["en", "ar"] as const)("labels the desktop columns in %s", async (lang) => {
+  window.localStorage.setItem("eyadex:language", lang);
+  const d = (lang === "ar" ? ar : en).reportExports;
+  const f = await mount();
+  await flush(200);
+  await act(async () => {
+    await f.root.reports.requestExport(f.persona, f.body);
+  });
+  fireEvent.click(screen.getByRole("button", { name: d.refresh }));
+  await flush(200);
+  const columns = screen.getByTestId("export-history-columns");
+  for (const label of [d.columns.report, d.created, d.expires, d.rows, d.columns.action])
+    expect(columns).toHaveTextContent(label);
+  expect(columns.className).toContain("md:grid");
 });

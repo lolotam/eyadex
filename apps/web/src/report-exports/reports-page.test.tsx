@@ -8,6 +8,7 @@ import { I18nProvider } from "@/shared/i18n/i18n-provider";
 import { CLINIC_NAV, navItemsFor } from "@/shared/shell/nav-items";
 import { pageHeadText } from "@/shared/seo/page-head";
 import * as kit from "./export-request-form.test-kit";
+import { NativeSelect } from "./export-native-select.test-kit";
 import { ReportsPage } from "./reports-page";
 
 vi.mock("@/shared/api/api-provider", () => ({ useApi: () => kit.context.api }));
@@ -16,7 +17,7 @@ vi.mock("@/shared/persona/persona-provider", () => ({
   useSession: () => ({ session: kit.context.session, isLoading: false, error: null }),
 }));
 vi.mock("./export-select-field", () => ({
-  ExportSelectField: (p: Parameters<typeof kit.NativeSelect>[0]) => kit.NativeSelect(p),
+  ExportSelectField: (p: Parameters<typeof NativeSelect>[0]) => NativeSelect(p),
 }));
 const { R, TAKINGS, setup, flush, pickIn, typeIn, submit, sessionOf, context } = kit;
 kit.useFormTestClock();

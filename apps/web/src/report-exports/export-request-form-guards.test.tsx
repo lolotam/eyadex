@@ -4,6 +4,8 @@ import { getState } from "@/shared/api/mock/mock-report-test-kit";
 import { id } from "@/shared/api/mock/mock-report-export.test-kit";
 import { ar } from "@/shared/i18n/ar";
 import * as kit from "./export-request-form.test-kit";
+import { NativeSelect } from "./export-native-select.test-kit";
+import * as harness from "./export-form-harness.test-kit";
 
 // The closures read the kit only when a hook runs, after every import has resolved.
 vi.mock("@/shared/api/api-provider", () => ({ useApi: () => kit.context.api }));
@@ -12,7 +14,7 @@ vi.mock("@/shared/persona/persona-provider", () => ({
   useSession: () => ({ session: kit.context.session, isLoading: false, error: null }),
 }));
 vi.mock("./export-select-field", () => ({
-  ExportSelectField: (p: Parameters<typeof kit.NativeSelect>[0]) => kit.NativeSelect(p),
+  ExportSelectField: (p: Parameters<typeof NativeSelect>[0]) => NativeSelect(p),
 }));
 
 const {
@@ -30,8 +32,8 @@ const {
   context,
 } = kit;
 const type = kit.typeIn;
-const setLang = (l: "ar" | "en") => kit.setLang(l);
-const bump = () => kit.bump();
+const setLang = (l: "ar" | "en") => harness.setLang(l);
+const bump = () => harness.bump();
 kit.useFormTestClock();
 
 it("no report, failed branches or a reach-invalid branch never POST; retry recovers", async () => {
@@ -118,4 +120,24 @@ it("losing the report key marks the form unavailable while own history stays", a
   expect(screen.getAllByText(ar.reportExports.reports.daily_takings).length).toBeGreaterThan(1);
   expect(screen.queryByText(ar.reportExports.empty)).toBeNull();
   noRawKeys();
+});
+
+it("with no report key every control is disabled, Enter sends nothing, and history stays", async () => {
+  const { post } = await setup([], true);
+  expect(screen.getByText(R.noReports)).toBeTruthy();
+  for (const label of [R.report, R.from, R.to, R.format, R.language])
+    expect((screen.getByLabelText(label) as HTMLInputElement).disabled).toBe(true);
+  const button = screen.getByRole("button", { name: R.submit }) as HTMLButtonElement;
+  expect(button.disabled).toBe(true);
+  fireEvent.submit(button.closest("form")!);
+  await flush();
+  expect(post).not.toHaveBeenCalled();
+  expect(screen.getByRole("heading", { name: ar.reportExports.title })).toBeTruthy();
+});
+
+it("explains the date format in Arabic and English beside the native date fields", async () => {
+  await setup(TAKINGS);
+  expect(screen.getByText(new RegExp(R.dateFormat.replace(/[()]/g, "\\$&")))).toBeTruthy();
+  act(() => setLang("en"));
+  expect(screen.getByText(new RegExp(E.dateFormat.replace(/[()]/g, "\\$&")))).toBeTruthy();
 });

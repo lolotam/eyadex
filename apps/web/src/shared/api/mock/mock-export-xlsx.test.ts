@@ -85,8 +85,8 @@ describe("genuine browser XLSX artifacts", () => {
     },
   );
 
-  it.each([0, 4n, "15", Number.MAX_SAFE_INTEGER, BigInt(Number.MAX_SAFE_INTEGER)])(
-    "stores safe count %s without rounding",
+  it.each([0, 4n, "15", 999_999_999_999_999, 999_999_999_999_999n])(
+    "stores 15-digit-or-less count %s as an exact number",
     async (value) => {
       const artifact = await xlsxArtifact("by_service", [
         row("by_service", { quantity: count(value) }),
@@ -97,6 +97,21 @@ describe("genuine browser XLSX artifacts", () => {
       expect(cell?.getAttribute("t")).toBe("n");
       expect(cell?.textContent).toBe(value.toString());
       expect(cell && elements(cell, "is")).toStrictEqual([]);
+    },
+  );
+
+  it.each(["1000000000000000", 1_234_567_890_123_457n, Number.MAX_SAFE_INTEGER])(
+    "stores 16-digit count %s as exact text Excel cannot round",
+    async (value) => {
+      const artifact = await xlsxArtifact("by_service", [
+        row("by_service", { quantity: count(value) }),
+      ]);
+      const sheet = artifact.sheets[0];
+      if (!sheet) throw new Error("Missing sheet");
+      const cell = elements(sheet, "c").find((item) => item.getAttribute("r") === "C2");
+      expect(cell?.getAttribute("t")).toBe("inlineStr");
+      expect(cell?.getAttribute("s")).toBe("1");
+      expect(cell?.textContent).toBe(value.toString());
     },
   );
 
