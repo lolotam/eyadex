@@ -39,8 +39,9 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
     generation.current = { scope, value: generation.current.value + 1 };
   const epoch = generation.current.value;
   // A counter, not the fingerprint: access that goes A -> B -> A is a new generation, so a request
-  // made under the first A can neither be returned to a retry nor apply its late answer. It
-  // advances on commit only, so a render React abandons never makes a valid request look stale.
+  // made under the first A can neither be returned to a retry nor apply its late answer. This one
+  // advances on commit only; the scope generation and the live snapshot below are still written
+  // during render, as before.
   const { epoch: accessEpoch, isCurrent: isCurrentAccess } = useCommittedEpoch(access);
   const live = useRef({ scope, rows, ready: false });
   live.current = {
