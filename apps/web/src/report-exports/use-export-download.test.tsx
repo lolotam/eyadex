@@ -269,3 +269,42 @@ it("a delayed forbidden from older access is ignored and does not block a retry 
   expect(f.h.result.current.unavailable.has(f.row.id)).toBe(false);
   expect(f.h.result.current.canDownload(f.row)).toBe(true);
 });
+
+it("pending follows request tokens: older access never blocks a retry nor clears a newer request", async () => {
+  const f = await fixture();
+  const real = f.api.reports.downloadExport.bind(f.api.reports);
+  const gates: (() => void)[] = [];
+  vi.spyOn(f.api.reports, "downloadExport").mockImplementation(async (p, id) => {
+    const blob = await real(p, id);
+    await new Promise<void>((resolve) => gates.push(resolve));
+    return blob;
+  });
+  let old: Promise<void> = Promise.resolve();
+  act(() => {
+    old = f.h.result.current.download(f.row);
+  });
+  expect(f.h.result.current.pending.has(f.row.id)).toBe(true);
+  // The access fingerprint moves (a synthetic extra key), so the old request is no longer current.
+  f.role.permissions = [...f.role.permissions, "view:synthetic_extra:clinic"];
+  context.session = await f.api.session.getContext(f.persona);
+  await act(async () => f.h.rerender({ rows: [f.row] }));
+  expect(f.h.result.current.pending.has(f.row.id)).toBe(false);
+  let fresh: Promise<void> = Promise.resolve();
+  await act(async () => {
+    fresh = f.h.result.current.download(f.row);
+    await Promise.resolve();
+  });
+  await vi.waitFor(() => expect(gates).toHaveLength(2));
+  expect(f.h.result.current.pending.has(f.row.id)).toBe(true);
+  await act(async () => {
+    gates[0]?.();
+    await old;
+  });
+  expect(f.h.result.current.pending.has(f.row.id)).toBe(true);
+  await act(async () => {
+    gates[1]?.();
+    await fresh;
+  });
+  expect(f.h.result.current.pending.has(f.row.id)).toBe(false);
+  expect(f.create).toHaveBeenCalledTimes(1);
+});
