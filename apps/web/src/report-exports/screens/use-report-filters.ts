@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReportGroupBy } from "@eyadex/contracts/finance-reports";
 import { todayInTimeZone } from "@eyadex/contracts/patients";
 import { useSession } from "@/shared/persona/persona-provider";
+import { useExportBranchOptions } from "../use-export-branch-options";
 import { SCREEN_GROUP_DEFAULT, type ScreenReportId } from "./report-catalogue";
 
 export type ReportFilters = {
@@ -41,10 +42,23 @@ export function useReportFilters<Q>(report: ScreenReportId, schema: Parser<Q>) {
     branchId: null,
     groupBy: SCREEN_GROUP_DEFAULT[report] ?? null,
   }));
+  // The same cached branch list the filters bar shows. A chosen branch is sent only while it is in
+  // the loaded list: if reach narrows it is dropped back to all branches (never sent to be refused),
+  // and while the list reloads the query waits instead of sending the old choice.
+  const branches = useExportBranchOptions(report);
+  const chosen = filters.branchId;
+  const outOfReach =
+    chosen !== null && branches.isReady && !branches.items.some((b) => b.id === chosen);
+  const waiting = chosen !== null && !branches.isReady;
+  const branchId = outOfReach ? null : chosen;
+  useEffect(() => {
+    if (outOfReach)
+      setFilters((old) => (old.branchId === chosen ? { ...old, branchId: null } : old));
+  }, [outOfReach, chosen]);
   const parsed = schema.safeParse({
     from: filters.from,
     to: filters.to,
-    ...(filters.branchId !== null ? { branchId: filters.branchId } : {}),
+    ...(branchId !== null ? { branchId } : {}),
     ...(filters.groupBy !== null ? { groupBy: filters.groupBy } : {}),
   });
   const issues: Partial<Record<"from" | "to", ReportFilterIssue>> = {};
@@ -64,10 +78,10 @@ export function useReportFilters<Q>(report: ScreenReportId, schema: Parser<Q>) {
     }
   }
   return {
-    filters,
+    filters: { ...filters, branchId },
     zone,
     issues,
-    query: parsed.success ? parsed.data : null,
+    query: parsed.success && !waiting ? parsed.data : null,
     set: (change: Partial<ReportFilters>) => setFilters((old) => ({ ...old, ...change })),
   };
 }
