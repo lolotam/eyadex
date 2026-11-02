@@ -1,4 +1,5 @@
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { ApiError } from "@/shared/api/api-error";
 import { as, resetMockData } from "@/shared/api/mock/mock-test-kit";
@@ -11,6 +12,7 @@ import {
   personaWith,
 } from "@/shared/api/mock/mock-report-test-kit";
 import { ar } from "@/shared/i18n/ar";
+import { I18nProvider } from "@/shared/i18n/i18n-provider";
 import { context, renderScreen, signIn, TestLink } from "./report-screens.test-kit";
 import { formatReportMinor, sumMinor } from "./report-money";
 import { ReportScreenPage } from "./report-screen-page";
@@ -27,6 +29,7 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 const F = ar.financeReports;
+const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 beforeEach(() => resetMockData());
 
 async function story() {
@@ -173,6 +176,27 @@ it("the export button opens the export form prefilled; it accepts a range beyond
     from: "2024-01-01",
     to: q.to,
   });
+});
+
+it("a change of branch reach refetches the report and never keeps rows from the older scope", async () => {
+  await story();
+  const api = await signIn(admin());
+  const spy = vi.spyOn(api.reports, "dailyTakings");
+  context.reportId = "daily_takings";
+  const tree = () => (
+    <QueryClientProvider client={client}>
+      <I18nProvider>
+        <ReportScreenPage />
+      </I18nProvider>
+    </QueryClientProvider>
+  );
+  const view = render(tree());
+  await screen.findAllByTestId("report-row");
+  expect(spy).toHaveBeenCalledTimes(1);
+  const wide = context.session;
+  context.session = wide && { ...wide, allBranches: false, branchIds: [crypto.randomUUID()] };
+  view.rerender(tree());
+  await waitFor(() => expect(spy).toHaveBeenCalledTimes(2));
 });
 
 function defaultQuery() {

@@ -7,8 +7,8 @@ import { usePersona, useSession } from "@/shared/persona/persona-provider";
 import { canOpenReport, type ScreenReportId } from "./report-catalogue";
 
 /**
- * One on-screen report read through the `ApiClient`. The key carries the actor and the parsed
- * filters, so another persona or clinic never sees cached rows; no automatic retry.
+ * One on-screen report read through the `ApiClient`. The key carries the actor, the access scope
+ * and the parsed filters, so another persona, clinic or reach never sees cached rows; no automatic retry.
  */
 export function useReportQuery<Q, T>(
   report: ScreenReportId,
@@ -18,7 +18,12 @@ export function useReportQuery<Q, T>(
   const api = useApi();
   const { persona } = usePersona();
   const { session } = useSession();
-  const enabled = query !== null && !!session && canOpenReport(session.permissions, report);
+  const enabled =
+    query !== null &&
+    !!session &&
+    session.blocked === null &&
+    session.features.finance === true &&
+    canOpenReport(session.permissions, report);
   const result = useQuery({
     queryKey: [
       "clinic",
@@ -27,6 +32,11 @@ export function useReportQuery<Q, T>(
       persona.clinicId,
       persona.memberId,
       session?.membershipId ?? null,
+      // Every access input is part of the identity: a permission or branch-reach change refetches
+      // and never keeps rows or branch names from the older scope on screen.
+      [...(session?.permissions ?? [])].sort().join(" "),
+      session?.allBranches ?? null,
+      [...(session?.branchIds ?? [])].sort().join(" "),
       report,
       query,
     ],
