@@ -33,7 +33,11 @@ export function ReportShell({ report, filters, zone, issues, onChange, children 
       </Link>
       <PageHeader
         title={t(`financeReports.names.${report}`)}
-        subtitle={t("financeReports.note")}
+        subtitle={
+          report === "cash_closings"
+            ? t("financeReports.cashClosingsNote")
+            : t("financeReports.note")
+        }
         actions={
           <div className="flex flex-wrap gap-2 print:hidden">
             <ReportExportDialog

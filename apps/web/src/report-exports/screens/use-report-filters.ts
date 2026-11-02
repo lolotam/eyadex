@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReportGroupBy } from "@eyadex/contracts/finance-reports";
 import { todayInTimeZone } from "@eyadex/contracts/patients";
 import { useSession } from "@/shared/persona/persona-provider";
+import { useExportBranchOptions } from "../use-export-branch-options";
 import { SCREEN_GROUP_DEFAULT, type ScreenReportId } from "./report-catalogue";
 
 export type ReportFilters = {
@@ -41,10 +42,27 @@ export function useReportFilters<Q>(report: ScreenReportId, schema: Parser<Q>) {
     branchId: null,
     groupBy: SCREEN_GROUP_DEFAULT[report] ?? null,
   }));
+  // The same cached branch list the filters bar shows. A chosen branch is sent only while the loaded
+  // list holds it. If reach narrows past it, or the list cannot be loaded (so the choice cannot be
+  // checked), it falls back to all branches in reach: the report stays usable, the picker shows the
+  // fallback and its retry notice, and nothing is sent to be refused. While the list loads for the
+  // first time under this access, the report shows its loading state instead of a blank.
+  const branches = useExportBranchOptions(report);
+  const chosen = filters.branchId;
+  const loaded = branches.isEligible && !branches.isLoading && branches.error === null;
+  const dropChoice =
+    chosen !== null &&
+    (branches.error !== null || (loaded && !branches.items.some((b) => b.id === chosen)));
+  const waiting = chosen !== null && !dropChoice && !loaded;
+  const branchId = dropChoice ? null : chosen;
+  useEffect(() => {
+    if (dropChoice)
+      setFilters((old) => (old.branchId === chosen ? { ...old, branchId: null } : old));
+  }, [dropChoice, chosen]);
   const parsed = schema.safeParse({
     from: filters.from,
     to: filters.to,
-    ...(filters.branchId !== null ? { branchId: filters.branchId } : {}),
+    ...(branchId !== null ? { branchId } : {}),
     ...(filters.groupBy !== null ? { groupBy: filters.groupBy } : {}),
   });
   const issues: Partial<Record<"from" | "to", ReportFilterIssue>> = {};
@@ -64,10 +82,12 @@ export function useReportFilters<Q>(report: ScreenReportId, schema: Parser<Q>) {
     }
   }
   return {
-    filters,
+    filters: { ...filters, branchId },
     zone,
     issues,
-    query: parsed.success ? parsed.data : null,
+    /** Apart from `query === null`, which also means invalid dates (field errors, never a skeleton). */
+    waiting,
+    query: parsed.success && !waiting ? parsed.data : null,
     set: (change: Partial<ReportFilters>) => setFilters((old) => ({ ...old, ...change })),
   };
 }

@@ -3,10 +3,12 @@ import type { ReportExport } from "@eyadex/contracts/finance-reports";
 import { useApi } from "@/shared/api/api-provider";
 import { errorKeyOf } from "@/shared/api/api-error";
 import { usePersona, useSession } from "@/shared/persona/persona-provider";
+import { useCommittedEpoch } from "./use-committed-epoch";
 
 type DownloadState = {
   scope: string;
-  pending: Set<string>;
+  /** Keyed by token, not row id: an older request's `finally` must never clear a newer request of the same row. */
+  pending: Map<string, { row: string; access: number }>;
   unavailable: Set<string>;
   errors: Record<string, string>;
 };
@@ -32,15 +34,19 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
     session?.blocked ?? null,
     session?.features.finance ?? null,
   ]);
-  const live = useRef({ scope, rows, access, ready: false });
   const generation = useRef({ scope, value: 0 });
   if (generation.current.scope !== scope)
     generation.current = { scope, value: generation.current.value + 1 };
   const epoch = generation.current.value;
+  // A counter, not the fingerprint: access that goes A -> B -> A is a new generation, so a request
+  // made under the first A can neither be returned to a retry nor apply its late answer. This one
+  // advances on commit only; the scope generation and the live snapshot below are still written
+  // during render, as before.
+  const { epoch: accessEpoch, isCurrent: isCurrentAccess } = useCommittedEpoch(access);
+  const live = useRef({ scope, rows, ready: false });
   live.current = {
     scope,
     rows,
-    access,
     ready:
       ready &&
       !isLoading &&
@@ -55,7 +61,7 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
   const unavailable = useRef(new Map<string, Set<string>>());
   const [state, setState] = useState<DownloadState>({
     scope,
-    pending: new Set(),
+    pending: new Map(),
     unavailable: new Set(),
     errors: {},
   });
@@ -67,12 +73,12 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
   }, []);
   useEffect(() => {
     unavailable.current.clear();
-    setState({ scope, pending: new Set(), unavailable: new Set(), errors: {} });
+    setState({ scope, pending: new Map(), unavailable: new Set(), errors: {} });
   }, [scope]);
-  const seenAccess = useRef(access);
+  const seenAccess = useRef(accessEpoch);
   useEffect(() => {
-    if (seenAccess.current === access) return;
-    seenAccess.current = access;
+    if (seenAccess.current === accessEpoch) return;
+    seenAccess.current = accessEpoch;
     unavailable.current.clear();
     setState((old) => {
       const errors = Object.fromEntries(
@@ -80,9 +86,11 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
           ([, code]) => code !== "forbidden" && code !== "not_found",
         ),
       );
-      return { ...old, unavailable: new Set(), errors };
+      // An older access's requests can no longer block or report; only this access's stay.
+      const pending = new Map([...old.pending].filter(([, entry]) => entry.access === accessEpoch));
+      return { ...old, pending, unavailable: new Set(), errors };
     });
-  }, [access]);
+  }, [accessEpoch]);
   const current = () =>
     mounted.current &&
     live.current.scope === scope &&
@@ -96,7 +104,7 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
             ? old
             : {
                 scope,
-                pending: new Set(),
+                pending: new Map(),
                 unavailable: new Set(),
                 errors: {},
               },
@@ -109,11 +117,11 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
     );
   }
   function download(row: ReportExport): Promise<void> {
-    // The access snapshot is part of the key: a request made under older access can neither block a
-    // retry under the current access nor apply its late answer to it.
-    const started = access;
+    // The access generation is part of the key: a request made under older access can neither block
+    // a retry under the current access nor apply its late answer to it.
+    const started = accessEpoch;
     const token = JSON.stringify([scope, epoch, started, row.id]);
-    const sameAccess = () => current() && live.current.access === started;
+    const sameAccess = () => current() && isCurrentAccess(started);
     const prior = inFlight.current.get(token);
     if (prior) return prior;
     if (
@@ -126,7 +134,7 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
       return Promise.resolve();
     update((old) => ({
       ...old,
-      pending: new Set(old.pending).add(row.id),
+      pending: new Map(old.pending).set(token, { row: row.id, access: started }),
       errors: Object.fromEntries(Object.entries(old.errors).filter(([id]) => id !== row.id)),
     }));
     const work = (async () => {
@@ -181,8 +189,8 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
       } finally {
         inFlight.current.delete(token);
         update((old) => {
-          const pending = new Set(old.pending);
-          pending.delete(row.id);
+          const pending = new Map(old.pending);
+          pending.delete(token);
           return { ...old, pending };
         });
       }
@@ -190,9 +198,17 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
     inFlight.current.set(token, work);
     return work;
   }
-  const visible: Omit<DownloadState, "scope"> =
-    state.scope === scope
-      ? state
-      : { pending: new Set<string>(), unavailable: new Set<string>(), errors: {} };
-  return { ...visible, canDownload, download };
+  const own = state.scope === scope;
+  const pending = new Set<string>(
+    own
+      ? [...state.pending.values()].filter((e) => e.access === accessEpoch).map((e) => e.row)
+      : [],
+  );
+  return {
+    pending,
+    unavailable: own ? state.unavailable : new Set<string>(),
+    errors: own ? state.errors : {},
+    canDownload,
+    download,
+  };
 }
