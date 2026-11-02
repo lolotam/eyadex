@@ -136,3 +136,8 @@
   - [x] Slice 3 card B: web `reports` client (HTTP + mock R1–R10), slice 2b stored fields in the mock, `report_range_too_long` in the web catalogue
   - [ ] Slice 5: the report screens
 - [ ] F4: online payment and insurance (outline, `finance-design.md` §6)
+
+## Finance F3 — report screens
+
+- [x] Card 1: PR #140 follow-ups (A1–A5) + shared report frame + R1 «الإيراد اليومي» + R2 «ملخص الفترة»
+- [ ] Cards 2–7: R3–R10 screens (waiting for the owner's next card)

@@ -2,6 +2,7 @@ import { enFinance, enReportExportErrors } from "./en-finance";
 import { enPayments } from "./en-payments";
 import { enCashClosings } from "./en-cash-closings";
 import { enReportExports } from "./en-report-exports";
+import { enFinanceReports } from "./en-finance-reports";
 import { enNotifications } from "./en-notifications";
 import { enWhatsapp } from "./en-whatsapp";
 import { enClinicCreate } from "./en-clinic-create";
@@ -188,6 +189,7 @@ export const en = {
   ...enPayments,
   ...enCashClosings,
   ...enReportExports,
+  ...enFinanceReports,
   validation: {
     needsView:
       "Any create, edit or deactivate permission needs view on the same area, at a scope at least as wide",

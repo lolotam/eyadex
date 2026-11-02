@@ -1,0 +1,10 @@
+/* A report screen prints its title, note and table only: the app's navigation stays on screen. */
+@media print {
+  body:has([data-report-print]) aside,
+  body:has([data-report-print]) header {
+    display: none !important;
+  }
+  [data-report-print] {
+    max-width: none !important;
+  }
+}

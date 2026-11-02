@@ -7,7 +7,7 @@ import { useI18n } from "@/shared/i18n/i18n-provider";
 import { useSession } from "@/shared/persona/persona-provider";
 import { ExportDateField } from "./export-date-field";
 import { ExportSelectField } from "./export-select-field";
-import { useExportForm, type ExportFormOutcome } from "./use-export-form";
+import { useExportForm, type ExportFormDraft, type ExportFormOutcome } from "./use-export-form";
 
 // UI-only picker values; the hook keeps `null` for "all", so neither ever reaches the request.
 const ALL = "__all__";
@@ -15,10 +15,10 @@ const UNAVAILABLE = "__unavailable__";
 const ISSUE_KEYS = ["required", "date", "dateOrder", "rangeTooLong"] as const;
 
 /** The export request form. `useExportForm` owns the draft, access, validation and submission. */
-export function ExportRequestForm() {
+export function ExportRequestForm({ initial }: { initial?: Partial<ExportFormDraft> } = {}) {
   const { t, tDynamic, pick } = useI18n();
   const { session } = useSession();
-  const form = useExportForm();
+  const form = useExportForm(initial);
   const uid = useId();
   const [last, setLast] = useState<ExportFormOutcome["status"] | null>(null);
   const { draft, branches } = form;
@@ -86,7 +86,7 @@ export function ExportRequestForm() {
   if (reportLost && draft.report)
     reportOptions.unshift({ value: draft.report, label: reportName(draft.report) });
   // No exportable report: the controls are inert; the adapter still refuses on its own.
-  const noAccess = form.eligibleReports.length === 0 && !reportLost;
+  const noAccess = form.eligibleReports.length === 0;
   const disabled = form.isPending || noAccess;
   const zone = session?.clinic?.timezone ?? "";
 
@@ -115,19 +115,21 @@ export function ExportRequestForm() {
           </p>
         ) : null}
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
-          <ExportSelectField
-            id={ids("report")}
-            label={t("reportExports.request.report")}
-            placeholder={t("reportExports.request.reportPlaceholder")}
-            value={draft.report ?? ""}
-            options={reportOptions.map((o) => ({
-              ...o,
-              disabled: reportLost && o.value === draft.report,
-            }))}
-            onChange={(v) => form.setReport(v as ReportId)}
-            disabled={disabled}
-            error={reportError}
-          />
+          {noAccess ? null : (
+            <ExportSelectField
+              id={ids("report")}
+              label={t("reportExports.request.report")}
+              placeholder={t("reportExports.request.reportPlaceholder")}
+              value={draft.report ?? ""}
+              options={reportOptions.map((o) => ({
+                ...o,
+                disabled: reportLost && o.value === draft.report,
+              }))}
+              onChange={(v) => form.setReport(v as ReportId)}
+              disabled={disabled}
+              error={reportError}
+            />
+          )}
           {(["from", "to"] as const).map((name) => (
             <ExportDateField
               key={name}

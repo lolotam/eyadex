@@ -6,6 +6,7 @@ import { PageHeader } from "@/shared/shell/page-header";
 import { StatusPanel } from "@/shared/shell/status-panel";
 import { ExportHistory } from "./export-history";
 import { ExportRequestForm } from "./export-request-form";
+import { AvailableReports } from "./screens/available-reports";
 
 /**
  * `/clinic/reports`: the export form, then the requester's own history. Only the finance module
@@ -41,6 +42,7 @@ export function ReportsPage() {
         title={t("routes.clinicReports.title")}
         subtitle={t("routes.clinicReports.description")}
       />
+      <AvailableReports />
       <ExportRequestForm />
       <ExportHistory />
     </div>

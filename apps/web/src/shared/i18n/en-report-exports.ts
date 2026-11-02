@@ -52,7 +52,7 @@ export const enReportExports = {
       noReports: "You do not have access to export any report.",
       from: "From",
       to: "To",
-      dateFormat: "Enter dates as day, month and year (YYYY-MM-DD).",
+      dateFormat: "Pick a clinic business day from the date picker.",
       datesHelp: "Days follow the clinic's time zone ({zone}).",
       branch: "Branch",
       allBranches: "All branches you can access",

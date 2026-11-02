@@ -53,6 +53,10 @@ export const arRoutes = {
       title: "المدفوعات",
       description: "إيصالات العيادة: البحث والتصفية وفتح الإيصال.",
     },
+    clinicReport: {
+      title: "تقرير",
+      description: "اعرض تقريرًا ماليًا على الشاشة أو اطبعه أو صدّره.",
+    },
     clinicReports: {
       title: "التقارير",
       description: "اطلب تصدير التقارير ونزّل ملفاتك الخاصة.",
