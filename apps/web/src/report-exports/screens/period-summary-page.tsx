@@ -26,10 +26,7 @@ const MONEY = [
 /** R2 «ملخص الفترة»: invoiced to credit applied per period and branch, with the voided count. */
 export function PeriodSummaryPage() {
   const { t } = useI18n();
-  const f = useReportFilters<Query>(
-    "period_summary",
-    reportPeriodSummaryQuerySchema,
-  );
+  const f = useReportFilters<Query>("period_summary", reportPeriodSummaryQuerySchema);
   const q = useReportQuery("period_summary", f.query, (api, persona, query) =>
     api.reports.periodSummary(persona, query),
   );

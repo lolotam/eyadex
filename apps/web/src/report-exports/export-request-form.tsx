@@ -7,7 +7,7 @@ import { useI18n } from "@/shared/i18n/i18n-provider";
 import { useSession } from "@/shared/persona/persona-provider";
 import { ExportDateField } from "./export-date-field";
 import { ExportSelectField } from "./export-select-field";
-import { useExportForm, type ExportFormOutcome } from "./use-export-form";
+import { useExportForm, type ExportFormDraft, type ExportFormOutcome } from "./use-export-form";
 
 // UI-only picker values; the hook keeps `null` for "all", so neither ever reaches the request.
 const ALL = "__all__";
@@ -15,10 +15,10 @@ const UNAVAILABLE = "__unavailable__";
 const ISSUE_KEYS = ["required", "date", "dateOrder", "rangeTooLong"] as const;
 
 /** The export request form. `useExportForm` owns the draft, access, validation and submission. */
-export function ExportRequestForm() {
+export function ExportRequestForm({ initial }: { initial?: Partial<ExportFormDraft> } = {}) {
   const { t, tDynamic, pick } = useI18n();
   const { session } = useSession();
-  const form = useExportForm();
+  const form = useExportForm(initial);
   const uid = useId();
   const [last, setLast] = useState<ExportFormOutcome["status"] | null>(null);
   const { draft, branches } = form;

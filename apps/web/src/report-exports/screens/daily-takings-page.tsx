@@ -33,8 +33,18 @@ export function DailyTakingsPage() {
       label: t("financeReports.columns.method"),
       cell: (r) => tDynamic(`payments.method.${r.method}`),
     },
-    { key: "in", label: t("financeReports.columns.in"), numeric: true, cell: (r) => fmt.money(r.inMinor) },
-    { key: "out", label: t("financeReports.columns.out"), numeric: true, cell: (r) => fmt.money(r.outMinor) },
+    {
+      key: "in",
+      label: t("financeReports.columns.in"),
+      numeric: true,
+      cell: (r) => fmt.money(r.inMinor),
+    },
+    {
+      key: "out",
+      label: t("financeReports.columns.out"),
+      numeric: true,
+      cell: (r) => fmt.money(r.outMinor),
+    },
     {
       key: "net",
       label: t("financeReports.columns.net"),
@@ -43,7 +53,13 @@ export function DailyTakingsPage() {
     },
   ];
   return (
-    <ReportShell report="daily_takings" filters={f.filters} zone={f.zone} issues={f.issues} onChange={f.set}>
+    <ReportShell
+      report="daily_takings"
+      filters={f.filters}
+      zone={f.zone}
+      issues={f.issues}
+      onChange={f.set}
+    >
       {f.query === null ? null : (
         <ReportContent
           loading={q.isLoading}
@@ -61,7 +77,12 @@ export function DailyTakingsPage() {
               totals={{
                 in: fmt.money(data.totals.inMinor),
                 out: fmt.money(data.totals.outMinor),
-                net: <SignedAmount minor={data.totals.netMinor} text={fmt.money(data.totals.netMinor)} />,
+                net: (
+                  <SignedAmount
+                    minor={data.totals.netMinor}
+                    text={fmt.money(data.totals.netMinor)}
+                  />
+                ),
               }}
             />
           ) : null}
