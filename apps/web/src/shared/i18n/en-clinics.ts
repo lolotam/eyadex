@@ -82,4 +82,4 @@ export const enClinics = {
     branchColumns: { name: "Branch", address: "Address", phone: "Phone", status: "Status" },
     privacyNote: "Patient data is never shown in the platform area.",
   },
-};
+} as const;
