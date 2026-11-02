@@ -72,10 +72,7 @@ it("R9 totals equal the BigInt row sums, a shortage is negative with its word, n
   const api = await open();
   const rows = await screen.findAllByTestId("report-row");
   expect(rows).toHaveLength(2);
-  const r9 = await api.reports.cashClosings(admin(), {
-    from: context.session!.clinic ? today() : "",
-    to: today(),
-  });
+  const r9 = await api.reports.cashClosings(admin(), { from: today(), to: today() });
   const exp = r9.currencyExponent;
   const money = (m: string) => `${formatReportMinor(m, exp, "ar")} ${r9.currency}`;
   for (const [column, field] of [

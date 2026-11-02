@@ -47,7 +47,7 @@ async function story() {
       method: "cash",
       reason: "اختبار",
     },
-    crypto.randomUUID(),
+    "00000000-0000-4000-8000-0000000000a1",
   );
 }
 const totalsCell = (column: string) =>
@@ -137,13 +137,17 @@ it("a report the permissions do not open is forbidden by direct URL; an unbuilt 
   expect(screen.getByText(ar.errors.not_found)).toBeTruthy();
 });
 
-it("a receptionist sees the R1 and R2 cards and opens both; a doctor sees no card", async () => {
+it("a receptionist sees the R1, R2 and R9 cards and opens each; a doctor sees no card", async () => {
   await signIn(as("receptionist"));
   renderScreen(<AvailableReports />);
   const links = screen.getAllByRole("link").map((a) => a.getAttribute("href"));
-  expect(links).toEqual(["/clinic/reports/daily_takings", "/clinic/reports/period_summary"]);
+  expect(links).toEqual([
+    "/clinic/reports/daily_takings",
+    "/clinic/reports/period_summary",
+    "/clinic/reports/cash_closings",
+  ]);
   document.body.innerHTML = "";
-  for (const id of ["daily_takings", "period_summary"]) {
+  for (const id of ["daily_takings", "period_summary", "cash_closings"]) {
     await open(id, as("receptionist"));
     await screen.findByText(F.states.empty);
     document.body.innerHTML = "";
@@ -194,7 +198,7 @@ it("a change of branch reach refetches the report and never keeps rows from the 
   await screen.findAllByTestId("report-row");
   expect(spy).toHaveBeenCalledTimes(1);
   const wide = context.session;
-  context.session = wide && { ...wide, allBranches: false, branchIds: [crypto.randomUUID()] };
+  context.session = wide && { ...wide, allBranches: false, branchIds: ["00000000-0000-7000-8000-0000000000b9"] };
   view.rerender(tree());
   await waitFor(() => expect(spy).toHaveBeenCalledTimes(2));
 });
