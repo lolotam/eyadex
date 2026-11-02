@@ -208,3 +208,21 @@ function defaultQuery() {
   const to = new Intl.DateTimeFormat("en-CA", { timeZone: zone }).format(new Date());
   return { from: `${to.slice(0, 8)}01`, to };
 }
+
+it("Escape closes the export dialog, returns focus to its button, and reopening prefills afresh", async () => {
+  await open("daily_takings");
+  await screen.findByText(F.states.empty);
+  const button = screen.getByRole("button", { name: F.actions.export });
+  const R = ar.reportExports.request;
+  fireEvent.click(button);
+  let dialog = await screen.findByRole("dialog");
+  fireEvent.change(within(dialog).getByLabelText(R.from), { target: { value: "2024-01-01" } });
+  fireEvent.keyDown(dialog, { key: "Escape" });
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  await waitFor(() => expect(document.activeElement).toBe(button));
+  fireEvent.click(button);
+  dialog = await screen.findByRole("dialog");
+  expect((within(dialog).getByLabelText(R.from) as HTMLInputElement).value).toBe(
+    defaultQuery().from,
+  );
+});
