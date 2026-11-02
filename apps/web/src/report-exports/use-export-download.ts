@@ -3,6 +3,7 @@ import type { ReportExport } from "@eyadex/contracts/finance-reports";
 import { useApi } from "@/shared/api/api-provider";
 import { errorKeyOf } from "@/shared/api/api-error";
 import { usePersona, useSession } from "@/shared/persona/persona-provider";
+import { useCommittedEpoch } from "./use-committed-epoch";
 
 type DownloadState = {
   scope: string;
@@ -38,16 +39,13 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
     generation.current = { scope, value: generation.current.value + 1 };
   const epoch = generation.current.value;
   // A counter, not the fingerprint: access that goes A -> B -> A is a new generation, so a request
-  // made under the first A can neither be returned to a retry nor apply its late answer.
-  const accessGeneration = useRef({ access, value: 0 });
-  if (accessGeneration.current.access !== access)
-    accessGeneration.current = { access, value: accessGeneration.current.value + 1 };
-  const accessEpoch = accessGeneration.current.value;
-  const live = useRef({ scope, rows, accessEpoch, ready: false });
+  // made under the first A can neither be returned to a retry nor apply its late answer. It
+  // advances on commit only, so a render React abandons never makes a valid request look stale.
+  const { epoch: accessEpoch, isCurrent: isCurrentAccess } = useCommittedEpoch(access);
+  const live = useRef({ scope, rows, ready: false });
   live.current = {
     scope,
     rows,
-    accessEpoch,
     ready:
       ready &&
       !isLoading &&
@@ -122,7 +120,7 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
     // a retry under the current access nor apply its late answer to it.
     const started = accessEpoch;
     const token = JSON.stringify([scope, epoch, started, row.id]);
-    const sameAccess = () => current() && live.current.accessEpoch === started;
+    const sameAccess = () => current() && isCurrentAccess(started);
     const prior = inFlight.current.get(token);
     if (prior) return prior;
     if (
