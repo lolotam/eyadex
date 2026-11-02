@@ -15,9 +15,7 @@ it("keeps the minus sign of a signed amount", () => {
 });
 
 it("stays exact beyond Number's safe range", () => {
-  expect(formatReportMinor("123456789012345678901", 3, "en")).toBe(
-    "123,456,789,012,345,678.901",
-  );
+  expect(formatReportMinor("123456789012345678901", 3, "en")).toBe("123,456,789,012,345,678.901");
   expect(sumMinor(["9007199254740993", "1", "-4"])).toBe("9007199254740990");
 });
 

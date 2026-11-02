@@ -37,7 +37,13 @@ async function story() {
   await seedApi.payments.refund(
     admin(),
     a.id,
-    { source: "payment", paymentId: payment.id, amountMinor: "1000", method: "cash", reason: "اختبار" },
+    {
+      source: "payment",
+      paymentId: payment.id,
+      amountMinor: "1000",
+      method: "cash",
+      reason: "اختبار",
+    },
     crypto.randomUUID(),
   );
 }
@@ -54,7 +60,7 @@ it("R1 totals equal the sum of its rows, in Arabic digits, with a signed net", a
   await story();
   const api = await open("daily_takings");
   await screen.findAllByTestId("report-row");
-  const r1 = await api.reports.dailyTakings(admin(), context.lastQuery ?? defaultQuery());
+  const r1 = await api.reports.dailyTakings(admin(), defaultQuery());
   for (const [col, field] of [
     ["in", "inMinor"],
     ["out", "outMinor"],
@@ -62,7 +68,9 @@ it("R1 totals equal the sum of its rows, in Arabic digits, with a signed net", a
   ] as const) {
     const sum = sumMinor(r1.rows.map((r) => r[field]));
     expect(r1.totals[field]).toBe(sum);
-    expect(totalsCell(col)).toBe(`${formatReportMinor(sum, r1.currencyExponent, "ar")} ${r1.currency}`);
+    expect(totalsCell(col)).toBe(
+      `${formatReportMinor(sum, r1.currencyExponent, "ar")} ${r1.currency}`,
+    );
   }
   expect(totalsCell("in")).toMatch(/[٠-٩]/);
   expect(screen.getAllByText(F.columns.net).length).toBeGreaterThan(0);
@@ -84,7 +92,9 @@ it("R2 shows all seven totals equal to its row sums and the credit help line", a
   for (const [col, field] of money) {
     const sum = sumMinor(r2.rows.map((r) => r[field]));
     expect(r2.totals[field]).toBe(sum);
-    expect(totalsCell(col)).toBe(`${formatReportMinor(sum, r2.currencyExponent, "ar")} ${r2.currency}`);
+    expect(totalsCell(col)).toBe(
+      `${formatReportMinor(sum, r2.currencyExponent, "ar")} ${r2.currency}`,
+    );
   }
   expect(r2.totals.voidCount).toBe(r2.rows.reduce((n, r) => n + r.voidCount, 0));
   expect(screen.getByText(F.creditHelp)).toBeTruthy();
@@ -152,11 +162,17 @@ it("the export button opens the export form prefilled; it accepts a range beyond
   expect((within(dialog).getByLabelText(R.to) as HTMLInputElement).value).toBe(q.to);
   fireEvent.change(within(dialog).getByLabelText(R.from), { target: { value: "2024-01-01" } });
   await waitFor(() =>
-    expect(within(dialog).getByRole("button", { name: R.submit }).hasAttribute("disabled")).toBe(false),
+    expect(within(dialog).getByRole("button", { name: R.submit }).hasAttribute("disabled")).toBe(
+      false,
+    ),
   );
   fireEvent.click(within(dialog).getByRole("button", { name: R.submit }));
   await waitFor(() => expect(post).toHaveBeenCalledTimes(1));
-  expect(post.mock.calls[0]?.[1]).toMatchObject({ report: "daily_takings", from: "2024-01-01", to: q.to });
+  expect(post.mock.calls[0]?.[1]).toMatchObject({
+    report: "daily_takings",
+    from: "2024-01-01",
+    to: q.to,
+  });
 });
 
 function defaultQuery() {
