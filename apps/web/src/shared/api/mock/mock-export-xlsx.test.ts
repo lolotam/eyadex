@@ -107,20 +107,17 @@ describe("genuine browser XLSX artifacts", () => {
     "9007199254740992",
     9007199254740993n,
     "123456789012345678901234",
-  ])(
-    "stores 16-digit count %s as exact text Excel cannot round",
-    async (value) => {
-      const artifact = await xlsxArtifact("by_service", [
-        row("by_service", { quantity: count(value) }),
-      ]);
-      const sheet = artifact.sheets[0];
-      if (!sheet) throw new Error("Missing sheet");
-      const cell = elements(sheet, "c").find((item) => item.getAttribute("r") === "C2");
-      expect(cell?.getAttribute("t")).toBe("inlineStr");
-      expect(cell?.getAttribute("s")).toBe("1");
-      expect(cell?.textContent).toBe(value.toString());
-    },
-  );
+  ])("stores 16-digit count %s as exact text Excel cannot round", async (value) => {
+    const artifact = await xlsxArtifact("by_service", [
+      row("by_service", { quantity: count(value) }),
+    ]);
+    const sheet = artifact.sheets[0];
+    if (!sheet) throw new Error("Missing sheet");
+    const cell = elements(sheet, "c").find((item) => item.getAttribute("r") === "C2");
+    expect(cell?.getAttribute("t")).toBe("inlineStr");
+    expect(cell?.getAttribute("s")).toBe("1");
+    expect(cell?.textContent).toBe(value.toString());
+  });
 
   it.each([-1n, "-1", "01", 1.5, Number.MAX_SAFE_INTEGER + 1])(
     "refuses unsafe count %s with no artifact",

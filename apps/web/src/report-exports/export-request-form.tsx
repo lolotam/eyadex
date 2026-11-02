@@ -117,18 +117,18 @@ export function ExportRequestForm() {
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
           {noAccess ? null : (
             <ExportSelectField
-            id={ids("report")}
-            label={t("reportExports.request.report")}
-            placeholder={t("reportExports.request.reportPlaceholder")}
-            value={draft.report ?? ""}
-            options={reportOptions.map((o) => ({
-              ...o,
-              disabled: reportLost && o.value === draft.report,
-            }))}
-            onChange={(v) => form.setReport(v as ReportId)}
-            disabled={disabled}
-            error={reportError}
-          />
+              id={ids("report")}
+              label={t("reportExports.request.report")}
+              placeholder={t("reportExports.request.reportPlaceholder")}
+              value={draft.report ?? ""}
+              options={reportOptions.map((o) => ({
+                ...o,
+                disabled: reportLost && o.value === draft.report,
+              }))}
+              onChange={(v) => form.setReport(v as ReportId)}
+              disabled={disabled}
+              error={reportError}
+            />
           )}
           {(["from", "to"] as const).map((name) => (
             <ExportDateField

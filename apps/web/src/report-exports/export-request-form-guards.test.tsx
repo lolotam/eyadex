@@ -99,25 +99,50 @@ it("a double click sends one POST and disables every control while pending", asy
   expect(screen.getByText(R.queued)).toBeTruthy();
 });
 
-it("losing the report key marks the form unavailable while own history stays", async () => {
+async function dropTo(
+  api: Parameters<typeof sessionOf>[0],
+  persona: Parameters<typeof sessionOf>[1],
+  keys: string[],
+) {
+  const role = getState().roles.find(
+    (r) => r.id === getState().members.find((m) => m.id === persona.memberId)!.roleId,
+  )!;
+  role.permissions = keys;
+  context.session = await sessionOf(api, persona);
+  act(() => bump());
+  await flush();
+}
+
+it("losing one report key while another remains keeps the selector and marks it unavailable", async () => {
+  const { api, persona, post } = await setup([...TAKINGS, ...ANALYTICS], true);
+  pickIn(R.report, "daily_takings");
+  type(R.from, "2026-01-01");
+  type(R.to, "2026-01-31");
+  await flush();
+  await submit();
+  await dropTo(api, persona, ANALYTICS);
+  expect(screen.getAllByText(R.fields.reportUnavailable).length).toBeGreaterThan(0);
+  expect((screen.getByLabelText(R.report) as HTMLSelectElement).value).toBe("daily_takings");
+  expect(screen.queryByText(R.noReports)).toBeNull();
+  await submit();
+  expect(post).toHaveBeenCalledTimes(1);
+  noRawKeys();
+});
+
+it("losing the last eligible report shows the no-access notice, hides the selector and keeps history", async () => {
   const { api, persona, post } = await setup(TAKINGS, true);
   pickIn(R.report, "daily_takings");
   type(R.from, "2026-01-01");
   type(R.to, "2026-01-31");
   await flush();
   await submit();
-  const role = getState().roles.find(
-    (r) => r.id === getState().members.find((m) => m.id === persona.memberId)!.roleId,
-  )!;
-  role.permissions = ["view:report_takings:branch"];
-  context.session = await sessionOf(api, persona);
-  act(() => bump());
+  await dropTo(api, persona, ["view:report_takings:branch"]);
+  expect(screen.getByText(R.noReports)).toBeTruthy();
+  expect(screen.queryByLabelText(R.report)).toBeNull();
+  fireEvent.submit(screen.getByRole("button", { name: R.submit }).closest("form")!);
   await flush();
-  expect(screen.getAllByText(R.fields.reportUnavailable).length).toBeGreaterThan(0);
-  expect((screen.getByLabelText(R.report) as HTMLSelectElement).value).toBe("daily_takings");
-  await submit();
   expect(post).toHaveBeenCalledTimes(1);
-  expect(screen.getAllByText(ar.reportExports.reports.daily_takings).length).toBeGreaterThan(1);
+  expect(screen.getAllByText(ar.reportExports.reports.daily_takings).length).toBeGreaterThan(0);
   expect(screen.queryByText(ar.reportExports.empty)).toBeNull();
   noRawKeys();
 });
@@ -125,7 +150,8 @@ it("losing the report key marks the form unavailable while own history stays", a
 it("with no report key every control is disabled, Enter sends nothing, and history stays", async () => {
   const { post } = await setup([], true);
   expect(screen.getByText(R.noReports)).toBeTruthy();
-  for (const label of [R.report, R.from, R.to, R.format, R.language])
+  expect(screen.queryByLabelText(R.report)).toBeNull();
+  for (const label of [R.from, R.to, R.format, R.language])
     expect((screen.getByLabelText(label) as HTMLInputElement).disabled).toBe(true);
   const button = screen.getByRole("button", { name: R.submit }) as HTMLButtonElement;
   expect(button.disabled).toBe(true);
