@@ -48,7 +48,7 @@ async function closeDrawer(branchId: string, countedMinor: string, note: string 
   );
 }
 
-/** Two branches' closings of one day: a shortage with a note, then an over without one. */
+/** Two branches' closings of one day: a shortage with a note, then an exact count without one. */
 async function story() {
   const patients = getState().patients.filter((x) => x.clinicId === clinicIdAt(0));
   const other = patients.find((x) => x.registrationBranchId !== patients[0]?.registrationBranchId);
@@ -58,7 +58,7 @@ async function story() {
   await closeDrawer(a.branchId, "2500", "عجز", KEY_1);
   const b = await issue([freeLine("10000")], other);
   await pay(b.id, "2000");
-  await closeDrawer(b.branchId, "2300", null, KEY_2);
+  await closeDrawer(b.branchId, "2000", null, KEY_2);
 }
 
 const open = async (persona = admin()) => {
@@ -87,11 +87,11 @@ it("R9 totals equal the BigInt row sums, a shortage is negative with its word, n
     expect(sum).toBe(r9.totals[field]);
     expect(totalsCell(column)).toContain(money(sum));
   }
-  expect(r9.totals.differenceMinor).toBe("-200");
+  expect(r9.totals.differenceMinor).toBe("-500");
   expect(totalsCell("difference")).toContain(F.cashClosings.shortage);
   const table = screen.getByTestId("report-table");
   expect(within(table).getAllByText(`(${F.cashClosings.shortage})`).length).toBeGreaterThan(0);
-  expect(within(table).getAllByText(`(${F.cashClosings.over})`).length).toBeGreaterThan(0);
+  expect(within(table).queryByText(`(${F.cashClosings.over})`)).toBeNull();
   expect(within(table).getAllByText(F.cashClosings.noteYes).length).toBeGreaterThan(0);
   expect(within(table).getAllByText(F.cashClosings.noteNo).length).toBeGreaterThan(0);
   expect(within(table).getAllByText(memberOf("clinic_admin").fullName).length).toBeGreaterThan(0);
