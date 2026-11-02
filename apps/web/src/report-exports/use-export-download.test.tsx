@@ -285,7 +285,7 @@ it("pending follows request tokens: older access never blocks a retry nor clears
   });
   expect(f.h.result.current.pending.has(f.row.id)).toBe(true);
   // The access fingerprint moves (one more real key), so the old request is no longer current.
-  f.role.permissions = [...f.role.permissions, "view:audit:clinic"];
+  f.role.permissions = [...f.role.permissions, "view:audit_log:clinic"];
   context.session = await f.api.session.getContext(f.persona);
   await act(async () => f.h.rerender({ rows: [f.row] }));
   expect(f.h.result.current.pending.has(f.row.id)).toBe(false);
