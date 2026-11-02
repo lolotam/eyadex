@@ -46,8 +46,8 @@ function rowXml(fields: readonly PreparedField[], index: number): string {
   const cells = fields.map((field, column) => {
     const address = `${columnLetters(column)}${index}`;
     if (field.kind === "count") {
-      if (field.value < 0n || field.value > BigInt(Number.MAX_SAFE_INTEGER))
-        throw new Error("export_value_invalid");
+      // Only a negative count is invalid; a long one is still exact as text below.
+      if (field.value < 0n) throw new Error("export_value_invalid");
       // Excel keeps 15 significant digits; a longer count is exact text, like money.
       if (field.value.toString().length <= 15)
         return `<c r="${address}" t="n"><v>${field.value}</v></c>`;

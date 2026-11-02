@@ -52,7 +52,7 @@ const INITIAL: ExportFormDraft = {
  * The export form's draft and submit. The draft belongs to one actor epoch: any identity change,
  * A→B→A included, starts a fresh draft, and setters or submits from an older epoch do nothing.
  */
-export function useExportForm() {
+export function useExportForm(initial?: Partial<ExportFormDraft>) {
   const { lang } = useI18n();
   const { persona } = usePersona();
   const { session } = useSession();
@@ -65,20 +65,26 @@ export function useExportForm() {
     session?.membershipId ?? null,
   ]);
   const { epoch, isCurrent } = useCommittedEpoch(identity);
+  // A prefill (an export opened from a report screen) is fixed for the life of the form.
+  const [base] = useState<ExportFormDraft>(() => ({ ...INITIAL, ...initial }));
 
   const [stored, setStored] = useState<{ epoch: number; draft: ExportFormDraft }>({
     epoch,
-    draft: INITIAL,
+    draft: base,
   });
   const [fieldState, setFieldState] = useState<{
     epoch: number;
     issues: ExportFormFieldIssue[];
     draft: ExportFormDraft;
-  }>({ epoch, issues: [], draft: INITIAL });
-  const draft = stored.epoch === epoch ? stored.draft : INITIAL;
+  }>({ epoch, issues: [], draft: base });
+  // Schema issues belong to the draft that was actually sent: a locally blocked submit never moves it.
+  const [requestSent, setRequestSent] = useState<{ epoch: number; draft: ExportFormDraft } | null>(
+    null,
+  );
+  const draft = stored.epoch === epoch ? stored.draft : base;
   // Feedback belongs to the draft it was raised for: editing a field drops its old issues.
   const sent = fieldState.epoch === epoch ? fieldState.draft : null;
-  const changed = (path: string) => {
+  const changedFrom = (sent: ExportFormDraft | null, path: string) => {
     if (!sent) return true;
     if (path === "from" || path === "to") return sent.from !== draft.from || sent.to !== draft.to;
     if (path === "branchId")
@@ -87,7 +93,8 @@ export function useExportForm() {
       return sent[path as keyof ExportFormDraft] !== draft[path as keyof ExportFormDraft];
     return false;
   };
-  const fieldIssues = sent ? fieldState.issues.filter((i) => !changed(i.field)) : [];
+  const fieldIssues = sent ? fieldState.issues.filter((i) => !changedFrom(sent, i.field)) : [];
+  const sentRequest = requestSent?.epoch === epoch ? requestSent.draft : null;
   const language = draft.language ?? lang;
   const branches = useExportBranchOptions(draft.report);
 
@@ -96,10 +103,10 @@ export function useExportForm() {
       if (!isCurrent(epoch)) return;
       setStored((prev) => ({
         epoch,
-        draft: { ...(prev.epoch === epoch ? prev.draft : INITIAL), ...change },
+        draft: { ...(prev.epoch === epoch ? prev.draft : base), ...change },
       }));
     },
-    [epoch, isCurrent],
+    [epoch, isCurrent, base],
   );
 
   const eligibleReports = REPORT_IDS.filter((r) => request.isEligibleFor(r));
@@ -133,6 +140,7 @@ export function useExportForm() {
       format: draft.format,
       language,
     };
+    setRequestSent({ epoch, draft });
     return request.submit(body);
   };
 
@@ -166,7 +174,7 @@ export function useExportForm() {
     canSubmit: check().length === 0 && !request.isPending,
     submit,
     isPending: request.isPending,
-    issues: sent ? request.issues.filter((i) => !changed(i.path)) : [],
+    issues: sentRequest ? request.issues.filter((i) => !changedFrom(sentRequest, i.path)) : [],
     error: request.error,
     queued: request.queued,
   };

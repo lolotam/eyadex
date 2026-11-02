@@ -100,7 +100,14 @@ describe("genuine browser XLSX artifacts", () => {
     },
   );
 
-  it.each(["1000000000000000", 1_234_567_890_123_457n, Number.MAX_SAFE_INTEGER])(
+  it.each([
+    "1000000000000000",
+    1_234_567_890_123_457n,
+    Number.MAX_SAFE_INTEGER,
+    "9007199254740992",
+    9007199254740993n,
+    "123456789012345678901234",
+  ])(
     "stores 16-digit count %s as exact text Excel cannot round",
     async (value) => {
       const artifact = await xlsxArtifact("by_service", [
@@ -115,7 +122,7 @@ describe("genuine browser XLSX artifacts", () => {
     },
   );
 
-  it.each(["9007199254740992", 9007199254740992n, -1n, "01", 1.5, Number.MAX_SAFE_INTEGER + 1])(
+  it.each([-1n, "-1", "01", 1.5, Number.MAX_SAFE_INTEGER + 1])(
     "refuses unsafe count %s with no artifact",
     async (value) => {
       await xlsxRefused({
