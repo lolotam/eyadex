@@ -1,7 +1,6 @@
 import {
   reportPeriodSummaryQuerySchema,
   type reportPeriodSummaryResponseSchema,
-  type ReportPeriodSummaryQuery,
 } from "@eyadex/contracts/finance-reports";
 import type { z } from "zod";
 import { useI18n } from "@/shared/i18n/i18n-provider";
@@ -13,6 +12,7 @@ import { useReportFormat } from "./use-report-format";
 import { useReportQuery } from "./use-report-query";
 
 type Response = z.infer<typeof reportPeriodSummaryResponseSchema>;
+type Query = z.output<typeof reportPeriodSummaryQuerySchema>;
 type Row = Response["rows"][number];
 const MONEY = [
   ["invoiced", "invoicedMinor"],
@@ -26,7 +26,7 @@ const MONEY = [
 /** R2 «ملخص الفترة»: invoiced to credit applied per period and branch, with the voided count. */
 export function PeriodSummaryPage() {
   const { t } = useI18n();
-  const f = useReportFilters<ReportPeriodSummaryQuery>(
+  const f = useReportFilters<Query>(
     "period_summary",
     reportPeriodSummaryQuerySchema,
   );

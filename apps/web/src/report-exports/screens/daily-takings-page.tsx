@@ -1,6 +1,6 @@
 import {
   reportDailyTakingsQuerySchema,
-  type ReportDailyTakingsQuery,
+  type reportDailyTakingsResponseSchema,
 } from "@eyadex/contracts/finance-reports";
 import type { z } from "zod";
 import { useI18n } from "@/shared/i18n/i18n-provider";
@@ -12,13 +12,14 @@ import { useReportFilters } from "./use-report-filters";
 import { useReportFormat } from "./use-report-format";
 import { useReportQuery } from "./use-report-query";
 
-type Response = z.infer<typeof import("@eyadex/contracts/finance-reports").reportDailyTakingsResponseSchema>;
+type Response = z.infer<typeof reportDailyTakingsResponseSchema>;
+type Query = z.output<typeof reportDailyTakingsQuerySchema>;
 type Row = Response["rows"][number];
 
 /** R1 «الإيراد اليومي»: money in and out per period, branch and method; the net is signed. */
 export function DailyTakingsPage() {
   const { t, tDynamic } = useI18n();
-  const f = useReportFilters<ReportDailyTakingsQuery>("daily_takings", reportDailyTakingsQuerySchema);
+  const f = useReportFilters<Query>("daily_takings", reportDailyTakingsQuerySchema);
   const q = useReportQuery("daily_takings", f.query, (api, persona, query) =>
     api.reports.dailyTakings(persona, query),
   );
