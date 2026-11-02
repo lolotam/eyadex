@@ -2,7 +2,15 @@
 // this: an abandoned transition render for another scope or a not-ready session does not stale or
 // duplicate an in-flight download. It does not prove every concurrent interleaving is safe.
 import { act, render } from "@testing-library/react";
-import { createContext, startTransition, Suspense, use, useContext, useState } from "react";
+import {
+  createContext,
+  startTransition,
+  Suspense,
+  use,
+  useContext,
+  useLayoutEffect,
+  useState,
+} from "react";
 import { afterEach, expect, it, vi } from "vitest";
 import type { Persona, SessionContext } from "@eyadex/contracts/session";
 import type { ReportExport } from "@eyadex/contracts/finance-reports";
@@ -33,7 +41,11 @@ function Suspender(): null {
 
 const handle: { current: ReturnType<typeof useExportDownload> | null } = { current: null };
 function Consumer({ rows }: { rows: ReportExport[] }) {
-  handle.current = useExportDownload(rows, () => undefined);
+  const result = useExportDownload(rows, () => undefined);
+  // Only committed handlers reach a user's click, so the test calls what the last commit exposed.
+  useLayoutEffect(() => {
+    handle.current = result;
+  });
   return null;
 }
 
