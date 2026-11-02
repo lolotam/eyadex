@@ -14,7 +14,8 @@ export const enFinanceReports = {
     descriptions: {
       daily_takings: "Money in and out per day or month, branch and payment method.",
       period_summary: "Invoiced, collected, refunded and credit applied per period and branch.",
-      cash_closings: "Saved drawer closings per day and branch, with expected, counted and difference.",
+      cash_closings:
+        "Saved drawer closings per day and branch, with expected, counted and difference.",
     },
     note: "Periods are clinic business days. A month's money in on Daily takings equals that month's collected amount on Period summary.",
     cashClosingsNote:

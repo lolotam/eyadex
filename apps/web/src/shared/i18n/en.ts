@@ -5,7 +5,6 @@ import { enReportExports } from "./en-report-exports";
 import { enFinanceReports } from "./en-finance-reports";
 import { enNotifications } from "./en-notifications";
 import { enWhatsapp } from "./en-whatsapp";
-import { enClinicCreate } from "./en-clinic-create";
 import { enRoles } from "./en-roles";
 import { enPatients } from "./en-patients";
 import { enAudit } from "./en-audit";

@@ -1,4 +1,5 @@
 // Platform clinics screens (list, create, detail).
+import { enClinicCreate } from "./en-clinic-create";
 export const enClinics = {
   clinics: {
     firstAdmin: {
