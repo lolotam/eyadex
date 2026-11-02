@@ -85,7 +85,7 @@ export function useReportFilters<Q>(report: ScreenReportId, schema: Parser<Q>) {
     filters: { ...filters, branchId },
     zone,
     issues,
-    /** True while a chosen branch is being checked against a list that is still loading. */
+    /** Apart from `query === null`, which also means invalid dates (field errors, never a skeleton). */
     waiting,
     query: parsed.success && !waiting ? parsed.data : null,
     set: (change: Partial<ReportFilters>) => setFilters((old) => ({ ...old, ...change })),

@@ -1,4 +1,5 @@
-// Shared setup for the download hook tests: the real mock client, a done export and a mounted hook.
+// The hook reads its session through mocked providers and delivers files through URL and anchor
+// APIs that jsdom lacks, so every download test builds the same fixture here.
 import { cleanup, renderHook } from "@testing-library/react";
 import { vi } from "vitest";
 import type { ApiClient } from "@/shared/api/api-client";
@@ -9,7 +10,7 @@ import { setup } from "@/shared/api/mock/mock-report-exports.test-kit";
 import { publicExportOf } from "@/shared/api/mock/mock-report-export-state";
 import { useExportDownload } from "./use-export-download";
 
-/** What the mocked providers hand to the real hook; each test file mocks them onto this. */
+/** vi.mock factories are hoisted above imports, so each test file points its mocks at this object. */
 export const context = {
   api: null as ApiClient | null,
   persona: null as Persona | null,

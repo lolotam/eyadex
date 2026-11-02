@@ -6,7 +6,7 @@ import { usePersona, useSession } from "@/shared/persona/persona-provider";
 
 type DownloadState = {
   scope: string;
-  /** Pending requests by request token, each with the row and the access generation it was made under. */
+  /** Keyed by token, not row id: an older request's `finally` must never clear a newer request of the same row. */
   pending: Map<string, { row: string; access: number }>;
   unavailable: Set<string>;
   errors: Record<string, string>;
