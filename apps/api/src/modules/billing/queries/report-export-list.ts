@@ -27,7 +27,7 @@ export async function reportExportList(
     byteSize: number | string | null;
     rowCount: number | string | null;
   }>(sql`SELECT id, report, format, status, created_at AS "createdAt", expires_at AS "expiresAt",
-    byte_size AS "byteSize", row_count AS "rowCount" FROM finance_report_exports
+    plaintext_byte_size AS "byteSize", row_count AS "rowCount" FROM finance_report_exports
     WHERE clinic_id = ${clinicId} AND requested_by = ${membershipId} ${cursor}
     ORDER BY created_at DESC, id DESC LIMIT ${query.limit + 1}`);
   const counts = await tx.execute<{

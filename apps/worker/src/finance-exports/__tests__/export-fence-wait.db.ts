@@ -46,6 +46,7 @@ describe("export lease wait", () => {
     );
     const published = await fence().store.publish(owned(world, exportId, 1), {
       byteSize: 9,
+      storedByteSize: 109,
       rowCount: 1,
       patientIds: null,
     });
@@ -159,6 +160,7 @@ describe("export lease wait", () => {
     expect(secondsFromDbNow(readExport(world.clinicId, exportId)!.lease_until!)).toBeGreaterThan(0);
     const pending = fence().store.publish(owned(world, exportId, 1), {
       byteSize: 12,
+      storedByteSize: 112,
       rowCount: 1,
       patientIds: null,
     });
@@ -176,7 +178,7 @@ describe("export lease wait", () => {
     const exportId = insertExport(world);
     markRunning(world.clinicId, exportId, { attempt: 1, owner: "worker-a", lease: "live" });
     insertBlob(world.clinicId, exportId, 1, "uploaded", "xlsx");
-    const input = { byteSize: 12, rowCount: 1, patientIds: null };
+    const input = { byteSize: 12, storedByteSize: 112, rowCount: 1, patientIds: null };
     expect(await fence().store.publish(owned(world, exportId, 1), input)).toEqual({
       kind: "lost_lease",
     });

@@ -70,6 +70,7 @@ export class PgExportStore implements ExportStore {
     fence: ExportFence,
     input: {
       byteSize: number;
+      storedByteSize: number;
       rowCount: number;
       patientIds: readonly string[] | null;
       patientSet?: "ledger" | null;

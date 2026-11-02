@@ -1,4 +1,5 @@
 import type { PreparedField } from "./export-cells.ts";
+import { xlsxCountValue } from "./export-xlsx-count.ts";
 
 const XML = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
 export const SHEET_NAMESPACE = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
@@ -38,7 +39,7 @@ function letters(index: number): string {
 }
 
 /**
- * بيكتب صف XML واحد؛ المبالغ نص، والعدادات أرقام آمنة، وكل النصوص inline من غير sharedStrings.
+ * بيكتب صف XML واحد؛ المبالغ نص، والعدادات أرقام حتى 15 خانة ونص دقيق بعدها، وكل النصوص inline من غير sharedStrings.
  * @param fields خلايا متحقق منها وبنفس ترتيب أعمدة التقرير
  * @param index رقم الصف داخل الورقة، يبدأ بواحد
  * @returns XML محدود بصف واحد، أو رفض لقيمة غير صالحة
@@ -46,11 +47,13 @@ function letters(index: number): string {
 export function sheetRowXml(fields: readonly PreparedField[], index: number): string {
   const cells = fields.map((field, column) => {
     const address = `${letters(column)}${index}`;
-    if (field.kind === "count") {
-      if (field.value > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error("export_value_invalid");
-      return `<c r="${address}" t="n"><v>${field.value}</v></c>`;
-    }
-    const value = field.kind === "money" ? field.text : field.value;
+    const value =
+      field.kind === "money"
+        ? field.text
+        : field.kind === "count"
+          ? xlsxCountValue(field.value)
+          : field.value;
+    if (typeof value === "number") return `<c r="${address}" t="n"><v>${value}</v></c>`;
     return `<c r="${address}" s="1" t="inlineStr"><is><t xml:space="preserve">${text(value)}</t></is></c>`;
   });
   return `<row r="${index}">${cells.join("")}</row>`;

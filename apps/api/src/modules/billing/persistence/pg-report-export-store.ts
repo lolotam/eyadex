@@ -61,10 +61,10 @@ export class PgReportExportStore implements ReportExportStore {
       status: ReportExportStatus;
       created_at: Date | string;
       expires_at: Date | string | null;
-      byte_size: number | string | null;
+      plaintext_byte_size: number | string | null;
       row_count: number | string | null;
     }>(
-      sql`SELECT id, report, format, status, created_at, expires_at, byte_size, row_count
+      sql`SELECT id, report, format, status, created_at, expires_at, plaintext_byte_size, row_count
           FROM finance_report_exports
           WHERE clinic_id = ${clinicId} AND id = ${exportId} AND requested_by = ${membershipId}`,
     );
@@ -76,7 +76,7 @@ export class PgReportExportStore implements ReportExportStore {
       status: row.status,
       createdAt: instant(row.created_at),
       expiresAt: row.expires_at === null ? null : instant(row.expires_at),
-      byteSize: whole(row.byte_size),
+      byteSize: whole(row.plaintext_byte_size),
       rowCount: whole(row.row_count),
     };
   }

@@ -21,6 +21,8 @@ export interface Lifetime {
   readonly statements: Set<Tracked>;
   /** الـ savepoints اللي اتبدأت من الـ `Tx` ده. */
   readonly savepoints: Set<Tracked>;
+  /** موارد السيرفر التي يجب إغلاقها قبل نجاح المعاملة أو تحرير نقطة الحفظ. */
+  readonly resources: Set<() => Promise<void>>;
 }
 
 /** شغل واحد: الـ promise الداخلية، وهل خلصت، وهل الـ caller شاف اللي رجعله. */
@@ -125,8 +127,8 @@ function chain<R>(
  */
 export const newLifetime = (parent?: Lifetime): Lifetime =>
   parent === undefined
-    ? { live: true, statements: new Set(), savepoints: new Set() }
-    : { live: true, parent, statements: new Set(), savepoints: new Set() };
+    ? { live: true, statements: new Set(), savepoints: new Set(), resources: new Set() }
+    : { live: true, parent, statements: new Set(), savepoints: new Set(), resources: new Set() };
 
 /**
  * @param lifetime عمر الـ `Tx` اللي الدالة اتاخدت منه
@@ -213,5 +215,7 @@ export async function closeLifetime(lifetime: Lifetime): Promise<TenantContextBr
   const statementBreach = [...lifetime.statements].some(unseen);
   await settleLifetime(lifetime);
   if (savepointBreach) return "unfinished-savepoint";
-  return statementBreach ? "unfinished-statement" : undefined;
+  if (statementBreach) return "unfinished-statement";
+  for (const close of lifetime.resources) await close();
+  return undefined;
 }

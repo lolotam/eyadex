@@ -3,7 +3,7 @@ import type { Database, Tx } from "@eyadex/db";
 import { systemUuidV7 } from "@eyadex/ids";
 
 import { DATABASE } from "../../../shared/database.provider.ts";
-import { PgFilingBranches } from "../../tenancy/persistence/pg-filing-branches.ts";
+import { PgFilingBranches } from "../../tenancy/index.ts";
 import type { BillingActor } from "../domain/billing-actor.ts";
 import { PgReportExportStore } from "../persistence/pg-report-export-store.ts";
 import type { BillingBranchReader } from "../ports/billing-branches.ts";

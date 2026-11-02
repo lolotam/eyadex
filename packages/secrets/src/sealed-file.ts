@@ -112,8 +112,10 @@ export class SealedFile {
 
   /** Backpressure is the awaited write; callers must not append concurrently. */
   async append(bytes: Uint8Array, signal: AbortSignal): Promise<void> {
+    signal.throwIfAborted();
     if (this.#finished || this.#closed) throw new Error("sealed_file_closed");
     if (this.#index === 0 && this.#stored === 0) await this.#write(FILE_MAGIC);
+    signal.throwIfAborted();
     let offset = 0;
     while (offset < bytes.length) {
       signal.throwIfAborted();
@@ -122,7 +124,9 @@ export class SealedFile {
       this.#pendingLength += length;
       offset += length;
       if (this.#pendingLength === PLAIN_CHUNK_BYTES) await this.#flush();
+      signal.throwIfAborted();
     }
+    signal.throwIfAborted();
   }
 
   async #flush(): Promise<void> {

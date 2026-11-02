@@ -1,4 +1,5 @@
 import writeXlsxFile, { type Feature } from "write-excel-file/node";
+import { xlsxCountValue } from "./export-xlsx-count.ts";
 
 import { prepareReportExport, type PreparedField, type ReportExportInput } from "./export-cells.ts";
 
@@ -17,20 +18,14 @@ function textCell(value: string): TextCell {
 }
 
 /**
- * التحويل لـ `Number` بعد التحقق الكنسي فقط. أكبر من الحد الآمن مش سقف أعمال،
- * لكنه ماينكتبش رقمًا مقرّبًا.
+ * التحويل لـ `Number` بعد التحقق الكنسي فقط. أكبر من حد Excel مش سقف أعمال،
+ * لكنه ماينكتبش رقمًا مقرّبًا؛ يتكتب نصًا دقيقًا بدلًا من كده.
  */
-function countNumber(value: bigint): number | null {
-  if (value > BigInt(Number.MAX_SAFE_INTEGER)) return null;
-  return Number(value);
-}
-
-function sheetCell(field: PreparedField): TextCell | NumberCell | null {
+function sheetCell(field: PreparedField): TextCell | NumberCell {
   if (field.kind === "money") return textCell(field.text);
   if (field.kind === "text") return textCell(field.value);
-  const value = countNumber(field.value);
-  if (value === null) return null;
-  return { type: Number, value };
+  const value = xlsxCountValue(field.value);
+  return typeof value === "string" ? textCell(value) : { type: Number, value };
 }
 
 const SHEET_XML = "xl/worksheets/sheet1.xml";
@@ -134,25 +129,13 @@ function sheetTextFeature<TFile>(owned: ReadonlyMap<string, string>): Feature<TF
   };
 }
 
-function sheetRows(
-  rows: readonly (readonly PreparedField[])[],
-): (TextCell | NumberCell)[][] | null {
-  const built: (TextCell | NumberCell)[][] = [];
-  for (const row of rows) {
-    const cells: (TextCell | NumberCell)[] = [];
-    for (const field of row) {
-      const cell = sheetCell(field);
-      if (cell === null) return null;
-      cells.push(cell);
-    }
-    built.push(cells);
-  }
-  return built;
+function sheetRows(rows: readonly (readonly PreparedField[])[]): (TextCell | NumberCell)[][] {
+  return rows.map((row) => row.map(sheetCell));
 }
 
 /**
  * يكتب تقريرًا واحدًا كـ XLSX في الذاكرة، بورقة واحدة. المبلغ نص عشري متعارف عليه
- * ونوعه نص، والعداد رقم بعد التحقق. حارس الصيغة على كل نص حر، ومش على المبلغ.
+ * ونوعه نص، والعداد رقم حتى 15 خانة ونص دقيق بعدها. حارس الصيغة على كل نص حر، ومش على المبلغ.
  * نص فيه محرف XML 1.0 ممنوع يترفض من غير بايتات ومن غير قص.
  *
  * @param input التقرير، ولغة الترويسات، وصفوف مطبّعة بمفاتيح الأعمدة
@@ -163,7 +146,6 @@ export async function writeReportXlsx(input: ReportExportInput): Promise<ReportX
   if (!prepared.ok) return prepared;
   if (!prepared.header.every(isXml10Text)) return invalid();
   const rows = sheetRows(prepared.rows);
-  if (rows === null) return invalid();
   const sheet = [prepared.header.map(textCell), ...rows];
   const owned = ownedText(sheet);
   if (![...owned.values()].every(isXml10Text)) return invalid();

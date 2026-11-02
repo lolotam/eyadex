@@ -4,11 +4,10 @@ import { describe, expect, it } from "vitest";
 
 import { count, money, row, text } from "./export-csv-rows.ts";
 import type { XlsxCell } from "./export-xlsx-xml.ts";
-import { refused, sheetOf, written } from "./export-xlsx-run.ts";
+import { sheetOf } from "./export-xlsx-run.ts";
 
 const HUGE = "123456789012345678901234";
 const NINETEEN = "1234567890123456789";
-const LEAK = "LEAK-marker";
 
 function at(cells: readonly XlsxCell[], key: string): XlsxCell {
   const index = REPORT_EXPORT_COLUMNS.own_summary.findIndex((column) => column.key === key);
@@ -84,7 +83,7 @@ describe("writeReportXlsx amounts", () => {
     expect(cell).toMatchObject({ kind: "text", value: minor, format: "@" });
   });
 
-  it("types a count as a number after validation and does not cap a safe wide count", async () => {
+  it("keeps small counts numeric and writes 16-digit counts as exact text", async () => {
     const wide = 1000000000000001n;
     const sheet = await sheetOf("by_service", [
       row("by_service", {
@@ -98,20 +97,27 @@ describe("writeReportXlsx amounts", () => {
     const quantity = sheet.rows[1]?.[keys.indexOf("quantity")];
     const amount = sheet.rows[1]?.[keys.indexOf("amountMinor")];
     expect(line).toMatchObject({ kind: "number", value: "15" });
-    expect(quantity).toMatchObject({ kind: "number", value: wide.toString() });
+    expect(quantity).toMatchObject({ kind: "text", value: wide.toString(), format: "@" });
     expect(amount).toMatchObject({ kind: "text", value: "0.000", format: "@" });
     expect(line?.format).not.toBe("@");
   });
 
-  it("refuses a count that a JS number cannot preserve, with no bytes", async () => {
-    await refused(
-      written("by_service", [
-        row("by_service", {
-          quantity: count(BigInt(Number.MAX_SAFE_INTEGER) + 1n),
-          name: text(LEAK),
-        }),
-      ]),
-      LEAK,
-    );
-  });
+  it.each([
+    [999_999_999_999_999n, "number"],
+    [1_000_000_000_000_000n, "text"],
+    [1_000_000_000_000_001n, "text"],
+    [9_007_199_254_740_991n, "text"],
+    [9_007_199_254_740_992n, "text"],
+    [123456789012345678901234n, "text"],
+  ] as const)(
+    "reads back count %s exactly across Excel's 15-digit boundary",
+    async (value, kind) => {
+      const sheet = await sheetOf("by_service", [row("by_service", { quantity: count(value) })]);
+      const index = REPORT_EXPORT_COLUMNS.by_service.findIndex(
+        (column) => column.key === "quantity",
+      );
+      expect(sheet.rows[1]?.[index]).toMatchObject({ kind, value: value.toString() });
+      if (kind === "text") expect(sheet.rows[1]?.[index]?.format).toBe("@");
+    },
+  );
 });

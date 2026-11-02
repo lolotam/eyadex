@@ -101,7 +101,8 @@ export class ExportRunner {
       controller.signal.throwIfAborted();
       // A publish already sent is awaited even on cancellation, before any cleanup decision.
       const result = await this.deps.store.publish(fence, {
-        byteSize: writer.file.storedLength,
+        byteSize: writer.file.plainLength,
+        storedByteSize: writer.file.storedLength,
         rowCount: writer.rowCount,
         patientIds: data.patientSet === "ledger" ? [] : null,
         patientSet: data.patientSet,

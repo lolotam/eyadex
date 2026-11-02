@@ -7,15 +7,42 @@ export const TRIGGERS = ["=", "+", "-", "@", "\t", "\n", "\r"] as const;
 export const FITS = 999999999999999n;
 export const OVER = 1000000000000001n;
 
+/**
+ * ينشئ خلية نص لاختبار حفظ القيمة وحارس الصيغ.
+ * @param value النص أو الخلية الفارغة
+ * @returns خلية نص جاهزة للاختبار
+ */
 export const text = (value: string | null): ExportCell => ({ kind: "text", value });
+/**
+ * ينشئ خلية تاريخ من غير تحويل المنطقة الزمنية.
+ * @param value التاريخ النصي
+ * @returns خلية تاريخ للاختبار
+ */
 export const date = (value: string): ExportCell => ({ kind: "date", value });
+/**
+ * ينشئ مبلغًا دقيقًا لاختبار كتابة الوحدات الصغيرة.
+ * @param minor المبلغ بوحداته الصغيرة
+ * @param exponent أس العملة
+ * @returns خلية مبلغ للاختبار
+ */
 export const money = (minor: bigint | string, exponent: number): ExportCell => ({
   kind: "money",
   minor,
   exponent,
 });
+/**
+ * ينشئ عدادًا لاختبار حدود الدقة.
+ * @param value العدد قبل التحقق
+ * @returns خلية عداد للاختبار
+ */
 export const count = (value: bigint | string | number): ExportCell => ({ kind: "count", value });
 
+/**
+ * يبني صفًا مطابقًا لأعمدة التقرير مع استبدالات الحالة المختبرة.
+ * @param report معرّف التقرير
+ * @param overrides الخلايا المطلوب استبدالها
+ * @returns صف مكتمل بمفاتيح أعمدة التقرير
+ */
 export function row(report: ReportId, overrides: Readonly<Record<string, ExportCell>> = {}) {
   const cells: Record<string, ExportCell> = {};
   for (const column of REPORT_EXPORT_COLUMNS[report]) {
@@ -32,6 +59,13 @@ export function row(report: ReportId, overrides: Readonly<Record<string, ExportC
   return cells;
 }
 
+/**
+ * يشغّل كاتب CSV بمدخلات الاختبار.
+ * @param report معرّف التقرير
+ * @param rows صفوف البيانات
+ * @param language لغة الترويسات
+ * @returns نتيجة الكاتب بالبايتات أو سبب الرفض
+ */
 export function written(
   report: ReportId,
   rows: Readonly<Record<string, ExportCell>>[],
@@ -40,7 +74,11 @@ export function written(
   return writeReportCsv({ report, language, rows });
 }
 
-/** يفك بايتات الملف لخلايا، بعد ما يتأكد من الـ BOM. */
+/**
+ * يفك بايتات الملف لخلايا، بعد ما يتأكد من الـ BOM.
+ * @param bytes بايتات CSV الناتجة
+ * @returns صفوف الخلايا بعد فك الاقتباس
+ */
 export function parseCsv(bytes: Uint8Array): string[][] {
   expect(bytes[0]).toBe(0xef);
   expect(bytes[1]).toBe(0xbb);
@@ -89,6 +127,11 @@ export function parseCsv(bytes: Uint8Array): string[][] {
   return rows;
 }
 
+/**
+ * يثبت نجاح الكاتب قبل إتاحة بايتاته للاختبار.
+ * @param result نتيجة كاتب CSV
+ * @returns البايتات وعدد الصفوف بعد تأكيد النجاح
+ */
 export function success(result: ReportCsvResult): { bytes: Uint8Array; rowCount: number } {
   expect(result).toMatchObject({ ok: true });
   if (!result.ok) throw new Error("expected csv bytes");
