@@ -31,7 +31,7 @@ export function ReportTable<T>({ caption, columns, rows, rowKey, totals, groupOf
     (index === 0 || groupOf(rows[index - 1] as T) !== groupOf(rows[index] as T));
   return (
     <div className="min-w-0" data-testid="report-table">
-      <table className="hidden w-full border-collapse rounded-md border bg-card text-sm md:table">
+      <table className="hidden w-full border-collapse rounded-md border bg-card text-sm md:table print:table">
         <caption className="sr-only">{caption}</caption>
         <thead>
           <tr className="border-b bg-muted/40">
@@ -80,7 +80,7 @@ export function ReportTable<T>({ caption, columns, rows, rowKey, totals, groupOf
           </tr>
         </tfoot>
       </table>
-      <ul className="flex flex-col gap-2 md:hidden" aria-label={caption}>
+      <ul className="flex flex-col gap-2 md:hidden print:hidden" aria-label={caption}>
         {rows.map((row, index) => (
           <li key={rowKey(row, index)} className="rounded-md border bg-card p-3">
             {groupStarts(index) ? (
