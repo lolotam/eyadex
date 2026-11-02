@@ -32,7 +32,7 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
     session?.blocked ?? null,
     session?.features.finance ?? null,
   ]);
-  const live = useRef({ scope, rows, ready: false });
+  const live = useRef({ scope, rows, access, ready: false });
   const generation = useRef({ scope, value: 0 });
   if (generation.current.scope !== scope)
     generation.current = { scope, value: generation.current.value + 1 };
@@ -40,6 +40,7 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
   live.current = {
     scope,
     rows,
+    access,
     ready:
       ready &&
       !isLoading &&
@@ -108,7 +109,11 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
     );
   }
   function download(row: ReportExport): Promise<void> {
-    const token = JSON.stringify([scope, epoch, row.id]);
+    // The access snapshot is part of the key: a request made under older access can neither block a
+    // retry under the current access nor apply its late answer to it.
+    const started = access;
+    const token = JSON.stringify([scope, epoch, started, row.id]);
+    const sameAccess = () => current() && live.current.access === started;
     const prior = inFlight.current.get(token);
     if (prior) return prior;
     if (
@@ -129,7 +134,7 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
         const blob = await api.reports.downloadExport(persona, row.id);
         // The identity and visible DTO must still belong to this mounted consumer after bytes arrive.
         if (
-          !current() ||
+          !sameAccess() ||
           !live.current.rows.some(
             (item) => item.id === row.id && item.status === "done" && item.format === row.format,
           ) ||
@@ -148,7 +153,7 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
           URL.revokeObjectURL(url);
         }
       } catch (failure) {
-        if (!current()) return;
+        if (!sameAccess()) return;
         const code = errorKeyOf(failure);
         if (code === "forbidden" || code === "not_found") {
           const denied = unavailable.current.get(scope) ?? new Set<string>();
@@ -175,7 +180,8 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
         } else update((old) => ({ ...old, errors: { ...old.errors, [row.id]: code } }));
       } finally {
         inFlight.current.delete(token);
-        update((old) => {
+        if (live.current.access === started)
+          update((old) => {
           const pending = new Set(old.pending);
           pending.delete(row.id);
           return { ...old, pending };
