@@ -198,7 +198,11 @@ it("a change of branch reach refetches the report and never keeps rows from the 
   await screen.findAllByTestId("report-row");
   expect(spy).toHaveBeenCalledTimes(1);
   const wide = context.session;
-  context.session = wide && { ...wide, allBranches: false, branchIds: ["00000000-0000-7000-8000-0000000000b9"] };
+  context.session = wide && {
+    ...wide,
+    allBranches: false,
+    branchIds: ["00000000-0000-7000-8000-0000000000b9"],
+  };
   view.rerender(tree());
   await waitFor(() => expect(spy).toHaveBeenCalledTimes(2));
 });

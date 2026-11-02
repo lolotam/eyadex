@@ -33,7 +33,12 @@ beforeEach(() => resetMockData());
 const KEY_1 = "00000000-0000-4000-8000-000000000001";
 const KEY_2 = "00000000-0000-4000-8000-000000000002";
 
-async function closeDrawer(branchId: string, countedMinor: string, note: string | null, key: string) {
+async function closeDrawer(
+  branchId: string,
+  countedMinor: string,
+  note: string | null,
+  key: string,
+) {
   const preview = await seedApi.cashClosings.preview(admin(), branchId);
   await seedApi.cashClosings.close(
     admin(),
