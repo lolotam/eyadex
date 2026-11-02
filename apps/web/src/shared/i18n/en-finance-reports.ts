@@ -76,6 +76,7 @@ export const enFinanceReports = {
     cashClosings: {
       noteYes: "Has a note",
       noteNo: "No note",
+      noValue: "—",
       shortage: "Shortage",
       over: "Over",
       openClosing: "Open closing of {day}",

@@ -6,8 +6,8 @@ import { usePersona, useSession } from "@/shared/persona/persona-provider";
 
 type DownloadState = {
   scope: string;
-  /** Pending requests by request token, each with the row and the access it was made under. */
-  pending: Map<string, { row: string; access: string }>;
+  /** Pending requests by request token, each with the row and the access generation it was made under. */
+  pending: Map<string, { row: string; access: number }>;
   unavailable: Set<string>;
   errors: Record<string, string>;
 };
@@ -33,15 +33,21 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
     session?.blocked ?? null,
     session?.features.finance ?? null,
   ]);
-  const live = useRef({ scope, rows, access, ready: false });
   const generation = useRef({ scope, value: 0 });
   if (generation.current.scope !== scope)
     generation.current = { scope, value: generation.current.value + 1 };
   const epoch = generation.current.value;
+  // A counter, not the fingerprint: access that goes A -> B -> A is a new generation, so a request
+  // made under the first A can neither be returned to a retry nor apply its late answer.
+  const accessGeneration = useRef({ access, value: 0 });
+  if (accessGeneration.current.access !== access)
+    accessGeneration.current = { access, value: accessGeneration.current.value + 1 };
+  const accessEpoch = accessGeneration.current.value;
+  const live = useRef({ scope, rows, accessEpoch, ready: false });
   live.current = {
     scope,
     rows,
-    access,
+    accessEpoch,
     ready:
       ready &&
       !isLoading &&
@@ -70,10 +76,10 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
     unavailable.current.clear();
     setState({ scope, pending: new Map(), unavailable: new Set(), errors: {} });
   }, [scope]);
-  const seenAccess = useRef(access);
+  const seenAccess = useRef(accessEpoch);
   useEffect(() => {
-    if (seenAccess.current === access) return;
-    seenAccess.current = access;
+    if (seenAccess.current === accessEpoch) return;
+    seenAccess.current = accessEpoch;
     unavailable.current.clear();
     setState((old) => {
       const errors = Object.fromEntries(
@@ -82,10 +88,10 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
         ),
       );
       // An older access's requests can no longer block or report; only this access's stay.
-      const pending = new Map([...old.pending].filter(([, entry]) => entry.access === access));
+      const pending = new Map([...old.pending].filter(([, entry]) => entry.access === accessEpoch));
       return { ...old, pending, unavailable: new Set(), errors };
     });
-  }, [access]);
+  }, [accessEpoch]);
   const current = () =>
     mounted.current &&
     live.current.scope === scope &&
@@ -112,11 +118,11 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
     );
   }
   function download(row: ReportExport): Promise<void> {
-    // The access snapshot is part of the key: a request made under older access can neither block a
-    // retry under the current access nor apply its late answer to it.
-    const started = access;
+    // The access generation is part of the key: a request made under older access can neither block
+    // a retry under the current access nor apply its late answer to it.
+    const started = accessEpoch;
     const token = JSON.stringify([scope, epoch, started, row.id]);
-    const sameAccess = () => current() && live.current.access === started;
+    const sameAccess = () => current() && live.current.accessEpoch === started;
     const prior = inFlight.current.get(token);
     if (prior) return prior;
     if (
@@ -195,7 +201,9 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
   }
   const own = state.scope === scope;
   const pending = new Set<string>(
-    own ? [...state.pending.values()].filter((e) => e.access === access).map((e) => e.row) : [],
+    own
+      ? [...state.pending.values()].filter((e) => e.access === accessEpoch).map((e) => e.row)
+      : [],
   );
   return {
     pending,

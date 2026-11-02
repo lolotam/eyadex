@@ -42,19 +42,23 @@ export function useReportFilters<Q>(report: ScreenReportId, schema: Parser<Q>) {
     branchId: null,
     groupBy: SCREEN_GROUP_DEFAULT[report] ?? null,
   }));
-  // The same cached branch list the filters bar shows. A chosen branch is sent only while it is in
-  // the loaded list: if reach narrows it is dropped back to all branches (never sent to be refused),
-  // and while the list reloads the query waits instead of sending the old choice.
+  // The same cached branch list the filters bar shows. A chosen branch is sent only while the loaded
+  // list holds it. If reach narrows past it, or the list cannot be loaded (so the choice cannot be
+  // checked), it falls back to all branches in reach: the report stays usable, the picker shows the
+  // fallback and its retry notice, and nothing is sent to be refused. While the list loads for the
+  // first time under this access, the report shows its loading state instead of a blank.
   const branches = useExportBranchOptions(report);
   const chosen = filters.branchId;
-  const outOfReach =
-    chosen !== null && branches.isReady && !branches.items.some((b) => b.id === chosen);
-  const waiting = chosen !== null && !branches.isReady;
-  const branchId = outOfReach ? null : chosen;
+  const loaded = branches.isEligible && !branches.isLoading && branches.error === null;
+  const dropChoice =
+    chosen !== null &&
+    (branches.error !== null || (loaded && !branches.items.some((b) => b.id === chosen)));
+  const waiting = chosen !== null && !dropChoice && !loaded;
+  const branchId = dropChoice ? null : chosen;
   useEffect(() => {
-    if (outOfReach)
+    if (dropChoice)
       setFilters((old) => (old.branchId === chosen ? { ...old, branchId: null } : old));
-  }, [outOfReach, chosen]);
+  }, [dropChoice, chosen]);
   const parsed = schema.safeParse({
     from: filters.from,
     to: filters.to,
@@ -81,6 +85,8 @@ export function useReportFilters<Q>(report: ScreenReportId, schema: Parser<Q>) {
     filters: { ...filters, branchId },
     zone,
     issues,
+    /** True while a chosen branch is being checked against a list that is still loading. */
+    waiting,
     query: parsed.success && !waiting ? parsed.data : null,
     set: (change: Partial<ReportFilters>) => setFilters((old) => ({ ...old, ...change })),
   };

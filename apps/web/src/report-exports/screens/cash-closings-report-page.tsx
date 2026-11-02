@@ -40,9 +40,9 @@ export function CashClosingsReportPage() {
       issues={f.issues}
       onChange={f.set}
     >
-      {f.query === null ? null : (
+      {f.query === null && !f.waiting ? null : (
         <ReportContent
-          loading={q.isLoading}
+          loading={f.waiting || q.isLoading}
           error={q.error}
           empty={!data || data.rows.length === 0}
           onRetry={q.retry}

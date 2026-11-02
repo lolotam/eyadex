@@ -78,6 +78,7 @@ export const arFinanceReports: Strings<typeof enFinanceReports> = {
     cashClosings: {
       noteYes: "فيه ملاحظة",
       noteNo: "لا توجد ملاحظة",
+      noValue: "—",
       shortage: "عجز",
       over: "زيادة",
       openClosing: "فتح إقفال يوم {day}",

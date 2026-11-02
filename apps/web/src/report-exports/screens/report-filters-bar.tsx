@@ -52,7 +52,7 @@ export function ReportFiltersBar({ report, filters, zone, issues, onChange }: Pr
         <ExportSelectField
           id={`${uid}-branch`}
           label={t("financeReports.filters.branch")}
-          value={branches.isReady ? (filters.branchId ?? ALL) : ""}
+          value={branches.isLoading ? "" : (filters.branchId ?? ALL)}
           options={[
             { value: ALL, label: t("financeReports.filters.allBranches") },
             ...branches.items.map((b) => ({
@@ -63,7 +63,7 @@ export function ReportFiltersBar({ report, filters, zone, issues, onChange }: Pr
             })),
           ]}
           onChange={(value) => onChange({ branchId: value === ALL ? null : value })}
-          disabled={!branches.isReady}
+          disabled={branches.isLoading}
         />
         {groupable ? (
           <ExportSelectField

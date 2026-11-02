@@ -56,7 +56,7 @@ export function useCashClosingColumns(fmt: Format, canOpenClosing: boolean) {
     {
       key: "closedBy",
       label: t("financeReports.columns.closedBy"),
-      cell: (r) => r.closedByName ?? "—",
+      cell: (r) => r.closedByName ?? t("financeReports.cashClosings.noValue"),
     },
     {
       key: "note",
