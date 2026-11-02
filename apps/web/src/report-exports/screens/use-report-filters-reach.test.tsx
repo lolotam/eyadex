@@ -1,8 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
-import { getState } from "@/shared/api/mock/mock-state";
-import { clinicIdAt, resetMockData } from "@/shared/api/mock/mock-test-kit";
+import { clinicIdAt, getState, resetMockData } from "@/shared/api/mock/mock-test-kit";
 import { personaWith } from "@/shared/api/mock/mock-report-test-kit";
 import { ar } from "@/shared/i18n/ar";
 import { I18nProvider } from "@/shared/i18n/i18n-provider";

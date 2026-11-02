@@ -1,7 +1,6 @@
 import { screen, within } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
-import { getState } from "@/shared/api/mock/mock-state";
-import { as, clinicIdAt, resetMockData } from "@/shared/api/mock/mock-test-kit";
+import { as, clinicIdAt, getState, resetMockData } from "@/shared/api/mock/mock-test-kit";
 import {
   api as seedApi,
   admin,
