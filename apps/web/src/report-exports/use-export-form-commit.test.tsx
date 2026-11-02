@@ -150,3 +150,30 @@ it("correcting an invalid date clears its feedback without a POST", async () => 
   expect(h.result.current.issues.filter((i) => i.path === "to" || i.path === "from")).toEqual([]);
   expect(post).not.toHaveBeenCalled();
 });
+
+it("a locally blocked submit after correcting the dates does not revive the old date errors", async () => {
+  const { h, post } = await setup(false);
+  act(() => {
+    h.result.current.setReport("daily_takings");
+    h.result.current.setFrom("2026-12-31");
+    h.result.current.setTo("2026-01-01");
+  });
+  await flush();
+  await act(async () => void (await h.result.current.submit()));
+  const dated = () => h.result.current.issues.filter((i) => i.path === "to" || i.path === "from");
+  expect(dated().length).toBeGreaterThan(0);
+  act(() => {
+    h.result.current.setFrom("2026-01-01");
+    h.result.current.setTo("2026-01-31");
+  });
+  expect(dated()).toEqual([]);
+  // Changing the report restarts its branch list, so the next submit is blocked locally.
+  act(() => h.result.current.setReport("cash_closings"));
+  let outcome: Awaited<ReturnType<typeof h.result.current.submit>> | undefined;
+  await act(async () => {
+    outcome = await h.result.current.submit();
+  });
+  expect(outcome?.status).toBe("blocked");
+  expect(dated()).toEqual([]);
+  expect(post).not.toHaveBeenCalled();
+});

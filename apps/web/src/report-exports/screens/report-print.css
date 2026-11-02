@@ -1,0 +1,19 @@
+/* A report screen prints its title, note and table only: the app's navigation stays on screen. */
+@media print {
+  /* styles.css hides everything but the prescription sheet when printing; show this report again. */
+  [data-report-print],
+  [data-report-print] * {
+    visibility: visible;
+  }
+  body:has([data-report-print]) aside,
+  body:has([data-report-print]) header {
+    display: none !important;
+  }
+  [data-report-print] {
+    max-width: none !important;
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-start: 0;
+    width: 100%;
+  }
+}

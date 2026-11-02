@@ -16,6 +16,17 @@ vi.mock("@/shared/persona/persona-provider", () => ({
   usePersona: () => ({ persona: kit.context.persona, ready: true }),
   useSession: () => ({ session: kit.context.session, isLoading: false, error: null }),
 }));
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({
+    children,
+    to,
+    params,
+  }: {
+    children: unknown;
+    to: string;
+    params?: { reportId: string };
+  }) => <a href={params ? to.replace("$reportId", params.reportId) : to}>{children as never}</a>,
+}));
 vi.mock("./export-select-field", () => ({
   ExportSelectField: (p: Parameters<typeof NativeSelect>[0]) => NativeSelect(p),
 }));
@@ -62,7 +73,12 @@ it("renders the heading, then the form, then the requester's own history", async
   renderPage();
   await flush();
   const h1 = screen.getByRole("heading", { level: 1, name: ar.routes.clinicReports.title });
+  const cards = screen.getByRole("heading", { level: 2, name: ar.financeReports.available.title });
   const form = screen.getByRole("heading", { level: 2, name: R.title });
+  expect(cards.compareDocumentPosition(form) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(screen.getByRole("link", { name: /الإيراد اليومي/ }).getAttribute("href")).toBe(
+    "/clinic/reports/daily_takings",
+  );
   const history = screen.getByRole("heading", { level: 2, name: H.title });
   expect(h1.compareDocumentPosition(form) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(form.compareDocumentPosition(history) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();

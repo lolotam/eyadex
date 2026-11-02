@@ -1,0 +1,63 @@
+// Finance F3 on-screen report strings (spec §3–§6).
+export const enFinanceReports = {
+  financeReports: {
+    available: {
+      title: "Available reports",
+      subtitle: "Reports you can open with your permissions.",
+      open: "Open report",
+    },
+    names: { daily_takings: "Daily takings", period_summary: "Period summary" },
+    descriptions: {
+      daily_takings: "Money in and out per day or month, branch and payment method.",
+      period_summary: "Invoiced, collected, refunded and credit applied per period and branch.",
+    },
+    note: "Periods are clinic business days. A month's money in on Daily takings equals that month's collected amount on Period summary.",
+    creditHelp: "Credit applied is information only; it is not collected money.",
+    filters: {
+      title: "Filters",
+      from: "From",
+      to: "To",
+      zoneHint: "Days follow the clinic's time zone ({zone}).",
+      branch: "Branch",
+      allBranches: "All branches in your reach",
+      inactive: "{name} (inactive)",
+      branchesError: "The branch list could not be loaded.",
+      groupBy: "Group by",
+      group: { day: "Day", month: "Month" },
+    },
+    issues: {
+      required: "Enter a date.",
+      date: "Enter a valid date.",
+      dateOrder: "The end date must be on or after the start date.",
+      rangeTooLong: "A report on screen covers at most 366 days.",
+    },
+    states: {
+      loading: "Loading the report…",
+      empty: "No data in this period",
+      error: "The report could not be loaded.",
+      retry: "Try again",
+    },
+    actions: {
+      export: "Export this report",
+      print: "Print",
+      back: "All reports",
+    },
+    exportTitle: "Export this report",
+    total: "Total",
+    columns: {
+      period: "Period",
+      branch: "Branch",
+      method: "Method",
+      in: "In",
+      out: "Out",
+      net: "Net",
+      invoiced: "Invoiced",
+      discount: "Discount",
+      tax: "Tax",
+      collected: "Collected",
+      refunded: "Refunded",
+      creditApplied: "Credit applied",
+      voidCount: "Voided invoices",
+    },
+  },
+};
