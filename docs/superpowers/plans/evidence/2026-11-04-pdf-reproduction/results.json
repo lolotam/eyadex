@@ -139,7 +139,7 @@
           "failedField": "مُراجِع تجريبي",
           "matchedFields": 0
         },
-        "numericUnchanged": false
+        "numericUnchanged": null
       },
       "correction": "unsupported_marked_text",
       "accepted": false,

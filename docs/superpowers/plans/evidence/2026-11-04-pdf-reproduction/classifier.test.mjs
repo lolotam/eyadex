@@ -29,15 +29,21 @@ function fixture(visual) {
   };
 }
 
-for (const visual of ["١٥", "١٬٢٣٤٫٥٠٠", "١٥/١٠/٢٠٢٦", "جلسة١٥", "Invoice"]) {
+for (const visual of ["١٥", "١٬٢٣٤٫٥٠٠", "١٥/١٠/٢٠٢٦", "Invoice"]) {
   const input = fixture(visual);
   const result = correct(structuredClone(input));
   assert.equal(result.spans, 0, visual);
   assert.deepEqual(
     result.document,
     input,
-    "numeric and mixed runs must remain byte-for-byte unchanged",
+    "numeric and Latin runs must remain byte-for-byte unchanged",
   );
 }
 assert.throws(() => correct(fixture("مُراجع")), /unsupported_marked_text/);
 assert.throws(() => correct(fixture("ُ")), /unsupported_marked_text/);
+for (const visual of ["جلسة١٥", "جلسة،", "جلـسة", "جلسة ", "جلسةInvoice"]) {
+  assert.throws(() => correct(fixture(visual)), /unsupported_mixed_run/, visual);
+}
+for (const visual of ["مُراجع١٥", "مُراجع،", "مُراجع ", "مُراجعInvoice"]) {
+  assert.throws(() => correct(fixture(visual)), /unsupported_marked_text/, visual);
+}

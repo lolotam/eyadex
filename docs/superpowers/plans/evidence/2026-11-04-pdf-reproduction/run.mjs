@@ -114,6 +114,7 @@ async function extract(file, expected) {
     }
     const js = clean(text.join(" "));
     const poppler = clean(child("/usr/local/bin/pdftotext", ["-raw", file, "-"]).toString("utf8"));
+    const presentNumeric = numeric.map(clean).filter((field) => expected.includes(field));
     for (const forbidden of corpus.forbiddenRenderedText) {
       assert(
         !js.includes(forbidden) && !poppler.includes(forbidden),
@@ -126,9 +127,9 @@ async function extract(file, expected) {
       popplerMisses: expected.filter((field) => !hasField(poppler, field)),
       pdfjsOrder: orderedFields(js, expected.map(clean)),
       popplerOrder: orderedFields(poppler, expected.map(clean)),
-      numericUnchanged: numeric.every(
-        (field) => hasField(js, clean(field)) && hasField(poppler, clean(field)),
-      ),
+      numericUnchanged: presentNumeric.length
+        ? presentNumeric.every((field) => hasField(js, field) && hasField(poppler, field))
+        : null,
     };
   } finally {
     await loading.destroy();
@@ -220,6 +221,7 @@ for (const weight of ["regular", "bold"]) {
 // Required text which the simple fixture transform cannot yet handle is a visible release blocker.
 const marked = render("marked-name", ["مُراجِع تجريبي"], "regular", false);
 const markedRaw = await extract(`${output}/marked-name-raw.pdf`, marked.expected);
+assert.equal(markedRaw.numericUnchanged, null);
 assert(markedRaw.pdfjsMisses.length > 0 && markedRaw.popplerMisses.length > 0);
 assert.throws(() => correct(marked.json), /unsupported_marked_text/);
 results.cases.push({
