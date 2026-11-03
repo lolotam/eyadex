@@ -4,7 +4,13 @@ import { ApiError } from "@/shared/api/api-error";
 import { resetMockData } from "@/shared/api/mock/mock-test-kit";
 import { personaWith } from "@/shared/api/mock/mock-report-test-kit";
 import { ar } from "@/shared/i18n/ar";
-import { context, renderScreen, signIn, TestLink } from "./report-screens.test-kit";
+import {
+  context,
+  previousMonthStart,
+  renderScreen,
+  signIn,
+  TestLink,
+} from "./report-screens.test-kit";
 import { formatReportMinor, sumMinor } from "./report-money";
 import { ReportScreenPage } from "./report-screen-page";
 import { deferred } from "./outstanding-report.fixtures";
@@ -75,7 +81,7 @@ it("shows no branch picker and never sends branchId, while the dates stay editab
   await waitFor(() => expect(rows()).toHaveLength(3));
   expect(screen.queryByLabelText(ar.financeReports.filters.branch)).toBeNull();
   fireEvent.change(screen.getByLabelText(ar.financeReports.filters.from), {
-    target: { value: "2026-10-02" },
+    target: { value: previousMonthStart() },
   });
   await waitFor(() => expect(spy.mock.calls.length).toBeGreaterThan(1));
   for (const call of spy.mock.calls) expect(call[1]).not.toHaveProperty("branchId");
@@ -112,7 +118,7 @@ it("a filter change restarts at page 1 and a late page of the old filter is igno
   await waitFor(() => expect(rows()).toHaveLength(1));
   fireEvent.click(screen.getByRole("button", { name: O.loadMore }));
   fireEvent.change(screen.getByLabelText(ar.financeReports.filters.from), {
-    target: { value: "2026-10-02" },
+    target: { value: previousMonthStart() },
   });
   await waitFor(() => expect(screen.getAllByText("Credit Person 3").length).toBeGreaterThan(0));
   await act(async () => late.resolve(creditPage([ALL[1]!], ALL, null)));
@@ -128,7 +134,7 @@ it("a late first page of the old filter never replaces the new list", async () =
     return call === 1 ? late.promise : creditPage([ALL[2]!], [ALL[2]!], null);
   });
   fireEvent.change(screen.getByLabelText(ar.financeReports.filters.from), {
-    target: { value: "2026-10-02" },
+    target: { value: previousMonthStart() },
   });
   await waitFor(() => expect(screen.getAllByText("Credit Person 3").length).toBeGreaterThan(0));
   await act(async () => late.resolve(creditPage([ALL[0]!], ALL, null)));

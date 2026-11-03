@@ -4,7 +4,13 @@ import { ApiError } from "@/shared/api/api-error";
 import { resetMockData } from "@/shared/api/mock/mock-test-kit";
 import { personaWith } from "@/shared/api/mock/mock-report-test-kit";
 import { ar } from "@/shared/i18n/ar";
-import { context, renderScreen, signIn, TestLink } from "./report-screens.test-kit";
+import {
+  context,
+  dayAfterDefaultFrom,
+  renderScreen,
+  signIn,
+  TestLink,
+} from "./report-screens.test-kit";
 import { bucketTotals } from "./outstanding-summary";
 import { formatReportMinor, sumMinor } from "./report-money";
 import { ReportScreenPage } from "./report-screen-page";
@@ -96,7 +102,7 @@ it("a filter change restarts at page 1 and a late page of the old filter is igno
   await waitFor(() => expect(rows()).toHaveLength(1));
   fireEvent.click(screen.getByRole("button", { name: O.loadMore }));
   fireEvent.change(screen.getByLabelText(ar.financeReports.filters.from), {
-    target: { value: "2026-10-02" },
+    target: { value: dayAfterDefaultFrom() },
   });
   await waitFor(() => expect(screen.getAllByText("T-4").length).toBeGreaterThan(0));
   await act(async () => late.resolve(page([ALL[1]!], ALL, null)));
