@@ -49,10 +49,12 @@ it("R6 opens only with report_patients:clinic plus view:payments:clinic", () => 
   ]);
 });
 
-it("R10 stays hidden; only R6 hides the branch picker", () => {
-  for (const hidden of ["own_summary"])
-    expect((SCREEN_REPORTS as readonly string[]).includes(hidden)).toBe(false);
-  expect(SCREEN_REPORTS.filter((r) => SCREEN_NO_BRANCH.has(r))).toEqual(["patient_credit"]);
+it("R10 is built; only R6 and R10 hide the branch picker", () => {
+  expect((SCREEN_REPORTS as readonly string[]).includes("own_summary")).toBe(true);
+  expect(SCREEN_REPORTS.filter((r) => SCREEN_NO_BRANCH.has(r))).toEqual([
+    "patient_credit",
+    "own_summary",
+  ]);
 });
 
 it("the /clinic/reports/patient_credit route opens with real mock data", async () => {

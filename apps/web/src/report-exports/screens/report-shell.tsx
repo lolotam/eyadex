@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import type { TranslationKey } from "@/shared/i18n/dictionary";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { PageHeader } from "@/shared/shell/page-header";
 import { SCREEN_CLINIC_WIDE_NOTICE, type ScreenReportId } from "./report-catalogue";
@@ -10,6 +11,20 @@ import { ReportExportDialog } from "./report-export-dialog";
 import { ReportFiltersBar } from "./report-filters-bar";
 import type { ReportFilterIssue, ReportFilters } from "./use-report-filters";
 import "./report-print.css";
+
+/** Each screen's own header note; R1 and R2 share the takings note. */
+const SUBTITLE_KEY = {
+  daily_takings: "financeReports.note",
+  period_summary: "financeReports.note",
+  cash_closings: "financeReports.cashClosingsNote",
+  by_service: "financeReports.byServiceNote",
+  by_doctor: "financeReports.byDoctorNote",
+  outstanding: "financeReports.outstanding.note",
+  patient_credit: "financeReports.patientCredit.note",
+  refunds: "financeReports.adjustments.refundsNote",
+  discounts: "financeReports.adjustments.discountsNote",
+  own_summary: "financeReports.ownSummary.note",
+} as const satisfies Record<ScreenReportId, TranslationKey>;
 
 type Props = {
   report: ScreenReportId;
@@ -35,23 +50,7 @@ export function ReportShell({ report, filters, zone, issues, onChange, children 
       </Link>
       <PageHeader
         title={t(`financeReports.names.${report}`)}
-        subtitle={
-          report === "cash_closings"
-            ? t("financeReports.cashClosingsNote")
-            : report === "by_service"
-              ? t("financeReports.byServiceNote")
-              : report === "by_doctor"
-                ? t("financeReports.byDoctorNote")
-                : report === "patient_credit"
-                  ? t("financeReports.patientCredit.note")
-                  : report === "outstanding"
-                    ? t("financeReports.outstanding.note")
-                    : report === "refunds"
-                      ? t("financeReports.adjustments.refundsNote")
-                      : report === "discounts"
-                        ? t("financeReports.adjustments.discountsNote")
-                        : t("financeReports.note")
-        }
+        subtitle={t(SUBTITLE_KEY[report])}
         actions={
           <div className="flex flex-wrap items-center gap-2 print:hidden">
             {notice ? <ClinicWideNotice variant="inline" /> : null}

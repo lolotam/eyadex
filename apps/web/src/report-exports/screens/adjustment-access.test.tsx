@@ -43,12 +43,12 @@ it("report_own, report_takings or report_analytics never open R7 or R8", () => {
     expect(opens([key, ...covering])).toEqual([false, false]);
 });
 
-it("cards show only for the reports the caller may open; R10 stays hidden", () => {
+it("cards show only for the reports the caller may open; R10 is built but needs its own keys", () => {
   expect(availableScreens(["view:report_patients:branch", "view:invoices:branch"])).toEqual([
     "outstanding",
     "discounts",
   ]);
-  expect((SCREEN_REPORTS as readonly string[]).includes("own_summary")).toBe(false);
+  expect((SCREEN_REPORTS as readonly string[]).includes("own_summary")).toBe(true);
 });
 
 it("the routes are forbidden without the covering key", async () => {

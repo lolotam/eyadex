@@ -129,15 +129,15 @@ it("an API report_range_too_long is shown translated, and retry recovers", async
   expect(read).toHaveBeenCalledTimes(2);
 });
 
-it("a report the permissions do not open is forbidden by direct URL; an unbuilt one is not found", async () => {
+it("a report the permissions do not open is forbidden by direct URL; an unknown one is not found", async () => {
   await open("period_summary", personaWith(["view:report_takings:branch", "view:payments:branch"]));
   expect(screen.getByText(ar.forbidden.title)).toBeTruthy();
   document.body.innerHTML = "";
-  await open("own_summary");
+  await open("not_a_report");
   expect(screen.getByText(ar.errors.not_found)).toBeTruthy();
 });
 
-it("a receptionist sees the R1, R2 and R9 cards and opens each; a doctor sees no card", async () => {
+it("a receptionist sees the R1, R2 and R9 cards and opens each; a doctor sees only his own summary", async () => {
   await signIn(as("receptionist"));
   renderScreen(<AvailableReports />);
   const links = screen.getAllByRole("link").map((a) => a.getAttribute("href"));
@@ -154,7 +154,9 @@ it("a receptionist sees the R1, R2 and R9 cards and opens each; a doctor sees no
   }
   await signIn(as("doctor"));
   renderScreen(<AvailableReports />);
-  expect(screen.queryByRole("link")).toBeNull();
+  expect(screen.getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual([
+    "/clinic/reports/own_summary",
+  ]);
 });
 
 it("the export button opens the export form prefilled; it accepts a range beyond 366 days", async () => {

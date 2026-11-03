@@ -34,7 +34,7 @@ it("report_patients with covering view:invoices opens R5; nothing less does", ()
     false,
   );
   // R6 (patient_credit) opens for this set (clinic report_patients + view:payments:clinic);
-  // R7 and R8 open for it too (card 6); R10 stays hidden even for a caller who could open it.
+  // R7 and R8 open for it too (card 6); report_own:own without view:invoices:own does not open R10.
   expect(availableScreens([...R5_KEYS, "view:payments:clinic", "view:report_own:own"])).toEqual([
     "outstanding",
     "patient_credit",
