@@ -147,3 +147,7 @@ The decision is made by measurement, not assumed.
    Amiri (replacing item 3's IBM Plex Sans Arabic, which reached 32/40), the image gains qpdf (~1.8 MB), and CI
    pins the pdf.js and poppler versions, since the pass relies on pdf.js ignoring `ActualText` and poppler
    reversing it.
+8. **Owner confirmation (2026-11-03):** Amiri, adding qpdf to the runtime image, and pinning both text
+   extractors in CI are approved. Implementation may proceed. The R2 extraction criterion, no patient
+   data in argv/logs/temp files, and the staging p95 decision remain unchanged; the old probe is not a
+   substitute for a reproducible test of the implementation.
