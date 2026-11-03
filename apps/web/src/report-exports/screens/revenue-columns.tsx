@@ -28,7 +28,8 @@ export function useRevenueColumns(fmt: Format, nameLabel: string) {
       key: "lineCount",
       label: t("financeReports.columns.lineCount"),
       numeric: true,
-      cell: (r) => (r.kind === "tax" ? t("financeReports.revenue.noValue") : fmt.count(r.lineCount)),
+      cell: (r) =>
+        r.kind === "tax" ? t("financeReports.revenue.noValue") : fmt.count(r.lineCount),
     },
     {
       key: "quantity",

@@ -29,7 +29,9 @@ export function RevenueReportBody({ data, caption, nameLabel }: Props) {
         rows={rows}
         rowKey={(r, i) => `${r.kind}-${i}`}
         groupOf={(r) =>
-          r.kind === "tax" ? t("financeReports.revenue.taxGroup") : t("financeReports.revenue.linesGroup")
+          r.kind === "tax"
+            ? t("financeReports.revenue.taxGroup")
+            : t("financeReports.revenue.linesGroup")
         }
         totals={{
           lineCount: fmt.count(totals.lineCount),

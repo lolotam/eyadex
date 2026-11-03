@@ -93,10 +93,7 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
     });
   }, [accessEpoch]);
   const current = () =>
-    mounted.current &&
-    live.current.scope === scope &&
-    isCurrentScope(epoch) &&
-    live.current.ready;
+    mounted.current && live.current.scope === scope && isCurrentScope(epoch) && live.current.ready;
   function update(change: (old: DownloadState) => DownloadState) {
     if (current())
       setState((old) =>

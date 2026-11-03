@@ -18,7 +18,13 @@ export function ByDoctorReportPage() {
   );
   const data = q.data;
   return (
-    <ReportShell report="by_doctor" filters={f.filters} zone={f.zone} issues={f.issues} onChange={f.set}>
+    <ReportShell
+      report="by_doctor"
+      filters={f.filters}
+      zone={f.zone}
+      issues={f.issues}
+      onChange={f.set}
+    >
       {f.query === null && !f.waiting ? null : (
         <ReportContent
           loading={f.waiting || q.isLoading}
