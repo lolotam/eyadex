@@ -129,11 +129,11 @@ it("an API report_range_too_long is shown translated, and retry recovers", async
   expect(read).toHaveBeenCalledTimes(2);
 });
 
-it("a report the permissions do not open is forbidden by direct URL; an unbuilt one is not found", async () => {
+it("a report the permissions do not open is forbidden by direct URL; an unknown one is not found", async () => {
   await open("period_summary", personaWith(["view:report_takings:branch", "view:payments:branch"]));
   expect(screen.getByText(ar.forbidden.title)).toBeTruthy();
   document.body.innerHTML = "";
-  await open("own_summary");
+  await open("not_a_report");
   expect(screen.getByText(ar.errors.not_found)).toBeTruthy();
 });
 

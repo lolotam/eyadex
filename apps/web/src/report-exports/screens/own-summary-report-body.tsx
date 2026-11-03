@@ -22,7 +22,9 @@ export function OwnSummaryReportBody({ data }: Props) {
       rows={data.rows}
       rowKey={(r) => `${r.period}-${r.currency}`}
       totals={{
-        billed: agrees ? fmt.money(data.totals.billedMinor) : t("financeReports.ownSummary.noValue"),
+        billed: agrees
+          ? fmt.money(data.totals.billedMinor)
+          : t("financeReports.ownSummary.noValue"),
       }}
     />
   );

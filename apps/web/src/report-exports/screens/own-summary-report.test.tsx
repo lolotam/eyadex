@@ -57,7 +57,9 @@ it("a response total that disagrees with its rows is never shown", async () => {
 it("months are formatted in Arabic and English, never as raw YYYY-MM", async () => {
   await open();
   const ar9 = new Intl.DateTimeFormat("ar-KW", { year: "numeric", month: "long", timeZone: "UTC" });
-  expect(screen.getAllByText(ar9.format(new Date("2026-09-01T00:00:00Z"))).length).toBeGreaterThan(0);
+  expect(screen.getAllByText(ar9.format(new Date("2026-09-01T00:00:00Z"))).length).toBeGreaterThan(
+    0,
+  );
   expect(document.body.textContent).not.toMatch(/2026-0?9|2026-10/);
   act(() => lang.set("en"));
   expect(screen.getAllByText("September 2026").length).toBeGreaterThan(0);
@@ -113,7 +115,7 @@ it("empty uses the normal period wording; an error retries", async () => {
   const api = await signIn(personaWith(R10_KEYS));
   const spy = vi
     .spyOn(api.reports, "ownSummary")
-    .mockRejectedValueOnce(new ApiError(500, { code: "unknown" } as never))
+    .mockRejectedValueOnce(new ApiError("unknown"))
     .mockResolvedValueOnce(ownAnswer([], "0"));
   renderScreen(<ReportScreenPage />);
   const alert = await screen.findByRole("alert");
