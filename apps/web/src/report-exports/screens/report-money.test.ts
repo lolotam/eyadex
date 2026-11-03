@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { formatReportMinor, sumMinor } from "./report-money";
+import { agreedTotal, formatReportMinor, sumMinor } from "./report-money";
 import { reportOutstandingQuerySchema } from "@eyadex/contracts/finance-reports";
 import { SCREEN_DEFAULT_DAYS } from "./report-catalogue";
 import { defaultReportRange } from "./use-report-filters";
@@ -19,6 +19,21 @@ it("keeps the minus sign of a signed amount", () => {
 it("stays exact beyond Number's safe range", () => {
   expect(formatReportMinor("123456789012345678901", 3, "en")).toBe("123,456,789,012,345,678.901");
   expect(sumMinor(["9007199254740993", "1", "-4"])).toBe("9007199254740990");
+});
+
+it.each([
+  [
+    "above 2^53 and equal to the BigInt sum",
+    ["9007199254740993", "1"],
+    "9007199254740994",
+    "9007199254740994",
+  ],
+  ["off by one in the last digit", ["9007199254740993", "1"], "9007199254740993", null],
+  ["a signed sum", ["5", "-8"], "-3", "-3"],
+  ["no rows and a zero total", [], "0", "0"],
+  ["no rows and a non-zero total", [], "1", null],
+])("agreedTotal: %s", (_name, rows, total, expected) => {
+  expect(agreedTotal(rows, total)).toBe(expected);
 });
 
 it("defaults to the current clinic month up to today in the clinic's zone", () => {
