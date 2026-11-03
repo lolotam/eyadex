@@ -1,10 +1,11 @@
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { ApiError } from "@/shared/api/api-error";
-import { resetMockData } from "@/shared/api/mock/mock-test-kit";
+import { clinicIdAt, getState, resetMockData } from "@/shared/api/mock/mock-test-kit";
 import { personaWith } from "@/shared/api/mock/mock-report-test-kit";
 import { ar } from "@/shared/i18n/ar";
 import { en } from "@/shared/i18n/en";
+import { NativeSelect } from "../export-native-select.test-kit";
 import { context, renderScreen, signIn, TestLink } from "./report-screens.test-kit";
 import { formatReportMinor, sumMinor } from "./report-money";
 import { ReportScreenPage } from "./report-screen-page";
@@ -23,6 +24,7 @@ vi.mock("@/shared/persona/persona-provider", () => ({
   usePersona: () => ({ persona: context.persona, ready: true }),
   useSession: () => ({ session: context.session, isLoading: false, error: null }),
 }));
+vi.mock("../export-select-field", () => ({ ExportSelectField: NativeSelect }));
 vi.mock("@tanstack/react-router", () => ({
   Link: TestLink,
   useParams: () => ({ reportId: context.reportId }),
