@@ -1,7 +1,8 @@
 # F1 Task 8g — server-rendered invoice PDF (design note for review)
 
-- **Status:** proposal for focused review, 2026-10-15, **updated after the feasibility probe** (`docs/superpowers/plans/evidence/2026-10-15-finance-f1/pdf-probe/README.md`). No code
-  until approved.
+- **Status:** implementation approved by the owner on 2026-11-03 (§7 item 8), following the feasibility
+  probes (`docs/superpowers/plans/evidence/2026-10-15-finance-f1/pdf-probe/README.md`). Reproducible
+  extraction/rendering proof and the staging runtime measurement remain release gates.
 - **Contract (unchanged, approved):** `GET /v1/invoices/:id/pdf` — "Bilingual PDF rendered by the API from the
   stored invoice" (`finance-design.md` §3.3, FIN-5, FIN-6). D-P1 (browser print view) is declined by the owner
   (2026-10-15); this note only chooses how the API renders.
@@ -53,10 +54,12 @@ emptyDir, "-", "-"])` (the exact form the probe ran)
 
 ### 3.2 Fonts
 
-- **IBM Plex Sans Arabic** only (Regular 400, SemiBold 600), the web app's Arabic font
-  (`apps/web/src/routes/__root.tsx:105`). Its Latin glyphs cover the English text: the probe PDF embeds only
-  this family, so IBM Plex Sans is not vendored. Licence SIL OFL 1.1 (bundling allowed). Pinned files and sha256
-  in the probe evidence §1.
+- **Amiri 1.002** only (Regular 400, Bold 700), including its Latin glyphs for the English text. This
+  supersedes the original IBM Plex Sans Arabic proposal (§7 items 7–8); the web font is unchanged.
+  Licence SIL OFL 1.1 (bundling allowed). The approved files are `Amiri-Regular.ttf` (431,116 bytes,
+  sha256 `ab391c4147d054c48976e98322ad0eefe1427aa0e0502a12a4c75d80a70cfcd7`) and `Amiri-Bold.ttf`
+  (413,480 bytes, sha256 `cfccb794268e7d573d857e6d6a67f89cf8a053e8ffd85dfa0c8ec1bb36fc4827`),
+  recorded in `docs/superpowers/plans/evidence/2026-10-15-finance-f1/pdf-probe/probe3-REPORT.md`.
 - Vendored TTFs in `apps/api/assets/fonts/` with `OFL.txt` and a `SHA256SUMS` file checked in CI; the image
   never downloads fonts at runtime (R7). `--ignore-system-fonts` makes the result identical on every machine.
 - Digits and date words come from `Intl` (step 2), so they match the web for the same locale.
@@ -133,7 +136,7 @@ The decision is made by measurement, not assumed.
 2. **L1 — (a) approved:** the R2 extraction criterion stays as written, and a further bounded search (static
    Noto Naskh Arabic, other Arabic fonts, LuaLaTeX, `ActualText`) runs **before** any 8g code and reports to the
    owner. 8g code stays held until then.
-3. Fonts: IBM Plex Sans Arabic (Regular, SemiBold) — approved with option 1.
+3. Original fonts decision: IBM Plex Sans Arabic (Regular, SemiBold) — superseded by Amiri in items 7–8.
 4. **L2 — (a) approved:** the logo is a file under a private per-render `--root` (1 MB cap kept; ≈ 25 MB).
 5. **Where it runs — approved:** measure p95 on staging first; ≤ 150 ms ⇒ in the API, else the worker path of §4.
 6. **Approved (F1-PDF-BUSY):** a new `RULE_ONLY` error `pdf_busy` (503, `Retry-After: 2`) — and `pdf_pending` (409) only if §4 moves rendering to the worker.
