@@ -14,7 +14,7 @@
     {
       "name": "regular",
       "expectedEntries": 50,
-      "spans": 41,
+      "spans": 42,
       "raw": {
         "pages": 2,
         "pdfjsMisses": [],
@@ -70,7 +70,7 @@
     {
       "name": "bold",
       "expectedEntries": 50,
-      "spans": 41,
+      "spans": 42,
       "raw": {
         "pages": 2,
         "pdfjsMisses": [],

@@ -193,6 +193,10 @@ for (const weight of ["regular", "bold"]) {
   const fixture = render(weight, corpus.entries, weight);
   const raw = await extract(`${output}/${weight}-raw.pdf`, fixture.expected);
   const transformed = correct(fixture.json);
+  assert.deepEqual(transformed.decodedWords, [
+    ...corpus.entries.flatMap((phrase) => phrase.split(" ")),
+    "جلسة",
+  ]);
   const bytes = child(
     "/usr/local/bin/qpdf-memory",
     ["from-json"],

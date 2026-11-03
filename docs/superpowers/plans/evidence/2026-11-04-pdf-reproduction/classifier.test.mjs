@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { correct } from "./correct.mjs";
 
 // Minimal Identity-H objects isolate classification from Typst's producer-emitted ActualText.
-function fixture(visual) {
+function fixture(visual, encoding = "literal") {
   const utf16 = Buffer.from(visual, "utf16le").swap16().toString("hex");
-  const content = "BT /F1 12 Tf (\\000\\001) Tj ET";
+  const content = `BT /F1 12 Tf ${encoding === "hex" ? "<0001>" : "(\\000\\001)"} Tj ET`;
   return {
     qpdf: [
       {},
@@ -29,21 +29,26 @@ function fixture(visual) {
   };
 }
 
-for (const visual of ["١٥", "١٬٢٣٤٫٥٠٠", "١٥/١٠/٢٠٢٦", "Invoice"]) {
-  const input = fixture(visual);
-  const result = correct(structuredClone(input));
-  assert.equal(result.spans, 0, visual);
-  assert.deepEqual(
-    result.document,
-    input,
-    "numeric and Latin runs must remain byte-for-byte unchanged",
-  );
-}
-assert.throws(() => correct(fixture("مُراجع")), /unsupported_marked_text/);
-assert.throws(() => correct(fixture("ُ")), /unsupported_marked_text/);
-for (const visual of ["جلسة١٥", "جلسة،", "جلـسة", "جلسة ", "جلسةInvoice"]) {
-  assert.throws(() => correct(fixture(visual)), /unsupported_mixed_run/, visual);
-}
-for (const visual of ["مُراجع١٥", "مُراجع،", "مُراجع ", "مُراجعInvoice"]) {
-  assert.throws(() => correct(fixture(visual)), /unsupported_marked_text/, visual);
+for (const encoding of ["literal", "hex"]) {
+  for (const visual of ["١٥", "١٬٢٣٤٫٥٠٠", "١٥/١٠/٢٠٢٦", "Invoice"]) {
+    const input = fixture(visual, encoding);
+    const result = correct(structuredClone(input));
+    assert.equal(result.spans, 0, visual);
+    assert.deepEqual(
+      result.document,
+      input,
+      "numeric and Latin runs must remain byte-for-byte unchanged",
+    );
+  }
+  assert.throws(() => correct(fixture("مُراجع", encoding)), /unsupported_marked_text/);
+  assert.throws(() => correct(fixture("ُ", encoding)), /unsupported_marked_text/);
+  for (const visual of ["جلسة١٥", "جلسة،", "جلـسة", "جلسة ", "جلسةInvoice"]) {
+    assert.throws(() => correct(fixture(visual, encoding)), /unsupported_mixed_run/, visual);
+  }
+  for (const visual of ["مُراجع١٥", "مُراجع،", "مُراجع ", "مُراجعInvoice"]) {
+    assert.throws(() => correct(fixture(visual, encoding)), /unsupported_marked_text/, visual);
+  }
+  const arabic = correct(fixture("ةسلج", encoding));
+  assert.equal(arabic.spans, 1);
+  assert.deepEqual(arabic.decodedWords, ["جلسة"]);
 }

@@ -41,9 +41,19 @@ export function correct(document) {
       fonts.set(tag, { reference, map, zeroWidth, cmapReference: font["/ToUnicode"] });
     }
   }
-  function literalBytes(text) {
+  function textBytes(text) {
     const bytes = [];
     for (let i = 0; i < text.length; i++) {
+      if (text[i] === "<" && text[i + 1] !== "<") {
+        const end = text.indexOf(">", i + 1);
+        if (end < 0) throw new Error("unterminated hex string");
+        let hex = text.slice(i + 1, end).replace(/[\0\t\n\f\r ]/g, "");
+        if (!/^[\da-f]*$/i.test(hex)) throw new Error("invalid hex string");
+        if (hex.length % 2) hex += "0";
+        for (const byte of Buffer.from(hex, "hex")) bytes.push(byte);
+        i = end;
+        continue;
+      }
       if (text[i] !== "(") continue;
       let depth = 1;
       while (++i < text.length && depth) {
@@ -83,7 +93,7 @@ export function correct(document) {
       if (matches.length) currentFont = fonts.get(matches.at(-1)[1]);
       const font = currentFont;
       if (!font) throw new Error("unknown font");
-      const bytes = literalBytes(body);
+      const bytes = textBytes(body);
       if (bytes.length % 2) throw new Error("odd Identity-H byte count");
       let visual = "";
       for (let i = 0; i < bytes.length; i += 2) {
