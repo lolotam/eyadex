@@ -179,5 +179,12 @@ export const arFinanceReports: Strings<typeof enFinanceReports> = {
         oldestCreditDay: "أقدم يوم رصيد",
       },
     },
+    ownSummary: {
+      note: "المبلغ المُفوتَر لبنود فواتيرك أنت في كل شهر، كما فُوتِر لا كما حُصِّل؛ لا يتضمن هذا التقرير المدفوع ولا المتبقي.",
+      month: "الشهر",
+      billed: "المُفوتَر",
+      noValue: "—",
+      myInvoices: "فواتيري",
+    },
   },
 };

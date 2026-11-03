@@ -179,5 +179,12 @@ export const enFinanceReports = {
         oldestCreditDay: "Oldest credit day",
       },
     },
+    ownSummary: {
+      note: "The billed amount of your own invoice lines per month, as billed, not as collected; this report has no paid or owed amounts.",
+      month: "Month",
+      billed: "Billed",
+      noValue: "—",
+      myInvoices: "My invoices",
+    },
   },
 };

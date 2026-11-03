@@ -15,6 +15,7 @@ import { OutstandingReportPage } from "./outstanding-report-page";
 import { PatientCreditReportPage } from "./patient-credit-report-page";
 import { RefundsReportPage } from "./refunds-report-page";
 import { DiscountsReportPage } from "./discounts-report-page";
+import { OwnSummaryReportPage } from "./own-summary-report-page";
 
 /**
  * `/clinic/reports/<reportId>`: an unknown or not-yet-built report is "not found"; a report the
@@ -58,6 +59,7 @@ export function ReportScreenPage() {
   if (reportId === "patient_credit") return <PatientCreditReportPage key={persona.memberId} />;
   if (reportId === "refunds") return <RefundsReportPage key={persona.memberId} />;
   if (reportId === "discounts") return <DiscountsReportPage key={persona.memberId} />;
+  if (reportId === "own_summary") return <OwnSummaryReportPage key={persona.memberId} />;
   if (reportId === "cash_closings") return <CashClosingsReportPage key={persona.memberId} />;
   return reportId === "daily_takings" ? (
     <DailyTakingsPage key={persona.memberId} />
