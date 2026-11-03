@@ -2,26 +2,20 @@
 // this: an abandoned transition render for another scope or a not-ready session does not stale or
 // duplicate an in-flight download. It does not prove every concurrent interleaving is safe.
 import { act, render } from "@testing-library/react";
-import {
-  createContext,
-  startTransition,
-  Suspense,
-  use,
-  useContext,
-  useLayoutEffect,
-  useState,
-} from "react";
+import { useContext } from "react";
 import { afterEach, expect, it, vi } from "vitest";
-import type { Persona, SessionContext } from "@eyadex/contracts/session";
 import type { ReportExport } from "@eyadex/contracts/finance-reports";
 import { createMockApiClient } from "@/shared/api/mock/mock-adapter";
 import { setup } from "@/shared/api/mock/mock-report-exports.test-kit";
 import { publicExportOf } from "@/shared/api/mock/mock-report-export-state";
+import { Harness } from "./concurrent-harness.test-kit";
 import { context, restoreDownloadTest } from "./use-export-download.test-kit";
-import { useExportDownload } from "./use-export-download";
-
-type Who = { persona: Persona; session: SessionContext | null; ready: boolean };
-const Identity = createContext<Who | null>(null);
+import {
+  controls,
+  handle,
+  Identity,
+  type Who,
+} from "./use-export-download-concurrent.state.test-kit";
 
 vi.mock("@/shared/api/api-provider", () => ({ useApi: () => context.api }));
 vi.mock("@/shared/persona/persona-provider", () => ({
@@ -32,36 +26,6 @@ vi.mock("@/shared/persona/persona-provider", () => ({
   useSession: () => ({ session: useContext(Identity)!.session, isLoading: false, error: null }),
 }));
 afterEach(restoreDownloadTest);
-
-const never = new Promise<never>(() => {});
-function Suspender(): null {
-  use(never);
-  return null;
-}
-
-const handle: { current: ReturnType<typeof useExportDownload> | null } = { current: null };
-function Consumer({ rows }: { rows: ReportExport[] }) {
-  const result = useExportDownload(rows, () => undefined);
-  // Only committed handlers reach a user's click, so the test calls what the last commit exposed.
-  useLayoutEffect(() => {
-    handle.current = result;
-  });
-  return null;
-}
-
-let switchTo: (who: Who) => void = () => {};
-function Harness({ first, rows }: { first: Who; rows: ReportExport[] }) {
-  const [who, setWho] = useState(first);
-  switchTo = (next) => startTransition(() => setWho(next));
-  return (
-    <Identity.Provider value={who}>
-      <Suspense fallback={null}>
-        <Consumer rows={rows} />
-        {who === first ? null : <Suspender />}
-      </Suspense>
-    </Identity.Provider>
-  );
-}
 
 it.each(["another persona", "a not-ready session"] as const)(
   "an abandoned transition render for %s neither stales nor duplicates an in-flight download",
@@ -109,7 +73,7 @@ it.each(["another persona", "a not-ready session"] as const)(
           }
         : { persona: f.persona, session, ready: false };
     await act(async () => {
-      switchTo(other);
+      controls.switchTo(other);
     });
     // The transition suspended and was never committed; the committed consumer still owns the request.
     expect(handle.current!.download(row)).toBe(work);

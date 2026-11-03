@@ -15,6 +15,8 @@ export const context = {
   api: null as ApiClient | null,
   persona: null as Persona | null,
   session: null as SessionContext | null,
+  /** The session is still loading: readiness can flip with the same member and clinic. */
+  loading: false,
 };
 
 export function restoreDownloadTest() {

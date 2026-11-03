@@ -7,7 +7,7 @@ import { freeLine, issue, personaWith } from "@/shared/api/mock/mock-report-test
 import { ar } from "@/shared/i18n/ar";
 import { context, renderScreen, signIn, TestLink } from "./report-screens.test-kit";
 import { availableScreens, canOpenReport } from "./report-catalogue";
-import { formatReportMinor, sumMinor } from "./report-money";
+import { formatReportMinor, reportLocale, sumMinor } from "./report-money";
 import { ReportScreenPage } from "./report-screen-page";
 import { taxLast, type ByDoctorResponse, type ByServiceResponse } from "./revenue-rows";
 
@@ -137,6 +137,14 @@ it.each([
     expect(tax).toBe(data.totals.taxMinor);
     expect(sumMinor([billed, tax])).toBe(data.totals.totalMinor);
     expect(data.rows.reduce((n, r) => n + r.lineCount, 0)).toBe(data.totals.lineCount);
+    expect(data.rows.reduce((n, r) => n + r.quantity, 0)).toBe(data.totals.quantity);
+    // The table's own totals row, cell by cell: total amount (billed + tax), line count, quantity.
+    const cell = (column: string) =>
+      screen.getByTestId("report-totals").querySelector(`[data-column="${column}"]`)?.textContent;
+    const digits = new Intl.NumberFormat(reportLocale("ar"));
+    expect(cell("amount")).toBe(money(data.totals.totalMinor));
+    expect(cell("lineCount")).toBe(digits.format(data.totals.lineCount));
+    expect(cell("quantity")).toBe(digits.format(data.totals.quantity));
     expect(summary("billed")).toContain(money(billed));
     expect(summary("tax")).toContain(money(tax));
     expect(summary("total")).toContain(money(data.totals.totalMinor));

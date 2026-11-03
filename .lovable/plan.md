@@ -33,11 +33,10 @@ Access: `canOpenReport` → `reportPermissionScope`. Both reports need `report_a
 | `screens/report-shell.tsx` | report-specific help line (R3 billed-not-collected, R4 management view) | +4 |
 | `screens/revenue-rows.ts` (new) | `taxLast(rows)` stable partition (non-tax in received order, then tax); `rowLabel(kind,name,t)` for free/none/tax labels | ~35 |
 | `screens/revenue-columns.tsx` (new) | `useRevenueColumns(kindLabels, fmt)`: name, line count, quantity, amount; tax row marked with `data-tax` and a top border/muted tint | ~70 |
-| `screens/revenue-report-body.tsx` (new) | shared table + totals row (line count, quantity, billed, tax, total from response totals) + optional chart; used by both pages | ~90 |
-| `screens/revenue-chart.tsx` (new) | bar chart of amounts per non-tax row | ~70 |
+| `screens/revenue-report-body.tsx` (new) | shared table + totals row (line count, quantity, billed, tax, total from response totals); used by both pages | ~90 |
 | `screens/by-service-report-page.tsx` (new) | `useReportFilters(reportByServiceQuerySchema)` + `useReportQuery(api.reports.byService)` + body | ~60 |
 | `screens/by-doctor-report-page.tsx` (new) | same for `reportByDoctorQuerySchema` / `api.reports.byDoctor` | ~60 |
-| `shared/i18n/en-finance-reports.ts` / `ar-finance-reports.ts` | names/descriptions exist already; add help lines, column labels, totals labels (billed/tax/total), kind labels («بنود حرة»/Free lines, «بدون دكتور»/No doctor, «الضريبة»/Tax), chart title, dash placeholder | 85→~115 each |
+| `shared/i18n/en-finance-reports.ts` / `ar-finance-reports.ts` | names/descriptions exist already; add help lines, column labels, totals labels (billed/tax/total), kind labels («بنود حرة»/Free lines, «بدون دكتور»/No doctor, «الضريبة»/Tax), dash placeholder | 85→~115 each |
 
 `ReportTable` needs no change. Its `totals` record carries the five totals as cells under the numeric columns. Billed, tax and total show as a small labelled totals block under the table, so the totals row stays in the column layout. All files stay well under 300 lines, one component per file.
 
@@ -46,7 +45,7 @@ Access: `canOpenReport` → `reportPermissionScope`. Both reports need `report_a
 - States (loading, empty, error with retry, forbidden) come from `ReportContent` / `report-screen-page`.
 - Money uses the response's `currency` and `currencyExponent` through `useReportFormat`. Totals are the response's own and are never recomputed with `Number()`.
 - Export button is prefilled with the report and its filters. Print, 390px cards, RTL first and logical CSS are inherited from the frame.
-- Chart: `recharts` is already installed and `components/ui/chart.tsx` exists. Bar heights are proportions computed with BigInt (`amount * 1000n / max`), so `Number()` only ever sees a small integer from 0 to 1000. Amount labels use the formatter. The chart is hidden when printing and when fewer than 2 non-tax rows exist. Open question: drop the chart if you would rather keep this card table-only.
+- No chart: the owner chose a table-only card (no `recharts`, no `revenue-chart.tsx`).
 - R5–R8 and R10 stay hidden.
 
 ## Tests

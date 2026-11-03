@@ -1,15 +1,20 @@
-import { act } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { blobBytes } from "@/shared/api/mock/mock-report-exports.test-kit";
 import { personaWith } from "@/shared/api/mock/mock-report-test-kit";
+import type { ReportExport } from "@eyadex/contracts/finance-reports";
 import { context, fixture, restoreDownloadTest } from "./use-export-download.test-kit";
+import { useExportDownload } from "./use-export-download";
 
 vi.mock("@/shared/api/api-provider", () => ({ useApi: () => context.api }));
 vi.mock("@/shared/persona/persona-provider", () => ({
   usePersona: () => ({ persona: context.persona, ready: true }),
-  useSession: () => ({ session: context.session, isLoading: false, error: null }),
+  useSession: () => ({ session: context.session, isLoading: context.loading, error: null }),
 }));
-afterEach(restoreDownloadTest);
+afterEach(() => {
+  context.loading = false;
+  restoreDownloadTest();
+});
 
 it("A to B to A can download without inheriting A's obsolete in-flight request", async () => {
   const f = await fixture();
@@ -209,4 +214,25 @@ it("access that cycles A to B to A for the same member never revives the first r
   });
   expect(f.create).toHaveBeenCalledTimes(1);
   expect(f.h.result.current.pending.has(f.row.id)).toBe(false);
+});
+
+it("canDownload follows the render's own readiness when only readiness changes", async () => {
+  const f = await fixture();
+  const seen: boolean[] = [];
+  const probe = renderHook(
+    ({ rows }: { rows: ReportExport[] }) => {
+      const h = useExportDownload(rows, f.refresh);
+      // The button reads canDownload while rendering, never after the commit.
+      seen.push(h.canDownload(f.row));
+      return h;
+    },
+    { initialProps: { rows: [f.row] } },
+  );
+  context.loading = true;
+  probe.rerender({ rows: [f.row] });
+  expect(seen.at(-1)).toBe(false);
+  // Same member, same clinic, same scope: no setState is scheduled, so only this render can say true.
+  context.loading = false;
+  probe.rerender({ rows: [f.row] });
+  expect(seen.at(-1)).toBe(true);
 });

@@ -109,11 +109,12 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
         ),
       );
   }
-  function canDownload(row: ReportExport) {
-    return (
-      live.current.ready && row.status === "done" && !unavailable.current.get(scope)?.has(row.id)
-    );
+  function canDownloadWith(ready: boolean, row: ReportExport) {
+    return ready && row.status === "done" && !unavailable.current.get(scope)?.has(row.id);
   }
+  // What a consumer renders (the button) must follow this render's own readiness: the layout-effect
+  // snapshot is still the previous commit's while rendering. Handlers and awaits use the snapshot.
+  const canDownload = (row: ReportExport) => canDownloadWith(snapshot.ready, row);
   function download(row: ReportExport): Promise<void> {
     // The access generation is part of the key: a request made under older access can neither block
     // a retry under the current access nor apply its late answer to it.
@@ -124,7 +125,7 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
     if (prior) return prior;
     if (
       !current() ||
-      !canDownload(row) ||
+      !canDownloadWith(live.current.ready, row) ||
       !live.current.rows.some(
         (item) => item.id === row.id && item.status === "done" && item.format === row.format,
       )
@@ -144,7 +145,7 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
           !live.current.rows.some(
             (item) => item.id === row.id && item.status === "done" && item.format === row.format,
           ) ||
-          !canDownload(row)
+          !canDownloadWith(live.current.ready, row)
         )
           return;
         const url = URL.createObjectURL(blob);
