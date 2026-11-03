@@ -1,4 +1,4 @@
-import { reportAgeBucketSchema, type ReportAgeBucket } from "@eyadex/contracts/finance-reports-rows";
+import { reportAgeBucketSchema, type ReportAgeBucket } from "@eyadex/contracts/finance-reports";
 
 export const AGE_BUCKETS = reportAgeBucketSchema.options;
 
