@@ -35,7 +35,9 @@ const ALL = [
   row(4, "over_90", "4000"),
 ];
 
-async function open(pages: OutstandingPage[] | ((q: { cursor?: string }) => Promise<OutstandingPage>)) {
+async function open(
+  pages: OutstandingPage[] | ((q: { cursor?: string | undefined }) => Promise<OutstandingPage>),
+) {
   const api = await signIn(personaWith(R5_KEYS));
   const spy = vi.spyOn(api.reports, "outstanding");
   if (typeof pages === "function") spy.mockImplementation((_p, q) => pages(q));
@@ -73,7 +75,12 @@ it("load more appends exactly the next page, sends limit 50 and shows the total"
   fireEvent.click(screen.getByRole("button", { name: O.loadMore }));
   await waitFor(() => expect(rows()).toHaveLength(4));
   expect(spy.mock.calls[1]?.[1]).toMatchObject({ limit: 50, cursor: "c2" });
-  expect(rows().map((r) => r.textContent?.match(/T-\d/)?.[0])).toEqual(["T-1", "T-2", "T-3", "T-4"]);
+  expect(rows().map((r) => r.textContent?.match(/T-\d/)?.[0])).toEqual([
+    "T-1",
+    "T-2",
+    "T-3",
+    "T-4",
+  ]);
   expect(screen.queryByRole("button", { name: O.loadMore })).toBeNull();
 });
 
@@ -99,7 +106,9 @@ it("a filter change restarts at page 1 and a late page of the old filter is igno
 
 it("an error on load more keeps the earlier pages and retries only that page", async () => {
   const { spy } = await open([page([ALL[0]!], ALL, "c2")]);
-  spy.mockRejectedValueOnce(new ApiError("unknown")).mockResolvedValueOnce(page([ALL[1]!], ALL, null));
+  spy
+    .mockRejectedValueOnce(new ApiError("unknown"))
+    .mockResolvedValueOnce(page([ALL[1]!], ALL, null));
   await waitFor(() => expect(rows()).toHaveLength(1));
   fireEvent.click(screen.getByRole("button", { name: O.loadMore }));
   fireEvent.click(await screen.findByRole("button", { name: O.retryMore }));

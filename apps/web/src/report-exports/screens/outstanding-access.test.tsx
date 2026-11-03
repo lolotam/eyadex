@@ -34,9 +34,9 @@ it("report_patients with covering view:invoices opens R5; nothing less does", ()
     false,
   );
   // R6–R8 stay hidden even for a caller who could open them.
-  expect(
-    availableScreens([...R5_KEYS, "view:payments:clinic", "view:report_own:own"]),
-  ).toEqual(["outstanding"]);
+  expect(availableScreens([...R5_KEYS, "view:payments:clinic", "view:report_own:own"])).toEqual([
+    "outstanding",
+  ]);
   expect(availableScreens(["view:report_patients:clinic"])).toEqual([]);
 });
 

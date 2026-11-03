@@ -5,7 +5,8 @@ import type { OutstandingPage } from "./use-outstanding-pages";
 export const R5_KEYS = ["view:report_patients:clinic", "view:invoices:clinic"];
 export const BRANCH_A = "00000000-0000-7000-8000-0000000000b1";
 export const BRANCH_B = "00000000-0000-7000-8000-0000000000b2";
-export const PATIENT_ID = (n: number) => `00000000-0000-7000-8000-0000000009${String(n).padStart(2, "0")}`;
+export const PATIENT_ID = (n: number) =>
+  `00000000-0000-7000-8000-0000000009${String(n).padStart(2, "0")}`;
 
 export function row(n: number, bucket: ReportAgeBucket, owed: string, branchId = BRANCH_A) {
   return {
@@ -20,7 +21,7 @@ export function row(n: number, bucket: ReportAgeBucket, owed: string, branchId =
     paidMinor: "1000",
     owedMinor: owed,
     ageBucket: bucket,
-    currency: "KWD",
+    currency: "KWD" as const,
   };
 }
 
@@ -48,7 +49,7 @@ export function page(items: Row[], all: Row[], nextCursor: string | null): Outst
     nextCursor,
     total: all.length,
     summary: summaryOf(all),
-    currency: "KWD",
+    currency: "KWD" as const,
     currencyExponent: 3,
   };
 }
