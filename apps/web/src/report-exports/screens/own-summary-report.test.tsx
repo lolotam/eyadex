@@ -44,12 +44,16 @@ const totalsCell = () =>
   within(screen.getByTestId("report-totals")).getAllByRole("cell")[1]!.textContent;
 
 /**
- * The second of the screen's own default month (its From input starts on day 1), so the range stays
- * valid whatever day the suite runs on; a fixed calendar date would pass the 366-day cap one day.
+ * The first day of the month before the screen's default month (its From input starts on day 1 of the
+ * current month). It always differs from the default and always stays inside the range cap with To,
+ * whatever day the suite runs on, even on the first of a month (a fixed date or "day 2" would not).
  */
-const dayTwoOfDefaultMonth = () =>
-  (screen.getByLabelText(ar.financeReports.filters.from) as HTMLInputElement).value.slice(0, 8) +
-  "02";
+const previousMonthStart = () => {
+  const [y, m] = (screen.getByLabelText(ar.financeReports.filters.from) as HTMLInputElement).value
+    .split("-")
+    .map(Number);
+  return new Date(Date.UTC(y!, m! - 2, 1)).toISOString().slice(0, 10);
+};
 
 it("the totals row is the response total, equal to the BigInt sum above 2^53", async () => {
   await open();
@@ -120,7 +124,7 @@ it("has no branch picker, fetches no branch list and never sends branchId", asyn
   const { spy, branchList } = await open();
   expect(screen.queryByLabelText(ar.financeReports.filters.branch)).toBeNull();
   fireEvent.change(screen.getByLabelText(ar.financeReports.filters.from), {
-    target: { value: dayTwoOfDefaultMonth() },
+    target: { value: previousMonthStart() },
   });
   await waitFor(() => expect(spy.mock.calls.length).toBeGreaterThan(1));
   for (const call of spy.mock.calls) expect(Object.keys(call[1]).sort()).toEqual(["from", "to"]);
@@ -153,7 +157,7 @@ it("a late answer for an old filter is never shown", async () => {
   );
   await waitFor(() => expect(screen.getByLabelText(ar.financeReports.filters.from)).toBeTruthy());
   fireEvent.change(screen.getByLabelText(ar.financeReports.filters.from), {
-    target: { value: dayTwoOfDefaultMonth() },
+    target: { value: previousMonthStart() },
   });
   await screen.findAllByTestId("report-row");
   act(() => lang.set("en"));
