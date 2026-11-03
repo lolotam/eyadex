@@ -24,6 +24,7 @@ vi.mock("@tanstack/react-router", () => ({
 const O = ar.financeReports.ownSummary;
 beforeEach(() => {
   resetMockData();
+  localStorage.clear();
   context.reportId = "own_summary";
 });
 
