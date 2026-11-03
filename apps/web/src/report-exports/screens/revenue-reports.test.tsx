@@ -194,7 +194,7 @@ it("an empty period shows the empty state, and an error offers a retry", async (
   const api = await signIn(personaWith(ANALYTICS));
   const spy = vi
     .spyOn(api.reports, "byDoctor")
-    .mockRejectedValueOnce(new ApiError({ code: "unknown", message_ar: "x", message_en: "x" }))
+    .mockRejectedValueOnce(new ApiError("unknown"))
     .mockResolvedValue(doctorData);
   context.reportId = "by_doctor";
   renderScreen(<ReportScreenPage />);
