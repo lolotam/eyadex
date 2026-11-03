@@ -23,8 +23,7 @@ export function OwnSummaryReportPage() {
   const f = useReportFilters<Query>("own_summary", reportOwnSummaryQuerySchema);
   const q = useReportQuery("own_summary", f.query, (api, persona, query) => {
     // No branch filter for an own report: the request never carries one (NO_BRANCH_REPORTS).
-    const { branchId: _ignored, ...rest } = query;
-    return api.reports.ownSummary(persona, rest);
+    return api.reports.ownSummary(persona, { from: query.from, to: query.to });
   });
   const data = q.data;
   return (

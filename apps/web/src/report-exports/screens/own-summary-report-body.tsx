@@ -1,11 +1,10 @@
-import type { ReportOwnSummaryResponse } from "@eyadex/contracts/finance-reports";
 import { useI18n } from "@/shared/i18n/i18n-provider";
-import { useOwnSummaryColumns } from "./own-summary-columns";
+import { useOwnSummaryColumns, type OwnSummaryResponse } from "./own-summary-columns";
 import { sumMinor } from "./report-money";
 import { ReportTable } from "./report-table";
 import { useReportFormat } from "./use-report-format";
 
-type Props = { data: ReportOwnSummaryResponse };
+type Props = { data: OwnSummaryResponse };
 
 /**
  * The R10 body: one row per clinic month. The totals row is the response's own total, shown only
