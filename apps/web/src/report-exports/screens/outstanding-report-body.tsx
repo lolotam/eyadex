@@ -46,11 +46,17 @@ export function OutstandingReportBody({ pages, perBranch }: Props) {
         columns={columns}
         rows={pages.rows}
         rowKey={(r) => r.invoiceId}
-        totals={{
-          total: fmt.money(sumMinor(pages.rows.map((r) => r.totalMinor))),
-          paid: fmt.money(sumMinor(pages.rows.map((r) => r.paidMinor))),
-          owed: fmt.money(sumMinor(pages.rows.map((r) => r.owedMinor))),
-        }}
+        // A totals row under a partial list would disagree with the whole-range cards above it, so it
+        // appears only once every page is loaded (then it is exactly the sum of the rows shown).
+        totals={
+          pages.hasMore
+            ? undefined
+            : {
+                total: fmt.money(sumMinor(pages.rows.map((r) => r.totalMinor))),
+                paid: fmt.money(sumMinor(pages.rows.map((r) => r.paidMinor))),
+                owed: fmt.money(sumMinor(pages.rows.map((r) => r.owedMinor))),
+              }
+        }
       />
       <p className="text-xs text-muted-foreground" data-testid="outstanding-showing">
         {t("financeReports.outstanding.showing", { shown, total })}

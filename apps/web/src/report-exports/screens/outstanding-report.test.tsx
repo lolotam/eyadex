@@ -6,7 +6,7 @@ import { personaWith } from "@/shared/api/mock/mock-report-test-kit";
 import { ar } from "@/shared/i18n/ar";
 import { context, renderScreen, signIn, TestLink } from "./report-screens.test-kit";
 import { bucketTotals } from "./outstanding-summary";
-import { formatReportMinor } from "./report-money";
+import { formatReportMinor, sumMinor } from "./report-money";
 import { ReportScreenPage } from "./report-screen-page";
 import { BRANCH_B, deferred, page, PATIENT_ID, R5_KEYS, row } from "./outstanding-report.fixtures";
 import type { OutstandingPage } from "./use-outstanding-pages";
@@ -137,4 +137,21 @@ it("empty and first-page error states, with a retry", async () => {
   });
   fireEvent.click(await screen.findByRole("button", { name: ar.financeReports.states.retry }));
   await waitFor(() => expect(again.spy).toHaveBeenCalledTimes(2));
+});
+
+it("the table's totals row appears only when every page is loaded, and then equals the row sums", async () => {
+  await open([page(ALL.slice(0, 2), ALL, "c2"), page(ALL.slice(2), ALL, null)]);
+  await waitFor(() => expect(rows()).toHaveLength(2));
+  // A partial list must not carry a «Total» that disagrees with the whole-range cards above it.
+  expect(screen.queryByTestId("report-totals")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: O.loadMore }));
+  await waitFor(() => expect(rows()).toHaveLength(4));
+  const owed = screen.getByTestId("report-totals").querySelector('[data-column="owed"]');
+  expect(owed?.textContent).toBe(money(sumMinor(ALL.map((r) => r.owedMinor))));
+});
+
+it("an empty nextCursor is treated as no cursor: no load-more button", async () => {
+  await open([page(ALL, ALL, "")]);
+  await waitFor(() => expect(rows()).toHaveLength(4));
+  expect(screen.queryByRole("button", { name: O.loadMore })).toBeNull();
 });

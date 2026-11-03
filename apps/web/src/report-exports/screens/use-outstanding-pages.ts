@@ -77,11 +77,18 @@ export function useOutstandingPages(filters: OutstandingFilters | null) {
         (page) => {
           if (!isCurrent(forEpoch)) return;
           busy.current = null;
-          setState((old) =>
-            old.key !== forKey
-              ? old
-              : { ...old, pages: [...old.pages, page], loadingMore: false, moreError: null },
-          );
+          // The first page replaces the list; a later page is appended only when it answers the
+          // cursor the list is waiting for, so a repeated answer can never duplicate rows.
+          setState((old) => {
+            if (old.key !== forKey) return old;
+            if (cursor && (old.pages.at(-1)?.nextCursor || null) !== cursor) return old;
+            return {
+              ...old,
+              pages: cursor ? [...old.pages, page] : [page],
+              loadingMore: false,
+              moreError: null,
+            };
+          });
         },
         (error: unknown) => {
           if (!isCurrent(forEpoch)) return;
@@ -110,7 +117,8 @@ export function useOutstandingPages(filters: OutstandingFilters | null) {
 
   const current = state.key === key ? state : blank(key);
   const last = current.pages.at(-1);
-  const nextCursor = last?.nextCursor ?? null;
+  // An empty cursor is no cursor: `hasMore` and `loadMore` read the same value.
+  const nextCursor = last?.nextCursor || null;
 
   const loadMore = () => {
     if (!enabled || !nextCursor || busy.current === key) return;
