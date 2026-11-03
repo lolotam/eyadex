@@ -146,6 +146,10 @@ export const arFinanceReports: Strings<typeof enFinanceReports> = {
     },
     adjustments: {
       noValue: "—",
+      refundsNote:
+        "المستردات حسب يوم العمل، مع الإيصال أو الرصيد اللي خرجت منه كل واحدة. الفترة المختارة بتحدّ القائمة دي.",
+      discountsNote:
+        "الخصومات على الفواتير الصادرة حسب يوم الإصدار، صف لكل بند أو فاتورة عليها خصم. الفترة المختارة بتحدّ القائمة دي.",
       more: "عرض السبب كاملًا",
       less: "عرض أقل",
       source: { payment: "من إيصال", credit: "من الرصيد" },

@@ -154,3 +154,10 @@ it("a late first page of the old filter never replaces the new list", async () =
   expect(rows()).toHaveLength(1);
   expect(screen.queryByText("Adjust Person 1")).toBeNull();
 });
+
+it("the header note is the discounts one, not the daily-takings reconciliation note", async () => {
+  await open([pageOf(ALL, 3, null)]);
+  await waitFor(() => expect(rows()).toHaveLength(3));
+  expect(screen.getByText(ar.financeReports.adjustments.discountsNote)).toBeTruthy();
+  expect(screen.queryByText(ar.financeReports.note)).toBeNull();
+});

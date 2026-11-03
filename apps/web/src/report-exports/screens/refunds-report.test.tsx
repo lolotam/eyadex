@@ -81,7 +81,11 @@ it("the reason is plain text, collapsed in the row and expandable", async () => 
   const cell = rows()[2]!;
   expect(cell.querySelector("b")).toBeNull();
   const text = within(cell).getAllByTestId("reason-text")[0]!;
-  expect(text.textContent).toBe("<b>x</b> line two");
+  // The text node is always the whole reason; the clamp is CSS, and printing lifts it (no toggle there).
+  expect(text.textContent).toBe("<b>x</b>\nline two");
+  expect(text.className).toContain("line-clamp-1");
+  expect(text.className).toContain("print:line-clamp-none");
+  expect(text.className).toContain("print:whitespace-pre-line");
   const toggle = within(cell).getAllByRole("button", { name: A.more })[0]!;
   expect(toggle.getAttribute("aria-expanded")).toBe("false");
   fireEvent.click(toggle);
@@ -180,4 +184,11 @@ it("a late first page of the old filter never replaces the new list", async () =
   await act(async () => late.resolve(pageOf([ALL[0]!], 3, null)));
   expect(rows()).toHaveLength(1);
   expect(screen.queryByText("Adjust Person 1")).toBeNull();
+});
+
+it("the header note is the refunds one, not the daily-takings reconciliation note", async () => {
+  await open([pageOf(ALL, 3, null)]);
+  await waitFor(() => expect(rows()).toHaveLength(3));
+  expect(screen.getByText(ar.financeReports.adjustments.refundsNote)).toBeTruthy();
+  expect(screen.queryByText(ar.financeReports.note)).toBeNull();
 });

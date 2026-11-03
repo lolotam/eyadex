@@ -16,9 +16,15 @@ export function ReasonText({ reason }: { reason: string }) {
       <span
         id={id}
         data-testid="reason-text"
-        className={open ? "whitespace-pre-line break-words" : "line-clamp-1 break-all"}
+        // The text node is always the full reason: normal whitespace folds its line breaks into the one
+        // clamped line, and printing (no toggle) shows it whole with its line breaks.
+        className={
+          open
+            ? "whitespace-pre-line break-words"
+            : "line-clamp-1 break-all print:line-clamp-none print:whitespace-pre-line print:break-words"
+        }
       >
-        {open ? reason : collapsed}
+        {reason}
       </span>
       <button
         type="button"

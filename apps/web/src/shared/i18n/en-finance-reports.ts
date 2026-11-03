@@ -146,6 +146,10 @@ export const enFinanceReports = {
     },
     adjustments: {
       noValue: "—",
+      refundsNote:
+        "Refunds by business day, with the receipt or credit each one came out of. The period you choose limits this list.",
+      discountsNote:
+        "Discounts on issued invoices by issue day, one row per discounted line or invoice. The period you choose limits this list.",
       more: "Show full reason",
       less: "Show less",
       source: { payment: "From receipt", credit: "From credit" },
