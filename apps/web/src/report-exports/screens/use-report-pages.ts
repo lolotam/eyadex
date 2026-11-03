@@ -4,7 +4,7 @@ import type { ApiClient } from "@/shared/api/api-client";
 import { errorKeyOf } from "@/shared/api/api-error";
 import { useApi } from "@/shared/api/api-provider";
 import { usePersona, useSession } from "@/shared/persona/persona-provider";
-import type { Persona } from "@/shared/persona/persona";
+import type { Persona } from "@eyadex/contracts/session";
 import { useCommittedEpoch } from "../use-committed-epoch";
 import { canOpenReport } from "./report-catalogue";
 
