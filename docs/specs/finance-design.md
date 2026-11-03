@@ -1,7 +1,12 @@
 # Finance — design (post-MVP phase 4)
 
 - Status: owner decisions taken 2026-10-14 (decisions page batches 10–13). F1 is implemented and in
-  production (PRs 78, 84, 85, 87); F2 is designed in §4 and approved by the owner (SQL plan and F2-Q1 … F2-Q19, 2026-10-20); its slices 1–5 are built (contracts, SQL, domain, the payments-and-credit API, and the refunds, cash closing and platform totals API; PRs 90, 92, 94, 95, 99; ADR-0034 "As built"), the receipt PDF is deferred with 8g, and the web (slice 6) is still to come; F3 is a design (`finance-f3-reports-design.md`, §5) whose owner answers were taken on 2026-10-21 (its §11); building it waits for the owner's yes on its SQL plan and the open items of issues #105 and #106; F4 is an outline.
+  production (PRs 78, 84, 85, 87). F2's contracts, SQL, domain, API and web cards are merged (PRs 90, 92,
+  94, 95, 99, 103, 116, 119; ADR-0034 "As built"); invoice and receipt PDFs remain open under Task 8g.
+  F3's reports API, export pipeline and R1–R10 screens are merged (PRs 126, 128, 136, 138, 141–148;
+  `finance-f3-reports-design.md`). Final launch acceptance remains open in
+  `docs/superpowers/plans/2026-11-03-production-launch.md`; merged implementation is not evidence that
+  every acceptance gate has passed. F4 remains an outline.
 - PRD: §8.3 item 4 ("finance"), §4.7 (permissions), §4.8 (module flags), §4.11 (audit), §5 (database
   rules), §8 (security: the platform never sees patient data).
 - Decision records: ADR-0033 (money, numbering and the invoice life cycle,

@@ -1,11 +1,13 @@
 # F1 Task 8g — server-rendered invoice PDF (design note for review)
 
-- **Status:** proposal for focused review, 2026-10-15, **updated after the feasibility probe** (`docs/superpowers/plans/evidence/2026-10-15-finance-f1/pdf-probe/README.md`). No code
-  until approved.
+- **Status:** implementation approved by the owner on 2026-11-03 (§7 item 8), following the feasibility
+  probes (`docs/superpowers/plans/evidence/2026-10-15-finance-f1/pdf-probe/README.md`). Reproducible
+  extraction/rendering proof and the staging runtime measurement remain release gates.
 - **Contract (unchanged, approved):** `GET /v1/invoices/:id/pdf` — "Bilingual PDF rendered by the API from the
   stored invoice" (`finance-design.md` §3.3, FIN-5, FIN-6). D-P1 (browser print view) is declined by the owner
   (2026-10-15); this note only chooses how the API renders.
-- On approval this becomes an ADR (new runtime binary in the API image).
+- Decision record: [ADR-0037](../adr/0037-bilingual-server-pdf.md), recorded before implementation of
+  the production renderer. Staging measurement still decides API versus worker placement.
 
 ## 1. Requirements the renderer must meet
 
@@ -31,32 +33,56 @@
 
 ### 3.1 Process
 
-1. Use case (`billing/use-cases/render-invoice-pdf.ts`): guard `view:invoices:*` (with `own` reach), load the
-   invoice, lines, clinic header, branch, patient display name inside `withTenant`; write the
-   `patient_access` audit row (Task 8j). Close the transaction **before** rendering.
+1. Use case (`billing/use-cases/invoice-pdf/invoice-pdf.ts`): guard `view:invoices:*` (with `own` reach), load
+   the invoice, lines, clinic header, branch and patient display name inside `withTenant`. Close the
+   transaction **before** rendering. The audit row is written only after the final PDF exists; the public
+   link also retains its post-render revocation/void checks. After rendering, reload the invoice under
+   `FOR SHARE` inside `withTenant`, compare its version and status with the rendered snapshot, and
+   keep that lock through the audit insert. A changed version discards the bytes with the existing
+   `version_conflict` (412) response, without an open audit row; a revoked/void public link keeps its
+   existing `invoice_link_expired` response. An authenticated void invoice is deliverable only when
+   that same void version was rendered with its banner. The final check/audit transaction is the
+   delivery decision point; no database lock spans rendering or network transmission.
 2. Build a **whitelisted** `InvoicePdfModel` (no ids except the invoice number; patient = display name only — no
    civil ID, phone or email). Every string is formatted in TypeScript first: amounts with `formatMinor`, dates
    with `Intl.DateTimeFormat("ar-KW" | "en-GB", { timeZone: clinic.timezone })` exactly as the prescription
-   print view does (`prescription-print-view.tsx:17`). The template only lays out strings (R4).
+   print view does (`prescription-print-view.tsx:17`). Arabic currency names are written in full: KWD is
+   «دينار كويتي», never «د.ك» in the PDF (§7 item 7); the English block retains `KWD`. The template only
+   lays out strings (R4).
 3. Port `InvoicePdfRenderer.render(model): Promise<Uint8Array>`; adapter `TypstInvoicePdfRenderer`:
    `spawn(typstPath, ["compile", "--format", "pdf", "--ignore-system-fonts", "--font-path", fontsDir, "--root",
 emptyDir, "-", "-"])` (the exact form the probe ran)
    with `stdin` = the main document (template import + the model as one escaped JSON string literal) and
    `stdout` = the PDF. No argv data, no temp file, an empty `env` (the binary is called by absolute path), `cwd` = `/`. The adapter ignores a stdin `EPIPE` and
    reports the child's exit (a child that dies before reading its input must fail the request, not crash the API —
-   seen in the probe).
-4. Limits: a semaphore of **2** concurrent renders per API process (excess waits ≤ 2 s, then 503
-   `pdf_busy`, a new `RULE_ONLY` code); a **5 s** kill timeout; stdout capped at 5 MB; a non-zero exit is logged
-   as `pdf_render_failed` with the exit code only (never stderr, which can echo content).
-5. Response: `200`, `Content-Type: application/pdf`, `Content-Disposition: inline; filename="<number>.pdf"`,
+   seen in the probe). This Typst stdout is an intermediate PDF, never the response.
+4. Required **qpdf 12.3.2 post-render pass**: read the intermediate PDF through libqpdf's memory API,
+   apply the §7 item 7 `/ActualText` correction to Arabic-letters-only runs (reversed code points), and
+   serialize the final PDF in memory. No input PDF, decoded JSON or patient text may be written to a
+   temporary file; the qpdf CLI's seekable-file requirement is not permission to spill to disk. The
+   in-memory bridge and correction need reproducible extraction and rendering proof before release.
+   A failed parse, unsupported content, correction failure or serialization warning fails the render;
+   it never falls back to returning the uncorrected Typst PDF. At runtime, final output must be a valid
+   PDF within the size limit and preserve the page count. Page-image equivalence and the pinned
+   pdf.js/pdftotext R2 assertions run in the §6 adapter tests in CI, not on each request; the extractors
+   are not runtime dependencies.
+5. Limits cover the **whole Typst plus qpdf pipeline**: a semaphore of **2** concurrent renders per API
+   process (excess waits ≤ 2 s, then 503 `pdf_busy`, a `RULE_ONLY` code); a **5 s** total kill timeout;
+   intermediate/final PDFs capped at 5 MB each and any decoded JSON representation capped at 32 MB.
+   Limit or process failure terminates the remaining children and releases the semaphore. A non-zero
+   child exit is logged as `pdf_render_failed` with its exit code only; stderr, exception text and
+   document buffers are never logged. Partial output is never delivered or cached.
+6. Response: only the corrected PDF, `200`, `Content-Type: application/pdf`, `Content-Disposition: inline; filename="<number>.pdf"`,
    `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`.
 
 ### 3.2 Fonts
 
-- **IBM Plex Sans Arabic** only (Regular 400, SemiBold 600), the web app's Arabic font
-  (`apps/web/src/routes/__root.tsx:105`). Its Latin glyphs cover the English text: the probe PDF embeds only
-  this family, so IBM Plex Sans is not vendored. Licence SIL OFL 1.1 (bundling allowed). Pinned files and sha256
-  in the probe evidence §1.
+- **Amiri 1.002** only (Regular 400, Bold 700), including its Latin glyphs for the English text. This
+  supersedes the original IBM Plex Sans Arabic proposal (§7 items 7–8); the web font is unchanged.
+  Licence SIL OFL 1.1 (bundling allowed). The approved files are `Amiri-Regular.ttf` (431,116 bytes,
+  sha256 `ab391c4147d054c48976e98322ad0eefe1427aa0e0502a12a4c75d80a70cfcd7`) and `Amiri-Bold.ttf`
+  (413,480 bytes, sha256 `cfccb794268e7d573d857e6d6a67f89cf8a053e8ffd85dfa0c8ec1bb36fc4827`),
+  recorded in `docs/superpowers/plans/evidence/2026-10-15-finance-f1/pdf-probe/probe3-REPORT.md`.
 - Vendored TTFs in `apps/api/assets/fonts/` with `OFL.txt` and a `SHA256SUMS` file checked in CI; the image
   never downloads fonts at runtime (R7). `--ignore-system-fonts` makes the result identical on every machine.
 - Digits and date words come from `Intl` (step 2), so they match the web for the same locale.
@@ -80,7 +106,8 @@ emptyDir, "-", "-"])` (the exact form the probe ran)
 
 ## 4. Where it runs (R6)
 
-Render synchronously in the API **only if** p95 ≤ 150 ms for a 50-line invoice on the production host class.
+Render synchronously in the API **only if** the complete Typst plus qpdf pipeline's p95 ≤ 150 ms for a
+50-line invoice on the production host class.
 The probe measured **84.2 ms** p95 (77.6 ms cold) and **≈ 32 MB** peak RSS per compile on a developer host
 (i7-8700, Docker Desktop); the staging re-measure decides. Otherwise the alternative is: the worker renders on each issue/edit/void (outbox event
 with `{invoiceId, version}`), stores `invoices/<clinic>/<invoice>/v<version>.pdf` through the shared BlobStore,
@@ -124,7 +151,9 @@ The decision is made by measurement, not assumed.
   model with the patient name never appears in captured logs; a child that exits before reading stdin fails the
   request.
 - API db spec: `own` reach, `view` permission, module off ⇒ `module_disabled`, audit row written, headers
-  (`no-store`), void invoice still renders with the banner.
+  (`no-store`), void invoice still renders with the banner; an edit committed during rendering rejects
+  the stale bytes with `version_conflict` and writes no open audit row on both authenticated and public
+  paths; public revocation/void keeps `invoice_link_expired`.
 
 ## 7. Owner decisions (decisions page batch 14, 2026-10-15)
 
@@ -132,8 +161,9 @@ The decision is made by measurement, not assumed.
    Chromium is not an extraction fallback (probe 2 §4).
 2. **L1 — (a) approved:** the R2 extraction criterion stays as written, and a further bounded search (static
    Noto Naskh Arabic, other Arabic fonts, LuaLaTeX, `ActualText`) runs **before** any 8g code and reports to the
-   owner. 8g code stays held until then.
-3. Fonts: IBM Plex Sans Arabic (Regular, SemiBold) — approved with option 1.
+   owner. This historical search hold led to the probe 3–5 results and owner choice recorded in item 7;
+   item 8 confirms the remaining dependencies. Reproducing the chosen solution is still required.
+3. Original fonts decision: IBM Plex Sans Arabic (Regular, SemiBold) — superseded by Amiri in items 7–8.
 4. **L2 — (a) approved:** the logo is a file under a private per-render `--root` (1 MB cap kept; ≈ 25 MB).
 5. **Where it runs — approved:** measure p95 on staging first; ≤ 150 ms ⇒ in the API, else the worker path of §4.
 6. **Approved (F1-PDF-BUSY):** a new `RULE_ONLY` error `pdf_busy` (503, `Retry-After: 2`) — and `pdf_pending` (409) only if §4 moves rendering to the worker.
@@ -147,3 +177,9 @@ The decision is made by measurement, not assumed.
    Amiri (replacing item 3's IBM Plex Sans Arabic, which reached 32/40), the image gains qpdf (~1.8 MB), and CI
    pins the pdf.js and poppler versions, since the pass relies on pdf.js ignoring `ActualText` and poppler
    reversing it.
+8. **Owner confirmation (2026-11-03):** Amiri, adding qpdf to the runtime image, and pinning both text
+   extractors in CI are approved. Implementation of that chosen solution may proceed: item 2's
+   alternative-search stage is recorded by the results and choice in item 7, not waived or counted as
+   a fresh passing test. The R2 extraction criterion, no patient data in argv/logs/temp files, and the
+   staging p95 decision remain unchanged. Reproducing the selected post-render solution is a gate
+   before wiring it into the production renderer; the old probe is not a substitute for that proof.

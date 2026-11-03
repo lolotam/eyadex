@@ -101,7 +101,7 @@
 - [x] Release: existing clinics' system roles gain the medical keys by `system_key`, new clinics' default roles hold them, `medical` joins the new-clinic default modules (ADR-0029 §12, SQL 0050, `db/maintenance/medical-release-catch-up.sql`)
 - [x] The platform's audit INSERT policy refuses `appointment` rows too, as its read policy and view do (SQL 0051; 0046 is applied on staging, so it stays unedited)
 - [x] Apply `db/sql/0045`–`0051` to staging, then production, each before the deploy that needs it (orchestrator)
-- [ ] Load ICD-10-CM after 0047 (orchestrator)
+- [x] Load ICD-10-CM after 0047 (orchestrator): read-only verification on 2026-11-03 found 98,403 rows in `icd10_codes` on staging and production; no reload performed
 - [x] Fix: FY2027 ICD-10-CM codes with a letter second (`QA0…`) are accepted (PR #75)
 - [ ] After the release deploy, run `db/maintenance/medical-release-catch-up.sql` on staging, then production, before the platform switches `medical` on for any clinic (orchestrator)
 - [x] Drop the plain `civil_id` column: SQL 0052 (refuses while a plain number remains) and code that never names it; the backfill command is removed (ADR-0028, R1-6)
@@ -125,16 +125,16 @@
 - [x] F2 slice 3: settlement domain (PR #94)
 - [x] F2 slice 4: payments and credit API (PR #95)
 - [x] F2 slice 5: refunds, cash closings, receipt, platform totals v2 (API) (PR #99; the receipt PDF is deferred with 8g, below)
-- [ ] F2 slice 6: web (Lovable) — in progress
+- [x] F2 slice 6: web (Lovable) — cards merged; receipt PDF remains separately deferred below
   - [x] Card 1a: payments, patient credit, settlement on invoices, payment methods (mock = API)
   - [x] Card 1b: receipts list and receipt page, «المدفوعات» tab, receipt link in the success toast
   - [x] Card 2a: refunds (dialog, movements, refunds list), finance strip as nav, platform collected/refunded
-  - [x] Card 2b: the cash closing (preview, close dialog, history, detail, menu entry) — in review as a PR to main; the create-only role seeing no branches is accepted (owner decision 2026-10-23)
+  - [x] Card 2b: the cash closing (preview, close dialog, history, detail, menu entry), PR #119 merged; the create-only role seeing no branches is accepted (owner decision 2026-10-23)
 - [x] Invoice line price fills from the service price (doctor price first; owner decision 2026-10-24)
 - [ ] F2: the receipt PDF — deferred with 8g
-- [ ] F3: reports (outline, `finance-design.md` §5)
+- [x] F3: reports implementation (API #126, exports #128/#136/#138, report screens #141–#148); final launch acceptance remains open in the plan below
   - [x] Slice 3 card B: web `reports` client (HTTP + mock R1–R10), slice 2b stored fields in the mock, `report_range_too_long` in the web catalogue
-  - [ ] Slice 5: the report screens
+  - [x] Slice 5: the report screens R1–R10 (cards below)
 - [ ] F4: online payment and insurance (outline, `finance-design.md` §6)
 
 ## Finance F3 — report screens
@@ -143,5 +143,9 @@
 - [x] Card 2: PR #141 follow-ups (A1–A4) + R9 «سجل إقفال الصندوق»
 - [x] Card 3: #143 (download hook commit-only identity) + R3 «الإيراد حسب الخدمة» + R4 «الإيراد حسب الدكتور» (table only)
 - [x] Card 4: R5 «المبالغ المستحقة» (cursor pages, age-bucket cards)
-- [ ] Card 5: R6 «أرصدة المراجعين» (built; one R5 test line waits for the owner's OK)
-- [ ] Cards 6–7: R7, R8 and R10 screens (waiting for the owner's next card)
+- [x] Card 5: R6 «أرصدة المراجعين» (PR #146; date-test follow-up merged in #149)
+- [x] Cards 6–7: R7/R8 (PR #147) and R10 (PR #148); totals helper follow-up merged in #150
+
+## Production launch closure — 2026-11-03
+
+- [ ] Execute the consolidated [production launch plan](docs/superpowers/plans/2026-11-03-production-launch.md): F3 acceptance, invoice/receipt PDF, medical readiness, full clinic journey and production gates. Merged screens do not imply final acceptance.

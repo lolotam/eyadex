@@ -1,10 +1,12 @@
-# Finance F3 — reports (design draft)
+# Finance F3 — reports
 
-- Status: **decided** (owner decisions taken 2026-10-21, EY-9, §11, and 2026-10-23, EY-10, §12). Nothing
-  here is built. Five answers differ from the recommendation (F3-Q4, Q5, Q7, Q8, Q9); §3–§9 state them, and
-  §11 and §12 win where they disagree. The slices of §9 still wait for the owner's yes on the SQL plan.
-  The export pipeline is designed in `docs/specs/finance-f3-export-pipeline.md`, which lands before
-  slice 2's SQL.
+- Status: **implementation merged; final launch acceptance open** (2026-11-03). Reports API: PR #126;
+  exports: PRs #128, #136, #138; R1–R10 screens: PRs #141–#148. The remaining acceptance evidence is
+  tracked in `docs/superpowers/plans/2026-11-03-production-launch.md`; implementation completion does
+  not imply production acceptance. Owner decisions were taken on 2026-10-21 (EY-9, §11) and 2026-10-23
+  (EY-10, §12). Five answers differ from the recommendation (F3-Q4, Q5, Q7, Q8, Q9); §11 and §12 win
+  where they disagree with the earlier design. The export pipeline is documented in
+  `docs/specs/finance-f3-export-pipeline.md` and ADR-0036.
 - Parent spec: `docs/specs/finance-design.md` (§2 shared rules, §3 F1, §4 F2, §8–§8d binding review rules).
   This file replaces the §5 outline there.
 - Decision record: **ADR-0035** (`docs/adr/0035-finance-reports.md`), accepted 2026-10-21.
