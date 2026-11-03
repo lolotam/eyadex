@@ -70,9 +70,16 @@ it("months are formatted in Arabic and English, never as raw YYYY-MM", async () 
 
 it("shows only month and billed: no paid, owed, branch or patient text, and no ids", async () => {
   await open();
-  const text = document.body.textContent ?? "";
+  // The header note itself says there are no paid or owed amounts; everything else is checked.
+  const text = (document.body.textContent ?? "").replace(O.note, "");
   const F = ar.financeReports;
-  for (const banned of [F.filters.branch, F.patientCredit.columns.patient, "المدفوع", "المريض"])
+  for (const banned of [
+    F.filters.branch,
+    F.patientCredit.columns.patient,
+    "المدفوع",
+    "المتبقي",
+    "المريض",
+  ])
     expect(text).not.toContain(banned);
   expect(text).toContain(O.month);
   expect(text).toContain(O.billed);
