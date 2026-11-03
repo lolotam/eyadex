@@ -120,6 +120,22 @@ it("a filter change restarts at page 1 and a late page of the old filter is igno
   expect(screen.queryByText("Credit Person 2")).toBeNull();
 });
 
+it("a late first page of the old filter never replaces the new list", async () => {
+  const late = deferred<PatientCreditPage>();
+  let call = 0;
+  await open(async () => {
+    call += 1;
+    return call === 1 ? late.promise : creditPage([ALL[2]!], [ALL[2]!], null);
+  });
+  fireEvent.change(screen.getByLabelText(ar.financeReports.filters.from), {
+    target: { value: "2026-10-02" },
+  });
+  await waitFor(() => expect(screen.getAllByText("Credit Person 3").length).toBeGreaterThan(0));
+  await act(async () => late.resolve(creditPage([ALL[0]!], ALL, null)));
+  expect(rows()).toHaveLength(1);
+  expect(screen.queryByText("Credit Person 1")).toBeNull();
+});
+
 it("an error on load more keeps the earlier pages and retries only that page", async () => {
   const { spy } = await open([creditPage([ALL[0]!], ALL, "c2")]);
   spy
