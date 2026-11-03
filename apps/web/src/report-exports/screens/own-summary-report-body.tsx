@@ -1,6 +1,6 @@
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { useOwnSummaryColumns, type OwnSummaryResponse } from "./own-summary-columns";
-import { sumMinor } from "./report-money";
+import { agreedTotal } from "./report-money";
 import { ReportTable } from "./report-table";
 import { useReportFormat } from "./use-report-format";
 
@@ -14,7 +14,10 @@ export function OwnSummaryReportBody({ data }: Props) {
   const { t } = useI18n();
   const fmt = useReportFormat(data.currency, data.currencyExponent);
   const columns = useOwnSummaryColumns(fmt);
-  const agrees = sumMinor(data.rows.map((r) => r.billedMinor)) === data.totals.billedMinor;
+  const billed = agreedTotal(
+    data.rows.map((r) => r.billedMinor),
+    data.totals.billedMinor,
+  );
   return (
     <ReportTable
       caption={t("financeReports.names.own_summary")}
@@ -22,9 +25,7 @@ export function OwnSummaryReportBody({ data }: Props) {
       rows={data.rows}
       rowKey={(r) => `${r.period}-${r.currency}`}
       totals={{
-        billed: agrees
-          ? fmt.money(data.totals.billedMinor)
-          : t("financeReports.ownSummary.noValue"),
+        billed: billed === null ? t("financeReports.ownSummary.noValue") : fmt.money(billed),
       }}
     />
   );

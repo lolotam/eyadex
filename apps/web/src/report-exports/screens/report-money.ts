@@ -21,3 +21,10 @@ export function formatReportMinor(minor: string, exponent: number, lang: Languag
 /** The BigInt sum of minor-unit strings, for totals checks. */
 export const sumMinor = (values: readonly string[]): string =>
   values.reduce((total, value) => total + BigInt(value), 0n).toString();
+
+/**
+ * The response's own total when it equals the BigInt sum of the rows on screen, otherwise null: a
+ * total that disagrees with its rows is never displayed. Both sides are canonical minor-unit strings.
+ */
+export const agreedTotal = (values: readonly string[], total: string): string | null =>
+  sumMinor(values) === total ? total : null;
