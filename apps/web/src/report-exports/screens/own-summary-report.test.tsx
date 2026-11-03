@@ -43,6 +43,14 @@ async function open(answer = ownAnswer(BIG_ROWS, BIG_SUM), keys = R10_KEYS) {
 const totalsCell = () =>
   within(screen.getByTestId("report-totals")).getAllByRole("cell")[1]!.textContent;
 
+/**
+ * The second of the screen's own default month (its From input starts on day 1), so the range stays
+ * valid whatever day the suite runs on; a fixed calendar date would pass the 366-day cap one day.
+ */
+const dayTwoOfDefaultMonth = () =>
+  (screen.getByLabelText(ar.financeReports.filters.from) as HTMLInputElement).value.slice(0, 8) +
+  "02";
+
 it("the totals row is the response total, equal to the BigInt sum above 2^53", async () => {
   await open();
   expect(sumMinor(BIG_ROWS.map((r) => r.billedMinor))).toBe(BIG_SUM);
@@ -112,7 +120,7 @@ it("has no branch picker, fetches no branch list and never sends branchId", asyn
   const { spy, branchList } = await open();
   expect(screen.queryByLabelText(ar.financeReports.filters.branch)).toBeNull();
   fireEvent.change(screen.getByLabelText(ar.financeReports.filters.from), {
-    target: { value: "2026-09-02" },
+    target: { value: dayTwoOfDefaultMonth() },
   });
   await waitFor(() => expect(spy.mock.calls.length).toBeGreaterThan(1));
   for (const call of spy.mock.calls) expect(Object.keys(call[1]).sort()).toEqual(["from", "to"]);
@@ -145,7 +153,7 @@ it("a late answer for an old filter is never shown", async () => {
   );
   await waitFor(() => expect(screen.getByLabelText(ar.financeReports.filters.from)).toBeTruthy());
   fireEvent.change(screen.getByLabelText(ar.financeReports.filters.from), {
-    target: { value: "2026-10-02" },
+    target: { value: dayTwoOfDefaultMonth() },
   });
   await screen.findAllByTestId("report-row");
   act(() => lang.set("en"));
