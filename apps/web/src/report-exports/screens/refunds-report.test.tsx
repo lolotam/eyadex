@@ -86,6 +86,8 @@ it("the reason is plain text, collapsed in the row and expandable", async () => 
   expect(text.className).toContain("line-clamp-1");
   expect(text.className).toContain("print:line-clamp-none");
   expect(text.className).toContain("print:whitespace-pre-line");
+  // break-all would still split words in print without this override.
+  expect(text.className).toContain("print:[word-break:normal]");
   const toggle = within(cell).getAllByRole("button", { name: A.more })[0]!;
   expect(toggle.getAttribute("aria-expanded")).toBe("false");
   fireEvent.click(toggle);

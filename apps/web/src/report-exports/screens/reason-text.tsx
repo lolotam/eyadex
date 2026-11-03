@@ -21,7 +21,7 @@ export function ReasonText({ reason }: { reason: string }) {
         className={
           open
             ? "whitespace-pre-line break-words"
-            : "line-clamp-1 break-all print:line-clamp-none print:whitespace-pre-line print:break-words"
+            : "line-clamp-1 break-all print:line-clamp-none print:whitespace-pre-line print:[word-break:normal] print:break-words"
         }
       >
         {reason}
