@@ -155,8 +155,12 @@ it("no patient or refund id reaches the DOM", async () => {
 });
 
 it("shows the branch picker and the first-page error with a retry", async () => {
-  const spy = await open([]);
-  spy.mockRejectedValueOnce(new ApiError("unknown")).mockResolvedValueOnce(pageOf([], 0, null));
+  let call = 0;
+  await open(async () => {
+    call += 1;
+    if (call === 1) throw new ApiError("unknown");
+    return pageOf([], 0, null);
+  });
   expect(screen.getByLabelText(ar.financeReports.filters.branch)).toBeTruthy();
   fireEvent.click(await screen.findByRole("button", { name: ar.financeReports.states.retry }));
   expect(await screen.findByText(ar.financeReports.states.empty)).toBeTruthy();
