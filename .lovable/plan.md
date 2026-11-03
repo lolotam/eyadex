@@ -1,95 +1,59 @@
-# Card 5 of 7 — R6 «أرصدة المراجعين» (Patient credit)
+# Card 6 of 7 — R7 «المستردات» (Refunds) + R8 «الخصومات» (Discounts)
 
-Web only: screens, hooks over `useApi()`, i18n, tests. No change to contracts, API, worker, SQL or mock rules.
+UI only, under `apps/web/src/report-exports/screens/`. No contract, API, worker, SQL or mock-rule change.
 
-## What I checked, and how it fits
+## Contract fit (checked)
 
-- Access: `reportPermissionScope` lists `patient_credit` as `report_patients`, covering `["payments"]`, scopes `["clinic"]`. `canOpenReport` already enforces this, so a branch-scoped holder gets `null`. The catalogue needs no new permission code; I only add `patient_credit` to `SCREEN_REPORTS`.
-- Query: `reportPatientCreditQuerySchema` = `reportFields` + `cursorFields`, with the 366-day check. It has no groupBy. `branchId` is optional, so leaving it out is valid.
-- Response: `items` (patientId, patientName, balanceMinor, oldestCreditDay, currency), `nextCursor`, `total`, `currency`, `currencyExponent`. It has no summary. `api.reports.patientCredit` exists.
-- Patient link: the patients UI links with `/clinic/patients/$patientId`, gated on `can(view, patients)` (see `visits/visit-content.tsx`). A link would put `patientId` in an `href`, and your extra rule forbids that. **The name stays plain text for everyone.** This is my reading of the two rules together; tell me if you want the link instead.
-- Default dates: `SCREEN_DEFAULT_DAYS` only lists `outstanding`, so R6 keeps the frame's current clinic month, as you asked.
-- Contract fit: no gaps found.
+- Queries `reportRefundQuerySchema` / `reportDiscountQuerySchema`: `reportFields` (from, to, optional branchId) + `cursorFields`, 366-day cap, no groupBy.
+- Responses `reportRefundResponseSchema` / `reportDiscountResponseSchema`: items, nextCursor (nullable), total, currency, currencyExponent. `api.reports.refunds` / `api.reports.discounts` and the mock already exist.
+- Access (`finance-report-access.ts`): refunds = report_patients + covering payments; discounts = report_patients + covering invoices; both at clinic or branch scope.
+- Differences from the brief (none blocking):
+  1. `reason` is `text(300)`, **not nullable** on both rows. «—» covers an empty or whitespace-only string.
+  2. `refundedByName` is nullable (the membership is gone), while `refundedBy` (id) is required. Only the name is shown.
+  3. `discountedBy` and `discountedByName` are both nullable. Only the name is shown.
+  4. R7 rows have `refundId` but the brief gives no refund page link, so the refund number is plain text. `refundId` never reaches the DOM.
+  5. Neither report is in `NO_BRANCH_REPORTS`, so the branch picker and the export form's branch field show without any shared change.
 
-## Part 1 — shared cursor pager (refactor, behaviour unchanged)
+## Files
 
-`use-outstanding-pages.ts` (150 lines) is hard-wired to R5: the type, the `api.reports.outstanding` call and `canOpenReport(…, "outstanding")`. Copying it would put about 150 lines of race-sensitive code in two places. So:
+| File | Est. lines | Content |
+|---|---|---|
+| `use-refunds-pages.ts` | ~30 | thin wrapper over `useReportPages("refunds", …)`, filters `{from,to,branchId?}` |
+| `use-discounts-pages.ts` | ~30 | same for `"discounts"` |
+| `reason-text.tsx` | ~55 | plain text node; truncated view collapses `\s+` to one space and clamps it; a toggle button with `aria-expanded` / `aria-controls` shows the full text (`whitespace-pre-line`); empty → `financeReports.common.dash`; no HTML |
+| `refunds-columns.tsx` | ~75 | refund no., day, branch, «المراجع» name, method (existing payment-method label keys), source label (text + icon, not colour alone), amount, refunded by / «—», reason |
+| `discounts-columns.tsx` | ~80 | invoice no. (`<Link to="/clinic/invoices/$invoiceId">` only when `can(perms,"view","invoices")`, like R5), day, branch, name, kind label, discount, set by / «—», reason |
+| `adjustment-pages-footer.tsx` | ~55 | shared «عرض X من Y», print note, load more, per-page retry. Taken out of the R6 body pattern; R5/R6 stay as they are |
+| `refunds-report-body.tsx` | ~45 | ReportTable + footer; `rowKey` = row index; total `amount` only when `!hasMore` (BigInt `sumMinor`) |
+| `discounts-report-body.tsx` | ~45 | same, total `discount` |
+| `refunds-report-page.tsx` | ~40 | frame like the R6 page: filters with branch, shell, content (default period empty wording), export prefill, print |
+| `discounts-report-page.tsx` | ~40 | same |
+| `report-catalogue.ts` | +2 | add `refunds`, `discounts` to `SCREEN_REPORTS` |
+| `report-screen-page.tsx` | +4 | dispatch both reports (keyed by memberId) |
+| `available-reports.tsx` | +0–4 | only if card descriptions are keyed per report |
+| `ar-finance-reports.ts` / `en-finance-reports.ts` | 153 → ~185 each | names, descriptions, columns, `source.payment/credit` («من إيصال»/«من الرصيد»; "From receipt"/"From credit"), `kind.line/invoice` («على بند»/«على الفاتورة»; "Line"/"Invoice"), `reason.more/less`, dash. If either goes past 280 lines, split into `*-finance-reports-adjustments.ts` and compose it at the root |
 
-- **new `use-report-pages.ts` (~140)**: a generic `useReportPages<Row, Page>(report, fetchPage, filters)`. It has exactly the current discipline:
-  - the scope key is actor + membership + sorted permissions + reach + parsed filters (the filters are serialised generically, with `branchId ?? null`);
-  - the `useCommittedEpoch` generation;
-  - the first page replaces the list, and a page is appended only for the expected cursor;
-  - an empty cursor counts as no cursor;
-  - the load-more lock is held by a ref read only in handlers and effects;
-  - a per-page retry keeps earlier pages;
-  - every returned value comes from that render's state.
-  
-  It returns `pages`, `rows`, `total`, `first`, `currency`, `exponent` and the same flags and handlers as today.
-- **`use-outstanding-pages.ts` (~150 → ~40)**: becomes a thin wrapper. It adds `summary` from the first page. Its public shape is unchanged, so the R5 files and tests are not touched.
-- **new `use-patient-credit-pages.ts` (~35)**: a wrapper over `api.reports.patientCredit` for `"patient_credit"`. It also removes `branchId` from the filters before the key and the request, so `branchId` can never be sent even if the filters carry one.
+The existing R5 «عرض/تحميل المزيد» keys (`financeReports.outstanding.*`) are reused, as R6 already does. No new duplicates.
 
-Fallback, if you would rather not touch reviewed R5 code: a separate R6 hook copied from the R5 hook (~150 lines). Say which you prefer; I will build the shared pager unless you say otherwise.
+## Tests (each file under 300 lines; synthetic ids and names such as `branch-test-a`, «مراجع تجريبي ١»)
 
-## Part 2 — the R6 screen
+- `adjustment-reports.test-kit.tsx` (~120): seeds refunds/discounts through the real mock API (as the R6 kit does), persona builders and render helper. Only helpers, no components besides the wrapper.
+- `refunds-report.test.tsx` (~230): route `/clinic/reports/refunds`; columns; source labels ar + en; method label; «—» for null `refundedByName`; reason `<b>x</b>` renders as text with no `b` element; truncation + expand (`aria-expanded` toggles, keyboard Enter); load more appends exactly page 2 and shows `total`; filter change restarts and a late old-filter page is ignored; load-more error keeps page 1 and retries only that cursor; a total only when complete, equal to the BigInt sum with values above 2^53; branch picker shown and `branchId` sent; empty/error/forbidden; no patientId or refundId in `document.body.innerHTML`.
+- `discounts-report.test.tsx` (~230): the same set for R8, plus kind labels ar + en, «—» for null `discountedByName`, invoice link only with `view:invoices` (and its href holds only the invoice id), no patientId.
+- `adjustment-access.test.tsx` (~120): report_patients + view:payments → R7 card + route, not R8; report_patients + view:invoices → R8, not R7; branch scope opens both; no covering key → neither; report_own, report_takings and report_analytics only → never. R10 card stays hidden.
+- `report-screens.test.tsx`: the "unbuilt report is not found" example changes from `refunds` to `own_summary` (R10), because R7 is now built. Only that line changes.
+- `report-catalogue.test.ts`: update the built-screens list if it asserts it.
 
-- **`report-catalogue.ts` (+8)**: add `"patient_credit"` to `SCREEN_REPORTS`. Add `SCREEN_NO_BRANCH: ReadonlySet<ScreenReportId> = new Set(["patient_credit"])` and `SCREEN_CLINIC_WIDE_NOTICE` (the same set, used by the shell and the export button). R7, R8 and R10 stay hidden.
-- **`report-filters-bar.tsx` (+6)**: when the report is in `SCREEN_NO_BRANCH`, the bar renders no branch picker and no branch-load error, and does not call `useExportBranchOptions` for it. To keep hook order fixed, the picker moves into a small child component. From/To stay visible.
-- **new `report-branch-picker.tsx` (~60)**: the existing picker and its error row, moved out of the bar unchanged, so the bar only mounts it when the report has a branch filter.
-- **`use-report-filters.ts` (+4)**: for reports without a branch filter, `branchId` is forced to `null` and never waits on branch checking, so there is no loading state while a branch is checked.
-- **new `clinic-wide-notice.tsx` (~25)**: a prominent notice: icon + text, with a tinted token surface and `role="note"`. It reads ar «الرصيد الحالي للعيادة كلها؛ الفترة المختارة لا تحدّ هذا التقرير» / en "Current clinic-wide balance; the selected period does not limit this report." It has a `variant` (`banner` | `inline`).
-- **`report-shell.tsx` (+4)**: for reports in `SCREEN_CLINIC_WIDE_NOTICE`, it renders `<ClinicWideNotice variant="inline">` next to the export button and `<ClinicWideNotice variant="banner">` above the content. Other reports are unchanged.
-- **new `patient-credit-columns.tsx` (~50)**: columns for the المراجع name (plain text), the balance (response currency through the shared formatter) and the oldest credit day (clinic-day formatter, localized digits). The 390px card labels come from the same i18n keys. Row keys use the row index plus the page index, never `patientId`.
-- **new `patient-credit-totals.ts` (~20)**: `sumBalances(rows): string`, a BigInt sum over minor strings that never uses `Number()`.
-- **new `patient-credit-report-body.tsx` (~80)**: follows `outstanding-report-body.tsx`:
-  - the table and its 390px cards;
-  - a totals row only when `!hasMore` (every page is loaded), equal to `sumBalances` of the shown rows; otherwise no «Total»;
-  - the «عرض X من Y» line, «تحميل المزيد», and an inline retry for a failed later page;
-  - a print note about the rows loaded so far.
-  
-  There are no summary cards, because the response has none.
-- **new `patient-credit-report-page.tsx` (~45)**: follows `outstanding-report-page.tsx`, with `useReportFilters("patient_credit", reportPatientCreditQuerySchema)`. It strips the cursor and limit and passes the filters to `usePatientCreditPages`.
-- **`report-screen-page.tsx` (+2)**: maps `patient_credit` to the page. The route `/clinic/reports/$reportId` already exists, so no new route file is needed. I will confirm this when I build.
-- **`available-reports.tsx`**: no change. The R6 card shows through `availableScreens`.
-- **i18n**: about 12 new keys each: title, subtitle, help, notice, columns, total, the print note and an empty state. `ar-finance-reports.ts` and `en-finance-reports.ts` would go from 141 to ~155 lines, under 280, so no split. The Arabic says «المراجع», never «المريض».
+## Mutation proofs (each must fail a test, then the source is restored byte for byte)
 
-## Tests (deterministic synthetic ids and names, e.g. `patient-0001`, «مراجع تجريبي ١»)
-
-New `patient-credit-report.test.tsx` (~200) plus `patient-credit-access.test.tsx` (~80). Shared fixtures go in `patient-credit-report.fixtures.ts` (~60, no component).
-
-1. The notice shows in ar and en, above the list and next to the export button: two `role="note"` elements with the exact text.
-2. The branch picker is hidden for R6 and still shown for R1, R2, R3, R4, R5 and R9 (a table test in `report-catalogue.test.ts` and a render test).
-3. `branchId` is never sent: a spy on `api.reports.patientCredit` checks every call's query, including a run where the filters arrive with a branch.
-4. Load more appends exactly the next page (the row count and order) and shows «عرض X من Y» with `total`.
-5. A filter change (From) restarts at page 1. A late old-filter page, resolved through a deferred promise, is ignored.
-6. An error on load more keeps the earlier pages, and retry re-requests only that cursor.
-7. Totals: no «Total» while `hasMore`. Once complete, the totals row equals the BigInt sum, using values above 2^53 (e.g. `"9007199254740993"` + `"9007199254740995"`).
-8. Permission split:
-   - `view:report_patients:clinic` + `view:payments:clinic` opens R6;
-   - `report_patients:branch` (+ payments) does not;
-   - without `view:payments` it does not;
-   - a role with only `report_own` does not;
-   - a role with only `report_takings` does not.
-   
-   This is checked on the card list and on the route (forbidden page).
-9. The route `/clinic/reports/patient_credit` renders the R6 page.
-10. Empty, error-with-retry and forbidden states.
-11. No patient data except the name: the synthetic `patientId` value does not appear in `document.body.innerHTML` (text, attributes or hrefs), and the name has no anchor.
-12. The existing R5 tests stay green unchanged, which shows the pager refactor keeps R5's behaviour.
-
-Mutation proofs (each must fail a test, then the source is restored byte for byte):
-- the clinic-scope rule: allow `branch` for R6 by bypassing the catalogue check in the R6 hook or page (the contract file is not edited);
-- totals only when complete: render the totals row while `hasMore`;
-- the late-page guard: remove the `old.key !== forKey` / `isCurrent` check in `use-report-pages.ts`.
+1. Covering key: change the refunds `covering` check out of the screen path. Because the rule lives in contracts, which are not editable, the mutation is in `canOpenReport` (ignore covering by checking only the report key). It must fail R7 and R8 access tests. Also, temporarily drop `view:invoices` gating in the R8 link column.
+2. Totals only when complete: remove the `hasMore` condition in both bodies, and a test must fail.
+3. Late-page guard in `use-report-pages.ts`: R7/R8 tests fail, and the R5/R6 tests are confirmed failing too.
 
 ## Acceptance
 
-- Typecheck, lint (0 errors), and tests for the changed area (`report-exports/`).
-- The full suite runs once, at the end.
-- Every file under 300 lines and one component per file. Logical CSS only. Every string in ar and en, including placeholders and dashes.
-- If `pnpm` gates still fail on the sandbox Node 22 / pnpm 11 mismatch, I will report it and not bypass it.
-- The clinic-persona browser check at 1440 and 390 will stay unverified if the preview only offers the platform admin.
+Typecheck, lint (0 errors), changed-area tests, and the full suite once at the end. Every file stays under 300 lines with one component per file, logical CSS, ar + en strings, «المراجع». R1–R6 and R9 behaviour does not change. The export form is not changed. pnpm build: if the Node/pnpm mismatch blocks it, this is reported without a bypass. Clinic-persona browser check at 1440/390 will likely stay unverified (platform-admin preview).
 
-## Open questions
+## Open question
 
-1. Is the shared pager refactor in Part 1 acceptable, or do you want a separate R6 hook?
-2. Should the patient name stay plain text even for viewers with `view:patients`? This plan keeps it plain text, per the no-patientId-in-DOM rule.
+- Kind labels: «على بند / على الفاتورة» ("Line" / "Invoice") are proposed wording. Confirm or give the exact copy.
