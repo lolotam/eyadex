@@ -1,14 +1,11 @@
 import { useId } from "react";
 import type { ReportGroupBy } from "@eyadex/contracts/finance-reports";
-import { Button } from "@/components/ui/button";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { ExportDateField } from "../export-date-field";
 import { ExportSelectField } from "../export-select-field";
-import { useExportBranchOptions } from "../use-export-branch-options";
-import { SCREEN_GROUP_DEFAULT, type ScreenReportId } from "./report-catalogue";
+import { SCREEN_GROUP_DEFAULT, SCREEN_NO_BRANCH, type ScreenReportId } from "./report-catalogue";
+import { ReportBranchPicker } from "./report-branch-picker";
 import type { ReportFilterIssue, ReportFilters } from "./use-report-filters";
-
-const ALL = "__all__";
 
 type Props = {
   report: ScreenReportId;
@@ -18,11 +15,10 @@ type Props = {
   onChange: (change: Partial<ReportFilters>) => void;
 };
 
-/** From/To clinic days, the report's own branch list (inactive marked) and R1/R2 grouping. */
+/** From/To clinic days, the report's own branch list (not for clinic-wide R6) and R1/R2 grouping. */
 export function ReportFiltersBar({ report, filters, zone, issues, onChange }: Props) {
-  const { t, pick } = useI18n();
+  const { t } = useI18n();
   const uid = useId();
-  const branches = useExportBranchOptions(report);
   const helpId = `${uid}-zone`;
   const issueText = (issue: ReportFilterIssue | undefined) =>
     issue === undefined
@@ -49,22 +45,14 @@ export function ReportFiltersBar({ report, filters, zone, issues, onChange }: Pr
             onChange={(value) => onChange({ [name]: value })}
           />
         ))}
-        <ExportSelectField
-          id={`${uid}-branch`}
-          label={t("financeReports.filters.branch")}
-          value={branches.isLoading ? "" : (filters.branchId ?? ALL)}
-          options={[
-            { value: ALL, label: t("financeReports.filters.allBranches") },
-            ...branches.items.map((b) => ({
-              value: b.id,
-              label: b.isActive
-                ? pick(b.nameAr, b.nameEn)
-                : t("financeReports.filters.inactive", { name: pick(b.nameAr, b.nameEn) }),
-            })),
-          ]}
-          onChange={(value) => onChange({ branchId: value === ALL ? null : value })}
-          disabled={branches.isLoading}
-        />
+        {SCREEN_NO_BRANCH.has(report) ? null : (
+          <ReportBranchPicker
+            id={`${uid}-branch`}
+            report={report}
+            branchId={filters.branchId}
+            onChange={(branchId) => onChange({ branchId })}
+          />
+        )}
         {groupable ? (
           <ExportSelectField
             id={`${uid}-group`}
@@ -81,14 +69,6 @@ export function ReportFiltersBar({ report, filters, zone, issues, onChange }: Pr
       <p id={helpId} className="text-xs text-muted-foreground">
         {t("financeReports.filters.zoneHint", { zone })}
       </p>
-      {branches.error !== null ? (
-        <p role="alert" className="flex items-center gap-2 text-xs text-muted-foreground">
-          {t("financeReports.filters.branchesError")}
-          <Button variant="ghost" size="sm" onClick={() => branches.retry()}>
-            {t("financeReports.states.retry")}
-          </Button>
-        </p>
-      ) : null}
     </section>
   );
 }
