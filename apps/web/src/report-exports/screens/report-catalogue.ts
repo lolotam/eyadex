@@ -9,6 +9,7 @@ export const SCREEN_REPORTS = [
   "by_service",
   "by_doctor",
   "outstanding",
+  "patient_credit",
 ] as const satisfies readonly ReportId[];
 export type ScreenReportId = (typeof SCREEN_REPORTS)[number];
 
@@ -24,6 +25,15 @@ export const SCREEN_GROUP_DEFAULT: Partial<Record<ReportId, ReportGroupBy>> = {
  * month window would always leave the older buckets empty (owner decision 2026-11-03: 365 days).
  */
 export const SCREEN_DEFAULT_DAYS: Partial<Record<ScreenReportId, number>> = { outstanding: 365 };
+
+/**
+ * Reports with no branch filter on screen. R6 is the clinic-wide remaining credit (owner decision
+ * 2026-10-27), so the bar shows no picker and the request never carries `branchId`.
+ */
+export const SCREEN_NO_BRANCH: ReadonlySet<ScreenReportId> = new Set(["patient_credit"]);
+
+/** Reports whose numbers ignore the selected period: the shell shows the clinic-wide notice. */
+export const SCREEN_CLINIC_WIDE_NOTICE: ReadonlySet<ScreenReportId> = new Set(["patient_credit"]);
 
 export const isReportId = (value: string): value is ReportId =>
   (REPORT_IDS as readonly string[]).includes(value);
