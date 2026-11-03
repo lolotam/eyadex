@@ -3,7 +3,11 @@ import { OutstandingReportBody } from "./outstanding-report-body";
 import { ReportContent } from "./report-content";
 import { ReportShell } from "./report-shell";
 import { useReportFilters } from "./use-report-filters";
-import { useOutstandingPages, type OutstandingFilters, type OutstandingQuery } from "./use-outstanding-pages";
+import {
+  useOutstandingPages,
+  type OutstandingFilters,
+  type OutstandingQuery,
+} from "./use-outstanding-pages";
 
 /** The filters without the pager's own fields: the pager adds the page size and the cursor. */
 const filtersOf = (query: OutstandingQuery | null): OutstandingFilters | null => {

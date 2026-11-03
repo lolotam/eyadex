@@ -40,10 +40,15 @@ export function OutstandingSummaryCards(props: Props) {
     </ul>
   );
   return (
-    <section className="flex flex-col gap-3" aria-label={t("financeReports.outstanding.summaryTitle")}>
+    <section
+      className="flex flex-col gap-3"
+      aria-label={t("financeReports.outstanding.summaryTitle")}
+    >
       <div>
         <h2 className="text-sm font-semibold">{t("financeReports.outstanding.summaryTitle")}</h2>
-        <p className="text-xs text-muted-foreground">{t("financeReports.outstanding.summaryNote")}</p>
+        <p className="text-xs text-muted-foreground">
+          {t("financeReports.outstanding.summaryNote")}
+        </p>
       </div>
       {grid(bucketTotals(props.summary), "all")}
       {props.perBranch

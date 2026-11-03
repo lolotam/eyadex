@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { reportOutstandingQuerySchema, reportOutstandingResponseSchema } from "@eyadex/contracts/finance-reports";
+import type {
+  reportOutstandingQuerySchema,
+  reportOutstandingResponseSchema,
+} from "@eyadex/contracts/finance-reports";
 import type { z } from "zod";
 import { errorKeyOf } from "@/shared/api/api-error";
 import { useApi } from "@/shared/api/api-provider";
