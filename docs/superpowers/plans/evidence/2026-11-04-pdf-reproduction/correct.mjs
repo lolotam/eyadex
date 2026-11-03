@@ -44,6 +44,7 @@ export function correct(document) {
   function textBytes(text) {
     const bytes = [];
     for (let i = 0; i < text.length; i++) {
+      if (text[i] === "<" && text[i + 1] === "<") throw new Error("unsupported_inline_dictionary");
       if (text[i] === "<" && text[i + 1] !== "<") {
         const end = text.indexOf(">", i + 1);
         if (end < 0) throw new Error("unterminated hex string");
@@ -104,8 +105,9 @@ export function correct(document) {
       }
       const hasArabicLetter = /(?=\p{Script=Arabic})\p{Letter}/u.test(visual);
       if (
-        /\p{Mark}/u.test(visual) &&
-        (hasArabicLetter || /^[\p{Script=Arabic}\p{Mark}]+$/u.test(visual))
+        /(?=\p{Script_Extensions=Arabic})\p{Mark}/u.test(visual) ||
+        (/\p{Mark}/u.test(visual) &&
+          (hasArabicLetter || /^[\p{Script=Arabic}\p{Mark}]+$/u.test(visual)))
       )
         throw new Error("unsupported_marked_text");
       // Script=Arabic also includes digits and numeric separators: never reverse those runs.

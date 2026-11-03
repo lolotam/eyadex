@@ -30,7 +30,7 @@ function fixture(visual, encoding = "literal") {
 }
 
 for (const encoding of ["literal", "hex"]) {
-  for (const visual of ["١٥", "١٬٢٣٤٫٥٠٠", "١٥/١٠/٢٠٢٦", "Invoice"]) {
+  for (const visual of ["١٥", "١٬٢٣٤٫٥٠٠", "١٥/١٠/٢٠٢٦", "Invoice", "Café"]) {
     const input = fixture(visual, encoding);
     const result = correct(structuredClone(input));
     assert.equal(result.spans, 0, visual);
@@ -48,6 +48,16 @@ for (const encoding of ["literal", "hex"]) {
   for (const visual of ["مُراجع١٥", "مُراجع،", "مُراجع ", "مُراجعInvoice"]) {
     assert.throws(() => correct(fixture(visual, encoding)), /unsupported_marked_text/, visual);
   }
+  for (const visual of ["ُInvoice", "Invoiceُ", "ُ١٥", "ُ،", "ُ ", "ُ🙂"]) {
+    assert.throws(() => correct(fixture(visual, encoding)), /unsupported_marked_text/, visual);
+  }
+  const dictionary = fixture("ةسلج", encoding);
+  const content = Buffer.from(dictionary.qpdf[1]["obj:5 0 R"].stream.data, "base64")
+    .toString()
+    .replace("BT ", "BT /P <</MCID 3>> BDC ")
+    .replace(" ET", " EMC ET");
+  dictionary.qpdf[1]["obj:5 0 R"].stream.data = Buffer.from(content).toString("base64");
+  assert.throws(() => correct(dictionary), /unsupported_inline_dictionary/);
   const arabic = correct(fixture("ةسلج", encoding));
   assert.equal(arabic.spans, 1);
   assert.deepEqual(arabic.decodedWords, ["جلسة"]);
