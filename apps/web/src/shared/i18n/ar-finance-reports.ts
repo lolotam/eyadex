@@ -17,6 +17,7 @@ export const arFinanceReports: Strings<typeof enFinanceReports> = {
       by_service: "الإيراد حسب الخدمة",
       by_doctor: "الإيراد حسب الدكتور",
       outstanding: "المبالغ المستحقة",
+      patient_credit: "أرصدة المراجعين",
     },
     descriptions: {
       daily_takings: "المقبوض والمصروف لكل يوم أو شهر وفرع وطريقة دفع.",
@@ -26,6 +27,7 @@ export const arFinanceReports: Strings<typeof enFinanceReports> = {
       by_doctor: "المبلغ المفوتر لكل دكتور والبنود بدون دكتور والضريبة خلال فترة.",
       outstanding:
         "الفواتير الصادرة التي ما زال عليها مبلغ، حسب العمر: ٠–٣٠ و٣١–٦٠ و٦١–٩٠ وأكثر من ٩٠ يومًا.",
+      patient_credit: "الرصيد المتبقي لكل مراجع في العيادة كلها الآن.",
     },
     note: "الفترات أيام عمل العيادة. المقبوض في شهر بتقرير الإيراد اليومي يساوي المحصّل في نفس الشهر بتقرير ملخص الفترة.",
     cashClosingsNote: "الأيام أيام عمل العيادة. العجز فرق بالسالب، ولا تظهر إجماليات طرق الدفع.",
@@ -53,6 +55,7 @@ export const arFinanceReports: Strings<typeof enFinanceReports> = {
     states: {
       loading: "جارٍ تحميل التقرير…",
       empty: "لا توجد بيانات في هذه الفترة",
+      emptyClinicWide: "لا توجد أرصدة دائنة حاليًا في العيادة",
       error: "تعذّر تحميل التقرير.",
       retry: "إعادة المحاولة",
     },
@@ -136,6 +139,15 @@ export const arFinanceReports: Strings<typeof enFinanceReports> = {
       moreError: "تعذّر تحميل الصفحة التالية.",
       retryMore: "إعادة محاولة هذه الصفحة",
       printNote: "المطبوع: {shown} من {total} صفًا المحمّلة على الشاشة.",
+    },
+    patientCredit: {
+      note: "الرصيد هو المتبقي حاليًا في العيادة كلها، من السجل الكامل.",
+      notice: "الرصيد الحالي للعيادة كلها؛ الفترة المختارة لا تحدّ هذا التقرير",
+      columns: {
+        patient: "المراجع",
+        balance: "الرصيد",
+        oldestCreditDay: "أقدم يوم رصيد",
+      },
     },
   },
 };

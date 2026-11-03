@@ -10,6 +10,7 @@ import type { Language } from "@eyadex/contracts/common";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { usePersona, useSession } from "@/shared/persona/persona-provider";
 import { useCommittedEpoch } from "./use-committed-epoch";
+import { NO_BRANCH_REPORTS } from "./report-no-branch";
 import { useExportBranchOptions } from "./use-export-branch-options";
 import { useRequestExport, type RequestExportOutcome } from "./use-request-export";
 
@@ -96,7 +97,9 @@ export function useExportForm(initial?: Partial<ExportFormDraft>) {
   const fieldIssues = sent ? fieldState.issues.filter((i) => !changedFrom(sent, i.field)) : [];
   const sentRequest = requestSent?.epoch === epoch ? requestSent.draft : null;
   const language = draft.language ?? lang;
-  const branches = useExportBranchOptions(draft.report);
+  // A report with no branch filter neither lists branches nor waits on them nor sends one.
+  const noBranch = draft.report !== null && NO_BRANCH_REPORTS.has(draft.report);
+  const branches = useExportBranchOptions(noBranch ? null : draft.report);
 
   const patch = useCallback(
     (change: Partial<ExportFormDraft>) => {
@@ -120,6 +123,7 @@ export function useExportForm(initial?: Partial<ExportFormDraft>) {
   const check = (): ExportFormFieldIssue[] => {
     if (draft.report === null) return [{ field: "report", code: "required" }];
     if (!reportEligible) return [{ field: "report", code: "unavailable" }];
+    if (noBranch) return [];
     if (!branches.isReady || branches.error !== null)
       return [{ field: "branchId", code: "not_ready" }];
     if (branchUnavailable) return [{ field: "branchId", code: "unavailable" }];
@@ -135,7 +139,7 @@ export function useExportForm(initial?: Partial<ExportFormDraft>) {
       report: draft.report,
       from: draft.from,
       to: draft.to,
-      ...(draft.branchId !== null ? { branchId: draft.branchId } : {}),
+      ...(!noBranch && draft.branchId !== null ? { branchId: draft.branchId } : {}),
       ...(groupingApplies && draft.groupBy !== null ? { groupBy: draft.groupBy } : {}),
       format: draft.format,
       language,
@@ -170,6 +174,7 @@ export function useExportForm(initial?: Partial<ExportFormDraft>) {
       retry: branches.retry,
     },
     branchUnavailable,
+    noBranch,
     fieldIssues,
     canSubmit: check().length === 0 && !request.isPending,
     submit,

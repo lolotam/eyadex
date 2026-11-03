@@ -4,7 +4,8 @@ import { ArrowRight, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { PageHeader } from "@/shared/shell/page-header";
-import type { ScreenReportId } from "./report-catalogue";
+import { SCREEN_CLINIC_WIDE_NOTICE, type ScreenReportId } from "./report-catalogue";
+import { ClinicWideNotice } from "./clinic-wide-notice";
 import { ReportExportDialog } from "./report-export-dialog";
 import { ReportFiltersBar } from "./report-filters-bar";
 import type { ReportFilterIssue, ReportFilters } from "./use-report-filters";
@@ -22,6 +23,7 @@ type Props = {
 /** The frame every report screen shares: title, note, filters, export, print, then the body. */
 export function ReportShell({ report, filters, zone, issues, onChange, children }: Props) {
   const { t } = useI18n();
+  const notice = SCREEN_CLINIC_WIDE_NOTICE.has(report);
   return (
     <div data-report-print className="mx-auto flex w-full max-w-6xl min-w-0 flex-col gap-4">
       <Link
@@ -40,12 +42,15 @@ export function ReportShell({ report, filters, zone, issues, onChange, children 
               ? t("financeReports.byServiceNote")
               : report === "by_doctor"
                 ? t("financeReports.byDoctorNote")
-                : report === "outstanding"
-                  ? t("financeReports.outstanding.note")
-                  : t("financeReports.note")
+                : report === "patient_credit"
+                  ? t("financeReports.patientCredit.note")
+                  : report === "outstanding"
+                    ? t("financeReports.outstanding.note")
+                    : t("financeReports.note")
         }
         actions={
-          <div className="flex flex-wrap gap-2 print:hidden">
+          <div className="flex flex-wrap items-center gap-2 print:hidden">
+            {notice ? <ClinicWideNotice variant="inline" /> : null}
             <ReportExportDialog
               initial={{
                 report,
@@ -69,6 +74,7 @@ export function ReportShell({ report, filters, zone, issues, onChange, children 
         issues={issues}
         onChange={onChange}
       />
+      {notice ? <ClinicWideNotice variant="banner" /> : null}
       {children}
     </div>
   );

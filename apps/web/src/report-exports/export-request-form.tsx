@@ -142,50 +142,52 @@ export function ExportRequestForm({ initial }: { initial?: Partial<ExportFormDra
               onChange={name === "from" ? form.setFrom : form.setTo}
             />
           ))}
-          <ExportSelectField
-            id={ids("branch")}
-            label={t("reportExports.request.branch")}
-            placeholder={
-              branches.isLoading ? t("reportExports.request.branchesLoading") : undefined
-            }
-            value={branchValue}
-            options={
-              branches.isReady
-                ? [
-                    ...(form.branchUnavailable
-                      ? [
-                          {
-                            value: UNAVAILABLE,
-                            label: t("reportExports.request.selectionUnavailable"),
-                            disabled: true,
-                          },
-                        ]
-                      : []),
-                    { value: ALL, label: t("reportExports.request.allBranches") },
-                    ...branches.items.map((b) => ({
-                      value: b.id,
-                      label: b.isActive
-                        ? pick(b.nameAr, b.nameEn)
-                        : t("reportExports.request.inactive", { name: pick(b.nameAr, b.nameEn) }),
-                    })),
-                  ]
-                : []
-            }
-            onChange={(v) => form.setBranchId(v === ALL ? null : v)}
-            disabled={disabled || !branches.isReady}
-            error={branchError}
-          />
+          {form.noBranch ? null : (
+            <ExportSelectField
+              id={ids("branch")}
+              label={t("reportExports.request.branch")}
+              placeholder={
+                branches.isLoading ? t("reportExports.request.branchesLoading") : undefined
+              }
+              value={branchValue}
+              options={
+                branches.isReady
+                  ? [
+                      ...(form.branchUnavailable
+                        ? [
+                            {
+                              value: UNAVAILABLE,
+                              label: t("reportExports.request.selectionUnavailable"),
+                              disabled: true,
+                            },
+                          ]
+                        : []),
+                      { value: ALL, label: t("reportExports.request.allBranches") },
+                      ...branches.items.map((b) => ({
+                        value: b.id,
+                        label: b.isActive
+                          ? pick(b.nameAr, b.nameEn)
+                          : t("reportExports.request.inactive", { name: pick(b.nameAr, b.nameEn) }),
+                      })),
+                    ]
+                  : []
+              }
+              onChange={(v) => form.setBranchId(v === ALL ? null : v)}
+              disabled={disabled || !branches.isReady}
+              error={branchError}
+            />
+          )}
         </div>
         <p id={ids("dates-help")} className="-mt-2 text-xs text-muted-foreground">
           {t("reportExports.request.datesHelp", { zone })} {t("reportExports.request.dateFormat")}
         </p>
-        {branches.isLoading && draft.report !== null && form.reportEligible ? (
+        {!form.noBranch && branches.isLoading && draft.report !== null && form.reportEligible ? (
           <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="size-4 animate-spin" aria-hidden />
             {t("reportExports.request.branchesLoading")}
           </p>
         ) : null}
-        {branches.error ? (
+        {!form.noBranch && branches.error ? (
           <div
             role="alert"
             className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-destructive/40 px-3 py-2 text-sm"

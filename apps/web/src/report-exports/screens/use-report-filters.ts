@@ -3,7 +3,12 @@ import type { ReportGroupBy } from "@eyadex/contracts/finance-reports";
 import { todayInTimeZone } from "@eyadex/contracts/patients";
 import { useSession } from "@/shared/persona/persona-provider";
 import { useExportBranchOptions } from "../use-export-branch-options";
-import { SCREEN_DEFAULT_DAYS, SCREEN_GROUP_DEFAULT, type ScreenReportId } from "./report-catalogue";
+import {
+  SCREEN_DEFAULT_DAYS,
+  SCREEN_GROUP_DEFAULT,
+  SCREEN_NO_BRANCH,
+  type ScreenReportId,
+} from "./report-catalogue";
 
 export type ReportFilters = {
   from: string;
@@ -53,8 +58,9 @@ export function useReportFilters<Q>(report: ScreenReportId, schema: Parser<Q>) {
   // checked), it falls back to all branches in reach: the report stays usable, the picker shows the
   // fallback and its retry notice, and nothing is sent to be refused. While the list loads for the
   // first time under this access, the report shows its loading state instead of a blank.
-  const branches = useExportBranchOptions(report);
-  const chosen = filters.branchId;
+  const branches = useExportBranchOptions(SCREEN_NO_BRANCH.has(report) ? null : report);
+  // A report with no branch filter never sends a branch and never waits on the branch list.
+  const chosen = SCREEN_NO_BRANCH.has(report) ? null : filters.branchId;
   const loaded = branches.isEligible && !branches.isLoading && branches.error === null;
   const dropChoice =
     chosen !== null &&

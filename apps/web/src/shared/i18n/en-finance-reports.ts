@@ -13,6 +13,7 @@ export const enFinanceReports = {
       by_service: "Revenue by service",
       by_doctor: "Revenue by doctor",
       outstanding: "Outstanding balances",
+      patient_credit: "Patient credit",
     },
     descriptions: {
       daily_takings: "Money in and out per day or month, branch and payment method.",
@@ -23,6 +24,7 @@ export const enFinanceReports = {
       by_doctor: "Billed amount per doctor, lines with no doctor and tax over a period.",
       outstanding:
         "Issued invoices that still owe money, by age: 0–30, 31–60, 61–90 and over 90 days.",
+      patient_credit: "Remaining credit per patient across the whole clinic, now.",
     },
     note: "Periods are clinic business days. A month's money in on Daily takings equals that month's collected amount on Period summary.",
     cashClosingsNote:
@@ -53,6 +55,7 @@ export const enFinanceReports = {
     states: {
       loading: "Loading the report…",
       empty: "No data in this period",
+      emptyClinicWide: "No patient credit balances in the clinic right now",
       error: "The report could not be loaded.",
       retry: "Try again",
     },
@@ -136,6 +139,15 @@ export const enFinanceReports = {
       moreError: "The next page could not be loaded.",
       retryMore: "Retry this page",
       printNote: "Printed: the {shown} of {total} rows loaded on screen.",
+    },
+    patientCredit: {
+      note: "Credit is the current remaining balance across the whole clinic, from the complete ledger.",
+      notice: "Current clinic-wide balance; the selected period does not limit this report.",
+      columns: {
+        patient: "Patient",
+        balance: "Credit balance",
+        oldestCreditDay: "Oldest credit day",
+      },
     },
   },
 };

@@ -1,5 +1,6 @@
 import { reportPermissionScope } from "@eyadex/contracts/finance-report-access";
 import { REPORT_IDS, type ReportGroupBy, type ReportId } from "@eyadex/contracts/finance-reports";
+import { NO_BRANCH_REPORTS } from "../report-no-branch";
 
 /** The reports that have an on-screen view today; the others join as their cards land. */
 export const SCREEN_REPORTS = [
@@ -9,6 +10,7 @@ export const SCREEN_REPORTS = [
   "by_service",
   "by_doctor",
   "outstanding",
+  "patient_credit",
 ] as const satisfies readonly ReportId[];
 export type ScreenReportId = (typeof SCREEN_REPORTS)[number];
 
@@ -24,6 +26,14 @@ export const SCREEN_GROUP_DEFAULT: Partial<Record<ReportId, ReportGroupBy>> = {
  * month window would always leave the older buckets empty (owner decision 2026-11-03: 365 days).
  */
 export const SCREEN_DEFAULT_DAYS: Partial<Record<ScreenReportId, number>> = { outstanding: 365 };
+
+/** Screens with no branch filter (the shared `NO_BRANCH_REPORTS`, which the export form follows too). */
+export const SCREEN_NO_BRANCH: ReadonlySet<ScreenReportId> = new Set(
+  SCREEN_REPORTS.filter((report) => NO_BRANCH_REPORTS.has(report)),
+);
+
+/** Reports whose numbers ignore the selected period: the shell shows the clinic-wide notice. */
+export const SCREEN_CLINIC_WIDE_NOTICE: ReadonlySet<ScreenReportId> = new Set(["patient_credit"]);
 
 export const isReportId = (value: string): value is ReportId =>
   (REPORT_IDS as readonly string[]).includes(value);

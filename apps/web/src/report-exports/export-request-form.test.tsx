@@ -140,3 +140,18 @@ it("R6 shows the clinic-wide balance note in both languages and still requires i
   });
   noRawKeys();
 });
+
+it("R6 has no branch field: no branch list is fetched, a failing list cannot block it, branchId is never sent", async () => {
+  const { post, api } = await setup(CREDIT);
+  const branchList = vi.spyOn(api.reports, "branchOptions").mockRejectedValue(new TypeError("x"));
+  pickIn(R.report, "patient_credit");
+  await flush();
+  expect(screen.queryByLabelText(R.branch)).toBeNull();
+  expect(screen.queryByText(R.branchesError)).toBeNull();
+  type(R.from, "2026-01-01");
+  type(R.to, "2026-01-31");
+  await submit();
+  expect(post).toHaveBeenCalledTimes(1);
+  expect(post.mock.calls[0]![1]).not.toHaveProperty("branchId");
+  expect(branchList.mock.calls.filter((c) => c[1] === "patient_credit")).toHaveLength(0);
+});

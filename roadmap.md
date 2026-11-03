@@ -143,4 +143,5 @@
 - [x] Card 2: PR #141 follow-ups (A1–A4) + R9 «سجل إقفال الصندوق»
 - [x] Card 3: #143 (download hook commit-only identity) + R3 «الإيراد حسب الخدمة» + R4 «الإيراد حسب الدكتور» (table only)
 - [x] Card 4: R5 «المبالغ المستحقة» (cursor pages, age-bucket cards)
-- [ ] Cards 5–7: R6–R8 and R10 screens (waiting for the owner's next card)
+- [ ] Card 5: R6 «أرصدة المراجعين» (built; one R5 test line waits for the owner's OK)
+- [ ] Cards 6–7: R7, R8 and R10 screens (waiting for the owner's next card)
