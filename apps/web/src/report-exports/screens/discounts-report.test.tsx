@@ -138,3 +138,19 @@ it("sends branchId when a branch is chosen", async () => {
   fireEvent.change(select(), { target: { value: branch.id } });
   await waitFor(() => expect(spy.mock.calls.at(-1)?.[1]).toMatchObject({ branchId: branch.id }));
 });
+
+it("a late first page of the old filter never replaces the new list", async () => {
+  const late = deferred<DiscountsPage>();
+  let call = 0;
+  await open(async () => {
+    call += 1;
+    return call === 1 ? late.promise : pageOf([ALL[2]!], 1, null);
+  });
+  fireEvent.change(screen.getByLabelText(ar.financeReports.filters.from), {
+    target: { value: "2026-10-02" },
+  });
+  await waitFor(() => expect(screen.getAllByText("Adjust Person 3").length).toBeGreaterThan(0));
+  await act(async () => late.resolve(pageOf([ALL[0]!], 3, null)));
+  expect(rows()).toHaveLength(1);
+  expect(screen.queryByText("Adjust Person 1")).toBeNull();
+});
