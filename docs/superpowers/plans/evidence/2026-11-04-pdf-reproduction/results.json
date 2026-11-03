@@ -1,0 +1,149 @@
+{
+  "status": "synthetic_research_only",
+  "fullInvoiceAcceptance": false,
+  "runtimeDeadlineAcceptance": false,
+  "deploymentCrashProtectionAcceptance": false,
+  "versions": {
+    "node": "v24.22.0",
+    "typst": "typst 0.15.1 (9dfd3a08)",
+    "qpdf": "qpdf version 12.3.2",
+    "pdfjs": "6.3.289",
+    "poppler": "25.12.0"
+  },
+  "cases": [
+    {
+      "name": "regular",
+      "expectedEntries": 50,
+      "spans": 42,
+      "raw": {
+        "pages": 2,
+        "pdfjsMisses": [],
+        "popplerMisses": ["الخصم", "المجموع", "الحساب", "تحليل", "لمحة", "اللجنة", "الخدمة"],
+        "pdfjsOrder": {
+          "ordered": true,
+          "matchedFields": 50,
+          "firstPosition": 0,
+          "lastPosition": 373
+        },
+        "popplerOrder": {
+          "ordered": false,
+          "failedField": "الخصم",
+          "matchedFields": 10
+        },
+        "numericUnchanged": true
+      },
+      "corrected": {
+        "pages": 2,
+        "pdfjsMisses": [],
+        "popplerMisses": [],
+        "pdfjsOrder": {
+          "ordered": true,
+          "matchedFields": 50,
+          "firstPosition": 0,
+          "lastPosition": 373
+        },
+        "popplerOrder": {
+          "ordered": true,
+          "matchedFields": 50,
+          "firstPosition": 0,
+          "lastPosition": 373
+        },
+        "numericUnchanged": true
+      },
+      "pixels": [
+        {
+          "page": 1,
+          "width": 794,
+          "height": 1123,
+          "differingChannels": 0,
+          "sha256": "97975de3aaf233ca26d6c8fe453218912cf933077c9a63cf86daeaf9c90d9cef"
+        },
+        {
+          "page": 2,
+          "width": 794,
+          "height": 1123,
+          "differingChannels": 0,
+          "sha256": "e2a2422df65b5d2a9e47e13e4815353536801f44cdbdbf885e1894b0c089854b"
+        }
+      ]
+    },
+    {
+      "name": "bold",
+      "expectedEntries": 50,
+      "spans": 42,
+      "raw": {
+        "pages": 2,
+        "pdfjsMisses": [],
+        "popplerMisses": ["الخصم", "المجموع", "الحساب", "تحليل", "لمحة", "اللجنة", "الخدمة"],
+        "pdfjsOrder": {
+          "ordered": true,
+          "matchedFields": 50,
+          "firstPosition": 0,
+          "lastPosition": 373
+        },
+        "popplerOrder": {
+          "ordered": false,
+          "failedField": "الخصم",
+          "matchedFields": 10
+        },
+        "numericUnchanged": true
+      },
+      "corrected": {
+        "pages": 2,
+        "pdfjsMisses": [],
+        "popplerMisses": [],
+        "pdfjsOrder": {
+          "ordered": true,
+          "matchedFields": 50,
+          "firstPosition": 0,
+          "lastPosition": 373
+        },
+        "popplerOrder": {
+          "ordered": true,
+          "matchedFields": 50,
+          "firstPosition": 0,
+          "lastPosition": 373
+        },
+        "numericUnchanged": true
+      },
+      "pixels": [
+        {
+          "page": 1,
+          "width": 794,
+          "height": 1123,
+          "differingChannels": 0,
+          "sha256": "8e44db0d5a260c57b80053468d3aef5b73a49b4593e5a7c13db428b393141e6a"
+        },
+        {
+          "page": 2,
+          "width": 794,
+          "height": 1123,
+          "differingChannels": 0,
+          "sha256": "8b1ffc96042679795b58f7b700af493d192e6ff2b2267e262eecec142721a6fb"
+        }
+      ]
+    },
+    {
+      "name": "marked-name",
+      "raw": {
+        "pages": 1,
+        "pdfjsMisses": ["مُراجِع تجريبي"],
+        "popplerMisses": ["مُراجِع تجريبي"],
+        "pdfjsOrder": {
+          "ordered": false,
+          "failedField": "مُراجِع تجريبي",
+          "matchedFields": 0
+        },
+        "popplerOrder": {
+          "ordered": false,
+          "failedField": "مُراجِع تجريبي",
+          "matchedFields": 0
+        },
+        "numericUnchanged": null
+      },
+      "correction": "unsupported_marked_text",
+      "accepted": false,
+      "rawFallbackReturned": false
+    }
+  ]
+}
