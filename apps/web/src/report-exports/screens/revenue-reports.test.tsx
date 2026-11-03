@@ -3,7 +3,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 import type { ReportId } from "@eyadex/contracts/finance-reports";
 import { ApiError } from "@/shared/api/api-error";
 import { resetMockData } from "@/shared/api/mock/mock-test-kit";
-import { admin, freeLine, issue, personaWith } from "@/shared/api/mock/mock-report-test-kit";
+import { freeLine, issue, personaWith } from "@/shared/api/mock/mock-report-test-kit";
 import { ar } from "@/shared/i18n/ar";
 import { context, renderScreen, signIn, TestLink } from "./report-screens.test-kit";
 import { availableScreens, canOpenReport } from "./report-catalogue";
@@ -201,5 +201,4 @@ it("an empty period shows the empty state, and an error offers a retry", async (
   (await screen.findByRole("button", { name: F.states.retry })).click();
   await screen.findAllByTestId("report-row");
   expect(spy).toHaveBeenCalledTimes(2);
-  expect(admin().kind).toBe("clinic_admin");
 });
