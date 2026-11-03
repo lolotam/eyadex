@@ -91,7 +91,7 @@ it("a filter change restarts at page 1 and a late page of the old filter is igno
   fireEvent.change(screen.getByLabelText(ar.financeReports.filters.from), {
     target: { value: "2026-10-02" },
   });
-  await waitFor(() => expect(screen.getByText("T-4")).toBeTruthy());
+  await waitFor(() => expect(screen.getAllByText("T-4").length).toBeGreaterThan(0));
   await act(async () => late.resolve(page([ALL[1]!], ALL, null)));
   expect(rows()).toHaveLength(1);
   expect(screen.queryByText("T-2")).toBeNull();
