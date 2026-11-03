@@ -34,6 +34,11 @@ expects seekable input; writing a patient PDF to disk to satisfy it would violat
   total execution timeout five seconds, intermediate/final PDFs at most 5 MB each and any decoded
   JSON at most 32 MB. Failure kills children, releases capacity and returns no partial/uncorrected
   output. Logs carry fixed failure identifiers/exit codes, never child stderr or document text.
+- Disable core dumping for patient-bearing parent/child processes (`RLIMIT_CORE=0`, helper
+  non-dumpability before input, and effective container/host capture protection). A piped host crash
+  collector must not persist their memory even when the core size limit is zero. Enablement depends
+  on verified deployment protection and a synthetic forced-crash/no-artifact test; memory-only
+  application I/O alone is insufficient evidence.
 - Pin pdf.js 6.3.289 and poppler 25.12.0 in CI for reproducible extraction assertions. Visual page
   equivalence and every required Arabic/English word are adapter-test gates. These extraction tools
   do not run for each request and are not API runtime dependencies.

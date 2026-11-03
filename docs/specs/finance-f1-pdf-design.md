@@ -78,6 +78,11 @@ emptyDir, "-", "-"])` (the exact form the probe ran)
    Limit or process failure terminates and reaps the remaining children before releasing the semaphore. A non-zero
    child exit is logged as `pdf_render_failed` with its exit code only; stderr, exception text and
    document buffers are never logged. Partial output is never delivered or cached.
+   Patient-bearing parent and child processes must have core dumping disabled: inherited soft/hard
+   `RLIMIT_CORE=0`, plus verified effective container/host crash-capture settings. A piped host
+   `core_pattern` can bypass the size limit, so the deployment gate must also prove that no collector
+   persists their memory; the native helper disables dumpability before accepting input. Unverified
+   dump protection prevents enabling the renderer. Forced-crash checks use synthetic markers only.
 6. Response: only the corrected PDF, `200`, `Content-Type: application/pdf`, `Content-Disposition: inline; filename="<number>.pdf"`,
    `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`.
 
@@ -157,15 +162,27 @@ The decision is made by measurement, not assumed.
   model with the patient name never appears in captured logs; a child that exits before reading stdin fails the
   request.
 - Extraction CI: pin **pdf.js 6.3.289** and **poppler 25.12.0**. Independently assert every expected
-  Arabic and English description, invoice number and stored amount using both pdf.js and
-  `pdftotext -raw`, including the 40-word regression corpus and full Arabic currency names. A pass in
-  one extractor cannot compensate for a failure in the other; dependency changes rerun both.
+  textual field in representative models using both pdf.js and `pdftotext -raw`: both-language clinic
+  and branch headers, address/phone/registration text, labels, synthetic patient names, dates,
+  descriptions, quantities/prices/stored amounts, discount and void reasons, the void banner,
+  currency names, page numbers, version and footer text. Expected manifests come from all visible
+  model/template text; no Arabic field may be silently excluded or normalized to conceal reordered
+  letters. Include the explicitly versioned replacement corpus in
+  `docs/superpowers/plans/evidence/2026-11-04-pdf-corpus.json` and every supported full currency name.
+  Its 40 entries are a reconstructed regression set, not the recovered probe 5 list or evidence of
+  a passing run. «د.ك» is forbidden in the rendered PDF and is never a positive extraction assertion;
+  its replacement «دينار كويتي» must extract as a complete logical phrase. A pass in one extractor
+  cannot compensate for a failure in the other; dependency changes rerun both.
 - Rendering CI: rasterize every page before and after the qpdf correction using the same pinned
   poppler renderer, fonts, resolution and color settings. Assert equal page counts/dimensions and
   decoded pixel arrays (not PNG metadata or PDF bytes). A changed pixel fails the correction gate.
-- Helper safety: a deliberately stalled native helper exceeds the total deadline, is terminated and
-  reaped, and a subsequent render acquires the released capacity. Test non-zero exits, malformed
-  output, size limits and `EPIPE`; no partial/raw fallback PDF or document text in captured logs.
+- Process safety: run stalled-child cases independently for Typst and the qpdf helper. Each must hit
+  the shared total deadline, terminate/reap every started child, and permit a subsequent render to
+  acquire released capacity. Also test a slow Typst followed by a slow helper to prove the deadline
+  is not reset per stage. Test non-zero exits, malformed output, size limits and `EPIPE`; no
+  partial/raw fallback PDF or document text in captured logs. Force a helper crash with synthetic
+  marker data and verify no core/crash artifact in the container or configured host capture target;
+  record effective parent/child limits and dump protection on the deployment host too.
 - API db spec: `own` reach, `view` permission, module off ⇒ `module_disabled`, audit row written, headers
   (`no-store`), void invoice still renders with the banner; an edit committed during rendering rejects
   the stale bytes with `version_conflict` and writes no open audit row on both authenticated and public
@@ -175,6 +192,11 @@ The decision is made by measurement, not assumed.
   version change, returns `invoice_link_expired`, no bytes and no open audit row. Prove serialization
   when a revoker races the final locked check, using the established invoice-before-link lock order.
   A valid unrevoked link with only an invoice edit returns `version_conflict`.
+- Public-link binding regressions: independently test a missing original row and id, token-hash,
+  clinic and invoice-binding mismatches between preliminary routing and the final locked read.
+  Every case returns `invoice_link_expired`, no document bytes and no open audit row. Use valid
+  synthetic fixture rows or the routing/read seam; database constraints and forced RLS remain
+  enabled. Cross-clinic final reads remain invisible rather than resolving a foreign link.
 
 ## 7. Owner decisions (decisions page batch 14, 2026-10-15)
 
