@@ -21,9 +21,12 @@ expects seekable input; writing a patient PDF to disk to satisfy it would violat
 - Render with pinned Typst 0.15.1 and Amiri 1.002 Regular 400/Bold 700. Vendor fonts, licence and hashes
   as specified in `docs/specs/finance-f1-pdf-design.md` §3.2. No runtime network fetching.
 - Add qpdf 12.3.2 and apply the selected Arabic-only `/ActualText` correction before returning a PDF.
-  Use libqpdf memory APIs behind the rendering adapter, carrying document bytes over stdin/stdout
-  or in-process buffers. No document input files or decoded JSON files are permitted. The existing
-  memory-bridge experiment proves only a roundtrip, not the correction's extraction correctness.
+  A separate, killable helper process uses libqpdf memory APIs; document bytes cross its boundary on
+  stdin/stdout and remain in memory inside the helper. A blocking native call on the API event loop
+  is not permitted. The parent enforces the total deadline, terminates/reaps every child on failure,
+  and releases render capacity only after cleanup. No document input files or decoded JSON files
+  are permitted. The existing memory-bridge experiment proves only a roundtrip, not extraction
+  correctness or timeout/cleanup behavior.
 - Keep model fields allowlisted and amounts formatted from stored values. Patient display name is
   the only patient field in the document. The layout performs no money arithmetic. The Arabic KWD
   label is «دينار كويتي»; other currencies use their full Arabic names.
@@ -31,14 +34,28 @@ expects seekable input; writing a patient PDF to disk to satisfy it would violat
   total execution timeout five seconds, intermediate/final PDFs at most 5 MB each and any decoded
   JSON at most 32 MB. Failure kills children, releases capacity and returns no partial/uncorrected
   output. Logs carry fixed failure identifiers/exit codes, never child stderr or document text.
+- Disable core dumping for patient-bearing parent/child processes (`RLIMIT_CORE=0`, helper
+  non-dumpability before input, and effective container/host capture protection). A piped host crash
+  collector must not persist their memory even when the core size limit is zero. Enablement depends
+  on verified deployment protection and independent synthetic forced-crash/no-artifact tests for
+  qpdf, Typst and each selected Node parent role. Those tests use disposable processes under the
+  deployment-equivalent policy; live services receive read-only policy checks, never deliberate
+  crashes. A helper-only result or mismatched host collector policy is insufficient for enablement.
 - Pin pdf.js 6.3.289 and poppler 25.12.0 in CI for reproducible extraction assertions. Visual page
   equivalence and every required Arabic/English word are adapter-test gates. These extraction tools
   do not run for each request and are not API runtime dependencies.
 - Recheck the rendered invoice version/status under `FOR SHARE` in the post-render audit transaction
-  for authenticated and public access. A changed version rejects stale bytes as `version_conflict`
-  (412) without an open audit row. Public revocation/void retains `invoice_link_expired`; an
-  authenticated void invoice may render its matching void version and banner. Rendering and network
-  transmission hold no database lock; the final check/audit transaction is the decision point.
+  for authenticated and public access. On the public path, lock the specific `invoice_links` row
+  `FOR SHARE` after the invoice, preserving the existing invoice-before-link order. In that same
+  transaction, validate the original link id, token hash, clinic/invoice binding, absence of revocation
+  and expiry against a fresh injected-clock read. Keep both locks through the audit insert. An
+  absent/revoked/expired/mismatched public link or void invoice takes precedence and returns
+  `invoice_link_expired`; only an otherwise valid link with a changed invoice version returns
+  `version_conflict` (412). Neither refusal writes an open audit row or returns document bytes.
+  Authenticated version changes also return `version_conflict`; a matching void version may render
+  its banner. Rendering and network transmission hold no database lock; the final check/audit
+  transaction is the decision point. A pre-transaction link lookup is routing only, not the final
+  authorization check.
 - Measure the complete pipeline on staging with a 50-line invoice. Only p95 ≤150 ms permits the
   synchronous API path. Otherwise use the versioned worker path of the PDF design §4, in a separate
   reviewed slice with its own storage/access tests. Developer timing does not choose placement.
