@@ -75,8 +75,11 @@ it("the route is forbidden without the covering view:payments key", async () => 
 });
 
 const PICKER_CASES: [string, string[]][] = [
-  ["daily_takings", ["view:report_takings:clinic"]],
-  ["period_summary", ["view:report_takings:clinic"]],
+  ["daily_takings", ["view:report_takings:clinic", "view:payments:clinic"]],
+  [
+    "period_summary",
+    ["view:report_takings:clinic", "view:invoices:clinic", "view:payments:clinic"],
+  ],
   ["cash_closings", ["view:report_takings:clinic", "view:cash_closings:clinic"]],
   ["by_service", ["view:report_analytics:clinic", "view:invoices:clinic"]],
   ["by_doctor", ["view:report_analytics:clinic", "view:invoices:clinic"]],

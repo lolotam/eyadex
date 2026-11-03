@@ -60,8 +60,9 @@ it("shows the clinic-wide notice above the list and beside the export button", a
     ar.financeReports.patientCredit.notice,
   ]);
   const inline = screen.getByTestId("clinic-wide-notice-inline");
-  expect(within(inline.parentElement as HTMLElement).getByRole("button", { name: /تصدير|export/i }))
-    .toBeTruthy();
+  expect(
+    within(inline.parentElement as HTMLElement).getByRole("button", { name: /تصدير|export/i }),
+  ).toBeTruthy();
   const banner = screen.getByTestId("clinic-wide-notice-banner");
   expect(
     banner.compareDocumentPosition(screen.getByTestId("report-table")) &

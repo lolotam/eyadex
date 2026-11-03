@@ -20,7 +20,11 @@ export function ClinicWideNotice({ variant }: Props) {
       }
     >
       <Info
-        className={variant === "banner" ? "mt-0.5 size-4 shrink-0 text-primary" : "size-3.5 shrink-0 text-primary"}
+        className={
+          variant === "banner"
+            ? "mt-0.5 size-4 shrink-0 text-primary"
+            : "size-3.5 shrink-0 text-primary"
+        }
         aria-hidden
       />
       {t("financeReports.patientCredit.notice")}
