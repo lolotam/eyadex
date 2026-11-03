@@ -8,6 +8,7 @@ export const SCREEN_REPORTS = [
   "cash_closings",
   "by_service",
   "by_doctor",
+  "outstanding",
 ] as const satisfies readonly ReportId[];
 export type ScreenReportId = (typeof SCREEN_REPORTS)[number];
 

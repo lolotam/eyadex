@@ -12,6 +12,7 @@ export const enFinanceReports = {
       cash_closings: "Cash closings",
       by_service: "Revenue by service",
       by_doctor: "Revenue by doctor",
+      outstanding: "Outstanding balances",
     },
     descriptions: {
       daily_takings: "Money in and out per day or month, branch and payment method.",
@@ -20,6 +21,8 @@ export const enFinanceReports = {
         "Saved drawer closings per day and branch, with expected, counted and difference.",
       by_service: "Billed amount per service, free lines and tax over a period.",
       by_doctor: "Billed amount per doctor, lines with no doctor and tax over a period.",
+      outstanding:
+        "Issued invoices that still owe money, by age: 0–30, 31–60, 61–90 and over 90 days.",
     },
     note: "Periods are clinic business days. A month's money in on Daily takings equals that month's collected amount on Period summary.",
     cashClosingsNote:
@@ -104,6 +107,35 @@ export const enFinanceReports = {
       shortage: "Shortage",
       over: "Over",
       openClosing: "Open closing of {day}",
+    },
+    outstanding: {
+      note: "Age counts from the invoice's issue day to today, in clinic business days.",
+      buckets: {
+        "0_30": "0–30 days",
+        "31_60": "31–60 days",
+        "61_90": "61–90 days",
+        over_90: "Over 90 days",
+      },
+      columns: {
+        invoiceNumber: "Invoice no.",
+        issueDay: "Issue day",
+        patient: "Patient",
+        total: "Total",
+        paid: "Paid",
+        owed: "Owed",
+        age: "Age",
+      },
+      summaryTitle: "Owed by age",
+      summaryNote:
+        "These cards cover the whole period. The table below shows only the pages loaded so far.",
+      invoiceCount: "{count} invoices",
+      unknownBranch: "Branch —",
+      showing: "Showing {shown} of {total}",
+      loadMore: "Load more",
+      loadingMore: "Loading…",
+      moreError: "The next page could not be loaded.",
+      retryMore: "Retry this page",
+      printNote: "Printed: the {shown} of {total} rows loaded on screen.",
     },
   },
 };
