@@ -5,7 +5,13 @@ import { resetMockData } from "@/shared/api/mock/mock-test-kit";
 import { personaWith } from "@/shared/api/mock/mock-report-test-kit";
 import { ar } from "@/shared/i18n/ar";
 import { en } from "@/shared/i18n/en";
-import { context, renderScreen, signIn, TestLink } from "./report-screens.test-kit";
+import {
+  context,
+  previousMonthStart,
+  renderScreen,
+  signIn,
+  TestLink,
+} from "./report-screens.test-kit";
 import { formatReportMinor, sumMinor } from "./report-money";
 import { ReportScreenPage } from "./report-screen-page";
 import { deferred } from "./outstanding-report.fixtures";
@@ -118,7 +124,7 @@ it("a filter change restarts at page 1 and a late page of the old filter is igno
   await waitFor(() => expect(rows()).toHaveLength(1));
   fireEvent.click(screen.getByRole("button", { name: O.loadMore }));
   fireEvent.change(screen.getByLabelText(ar.financeReports.filters.from), {
-    target: { value: "2026-10-02" },
+    target: { value: previousMonthStart() },
   });
   await waitFor(() => expect(screen.getAllByText("Adjust Person 3").length).toBeGreaterThan(0));
   await act(async () => late.resolve(pageOf([ALL[1]!], 3, null)));
@@ -180,7 +186,7 @@ it("a late first page of the old filter never replaces the new list", async () =
     return call === 1 ? late.promise : pageOf([ALL[2]!], 1, null);
   });
   fireEvent.change(screen.getByLabelText(ar.financeReports.filters.from), {
-    target: { value: "2026-10-02" },
+    target: { value: previousMonthStart() },
   });
   await waitFor(() => expect(screen.getAllByText("Adjust Person 3").length).toBeGreaterThan(0));
   await act(async () => late.resolve(pageOf([ALL[0]!], 3, null)));

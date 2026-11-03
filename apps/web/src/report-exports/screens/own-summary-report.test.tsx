@@ -5,7 +5,13 @@ import { resetMockData } from "@/shared/api/mock/mock-test-kit";
 import { personaWith } from "@/shared/api/mock/mock-report-test-kit";
 import { ar } from "@/shared/i18n/ar";
 import { en } from "@/shared/i18n/en";
-import { context, renderScreen, signIn, TestLink } from "./report-screens.test-kit";
+import {
+  context,
+  previousMonthStart,
+  renderScreen,
+  signIn,
+  TestLink,
+} from "./report-screens.test-kit";
 import { formatReportMinor, sumMinor } from "./report-money";
 import { ReportScreenPage } from "./report-screen-page";
 import { BIG_ROWS, BIG_SUM, ownAnswer, R10_KEYS } from "./own-summary-report.fixtures";
@@ -42,18 +48,6 @@ async function open(answer = ownAnswer(BIG_ROWS, BIG_SUM), keys = R10_KEYS) {
 }
 const totalsCell = () =>
   within(screen.getByTestId("report-totals")).getAllByRole("cell")[1]!.textContent;
-
-/**
- * The first day of the month before the screen's default month (its From input starts on day 1 of the
- * current month). It always differs from the default and always stays inside the range cap with To,
- * whatever day the suite runs on, even on the first of a month (a fixed date or "day 2" would not).
- */
-const previousMonthStart = () => {
-  const [y, m] = (screen.getByLabelText(ar.financeReports.filters.from) as HTMLInputElement).value
-    .split("-")
-    .map(Number);
-  return new Date(Date.UTC(y!, m! - 2, 1)).toISOString().slice(0, 10);
-};
 
 it("the totals row is the response total, equal to the BigInt sum above 2^53", async () => {
   await open();
