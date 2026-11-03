@@ -55,6 +55,7 @@ export const enFinanceReports = {
     states: {
       loading: "Loading the report…",
       empty: "No data in this period",
+      emptyClinicWide: "No patient credit balances in the clinic right now",
       error: "The report could not be loaded.",
       retry: "Try again",
     },

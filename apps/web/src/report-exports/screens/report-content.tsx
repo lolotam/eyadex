@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { AlertCircle, Inbox } from "lucide-react";
+import type { TranslationKey } from "@/shared/i18n/dictionary";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useI18n } from "@/shared/i18n/i18n-provider";
@@ -8,12 +9,14 @@ type Props = {
   loading: boolean;
   error: string | null;
   empty: boolean;
+  /** The empty-state text; defaults to the period wording, which a report ignoring the period must replace. */
+  emptyKey?: TranslationKey;
   onRetry: () => void;
   children: ReactNode;
 };
 
 /** Loading skeleton, error with retry, empty period, or the report body. */
-export function ReportContent({ loading, error, empty, onRetry, children }: Props) {
+export function ReportContent({ loading, error, empty, emptyKey, onRetry, children }: Props) {
   const { t, tDynamic } = useI18n();
   if (loading)
     return (
@@ -44,7 +47,7 @@ export function ReportContent({ loading, error, empty, onRetry, children }: Prop
     return (
       <p className="flex items-center gap-2 rounded-md border bg-card p-6 text-sm text-muted-foreground">
         <Inbox className="size-4 shrink-0" aria-hidden />
-        {t("financeReports.states.empty")}
+        {t(emptyKey ?? "financeReports.states.empty")}
       </p>
     );
   return <>{children}</>;

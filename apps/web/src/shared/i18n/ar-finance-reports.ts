@@ -55,6 +55,7 @@ export const arFinanceReports: Strings<typeof enFinanceReports> = {
     states: {
       loading: "جارٍ تحميل التقرير…",
       empty: "لا توجد بيانات في هذه الفترة",
+      emptyClinicWide: "لا توجد أرصدة دائنة حاليًا في العيادة",
       error: "تعذّر تحميل التقرير.",
       retry: "إعادة المحاولة",
     },

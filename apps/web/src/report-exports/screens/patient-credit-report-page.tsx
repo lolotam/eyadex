@@ -25,6 +25,7 @@ export function PatientCreditReportPage() {
         <ReportContent
           loading={f.waiting || pages.isLoading}
           error={pages.error}
+          emptyKey="financeReports.states.emptyClinicWide"
           empty={pages.currency !== null && pages.rows.length === 0}
           onRetry={pages.retry}
         >

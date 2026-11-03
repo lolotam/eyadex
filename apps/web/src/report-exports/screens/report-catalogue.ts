@@ -1,5 +1,6 @@
 import { reportPermissionScope } from "@eyadex/contracts/finance-report-access";
 import { REPORT_IDS, type ReportGroupBy, type ReportId } from "@eyadex/contracts/finance-reports";
+import { NO_BRANCH_REPORTS } from "../report-no-branch";
 
 /** The reports that have an on-screen view today; the others join as their cards land. */
 export const SCREEN_REPORTS = [
@@ -26,11 +27,10 @@ export const SCREEN_GROUP_DEFAULT: Partial<Record<ReportId, ReportGroupBy>> = {
  */
 export const SCREEN_DEFAULT_DAYS: Partial<Record<ScreenReportId, number>> = { outstanding: 365 };
 
-/**
- * Reports with no branch filter on screen. R6 is the clinic-wide remaining credit (owner decision
- * 2026-10-27), so the bar shows no picker and the request never carries `branchId`.
- */
-export const SCREEN_NO_BRANCH: ReadonlySet<ScreenReportId> = new Set(["patient_credit"]);
+/** Screens with no branch filter (the shared `NO_BRANCH_REPORTS`, which the export form follows too). */
+export const SCREEN_NO_BRANCH: ReadonlySet<ScreenReportId> = new Set(
+  SCREEN_REPORTS.filter((report) => NO_BRANCH_REPORTS.has(report)),
+);
 
 /** Reports whose numbers ignore the selected period: the shell shows the clinic-wide notice. */
 export const SCREEN_CLINIC_WIDE_NOTICE: ReadonlySet<ScreenReportId> = new Set(["patient_credit"]);

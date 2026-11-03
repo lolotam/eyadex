@@ -170,7 +170,7 @@ it("renders only the name, as plain text: no patient id and no link anywhere", a
 
 it("empty and first-page error states, with a retry", async () => {
   const { spy } = await open([creditPage([], [], null)]);
-  expect(await screen.findByText(ar.financeReports.states.empty)).toBeTruthy();
+  expect(await screen.findByText(ar.financeReports.states.emptyClinicWide)).toBeTruthy();
   expect(spy).toHaveBeenCalledTimes(1);
   document.body.innerHTML = "";
   const again = await open(async () => {
@@ -190,4 +190,14 @@ it("R6 keeps the frame's current clinic month as its default dates", async () =>
   } finally {
     vi.useRealTimers();
   }
+});
+
+it("fetches no branch list, and the empty state never refers to the selected period", async () => {
+  const api = await signIn(personaWith(R6_KEYS));
+  const branchList = vi.spyOn(api.reports, "branchOptions");
+  vi.spyOn(api.reports, "patientCredit").mockResolvedValueOnce(creditPage([], [], null));
+  renderScreen(<ReportScreenPage />);
+  expect(await screen.findByText(ar.financeReports.states.emptyClinicWide)).toBeTruthy();
+  expect(screen.queryByText(ar.financeReports.states.empty)).toBeNull();
+  expect(branchList).not.toHaveBeenCalled();
 });

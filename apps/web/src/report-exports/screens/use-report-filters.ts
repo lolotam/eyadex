@@ -58,7 +58,7 @@ export function useReportFilters<Q>(report: ScreenReportId, schema: Parser<Q>) {
   // checked), it falls back to all branches in reach: the report stays usable, the picker shows the
   // fallback and its retry notice, and nothing is sent to be refused. While the list loads for the
   // first time under this access, the report shows its loading state instead of a blank.
-  const branches = useExportBranchOptions(report);
+  const branches = useExportBranchOptions(SCREEN_NO_BRANCH.has(report) ? null : report);
   // A report with no branch filter never sends a branch and never waits on the branch list.
   const chosen = SCREEN_NO_BRANCH.has(report) ? null : filters.branchId;
   const loaded = branches.isEligible && !branches.isLoading && branches.error === null;
