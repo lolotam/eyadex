@@ -127,8 +127,8 @@ export const enFinanceReports = {
       },
       summaryTitle: "Owed by age",
       summaryNote:
-        "These cards cover the whole period. The table below shows only the pages loaded so far.",
-      invoiceCount: "{count} invoices",
+        "These cards cover the selected period only: debts on invoices issued before it are not included. The table below shows only the pages loaded so far.",
+      invoiceCount: "Invoices: {count}",
       unknownBranch: "Branch —",
       showing: "Showing {shown} of {total}",
       loadMore: "Load more",

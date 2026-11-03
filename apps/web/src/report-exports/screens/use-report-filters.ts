@@ -3,7 +3,7 @@ import type { ReportGroupBy } from "@eyadex/contracts/finance-reports";
 import { todayInTimeZone } from "@eyadex/contracts/patients";
 import { useSession } from "@/shared/persona/persona-provider";
 import { useExportBranchOptions } from "../use-export-branch-options";
-import { SCREEN_GROUP_DEFAULT, type ScreenReportId } from "./report-catalogue";
+import { SCREEN_DEFAULT_DAYS, SCREEN_GROUP_DEFAULT, type ScreenReportId } from "./report-catalogue";
 
 export type ReportFilters = {
   from: string;
@@ -24,10 +24,16 @@ type Parser<Q> = {
 const ISSUES = ["required", "date", "dateOrder", "rangeTooLong"] as const;
 export type ReportFilterIssue = (typeof ISSUES)[number] | "invalid";
 
-/** The current clinic month up to today, as clinic business days. */
-export function defaultReportRange(timeZone: string, now = new Date()) {
+/**
+ * The current clinic month up to today, as clinic business days; or, with `lastDays`, the last
+ * `lastDays` clinic days ending today (inclusive, like the API's range, so 365 days start 364 days
+ * before today). The days are calendar dates, so no time of day or zone can shift them.
+ */
+export function defaultReportRange(timeZone: string, now = new Date(), lastDays?: number) {
   const to = todayInTimeZone(timeZone, now);
-  return { from: `${to.slice(0, 8)}01`, to };
+  if (lastDays === undefined) return { from: `${to.slice(0, 8)}01`, to };
+  const start = Date.parse(`${to}T00:00:00Z`) - (lastDays - 1) * 86_400_000;
+  return { from: new Date(start).toISOString().slice(0, 10), to };
 }
 
 /**
@@ -38,7 +44,7 @@ export function useReportFilters<Q>(report: ScreenReportId, schema: Parser<Q>) {
   const { session } = useSession();
   const zone = session?.clinic?.timezone ?? "Asia/Kuwait";
   const [filters, setFilters] = useState<ReportFilters>(() => ({
-    ...defaultReportRange(zone),
+    ...defaultReportRange(zone, new Date(), SCREEN_DEFAULT_DAYS[report]),
     branchId: null,
     groupBy: SCREEN_GROUP_DEFAULT[report] ?? null,
   }));

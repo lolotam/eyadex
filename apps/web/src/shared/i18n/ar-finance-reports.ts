@@ -126,7 +126,8 @@ export const arFinanceReports: Strings<typeof enFinanceReports> = {
         age: "العمر",
       },
       summaryTitle: "المستحق حسب العمر",
-      summaryNote: "هذه البطاقات تغطي الفترة كاملة. الجدول بالأسفل يعرض الصفحات المحمّلة فقط.",
+      summaryNote:
+        "هذه البطاقات تغطي الفترة المختارة فقط: المبالغ المستحقة على فواتير صادرة قبلها غير محسوبة. الجدول بالأسفل يعرض الصفحات المحمّلة فقط.",
       invoiceCount: "{count} فاتورة",
       unknownBranch: "فرع —",
       showing: "عرض {shown} من {total}",

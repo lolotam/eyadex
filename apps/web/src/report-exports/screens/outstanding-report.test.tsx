@@ -155,3 +155,28 @@ it("an empty nextCursor is treated as no cursor: no load-more button", async () 
   await waitFor(() => expect(rows()).toHaveLength(4));
   expect(screen.queryByRole("button", { name: O.loadMore })).toBeNull();
 });
+
+it("R5 opens on the last 365 clinic days, and the date filters stay visible and editable", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-31T21:30:00Z"));
+  try {
+    const { spy } = await open([page(ALL, ALL, null), page(ALL, ALL, null)]);
+    await waitFor(() => expect(rows()).toHaveLength(4));
+    expect(spy.mock.calls[0]?.[1]).toMatchObject({ from: "2025-11-02", to: "2026-11-01" });
+    const from = screen.getByLabelText(ar.reportExports.request.from) as HTMLInputElement;
+    const to = screen.getByLabelText(ar.reportExports.request.to) as HTMLInputElement;
+    expect([from.value, to.value, from.disabled, to.disabled]).toEqual([
+      "2025-11-02",
+      "2026-11-01",
+      false,
+      false,
+    ]);
+    fireEvent.change(from, { target: { value: "2026-10-01" } });
+    await waitFor(() =>
+      expect(spy.mock.calls.at(-1)?.[1]).toMatchObject({ from: "2026-10-01", to: "2026-11-01" }),
+    );
+    expect(screen.getByText(O.summaryNote)).toBeTruthy();
+  } finally {
+    vi.useRealTimers();
+  }
+});
