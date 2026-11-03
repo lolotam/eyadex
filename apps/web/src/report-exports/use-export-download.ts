@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ReportExport } from "@eyadex/contracts/finance-reports";
 import { useApi } from "@/shared/api/api-provider";
 import { errorKeyOf } from "@/shared/api/api-error";
@@ -34,17 +34,13 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
     session?.blocked ?? null,
     session?.features.finance ?? null,
   ]);
-  const generation = useRef({ scope, value: 0 });
-  if (generation.current.scope !== scope)
-    generation.current = { scope, value: generation.current.value + 1 };
-  const epoch = generation.current.value;
+  // Both generations advance on commit only, and the live snapshot below is written in a layout
+  // effect: a speculative render React abandons (another persona, a not-ready session) changes none.
+  const { epoch, isCurrent: isCurrentScope } = useCommittedEpoch(scope);
   // A counter, not the fingerprint: access that goes A -> B -> A is a new generation, so a request
-  // made under the first A can neither be returned to a retry nor apply its late answer. This one
-  // advances on commit only; the scope generation and the live snapshot below are still written
-  // during render, as before.
+  // made under the first A can neither be returned to a retry nor apply its late answer.
   const { epoch: accessEpoch, isCurrent: isCurrentAccess } = useCommittedEpoch(access);
-  const live = useRef({ scope, rows, ready: false });
-  live.current = {
+  const snapshot = {
     scope,
     rows,
     ready:
@@ -56,6 +52,11 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
       session.persona.kind === persona.kind &&
       session.persona.memberId === persona.memberId,
   };
+  // Initialised from the first render, so a download right after mount already sees it.
+  const live = useRef(snapshot);
+  useLayoutEffect(() => {
+    live.current = snapshot;
+  });
   const mounted = useRef(false);
   const inFlight = useRef(new Map<string, Promise<void>>());
   const unavailable = useRef(new Map<string, Set<string>>());
@@ -92,10 +93,7 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
     });
   }, [accessEpoch]);
   const current = () =>
-    mounted.current &&
-    live.current.scope === scope &&
-    generation.current.value === epoch &&
-    live.current.ready;
+    mounted.current && live.current.scope === scope && isCurrentScope(epoch) && live.current.ready;
   function update(change: (old: DownloadState) => DownloadState) {
     if (current())
       setState((old) =>
