@@ -14,6 +14,8 @@ export const enFinanceReports = {
       by_doctor: "Revenue by doctor",
       outstanding: "Outstanding balances",
       patient_credit: "Patient credit",
+      refunds: "Refunds",
+      discounts: "Discounts",
     },
     descriptions: {
       daily_takings: "Money in and out per day or month, branch and payment method.",
@@ -25,6 +27,8 @@ export const enFinanceReports = {
       outstanding:
         "Issued invoices that still owe money, by age: 0–30, 31–60, 61–90 and over 90 days.",
       patient_credit: "Remaining credit per patient across the whole clinic, now.",
+      refunds: "Refunds over a period, by receipt or from credit, with who refunded and why.",
+      discounts: "Discounts on issued invoices over a period, with who set them and why.",
     },
     note: "Periods are clinic business days. A month's money in on Daily takings equals that month's collected amount on Period summary.",
     cashClosingsNote:
@@ -139,6 +143,28 @@ export const enFinanceReports = {
       moreError: "The next page could not be loaded.",
       retryMore: "Retry this page",
       printNote: "Printed: the {shown} of {total} rows loaded on screen.",
+    },
+    adjustments: {
+      noValue: "—",
+      more: "Show full reason",
+      less: "Show less",
+      source: { payment: "From receipt", credit: "From credit" },
+      kind: { line: "Line", invoice: "Invoice" },
+      columns: {
+        refundNumber: "Refund no.",
+        invoiceNumber: "Invoice no.",
+        businessDay: "Business day",
+        issueDay: "Issue day",
+        patient: "Patient",
+        method: "Method",
+        source: "Source",
+        amount: "Amount",
+        refundedBy: "Refunded by",
+        kind: "Kind",
+        discount: "Discount",
+        discountedBy: "Set by",
+        reason: "Reason",
+      },
     },
     patientCredit: {
       note: "Credit is the current remaining balance across the whole clinic, from the complete ledger.",
