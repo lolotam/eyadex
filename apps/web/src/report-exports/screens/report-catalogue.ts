@@ -2,7 +2,7 @@ import { reportPermissionScope } from "@eyadex/contracts/finance-report-access";
 import { REPORT_IDS, type ReportGroupBy, type ReportId } from "@eyadex/contracts/finance-reports";
 import { NO_BRANCH_REPORTS } from "../report-no-branch";
 
-/** The reports that have an on-screen view today; the others join as their cards land. */
+/** The reports that have an on-screen view: every report id since card 7. */
 export const SCREEN_REPORTS = [
   "daily_takings",
   "period_summary",
@@ -13,6 +13,7 @@ export const SCREEN_REPORTS = [
   "patient_credit",
   "refunds",
   "discounts",
+  "own_summary",
 ] as const satisfies readonly ReportId[];
 export type ScreenReportId = (typeof SCREEN_REPORTS)[number];
 

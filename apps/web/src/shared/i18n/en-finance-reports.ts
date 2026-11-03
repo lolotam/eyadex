@@ -16,6 +16,7 @@ export const enFinanceReports = {
       patient_credit: "Patient credit",
       refunds: "Refunds",
       discounts: "Discounts",
+      own_summary: "My billing summary",
     },
     descriptions: {
       daily_takings: "Money in and out per day or month, branch and payment method.",
@@ -29,6 +30,7 @@ export const enFinanceReports = {
       patient_credit: "Remaining credit per patient across the whole clinic, now.",
       refunds: "Refunds over a period, by receipt or from credit, with who refunded and why.",
       discounts: "Discounts on issued invoices over a period, with who set them and why.",
+      own_summary: "The billed amount of your own invoice lines per month.",
     },
     note: "Periods are clinic business days. A month's money in on Daily takings equals that month's collected amount on Period summary.",
     cashClosingsNote:
@@ -178,6 +180,13 @@ export const enFinanceReports = {
         balance: "Credit balance",
         oldestCreditDay: "Oldest credit day",
       },
+    },
+    ownSummary: {
+      note: "The billed amount of your own invoice lines per month, as billed, not as collected; this report has no paid or owed amounts.",
+      month: "Month",
+      billed: "Billed",
+      noValue: "—",
+      myInvoices: "My invoices",
     },
   },
 };
