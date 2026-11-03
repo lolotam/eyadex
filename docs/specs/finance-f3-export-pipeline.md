@@ -1,6 +1,9 @@
 # Finance F3 — the export pipeline (design)
 
-- Status: **decided** (2026-10-23). This is the design issue #105 asked for. Nothing here is built.
+- Status: **implementation merged; final operational acceptance open** (2026-11-03). This is the
+  pipeline requested by issue #105, implemented in PR #128 with web integration in PRs #136 and #138.
+  Remaining launch evidence is tracked in `docs/superpowers/plans/2026-11-03-production-launch.md`;
+  merged code does not establish that every production acceptance gate has passed.
 - Review: the two Codex P2 findings of PR #121 are folded in — the publish whose answer was lost
   (§2 step 9, §3, §4) and the upload that lands after its key was swept (§2 step 8, §6, §8.2, §10).
   The last round of the same review adds three more: the `own` export's patient set and the publish
