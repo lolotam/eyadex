@@ -17,7 +17,13 @@ export function RefundsReportPage() {
   const f = useReportFilters<RefundsQuery>("refunds", reportRefundQuerySchema);
   const pages = useRefundsPages(filtersOf(f.query));
   return (
-    <ReportShell report="refunds" filters={f.filters} zone={f.zone} issues={f.issues} onChange={f.set}>
+    <ReportShell
+      report="refunds"
+      filters={f.filters}
+      zone={f.zone}
+      issues={f.issues}
+      onChange={f.set}
+    >
       {f.query === null && !f.waiting ? null : (
         <ReportContent
           loading={f.waiting || pages.isLoading}

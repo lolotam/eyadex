@@ -9,7 +9,13 @@ import { context, renderScreen, signIn, TestLink } from "./report-screens.test-k
 import { formatReportMinor, sumMinor } from "./report-money";
 import { ReportScreenPage } from "./report-screen-page";
 import { deferred } from "./outstanding-report.fixtures";
-import { ADJ_PATIENT_ID, pageOf, R7_KEYS, REFUND_ID, refundRow } from "./adjustment-reports.fixtures";
+import {
+  ADJ_PATIENT_ID,
+  pageOf,
+  R7_KEYS,
+  REFUND_ID,
+  refundRow,
+} from "./adjustment-reports.fixtures";
 import type { RefundsPage } from "./use-refunds-pages";
 
 vi.mock("@/shared/api/api-provider", () => ({ useApi: () => context.api }));
@@ -49,7 +55,9 @@ const rows = () => within(screen.getByTestId("report-table")).queryAllByTestId("
 it("the route opens with the real mock and shows the period empty state", async () => {
   await signIn(personaWith(R7_KEYS));
   renderScreen(<ReportScreenPage />);
-  expect(await screen.findByRole("heading", { name: ar.financeReports.names.refunds })).toBeTruthy();
+  expect(
+    await screen.findByRole("heading", { name: ar.financeReports.names.refunds }),
+  ).toBeTruthy();
   expect(await screen.findByText(ar.financeReports.states.empty)).toBeTruthy();
 });
 
@@ -114,7 +122,9 @@ it("a filter change restarts at page 1 and a late page of the old filter is igno
 
 it("an error on load more keeps earlier pages and retries only that page", async () => {
   const spy = await open([pageOf([ALL[0]!], 3, "c2")]);
-  spy.mockRejectedValueOnce(new ApiError("unknown")).mockResolvedValueOnce(pageOf([ALL[1]!], 3, null));
+  spy
+    .mockRejectedValueOnce(new ApiError("unknown"))
+    .mockResolvedValueOnce(pageOf([ALL[1]!], 3, null));
   await waitFor(() => expect(rows()).toHaveLength(1));
   fireEvent.click(screen.getByRole("button", { name: O.loadMore }));
   fireEvent.click(await screen.findByRole("button", { name: O.retryMore }));

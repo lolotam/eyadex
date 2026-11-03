@@ -20,7 +20,11 @@ export function useRefundsColumns(fmt: Format) {
     { key: "day", label: t(`${C}.businessDay`), cell: (r) => fmt.period(r.businessDate) },
     { key: "branch", label: t("financeReports.columns.branch"), cell: (r) => r.branchName },
     { key: "patient", label: t(`${C}.patient`), cell: (r) => r.patientName },
-    { key: "method", label: t(`${C}.method`), cell: (r) => tDynamic(`payments.method.${r.method}`) },
+    {
+      key: "method",
+      label: t(`${C}.method`),
+      cell: (r) => tDynamic(`payments.method.${r.method}`),
+    },
     {
       key: "source",
       label: t(`${C}.source`),
@@ -34,7 +38,12 @@ export function useRefundsColumns(fmt: Format) {
         );
       },
     },
-    { key: "amount", label: t(`${C}.amount`), numeric: true, cell: (r) => fmt.money(r.amountMinor) },
+    {
+      key: "amount",
+      label: t(`${C}.amount`),
+      numeric: true,
+      cell: (r) => fmt.money(r.amountMinor),
+    },
     {
       key: "refundedBy",
       label: t(`${C}.refundedBy`),

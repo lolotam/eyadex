@@ -31,7 +31,11 @@ export function refundRow(n: number, amount: string, over: Partial<RefundRow> = 
   };
 }
 
-export function discountRow(n: number, amount: string, over: Partial<DiscountRow> = {}): DiscountRow {
+export function discountRow(
+  n: number,
+  amount: string,
+  over: Partial<DiscountRow> = {},
+): DiscountRow {
   return {
     invoiceId: INVOICE_ID(n),
     invoiceNumber: `T-${n}`,

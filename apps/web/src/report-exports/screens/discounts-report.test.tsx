@@ -37,7 +37,11 @@ beforeEach(() => {
 
 const ALL = [
   discountRow(1, "9007199254740993"),
-  discountRow(2, "9007199254740995", { kind: "invoice", discountedBy: null, discountedByName: null }),
+  discountRow(2, "9007199254740995", {
+    kind: "invoice",
+    discountedBy: null,
+    discountedByName: null,
+  }),
   discountRow(3, "1500", { reason: "" }),
 ];
 
@@ -112,7 +116,9 @@ it("a late page of the old filter is ignored after a filter change", async () =>
 
 it("an error on load more keeps earlier pages and retries only that page", async () => {
   const spy = await open([pageOf([ALL[0]!], 3, "c2")]);
-  spy.mockRejectedValueOnce(new ApiError("unknown")).mockResolvedValueOnce(pageOf([ALL[1]!], 3, null));
+  spy
+    .mockRejectedValueOnce(new ApiError("unknown"))
+    .mockResolvedValueOnce(pageOf([ALL[1]!], 3, null));
   await waitFor(() => expect(rows()).toHaveLength(1));
   fireEvent.click(screen.getByRole("button", { name: O.loadMore }));
   fireEvent.click(await screen.findByRole("button", { name: O.retryMore }));
@@ -124,11 +130,11 @@ it("sends branchId when a branch is chosen", async () => {
   const api = await signIn(personaWith(R8_KEYS));
   const spy = vi.spyOn(api.reports, "discounts");
   renderScreen(<ReportScreenPage />);
-  const picker = (await screen.findByLabelText(ar.financeReports.filters.branch)) as HTMLSelectElement;
+  const picker = (await screen.findByLabelText(
+    ar.financeReports.filters.branch,
+  )) as HTMLSelectElement;
   await waitFor(() => expect(picker.querySelectorAll("option").length).toBeGreaterThan(1));
   const branchId = picker.querySelectorAll("option")[1]!.getAttribute("value")!;
   fireEvent.change(picker, { target: { value: branchId } });
-  await waitFor(() =>
-    expect(spy.mock.calls.some((c) => c[1].branchId === branchId)).toBe(true),
-  );
+  await waitFor(() => expect(spy.mock.calls.some((c) => c[1].branchId === branchId)).toBe(true));
 });

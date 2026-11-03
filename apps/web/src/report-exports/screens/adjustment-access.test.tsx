@@ -19,7 +19,10 @@ vi.mock("@tanstack/react-router", () => ({
 
 beforeEach(() => resetMockData());
 
-const opens = (keys: string[]) => [canOpenReport(keys, "refunds"), canOpenReport(keys, "discounts")];
+const opens = (keys: string[]) => [
+  canOpenReport(keys, "refunds"),
+  canOpenReport(keys, "discounts"),
+];
 
 it("each covering key opens only its own report", () => {
   expect(opens(["view:report_patients:clinic", "view:payments:clinic"])).toEqual([true, false]);
@@ -32,7 +35,11 @@ it("each covering key opens only its own report", () => {
 
 it("report_own, report_takings or report_analytics never open R7 or R8", () => {
   const covering = ["view:payments:clinic", "view:invoices:clinic"];
-  for (const key of ["view:report_own:own", "view:report_takings:clinic", "view:report_analytics:clinic"])
+  for (const key of [
+    "view:report_own:own",
+    "view:report_takings:clinic",
+    "view:report_analytics:clinic",
+  ])
     expect(opens([key, ...covering])).toEqual([false, false]);
 });
 
