@@ -129,12 +129,10 @@ it("an error on load more keeps earlier pages and retries only that page", async
 it("sends branchId when a branch is chosen", async () => {
   const api = await signIn(personaWith(R8_KEYS));
   const spy = vi.spyOn(api.reports, "discounts");
+  const branch = getState().branches.find((b) => b.clinicId === clinicIdAt(0) && b.isActive)!;
   renderScreen(<ReportScreenPage />);
-  const picker = (await screen.findByLabelText(
-    ar.financeReports.filters.branch,
-  )) as HTMLSelectElement;
-  await waitFor(() => expect(picker.querySelectorAll("option").length).toBeGreaterThan(1));
-  const branchId = picker.querySelectorAll("option")[1]!.getAttribute("value")!;
-  fireEvent.change(picker, { target: { value: branchId } });
-  await waitFor(() => expect(spy.mock.calls.some((c) => c[1].branchId === branchId)).toBe(true));
+  const select = () => screen.getByLabelText(ar.financeReports.filters.branch) as HTMLSelectElement;
+  await waitFor(() => expect(select().disabled).toBe(false));
+  fireEvent.change(select(), { target: { value: branch.id } });
+  await waitFor(() => expect(spy.mock.calls.at(-1)?.[1]).toMatchObject({ branchId: branch.id }));
 });
