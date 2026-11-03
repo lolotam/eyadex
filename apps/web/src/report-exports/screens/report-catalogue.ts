@@ -8,6 +8,7 @@ export const SCREEN_REPORTS = [
   "cash_closings",
   "by_service",
   "by_doctor",
+  "outstanding",
 ] as const satisfies readonly ReportId[];
 export type ScreenReportId = (typeof SCREEN_REPORTS)[number];
 
@@ -16,6 +17,13 @@ export const SCREEN_GROUP_DEFAULT: Partial<Record<ReportId, ReportGroupBy>> = {
   daily_takings: "day",
   period_summary: "month",
 };
+
+/**
+ * Reports whose default range is the last N clinic days through today (inclusive, within the
+ * 366-day cap) instead of the current clinic month. R5 ages invoices from their issue day, so a one
+ * month window would always leave the older buckets empty (owner decision 2026-11-03: 365 days).
+ */
+export const SCREEN_DEFAULT_DAYS: Partial<Record<ScreenReportId, number>> = { outstanding: 365 };
 
 export const isReportId = (value: string): value is ReportId =>
   (REPORT_IDS as readonly string[]).includes(value);

@@ -13,8 +13,8 @@ type Props<T> = {
   columns: ReportColumn<T>[];
   rows: T[];
   rowKey: (row: T, index: number) => string;
-  /** The totals row: one node per numeric column key (from the response's own totals). */
-  totals: Record<string, ReactNode>;
+  /** The totals row: one node per numeric column key. Omitted when the rows shown are not the whole set. */
+  totals?: Record<string, ReactNode> | undefined;
   /** Rows of one group are shown under a heading with this label. */
   groupOf?: (row: T) => string;
 };
@@ -70,15 +70,17 @@ export function ReportTable<T>({ caption, columns, rows, rowKey, totals, groupOf
             </Fragment>
           ))}
         </tbody>
-        <tfoot>
-          <tr className="border-t-2 font-semibold" data-testid="report-totals">
-            {columns.map((c, index) => (
-              <td key={c.key} className={`px-3 py-2 ${align(c.numeric)}`} data-column={c.key}>
-                {index === 0 ? t("financeReports.total") : (totals[c.key] ?? null)}
-              </td>
-            ))}
-          </tr>
-        </tfoot>
+        {totals ? (
+          <tfoot>
+            <tr className="border-t-2 font-semibold" data-testid="report-totals">
+              {columns.map((c, index) => (
+                <td key={c.key} className={`px-3 py-2 ${align(c.numeric)}`} data-column={c.key}>
+                  {index === 0 ? t("financeReports.total") : (totals[c.key] ?? null)}
+                </td>
+              ))}
+            </tr>
+          </tfoot>
+        ) : null}
       </table>
       <ul className="flex flex-col gap-2 md:hidden print:hidden" aria-label={caption}>
         {rows.map((row, index) => (
@@ -96,19 +98,21 @@ export function ReportTable<T>({ caption, columns, rows, rowKey, totals, groupOf
             </dl>
           </li>
         ))}
-        <li className="rounded-md border-2 bg-card p-3 font-semibold">
-          <p className="mb-2 text-xs">{t("financeReports.total")}</p>
-          <dl className="grid gap-1">
-            {columns
-              .filter((c) => totals[c.key] !== undefined)
-              .map((c) => (
-                <div key={c.key} className="flex justify-between gap-3 text-sm">
-                  <dt className="text-xs text-muted-foreground">{c.label}</dt>
-                  <dd className="text-end tabular-nums">{totals[c.key]}</dd>
-                </div>
-              ))}
-          </dl>
-        </li>
+        {totals ? (
+          <li className="rounded-md border-2 bg-card p-3 font-semibold">
+            <p className="mb-2 text-xs">{t("financeReports.total")}</p>
+            <dl className="grid gap-1">
+              {columns
+                .filter((c) => totals[c.key] !== undefined)
+                .map((c) => (
+                  <div key={c.key} className="flex justify-between gap-3 text-sm">
+                    <dt className="text-xs text-muted-foreground">{c.label}</dt>
+                    <dd className="text-end tabular-nums">{totals[c.key]}</dd>
+                  </div>
+                ))}
+            </dl>
+          </li>
+        ) : null}
       </ul>
     </div>
   );

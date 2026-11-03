@@ -16,6 +16,7 @@ export const arFinanceReports: Strings<typeof enFinanceReports> = {
       cash_closings: "سجل إقفال الصندوق",
       by_service: "الإيراد حسب الخدمة",
       by_doctor: "الإيراد حسب الدكتور",
+      outstanding: "المبالغ المستحقة",
     },
     descriptions: {
       daily_takings: "المقبوض والمصروف لكل يوم أو شهر وفرع وطريقة دفع.",
@@ -23,6 +24,8 @@ export const arFinanceReports: Strings<typeof enFinanceReports> = {
       cash_closings: "إقفالات الصندوق المحفوظة لكل يوم وفرع، بالمتوقع والمعدود والفرق.",
       by_service: "المبلغ المفوتر لكل خدمة والبنود الحرة والضريبة خلال فترة.",
       by_doctor: "المبلغ المفوتر لكل دكتور والبنود بدون دكتور والضريبة خلال فترة.",
+      outstanding:
+        "الفواتير الصادرة التي ما زال عليها مبلغ، حسب العمر: ٠–٣٠ و٣١–٦٠ و٦١–٩٠ وأكثر من ٩٠ يومًا.",
     },
     note: "الفترات أيام عمل العيادة. المقبوض في شهر بتقرير الإيراد اليومي يساوي المحصّل في نفس الشهر بتقرير ملخص الفترة.",
     cashClosingsNote: "الأيام أيام عمل العيادة. العجز فرق بالسالب، ولا تظهر إجماليات طرق الدفع.",
@@ -104,6 +107,35 @@ export const arFinanceReports: Strings<typeof enFinanceReports> = {
       shortage: "عجز",
       over: "زيادة",
       openClosing: "فتح إقفال يوم {day}",
+    },
+    outstanding: {
+      note: "العمر يُحسب من يوم إصدار الفاتورة حتى اليوم، بأيام عمل العيادة.",
+      buckets: {
+        "0_30": "٠–٣٠ يومًا",
+        "31_60": "٣١–٦٠ يومًا",
+        "61_90": "٦١–٩٠ يومًا",
+        over_90: "أكثر من ٩٠ يومًا",
+      },
+      columns: {
+        invoiceNumber: "رقم الفاتورة",
+        issueDay: "يوم الإصدار",
+        patient: "المراجع",
+        total: "الإجمالي",
+        paid: "المدفوع",
+        owed: "المستحق",
+        age: "العمر",
+      },
+      summaryTitle: "المستحق حسب العمر",
+      summaryNote:
+        "هذه البطاقات تغطي الفترة المختارة فقط: المبالغ المستحقة على فواتير صادرة قبلها غير محسوبة. الجدول بالأسفل يعرض الصفحات المحمّلة فقط.",
+      invoiceCount: "{count} فاتورة",
+      unknownBranch: "فرع —",
+      showing: "عرض {shown} من {total}",
+      loadMore: "تحميل المزيد",
+      loadingMore: "جارٍ التحميل…",
+      moreError: "تعذّر تحميل الصفحة التالية.",
+      retryMore: "إعادة محاولة هذه الصفحة",
+      printNote: "المطبوع: {shown} من {total} صفًا المحمّلة على الشاشة.",
     },
   },
 };

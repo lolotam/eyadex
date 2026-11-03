@@ -11,6 +11,7 @@ import { PeriodSummaryPage } from "./period-summary-page";
 import { CashClosingsReportPage } from "./cash-closings-report-page";
 import { ByServiceReportPage } from "./by-service-report-page";
 import { ByDoctorReportPage } from "./by-doctor-report-page";
+import { OutstandingReportPage } from "./outstanding-report-page";
 
 /**
  * `/clinic/reports/<reportId>`: an unknown or not-yet-built report is "not found"; a report the
@@ -50,6 +51,7 @@ export function ReportScreenPage() {
   if (!canOpenReport(session.permissions, reportId)) return <ForbiddenPage />;
   if (reportId === "by_service") return <ByServiceReportPage key={persona.memberId} />;
   if (reportId === "by_doctor") return <ByDoctorReportPage key={persona.memberId} />;
+  if (reportId === "outstanding") return <OutstandingReportPage key={persona.memberId} />;
   if (reportId === "cash_closings") return <CashClosingsReportPage key={persona.memberId} />;
   return reportId === "daily_takings" ? (
     <DailyTakingsPage key={persona.memberId} />
