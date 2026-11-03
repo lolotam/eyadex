@@ -6,7 +6,8 @@
 - **Contract (unchanged, approved):** `GET /v1/invoices/:id/pdf` — "Bilingual PDF rendered by the API from the
   stored invoice" (`finance-design.md` §3.3, FIN-5, FIN-6). D-P1 (browser print view) is declined by the owner
   (2026-10-15); this note only chooses how the API renders.
-- The implementation records the approved runtime dependencies and data path in an ADR before release.
+- Decision record: [ADR-0037](../adr/0037-bilingual-server-pdf.md), recorded before implementation of
+  the production renderer. Staging measurement still decides API versus worker placement.
 
 ## 1. Requirements the renderer must meet
 
@@ -35,7 +36,13 @@
 1. Use case (`billing/use-cases/invoice-pdf/invoice-pdf.ts`): guard `view:invoices:*` (with `own` reach), load
    the invoice, lines, clinic header, branch and patient display name inside `withTenant`. Close the
    transaction **before** rendering. The audit row is written only after the final PDF exists; the public
-   link also retains its post-render revocation/void checks before auditing and delivering the file.
+   link also retains its post-render revocation/void checks. After rendering, reload the invoice under
+   `FOR SHARE` inside `withTenant`, compare its version and status with the rendered snapshot, and
+   keep that lock through the audit insert. A changed version discards the bytes with the existing
+   `version_conflict` (412) response, without an open audit row; a revoked/void public link keeps its
+   existing `invoice_link_expired` response. An authenticated void invoice is deliverable only when
+   that same void version was rendered with its banner. The final check/audit transaction is the
+   delivery decision point; no database lock spans rendering or network transmission.
 2. Build a **whitelisted** `InvoicePdfModel` (no ids except the invoice number; patient = display name only — no
    civil ID, phone or email). Every string is formatted in TypeScript first: amounts with `formatMinor`, dates
    with `Intl.DateTimeFormat("ar-KW" | "en-GB", { timeZone: clinic.timezone })` exactly as the prescription
@@ -55,8 +62,10 @@ emptyDir, "-", "-"])` (the exact form the probe ran)
    temporary file; the qpdf CLI's seekable-file requirement is not permission to spill to disk. The
    in-memory bridge and correction need reproducible extraction and rendering proof before release.
    A failed parse, unsupported content, correction failure or serialization warning fails the render;
-   it never falls back to returning the uncorrected Typst PDF. Final output must be a valid PDF within
-   the size limit, preserve the rendered pages, and pass the pinned pdf.js/pdftotext R2 assertions.
+   it never falls back to returning the uncorrected Typst PDF. At runtime, final output must be a valid
+   PDF within the size limit and preserve the page count. Page-image equivalence and the pinned
+   pdf.js/pdftotext R2 assertions run in the §6 adapter tests in CI, not on each request; the extractors
+   are not runtime dependencies.
 5. Limits cover the **whole Typst plus qpdf pipeline**: a semaphore of **2** concurrent renders per API
    process (excess waits ≤ 2 s, then 503 `pdf_busy`, a `RULE_ONLY` code); a **5 s** total kill timeout;
    intermediate/final PDFs capped at 5 MB each and any decoded JSON representation capped at 32 MB.
@@ -142,7 +151,9 @@ The decision is made by measurement, not assumed.
   model with the patient name never appears in captured logs; a child that exits before reading stdin fails the
   request.
 - API db spec: `own` reach, `view` permission, module off ⇒ `module_disabled`, audit row written, headers
-  (`no-store`), void invoice still renders with the banner.
+  (`no-store`), void invoice still renders with the banner; an edit committed during rendering rejects
+  the stale bytes with `version_conflict` and writes no open audit row on both authenticated and public
+  paths; public revocation/void keeps `invoice_link_expired`.
 
 ## 7. Owner decisions (decisions page batch 14, 2026-10-15)
 
