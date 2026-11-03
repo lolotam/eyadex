@@ -165,3 +165,19 @@ it("shows the branch picker and the first-page error with a retry", async () => 
   fireEvent.click(await screen.findByRole("button", { name: ar.financeReports.states.retry }));
   expect(await screen.findByText(ar.financeReports.states.empty)).toBeTruthy();
 });
+
+it("a late first page of the old filter never replaces the new list", async () => {
+  const late = deferred<RefundsPage>();
+  let call = 0;
+  await open(async () => {
+    call += 1;
+    return call === 1 ? late.promise : pageOf([ALL[2]!], 1, null);
+  });
+  fireEvent.change(screen.getByLabelText(ar.financeReports.filters.from), {
+    target: { value: "2026-10-02" },
+  });
+  await waitFor(() => expect(screen.getAllByText("Adjust Person 3").length).toBeGreaterThan(0));
+  await act(async () => late.resolve(pageOf([ALL[0]!], 3, null)));
+  expect(rows()).toHaveLength(1);
+  expect(screen.queryByText("Adjust Person 1")).toBeNull();
+});
