@@ -92,7 +92,10 @@ export function correct(document) {
         if (value === undefined) throw new Error("missing glyph mapping");
         visual += value;
       }
-      if (!/^[\p{Script=Arabic}\p{Mark}]+$/u.test(visual)) return whole;
+      if (/^[\p{Script=Arabic}\p{Mark}]+$/u.test(visual) && /\p{Mark}/u.test(visual))
+        throw new Error("unsupported_marked_text");
+      // Script=Arabic also includes digits and numeric separators: never reverse those runs.
+      if (!/^(?:(?=\p{Script=Arabic})\p{Letter})+$/u.test(visual)) return whole;
       const clusters = [
         ...new Intl.Segmenter("ar", { granularity: "grapheme" }).segment(visual),
       ].map((item) => item.segment);

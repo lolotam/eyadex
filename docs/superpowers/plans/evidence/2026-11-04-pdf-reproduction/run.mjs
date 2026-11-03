@@ -5,6 +5,8 @@ import { createHash } from "node:crypto";
 import { createCanvas, loadImage } from "@napi-rs/canvas";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { correct } from "./correct.mjs";
+import { orderedFields } from "./extraction-order.mjs";
+import "./classifier.test.mjs";
 
 // All inputs and persisted outputs are synthetic. This is not an API renderer or release gate.
 const corpus = JSON.parse(readFileSync("/probe/corpus.json", "utf8"));
@@ -15,6 +17,16 @@ const english = [
   "15.000 KWD",
   "Test clinic",
   "sample correction",
+];
+const numeric = [
+  "١٥",
+  new Intl.NumberFormat("ar-KW", { minimumFractionDigits: 3 }).format(1234.5),
+  new Intl.DateTimeFormat("ar-KW", {
+    timeZone: "Asia/Kuwait",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date("2026-10-15T09:00:00Z")),
 ];
 const output = "/out";
 mkdirSync(output, { recursive: true });
@@ -30,6 +42,11 @@ const hasField = (text, field) => {
 assert.equal(hasField("المراجع", "مراجع"), false);
 assert.equal(hasField("العيادة", "عيادة"), false);
 assert.equal(hasField("دينار كويتي", "دينار كويتي"), true);
+assert.equal(orderedFields("Receipt Invoice", ["Invoice", "Receipt"]).ordered, false);
+assert.equal(orderedFields("Invoice Receipt", ["Invoice", "Receipt"]).ordered, true);
+assert.equal(orderedFields("Invoice", ["Invoice", "Invoice"]).ordered, false);
+assert.equal(orderedFields("جلسة 15.000 KWD", ["جلسة 15.000 KWD"]).ordered, true);
+assert.equal(orderedFields("15.000 KWD جلسة", ["جلسة 15.000 KWD"]).ordered, false);
 
 function child(binary, args, input) {
   const result = spawnSync(binary, args, {
@@ -39,12 +56,17 @@ function child(binary, args, input) {
     timeout: 10_000,
     maxBuffer: 32 * 1024 * 1024,
   });
-  if (result.status !== 0 || result.error) throw new Error("synthetic_probe_child_failed");
+  if (result.status !== 0 || result.error)
+    throw new Error(
+      `synthetic_probe_child_failed:${binary}:${result.status ?? result.signal ?? "spawn_error"}`,
+    );
   return result.stdout;
 }
 
 function render(name, phrases, weight = "regular", extras = true) {
-  const expected = extras ? [...phrases, ...english, "جلسة 15.000 KWD"] : phrases;
+  const expected = (extras ? [...phrases, ...english, ...numeric, "جلسة 15.000 KWD"] : phrases).map(
+    clean,
+  );
   // Separate grid cells retain logical phrase order while each Arabic word remains shaped.
   const source = `#set page(paper: "a4")
 #set text(font: "Amiri", weight: "${weight}", lang: "ar", dir: rtl, size: 12pt)
@@ -60,6 +82,8 @@ ${
   extras
     ? `#let english = json(bytes(${JSON.stringify(JSON.stringify(english))}))
 #for phrase in english { par(text(dir: ltr, lang: "en", phrase)) }
+#let numeric = json(bytes(${JSON.stringify(JSON.stringify(numeric.map(clean)))}))
+#for phrase in numeric { par(text(dir: ltr, phrase)) }
 #grid(columns: (auto, auto), column-gutter: 0.25em, [جلسة], text(dir: ltr, lang: "en", "15.000 KWD"))`
     : ""
 }
@@ -89,7 +113,7 @@ async function extract(file, expected) {
       );
     }
     const js = clean(text.join(" "));
-    const poppler = clean(child("/usr/bin/pdftotext", ["-raw", file, "-"]).toString("utf8"));
+    const poppler = clean(child("/usr/local/bin/pdftotext", ["-raw", file, "-"]).toString("utf8"));
     for (const forbidden of corpus.forbiddenRenderedText) {
       assert(
         !js.includes(forbidden) && !poppler.includes(forbidden),
@@ -100,6 +124,11 @@ async function extract(file, expected) {
       pages: doc.numPages,
       pdfjsMisses: expected.filter((field) => !hasField(js, field)),
       popplerMisses: expected.filter((field) => !hasField(poppler, field)),
+      pdfjsOrder: orderedFields(js, expected.map(clean)),
+      popplerOrder: orderedFields(poppler, expected.map(clean)),
+      numericUnchanged: numeric.every(
+        (field) => hasField(js, clean(field)) && hasField(poppler, clean(field)),
+      ),
     };
   } finally {
     await loading.destroy();
@@ -108,7 +137,7 @@ async function extract(file, expected) {
 
 async function pixels(name, pages) {
   for (const kind of ["raw", "corrected"]) {
-    child("/usr/bin/pdftoppm", [
+    child("/usr/local/bin/pdftoppm", [
       "-r",
       "96",
       "-png",
@@ -152,7 +181,7 @@ const results = {
   versions: {
     node: process.version,
     typst: child("/opt/typst-x86_64-unknown-linux-musl/typst", ["--version"]).toString().trim(),
-    qpdf: child("/usr/bin/qpdf", ["--version"]).toString().split("\n")[0],
+    qpdf: child("/usr/local/bin/qpdf", ["--version"]).toString().split("\n")[0],
     pdfjs: "6.3.289",
     poppler: "25.12.0",
   },
@@ -172,6 +201,10 @@ for (const weight of ["regular", "bold"]) {
   const corrected = await extract(`${output}/${weight}-corrected.pdf`, fixture.expected);
   assert.deepEqual(corrected.pdfjsMisses, []);
   assert.deepEqual(corrected.popplerMisses, []);
+  assert.equal(corrected.pdfjsOrder.ordered, true, JSON.stringify(corrected.pdfjsOrder));
+  assert.equal(corrected.popplerOrder.ordered, true, JSON.stringify(corrected.popplerOrder));
+  assert.equal(raw.numericUnchanged, true);
+  assert.equal(corrected.numericUnchanged, true);
   assert.equal(raw.pages, corrected.pages);
   assert(raw.popplerMisses.length > 0, "fixture must reproduce the uncorrected regression");
   results.cases.push({

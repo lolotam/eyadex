@@ -13,17 +13,42 @@
   "cases": [
     {
       "name": "regular",
-      "expectedEntries": 47,
+      "expectedEntries": 50,
       "spans": 41,
       "raw": {
         "pages": 2,
         "pdfjsMisses": [],
-        "popplerMisses": ["الخصم", "المجموع", "الحساب", "تحليل", "لمحة", "اللجنة", "الخدمة"]
+        "popplerMisses": ["الخصم", "المجموع", "الحساب", "تحليل", "لمحة", "اللجنة", "الخدمة"],
+        "pdfjsOrder": {
+          "ordered": true,
+          "matchedFields": 50,
+          "firstPosition": 0,
+          "lastPosition": 373
+        },
+        "popplerOrder": {
+          "ordered": false,
+          "failedField": "الخصم",
+          "matchedFields": 10
+        },
+        "numericUnchanged": true
       },
       "corrected": {
         "pages": 2,
         "pdfjsMisses": [],
-        "popplerMisses": []
+        "popplerMisses": [],
+        "pdfjsOrder": {
+          "ordered": true,
+          "matchedFields": 50,
+          "firstPosition": 0,
+          "lastPosition": 373
+        },
+        "popplerOrder": {
+          "ordered": true,
+          "matchedFields": 50,
+          "firstPosition": 0,
+          "lastPosition": 373
+        },
+        "numericUnchanged": true
       },
       "pixels": [
         {
@@ -38,23 +63,48 @@
           "width": 794,
           "height": 1123,
           "differingChannels": 0,
-          "sha256": "5992495b8ac4e7596cf474cd7235803be9586e0bd7942ce48158217c04d1c7e4"
+          "sha256": "e2a2422df65b5d2a9e47e13e4815353536801f44cdbdbf885e1894b0c089854b"
         }
       ]
     },
     {
       "name": "bold",
-      "expectedEntries": 47,
+      "expectedEntries": 50,
       "spans": 41,
       "raw": {
         "pages": 2,
         "pdfjsMisses": [],
-        "popplerMisses": ["الخصم", "المجموع", "الحساب", "تحليل", "لمحة", "اللجنة", "الخدمة"]
+        "popplerMisses": ["الخصم", "المجموع", "الحساب", "تحليل", "لمحة", "اللجنة", "الخدمة"],
+        "pdfjsOrder": {
+          "ordered": true,
+          "matchedFields": 50,
+          "firstPosition": 0,
+          "lastPosition": 373
+        },
+        "popplerOrder": {
+          "ordered": false,
+          "failedField": "الخصم",
+          "matchedFields": 10
+        },
+        "numericUnchanged": true
       },
       "corrected": {
         "pages": 2,
         "pdfjsMisses": [],
-        "popplerMisses": []
+        "popplerMisses": [],
+        "pdfjsOrder": {
+          "ordered": true,
+          "matchedFields": 50,
+          "firstPosition": 0,
+          "lastPosition": 373
+        },
+        "popplerOrder": {
+          "ordered": true,
+          "matchedFields": 50,
+          "firstPosition": 0,
+          "lastPosition": 373
+        },
+        "numericUnchanged": true
       },
       "pixels": [
         {
@@ -69,7 +119,7 @@
           "width": 794,
           "height": 1123,
           "differingChannels": 0,
-          "sha256": "385c8fc5108dcac62db7d8d21d7eb6721564baed1f33c56833063fd1ed969c21"
+          "sha256": "8b1ffc96042679795b58f7b700af493d192e6ff2b2267e262eecec142721a6fb"
         }
       ]
     },
@@ -78,7 +128,18 @@
       "raw": {
         "pages": 1,
         "pdfjsMisses": ["مُراجِع تجريبي"],
-        "popplerMisses": ["مُراجِع تجريبي"]
+        "popplerMisses": ["مُراجِع تجريبي"],
+        "pdfjsOrder": {
+          "ordered": false,
+          "failedField": "مُراجِع تجريبي",
+          "matchedFields": 0
+        },
+        "popplerOrder": {
+          "ordered": false,
+          "failedField": "مُراجِع تجريبي",
+          "matchedFields": 0
+        },
+        "numericUnchanged": false
       },
       "correction": "unsupported_marked_text",
       "accepted": false,

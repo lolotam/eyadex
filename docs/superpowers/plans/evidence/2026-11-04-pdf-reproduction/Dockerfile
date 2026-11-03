@@ -1,7 +1,9 @@
 FROM node:24-alpine@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f
-RUN apk add --no-cache g++ qpdf=12.3.2-r0 qpdf-dev=12.3.2-r0 poppler-utils=25.12.0-r1 curl
+RUN apk add --no-cache g++ cmake ninja pkgconf openssl-dev zlib-dev jpeg-dev freetype-dev fontconfig-dev libpng-dev curl
 WORKDIR /probe
 ARG PROBE=docs/superpowers/plans/evidence/2026-11-04-pdf-reproduction
+COPY ${PROBE}/build-tools.sh ./
+RUN sh build-tools.sh
 COPY ${PROBE}/package.json ${PROBE}/package-lock.json ./
 RUN npm ci --ignore-scripts --no-audit --no-fund
 RUN mkdir /fonts && \

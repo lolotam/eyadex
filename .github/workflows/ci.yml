@@ -215,7 +215,7 @@ jobs:
   # A green job is not invoice-PDF acceptance: results.json retains fullInvoiceAcceptance=false.
   pdf-reproduction:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - name: Build the isolated PDF research image
