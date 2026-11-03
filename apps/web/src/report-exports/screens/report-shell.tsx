@@ -46,7 +46,11 @@ export function ReportShell({ report, filters, zone, issues, onChange, children 
                   ? t("financeReports.patientCredit.note")
                   : report === "outstanding"
                     ? t("financeReports.outstanding.note")
-                    : t("financeReports.note")
+                    : report === "refunds"
+                      ? t("financeReports.adjustments.refundsNote")
+                      : report === "discounts"
+                        ? t("financeReports.adjustments.discountsNote")
+                        : t("financeReports.note")
         }
         actions={
           <div className="flex flex-wrap items-center gap-2 print:hidden">
