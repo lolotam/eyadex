@@ -43,12 +43,14 @@ it("R6 opens only with report_patients:clinic plus view:payments:clinic", () => 
   expect(
     canOpenReport(["view:report_takings:clinic", "view:payments:clinic"], "patient_credit"),
   ).toBe(false);
-  expect(availableScreens(R6_KEYS)).toEqual(["patient_credit"]);
-  expect(availableScreens(["view:report_patients:branch", "view:payments:branch"])).toEqual([]);
+  expect(availableScreens(R6_KEYS)).toEqual(["patient_credit", "refunds"]);
+  expect(availableScreens(["view:report_patients:branch", "view:payments:branch"])).toEqual([
+    "refunds",
+  ]);
 });
 
-it("R7, R8 and R10 stay hidden; only R6 hides the branch picker", () => {
-  for (const hidden of ["refunds", "discounts", "doctor_own"])
+it("R10 stays hidden; only R6 hides the branch picker", () => {
+  for (const hidden of ["own_summary"])
     expect((SCREEN_REPORTS as readonly string[]).includes(hidden)).toBe(false);
   expect(SCREEN_REPORTS.filter((r) => SCREEN_NO_BRANCH.has(r))).toEqual(["patient_credit"]);
 });
