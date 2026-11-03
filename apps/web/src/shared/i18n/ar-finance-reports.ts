@@ -20,6 +20,7 @@ export const arFinanceReports: Strings<typeof enFinanceReports> = {
       patient_credit: "أرصدة المراجعين",
       refunds: "المستردات",
       discounts: "الخصومات",
+      own_summary: "ملخص فواتيري",
     },
     descriptions: {
       daily_takings: "المقبوض والمصروف لكل يوم أو شهر وفرع وطريقة دفع.",
@@ -32,6 +33,7 @@ export const arFinanceReports: Strings<typeof enFinanceReports> = {
       patient_credit: "الرصيد المتبقي لكل مراجع في العيادة كلها الآن.",
       refunds: "المستردات خلال فترة، من إيصال أو من الرصيد، مع من ردّها وسببها.",
       discounts: "الخصومات على الفواتير الصادرة خلال فترة، مع من وضعها وسببها.",
+      own_summary: "المبلغ المُفوتَر لبنود فواتيرك أنت في كل شهر.",
     },
     note: "الفترات أيام عمل العيادة. المقبوض في شهر بتقرير الإيراد اليومي يساوي المحصّل في نفس الشهر بتقرير ملخص الفترة.",
     cashClosingsNote: "الأيام أيام عمل العيادة. العجز فرق بالسالب، ولا تظهر إجماليات طرق الدفع.",
