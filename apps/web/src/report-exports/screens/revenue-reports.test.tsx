@@ -32,19 +32,73 @@ const ANALYTICS = ["view:report_analytics:clinic", "view:invoices:clinic"];
 // The tax row arrives first on purpose: the screen must still show it last.
 const serviceData: ByServiceResponse = {
   rows: [
-    { kind: "tax", serviceId: null, name: "x", lineCount: 0, quantity: 0, amountMinor: "1250", currency: "KWD" },
-    { kind: "service", serviceId: SERVICE_A, name: "Service A", lineCount: 3, quantity: 4, amountMinor: "20000", currency: "KWD" },
-    { kind: "free", serviceId: null, name: "x", lineCount: 2, quantity: 2, amountMinor: "5000", currency: "KWD" },
+    {
+      kind: "tax",
+      serviceId: null,
+      name: "x",
+      lineCount: 0,
+      quantity: 0,
+      amountMinor: "1250",
+      currency: "KWD",
+    },
+    {
+      kind: "service",
+      serviceId: SERVICE_A,
+      name: "Service A",
+      lineCount: 3,
+      quantity: 4,
+      amountMinor: "20000",
+      currency: "KWD",
+    },
+    {
+      kind: "free",
+      serviceId: null,
+      name: "x",
+      lineCount: 2,
+      quantity: 2,
+      amountMinor: "5000",
+      currency: "KWD",
+    },
   ],
-  totals: { lineCount: 5, quantity: 6, billedMinor: "25000", taxMinor: "1250", totalMinor: "26250" },
+  totals: {
+    lineCount: 5,
+    quantity: 6,
+    billedMinor: "25000",
+    taxMinor: "1250",
+    totalMinor: "26250",
+  },
   currency: "KWD",
   currencyExponent: 3,
 };
 const doctorData: ByDoctorResponse = {
   rows: [
-    { kind: "doctor", providerId: DOCTOR_A, name: "Doctor A", lineCount: 1, quantity: 1, amountMinor: "7000", currency: "KWD" },
-    { kind: "tax", providerId: null, name: "x", lineCount: 0, quantity: 0, amountMinor: "500", currency: "KWD" },
-    { kind: "none", providerId: null, name: "x", lineCount: 2, quantity: 3, amountMinor: "3000", currency: "KWD" },
+    {
+      kind: "doctor",
+      providerId: DOCTOR_A,
+      name: "Doctor A",
+      lineCount: 1,
+      quantity: 1,
+      amountMinor: "7000",
+      currency: "KWD",
+    },
+    {
+      kind: "tax",
+      providerId: null,
+      name: "x",
+      lineCount: 0,
+      quantity: 0,
+      amountMinor: "500",
+      currency: "KWD",
+    },
+    {
+      kind: "none",
+      providerId: null,
+      name: "x",
+      lineCount: 2,
+      quantity: 3,
+      amountMinor: "3000",
+      currency: "KWD",
+    },
   ],
   totals: { lineCount: 3, quantity: 4, billedMinor: "10000", taxMinor: "500", totalMinor: "10500" },
   currency: "KWD",
@@ -69,27 +123,32 @@ async function open(report: ReportId, keys = ANALYTICS) {
 it.each([
   ["by_service", serviceData, "byService"],
   ["by_doctor", doctorData, "byDoctor"],
-] as const)("%s totals equal the BigInt row sums and the tax row is shown last", async (report, data, method) => {
-  const api = await signIn(personaWith(ANALYTICS));
-  vi.spyOn(api.reports, method).mockResolvedValue(data as never);
-  context.reportId = report;
-  renderScreen(<ReportScreenPage />);
-  await screen.findAllByTestId("report-row");
-  const billed = sumMinor(data.rows.filter((r) => r.kind !== "tax").map((r) => r.amountMinor));
-  const tax = sumMinor(data.rows.filter((r) => r.kind === "tax").map((r) => r.amountMinor));
-  expect(billed).toBe(data.totals.billedMinor);
-  expect(tax).toBe(data.totals.taxMinor);
-  expect(sumMinor([billed, tax])).toBe(data.totals.totalMinor);
-  expect(data.rows.reduce((n, r) => n + r.lineCount, 0)).toBe(data.totals.lineCount);
-  expect(summary("billed")).toContain(money(billed));
-  expect(summary("tax")).toContain(money(tax));
-  expect(summary("total")).toContain(money(data.totals.totalMinor));
-  expect(names().at(-1)).toBe("tax");
-  expect(screen.getAllByText(F.revenue.taxRow).length).toBeGreaterThan(0);
-  const special = report === "by_service" ? F.revenue.freeRow : F.revenue.noDoctorRow;
-  expect(screen.getAllByText(special).length).toBeGreaterThan(0);
-  expect(screen.getByText(report === "by_service" ? F.byServiceNote : F.byDoctorNote)).toBeTruthy();
-});
+] as const)(
+  "%s totals equal the BigInt row sums and the tax row is shown last",
+  async (report, data, method) => {
+    const api = await signIn(personaWith(ANALYTICS));
+    vi.spyOn(api.reports, method).mockResolvedValue(data as never);
+    context.reportId = report;
+    renderScreen(<ReportScreenPage />);
+    await screen.findAllByTestId("report-row");
+    const billed = sumMinor(data.rows.filter((r) => r.kind !== "tax").map((r) => r.amountMinor));
+    const tax = sumMinor(data.rows.filter((r) => r.kind === "tax").map((r) => r.amountMinor));
+    expect(billed).toBe(data.totals.billedMinor);
+    expect(tax).toBe(data.totals.taxMinor);
+    expect(sumMinor([billed, tax])).toBe(data.totals.totalMinor);
+    expect(data.rows.reduce((n, r) => n + r.lineCount, 0)).toBe(data.totals.lineCount);
+    expect(summary("billed")).toContain(money(billed));
+    expect(summary("tax")).toContain(money(tax));
+    expect(summary("total")).toContain(money(data.totals.totalMinor));
+    expect(names().at(-1)).toBe("tax");
+    expect(screen.getAllByText(F.revenue.taxRow).length).toBeGreaterThan(0);
+    const special = report === "by_service" ? F.revenue.freeRow : F.revenue.noDoctorRow;
+    expect(screen.getAllByText(special).length).toBeGreaterThan(0);
+    expect(
+      screen.getByText(report === "by_service" ? F.byServiceNote : F.byDoctorNote),
+    ).toBeTruthy();
+  },
+);
 
 it("taxLast moves the tax row to the end and keeps the others in order", () => {
   expect(taxLast(serviceData.rows).map((r) => r.kind)).toEqual(["service", "free", "tax"]);
@@ -99,7 +158,9 @@ it("taxLast moves the tax row to the end and keeps the others in order", () => {
 it("report_analytics with view:invoices opens R3/R4; without it or with report_own only, never", () => {
   for (const report of ["by_service", "by_doctor"] as const) {
     expect(canOpenReport(ANALYTICS, report)).toBe(true);
-    expect(canOpenReport(["view:report_analytics:branch", "view:invoices:branch"], report)).toBe(true);
+    expect(canOpenReport(["view:report_analytics:branch", "view:invoices:branch"], report)).toBe(
+      true,
+    );
     expect(canOpenReport(["view:report_analytics:clinic"], report)).toBe(false);
     expect(canOpenReport(["view:report_own:own", "view:invoices:clinic"], report)).toBe(false);
   }
@@ -107,18 +168,24 @@ it("report_analytics with view:invoices opens R3/R4; without it or with report_o
   expect(availableScreens(["view:report_analytics:clinic"])).toEqual([]);
 });
 
-it.each(["by_service", "by_doctor"] as const)("the %s route opens for an allowed caller with real data", async (report) => {
-  await issue([freeLine("10000")]);
-  await open(report);
-  expect(await screen.findByRole("heading", { name: F.names[report] })).toBeTruthy();
-  await screen.findAllByTestId("report-row");
-  expect(summary("billed")).not.toBe("");
-});
+it.each(["by_service", "by_doctor"] as const)(
+  "the %s route opens for an allowed caller with real data",
+  async (report) => {
+    await issue([freeLine("10000")]);
+    await open(report);
+    expect(await screen.findByRole("heading", { name: F.names[report] })).toBeTruthy();
+    await screen.findAllByTestId("report-row");
+    expect(summary("billed")).not.toBe("");
+  },
+);
 
-it.each(["by_service", "by_doctor"] as const)("the %s route is forbidden without view:invoices", async (report) => {
-  await open(report, ["view:report_analytics:clinic"]);
-  expect(screen.getByText(ar.forbidden.title)).toBeTruthy();
-});
+it.each(["by_service", "by_doctor"] as const)(
+  "the %s route is forbidden without view:invoices",
+  async (report) => {
+    await open(report, ["view:report_analytics:clinic"]);
+    expect(screen.getByText(ar.forbidden.title)).toBeTruthy();
+  },
+);
 
 it("an empty period shows the empty state, and an error offers a retry", async () => {
   await open("by_service");
