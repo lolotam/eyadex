@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ReportExport } from "@eyadex/contracts/finance-reports";
 import { useApi } from "@/shared/api/api-provider";
 import { errorKeyOf } from "@/shared/api/api-error";
@@ -34,17 +34,13 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
     session?.blocked ?? null,
     session?.features.finance ?? null,
   ]);
-  const generation = useRef({ scope, value: 0 });
-  if (generation.current.scope !== scope)
-    generation.current = { scope, value: generation.current.value + 1 };
-  const epoch = generation.current.value;
+  // Both generations advance on commit only, and the live snapshot below is written in a layout
+  // effect: a speculative render React abandons (another persona, a not-ready session) changes none.
+  const { epoch, isCurrent: isCurrentScope } = useCommittedEpoch(scope);
   // A counter, not the fingerprint: access that goes A -> B -> A is a new generation, so a request
-  // made under the first A can neither be returned to a retry nor apply its late answer. This one
-  // advances on commit only; the scope generation and the live snapshot below are still written
-  // during render, as before.
+  // made under the first A can neither be returned to a retry nor apply its late answer.
   const { epoch: accessEpoch, isCurrent: isCurrentAccess } = useCommittedEpoch(access);
-  const live = useRef({ scope, rows, ready: false });
-  live.current = {
+  const snapshot = {
     scope,
     rows,
     ready:
@@ -56,6 +52,11 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
       session.persona.kind === persona.kind &&
       session.persona.memberId === persona.memberId,
   };
+  // Initialised from the first render, so a download right after mount already sees it.
+  const live = useRef(snapshot);
+  useLayoutEffect(() => {
+    live.current = snapshot;
+  });
   const mounted = useRef(false);
   const inFlight = useRef(new Map<string, Promise<void>>());
   const unavailable = useRef(new Map<string, Set<string>>());
@@ -92,10 +93,7 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
     });
   }, [accessEpoch]);
   const current = () =>
-    mounted.current &&
-    live.current.scope === scope &&
-    generation.current.value === epoch &&
-    live.current.ready;
+    mounted.current && live.current.scope === scope && isCurrentScope(epoch) && live.current.ready;
   function update(change: (old: DownloadState) => DownloadState) {
     if (current())
       setState((old) =>
@@ -111,11 +109,12 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
         ),
       );
   }
-  function canDownload(row: ReportExport) {
-    return (
-      live.current.ready && row.status === "done" && !unavailable.current.get(scope)?.has(row.id)
-    );
+  function canDownloadWith(ready: boolean, row: ReportExport) {
+    return ready && row.status === "done" && !unavailable.current.get(scope)?.has(row.id);
   }
+  // What a consumer renders (the button) must follow this render's own readiness: the layout-effect
+  // snapshot is still the previous commit's while rendering. Handlers and awaits use the snapshot.
+  const canDownload = (row: ReportExport) => canDownloadWith(snapshot.ready, row);
   function download(row: ReportExport): Promise<void> {
     // The access generation is part of the key: a request made under older access can neither block
     // a retry under the current access nor apply its late answer to it.
@@ -126,7 +125,7 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
     if (prior) return prior;
     if (
       !current() ||
-      !canDownload(row) ||
+      !canDownloadWith(live.current.ready, row) ||
       !live.current.rows.some(
         (item) => item.id === row.id && item.status === "done" && item.format === row.format,
       )
@@ -146,7 +145,7 @@ export function useExportDownload(rows: readonly ReportExport[], refresh: () => 
           !live.current.rows.some(
             (item) => item.id === row.id && item.status === "done" && item.format === row.format,
           ) ||
-          !canDownload(row)
+          !canDownloadWith(live.current.ready, row)
         )
           return;
         const url = URL.createObjectURL(blob);

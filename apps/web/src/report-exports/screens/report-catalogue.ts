@@ -6,6 +6,8 @@ export const SCREEN_REPORTS = [
   "daily_takings",
   "period_summary",
   "cash_closings",
+  "by_service",
+  "by_doctor",
 ] as const satisfies readonly ReportId[];
 export type ScreenReportId = (typeof SCREEN_REPORTS)[number];
 

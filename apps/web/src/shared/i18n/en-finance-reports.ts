@@ -10,16 +10,24 @@ export const enFinanceReports = {
       daily_takings: "Daily takings",
       period_summary: "Period summary",
       cash_closings: "Cash closings",
+      by_service: "Revenue by service",
+      by_doctor: "Revenue by doctor",
     },
     descriptions: {
       daily_takings: "Money in and out per day or month, branch and payment method.",
       period_summary: "Invoiced, collected, refunded and credit applied per period and branch.",
       cash_closings:
         "Saved drawer closings per day and branch, with expected, counted and difference.",
+      by_service: "Billed amount per service, free lines and tax over a period.",
+      by_doctor: "Billed amount per doctor, lines with no doctor and tax over a period.",
     },
     note: "Periods are clinic business days. A month's money in on Daily takings equals that month's collected amount on Period summary.",
     cashClosingsNote:
       "Days are clinic business days. A shortage is a negative difference; payment-method totals are not shown.",
+    byServiceNote:
+      "This is billed revenue, net of discounts, not collected money. Tax is shown on its own row.",
+    byDoctorNote:
+      "A management view of who billed what. It is not a commission statement. Tax is shown on its own row.",
     creditHelp: "Credit applied is information only; it is not collected money.",
     filters: {
       title: "Filters",
@@ -72,6 +80,22 @@ export const enFinanceReports = {
       difference: "Difference",
       closedBy: "Closed by",
       note: "Note",
+      service: "Service",
+      doctor: "Doctor",
+      lineCount: "Lines",
+      quantity: "Quantity",
+      amount: "Amount",
+    },
+    revenue: {
+      freeRow: "Free lines",
+      noDoctorRow: "No doctor",
+      taxRow: "Tax",
+      linesGroup: "Billed lines",
+      taxGroup: "Tax",
+      billed: "Billed",
+      tax: "Tax",
+      total: "Total",
+      noValue: "—",
     },
     cashClosings: {
       noteYes: "Has a note",
