@@ -210,3 +210,26 @@ jobs:
       - name: Worker container log
         if: always()
         run: docker logs worker || true
+
+  # Reproduces a bounded synthetic extraction result AND a required unsupported-text case.
+  # A green job is not invoice-PDF acceptance: results.json retains fullInvoiceAcceptance=false.
+  pdf-reproduction:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the isolated PDF research image
+        run: docker build -f docs/superpowers/plans/evidence/2026-11-04-pdf-reproduction/Dockerfile -t eyadex-pdf-reproduction:ci .
+      - name: Reproduce both fonts, extraction, pixels and the unsupported marked name
+        run: |
+          mkdir -p "$RUNNER_TEMP/eyadex-pdf-reproduction"
+          docker run --rm --network none --read-only --ulimit core=0 \
+            --mount "type=bind,source=$RUNNER_TEMP/eyadex-pdf-reproduction,target=/out" \
+            eyadex-pdf-reproduction:ci
+      - name: Preserve synthetic research evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: synthetic-pdf-reproduction
+          path: ${{ runner.temp }}/eyadex-pdf-reproduction
+          retention-days: 7
