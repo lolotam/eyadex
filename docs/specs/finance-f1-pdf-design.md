@@ -180,9 +180,14 @@ The decision is made by measurement, not assumed.
   the shared total deadline, terminate/reap every started child, and permit a subsequent render to
   acquire released capacity. Also test a slow Typst followed by a slow helper to prove the deadline
   is not reset per stage. Test non-zero exits, malformed output, size limits and `EPIPE`; no
-  partial/raw fallback PDF or document text in captured logs. Force a helper crash with synthetic
-  marker data and verify no core/crash artifact in the container or configured host capture target;
-  record effective parent/child limits and dump protection on the deployment host too.
+  partial/raw fallback PDF or document text in captured logs. In disposable processes with synthetic
+  marker data only, independently force crashes of the qpdf helper, Typst and the Node parent (API,
+  and worker when selected). For each process, verify no core/crash artifact in the container or
+  configured host capture target; a helper-only pass does not establish protection for the others.
+  Record effective limits and host `core_pattern`/collector behavior for every process role under
+  deployment-equivalent settings. Live staging/production services are never deliberately crashed:
+  their effective settings are checked read-only and matched to the isolated crash evidence. Missing
+  evidence, a persisting collector or a policy mismatch keeps renderer enablement blocked.
 - API db spec: `own` reach, `view` permission, module off ⇒ `module_disabled`, audit row written, headers
   (`no-store`), void invoice still renders with the banner; an edit committed during rendering rejects
   the stale bytes with `version_conflict` and writes no open audit row on both authenticated and public

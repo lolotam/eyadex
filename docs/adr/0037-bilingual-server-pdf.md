@@ -37,8 +37,10 @@ expects seekable input; writing a patient PDF to disk to satisfy it would violat
 - Disable core dumping for patient-bearing parent/child processes (`RLIMIT_CORE=0`, helper
   non-dumpability before input, and effective container/host capture protection). A piped host crash
   collector must not persist their memory even when the core size limit is zero. Enablement depends
-  on verified deployment protection and a synthetic forced-crash/no-artifact test; memory-only
-  application I/O alone is insufficient evidence.
+  on verified deployment protection and independent synthetic forced-crash/no-artifact tests for
+  qpdf, Typst and each selected Node parent role. Those tests use disposable processes under the
+  deployment-equivalent policy; live services receive read-only policy checks, never deliberate
+  crashes. A helper-only result or mismatched host collector policy is insufficient for enablement.
 - Pin pdf.js 6.3.289 and poppler 25.12.0 in CI for reproducible extraction assertions. Visual page
   equivalence and every required Arabic/English word are adapter-test gates. These extraction tools
   do not run for each request and are not API runtime dependencies.
