@@ -1,0 +1,226 @@
+{
+  "syntheticOnly": true,
+  "singleWordFixtureOnly": true,
+  "fullInvoiceAcceptance": false,
+  "modelToRunBindingImplemented": false,
+  "taggedPdfAcceptance": false,
+  "runtimeActivation": false,
+  "results": [
+    {
+      "weight": "regular",
+      "word": "مُراجِع",
+      "rawPdfjsExact": false,
+      "bothExtractorsExact": true,
+      "selectionAdvance": 30.66,
+      "selectionHeight": 12,
+      "identicalPixelsDpi": [96, 144]
+    },
+    {
+      "weight": "regular",
+      "word": "مُحَمَّد",
+      "rawPdfjsExact": false,
+      "bothExtractorsExact": true,
+      "selectionAdvance": 14.411999999999999,
+      "selectionHeight": 12,
+      "identicalPixelsDpi": [96, 144]
+    },
+    {
+      "weight": "regular",
+      "word": "عَلِيّ",
+      "rawPdfjsExact": false,
+      "bothExtractorsExact": true,
+      "selectionAdvance": 12.647999999999998,
+      "selectionHeight": 12,
+      "identicalPixelsDpi": [96, 144]
+    },
+    {
+      "weight": "regular",
+      "word": "فَاطِمَة",
+      "rawPdfjsExact": false,
+      "bothExtractorsExact": true,
+      "selectionAdvance": 23.195999999999998,
+      "selectionHeight": 12,
+      "identicalPixelsDpi": [96, 144]
+    },
+    {
+      "weight": "regular",
+      "word": "أَحْمَد",
+      "rawPdfjsExact": false,
+      "bothExtractorsExact": true,
+      "selectionAdvance": 17.22,
+      "selectionHeight": 12,
+      "identicalPixelsDpi": [96, 144]
+    },
+    {
+      "weight": "regular",
+      "word": "إِبْرَاهِيم",
+      "rawPdfjsExact": false,
+      "bothExtractorsExact": true,
+      "selectionAdvance": 24.048,
+      "selectionHeight": 12,
+      "identicalPixelsDpi": [96, 144]
+    },
+    {
+      "weight": "regular",
+      "word": "عَبْدُاللَّه",
+      "rawPdfjsExact": false,
+      "bothExtractorsExact": true,
+      "selectionAdvance": 25.716,
+      "selectionHeight": 12,
+      "identicalPixelsDpi": [96, 144]
+    },
+    {
+      "weight": "regular",
+      "word": "مُصْطَفَى",
+      "rawPdfjsExact": false,
+      "bothExtractorsExact": true,
+      "selectionAdvance": 30.768,
+      "selectionHeight": 12,
+      "identicalPixelsDpi": [96, 144]
+    },
+    {
+      "weight": "regular",
+      "word": "آمِنَة",
+      "rawPdfjsExact": false,
+      "bothExtractorsExact": true,
+      "selectionAdvance": 14.748000000000001,
+      "selectionHeight": 12,
+      "identicalPixelsDpi": [96, 144]
+    },
+    {
+      "weight": "regular",
+      "word": "شَدَّةٌ",
+      "rawPdfjsExact": false,
+      "bothExtractorsExact": true,
+      "selectionAdvance": 16.896,
+      "selectionHeight": 12,
+      "identicalPixelsDpi": [96, 144]
+    },
+    {
+      "weight": "regular",
+      "word": "لَا",
+      "rawPdfjsExact": false,
+      "bothExtractorsExact": true,
+      "selectionAdvance": 7.704000000000001,
+      "selectionHeight": 12,
+      "identicalPixelsDpi": [96, 144]
+    },
+    {
+      "weight": "regular",
+      "word": "مُرَاجَعَةً",
+      "rawPdfjsExact": false,
+      "bothExtractorsExact": true,
+      "selectionAdvance": 29.232000000000003,
+      "selectionHeight": 12,
+      "identicalPixelsDpi": [96, 144]
+    },
+    {
+      "weight": "bold",
+      "word": "مُراجِع",
+      "rawPdfjsExact": false,
+      "bothExtractorsExact": true,
+      "selectionAdvance": 30.66,
+      "selectionHeight": 12,
+      "identicalPixelsDpi": [96, 144]
+    },
+    {
+      "weight": "bold",
+      "word": "مُحَمَّد",
+      "rawPdfjsExact": false,
+      "bothExtractorsExact": true,
+      "selectionAdvance": 14.411999999999999,
+      "selectionHeight": 12,
+      "identicalPixelsDpi": [96, 144]
+    },
+    {
+      "weight": "bold",
+      "word": "عَلِيّ",
+      "rawPdfjsExact": false,
+      "bothExtractorsExact": true,
+      "selectionAdvance": 12.647999999999998,
+      "selectionHeight": 12,
+      "identicalPixelsDpi": [96, 144]
+    },
+    {
+      "weight": "bold",
+      "word": "فَاطِمَة",
+      "rawPdfjsExact": false,
+      "bothExtractorsExact": true,
+      "selectionAdvance": 23.195999999999998,
+      "selectionHeight": 12,
+      "identicalPixelsDpi": [96, 144]
+    },
+    {
+      "weight": "bold",
+      "word": "أَحْمَد",
+      "rawPdfjsExact": false,
+      "bothExtractorsExact": true,
+      "selectionAdvance": 17.22,
+      "selectionHeight": 12,
+      "identicalPixelsDpi": [96, 144]
+    },
+    {
+      "weight": "bold",
+      "word": "إِبْرَاهِيم",
+      "rawPdfjsExact": false,
+      "bothExtractorsExact": true,
+      "selectionAdvance": 24.131999999999998,
+      "selectionHeight": 12,
+      "identicalPixelsDpi": [96, 144]
+    },
+    {
+      "weight": "bold",
+      "word": "عَبْدُاللَّه",
+      "rawPdfjsExact": false,
+      "bothExtractorsExact": true,
+      "selectionAdvance": 25.656000000000002,
+      "selectionHeight": 12,
+      "identicalPixelsDpi": [96, 144]
+    },
+    {
+      "weight": "bold",
+      "word": "مُصْطَفَى",
+      "rawPdfjsExact": false,
+      "bothExtractorsExact": true,
+      "selectionAdvance": 30.768,
+      "selectionHeight": 12,
+      "identicalPixelsDpi": [96, 144]
+    },
+    {
+      "weight": "bold",
+      "word": "آمِنَة",
+      "rawPdfjsExact": false,
+      "bothExtractorsExact": true,
+      "selectionAdvance": 14.748000000000001,
+      "selectionHeight": 12,
+      "identicalPixelsDpi": [96, 144]
+    },
+    {
+      "weight": "bold",
+      "word": "شَدَّةٌ",
+      "rawPdfjsExact": false,
+      "bothExtractorsExact": true,
+      "selectionAdvance": 16.896,
+      "selectionHeight": 12,
+      "identicalPixelsDpi": [96, 144]
+    },
+    {
+      "weight": "bold",
+      "word": "لَا",
+      "rawPdfjsExact": false,
+      "bothExtractorsExact": true,
+      "selectionAdvance": 7.704000000000001,
+      "selectionHeight": 12,
+      "identicalPixelsDpi": [96, 144]
+    },
+    {
+      "weight": "bold",
+      "word": "مُرَاجَعَةً",
+      "rawPdfjsExact": false,
+      "bothExtractorsExact": true,
+      "selectionAdvance": 29.232000000000003,
+      "selectionHeight": 12,
+      "identicalPixelsDpi": [96, 144]
+    }
+  ]
+}
