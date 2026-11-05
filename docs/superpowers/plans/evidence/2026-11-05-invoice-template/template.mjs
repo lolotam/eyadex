@@ -5,7 +5,8 @@ export function invoiceSource(model) {
   const words = {},
     roles = {},
     fields = [],
-    fieldRecords = [];
+    fieldRecords = [],
+    literalSlots = [];
   let next = 0;
   function field(value, lang = "ar", weight = "regular", role = "single") {
     assert(!/[\p{Cf}\p{Cc}]/u.test(String(value)), "unsupported_format_character");
@@ -22,6 +23,10 @@ export function invoiceSource(model) {
     fields.push(String(value));
     fieldRecords.push({ value: String(value), role, ids: parts.map((p) => p[0]) });
     return `field(json(bytes(${JSON.stringify(JSON.stringify(parts))})), ${JSON.stringify(lang)}, ${JSON.stringify(weight)},${role === "row" ? 244.236 : 510.236})`;
+  }
+  function literal(value) {
+    literalSlots.push({ anchor: fieldRecords.at(-1).ids.at(-1), value });
+    return value;
   }
   const pair = (ar, en, role = "single") =>
     `[#${field(ar, "ar", "regular", role)} #linebreak() #${field(en, "en", "regular", role)}]`;
@@ -45,7 +50,7 @@ export function invoiceSource(model) {
     ),
   ]);
   const voidHeader = model.voidReason
-    ? `header: block(width:100%, fill:rgb("ffe8e8"), inset:5pt)[#${field("فاتورة ملغاة", "ar", "bold", "page")} / #${field("VOID INVOICE", "en", "bold", "page")} #linebreak() #${field(model.voidReason, "ar", "regular", "page")} / #${field(model.voidDate, "en", "regular", "page")}],`
+    ? `header: block(width:100%, fill:rgb("ffe8e8"), inset:5pt)[#${field("فاتورة ملغاة", "ar", "bold", "page")} ${literal("/")} #${field("VOID INVOICE", "en", "bold", "page")} #linebreak() #${field(model.voidReason, "ar", "regular", "page")} ${literal("/")} #${field(model.voidDate, "en", "regular", "page")}],`
     : "";
   const headerRows = model.header
     .map(
@@ -106,25 +111,25 @@ export function invoiceSource(model) {
 }
 #set text(font:"Amiri",size:10pt,lang:"en",dir:ltr)
 #set page(paper:"a4",margin:15mm,${voidHeader}
-  footer:align(center)[#${field("صفحة", "ar", "regular", "page")} / #${field("Page", "en", "regular", "page")}
+  footer:align(center)[#${field("صفحة", "ar", "regular", "page")} ${literal("/")} #${field("Page", "en", "regular", "page")}
     #context text(dir:ltr,counter(page).display("1 / 1",both:true))
-    #h(8pt) #${field("نسخة", "ar", "regular", "page")} / #${field("Version " + model.version, "en", "regular", "page")}
+    #h(8pt) #${field("نسخة", "ar", "regular", "page")} ${literal("/")} #${field("Version " + model.version, "en", "regular", "page")}
   ])
 ${logo}
 #grid(columns:(1fr,1fr),align(left)[#${field(model.clinicEn, "en", "bold")}],align(right)[#${field(model.clinicAr, "ar", "bold")}])
 ${headerRows}
-#par[#${field("رقم الفاتورة")} #${field(model.number, "en")} / #${field("Invoice", "en")}]
-#par[#${field("التاريخ")} #${field(model.dateAr, "ar")} / #${field(model.dateEn, "en")}]
-#par[#${field("الحالة")} #${field(model.statusAr)} / #${field(model.statusEn, "en")}]
-#par[#${field("المراجع")} #${field(model.patientName)} / #${field("Patient", "en")}]
+#par[#${field("رقم الفاتورة")} #${field(model.number, "en")} ${literal("/")} #${field("Invoice", "en")}]
+#par[#${field("التاريخ")} #${field(model.dateAr, "ar")} ${literal("/")} #${field(model.dateEn, "en")}]
+#par[#${field("الحالة")} #${field(model.statusAr)} ${literal("/")} #${field(model.statusEn, "en")}]
+#par[#${field("المراجع")} #${field(model.patientName)} ${literal("/")} #${field("Patient", "en")}]
 #set text(size:9pt)
 #table(columns:(22pt,1fr,28pt,70pt,70pt,70pt),rows:auto,inset:3pt,stroke:0.3pt+gray,
   table.header(${headings.join(",")}),${rows.join(",")})
 #set text(size:10pt)
 #block(breakable:false)[
-${model.totals.map((total) => `#par[#${field(total.ar)} / #${field(total.en, "en")} #${field(total.value + " " + model.currency, "en")} ]`).join("\n")}
-${model.invoiceDiscountReason ? `#par[#${field("سبب الخصم")} / #${field("Discount reason", "en")} #${field(model.invoiceDiscountReason)}]` : ""}
-#par[#${field(model.currencyAr)} / #${field(model.currencyEn, "en")}]
+${model.totals.map((total) => `#par[#${field(total.ar)} ${literal("/")} #${field(total.en, "en")} #${field(total.value + " " + model.currency, "en")} ]`).join("\n")}
+${model.invoiceDiscountReason ? `#par[#${field("سبب الخصم")} ${literal("/")} #${field("Discount reason", "en")} #${field(model.invoiceDiscountReason)}]` : ""}
+#par[#${field(model.currencyAr)} ${literal("/")} #${field(model.currencyEn, "en")}]
 ]
 `;
   const allIds = [...source.matchAll(/field\(json\(bytes\(("(?:\\.|[^"\\])*")\)\)/g)].flatMap(
@@ -143,5 +148,6 @@ ${model.invoiceDiscountReason ? `#par[#${field("سبب الخصم")} / #${field(
     fieldRecords,
     repeatedOrder,
     headerCells: headings,
+    literalSlots,
   };
 }
