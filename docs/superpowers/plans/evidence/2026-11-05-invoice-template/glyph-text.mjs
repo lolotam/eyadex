@@ -16,20 +16,29 @@ export function compatibleGlyphText(body, word, objects, page) {
   const text = body.replace(/\/ActualText\s*<[\da-f]*>/gi, "");
   const bytes = [];
   for (let i = 0; i < text.length; i++) {
+    if (text[i] === "<" && text[i + 1] === "<") {
+      i++;
+      continue;
+    }
     if (text[i] === "<" && text[i + 1] !== "<") {
       const end = text.indexOf(">", i + 1);
+      if (end < 0) return false;
       let hex = text.slice(i + 1, end).replace(/\s/g, "");
+      if (!/^[\da-f]*$/i.test(hex)) return false;
       if (hex.length % 2) hex += "0";
+      if (hex.length % 4) return false;
       bytes.push(...Buffer.from(hex, "hex"));
       i = end;
       continue;
     }
     if (text[i] !== "(") continue;
+    const start = bytes.length;
     let depth = 1;
     while (++i < text.length && depth) {
       let ch = text[i];
       if (ch === "\\") {
         ch = text[++i];
+        if (ch === undefined) return false;
         if (/[0-7]/.test(ch)) {
           let oct = ch;
           for (let n = 0; n < 2 && /[0-7]/.test(text[i + 1] ?? ""); n++) oct += text[++i];
@@ -43,11 +52,17 @@ export function compatibleGlyphText(body, word, objects, page) {
         if (--depth) bytes.push(41);
       } else bytes.push(ch.charCodeAt(0));
     }
+    if (depth) return false;
+    if ((bytes.length - start) % 2) return false;
   }
+  if (!bytes.length || bytes.length % 2) return false;
   let known = "";
-  for (let i = 0; i + 1 < bytes.length; i += 2)
-    known += map.get(bytes[i] * 256 + bytes[i + 1]) ?? "";
-  if (known && !known.trim()) return false;
+  for (let i = 0; i < bytes.length; i += 2) {
+    const code = bytes[i] * 256 + bytes[i + 1];
+    if (!map.has(code) || !map.get(code).length) return false;
+    known += map.get(code);
+  }
+  if (!known.trim()) return false;
   const expected = word.normalize("NFD");
   return [...known.normalize("NFD")].every((c) => /[\s\p{Cf}]/u.test(c) || expected.includes(c));
 }
