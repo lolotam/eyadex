@@ -136,20 +136,28 @@ export function bind(document, words) {
       const actual = encoded.actual;
       let points = encoded.points;
       if (points.length > 255) {
-        const index = points.findIndex((p) => /\p{L}|\p{N}/u.test(p));
-        assert(index >= 0);
-        points = [
-          points.slice(0, index).join(""),
-          points[index],
-          points.slice(index + 1).join(""),
-        ].filter(Boolean);
+        const groups = [];
+        let group = "";
+        for (const point of points) {
+          if ((group.length + point.length) * 2 > 512) {
+            groups.push(group);
+            group = "";
+          }
+          group += point;
+        }
+        if (group) groups.push(group);
+        points = groups;
       }
+      assert(
+        points.every((point) => point.length * 2 <= 512),
+        "ToUnicode destination too long",
+      );
       const procs = {},
         widths = [],
         differences = [1];
       let assigned = false;
       for (let n = 0; n < points.length; n++) {
-        let w = !assigned && !/\p{M}/u.test(points[n]) ? width : 0;
+        let w = !assigned && /[^\p{M}\p{Cf}]/u.test(points[n]) ? width : 0;
         if (w) assigned = true;
         const name = "/g" + n;
         procs[name] = stream(

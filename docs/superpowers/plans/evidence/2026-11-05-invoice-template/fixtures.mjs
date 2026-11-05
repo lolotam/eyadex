@@ -163,11 +163,12 @@ export function fixtures(logoBytes) {
         ...line(1, "1.000"),
         descriptionEn: "W".repeat(45),
         descriptionAr: "مراجعة".repeat(33),
-        discountReasonAr: "سبب تجريبي",
+        discountReasonAr: "مراجعة".repeat(50),
         discountReasonEn: "W".repeat(300),
       },
     ],
     totals: totals("1.000", "0.000", "0.000", "1.000"),
+    invoiceDiscountReason: "مُحَمَّد".repeat(38).slice(0, 300),
   };
   const maximum = {
     ...long,
@@ -175,9 +176,9 @@ export function fixtures(logoBytes) {
     number: "SYN-MAXCONTENT-000001",
     lines: long.lines.map((line) => ({
       ...line,
-      descriptionAr: "وصف طبي تجريبي طويل ".repeat(11).slice(0, 200),
+      descriptionAr: "وصف طبي تجريبي طويل ".repeat(10).slice(0, 199) + "ج",
       descriptionEn: "A long synthetic clinical description ".repeat(6).slice(0, 200),
-      discountReasonAr: "سبب خصم تجريبي ".repeat(20).slice(0, 300),
+      discountReasonAr: "سبب خصم تجريبي ".repeat(20).slice(0, 299) + "ج",
       discountReasonEn: "Synthetic discount reason ".repeat(12).slice(0, 300),
     })),
   };

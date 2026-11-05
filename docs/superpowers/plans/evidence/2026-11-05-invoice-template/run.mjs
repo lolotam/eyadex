@@ -85,6 +85,20 @@ ctx.fillRect(27, 15, 26, 10);
 const guards = guardTests();
 const results = [];
 for (const model of fixtures([...logo.toBuffer("image/png")])) {
+  if (model.name === "LONGWORD")
+    for (const value of [model.lines[0].discountReasonAr, model.invoiceDiscountReason]) {
+      assert.equal(value.length, 300, "long Arabic fixture must reach glyph grouping");
+      assert(!/\s/u.test(value), "long Arabic fixture must be unbroken");
+    }
+  if (model.name === "MAXCONTENT")
+    for (const line of model.lines)
+      for (const [key, length] of [
+        ["descriptionAr", 200],
+        ["descriptionEn", 200],
+        ["discountReasonAr", 300],
+        ["discountReasonEn", 300],
+      ])
+        assert.equal(line[key].trim().length, length, `maximum fixture length: ${key}`);
   const { source, words, fields, roles, sourceOrder, fieldRecords } = invoiceSource(model);
   writeFileSync(`/out/${model.name}.typ`, source);
   const renderStarted = performance.now();
@@ -110,6 +124,14 @@ for (const model of fixtures([...logo.toBuffer("image/png")])) {
   const { rowPages } = validateBindings(json, words, roles, fieldRecords);
   const expected = expectedOrder(json, words, roles, sourceOrder),
     result = bind(json, words);
+  for (const object of Object.values(objects)) {
+    const data = object.stream?.data;
+    if (!data) continue;
+    const cmap = Buffer.from(data, "base64").toString("latin1");
+    if (!cmap.includes("begincmap")) continue;
+    for (const match of cmap.matchAll(/<[\da-f]+>\s*<([\da-f]+)>/gi))
+      assert(match[1].length / 2 <= 512, "ToUnicode destination exceeds 512 bytes");
+  }
   assert(!JSON.stringify(json).includes("urn:e:"), "binding annotation leaked");
   const fixed = child("/usr/local/bin/qpdf-memory", ["from-json"], JSON.stringify(json));
   assert(fixed.length < 5 * 1024 * 1024);
