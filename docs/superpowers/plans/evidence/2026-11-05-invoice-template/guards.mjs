@@ -9,12 +9,13 @@ function jsonOf(source) {
   const raw = spawnSync(
     "/opt/typst-x86_64-unknown-linux-musl/typst",
     ["compile", "--ignore-system-fonts", "--font-path", "/fonts", "-", "-"],
-    { input: source, maxBuffer: 32 * 1024 * 1024 },
+    { input: source, maxBuffer: 32 * 1024 * 1024, timeout: 60_000 },
   );
   assert.equal(raw.status, 0, "synthetic guard compile failed");
   const decoded = spawnSync("/usr/local/bin/qpdf-memory", ["to-json"], {
     input: raw.stdout,
     maxBuffer: 32 * 1024 * 1024,
+    timeout: 15_000,
   });
   assert.equal(decoded.status, 0, "synthetic guard decode failed");
   return JSON.parse(decoded.stdout);

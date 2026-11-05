@@ -89,3 +89,7 @@ Generated result SHA256: `e89f688aad32a4dcdef6a06597cd9d9c1658cfd909c2fdb398096c
 New mutation guards reject swaps of complete table-header cells and complete footer sections. Reversing indirect-object insertion order leaves expected page contents unchanged. The previous code fails both the header-swap assertion and page-order equality assertion.
 
 The earlier header-layout and object-order follow-ups above are now closed. The documented maximum-logo, unknown/partial glyph, extra-text, Unicode, runtime and deployment limitations remain open.
+
+## CMap block bounds follow-up
+
+CMap bfchar sections now contain at most 100 entries; the Type 3 code and 512-byte destination limits remain separate. The output check verifies declared versus actual block counts. The previous binder fails the new LONGWORD assertion with `bfchar block exceeds 100 entries`. E1 and LONGWORD pass both extractors, qpdf, and pixel equality at 96/144 DPI after the fix. Mutation-guard Typst and qpdf calls now have explicit 60-second and 15-second test timeouts. These are test-harness limits, not production-deadline acceptance. The launch log now uses the latest 31-page total.

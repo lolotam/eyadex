@@ -167,8 +167,14 @@ export function bind(document, words) {
       }
       const code = (n) => (n + 1).toString(16).padStart(2, "0");
       assert(points.length < 256);
+      const mappings = points.map((p, n) => `<${code(n)}> <${hex(p)}>`);
+      const blocks = [];
+      for (let offset = 0; offset < mappings.length; offset += 100) {
+        const entries = mappings.slice(offset, offset + 100);
+        blocks.push(`${entries.length} beginbfchar\n${entries.join("\n")}\nendbfchar`);
+      }
       const cmap = stream(
-        `/CIDInit /ProcSet findresource begin 12 dict begin begincmap /CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def /CMapName /BoundWord def /CMapType 2 def 1 begincodespacerange <00> <FF> endcodespacerange ${points.length} beginbfchar\n${points.map((p, n) => `<${code(n)}> <${hex(p)}>`).join("\n")}\nendbfchar endcmap CMapName currentdict /CMap defineresource pop end end`,
+        `/CIDInit /ProcSet findresource begin 12 dict begin begincmap /CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def /CMapName /BoundWord def /CMapType 2 def 1 begincodespacerange <00> <FF> endcodespacerange ${blocks.join("\n")}\nendcmap CMapName currentdict /CMap defineresource pop end end`,
       );
       const bbox = [0, 0, width, Math.abs(top - y)],
         descriptor = add({
