@@ -4,6 +4,7 @@ import { bind } from "./bind.mjs";
 import { fixtures } from "./fixtures.mjs";
 import { invoiceSource } from "./template.mjs";
 import { validateBindings, expectedOrder } from "./structure.mjs";
+import { glyphGuardTests } from "./glyph-guards.mjs";
 
 function jsonOf(source) {
   const raw = spawnSync(
@@ -112,6 +113,7 @@ export function guardTests() {
     assert.throws(() => bind(jsonOf(candidate.source), candidate.words), error);
   }
   return {
+    ...glyphGuardTests(),
     missingRepeatedFieldRejected: true,
     repeatedHeaderReorderingRejected: true,
     wholeHeaderSwapRejected: true,

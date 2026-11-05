@@ -93,3 +93,11 @@ The earlier header-layout and object-order follow-ups above are now closed. The 
 ## CMap block bounds follow-up
 
 CMap bfchar sections now contain at most 100 entries; the Type 3 code and 512-byte destination limits remain separate. The output check verifies declared versus actual block counts. The previous binder fails the new LONGWORD assertion with `bfchar block exceeds 100 entries`. E1 and LONGWORD pass both extractors, qpdf, and pixel equality at 96/144 DPI after the fix. Mutation-guard Typst and qpdf calls now have explicit 60-second and 15-second test timeouts. These are test-harness limits, not production-deadline acceptance. The launch log now uses the latest 31-page total.
+
+## Unknown glyph-code rejection follow-up
+
+For the pinned generated text subset, glyph matching now rejects unknown codes, empty mappings, and malformed or incomplete code strings. Each string is validated separately before aggregation. Guards cover fully unknown and partly mapped runs, split odd-byte strings, malformed delimiters and empty destinations, alongside valid hex and literal strings. The old helper fails the new unknown-code regression. FIFTY and VOID pass both extractors, qpdf and pixel equality on four pages at 96 DPI and their first pages at 144 DPI. Aggregate whole-word drawing correspondence and absence of extra extracted text remain separate open gates.
+
+## Text-operand grammar follow-up
+
+Glyph matching now reads only string operands consumed by supported text-showing operators inside balanced BT/ET bodies. Arrays and the pinned ReversedChars/Span marked-content forms are balanced; ActualText remains metadata. Hex strings remove PDF whitespace only, and CMap keys retain their exact two-byte width. Regressions reject missing show operators, unmatched delimiters, non-PDF whitespace, outside-BT text, and mismatched source-code widths. The previous scanner fails these guards. FIFTY, VOID, MIXED and LONGWORD pass both extractors and pixel checks across seven pages. This remains a pinned-generator subset, not a general PDF validator.
