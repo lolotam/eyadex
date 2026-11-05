@@ -38,6 +38,8 @@ int main(int argc, char** argv) {
       pdf.createFromJSON(std::make_shared<BufferInputSource>("memory", input));
       QPDFWriter writer(pdf);
       writer.setOutputMemory();
+      // Compress the many small template objects without changing page drawing.
+      writer.setObjectStreamMode(qpdf_o_generate);
       writer.write();
       auto buffer = writer.getBufferSharedPointer();
       if (buffer->getSize() > 5 * 1024 * 1024) return 2;
