@@ -19,4 +19,5 @@ COPY ${PROBE}/qpdf-memory.cc ./
 RUN g++ -O2 -std=c++17 qpdf-memory.cc -lqpdf -o /usr/local/bin/qpdf-memory
 COPY ${PROBE}/*.mjs ./
 COPY docs/superpowers/plans/evidence/2026-11-04-pdf-corpus.json ./corpus.json
-CMD ["sh", "-c", "node run.mjs && node run-marked.mjs"]
+COPY docs/superpowers/plans/evidence/2026-11-05-invoice-template/*.mjs ./invoice/
+CMD ["sh", "-c", "node run.mjs && node run-marked.mjs && node invoice/run.mjs"]
