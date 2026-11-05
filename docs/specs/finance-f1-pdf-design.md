@@ -110,7 +110,10 @@ emptyDir, "-", "-"])` (the exact form the probe ran)
   clinic name ar / en, branch name, address, phone, CR number when set.
 - **Invoice block:** number, issue date (clinic timezone), status; patient display name.
 - **Lines table** (header row repeats on every page): # · description ar / en · qty · unit price · discount
-  (with reason) · line total. 50 lines max (contract) ⇒ at most 3 pages.
+  (with reason) · line total. The contract allows at most 50 lines; the document may use as many
+  pages as their complete descriptions and discount reasons need. Repeat the table header and
+  page numbering without omitting text or shrinking below the specified font sizes (owner
+  decision §7 item 9). The existing 5 MB output bound still applies.
 - **Totals:** subtotal, discounts, tax line only when `taxMinor > 0`, total with the currency code.
 - **Void:** a full-width banner «فاتورة ملغاة / VOID INVOICE» with reason and date on every page.
 - **Footer:** page `n / N`, "version v" of the invoice.
@@ -231,3 +234,8 @@ The decision is made by measurement, not assumed.
    a fresh passing test. The R2 extraction criterion, no patient data in argv/logs/temp files, and the
    staging p95 decision remain unchanged. Reproducing the selected post-render solution is a gate
    before wiring it into the production renderer; the old probe is not a substitute for that proof.
+9. **Owner page-count decision (2026-11-05):** allow additional pages when the complete permitted
+   descriptions and discount reasons require them, with repeated table headers and page numbers.
+   Do not remove text or shrink it below the approved sizes to retain the former three-page target.
+   This changes the page-count constraint only; it does not waive extraction, security, size,
+   timing, staging or deployment gates.
