@@ -134,8 +134,8 @@ const result = {
   results,
 };
 assert(
-  results.some((result) => !result.rawPdfjsExact),
-  "raw extraction regression was not reproduced",
+  results.every((result) => !result.rawPdfjsExact),
+  "raw extraction regression was not reproduced for every fixture",
 );
 writeFileSync("/out/marked-results.json", JSON.stringify(result, null, 2) + "\n");
 console.log(
