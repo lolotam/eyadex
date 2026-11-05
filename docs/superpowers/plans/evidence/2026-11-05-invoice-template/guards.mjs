@@ -47,12 +47,18 @@ export function guardTests() {
     () => validateBindings(jsonOf(reversed), repeated.words, repeated.roles, repeated.fieldRecords),
     /repeated field order/,
   );
-  for (const patientName of ["مبنى\u202e12", "مبنى\u200d١٢", "ABC\u202e123"]) {
-    const candidate = invoiceSource({ ...model, patientName });
-    assert.throws(
-      () => bind(jsonOf(candidate.source), candidate.words),
-      /unsupported_format_character/,
-    );
+  for (const patientName of [
+    "مبنى\u202e12",
+    "مبنى\u200d١٢",
+    "ABC\u202e123",
+    "ABC\t123",
+    "ABC\n123",
+    "ABC\r123",
+  ]) {
+    assert.throws(() => {
+      const candidate = invoiceSource({ ...model, patientName });
+      bind(jsonOf(candidate.source), candidate.words);
+    }, /unsupported_format_character/);
   }
   const unsupported = invoiceSource({ ...model, patientName: "مبنى漢" });
   assert.throws(() => bind(jsonOf(unsupported.source), unsupported.words), /unsupported_script/);
@@ -66,7 +72,7 @@ export function guardTests() {
   return {
     missingRepeatedFieldRejected: true,
     repeatedHeaderReorderingRejected: true,
-    formatControlsRejected: 3,
+    formatControlsRejected: 6,
     unsupportedScriptRejected: true,
     knownExtractorTextLossRejected: 2,
     duplicateFieldRejected: true,

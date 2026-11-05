@@ -46,3 +46,17 @@ Generated follow-up result SHA256: `834a88edeedf623d538efb9fc29e175d98d360f4a8e7
 | MAXCONTENT |    13 |            4989609 |     2288516 |     9305 |
 
 Regression proof against the previous source: the new ToUnicode bound fails with `ToUnicode destination exceeds 512 bytes`; the trimmed-length assertion fails with `199 !== 200`. Both pass after the fix. Runtime activation and full acceptance remain false.
+
+## Terminology and complete-input validation follow-up
+
+The English patient label is now `Patient`. Format/control characters are rejected on complete
+field strings before whitespace splitting. Guards cover Arabic and Latin format controls plus
+tab, LF and CR; the tab guard fails against the previous template with `Missing expected exception`.
+The changed E1 fixture passes both extractors, qpdf and pixel equality (one page, 95,692 intermediate
+bytes, 78,130 final bytes). This targeted run does not replace the earlier complete-run record.
+
+Review also confirmed limitations in unknown/partial glyph matching and subsequence-only extraction
+verification. A diagnostic admits an unmapped `bfrange` glyph and another admits `extra expected extra`
+for an expected single word. Those checks, the near-limit-logo combination and bilingual header layout
+remain follow-ups before full invoice acceptance. Current passing results must not be interpreted as
+proof that those adversarial or maximum-logo inputs are supported.

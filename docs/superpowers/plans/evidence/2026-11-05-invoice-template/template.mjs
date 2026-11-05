@@ -1,3 +1,5 @@
+import assert from "node:assert/strict";
+
 // Synthetic template proof. Values are already formatted: no money arithmetic here.
 export function invoiceSource(model) {
   const words = {},
@@ -6,6 +8,7 @@ export function invoiceSource(model) {
     fieldRecords = [];
   let next = 0;
   function field(value, lang = "ar", weight = "regular", role = "single") {
+    assert(!/[\p{Cf}\p{Cc}]/u.test(String(value)), "unsupported_format_character");
     if (lang === "ar" && !/\p{Script=Arabic}/u.test(String(value))) lang = "en";
     const parts = String(value)
       .split(/\s+/u)
@@ -110,7 +113,7 @@ ${headerRows}
 #par[#${field("رقم الفاتورة")} #${field(model.number, "en")} / #${field("Invoice", "en")}]
 #par[#${field("التاريخ")} #${field(model.dateAr, "ar")} / #${field(model.dateEn, "en")}]
 #par[#${field("الحالة")} #${field(model.statusAr)} / #${field(model.statusEn, "en")}]
-#par[#${field("المراجع")} #${field(model.patientName)} / #${field("Reviewer", "en")}]
+#par[#${field("المراجع")} #${field(model.patientName)} / #${field("Patient", "en")}]
 #set text(size:9pt)
 #table(columns:(22pt,1fr,28pt,70pt,70pt,70pt),rows:auto,inset:3pt,stroke:0.3pt+gray,
   table.header(${headings.join(",")}),${rows.join(",")})
