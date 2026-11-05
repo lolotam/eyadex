@@ -130,6 +130,11 @@ for (const model of fixtures([...logo.toBuffer("image/png")])) {
     if (!data) continue;
     const cmap = Buffer.from(data, "base64").toString("latin1");
     if (!cmap.includes("begincmap")) continue;
+    for (const block of cmap.matchAll(/(\d+)\s+beginbfchar([\s\S]*?)endbfchar/g)) {
+      const entries = [...block[2].matchAll(/<[\da-f]+>\s*<[\da-f]+>/gi)];
+      assert.equal(entries.length, Number(block[1]), "incorrect bfchar entry count");
+      assert(entries.length <= 100, "bfchar block exceeds 100 entries");
+    }
     for (const match of cmap.matchAll(/<[\da-f]+>\s*<([\da-f]+)>/gi))
       assert(match[1].length / 2 <= 512, "ToUnicode destination exceeds 512 bytes");
   }
