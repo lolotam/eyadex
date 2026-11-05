@@ -8,6 +8,7 @@ import { fixtures } from "./fixtures.mjs";
 import { invoiceSource } from "./template.mjs";
 import { expectedOrder, ordered, validateBindings } from "./structure.mjs";
 import { guardTests } from "./guards.mjs";
+import { completePage } from "./complete-text.mjs";
 
 const clean = (s) =>
   s
@@ -99,7 +100,7 @@ for (const model of fixtures([...logo.toBuffer("image/png")])) {
         ["discountReasonEn", 300],
       ])
         assert.equal(line[key].trim().length, length, `maximum fixture length: ${key}`);
-  const { source, words, fields, roles, sourceOrder, fieldRecords, repeatedOrder } =
+  const { source, words, fields, roles, sourceOrder, fieldRecords, repeatedOrder, literalSlots } =
     invoiceSource(model);
   writeFileSync(`/out/${model.name}.typ`, source);
   const renderStarted = performance.now();
@@ -122,7 +123,13 @@ for (const model of fixtures([...logo.toBuffer("image/png")])) {
         "font is not embedded",
       );
     }
-  const { rowPages } = validateBindings(json, words, roles, fieldRecords, repeatedOrder);
+  const { rowPages, pageWordIds } = validateBindings(
+    json,
+    words,
+    roles,
+    fieldRecords,
+    repeatedOrder,
+  );
   const expected = expectedOrder(json, words, roles, sourceOrder),
     result = bind(json, words);
   for (const object of Object.values(objects)) {
@@ -161,6 +168,8 @@ for (const model of fixtures([...logo.toBuffer("image/png")])) {
     assert(pop.includes(clean(field)), `poppler missing: ${model.name}:${field}`);
   }
   for (let p = 0; p < texts.length; p++) {
+    for (const text of [texts[p], popPages[p]])
+      completePage(text, pageWordIds[p], words, literalSlots, p + 1, texts.length);
     for (const [role, ids] of Object.entries(repeatedOrder))
       if (role === "page" || rowPages.has(p))
         for (const text of [texts[p], popPages[p]])
@@ -193,6 +202,7 @@ for (const model of fixtures([...logo.toBuffer("image/png")])) {
     correctedWords: result.corrected,
     pdfjs: true,
     poppler: true,
+    completePageText: true,
     pixelChecks: null,
     bytes: fixed.length,
     intermediateBytes: raw.length,

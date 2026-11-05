@@ -95,7 +95,7 @@ export function validateBindings(document, words, roles, fieldRecords = [], repe
           expected,
           "repeated role order changed",
         );
-  return { rowPages };
+  return { rowPages, pageWordIds: pageIds };
 }
 export function ordered(text, words) {
   let position = 0;

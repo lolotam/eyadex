@@ -101,3 +101,9 @@ For the pinned generated text subset, glyph matching now rejects unknown codes, 
 ## Text-operand grammar follow-up
 
 Glyph matching now reads only string operands consumed by supported text-showing operators inside balanced BT/ET bodies. Arrays and the pinned ReversedChars/Span marked-content forms are balanced; ActualText remains metadata. Hex strings remove PDF whitespace only, and CMap keys retain their exact two-byte width. Regressions reject missing show operators, unmatched delimiters, non-PDF whitespace, outside-BT text, and mismatched source-code widths. The previous scanner fails these guards. FIFTY, VOID, MIXED and LONGWORD pass both extractors and pixel checks across seven pages. This remains a pinned-generator subset, not a general PDF validator.
+
+## Complete extracted-text inventory follow-up
+
+Both extractors passed the complete per-page text inventory for all 16 fixtures and 31 pages. The inventory includes word and punctuation multiplicity, source-defined separators, and page counters; existing source-order checks remain active. Mutation guards reject duplicated words, leading and trailing extra text, missing counters, and extra separators. The previous subsequence check accepts the extra-text example that the new inventory rejects.
+
+This closes the extracted-text inventory gap for these fixtures only. It does not close whole-word drawing correspondence: shaped Arabic can contain glyphs without a complete direct ToUnicode mapping. Maximum-content plus maximum-logo coverage, Unicode coverage, production timing, runtime integration and deployment remain open. The renderer remains inactive.
