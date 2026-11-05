@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import { bind } from "./bind.mjs";
 import { fixtures } from "./fixtures.mjs";
 import { invoiceSource } from "./template.mjs";
-import { validateBindings } from "./structure.mjs";
+import { validateBindings, expectedOrder } from "./structure.mjs";
 
 function jsonOf(source) {
   const raw = spawnSync(
@@ -47,6 +47,47 @@ export function guardTests() {
     () => validateBindings(jsonOf(reversed), repeated.words, repeated.roles, repeated.fieldRecords),
     /repeated field order/,
   );
+  const swappedCells = [...repeated.headerCells];
+  [swappedCells[0], swappedCells[1]] = [swappedCells[1], swappedCells[0]];
+  const swappedHeader = repeated.source.replace(
+    `table.header(${repeated.headerCells.join(",")})`,
+    `table.header(${swappedCells.join(",")})`,
+  );
+  assert.notEqual(swappedHeader, repeated.source);
+  const verifyRepeated = (source) =>
+    validateBindings(
+      jsonOf(source),
+      repeated.words,
+      repeated.roles,
+      repeated.fieldRecords,
+      repeated.repeatedOrder,
+    );
+  assert.throws(() => verifyRepeated(swappedHeader), /repeated role order changed/);
+  const start = repeated.source.indexOf("footer:align(center)[") + "footer:align(center)[".length;
+  const end = repeated.source.indexOf("\n  ])", start);
+  const footerParts = repeated.source.slice(start, end).split("#h(8pt) ");
+  assert.equal(footerParts.length, 2);
+  const swappedFooter =
+    repeated.source.slice(0, start) +
+    footerParts[1] +
+    "#h(8pt) " +
+    footerParts[0] +
+    repeated.source.slice(end);
+  assert.throws(() => verifyRepeated(swappedFooter), /repeated role order changed/);
+  const originalDocument = jsonOf(repeated.source),
+    shuffled = structuredClone(originalDocument);
+  shuffled.qpdf[1] = Object.fromEntries(Object.entries(shuffled.qpdf[1]).reverse());
+  assert.deepEqual(
+    expectedOrder(shuffled, repeated.words, repeated.roles, repeated.sourceOrder),
+    expectedOrder(originalDocument, repeated.words, repeated.roles, repeated.sourceOrder),
+  );
+  validateBindings(
+    shuffled,
+    repeated.words,
+    repeated.roles,
+    repeated.fieldRecords,
+    repeated.repeatedOrder,
+  );
   for (const patientName of [
     "مبنى\u202e12",
     "مبنى\u200d١٢",
@@ -72,6 +113,9 @@ export function guardTests() {
   return {
     missingRepeatedFieldRejected: true,
     repeatedHeaderReorderingRejected: true,
+    wholeHeaderSwapRejected: true,
+    wholeFooterSwapRejected: true,
+    objectAllocationOrderIgnored: true,
     formatControlsRejected: 6,
     unsupportedScriptRejected: true,
     knownExtractorTextLossRejected: 2,

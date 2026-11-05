@@ -1,12 +1,11 @@
 import assert from "node:assert/strict";
 import { wordId } from "./word-id.mjs";
+import { orderedPages } from "./page-order.mjs";
 export function expectedOrder(document, words, roles, sourceOrder) {
   const objects = document.qpdf[1],
     resolve = (v) => (typeof v === "string" ? objects["obj:" + v]?.value : v);
   const root = Object.values(objects).find((o) => o.value?.["/Type"] === "/StructTreeRoot").value;
-  const pages = Object.entries(objects)
-    .filter(([k, o]) => o.value?.["/Type"] === "/Page")
-    .map(([k]) => k.slice(4));
+  const pages = orderedPages(document).map(([key]) => key.slice(4));
   const result = pages.map(() => []);
   const seen = new Set();
   const bodyOrder = [];
@@ -36,9 +35,9 @@ export function expectedOrder(document, words, roles, sourceOrder) {
   if (sourceOrder) assert.deepEqual(bodyOrder, sourceOrder, "source field order changed");
   return result;
 }
-export function validateBindings(document, words, roles, fieldRecords = []) {
+export function validateBindings(document, words, roles, fieldRecords = [], repeatedOrder = {}) {
   const objects = document.qpdf[1],
-    pages = Object.values(objects).filter((o) => o.value?.["/Type"] === "/Page");
+    pages = orderedPages(document).map(([, object]) => object);
   const seen = new Map(),
     rowPages = new Set();
   const instances = new Map();
@@ -88,6 +87,14 @@ export function validateBindings(document, words, roles, fieldRecords = []) {
           assert.deepEqual(actual, field.ids, "repeated field order changed");
         }
     }
+  for (const [role, expected] of Object.entries(repeatedOrder))
+    for (let page = 0; page < pages.length; page++)
+      if (role === "page" || rowPages.has(page))
+        assert.deepEqual(
+          pageIds[page].filter((id) => roles[id] === role),
+          expected,
+          "repeated role order changed",
+        );
   return { rowPages };
 }
 export function ordered(text, words) {

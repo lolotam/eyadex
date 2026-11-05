@@ -60,3 +60,32 @@ verification. A diagnostic admits an unmapped `bfrange` glyph and another admits
 for an expected single word. Those checks, the near-limit-logo combination and bilingual header layout
 remain follow-ups before full invoice acceptance. Current passing results must not be interpreted as
 proof that those adversarial or maximum-logo inputs are supported.
+
+## Source-defined repeated order and page-tree follow-up
+
+The latest complete invoice run passes all 16 fixtures (31 pages). The header now has separate English/Arabic columns. Repeated field order is checked against source-defined sequences in annotations and both extractors; page indexes follow the catalog page tree.
+
+Generated result SHA256: `e89f688aad32a4dcdef6a06597cd9d9c1658cfd909c2fdb398096cb92596bc05`. Every page passed the same extraction, size, qpdf and pixel gates.
+
+| Fixture    | Pages | Intermediate bytes | Final bytes | Typst ms |
+| ---------- | ----: | -----------------: | ----------: | -------: |
+| E1         |     1 |              95801 |       78123 |      193 |
+| E2         |     1 |              97885 |       76009 |      222 |
+| E3         |     1 |              88049 |       75416 |      216 |
+| E4         |     1 |              97729 |       79071 |      274 |
+| E5         |     1 |              87721 |       74789 |      190 |
+| FIFTY      |     2 |             407670 |      166989 |     1194 |
+| VOID       |     2 |             414590 |      173311 |     1190 |
+| MIXED      |     2 |             245496 |      112239 |      608 |
+| LONGWORD   |     1 |              95616 |       80266 |      220 |
+| BHD        |     1 |              77818 |       67910 |      182 |
+| OMR        |     1 |              78232 |       68290 |      217 |
+| SAR        |     1 |              77921 |       68012 |      213 |
+| AED        |     1 |              78009 |       68069 |      210 |
+| QAR        |     1 |              78100 |       68142 |      161 |
+| MAXCONTENT |    13 |            4990378 |     2289152 |    10812 |
+| INJECTION  |     1 |              86172 |       72085 |      165 |
+
+New mutation guards reject swaps of complete table-header cells and complete footer sections. Reversing indirect-object insertion order leaves expected page contents unchanged. The previous code fails both the header-swap assertion and page-order equality assertion.
+
+The earlier header-layout and object-order follow-ups above are now closed. The documented maximum-logo, unknown/partial glyph, extra-text, Unicode, runtime and deployment limitations remain open.

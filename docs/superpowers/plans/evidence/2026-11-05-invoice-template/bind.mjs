@@ -3,6 +3,7 @@ import { prepareArtifacts } from "./artifacts.mjs";
 import { markedScopes, multiply, inverse, point } from "./content-scopes.mjs";
 import { extractionSequences } from "./unicode-order.mjs";
 import { wordId } from "./word-id.mjs";
+import { orderedPages } from "./page-order.mjs";
 export function bind(document, words) {
   const objects = document.qpdf[1],
     resolve = (v) => (typeof v === "string" ? objects["obj:" + v]?.value : v);
@@ -32,9 +33,7 @@ export function bind(document, words) {
   const hex = (s) => Buffer.from(s, "utf16le").swap16().toString("hex");
   let corrected = 0;
   const boundIds = new Set();
-  for (const [pageRef, pageObj] of Object.entries(objects).filter(
-    ([k, o]) => o.value?.["/Type"] === "/Page",
-  )) {
+  for (const [pageRef, pageObj] of orderedPages(document)) {
     const page = pageObj.value;
     const refs = [page["/Contents"]].flat();
     assert.equal(refs.length, 1);

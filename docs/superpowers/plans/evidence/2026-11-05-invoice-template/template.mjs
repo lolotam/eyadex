@@ -48,7 +48,10 @@ export function invoiceSource(model) {
     ? `header: block(width:100%, fill:rgb("ffe8e8"), inset:5pt)[#${field("فاتورة ملغاة", "ar", "bold", "page")} / #${field("VOID INVOICE", "en", "bold", "page")} #linebreak() #${field(model.voidReason, "ar", "regular", "page")} / #${field(model.voidDate, "en", "regular", "page")}],`
     : "";
   const headerRows = model.header
-    .map(({ ar, en }) => `#grid(columns:(1fr,1fr),${pair(ar, en)},[])`)
+    .map(
+      ({ ar, en }) =>
+        `#grid(columns:(1fr,1fr),align(left)[#${field(en, "en")}],align(right)[#${field(ar, "ar")}])`,
+    )
     .join("\n");
   const logo = model.logoBytes
     ? `#image(bytes(${JSON.stringify(model.logoBytes).replaceAll("[", "(").replaceAll("]", ")")}),width:20mm,height:10mm,fit:"contain")`
@@ -108,7 +111,7 @@ export function invoiceSource(model) {
     #h(8pt) #${field("نسخة", "ar", "regular", "page")} / #${field("Version " + model.version, "en", "regular", "page")}
   ])
 ${logo}
-#align(right)[#${field(model.clinicAr, "ar", "bold")} #linebreak() #${field(model.clinicEn, "en", "bold")}]
+#grid(columns:(1fr,1fr),align(left)[#${field(model.clinicEn, "en", "bold")}],align(right)[#${field(model.clinicAr, "ar", "bold")}])
 ${headerRows}
 #par[#${field("رقم الفاتورة")} #${field(model.number, "en")} / #${field("Invoice", "en")}]
 #par[#${field("التاريخ")} #${field(model.dateAr, "ar")} / #${field(model.dateEn, "en")}]
@@ -124,8 +127,21 @@ ${model.invoiceDiscountReason ? `#par[#${field("سبب الخصم")} / #${field(
 #par[#${field(model.currencyAr)} / #${field(model.currencyEn, "en")}]
 ]
 `;
-  const sourceOrder = [...source.matchAll(/field\(json\(bytes\(("(?:\\.|[^"\\])*")\)\)/g)]
-    .flatMap((match) => JSON.parse(JSON.parse(match[1])).map(([id]) => id))
-    .filter((id) => roles[id] === "single" || roles[id] === "row");
-  return { source, words, fields, roles, sourceOrder, fieldRecords };
+  const allIds = [...source.matchAll(/field\(json\(bytes\(("(?:\\.|[^"\\])*")\)\)/g)].flatMap(
+    (match) => JSON.parse(JSON.parse(match[1])).map(([id]) => id),
+  );
+  const sourceOrder = allIds.filter((id) => roles[id] === "single" || roles[id] === "row");
+  const repeatedOrder = Object.fromEntries(
+    ["page", "table-header"].map((role) => [role, allIds.filter((id) => roles[id] === role)]),
+  );
+  return {
+    source,
+    words,
+    fields,
+    roles,
+    sourceOrder,
+    fieldRecords,
+    repeatedOrder,
+    headerCells: headings,
+  };
 }

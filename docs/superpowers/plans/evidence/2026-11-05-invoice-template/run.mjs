@@ -99,7 +99,8 @@ for (const model of fixtures([...logo.toBuffer("image/png")])) {
         ["discountReasonEn", 300],
       ])
         assert.equal(line[key].trim().length, length, `maximum fixture length: ${key}`);
-  const { source, words, fields, roles, sourceOrder, fieldRecords } = invoiceSource(model);
+  const { source, words, fields, roles, sourceOrder, fieldRecords, repeatedOrder } =
+    invoiceSource(model);
   writeFileSync(`/out/${model.name}.typ`, source);
   const renderStarted = performance.now();
   const raw = child(
@@ -121,7 +122,7 @@ for (const model of fixtures([...logo.toBuffer("image/png")])) {
         "font is not embedded",
       );
     }
-  const { rowPages } = validateBindings(json, words, roles, fieldRecords);
+  const { rowPages } = validateBindings(json, words, roles, fieldRecords, repeatedOrder);
   const expected = expectedOrder(json, words, roles, sourceOrder),
     result = bind(json, words);
   for (const object of Object.values(objects)) {
@@ -155,6 +156,13 @@ for (const model of fixtures([...logo.toBuffer("image/png")])) {
     assert(pop.includes(clean(field)), `poppler missing: ${model.name}:${field}`);
   }
   for (let p = 0; p < texts.length; p++) {
+    for (const [role, ids] of Object.entries(repeatedOrder))
+      if (role === "page" || rowPages.has(p))
+        for (const text of [texts[p], popPages[p]])
+          ordered(
+            text,
+            ids.map((id) => words[id]),
+          );
     for (const field of fieldRecords)
       if (field.role === "page" || (field.role === "table-header" && rowPages.has(p))) {
         assert(texts[p].includes(clean(field.value)), "pdf.js repeated field missing");
