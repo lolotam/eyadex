@@ -28,8 +28,8 @@ rejects queued and future work; it never reuses unconfirmed capacity. This
 cleanup interval does not extend the five-second execution allowance.
 
 This adapter is **not wired into BillingModule**. The API still uses
-`UnavailableInvoicePdf`. The pinned Typst/Amiri/qpdf tools must be packaged in
-the production image before wiring. Core limits must be zero in the API and
+`UnavailableInvoicePdf`. The API image now packages pinned Typst/Amiri/qpdf
+tools and their licenses, with a non-root image smoke test. Core limits must be zero in the API and
 children; a piped host crash collector causes the adapter to refuse rendering.
 Effective host crash capture and forced-crash verification remain release
 gates, as do the staging performance and authorization scenarios.
@@ -44,3 +44,20 @@ Local 50-line timing was inconsistent: one complete void render succeeded
 near the five-second bound and another hit that bound. No timeout was raised
 to accommodate it. Synchronous API eligibility (p95 at most 150 ms) remains
 unproven and is not authorized by this implementation checkpoint.
+
+## Image packaging
+
+`apps/api/Dockerfile` builds qpdf 12.3.2 from checksum-verified source and
+installs the checksum-verified Typst 0.15.1 release. Amiri 1.002 is vendored in
+`apps/api/assets/fonts`, with `SHA256SUMS` and its OFL license. Runtime binaries
+are in `/usr/local/bin`; fonts are in `/app/assets/fonts`. The package file list
+keeps TypeScript sources and native build sources out of the runtime bundle.
+
+The image uses `tini` and `pdf-limit-launcher` before Node, setting inherited
+soft and hard core limits to zero. This does not authorize a piped crash
+collector: `assertPdfDumpPolicy` still refuses that host policy. No renderer
+binding or PDF activation flag is added by packaging.
+
+`docker/tests/pdf-toolchain.mjs` checks the final image without network access
+or writable document storage: pinned tools, font hashes and licenses, non-root
+execution, core limits, one synthetic PDF, its page count and embedded fonts.

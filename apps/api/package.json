@@ -3,6 +3,11 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "files": [
+    "dist",
+    "assets/invoice-pdf/*.mjs",
+    "assets/fonts"
+  ],
   "description": "Eyadex HTTP API — NestJS on the Fastify adapter",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

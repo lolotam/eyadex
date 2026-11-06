@@ -99,3 +99,17 @@ piped WSL crash collector, which the production adapter correctly refuses.
 The pinned tools/fonts still need production-image packaging, header/logo
 loading and final wiring are pending, and staging measurements must determine
 API-versus-worker placement before activation. The timeout remains five seconds.
+
+## Fourth-slice image checkpoint
+
+The API image packages checksum-verified Typst 0.15.1 and qpdf 12.3.2, vendored
+Amiri 1.002, the memory bridge, and required licenses. Its runtime starts under
+tini and an inherited zero-core-limit launcher. The package allowlist excludes
+TypeScript and native build sources from the runtime bundle.
+
+Local final-image verification passed: the packaged synthetic PDF render,
+font hashes/embedding, licenses, non-root execution and zero core limits; the
+default API command also booted and answered health and the unknown-host auth
+check. The image test is part of CI. No live environment was changed.
+Header/patient/logo loading and final renderer wiring remain pending, together
+with host crash-capture proof and staging performance/authorization gates.
