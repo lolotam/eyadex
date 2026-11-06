@@ -78,11 +78,14 @@ It refuses oversized input/output and unsafe core-dump policy. The child uses
 the runtime-owned layout and binder, qpdf's memory bridge, and a final page-count
 check. No production imports point into the research directory.
 
-Thirteen unit cases passed for the process/policy boundary. Five Linux cases
+Thirteen unit cases passed for the process/policy boundary. Seven Linux cases
 passed with the existing pinned research toolchain: timeout cleanup, early
 bridge-exit descendant cleanup, and E1/E2/void extraction through pdf.js and
 pdftotext. The review's early-exit cleanup defect was reproduced before fixing
 it; the missing Arabic void date was added to the runtime layout.
+The next review also required kernel confirmation before capacity reuse. Two
+new regressions fail against the earlier source and pass with bounded cleanup
+confirmation and fail-closed admission when cleanup cannot be confirmed.
 
 A full 50-line void render succeeded once near the execution limit and hit the
 five-second deadline in another run. The small correctness fixtures in CI do

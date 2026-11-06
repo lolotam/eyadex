@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { pdfProcessGroupGone } from "./pdf-process-group.ts";
 
 /** Fixed errors never include document bytes, child stderr, paths or native exception text. */
 export class PdfProcessError extends Error {
@@ -13,11 +14,12 @@ export class PdfProcessError extends Error {
 
 type Limits = { executionMs: number; queueMs: number; outputBytes: number };
 const maximum: Limits = { executionMs: 5000, queueMs: 2000, outputBytes: 5 * 1024 * 1024 };
-type Waiter = { grant: () => void; timer: ReturnType<typeof setTimeout> };
+type Waiter = { grant: () => void; refuse: () => void; timer: ReturnType<typeof setTimeout> };
 
 /** One instance belongs to one renderer: at most two complete process pipelines can run. */
 export class MemoryPdfProcess {
   private active = 0;
+  private unavailable = false;
   private readonly queue: Waiter[] = [];
   private readonly limits: Limits;
 
@@ -45,6 +47,7 @@ export class MemoryPdfProcess {
   }
 
   private acquire(): Promise<void> {
+    if (this.unavailable) return Promise.reject(new PdfProcessError("pdf_render_failed"));
     if (this.active < 2) {
       this.active++;
       return Promise.resolve();
@@ -52,6 +55,7 @@ export class MemoryPdfProcess {
     return new Promise((resolve, reject) => {
       const waiter: Waiter = {
         grant: resolve,
+        refuse: () => reject(new PdfProcessError("pdf_render_failed")),
         timer: setTimeout(() => {
           const index = this.queue.indexOf(waiter);
           if (index !== -1) this.queue.splice(index, 1);
@@ -63,6 +67,14 @@ export class MemoryPdfProcess {
   }
 
   private release(): void {
+    if (this.unavailable) {
+      this.active--;
+      for (const waiter of this.queue.splice(0)) {
+        clearTimeout(waiter.timer);
+        waiter.refuse();
+      }
+      return;
+    }
     const waiter = this.queue.shift();
     if (waiter) {
       clearTimeout(waiter.timer);
@@ -90,7 +102,7 @@ export class MemoryPdfProcess {
           if (grouped) process.kill(-child.pid, "SIGKILL");
           else child.kill("SIGKILL");
         } catch {
-          // Never release a slot early: the close event confirms pipe/child cleanup.
+          // Group disappearance is confirmed after the bridge's close event.
         }
       };
       const stop = () => {
@@ -114,10 +126,18 @@ export class MemoryPdfProcess {
         // A crashed bridge may leave helpers whose stdout is closed or ignored.
         // A close event reaps the bridge only, so always terminate its group too.
         terminateGroup();
-        if (failed || code !== 0) {
-          chunks.length = 0;
-          reject(new PdfProcessError("pdf_render_failed", code ?? undefined));
-        } else resolve(Buffer.concat(chunks, size));
+        const cleanup =
+          grouped && child.pid !== undefined
+            ? pdfProcessGroupGone(child.pid)
+            : Promise.resolve(true);
+        void cleanup.then((gone) => {
+          // A collector/init that does not reap must not permit more native work.
+          if (!gone) this.unavailable = true;
+          if (failed || code !== 0 || this.unavailable) {
+            chunks.length = 0;
+            reject(new PdfProcessError("pdf_render_failed", code ?? undefined));
+          } else resolve(Buffer.concat(chunks, size));
+        });
       });
       child.stdin.end(input);
     });

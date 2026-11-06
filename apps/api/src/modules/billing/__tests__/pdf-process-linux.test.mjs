@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile, stat } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import test from "node:test";
+import test, { mock } from "node:test";
 import { spawnSync } from "node:child_process";
 import { MemoryPdfProcess } from "../rendering/pdf-process.ts";
 import { fixtures } from "/probe/invoice/fixtures.mjs";
@@ -16,6 +16,59 @@ const paths = JSON.stringify({
   root: "/pdf-root",
 });
 
+test("the render promise waits for kernel confirmation of group disappearance", async () => {
+  const realKill = process.kill.bind(process);
+  let release = false;
+  let observed;
+  const probed = new Promise((resolve) => {
+    observed = resolve;
+  });
+  const spy = mock.method(process, "kill", (pid, signal) => {
+    if (pid < 0 && signal === 0) {
+      observed();
+      if (!release) return true;
+      throw Object.assign(new Error(), { code: "ESRCH" });
+    }
+    return realKill(pid, signal);
+  });
+  let operation;
+  try {
+    operation = new MemoryPdfProcess()
+      .run(process.execPath, ["-e", "process.exit(7)"], Buffer.alloc(0))
+      .catch((error) => error);
+    assert.equal(
+      await Promise.race([probed.then(() => "probe"), operation.then(() => "settled")]),
+      "probe",
+    );
+    release = true;
+    assert.equal((await operation).code, "pdf_render_failed");
+  } finally {
+    release = true;
+    await operation;
+    spy.mock.restore();
+  }
+});
+
+test("an unconfirmed cleanup closes admission for later renders", async () => {
+  const realKill = process.kill.bind(process);
+  const spy = mock.method(process, "kill", (pid, signal) =>
+    pid < 0 && signal === 0 ? true : realKill(pid, signal),
+  );
+  const blocked = new MemoryPdfProcess();
+  try {
+    await assert.rejects(
+      blocked.run(process.execPath, ["-e", "process.exit(7)"], Buffer.alloc(0)),
+      { code: "pdf_render_failed" },
+    );
+    await assert.rejects(
+      blocked.run(process.execPath, ["-e", "process.stdout.write('ok')"], Buffer.alloc(0)),
+      { code: "pdf_render_failed" },
+    );
+  } finally {
+    spy.mock.restore();
+  }
+});
+
 test("Linux deadline kills the bridge and its descendant process before releasing the slot", async () => {
   const bounded = new MemoryPdfProcess({ executionMs: 1000 });
   const childCode = `const {spawn}=require('node:child_process');const fs=require('node:fs');
@@ -25,8 +78,7 @@ test("Linux deadline kills the bridge and its descendant process before releasin
     code: "pdf_render_failed",
   });
   const pid = Number(await readFile("/tmp/pdf-test-child-pid", "utf8"));
-  // Container init reaps orphaned descendants after the process-group kill.
-  await new Promise((resolve) => setTimeout(resolve, 100));
+  // The render promise must not settle until init has reaped the descendants.
   await assert.rejects(stat(`/proc/${pid}`), { code: "ENOENT" });
 });
 
@@ -38,7 +90,6 @@ test("a bridge crash kills detached-pipe descendants before capacity is reused",
     code: "pdf_render_failed",
   });
   const pid = Number(await readFile("/tmp/pdf-test-crash-pid", "utf8"));
-  await new Promise((resolve) => setTimeout(resolve, 100));
   await assert.rejects(stat(`/proc/${pid}`), { code: "ENOENT" });
 });
 

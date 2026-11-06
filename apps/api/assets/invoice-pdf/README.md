@@ -17,7 +17,11 @@ The parent permits two active pipelines, at most two seconds of queue wait,
 and five seconds for the complete child lifetime. PDFs are limited to 5 MiB;
 input and decoded JSON are limited to 32 MiB. Child stderr is discarded. A
 failure kills the process group, including when the bridge exits early. Linux
-tests use container init to reap orphaned descendants.
+tests use container init to reap orphaned descendants. Capacity stays reserved
+until the kernel confirms that the process group is gone. If cleanup remains
+unconfirmed after one second, the request fails and this renderer instance
+rejects queued and future work; it never reuses unconfirmed capacity. This
+cleanup interval does not extend the five-second execution allowance.
 
 This adapter is **not wired into BillingModule**. The API still uses
 `UnavailableInvoicePdf`. The pinned Typst/Amiri/qpdf tools must be packaged in
