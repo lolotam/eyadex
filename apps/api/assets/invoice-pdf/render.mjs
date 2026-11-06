@@ -38,7 +38,11 @@ try {
   const adapted = {
     ...model,
     voidDate: model.voidDateEn,
-    lines: model.lines.map((line) => ({ ...line, discountReasonAr: line.discountReason })),
+    lines: model.lines.map((line) => ({
+      ...line,
+      discountReasonAr: line.discountReason,
+      discountReasonEn: line.discountReason,
+    })),
   };
   const { source, words } = invoiceSource(adapted);
   if (Buffer.byteLength(source) > 32 * 1024 * 1024) throw new Error();

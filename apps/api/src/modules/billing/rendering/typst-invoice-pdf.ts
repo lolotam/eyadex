@@ -29,9 +29,7 @@ export class TypstInvoicePdfRenderer {
     const script = fileURLToPath(
       new URL("../../../../assets/invoice-pdf/render.mjs", import.meta.url),
     );
-    return this.process.run(
-      process.execPath,
-      [script, JSON.stringify(this.paths)],
+    return this.process.run(process.execPath, [script, JSON.stringify(this.paths)], () =>
       Buffer.from(JSON.stringify(model)),
     );
   }

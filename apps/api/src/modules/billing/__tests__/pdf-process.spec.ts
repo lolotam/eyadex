@@ -86,4 +86,36 @@ describe("memory-only PDF process boundary", () => {
     ).rejects.toMatchObject({ code: "pdf_render_failed" });
     expect(() => new MemoryPdfProcess({ executionMs: 5001 })).toThrow("pdf_render_failed");
   });
+
+  it("bounds waiting models during a burst of already serialized requests", async () => {
+    const runner = new MemoryPdfProcess();
+    const requests = Array.from({ length: 8 }, () =>
+      node(runner, "setTimeout(()=>process.stdout.write('ok'),100)"),
+    );
+    const settled = await Promise.allSettled(requests);
+    expect(settled.filter((result) => result.status === "fulfilled")).toHaveLength(4);
+    expect(
+      settled.filter((result) => result.status === "rejected").map((result) => result.reason.code),
+    ).toEqual(["pdf_busy", "pdf_busy", "pdf_busy", "pdf_busy"]);
+  });
+
+  it("serializes only after receiving an execution slot", async () => {
+    const runner = new MemoryPdfProcess();
+    let serialized = 0;
+    const requests = Array.from({ length: 8 }, () =>
+      runner.run(process.execPath, ["-e", "setTimeout(()=>process.stdout.write('ok'),100)"], () => {
+        serialized++;
+        return new Uint8Array();
+      }),
+    );
+    const results = Promise.allSettled(requests);
+    await Promise.resolve();
+    expect(serialized).toBe(2);
+    const settled = await results;
+    expect(serialized).toBe(4);
+    expect(settled.filter((result) => result.status === "fulfilled")).toHaveLength(4);
+    expect(
+      settled.filter((result) => result.status === "rejected").map((result) => result.reason.code),
+    ).toEqual(["pdf_busy", "pdf_busy", "pdf_busy", "pdf_busy"]);
+  });
 });

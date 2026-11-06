@@ -36,11 +36,16 @@ export class MemoryPdfProcess {
     }
   }
 
-  async run(binary: string, args: readonly string[], input: Uint8Array): Promise<Uint8Array> {
-    if (input.byteLength > 32 * 1024 * 1024) throw new PdfProcessError("pdf_render_failed");
+  async run(
+    binary: string,
+    args: readonly string[],
+    input: Uint8Array | (() => Uint8Array),
+  ): Promise<Uint8Array> {
     await this.acquire();
     try {
-      return await this.execute(binary, args, input);
+      const bytes = typeof input === "function" ? input() : input;
+      if (bytes.byteLength > 32 * 1024 * 1024) throw new PdfProcessError("pdf_render_failed");
+      return await this.execute(binary, args, bytes);
     } finally {
       this.release();
     }
@@ -52,6 +57,8 @@ export class MemoryPdfProcess {
       this.active++;
       return Promise.resolve();
     }
+    // Waiting requests retain their models; cap them as well as active children.
+    if (this.queue.length >= 2) return Promise.reject(new PdfProcessError("pdf_busy"));
     return new Promise((resolve, reject) => {
       const waiter: Waiter = {
         grant: resolve,

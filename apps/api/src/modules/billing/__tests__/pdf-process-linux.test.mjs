@@ -93,9 +93,9 @@ test("a bridge crash kills detached-pipe descendants before capacity is reused",
   await assert.rejects(stat(`/proc/${pid}`), { code: "ENOENT" });
 });
 
-for (const name of ["E1", "E2", "VOID"]) {
+for (const name of ["E1", "E2", "VOID", "MAXFIELD"]) {
   test(`real memory pipeline preserves Arabic and English extraction: ${name}`, async () => {
-    const fixture = fixtures().find((item) => item.name === name);
+    const fixture = fixtures().find((item) => item.name === (name === "MAXFIELD" ? "E1" : name));
     const model = {
       ...fixture,
       invoiceDiscount: "1.25%",
@@ -107,6 +107,17 @@ for (const name of ["E1", "E2", "VOID"]) {
         .slice(0, 2)
         .map((line) => ({ ...line, discountReason: line.discountReasonAr })),
     };
+    if (name === "MAXFIELD") {
+      model.lines = [
+        {
+          ...model.lines[0],
+          descriptionAr: "W".repeat(200),
+          descriptionEn: "M".repeat(200),
+          discountReason: "X".repeat(300),
+        },
+      ];
+    }
+    if (name === "E1") model.lines[0].discountReason = "Unique English discount reason";
     // Synthetic models only: this exercises the child path independently of the
     // deployment dump-policy gate, which correctly blocks WSL crash collectors.
     const pdf = await runner.run(
@@ -121,6 +132,10 @@ for (const name of ["E1", "E2", "VOID"]) {
       let text = "";
       for (let p = 1; p <= document.numPages; p++) {
         const content = await (await document.getPage(p)).getTextContent();
+        for (const item of content.items) {
+          if (!item.str?.trim()) continue;
+          assert(item.transform[5] >= 0 && item.transform[5] <= 842, "text outside A4 height");
+        }
         text += content.items.map((item) => item.str ?? "").join(" ") + " ";
       }
       const clean = (s) =>
@@ -139,6 +154,13 @@ for (const name of ["E1", "E2", "VOID"]) {
         assert(clean(text).includes(clean(field)), "missing synthetic field");
       if (model.voidReason)
         assert(clean(text).includes(clean(model.voidDateAr)), "missing Arabic void date");
+      if (name === "E1")
+        assert.equal(
+          clean(text).split(model.lines[0].discountReason).length - 1,
+          2,
+          "stored discount reason must reach both language descriptions",
+        );
+      if (name === "MAXFIELD") assert.equal(clean(text).split("X".repeat(300)).length - 1, 2);
       const extracted = spawnSync("/usr/local/bin/pdftotext", ["-raw", "-", "-"], {
         input: pdf,
         env: {},

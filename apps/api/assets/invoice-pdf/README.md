@@ -16,6 +16,10 @@ is retained independently; production code does not import from `docs/`.
 The parent permits two active pipelines, at most two seconds of queue wait,
 and five seconds for the complete child lifetime. PDFs are limited to 5 MiB;
 input and decoded JSON are limited to 32 MiB. Child stderr is discarded. A
+maximum of two requests may wait; excess is refused immediately. Model
+serialization happens only after admission to an execution slot, so waiting
+models do not retain serialized buffers.
+A
 failure kills the process group, including when the bridge exits early. Linux
 tests use container init to reap orphaned descendants. Capacity stays reserved
 until the kernel confirms that the process group is gone. If cleanup remains

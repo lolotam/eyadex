@@ -78,7 +78,7 @@ It refuses oversized input/output and unsafe core-dump policy. The child uses
 the runtime-owned layout and binder, qpdf's memory bridge, and a final page-count
 check. No production imports point into the research directory.
 
-Thirteen unit cases passed for the process/policy boundary. Seven Linux cases
+Fifteen unit cases passed for the process/policy boundary. Eight Linux cases
 passed with the existing pinned research toolchain: timeout cleanup, early
 bridge-exit descendant cleanup, and E1/E2/void extraction through pdf.js and
 pdftotext. The review's early-exit cleanup defect was reproduced before fixing
@@ -86,6 +86,11 @@ it; the missing Arabic void date was added to the runtime layout.
 The next review also required kernel confirmation before capacity reuse. Two
 new regressions fail against the earlier source and pass with bounded cleanup
 confirmation and fail-closed admission when cleanup cannot be confirmed.
+Waiting admission is capped at two requests and serialization occurs after
+slot acquisition. Stored discount reasons appear in both language sections.
+The maximum-field Linux case uses the contract's 200-character descriptions
+and 300-character reasons and checks complete extraction and A4 text bounds;
+the model's older 500-word copy test is not a permitted renderer input fixture.
 
 A full 50-line void render succeeded once near the execution limit and hit the
 five-second deadline in another run. The small correctness fixtures in CI do
