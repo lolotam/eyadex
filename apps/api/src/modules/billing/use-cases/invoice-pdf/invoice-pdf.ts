@@ -7,8 +7,10 @@ import type { Clock } from "../../../tenancy/index.ts";
 import type { BillingActor } from "../../domain/billing-actor.ts";
 import { viewReach } from "../../domain/invoice-reach.ts";
 import { readInvoice } from "../../persistence/pg-invoice-store.ts";
+import { shareInvoice } from "../../persistence/pg-invoice-changes.ts";
 import type { BillingPatientReader } from "../../ports/billing-patients.ts";
 import type { InvoicePdfRenderer } from "../../ports/invoice-pdf.ts";
+import type { InvoicePdfAccessReader } from "../../ports/invoice-pdf-access.ts";
 import { invoiceVisible } from "../invoice-visible.ts";
 
 /**
@@ -23,6 +25,7 @@ export class InvoicePdfs {
       readonly ids: IdGenerator;
       readonly patients: BillingPatientReader;
       readonly pdf: InvoicePdfRenderer;
+      readonly access: InvoicePdfAccessReader;
     },
   ) {}
 
@@ -45,8 +48,39 @@ export class InvoicePdfs {
     });
     const pdf = await this.deps.pdf.render(actor.clinicId, invoice);
     // Audited only once the file exists: a render that fails opened nothing (PR #78 review).
-    await this.deps.db.withTenant(actor.clinicId, (tx) =>
-      writeFinanceAudit(tx, {
+    await this.deps.db.withTenant(actor.clinicId, async (tx) => {
+      const current = await shareInvoice(tx, actor.clinicId, id);
+      const access = await this.deps.access.read(tx, actor.clinicId, actor.userId);
+      if (
+        !access ||
+        !access.active ||
+        !access.roleActive ||
+        access.membershipId !== actor.membershipId
+      )
+        throw new ApiError("account_disabled");
+      if (
+        access.clinicStatus === "suspended" ||
+        Date.parse(access.expiresAt) <= this.deps.clock.now().getTime()
+      )
+        throw new ApiError("subscription_blocked");
+      if (!access.financeEnabled) throw new ApiError("module_disabled");
+      const finalActor: BillingActor = {
+        ...actor,
+        permissions: access.permissions,
+        member: access.allBranches ? { all: true } : { all: false, branchIds: access.branchIds },
+      };
+      const finalReach = viewReach(finalActor);
+      if (finalReach === null) throw new ApiError("forbidden");
+      if (
+        current === null ||
+        !(await invoiceVisible(tx, this.deps.patients, finalActor, finalReach, current))
+      ) {
+        throw new ApiError("not_found");
+      }
+      if (current.version !== invoice.version || current.status !== invoice.status) {
+        throw new ApiError("version_conflict");
+      }
+      await writeFinanceAudit(tx, {
         clinicId: actor.clinicId,
         id: this.deps.ids.newId(),
         actorUserId: actor.userId,
@@ -57,8 +91,8 @@ export class InvoicePdfs {
         before: null,
         after: null,
         createdAt: this.deps.clock.now(),
-      }),
-    );
+      });
+    });
     return { number: invoice.number, pdf };
   }
 }

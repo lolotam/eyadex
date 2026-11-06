@@ -9,6 +9,7 @@ import { ApiError } from "../../../../shared/errors.ts";
 import { writeFinanceAudit } from "../../../../shared/finance-audit.ts";
 import type { Clock } from "../../../tenancy/index.ts";
 import { shareInvoice } from "../../persistence/pg-invoice-changes.ts";
+import { shareInvoiceLink } from "../../persistence/pg-invoice-link-final.ts";
 import {
   lookupInvoiceLink,
   type LiveInvoiceLink,
@@ -53,19 +54,31 @@ export class PublicInvoiceLinks {
     const pdf = await this.deps.pdf.render(link.clinicId, invoice);
     // Judged again once the file exists (PR #78 review): a void or a revoke that commits during the render
     // answers expired, and the audit row records only an open that was delivered.
-    if ((await lookupInvoiceLink(this.deps.db, hash))?.linkId !== link.linkId) {
-      throw new ApiError("invoice_link_expired");
-    }
-    await this.auditOpen(link, invoice);
+    await this.auditOpen(link, invoice, hash);
     return pdf;
   }
 
   // Audited only once the file exists, so a render that fails opened nothing. The invoice row FOR SHARE
   // makes a void running now finish first and be seen here.
-  private auditOpen(link: LiveInvoiceLink, invoice: Invoice): Promise<void> {
+  private auditOpen(link: LiveInvoiceLink, invoice: Invoice, hash: Buffer): Promise<void> {
     return this.deps.db.withTenant(link.clinicId, async (tx) => {
       const current = await shareInvoice(tx, link.clinicId, link.invoiceId);
       if (current === null || current.status === "void") throw new ApiError("invoice_link_expired");
+      const lockedLink = await shareInvoiceLink(tx, link.clinicId, link.linkId);
+      const now = this.deps.clock.now();
+      if (
+        lockedLink === null ||
+        lockedLink.id !== link.linkId ||
+        lockedLink.clinic_id !== link.clinicId ||
+        lockedLink.invoice_id !== link.invoiceId ||
+        !Buffer.from(lockedLink.token_hash).equals(hash) ||
+        lockedLink.revoked ||
+        Date.parse(lockedLink.expires_at) <= now.getTime()
+      )
+        throw new ApiError("invoice_link_expired");
+      if (current.version !== invoice.version || current.status !== invoice.status) {
+        throw new ApiError("version_conflict");
+      }
       await writeFinanceAudit(tx, {
         clinicId: link.clinicId,
         id: this.deps.ids.newId(),
@@ -77,7 +90,7 @@ export class PublicInvoiceLinks {
         before: null,
         after: null,
         via: "patient_link",
-        createdAt: this.deps.clock.now(),
+        createdAt: now,
       });
     });
   }

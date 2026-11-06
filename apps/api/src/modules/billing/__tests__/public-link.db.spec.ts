@@ -13,9 +13,11 @@ import {
   type Harness,
 } from "../../identity/auth/__tests__/auth-http-harness.ts";
 import { AUTHORIZATION_INVALIDATOR, type AuthorizationInvalidator } from "../../identity/index.ts";
+import { customRole } from "../../identity/__tests__/user-fixtures.ts";
 import { code, send } from "../../appointments/__tests__/scheduling-fixtures.ts";
 import { patientIn } from "../../medical/__tests__/medical-fixtures.ts";
 import type { InvoicePdfRenderer } from "../index.ts";
+import { holdRows, rowLockWaiters, type Holding } from "./race-fixtures.ts";
 import {
   financeClinic,
   manualInvoice,
@@ -160,6 +162,64 @@ describe("GET /v1/public/invoices/:token (R1-16, R2-7)", () => {
     const res = await open(token, PLATFORM);
     expect([res.statusCode, code(res)]).toEqual([404, "not_found"]);
   });
+
+  it("rejects bytes from an invoice edited during rendering without auditing an open", async () => {
+    const { linkId, token } = await linked();
+    duringRender = async (invoice) => {
+      await h.owner`UPDATE invoices SET version = version + 1 WHERE id = ${invoice.id}`;
+    };
+    const res = await open(token).finally(() => (duringRender = null));
+    expect([res.statusCode, code(res)]).toEqual([412, "version_conflict"]);
+    expect(await h.owner`SELECT id FROM audit_log WHERE entity_id = ${linkId}`).toEqual([]);
+  });
+
+  it.each(["revoke", "expire", "rotate", "replace", "rebind"] as const)(
+    "rejects a link changed during rendering: %s",
+    async (change) => {
+      const { linkId, token } = await linked();
+      const other = change === "rebind" ? await linked() : null;
+      duringRender = async (invoice) => {
+        // Also change the version: link invalidity must win over version_conflict.
+        await h.owner`UPDATE invoices SET version = version + 1 WHERE id = ${invoice.id}`;
+        if (change === "revoke")
+          await h.owner`UPDATE invoice_links SET revoked_at = now() WHERE id = ${linkId}`;
+        if (change === "expire")
+          await h.owner`UPDATE invoice_links SET expires_at = now() - interval '1 second' WHERE id = ${linkId}`;
+        if (change === "rotate")
+          await h.owner`UPDATE invoice_links SET token_hash = ${randomBytes(32)} WHERE id = ${linkId}`;
+        if (change === "replace")
+          await h.owner`UPDATE invoice_links SET id = ${randomUUID()} WHERE id = ${linkId}`;
+        if (change === "rebind")
+          await h.owner`UPDATE invoice_links SET invoice_id = ${other!.invoice.id} WHERE id = ${linkId}`;
+      };
+      const res = await open(token).finally(() => (duringRender = null));
+      expect([res.statusCode, code(res)]).toEqual([404, "invoice_link_expired"]);
+      expect(await h.owner`SELECT id FROM audit_log WHERE entity_id = ${linkId}`).toEqual([]);
+    },
+  );
+
+  it("waits for the original link lock and observes a revocation committed after rendering", async () => {
+    const { linkId, token } = await linked();
+    let ready!: (holding: Holding) => void;
+    const locked = new Promise<Holding>((resolve) => (ready = resolve));
+    duringRender = async () =>
+      ready(
+        await holdRows(
+          h,
+          (tx) => tx`UPDATE invoice_links SET revoked_at = now() WHERE id = ${linkId}`,
+        ),
+      );
+    const response = open(token).finally(() => (duringRender = null));
+    const holding = await locked;
+    try {
+      await rowLockWaiters(h, 1);
+    } finally {
+      await holding.release();
+    }
+    const res = await response;
+    expect([res.statusCode, code(res)]).toEqual([404, "invoice_link_expired"]);
+    expect(await h.owner`SELECT id FROM audit_log WHERE entity_id = ${linkId}`).toEqual([]);
+  });
 });
 
 describe("GET /v1/invoices/:id/pdf (spec §3.3)", () => {
@@ -183,5 +243,41 @@ describe("GET /v1/invoices/:id/pdf (spec §3.3)", () => {
     const invoice = await manualInvoice(h, C.admin.cookie, patient, C.branchD);
     const res = await send(h, C.desk.cookie, "GET", `/v1/invoices/${invoice.id}/pdf`);
     expect([res.statusCode, code(res)]).toEqual([404, "not_found"]);
+  });
+
+  it("discards an authenticated PDF if its invoice version changes during rendering", async () => {
+    const patient = await patientIn(h, C, C.branchD);
+    const invoice = await manualInvoice(h, C.admin.cookie, patient, C.branchD);
+    duringRender = async () => {
+      await h.owner`UPDATE invoices SET version = version + 1 WHERE id = ${invoice.id}`;
+    };
+    const res = await send(h, C.admin.cookie, "GET", `/v1/invoices/${invoice.id}/pdf`).finally(
+      () => (duringRender = null),
+    );
+    expect([res.statusCode, code(res)]).toEqual([412, "version_conflict"]);
+    expect(
+      await h.owner`SELECT id FROM audit_log WHERE entity_id = ${invoice.id} AND action = 'invoice.pdf_opened'`,
+    ).toEqual([]);
+  });
+
+  it("rechecks current invoice permission after rendering without relying on cached grants", async () => {
+    const patient = await patientIn(h, C, C.branchD);
+    const invoice = await manualInvoice(h, C.admin.cookie, patient, C.branchD);
+    const role = await customRole(h, C.clinicId, []);
+    const [member] = await h.owner`SELECT role_id FROM memberships WHERE id = ${C.admin.memberId}`;
+    duringRender = async () => {
+      await h.owner`UPDATE memberships SET role_id = ${role} WHERE id = ${C.admin.memberId}`;
+    };
+    try {
+      const res = await send(h, C.admin.cookie, "GET", `/v1/invoices/${invoice.id}/pdf`);
+      expect([res.statusCode, code(res)]).toEqual([403, "forbidden"]);
+      expect(
+        await h.owner`SELECT id FROM audit_log WHERE entity_id = ${invoice.id} AND action = 'invoice.pdf_opened'`,
+      ).toEqual([]);
+    } finally {
+      duringRender = null;
+      await h.owner`UPDATE memberships SET role_id = ${member!["role_id"]} WHERE id = ${C.admin.memberId}`;
+      await invalidate.clinicChanged(C.clinicId);
+    }
   });
 });
