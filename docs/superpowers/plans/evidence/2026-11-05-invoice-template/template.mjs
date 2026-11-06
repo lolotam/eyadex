@@ -5,8 +5,7 @@ export function invoiceSource(model) {
   const words = {},
     roles = {},
     fields = [],
-    fieldRecords = [],
-    literalSlots = [];
+    fieldRecords = [];
   let next = 0;
   function field(value, lang = "ar", weight = "regular", role = "single") {
     assert(!/[\p{Cf}\p{Cc}]/u.test(String(value)), "unsupported_format_character");
@@ -25,8 +24,8 @@ export function invoiceSource(model) {
     return `field(json(bytes(${JSON.stringify(JSON.stringify(parts))})), ${JSON.stringify(lang)}, ${JSON.stringify(weight)},${role === "row" ? 244.236 : 510.236})`;
   }
   function literal(value) {
-    literalSlots.push({ anchor: fieldRecords.at(-1).ids.at(-1), value });
-    return value;
+    const role = fieldRecords.at(-1).role;
+    return "#" + field(value, "en", "regular", role);
   }
   const pair = (ar, en, role = "single") =>
     `[#${field(ar, "ar", "regular", role)} #linebreak() #${field(en, "en", "regular", role)}]`;
@@ -148,6 +147,5 @@ ${model.invoiceDiscountReason ? `#par[#${field("سبب الخصم")} ${literal("
     fieldRecords,
     repeatedOrder,
     headerCells: headings,
-    literalSlots,
   };
 }

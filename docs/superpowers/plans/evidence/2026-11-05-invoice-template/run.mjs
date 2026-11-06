@@ -100,7 +100,7 @@ for (const model of fixtures([...logo.toBuffer("image/png")])) {
         ["discountReasonEn", 300],
       ])
         assert.equal(line[key].trim().length, length, `maximum fixture length: ${key}`);
-  const { source, words, fields, roles, sourceOrder, fieldRecords, repeatedOrder, literalSlots } =
+  const { source, words, fields, roles, sourceOrder, fieldRecords, repeatedOrder } =
     invoiceSource(model);
   writeFileSync(`/out/${model.name}.typ`, source);
   const renderStarted = performance.now();
@@ -169,7 +169,7 @@ for (const model of fixtures([...logo.toBuffer("image/png")])) {
   }
   for (let p = 0; p < texts.length; p++) {
     for (const text of [texts[p], popPages[p]])
-      completePage(text, pageWordIds[p], words, literalSlots, p + 1, texts.length);
+      completePage(text, pageWordIds[p], words, p + 1, texts.length);
     for (const [role, ids] of Object.entries(repeatedOrder))
       if (role === "page" || rowPages.has(p))
         for (const text of [texts[p], popPages[p]])

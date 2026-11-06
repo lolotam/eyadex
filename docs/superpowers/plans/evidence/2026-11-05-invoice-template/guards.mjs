@@ -25,12 +25,34 @@ function jsonOf(source) {
 export function guardTests() {
   const model = fixtures([]).find((m) => m.name === "E3");
   const original = invoiceSource(model);
+  const separator = original.fieldRecords.find(
+    (record) => record.role === "single" && record.value === "/",
+  );
+  const calls = [
+    ...original.source.matchAll(
+      /#field\(json\(bytes\(("(?:\\.|[^"\\])*")\)\), "[^"]+", "[^"]+",[\d.]+\)/g,
+    ),
+  ];
+  const separatorIndex = calls.findIndex(
+    (match) => JSON.parse(JSON.parse(match[1]))[0][0] === separator.ids[0],
+  );
+  assert(separatorIndex >= 0);
+  const separatorCall = calls[separatorIndex][0],
+    nextCall = calls[separatorIndex + 1][0];
+  const movedSeparator = original.source
+    .replace(separatorCall, "")
+    .replace(nextCall, nextCall + " " + separatorCall);
+  assert.throws(
+    () =>
+      expectedOrder(jsonOf(movedSeparator), original.words, original.roles, original.sourceOrder),
+    /source field order changed/,
+  );
   const lines = original.source.split("\n"),
     discountLine = lines.findIndex((line) => line.startsWith("#par[") && line.includes("Discount"));
   assert(discountLine >= 0);
   lines.splice(discountLine, 1);
   assert.throws(() => bind(jsonOf(lines.join("\n")), original.words), /allocated word missing/);
-  const footer = original.source.split("footer:align(center)[")[1].split(" / ")[0];
+  const footer = original.source.split("footer:align(center)[")[1].split(" #field")[0];
   const duplicate = original.source.replace(
     "footer:align(center)[",
     "footer:align(center)[" + footer + " ",
@@ -114,6 +136,7 @@ export function guardTests() {
     assert.throws(() => bind(jsonOf(candidate.source), candidate.words), error);
   }
   return {
+    movedSeparatorRejected: true,
     ...glyphGuardTests(),
     ...completeTextGuards(),
     missingRepeatedFieldRejected: true,

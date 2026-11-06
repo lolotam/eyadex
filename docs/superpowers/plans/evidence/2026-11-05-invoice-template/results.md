@@ -107,3 +107,7 @@ Glyph matching now reads only string operands consumed by supported text-showing
 Both extractors passed the complete per-page text inventory for all 16 fixtures and 31 pages. The inventory includes word and punctuation multiplicity, source-defined separators, and page counters; existing source-order checks remain active. Mutation guards reject duplicated words, leading and trailing extra text, missing counters, and extra separators. The previous subsequence check accepts the extra-text example that the new inventory rejects.
 
 This closes the extracted-text inventory gap for these fixtures only. It does not close whole-word drawing correspondence: shaped Arabic can contain glyphs without a complete direct ToUnicode mapping. Maximum-content plus maximum-logo coverage, Unicode coverage, production timing, runtime integration and deployment remain open. The renderer remains inactive.
+
+## Separator ordering follow-up
+
+Fixed separators now have their own field IDs and participate in source and repeated-role order validation. The checker no longer infers separator counts from the previous field's page. A generated-PDF regression moves a separator after its following field and verifies rejection by the source-order check. Both extractors pass all 16 fixtures and 31 pages. Whole-word Arabic drawing correspondence remains open; this change does not activate a renderer.
