@@ -8,11 +8,10 @@ const tokens = (text) =>
   ).sort();
 
 // Complete inventory complements, rather than replaces, source-order checks.
-export function completePage(text, ids, words, literalSlots, page, pageCount) {
+export function completePage(text, ids, words, page, pageCount) {
   const present = new Set(ids);
   const expected = [
     ...[...present].map((id) => words[id]),
-    ...literalSlots.filter((slot) => present.has(slot.anchor)).map((slot) => slot.value),
     String(page),
     "/",
     String(pageCount),

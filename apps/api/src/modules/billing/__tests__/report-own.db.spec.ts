@@ -138,28 +138,29 @@ describe("R10 doctor's own billed lines", () => {
         ["2026-06-15T21:00:00Z", "0"],
       ],
     },
+    // Use the historical overlap: tzdata 2026f cancelled Havana's November 2026 fallback.
     {
       timezone: "America/Havana",
-      day: "2026-11-01",
+      day: "2025-11-02",
       instants: [
-        ["2026-11-01T03:59:59.999Z", "0"],
-        ["2026-11-01T04:00:00Z", "600"],
-        ["2026-11-01T04:30:00Z", "600"],
-        ["2026-11-01T05:00:00Z", "600"],
-        ["2026-11-01T05:30:00Z", "600"],
-        ["2026-11-02T04:59:59.999Z", "600"],
-        ["2026-11-02T05:00:00Z", "0"],
+        ["2025-11-02T03:59:59.999Z", "0"],
+        ["2025-11-02T04:00:00Z", "600"],
+        ["2025-11-02T04:30:00Z", "600"],
+        ["2025-11-02T05:00:00Z", "600"],
+        ["2025-11-02T05:30:00Z", "600"],
+        ["2025-11-03T04:59:59.999Z", "600"],
+        ["2025-11-03T05:00:00Z", "0"],
       ],
     },
     {
       timezone: "America/Havana",
-      day: "2026-10-31",
+      day: "2025-11-01",
       instants: [
-        ["2026-10-31T04:00:00Z", "600"],
-        ["2026-11-01T03:59:59.999Z", "600"],
-        ["2026-11-01T04:00:00Z", "0"],
-        ["2026-11-01T04:30:00Z", "0"],
-        ["2026-11-01T05:00:00Z", "0"],
+        ["2025-11-01T04:00:00Z", "600"],
+        ["2025-11-02T03:59:59.999Z", "600"],
+        ["2025-11-02T04:00:00Z", "0"],
+        ["2025-11-02T04:30:00Z", "0"],
+        ["2025-11-02T05:00:00Z", "0"],
       ],
     },
     {
@@ -191,9 +192,10 @@ describe("R10 doctor's own billed lines", () => {
           WHERE clinic_id = ${C.clinicId} AND id = ${invoiceId}`;
           const res = await f.get("own-summary", C.doctor.cookie, "", `from=${day}&to=${day}`);
           expect(res.statusCode, res.body).toBe(200);
-          expect(reportOwnSummaryResponseSchema.parse(res.json()).totals.billedMinor).toBe(
-            expected,
-          );
+          expect(
+            reportOwnSummaryResponseSchema.parse(res.json()).totals.billedMinor,
+            `${timezone} ${day} at ${instant}`,
+          ).toBe(expected);
         }
       } finally {
         await h.owner`UPDATE invoices SET issued_at = ${original!.issued_at}::timestamptz
