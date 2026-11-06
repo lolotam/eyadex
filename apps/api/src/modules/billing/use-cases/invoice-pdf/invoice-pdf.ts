@@ -6,6 +6,7 @@ import { writeFinanceAudit } from "../../../../shared/finance-audit.ts";
 import type { Clock } from "../../../tenancy/index.ts";
 import type { BillingActor } from "../../domain/billing-actor.ts";
 import { viewReach } from "../../domain/invoice-reach.ts";
+import { pdfSubscriptionBlocked } from "../../domain/pdf-delivery.ts";
 import { readInvoice } from "../../persistence/pg-invoice-store.ts";
 import { shareInvoice } from "../../persistence/pg-invoice-changes.ts";
 import type { BillingPatientReader } from "../../ports/billing-patients.ts";
@@ -51,19 +52,12 @@ export class InvoicePdfs {
     await this.deps.db.withTenant(actor.clinicId, async (tx) => {
       const current = await shareInvoice(tx, actor.clinicId, id);
       const access = await this.deps.access.read(tx, actor.clinicId, actor.userId);
-      if (
-        !access ||
-        !access.active ||
-        !access.roleActive ||
-        access.membershipId !== actor.membershipId
-      )
+      if (!access || !access.active || access.membershipId !== actor.membershipId)
         throw new ApiError("account_disabled");
-      if (
-        access.clinicStatus === "suspended" ||
-        Date.parse(access.expiresAt) <= this.deps.clock.now().getTime()
-      )
+      if (pdfSubscriptionBlocked(access.clinicStatus, access.expiresAt, this.deps.clock.now()))
         throw new ApiError("subscription_blocked");
       if (!access.financeEnabled) throw new ApiError("module_disabled");
+      if (!access.roleActive) throw new ApiError("forbidden");
       const finalActor: BillingActor = {
         ...actor,
         permissions: access.permissions,

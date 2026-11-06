@@ -8,6 +8,7 @@ import type { IdGenerator } from "@eyadex/ids";
 import { ApiError } from "../../../../shared/errors.ts";
 import { writeFinanceAudit } from "../../../../shared/finance-audit.ts";
 import type { Clock } from "../../../tenancy/index.ts";
+import { pdfLinkExpired } from "../../domain/pdf-delivery.ts";
 import { shareInvoice } from "../../persistence/pg-invoice-changes.ts";
 import { shareInvoiceLink } from "../../persistence/pg-invoice-link-final.ts";
 import {
@@ -73,7 +74,7 @@ export class PublicInvoiceLinks {
         lockedLink.invoice_id !== link.invoiceId ||
         !Buffer.from(lockedLink.token_hash).equals(hash) ||
         lockedLink.revoked ||
-        Date.parse(lockedLink.expires_at) <= now.getTime()
+        pdfLinkExpired(lockedLink.expires_at, now)
       )
         throw new ApiError("invoice_link_expired");
       if (current.version !== invoice.version || current.status !== invoice.status) {

@@ -260,24 +260,40 @@ describe("GET /v1/invoices/:id/pdf (spec §3.3)", () => {
     ).toEqual([]);
   });
 
-  it("rechecks current invoice permission after rendering without relying on cached grants", async () => {
-    const patient = await patientIn(h, C, C.branchD);
-    const invoice = await manualInvoice(h, C.admin.cookie, patient, C.branchD);
-    const role = await customRole(h, C.clinicId, []);
-    const [member] = await h.owner`SELECT role_id FROM memberships WHERE id = ${C.admin.memberId}`;
-    duringRender = async () => {
-      await h.owner`UPDATE memberships SET role_id = ${role} WHERE id = ${C.admin.memberId}`;
-    };
-    try {
-      const res = await send(h, C.admin.cookie, "GET", `/v1/invoices/${invoice.id}/pdf`);
-      expect([res.statusCode, code(res)]).toEqual([403, "forbidden"]);
-      expect(
-        await h.owner`SELECT id FROM audit_log WHERE entity_id = ${invoice.id} AND action = 'invoice.pdf_opened'`,
-      ).toEqual([]);
-    } finally {
-      duringRender = null;
-      await h.owner`UPDATE memberships SET role_id = ${member!["role_id"]} WHERE id = ${C.admin.memberId}`;
-      await invalidate.clinicChanged(C.clinicId);
-    }
-  });
+  it.each(["permission", "role", "role-and-module"])(
+    "rechecks current invoice access during rendering: %s",
+    async (change) => {
+      const patient = await patientIn(h, C, C.branchD);
+      const invoice = await manualInvoice(h, C.admin.cookie, patient, C.branchD);
+      const role = await customRole(
+        h,
+        C.clinicId,
+        change === "permission" ? [] : ["view:invoices:clinic"],
+      );
+      const [member] =
+        await h.owner`SELECT role_id FROM memberships WHERE id = ${C.admin.memberId}`;
+      duringRender = async () => {
+        await h.owner`UPDATE memberships SET role_id = ${role} WHERE id = ${C.admin.memberId}`;
+        if (change !== "permission")
+          await h.owner`UPDATE roles SET is_active = false WHERE id = ${role}`;
+        if (change === "role-and-module")
+          await h.owner`UPDATE clinic_features SET enabled = false WHERE clinic_id = ${C.clinicId} AND module = 'finance'`;
+      };
+      try {
+        const res = await send(h, C.admin.cookie, "GET", `/v1/invoices/${invoice.id}/pdf`);
+        expect([res.statusCode, code(res)]).toEqual([
+          403,
+          change === "role-and-module" ? "module_disabled" : "forbidden",
+        ]);
+        expect(
+          await h.owner`SELECT id FROM audit_log WHERE entity_id = ${invoice.id} AND action = 'invoice.pdf_opened'`,
+        ).toEqual([]);
+      } finally {
+        duringRender = null;
+        await h.owner`UPDATE memberships SET role_id = ${member!["role_id"]} WHERE id = ${C.admin.memberId}`;
+        await h.owner`UPDATE clinic_features SET enabled = true WHERE clinic_id = ${C.clinicId} AND module = 'finance'`;
+        await invalidate.clinicChanged(C.clinicId);
+      }
+    },
+  );
 });

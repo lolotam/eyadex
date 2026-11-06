@@ -47,3 +47,8 @@ invoice/public-link use cases: edited public PDF, edited authenticated PDF,
 permission loss during rendering, and serialization behind link revocation.
 Candidate sources were restored and typechecking passed. The API linter passed.
 No SQL migration or live-environment data change is part of this slice.
+
+Review round 1 added inactive-role and role-plus-disabled-module regressions.
+The two suites now pass 25 tests; both new cases fail against the preceding
+role check. Role refusal follows the subscription and module decisions, and
+expiry rules live in the billing domain. Port methods carry Arabic JSDoc.
