@@ -7,6 +7,13 @@ export function assertEmbeddedPdfFonts(document) {
   );
   const amiri = descriptors.filter((o) => /Amiri-(Regular|Bold)$/.test(o.value["/FontName"]));
   assert.equal(amiri.length, 2);
+  for (const face of ["Regular", "Bold"]) {
+    assert.equal(
+      amiri.filter((o) => o.value["/FontName"].endsWith(`Amiri-${face}`)).length,
+      1,
+      `expected exactly one Amiri-${face} descriptor`,
+    );
+  }
   const stream = (ref) => {
     const data = objects["obj:" + ref]?.stream?.data;
     return typeof data === "string" && data.length > 0;

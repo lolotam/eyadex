@@ -27,7 +27,14 @@ function fixture() {
 test("accepts embedded Amiri and nonempty Type3 glyph programs", () => {
   assert.doesNotThrow(() => assertEmbeddedPdfFonts(fixture()));
 });
-for (const change of ["missing-type3", "empty-glyphs", "missing-stream", "missing-amiri"]) {
+for (const change of [
+  "missing-type3",
+  "empty-glyphs",
+  "missing-stream",
+  "missing-amiri",
+  "duplicate-regular",
+  "duplicate-bold",
+]) {
   test(`refuses ${change}`, () => {
     const document = fixture(),
       objects = document.qpdf[1];
@@ -35,6 +42,8 @@ for (const change of ["missing-type3", "empty-glyphs", "missing-stream", "missin
     if (change === "empty-glyphs") objects["obj:4 0 R"].value["/CharProcs"] = {};
     if (change === "missing-stream") objects["obj:3 0 R"].stream.data = "";
     if (change === "missing-amiri") delete objects["obj:1 0 R"];
+    if (change === "duplicate-regular") objects["obj:2 0 R"].value["/FontName"] = "/Amiri-Regular";
+    if (change === "duplicate-bold") objects["obj:1 0 R"].value["/FontName"] = "/Amiri-Bold";
     assert.throws(() => assertEmbeddedPdfFonts(document));
   });
 }
