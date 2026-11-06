@@ -18,6 +18,10 @@ export function glyphDrawings(document, words, records) {
     assert(parsed, "unsupported drawing text");
     const fontRef = resolve(resources["/Font"])[parsed.font],
       font = resolve(fontRef);
+    assert(
+      font?.["/Subtype"] === "/Type0" && font["/Encoding"] === "/Identity-H",
+      "unsupported glyph encoding",
+    );
     const cid = resolve(font["/DescendantFonts"]?.[0]);
     assert(
       cid?.["/Subtype"] === "/CIDFontType2" && cid["/CIDToGIDMap"] === "/Identity",
