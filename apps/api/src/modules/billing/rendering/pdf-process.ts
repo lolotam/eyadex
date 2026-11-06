@@ -12,8 +12,20 @@ export class PdfProcessError extends Error {
   }
 }
 
-type Limits = { executionMs: number; queueMs: number; outputBytes: number };
-const maximum: Limits = { executionMs: 5000, queueMs: 2000, outputBytes: 5 * 1024 * 1024 };
+/** A private resource may remain: this renderer must not accept further work. */
+export class PdfCleanupError extends PdfProcessError {
+  constructor() {
+    super("pdf_render_failed");
+  }
+}
+
+type Limits = { executionMs: number; queueMs: number; outputBytes: number; cleanupMs: number };
+const maximum: Limits = {
+  executionMs: 5000,
+  queueMs: 2000,
+  outputBytes: 5 * 1024 * 1024,
+  cleanupMs: 1000,
+};
 type Waiter = { grant: () => void; refuse: () => void; timer: ReturnType<typeof setTimeout> };
 type PreparedPdfProcess = {
   binary: string;
@@ -70,11 +82,12 @@ export class MemoryPdfProcess {
       if (remaining <= 0) throw new PdfProcessError("pdf_render_failed");
       result = await this.execute(prepared.binary, prepared.args, prepared.input, remaining);
     } catch (error) {
+      if (error instanceof PdfCleanupError) this.unavailable = true;
       failed = true;
       failure = error;
     }
     try {
-      await dispose?.();
+      if (dispose) await this.disposeWithinDeadline(dispose);
     } catch {
       this.unavailable = true;
       failed = true;
@@ -94,12 +107,29 @@ export class MemoryPdfProcess {
         // Preparation can include uncancellable storage I/O. Do not admit more
         // work while its resources are unconfirmed; clean any late result.
         this.unavailable = true;
-        void pending.then((late) => late.dispose?.()).catch(() => undefined);
+        void pending
+          .then((late) => late.dispose && this.disposeWithinDeadline(late.dispose))
+          .catch(() => undefined);
         reject(new PdfProcessError("pdf_render_failed"));
       }, this.limits.executionMs);
     });
     try {
       return await Promise.race([pending, expired]);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  private async disposeWithinDeadline(dispose: () => Promise<void>): Promise<void> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      // Promise.race observes late rejection too; timeout never restores admission.
+      await Promise.race([
+        Promise.resolve().then(dispose),
+        new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(() => reject(new PdfCleanupError()), this.limits.cleanupMs);
+        }),
+      ]);
     } finally {
       clearTimeout(timer);
     }

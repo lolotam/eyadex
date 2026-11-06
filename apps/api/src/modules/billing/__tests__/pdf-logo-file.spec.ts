@@ -2,11 +2,42 @@ import { readdir, readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { pdfLogoFile } from "../rendering/pdf-logo-file.ts";
-import { MemoryPdfProcess } from "../rendering/pdf-process.ts";
+import { MemoryPdfProcess, PdfCleanupError } from "../rendering/pdf-process.ts";
 
 const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 describe("private logo transport", () => {
+  it("closes admission after preparation reports unconfirmed partial-write cleanup", async () => {
+    const runner = new MemoryPdfProcess();
+    await expect(
+      runner.runPrepared(async () => {
+        throw new PdfCleanupError();
+      }),
+    ).rejects.toMatchObject({ code: "pdf_render_failed" });
+    await expect(runner.run(process.execPath, [], new Uint8Array())).rejects.toMatchObject({
+      code: "pdf_render_failed",
+    });
+  });
+
+  it("bounds stalled disposal and never reopens admission after late cleanup", async () => {
+    const runner = new MemoryPdfProcess({ cleanupMs: 20 });
+    let finish!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    await expect(
+      runner.runPrepared(async () => ({
+        binary: process.execPath,
+        args: ["-e", "process.stdout.write('ok')"],
+        input: new Uint8Array(),
+        dispose: () => pending,
+      })),
+    ).rejects.toMatchObject({ code: "pdf_render_failed" });
+    finish();
+    await expect(runner.run(process.execPath, [], new Uint8Array())).rejects.toMatchObject({
+      code: "pdf_render_failed",
+    });
+  });
   it("writes only the logo and removes its private directory", async () => {
     const file = await pdfLogoFile(png);
     expect(await readdir(file.root)).toEqual(["logo.png"]);

@@ -2,7 +2,7 @@ import { mkdtemp, writeFile, unlink, rmdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { LOGO_MAX_BYTES, logoType } from "../domain/logo.ts";
-import { PdfProcessError } from "./pdf-process.ts";
+import { PdfCleanupError, PdfProcessError } from "./pdf-process.ts";
 
 /** Only a clinic logo may be written here: document/model bytes always use pipes. */
 export async function pdfLogoFile(bytes: Buffer) {
@@ -14,8 +14,14 @@ export async function pdfLogoFile(bytes: Buffer) {
   try {
     await writeFile(path, bytes, { flag: "wx", mode: 0o600 });
   } catch {
-    await unlink(path).catch(() => undefined);
-    await rmdir(root).catch(() => undefined);
+    try {
+      await unlink(path).catch((error: NodeJS.ErrnoException) => {
+        if (error.code !== "ENOENT") throw error;
+      });
+      await rmdir(root);
+    } catch {
+      throw new PdfCleanupError();
+    }
     throw new PdfProcessError("pdf_render_failed");
   }
   return {
@@ -26,7 +32,7 @@ export async function pdfLogoFile(bytes: Buffer) {
         await unlink(path);
         await rmdir(root);
       } catch {
-        throw new PdfProcessError("pdf_render_failed");
+        throw new PdfCleanupError();
       }
     },
   };
