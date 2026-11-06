@@ -9,6 +9,8 @@ import { invoiceSource } from "./template.mjs";
 import { expectedOrder, ordered, validateBindings } from "./structure.mjs";
 import { guardTests } from "./guards.mjs";
 import { completePage } from "./complete-text.mjs";
+import { glyphDrawings } from "./glyph-drawing.mjs";
+import { probeFailure } from "./probe-failure.mjs";
 
 const clean = (s) =>
   s
@@ -21,11 +23,11 @@ function child(binary, args, input) {
     env: {},
     cwd: "/",
     // Proof limits are not production deadlines; MAXCONTENT measures that gap.
-    timeout: /\/(pdftoppm|pdftotext|typst|qpdf)$/.test(binary) ? 60_000 : 15_000,
+    timeout: /\/(pdftoppm|pdftotext|typst|qpdf|python3)$/.test(binary) ? 60_000 : 15_000,
     maxBuffer: 32 * 1024 * 1024,
   });
   if (result.status !== 0 || result.error)
-    throw new Error(`synthetic_probe_failed:${binary}:${result.status ?? result.signal}`);
+    throw new Error(probeFailure(binary, result));
   return result.stdout;
 }
 async function inspect(bytes) {
@@ -131,6 +133,17 @@ for (const model of fixtures([...logo.toBuffer("image/png")])) {
     repeatedOrder,
   );
   const expected = expectedOrder(json, words, roles, sourceOrder),
+    outlines = JSON.parse(
+      child(
+        "/usr/local/bin/python3",
+        [
+          "/probe/invoice/glyph-outline.py",
+          "/fonts",
+          ...(model.name === "MIXED" ? ["--guards"] : []),
+        ],
+        JSON.stringify(glyphDrawings(json, words, fieldRecords)),
+      ),
+    ),
     result = bind(json, words);
   for (const object of Object.values(objects)) {
     const data = object.stream?.data;
@@ -203,6 +216,7 @@ for (const model of fixtures([...logo.toBuffer("image/png")])) {
     pdfjs: true,
     poppler: true,
     completePageText: true,
+    outlineWords: outlines.outlineWords,
     pixelChecks: null,
     bytes: fixed.length,
     intermediateBytes: raw.length,

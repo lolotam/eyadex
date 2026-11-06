@@ -73,7 +73,8 @@ export function shownText(body) {
     tokens.push(/^[+-]?(?:\d+\.?\d*|\.\d+)$/.test(token) ? Number(token) : token);
   }
   const operands = [],
-    strings = [];
+    strings = [],
+    operations = [];
   let marked = 0,
     font,
     inside = false,
@@ -162,8 +163,9 @@ export function shownText(body) {
       if (operands.length !== numeric[token] || !operands.every((v) => typeof v === "number"))
         return null;
     } else return null;
+    operations.push({ operator: token, operands: [...operands] });
     operands.length = 0;
   }
   if (!seenText || inside || marked || operands.length || !font || !strings.length) return null;
-  return { font, strings };
+  return { font, strings, operations };
 }
