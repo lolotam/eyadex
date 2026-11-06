@@ -50,6 +50,16 @@ const invoice: Invoice = {
 };
 
 describe("invoice PDF model", () => {
+  it.each([
+    [{ kind: "pct", bp: 125, reason: "Synthetic reason" }, "1.25%"],
+    [{ kind: "amount", minor: "1234", reason: "Synthetic reason" }, "1.234"],
+    [null, null],
+  ] as const)("preserves the invoice-level discount instruction: %j", (discount, value) => {
+    expect(
+      invoicePdfModel({ ...invoice, invoiceDiscount: discount }, header, "Synthetic Patient"),
+    ).toMatchObject({ invoiceDiscount: value, invoiceDiscountReason: discount?.reason ?? null });
+  });
+
   it("copies stored amounts exactly without recomputing inconsistent totals", () => {
     const model = invoicePdfModel(invoice, header, "مراجع تجريبي");
     expect(model.totals).toEqual([

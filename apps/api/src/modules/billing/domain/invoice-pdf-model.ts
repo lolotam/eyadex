@@ -94,6 +94,9 @@ export function invoicePdfModel(invoice: Invoice, header: InvoicePdfHeader, pati
       total: money(line.lineTotalMinor),
     })),
     totals,
+    invoiceDiscount: invoice.invoiceDiscount
+      ? discountText(invoice.invoiceDiscount, invoice.currencyExponent)
+      : null,
     invoiceDiscountReason: invoice.invoiceDiscount ? text(invoice.invoiceDiscount.reason) : null,
     voidReason: invoice.status === "void" ? text(invoice.voidReason!) : null,
     voidDateAr:
