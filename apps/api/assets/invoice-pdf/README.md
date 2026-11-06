@@ -66,5 +66,5 @@ binding or PDF activation flag is added by packaging.
 or writable document storage: pinned tools, font hashes and licenses, non-root
 execution, core limits, one synthetic PDF, its page count and embedded fonts.
 Its font check requires nonempty Type3 glyph programs as well as embedded Amiri
-files; missing or duplicated font faces do not pass. Seven negative/positive unit cases cover
+files; missing faces, duplicated names or shared font programs do not pass. Nine negative/positive unit cases cover
 the font-check boundary.
