@@ -154,8 +154,18 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build the API image
         run: docker build -f apps/api/Dockerfile -t eyadex-api:ci .
+      - name: Reject unsupported PDF toolchain architecture
+        run: |
+          if docker build --network=none --target pdf-tools --build-arg TARGETARCH=arm64 \
+            -f apps/api/Dockerfile . > "$RUNNER_TEMP/pdf-unsupported-arch.log" 2>&1; then
+            exit 1
+          fi
+          grep -q invoice_pdf_unsupported_architecture "$RUNNER_TEMP/pdf-unsupported-arch.log"
       - name: Verify packaged PDF tools without network or writable document storage
         run: |
+          docker run --rm --network none --read-only \
+            --mount "type=bind,source=$PWD/docker/tests,target=/check,readonly" \
+            eyadex-api:ci /usr/local/bin/node --test /check/pdf-fonts.test.mjs
           docker run --rm --network none --read-only --cap-drop ALL \
             --security-opt no-new-privileges \
             --mount "type=bind,source=$PWD/docker/tests,target=/check,readonly" \

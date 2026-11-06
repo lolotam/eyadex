@@ -4,6 +4,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { invoicePdfModel } from "/app/dist/modules/billing/domain/invoice-pdf-model.js";
 import { orderedPages } from "/app/assets/invoice-pdf/page-order.mjs";
+import { assertEmbeddedPdfFonts } from "./pdf-fonts.mjs";
 
 // Synthetic-only image smoke test. The production adapter's host-policy and
 // performance gates remain closed; this calls the packaged child directly.
@@ -103,18 +104,7 @@ assert.equal(pdf.subarray(0, 5).toString(), "%PDF-");
 assert(pdf.length <= 5 * 1024 * 1024);
 const document = JSON.parse(child(paths.qpdf, ["to-json"], pdf));
 assert.equal(orderedPages(document).length, 1);
-const objects = document.qpdf[1];
-const descriptors = Object.values(objects).filter((o) => o.value?.["/Type"] === "/FontDescriptor");
-const amiri = descriptors.filter((o) => /Amiri-(Regular|Bold)$/.test(o.value["/FontName"]));
-assert.equal(amiri.length, 2);
-assert(amiri.every((o) => o.value["/FontFile2"] || o.value["/FontFile3"]));
-// BoundWord Type3 fonts embed their glyph programs directly, without FontFile2.
-for (const object of Object.values(objects)) {
-  if (object.value?.["/Subtype"] !== "/Type3") continue;
-  const procs = object.value["/CharProcs"];
-  const resolved = typeof procs === "string" ? objects["obj:" + procs].value : procs;
-  assert(Object.values(resolved).every((ref) => objects["obj:" + ref]?.stream?.data));
-}
+assertEmbeddedPdfFonts(document);
 console.log(
   "Packaged tools, font hashes, zero core limits, non-root render and embedded fonts passed.",
 );

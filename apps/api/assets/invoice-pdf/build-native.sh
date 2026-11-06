@@ -1,6 +1,12 @@
 #!/bin/sh
 set -eu
 
+# Only the checksum-approved x86-64 Typst artifact is supported by this image.
+if [ "${TARGETARCH:-}" != amd64 ]; then
+  echo "invoice_pdf_unsupported_architecture" >&2
+  exit 1
+fi
+
 curl -fsSL https://github.com/qpdf/qpdf/releases/download/v12.3.2/qpdf-12.3.2.tar.gz -o /tmp/qpdf.tar.gz
 echo '6cba2f9f2cd887d905faeb99e0e51a307b217920d1bbf3e9cfbb2e8178a2deda  /tmp/qpdf.tar.gz' | sha256sum -c -
 tar -xzf /tmp/qpdf.tar.gz -C /tmp

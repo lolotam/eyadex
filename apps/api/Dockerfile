@@ -7,6 +7,8 @@
 
 # Native ABI matches the runtime base; versions and downloaded sources are pinned.
 FROM node:24-alpine@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f AS pdf-tools
+ARG TARGETARCH
+RUN test "$TARGETARCH" = amd64 || { echo "invoice_pdf_unsupported_architecture" >&2; exit 1; }
 RUN apk add --no-cache g++ cmake ninja pkgconf openssl-dev zlib-dev jpeg-dev curl
 WORKDIR /src
 COPY apps/api/assets/invoice-pdf/build-native.sh apps/api/assets/invoice-pdf/qpdf-memory.cc apps/api/assets/invoice-pdf/pdf-limit-launcher.cc ./

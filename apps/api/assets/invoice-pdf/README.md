@@ -52,6 +52,8 @@ installs the checksum-verified Typst 0.15.1 release. Amiri 1.002 is vendored in
 `apps/api/assets/fonts`, with `SHA256SUMS` and its OFL license. Runtime binaries
 are in `/usr/local/bin`; fonts are in `/app/assets/fonts`. The package file list
 keeps TypeScript sources and native build sources out of the runtime bundle.
+The approved Typst artifact is x86-64: the image and native build script reject
+other target architectures before downloads or compilation.
 
 The image uses `tini` and `pdf-limit-launcher` before Node, setting inherited
 soft and hard core limits to zero. This does not authorize a piped crash
@@ -61,3 +63,6 @@ binding or PDF activation flag is added by packaging.
 `docker/tests/pdf-toolchain.mjs` checks the final image without network access
 or writable document storage: pinned tools, font hashes and licenses, non-root
 execution, core limits, one synthetic PDF, its page count and embedded fonts.
+Its font check requires nonempty Type3 glyph programs as well as embedded Amiri
+files; missing font objects do not pass. Five negative/positive unit cases cover
+the font-check boundary.
