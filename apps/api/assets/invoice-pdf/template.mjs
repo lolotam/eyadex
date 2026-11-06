@@ -29,6 +29,15 @@ export function invoiceSource(model) {
   }
   const pair = (ar, en, role = "single") =>
     `[#${field(ar, "ar", "regular", role)} #linebreak() #${field(en, "en", "regular", role)}]`;
+  const description = (line) => {
+    const parts = [`#${field(line.descriptionAr, "ar", "regular", "row")}`];
+    if (line.discountReasonAr)
+      parts.push(`#${field(line.discountReasonAr, "ar", "regular", "row")}`);
+    parts.push(`#${field(line.descriptionEn, "en", "regular", "row")}`);
+    if (line.discountReasonEn)
+      parts.push(`#${field(line.discountReasonEn, "ar", "regular", "row")}`);
+    return `[${parts.join(" #linebreak() ")}]`;
+  };
   const headings = [
     pair("البند", "#", "table-header"),
     pair("الوصف", "Description", "table-header"),
@@ -39,11 +48,7 @@ export function invoiceSource(model) {
   ];
   const rows = model.lines.flatMap((line) => [
     `[#${field(line.position, "en", "regular", "row")}]`,
-    pair(
-      line.descriptionAr + (line.discountReasonAr ? ` — ${line.discountReasonAr}` : ""),
-      line.descriptionEn + (line.discountReasonEn ? ` — ${line.discountReasonEn}` : ""),
-      "row",
-    ),
+    description(line),
     ...[line.quantity, line.unitPrice, line.discount, line.total].map(
       (value) => `[#${field(value, "en", "regular", "row")}]`,
     ),

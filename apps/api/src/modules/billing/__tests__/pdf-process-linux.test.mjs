@@ -93,9 +93,17 @@ test("a bridge crash kills detached-pipe descendants before capacity is reused",
   await assert.rejects(stat(`/proc/${pid}`), { code: "ENOENT" });
 });
 
-for (const name of ["E1", "E2", "VOID", "MAXFIELD"]) {
+const clean = (s) =>
+  s
+    .replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/gu, "")
+    .replace(/\s+/gu, " ")
+    .trim();
+
+for (const name of ["E1", "E2", "VOID", "MAXFIELD", "MAXLATIN", "ARREASON"]) {
   test(`real memory pipeline preserves Arabic and English extraction: ${name}`, async () => {
-    const fixture = fixtures().find((item) => item.name === (name === "MAXFIELD" ? "E1" : name));
+    const fixture = fixtures().find(
+      (item) => item.name === (["MAXFIELD", "MAXLATIN", "ARREASON"].includes(name) ? "E1" : name),
+    );
     const model = {
       ...fixture,
       invoiceDiscount: "1.25%",
@@ -107,17 +115,18 @@ for (const name of ["E1", "E2", "VOID", "MAXFIELD"]) {
         .slice(0, 2)
         .map((line) => ({ ...line, discountReason: line.discountReasonAr })),
     };
-    if (name === "MAXFIELD") {
+    if (name === "MAXFIELD" || name === "MAXLATIN") {
       model.lines = [
         {
           ...model.lines[0],
-          descriptionAr: "W".repeat(200),
+          descriptionAr: name === "MAXFIELD" ? "معالجة".repeat(34).slice(0, 200) : "W".repeat(200),
           descriptionEn: "M".repeat(200),
-          discountReason: "X".repeat(300),
+          discountReason: name === "MAXFIELD" ? "تخفيض".repeat(60) : "X".repeat(300),
         },
       ];
     }
-    if (name === "E1") model.lines[0].discountReason = "Unique English discount reason";
+    if (name === "E1") model.lines[0].discountReason = "Voucher alpha beta";
+    if (name === "ARREASON") model.lines[0].discountReason = "تسوية محددة موثقة";
     // Synthetic models only: this exercises the child path independently of the
     // deployment dump-policy gate, which correctly blocks WSL crash collectors.
     const pdf = await runner.run(
@@ -130,19 +139,24 @@ for (const name of ["E1", "E2", "VOID", "MAXFIELD"]) {
     try {
       const document = await loading.promise;
       let text = "";
+      const reasonWords = [];
       for (let p = 1; p <= document.numPages; p++) {
         const content = await (await document.getPage(p)).getTextContent();
         for (const item of content.items) {
           if (!item.str?.trim()) continue;
           assert(item.transform[5] >= 0 && item.transform[5] <= 842, "text outside A4 height");
+          if (
+            ["ARREASON", "E1"].includes(name) &&
+            model.lines[0].discountReason.split(" ").includes(clean(item.str))
+          )
+            reasonWords.push({
+              word: clean(item.str),
+              x: item.transform[4],
+              row: `${p}:${item.transform[5].toFixed(2)}`,
+            });
         }
         text += content.items.map((item) => item.str ?? "").join(" ") + " ";
       }
-      const clean = (s) =>
-        s
-          .replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/gu, "")
-          .replace(/\s+/gu, " ")
-          .trim();
       for (const field of [
         model.patientName,
         model.clinicAr,
@@ -154,13 +168,24 @@ for (const name of ["E1", "E2", "VOID", "MAXFIELD"]) {
         assert(clean(text).includes(clean(field)), "missing synthetic field");
       if (model.voidReason)
         assert(clean(text).includes(clean(model.voidDateAr)), "missing Arabic void date");
-      if (name === "E1")
+      if (model.lines[0].discountReason)
         assert.equal(
           clean(text).split(model.lines[0].discountReason).length - 1,
           2,
           "stored discount reason must reach both language descriptions",
         );
-      if (name === "MAXFIELD") assert.equal(clean(text).split("X".repeat(300)).length - 1, 2);
+      if (["ARREASON", "E1"].includes(name)) {
+        const rows = [...new Set(reasonWords.map((word) => word.row))];
+        assert.equal(rows.length, 2, "two isolated reason lines");
+        for (const row of rows)
+          assert.deepEqual(
+            reasonWords
+              .filter((word) => word.row === row)
+              .sort((a, b) => (name === "ARREASON" ? b.x - a.x : a.x - b.x))
+              .map((word) => word.word),
+            model.lines[0].discountReason.split(" "),
+          );
+      }
       const extracted = spawnSync("/usr/local/bin/pdftotext", ["-raw", "-", "-"], {
         input: pdf,
         env: {},
@@ -169,10 +194,23 @@ for (const name of ["E1", "E2", "VOID", "MAXFIELD"]) {
         maxBuffer: 1024 * 1024,
       });
       assert.equal(extracted.status, 0, "pdftotext failed");
-      for (const field of [model.patientName, model.clinicAr, model.clinicEn, "1.25%"])
+      for (const field of [
+        model.patientName,
+        model.clinicAr,
+        model.clinicEn,
+        "1.25%",
+        model.lines[0].descriptionAr,
+        model.lines[0].descriptionEn,
+      ])
         assert(
           clean(extracted.stdout.toString()).includes(clean(field)),
           "missing pdftotext field",
+        );
+      if (model.lines[0].discountReason)
+        assert.equal(
+          clean(extracted.stdout.toString()).split(model.lines[0].discountReason).length - 1,
+          2,
+          "both stored reasons must extract with pdftotext",
         );
     } finally {
       await loading.destroy();

@@ -10,6 +10,8 @@ The layout and binder originate in the repository's synthetic invoice proof.
 `provenance.json` records the original source hashes. Runtime adaptations add
 the saved invoice-level discount and both void-date languages. The source proof
 is retained independently; production code does not import from `docs/`.
+Each line discount reason is a separate field with its own text direction in
+both descriptions; it is never concatenated into the description's language run.
 
 ## Limits and deployment status
 
