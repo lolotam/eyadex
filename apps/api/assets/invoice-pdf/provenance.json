@@ -1,0 +1,15 @@
+{
+  "source": "docs\\superpowers\\plans\\evidence\\2026-11-05-invoice-template",
+  "sourceCommit": "5cd56813",
+  "sha256": {
+    "page-order.mjs": "8ae21860dd3ba34f3309dd4d2debd6b63f6e4e1a6162bb757a4baa1727b92cce",
+    "bind.mjs": "8e018ee47a2817fad860ff984becf67fcccdb119c9d0c829e4df3c49c7a3f6bd",
+    "word-id.mjs": "56868d5cc5318be3fcd304095279d82fbd74de371b0f3a51a7cf284aa1bb8140",
+    "unicode-order.mjs": "144dfe670285f6fbfc3d68d4263d846aadf466f1a18ee9a2fd1c2860f3a24728",
+    "content-scopes.mjs": "226caf00936e237c9e857161664daa25cd349cb9aa98415f7f575b6924a17bd8",
+    "artifacts.mjs": "80c18789db04714d911b4da891e2aebbda3a1e5e7367bcf01f1fe48368031c47",
+    "glyph-text.mjs": "99ba2125d3cb1892c0f9ddc9b115085c02e8a5ba02df4638d314a3985c096da0",
+    "text-operands.mjs": "fdfd320858896fd62a7d79d4259389a61a5ab17ccacdfdae6802c31a87c27e65",
+    "template.mjs": "7824f8dac67c8849a9a3acf8dcfaa7ae924f23a9f4d8959d6652839b3afdcfac"
+  }
+}
