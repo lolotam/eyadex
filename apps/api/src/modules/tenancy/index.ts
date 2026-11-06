@@ -46,6 +46,7 @@ export {
 export { PgClinicReader } from "./persistence/pg-clinic-reader.ts";
 export { PgFilingBranches } from "./persistence/pg-filing-branches.ts";
 export { PgClinicNames } from "./persistence/pg-clinic-names.ts";
+export { PgBillingPdfHeader } from "./persistence/pg-billing-pdf-header.ts";
 export {
   PlatformClinicChanges,
   type PlatformClinicChangesDeps,
