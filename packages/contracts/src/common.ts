@@ -124,6 +124,8 @@ const financeApiErrorCodeSchema = z.enum([
   "version_conflict",
   "send_request_conflict",
   "invoice_link_expired",
+  "pdf_busy",
+  "pdf_render_failed",
   // Finance F2 (spec §4.6, R3-3).
   ...FINANCE_F2_ERROR_CODES,
   // Finance F3 (spec §4, §7.1, §7.4).

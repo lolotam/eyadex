@@ -18,6 +18,7 @@ export class EnvelopeExceptionFilter implements ExceptionFilter {
     const request = http.getRequest<FastifyRequest>();
 
     const error = toApiError(exception);
+    if (error.code === "pdf_busy") void reply.header("retry-after", "2");
     if (error.code === "unknown") {
       request.log.error({ err: exception }, "unhandled error");
     }

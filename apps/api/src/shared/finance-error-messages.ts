@@ -1,7 +1,15 @@
 import type { FINANCE_F2_ERROR_CODES, FINANCE_F3_ERROR_CODES } from "@eyadex/contracts/common";
 
-/** Keeps the F2 and F3 messages exhaustive without growing the shared API catalogue beyond its file limit. */
+/** Finance and PDF messages, without growing the shared API catalogue beyond its file limit. */
 export const FINANCE_ERROR_MESSAGES = {
+  pdf_busy: {
+    message_ar: "إنشاء PDF مشغول حاليًا؛ حاول بعد لحظات.",
+    message_en: "PDF generation is busy; try again shortly.",
+  },
+  pdf_render_failed: {
+    message_ar: "تعذّر إنشاء ملف PDF؛ حاول مرة تانية.",
+    message_en: "The PDF could not be generated; try again.",
+  },
   payment_method_disabled: {
     message_ar: "طريقة الدفع دي مقفولة في إعدادات العيادة.",
     message_en: "This payment method is turned off in the clinic settings.",
@@ -61,6 +69,9 @@ export const FINANCE_ERROR_MESSAGES = {
     message_en: "The amount is too large for a CSV file; export an XLSX instead.",
   },
 } satisfies Record<
-  (typeof FINANCE_F2_ERROR_CODES)[number] | (typeof FINANCE_F3_ERROR_CODES)[number],
+  | (typeof FINANCE_F2_ERROR_CODES)[number]
+  | (typeof FINANCE_F3_ERROR_CODES)[number]
+  | "pdf_busy"
+  | "pdf_render_failed",
   { message_ar: string; message_en: string }
 >;

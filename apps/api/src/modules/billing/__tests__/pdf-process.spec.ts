@@ -102,14 +102,19 @@ describe("memory-only PDF process boundary", () => {
   it("serializes only after receiving an execution slot", async () => {
     const runner = new MemoryPdfProcess();
     let serialized = 0;
+    let started!: () => void;
+    const firstTwoStarted = new Promise<void>((resolve) => {
+      started = resolve;
+    });
     const requests = Array.from({ length: 8 }, () =>
       runner.run(process.execPath, ["-e", "setTimeout(()=>process.stdout.write('ok'),100)"], () => {
         serialized++;
+        if (serialized === 2) started();
         return new Uint8Array();
       }),
     );
     const results = Promise.allSettled(requests);
-    await Promise.resolve();
+    await firstTwoStarted;
     expect(serialized).toBe(2);
     const settled = await results;
     expect(serialized).toBe(4);

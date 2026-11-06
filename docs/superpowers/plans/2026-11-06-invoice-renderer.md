@@ -117,3 +117,24 @@ default API command also booted and answered health and the unknown-host auth
 check. The image test is part of CI. No live environment was changed.
 Header/patient/logo loading and final renderer wiring remain pending, together
 with host crash-capture proof and staging performance/authorization gates.
+
+## Fifth-slice invoice binding checkpoint
+
+The existing authenticated and public PDF routes can now exercise the real
+invoice/header/patient-name binding through a test-only model-renderer injection.
+Tenancy owns the clinic/branch query, billing owns its branding fields, and the
+patient port returns the display name only. No transaction spans rendering.
+
+The native adapter supports a private per-render PNG/JPEG logo file, created
+after slot admission and removed after process cleanup. Preparation consumes
+the same five-second execution allowance. A stalled preparation or failed
+resource cleanup closes further admission; late resources are cleaned when
+available. Typed PDF failure codes and bilingual client messages are present.
+
+Local verification covers 10 binding database cases plus the existing 25
+invoice/link cases, 23 process/logo unit cases and 14 architecture checks,
+27 HTTP error-catalogue cases, and 11 Linux/native rendering cases. The API
+build and API/web type checks pass. No default renderer activation or live
+environment change is included. Host crash-capture verification, staging
+performance/authorization evidence and the API-versus-worker decision remain
+required before a real-data rollout; receipt and UI work follow that contract.

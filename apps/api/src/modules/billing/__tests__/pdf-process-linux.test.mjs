@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 import test, { mock } from "node:test";
 import { spawnSync } from "node:child_process";
 import { MemoryPdfProcess } from "../rendering/pdf-process.ts";
+import { pdfLogoFile } from "../rendering/pdf-logo-file.ts";
+import { createCanvas } from "/probe/node_modules/@napi-rs/canvas/index.js";
 import { fixtures } from "/probe/invoice/fixtures.mjs";
 import { getDocument } from "/probe/node_modules/pdfjs-dist/legacy/build/pdf.mjs";
 
@@ -14,6 +16,34 @@ const paths = JSON.stringify({
   qpdf: "/usr/local/bin/qpdf-memory",
   fonts: "/fonts",
   root: "/pdf-root",
+});
+
+test("the native pipeline reads only the logo file and removes its private directory", async () => {
+  const canvas = createCanvas(20, 10);
+  canvas.getContext("2d").fillRect(0, 0, 20, 10);
+  const model = fixtures()[0];
+  let root;
+  const pdf = await runner.runPrepared(async () => {
+    const logo = await pdfLogoFile(canvas.toBuffer("image/png"));
+    root = logo.root;
+    assert.deepEqual(await (await import("node:fs/promises")).readdir(root), ["logo.png"]);
+    return {
+      binary: process.execPath,
+      args: [script, JSON.stringify({ ...JSON.parse(paths), root, logoFile: logo.name })],
+      input: Buffer.from(JSON.stringify(model)),
+      dispose: logo.dispose,
+    };
+  });
+  await assert.rejects(stat(root), { code: "ENOENT" });
+  const decoded = spawnSync("/usr/local/bin/qpdf-memory", ["to-json"], {
+    input: pdf,
+    env: {},
+    timeout: 5000,
+    maxBuffer: 32 * 1024 * 1024,
+  });
+  assert.equal(decoded.status, 0);
+  const objects = JSON.parse(decoded.stdout).qpdf[1];
+  assert(Object.values(objects).some((object) => object.stream?.dict?.["/Subtype"] === "/Image"));
 });
 
 test("the render promise waits for kernel confirmation of group disappearance", async () => {

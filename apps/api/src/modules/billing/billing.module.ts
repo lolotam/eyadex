@@ -20,7 +20,13 @@ import {
   PgProviderDirectory,
   PublicRateLimitGuard,
 } from "../identity/index.ts";
-import { CLOCK, PgFilingBranches, TenancyModule, type Clock } from "../tenancy/index.ts";
+import {
+  CLOCK,
+  PgFilingBranches,
+  PgBillingPdfHeader,
+  TenancyModule,
+  type Clock,
+} from "../tenancy/index.ts";
 import { InvoicePdfController } from "./http/invoice-pdf.controller.ts";
 import { FinanceReportsController } from "./http/finance-reports.controller.ts";
 import { ReportBranchOptionsController } from "./http/report-branch-options.controller.ts";
@@ -40,6 +46,7 @@ import type { BillingLineDoctorLocks } from "./ports/billing-members.ts";
 import type { BillingInvoiceNotifier } from "./ports/billing-notifier.ts";
 import type { BillingPatientReader } from "./ports/billing-patients.ts";
 import type { InvoicePdfRenderer } from "./ports/invoice-pdf.ts";
+import type { InvoicePdfModelRenderer } from "./ports/invoice-pdf-model.ts";
 import type { BillingAppointmentReader, BillingVisitReader } from "./ports/billing-sources.ts";
 import {
   CASH_CLOSING_READS,
@@ -77,6 +84,7 @@ import { InvoicePayments } from "./use-cases/payments/payments.ts";
 import { CreditApplications } from "./use-cases/payments/credit-applications.ts";
 import { PaymentReads } from "./use-cases/payment-reads/payment-reads.ts";
 import { UnavailableInvoicePdf } from "./rendering/unavailable-invoice-pdf.ts";
+import { InvoicePdfDocument } from "./rendering/invoice-pdf-document.ts";
 import { ReportExportsController } from "./http/report-exports.controller.ts";
 import { reportExportProviders, type ReportExportRuntime } from "./report-export-providers.ts";
 
@@ -90,6 +98,7 @@ const branches: BillingBranchReader = new PgFilingBranches();
 const members: BillingLineDoctorLocks = new PgBillingLineDoctors();
 const reportStaff: BillingReportStaff = new PgProviderDirectory();
 const reportServices: BillingReportServices = new PgBillingReportServices();
+const PDF_RENDERER = Symbol("billing.InvoicePdfRenderer");
 
 /**
  * موديول المالية (finance F1 و F2): أسعار الخدمات، والفواتير، ومدفوعاتها ورصيد المراجع. كل الشغل على
@@ -104,15 +113,17 @@ export class BillingModule {
    *
    * @param blobStore مخزن بديل (الاختبارات بس)
    * @param invoicePdf راسم بديل (الاختبارات بس)؛ غير كده `UnavailableInvoicePdf` لحد plan Task 8g
+   * @param modelPdf راسم النموذج للاختبارات؛ لا يفعّل الرسم في إعداد التشغيل الافتراضي
    * @returns الموديول
    */
   static forRoot(
     blobStore?: BlobStore,
     invoicePdf?: InvoicePdfRenderer,
     exports?: ReportExportRuntime,
+    modelPdf?: InvoicePdfModelRenderer,
   ): DynamicModule {
     // One renderer for the invoice page and the patient's link (spec §3.3, §8 rule 16).
-    const pdf = invoicePdf ?? new UnavailableInvoicePdf();
+    const blobs = blobStore ?? blobStoreFromEnv(process.env);
     return {
       module: BillingModule,
       imports: [DatabaseModule, TenancyModule, AuthModule],
@@ -131,6 +142,21 @@ export class BillingModule {
         ...(exports === undefined ? [] : [ReportExportsController]),
       ],
       providers: [
+        {
+          provide: PDF_RENDERER,
+          inject: [DATABASE],
+          useFactory: (db: Database) =>
+            invoicePdf ??
+            (modelPdf
+              ? new InvoicePdfDocument({
+                  db,
+                  patients,
+                  blobs,
+                  header: new PgBillingPdfHeader(),
+                  renderer: modelPdf,
+                })
+              : new UnavailableInvoicePdf()),
+        },
         ...(exports === undefined
           ? []
           : reportExportProviders(exports, new PgBillingExportAccess(), branches, patients)),
@@ -179,7 +205,7 @@ export class BillingModule {
               db,
               clock,
               ids: systemUuidV7(),
-              blobs: blobStore ?? blobStoreFromEnv(process.env),
+              blobs,
             }),
         },
         {
@@ -195,8 +221,8 @@ export class BillingModule {
         },
         {
           provide: INVOICE_PDFS,
-          inject: [DATABASE, CLOCK],
-          useFactory: (db: Database, clock: Clock) =>
+          inject: [DATABASE, CLOCK, PDF_RENDERER],
+          useFactory: (db: Database, clock: Clock, pdf: InvoicePdfRenderer) =>
             new InvoicePdfs({
               db,
               clock,
@@ -208,8 +234,8 @@ export class BillingModule {
         },
         {
           provide: PUBLIC_INVOICE_LINKS,
-          inject: [DATABASE, CLOCK],
-          useFactory: (db: Database, clock: Clock) =>
+          inject: [DATABASE, CLOCK, PDF_RENDERER],
+          useFactory: (db: Database, clock: Clock, pdf: InvoicePdfRenderer) =>
             new PublicInvoiceLinks({
               db,
               clock,

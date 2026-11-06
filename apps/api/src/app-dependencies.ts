@@ -1,5 +1,9 @@
 import type { IdGenerator } from "@eyadex/ids";
-import type { InvoicePdfRenderer, ReportExportRuntime } from "./modules/billing/index.ts";
+import type {
+  InvoicePdfRenderer,
+  InvoicePdfModelRenderer,
+  ReportExportRuntime,
+} from "./modules/billing/index.ts";
 import type { WhatsappDependencies } from "./app-whatsapp.ts";
 import type { BlobStore } from "./shared/blob/blob-store.ts";
 
@@ -44,4 +48,6 @@ export interface AppDependencies extends WhatsappDependencies {
   readonly blobStore?: BlobStore;
   /** Test-only: the invoice PDF renderer; until plan Task 8g the API has none and answers 503. */
   readonly invoicePdf?: InvoicePdfRenderer;
+  /** Test-only model renderer: exercises real invoice/header/patient loading; default remains off. */
+  readonly invoicePdfModel?: InvoicePdfModelRenderer;
 }

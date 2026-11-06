@@ -12,9 +12,27 @@ export class PdfProcessError extends Error {
   }
 }
 
-type Limits = { executionMs: number; queueMs: number; outputBytes: number };
-const maximum: Limits = { executionMs: 5000, queueMs: 2000, outputBytes: 5 * 1024 * 1024 };
+/** A private resource may remain: this renderer must not accept further work. */
+export class PdfCleanupError extends PdfProcessError {
+  constructor() {
+    super("pdf_render_failed");
+  }
+}
+
+type Limits = { executionMs: number; queueMs: number; outputBytes: number; cleanupMs: number };
+const maximum: Limits = {
+  executionMs: 5000,
+  queueMs: 2000,
+  outputBytes: 5 * 1024 * 1024,
+  cleanupMs: 1000,
+};
 type Waiter = { grant: () => void; refuse: () => void; timer: ReturnType<typeof setTimeout> };
+type PreparedPdfProcess = {
+  binary: string;
+  args: readonly string[];
+  input: Uint8Array;
+  dispose?: () => Promise<void>;
+};
 
 /** One instance belongs to one renderer: at most two complete process pipelines can run. */
 export class MemoryPdfProcess {
@@ -41,13 +59,79 @@ export class MemoryPdfProcess {
     args: readonly string[],
     input: Uint8Array | (() => Uint8Array),
   ): Promise<Uint8Array> {
+    return this.runPrepared(async () => ({
+      binary,
+      args,
+      input: typeof input === "function" ? input() : input,
+    }));
+  }
+
+  async runPrepared(prepare: () => Promise<PreparedPdfProcess>): Promise<Uint8Array> {
     await this.acquire();
+    const deadline = performance.now() + this.limits.executionMs;
+    let dispose: (() => Promise<void>) | undefined;
+    let result: Uint8Array | undefined;
+    let failed = false;
+    let failure: unknown;
     try {
-      const bytes = typeof input === "function" ? input() : input;
-      if (bytes.byteLength > 32 * 1024 * 1024) throw new PdfProcessError("pdf_render_failed");
-      return await this.execute(binary, args, bytes);
+      const prepared = await this.prepareWithinDeadline(prepare);
+      dispose = prepared.dispose;
+      if (prepared.input.byteLength > 32 * 1024 * 1024)
+        throw new PdfProcessError("pdf_render_failed");
+      const remaining = deadline - performance.now();
+      if (remaining <= 0) throw new PdfProcessError("pdf_render_failed");
+      result = await this.execute(prepared.binary, prepared.args, prepared.input, remaining);
+    } catch (error) {
+      if (error instanceof PdfCleanupError) this.unavailable = true;
+      failed = true;
+      failure = error;
+    }
+    try {
+      if (dispose) await this.disposeWithinDeadline(dispose);
+    } catch {
+      this.unavailable = true;
+      failed = true;
+      failure = new PdfProcessError("pdf_render_failed");
     } finally {
       this.release();
+    }
+    if (failed) throw failure;
+    return result!;
+  }
+
+  private async prepareWithinDeadline(prepare: () => Promise<PreparedPdfProcess>) {
+    const pending = Promise.resolve().then(prepare);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const expired = new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(() => {
+        // Preparation can include uncancellable storage I/O. Do not admit more
+        // work while its resources are unconfirmed; clean any late result.
+        this.unavailable = true;
+        void pending
+          .then((late) => late.dispose && this.disposeWithinDeadline(late.dispose))
+          .catch(() => undefined);
+        reject(new PdfProcessError("pdf_render_failed"));
+      }, this.limits.executionMs);
+    });
+    try {
+      return await Promise.race([pending, expired]);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  private async disposeWithinDeadline(dispose: () => Promise<void>): Promise<void> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      // Promise.race observes late rejection too; timeout never restores admission.
+      await Promise.race([
+        Promise.resolve().then(dispose),
+        new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(() => reject(new PdfCleanupError()), this.limits.cleanupMs);
+        }),
+      ]);
+    } finally {
+      clearTimeout(timer);
     }
   }
 
@@ -89,7 +173,12 @@ export class MemoryPdfProcess {
     } else this.active--;
   }
 
-  private execute(binary: string, args: readonly string[], input: Uint8Array): Promise<Uint8Array> {
+  private execute(
+    binary: string,
+    args: readonly string[],
+    input: Uint8Array,
+    remainingMs: number,
+  ): Promise<Uint8Array> {
     return new Promise((resolve, reject) => {
       // A Linux process group lets one kill cover the Node bridge, Typst and libqpdf helpers.
       const grouped = process.platform === "linux";
@@ -117,7 +206,7 @@ export class MemoryPdfProcess {
         chunks.length = 0;
         terminateGroup();
       };
-      const timer = setTimeout(stop, this.limits.executionMs);
+      const timer = setTimeout(stop, remainingMs);
       child.once("error", stop);
       // EPIPE is an ordinary failed render, not an unhandled stream error.
       child.stdin.on("error", stop);

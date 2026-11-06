@@ -37,6 +37,7 @@ try {
   };
   const adapted = {
     ...model,
+    logoFile: config.logoFile,
     voidDate: model.voidDateEn,
     lines: model.lines.map((line) => ({
       ...line,
