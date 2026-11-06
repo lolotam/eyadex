@@ -1,6 +1,6 @@
 import { sql, type Tx } from "@eyadex/db";
 
-/** Narrow current-access adapter, bound to billing's port only in billing.module.ts. */
+/** Current finance access facts, bound to billing's export/PDF ports only in billing.module.ts. */
 export class PgBillingExportAccess {
   async read(tx: Tx, clinicId: string, userId: string) {
     const rows = await tx.execute<{
