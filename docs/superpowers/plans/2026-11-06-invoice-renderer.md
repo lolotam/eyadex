@@ -52,3 +52,20 @@ Review round 1 added inactive-role and role-plus-disabled-module regressions.
 The two suites now pass 25 tests; both new cases fail against the preceding
 role check. Role refusal follows the subscription and module decisions, and
 expiry rules live in the billing domain. Port methods carry Arabic JSDoc.
+
+## Second-slice model checkpoint
+
+The unwired `invoicePdfModel` builds an explicit text-only allowlist from the
+stored invoice, permitted header fields and the separately supplied patient
+display name. It carries no internal IDs or patient contact fields. Stored
+minor amounts are formatted without recalculating totals; a saved percentage
+discount stays a percentage and a saved fixed discount stays an amount.
+Dates use the clinic timezone and the same long-date locales as prescription
+printing. The model retains complete descriptions, reasons and void facts.
+
+Fourteen focused unit cases cover currency exponents, exact large amounts,
+timezone date rollover, allowlisting, complete 50-line content, tax visibility,
+void data, and invalid-input refusals. Typecheck, lint and formatting pass.
+Database/header loading, logo transport, template adaptation and the bounded
+process runner are not yet connected. `UnavailableInvoicePdf` remains active;
+this checkpoint neither enables PDF responses nor clears the staging gate.
