@@ -1,0 +1,38 @@
+# Invoice PDF runtime assets
+
+The renderer runs `render.mjs` as a child process. It accepts the allowlisted
+model on stdin and emits only the final PDF on stdout. The script compiles the
+layout with Typst, reads qpdf JSON through the memory bridge, binds extraction
+text, serializes through the memory bridge, and rechecks the final page count.
+Its native tool paths are trusted deployment configuration, never request data.
+
+The layout and binder originate in the repository's synthetic invoice proof.
+`provenance.json` records the original source hashes. Runtime adaptations add
+the saved invoice-level discount and both void-date languages. The source proof
+is retained independently; production code does not import from `docs/`.
+
+## Limits and deployment status
+
+The parent permits two active pipelines, at most two seconds of queue wait,
+and five seconds for the complete child lifetime. PDFs are limited to 5 MiB;
+input and decoded JSON are limited to 32 MiB. Child stderr is discarded. A
+failure kills the process group, including when the bridge exits early. Linux
+tests use container init to reap orphaned descendants.
+
+This adapter is **not wired into BillingModule**. The API still uses
+`UnavailableInvoicePdf`. The pinned Typst/Amiri/qpdf tools must be packaged in
+the production image before wiring. Core limits must be zero in the API and
+children; a piped host crash collector causes the adapter to refuse rendering.
+Effective host crash capture and forced-crash verification remain release
+gates, as do the staging performance and authorization scenarios.
+
+The synthetic Linux tests exercise the child directly with zero core limits.
+They do not bypass the deployment guard for real requests. They verify Arabic
+and English extraction with the pinned pdf.js and pdftotext, normal/void
+invoices, timeout cleanup and early-exit cleanup. They are not full acceptance
+of the maximum-content, maximum-logo or production-performance requirements.
+
+Local 50-line timing was inconsistent: one complete void render succeeded
+near the five-second bound and another hit that bound. No timeout was raised
+to accommodate it. Synchronous API eligibility (p95 at most 150 ms) remains
+unproven and is not authorized by this implementation checkpoint.

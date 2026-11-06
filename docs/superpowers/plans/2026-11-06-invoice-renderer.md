@@ -69,3 +69,25 @@ void data, and invalid-input refusals. Typecheck, lint and formatting pass.
 Database/header loading, logo transport, template adaptation and the bounded
 process runner are not yet connected. `UnavailableInvoicePdf` remains active;
 this checkpoint neither enables PDF responses nor clears the staging gate.
+
+## Third-slice bounded runtime checkpoint
+
+The unwired Typst adapter now launches a memory-only child pipeline with two
+slots, two-second queue expiry and a shared five-second execution deadline.
+It refuses oversized input/output and unsafe core-dump policy. The child uses
+the runtime-owned layout and binder, qpdf's memory bridge, and a final page-count
+check. No production imports point into the research directory.
+
+Thirteen unit cases passed for the process/policy boundary. Five Linux cases
+passed with the existing pinned research toolchain: timeout cleanup, early
+bridge-exit descendant cleanup, and E1/E2/void extraction through pdf.js and
+pdftotext. The review's early-exit cleanup defect was reproduced before fixing
+it; the missing Arabic void date was added to the runtime layout.
+
+A full 50-line void render succeeded once near the execution limit and hit the
+five-second deadline in another run. The small correctness fixtures in CI do
+not stand in for the maximum-content performance gate. This host also has a
+piped WSL crash collector, which the production adapter correctly refuses.
+The pinned tools/fonts still need production-image packaging, header/logo
+loading and final wiring are pending, and staging measurements must determine
+API-versus-worker placement before activation. The timeout remains five seconds.
