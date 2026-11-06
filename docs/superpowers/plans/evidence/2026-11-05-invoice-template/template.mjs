@@ -20,7 +20,7 @@ export function invoiceSource(model) {
         return [id, text];
       });
     fields.push(String(value));
-    fieldRecords.push({ value: String(value), role, ids: parts.map((p) => p[0]) });
+    fieldRecords.push({ value: String(value), role, lang, weight, ids: parts.map((p) => p[0]) });
     return `field(json(bytes(${JSON.stringify(JSON.stringify(parts))})), ${JSON.stringify(lang)}, ${JSON.stringify(weight)},${role === "row" ? 244.236 : 510.236})`;
   }
   function literal(value) {

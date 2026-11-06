@@ -1,3 +1,7 @@
+FROM python:3.12-alpine@sha256:e064671ca452259bab50e8e2c7bd896e39e9a343bb06ca25234adf6fe18d0fc7 AS outline-tools
+COPY docs/superpowers/plans/evidence/2026-11-05-invoice-template/outline-requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir --only-binary=:all: --no-deps --require-hashes -r /tmp/requirements.txt
+
 FROM node:24-alpine@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f
 RUN apk add --no-cache g++ cmake ninja pkgconf openssl-dev zlib-dev jpeg-dev freetype-dev fontconfig-dev libpng-dev curl
 WORKDIR /probe
@@ -20,4 +24,6 @@ RUN g++ -O2 -std=c++17 qpdf-memory.cc -lqpdf -o /usr/local/bin/qpdf-memory
 COPY ${PROBE}/*.mjs ./
 COPY docs/superpowers/plans/evidence/2026-11-04-pdf-corpus.json ./corpus.json
 COPY docs/superpowers/plans/evidence/2026-11-05-invoice-template/*.mjs ./invoice/
+COPY --from=outline-tools /usr/local /usr/local
+COPY docs/superpowers/plans/evidence/2026-11-05-invoice-template/*.py ./invoice/
 CMD ["sh", "-c", "node run.mjs && node run-marked.mjs && node invoice/run.mjs"]

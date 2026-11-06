@@ -111,3 +111,9 @@ This closes the extracted-text inventory gap for these fixtures only. It does no
 ## Separator ordering follow-up
 
 Fixed separators now have their own field IDs and participate in source and repeated-role order validation. The checker no longer infers separator counts from the previous field's page. A generated-PDF regression moves a separator after its following field and verifies rejection by the source-order check. Both extractors pass all 16 fixtures and 31 pages. Whole-word Arabic drawing correspondence remains open; this change does not activate a renderer.
+
+## Independent outline and position validation
+
+The new checker reads glyph IDs, font programs and positioned text operators, without relying on ToUnicode or ActualText to identify drawn letters. It independently shapes each source word using pinned HarfBuzz and bidi data, then compares original Amiri outlines against the embedded outlines, glyph multiplicities and positions. Wrapped words must partition the complete source into consecutive grapheme slices matching every drawn line. All 16 saved raw fixtures passed this standalone check: 11,529 word/counter instances across 31 pages, including diacritics, mixed text, maximum content and long wrapped words.
+
+Local review identified two gaps that are now guarded: embedded unitsPerEm must match the source face, and advancing glyph ink must intersect its word annotation. Nonspacing marks may extend above the annotation, but must retain their independently calculated position relative to the anchored letters. Nine mutations reject missing, duplicated, replaced, individually displaced and misassociated drawings, whole-word displacement, altered font scale, a source character missing from the font, and displacement with erased font advances. This is glyph evidence for the pinned fixture set, not general Unicode or runtime acceptance. The integration run and CI remain separate gates.
