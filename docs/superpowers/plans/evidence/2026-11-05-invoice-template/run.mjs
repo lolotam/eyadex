@@ -10,6 +10,7 @@ import { expectedOrder, ordered, validateBindings } from "./structure.mjs";
 import { guardTests } from "./guards.mjs";
 import { completePage } from "./complete-text.mjs";
 import { glyphDrawings } from "./glyph-drawing.mjs";
+import { probeFailure } from "./probe-failure.mjs";
 
 const clean = (s) =>
   s
@@ -26,7 +27,7 @@ function child(binary, args, input) {
     maxBuffer: 32 * 1024 * 1024,
   });
   if (result.status !== 0 || result.error)
-    throw new Error(`synthetic_probe_failed:${binary}:${result.status ?? result.signal}`);
+    throw new Error(probeFailure(binary, result));
   return result.stdout;
 }
 async function inspect(bytes) {
