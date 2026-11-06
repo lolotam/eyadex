@@ -1,3 +1,3 @@
 *.ttf binary
-OFL.txt text eol=lf
+OFL.txt text eol=lf -whitespace
 SHA256SUMS text eol=lf
