@@ -75,5 +75,9 @@ export const invoicePdfArtifacts = pg.pgTable(
       .where(sql.raw("state = 'ready'::text")),
     pg.index("invoice_pdf_artifact_expiry").on(sql.raw("clinic_id, state, expires_at")),
     pg.index("invoice_pdf_artifact_attempt").on(sql.raw("clinic_id, job_id, upload_id")),
+    pg
+      .index("invoice_pdf_artifact_purge")
+      .on(sql.raw("clinic_id, deleted_at"))
+      .where(sql.raw("state = 'deleted'::text")),
   ],
 );

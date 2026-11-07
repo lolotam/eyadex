@@ -147,3 +147,19 @@ proofs passed on the corrected fresh baseline. Creating a database with TEMPLATE
 copies objects but not database ACLs: the proof clone now explicitly reapplies
 0022's TEMPORARY revocation. The local clone's initial TEMP test failure is retained;
 it is not treated as a product pass.
+
+The following review pass adds tenant-leading partial purge indexes on the actual
+retention timestamps and uses a stable statement cutoff. Forced index-plan checks
+confirm the indexes can satisfy each query; they do not establish production latency.
+ADR-0038 records admission serialization, privileged role ownership, forced RLS,
+retention responsibilities and the unchanged release gates.
+
+The capacity trigger is now a deferrable constraint, initially immediate. Normal
+admission still checks immediately; every committed transaction must satisfy the
+hard limit. The rollback-only RLS suite explicitly defers this trigger. A separate
+fresh-database test fills all 100 committed slots, holds the global row lock, and
+requires the entire RLS suite to finish independently and roll back; a deferred
+101st admission must still fail at commit. CI runs this proof in its own database.
+A local attempt to reuse the offset fixtures for the ordinary proof exposed a test
+seed range issue; seed now inserts related rows only for its requested range. The
+failed attempt is retained; final regression runs use fresh databases.

@@ -75,5 +75,9 @@ export const invoicePdfUploadAttempts = pg.pgTable(
       .uniqueIndex("invoice_pdf_upload_attempts_clinic_id_storage_key_key")
       .on(sql.raw("clinic_id, storage_key")),
     pg.index("invoice_pdf_upload_cleanup").on(sql.raw("clinic_id, state, cleanup_due_at")),
+    pg
+      .index("invoice_pdf_upload_purge")
+      .on(sql.raw("clinic_id, deleted_at, terminal_at"))
+      .where(sql.raw("state = 'deleted'::text")),
   ],
 );

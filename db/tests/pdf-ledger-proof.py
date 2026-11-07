@@ -38,21 +38,21 @@ def insert(n, slot=1, job=None, invoice=None):
       VALUES ('{uid(n)}','{job}','{invoice}',1,'v1:1:1:1',{slot},now(),now());"""
 
 
-def seed():
-    run("""INSERT INTO clinics
+def seed(first=1, last=103):
+    run(f"""INSERT INTO clinics
       (id,slug,name_ar,name_en,specialty,default_language,timezone,status,expires_at,max_users,max_branches,created_at,updated_at)
       SELECT ('00000000-0000-7000-8000-'||lpad(to_hex(n),12,'0'))::uuid,'pdf-proof-'||n,
       'synthetic','synthetic','general','en','UTC','active',now()+interval '1 day',10,10,now(),now()
-      FROM generate_series(1,103) n;
+      FROM generate_series({first},{last}) n;
       INSERT INTO branches (clinic_id,id,name_ar,name_en,is_active,created_at,updated_at)
-      SELECT id,id,'synthetic','synthetic',true,now(),now() FROM clinics WHERE slug LIKE 'pdf-proof-%';
+      SELECT id,id,'synthetic','synthetic',true,now(),now() FROM clinics WHERE slug LIKE 'pdf-proof-%' AND id BETWEEN '{uid(first)}'::uuid AND '{uid(last)}'::uuid;
       INSERT INTO patients (clinic_id,id,file_number,full_name,phone,birth_date,gender,registration_branch_id,status,created_at,updated_at)
       SELECT id,id,'1','synthetic','+96500000000','2000-01-01','male',id,'active',now(),now()
-      FROM clinics WHERE slug LIKE 'pdf-proof-%';
+      FROM clinics WHERE slug LIKE 'pdf-proof-%' AND id BETWEEN '{uid(first)}'::uuid AND '{uid(last)}'::uuid;
       INSERT INTO invoices (clinic_id,id,branch_id,patient_id,year,number_seq,number,status,source,issued_at,
         currency,currency_exponent,subtotal_minor,discount_minor,tax_rate_bp,tax_minor,total_minor,created_by,created_at,updated_at)
       SELECT id,id,id,id,2026,1,'PROOF-1','issued','manual',now(),'KWD',3,0,0,0,0,0,id,now(),now()
-      FROM clinics WHERE slug LIKE 'pdf-proof-%';""", 'eyadex_owner')
+      FROM clinics WHERE slug LIKE 'pdf-proof-%' AND id BETWEEN '{uid(first)}'::uuid AND '{uid(last)}'::uuid;""", 'eyadex_owner')
 
 
 def count():

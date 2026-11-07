@@ -248,10 +248,11 @@ Report only real defects, ranked by severity. Check first:
       under **Follow-ups** for one follow-up PR (`CLAUDE.md` §2.1); `roadmap.md` and PRD §5.6
       status updated
 
-
 P2d ownership: `@eyadex/invoice-pdf/runtime` also owns Typst model rendering
 orchestration with trusted deployment paths and a lazy, single-owner prepared-logo
 handle. The API adapter resolves its own `render.mjs` and retains logo retrieval,
 validation and temporary-file creation. Native/template assets stay API-owned.
 Root exports remain pure; API/worker activation and performance, crash, logo and
 staging HOLD gates remain unchanged.
+
+PDF ledger ownership: migration 0077 and [ADR-0038](docs/adr/0038-bounded-pdf-job-ledger.md) define tenant RLS, transactional capacity, upload fencing and dispatcher-only retention. Worker wiring and shared migration remain release-gated.

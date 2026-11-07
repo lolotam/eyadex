@@ -116,5 +116,13 @@ export const invoicePdfJobs = pg.pgTable(
     pg.index("invoice_pdf_invoice").on(sql.raw("clinic_id, invoice_id")),
     pg.index("invoice_pdf_due").on(sql.raw("clinic_id, status, next_attempt_at, created_at")),
     pg.index("invoice_pdf_cleanup").on(sql.raw("clinic_id, cleanup_due_at")),
+    pg
+      .index("invoice_pdf_job_purge")
+      .on(sql.raw("clinic_id, updated_at"))
+      .where(
+        sql.raw(
+          "status = ANY (ARRAY['failed'::text, 'cancelled'::text, 'superseded'::text, 'expired'::text])",
+        ),
+      ),
   ],
 );

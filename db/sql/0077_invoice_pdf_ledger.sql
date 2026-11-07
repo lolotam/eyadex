@@ -75,6 +75,7 @@ CREATE UNIQUE INDEX invoice_pdf_current_generation ON invoice_pdf_jobs(clinic_id
 CREATE INDEX invoice_pdf_invoice ON invoice_pdf_jobs(clinic_id,invoice_id);
 CREATE INDEX invoice_pdf_due ON invoice_pdf_jobs(clinic_id,status,next_attempt_at,created_at);
 CREATE INDEX invoice_pdf_cleanup ON invoice_pdf_jobs(clinic_id,cleanup_due_at);
+CREATE INDEX invoice_pdf_job_purge ON invoice_pdf_jobs(clinic_id,updated_at) WHERE status IN ('failed','cancelled','superseded','expired');
 
 CREATE TABLE invoice_pdf_upload_attempts (
   clinic_id uuid NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
@@ -102,6 +103,7 @@ CREATE TABLE invoice_pdf_upload_attempts (
   CHECK (state NOT IN ('deleting','deleted') OR writer_stopped_at IS NOT NULL)
 );
 CREATE INDEX invoice_pdf_upload_cleanup ON invoice_pdf_upload_attempts(clinic_id,state,cleanup_due_at);
+CREATE INDEX invoice_pdf_upload_purge ON invoice_pdf_upload_attempts(clinic_id,deleted_at,terminal_at) WHERE state='deleted';
 
 CREATE TABLE invoice_pdf_artifacts (
   clinic_id uuid NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
@@ -125,6 +127,7 @@ CREATE TABLE invoice_pdf_artifacts (
 CREATE UNIQUE INDEX invoice_pdf_one_ready ON invoice_pdf_artifacts(clinic_id,job_id)
   WHERE state = 'ready';
 CREATE INDEX invoice_pdf_artifact_expiry ON invoice_pdf_artifacts(clinic_id,state,expires_at);
+CREATE INDEX invoice_pdf_artifact_purge ON invoice_pdf_artifacts(clinic_id,deleted_at) WHERE state='deleted';
 CREATE INDEX invoice_pdf_artifact_attempt ON invoice_pdf_artifacts(clinic_id,job_id,upload_id);
 
 ALTER TABLE invoice_pdf_jobs ENABLE ROW LEVEL SECURITY;
@@ -178,7 +181,8 @@ BEGIN
 END $$;
 ALTER FUNCTION invoice_pdf_capacity_change() OWNER TO eyadex_pdf_capacity;
 REVOKE ALL ON FUNCTION invoice_pdf_capacity_change() FROM PUBLIC;
-CREATE TRIGGER invoice_pdf_capacity_change AFTER INSERT OR UPDATE OR DELETE ON invoice_pdf_jobs
+CREATE CONSTRAINT TRIGGER invoice_pdf_capacity_change AFTER INSERT OR UPDATE OR DELETE ON invoice_pdf_jobs
+DEFERRABLE INITIALLY IMMEDIATE
 FOR EACH ROW EXECUTE FUNCTION invoice_pdf_capacity_change();
 
 -- Immutable caller-supplied identities are also checked on INSERT and state changes.
@@ -233,17 +237,17 @@ BEGIN
   -- Bounded tenant batches. Unknown/published objects are never retention candidates.
   DELETE FROM public.invoice_pdf_artifacts WHERE (clinic_id,id) IN
     (SELECT clinic_id,id FROM public.invoice_pdf_artifacts WHERE state='deleted'
-     AND deleted_at < clock_timestamp()-interval '7 days' ORDER BY deleted_at LIMIT 100);
+     AND deleted_at < statement_timestamp()-interval '7 days' ORDER BY deleted_at LIMIT 100);
   DELETE FROM public.invoice_pdf_upload_attempts WHERE (clinic_id,id) IN
     (SELECT u.clinic_id,u.id FROM public.invoice_pdf_upload_attempts u
-     WHERE state='deleted' AND deleted_at < clock_timestamp()-interval '7 days'
-     AND terminal_at < clock_timestamp()-interval '7 days'
+     WHERE state='deleted' AND deleted_at < statement_timestamp()-interval '7 days'
+     AND terminal_at < statement_timestamp()-interval '7 days'
      AND NOT EXISTS (SELECT 1 FROM public.invoice_pdf_artifacts a WHERE a.clinic_id=u.clinic_id AND a.upload_id=u.id)
      ORDER BY deleted_at LIMIT 100);
   DELETE FROM public.invoice_pdf_jobs WHERE (clinic_id,id) IN
     (SELECT j.clinic_id,j.id FROM public.invoice_pdf_jobs j
      WHERE status IN ('failed','cancelled','superseded','expired')
-     AND updated_at < clock_timestamp()-interval '7 days'
+     AND updated_at < statement_timestamp()-interval '7 days'
      AND NOT EXISTS (SELECT 1 FROM public.invoice_pdf_upload_attempts u WHERE u.clinic_id=j.clinic_id AND u.job_id=j.id)
      AND NOT EXISTS (SELECT 1 FROM public.invoice_pdf_artifacts a WHERE a.clinic_id=j.clinic_id AND a.job_id=j.id)
      ORDER BY updated_at LIMIT 100);
