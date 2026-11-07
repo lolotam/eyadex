@@ -23,6 +23,7 @@
     "@eyadex/contracts": "workspace:*",
     "@eyadex/db": "workspace:*",
     "@eyadex/ids": "workspace:*",
+    "@eyadex/invoice-pdf": "workspace:*",
     "@eyadex/observability": "workspace:*",
     "@eyadex/secrets": "workspace:*",
     "@fastify/multipart": "10.1.3",

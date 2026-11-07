@@ -60,6 +60,20 @@ expects seekable input; writing a patient PDF to disk to satisfy it would violat
   synchronous API path. Otherwise use the versioned worker path of the PDF design §4, in a separate
   reviewed slice with its own storage/access tests. Developer timing does not choose placement.
 
+## Pure model ownership (P2b)
+
+`packages/invoice-pdf` owns the existing pure invoice model builder, header/model types and
+deterministic formatting. It depends only on `@eyadex/contracts`; it imports no API code and
+performs no database/network access, Node child processes or side effects. Tenant reads,
+authorization and composition of the invoice, header and allowed patient display name remain
+in the API. The old billing domain module is a compatibility re-export, including the header
+type used by receipts. This extraction changes no fields, errors, arithmetic or native templates.
+
+The API dependency closure includes this internal package under `eyadex-runtime`; existing
+Docker workspace build/deploy discovery includes it without new COPY rules. No worker wiring
+or PDF activation is introduced. Native validation, staging, performance and activation HOLD
+remain independent release gates; pure package validation need not wait for native benchmarks.
+
 ## Consequences
 
 The runtime image gains a pinned native dependency and a reviewed memory adapter. Its build,

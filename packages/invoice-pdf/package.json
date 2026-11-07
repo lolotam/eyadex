@@ -1,0 +1,33 @@
+{
+  "name": "@eyadex/invoice-pdf",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Pure allowlisted invoice PDF model and deterministic formatting; no I/O.",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "eyadex-runtime": "./dist/index.js",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@eyadex/config": "workspace:*",
+    "@types/node": "24.13.6",
+    "eslint": "9.39.5",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11"
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@eyadex/contracts": "workspace:*"
+  }
+}

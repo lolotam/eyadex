@@ -86,12 +86,18 @@ packages/db     the only path to PostgreSQL: withTenant/withNewTenant/withNoTena
 packages/auth   Better Auth config (+ two-factor). The ONLY place sessions/passwords are handled
 packages/secrets    the outbox seal + the field cipher + the civil ID blind index (ADR-0028)
 packages/ids    UUID v7 with injected time + entropy
+packages/invoice-pdf  Pure allowlisted invoice PDF model, header/model types and formatting (ADR-0037)
 packages/observability  pino + redaction, request context
 db/sql + db/migrate.sh  PostgreSQL 18, forced RLS: the only way to change a database (ADR-0024)
 ```
 
 The workspace is pnpm + Turborepo (`pnpm-workspace.yaml`, `turbo.json`); `pnpm typecheck`,
 `pnpm lint`, `pnpm test` and `pnpm build` run the pipeline across every package.
+
+The internal `@eyadex/invoice-pdf` package depends only on contracts. It has no API imports,
+database or network access, Node child processes, native assets or side effects. The API retains
+tenant reads, authorization and model input composition; its billing domain entrypoint re-exports
+the package for existing invoice and receipt consumers. The worker is not wired to it in this slice.
 
 ### 2.1 Backend module shape — identical in every module
 
