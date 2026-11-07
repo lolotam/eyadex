@@ -1,4 +1,9 @@
 **
+!apps/
+!apps/api/
+!apps/api/assets/
+!apps/api/assets/invoice-pdf/
+!apps/api/assets/invoice-pdf/qpdf-memory.cc
 !docs/
 !docs/superpowers/
 !docs/superpowers/plans/
