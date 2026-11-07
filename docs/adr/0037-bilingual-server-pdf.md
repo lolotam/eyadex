@@ -86,3 +86,11 @@ The existing `UnavailableInvoicePdf` remains until the selected correction is re
 production implementation passes its gates. This ADR does not claim successful extraction,
 production PDF availability or staging performance. Receipt sending and a public receipt link are
 outside this decision; receipt PDF access retains `view:payments:*` and its branch/clinic isolation.
+
+
+P2d ownership: `@eyadex/invoice-pdf/runtime` also owns Typst model rendering
+orchestration with trusted deployment paths and a lazy, single-owner prepared-logo
+handle. The API adapter resolves its own `render.mjs` and retains logo retrieval,
+validation and temporary-file creation. Native/template assets stay API-owned.
+Root exports remain pure; API/worker activation and performance, crash, logo and
+staging HOLD gates remain unchanged.

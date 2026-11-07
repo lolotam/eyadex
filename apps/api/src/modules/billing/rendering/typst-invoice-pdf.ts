@@ -1,59 +1,33 @@
-import { isAbsolute } from "node:path";
 import { fileURLToPath } from "node:url";
+import { TypstInvoicePdfRenderer as RuntimeRenderer } from "@eyadex/invoice-pdf/runtime";
+import type { TypstPdfRuntimePaths } from "@eyadex/invoice-pdf/runtime";
 import type { InvoicePdfModel } from "../domain/invoice-pdf-model.ts";
-import { MemoryPdfProcess, PdfProcessError } from "./pdf-process.ts";
-import { assertPdfDumpPolicy } from "./pdf-dump-policy.ts";
 import { pdfLogoFile } from "./pdf-logo-file.ts";
 import type { InvoicePdfModelRenderer } from "../ports/invoice-pdf-model.ts";
 
-/** Trusted, deployment-owned paths; never populated from a request. */
-export interface TypstPdfPaths {
-  readonly typst: string;
-  readonly qpdf: string;
-  readonly fonts: string;
-  readonly root: string;
-}
+/** مسارات نشر موثوقة؛ يحتفظ التطبيق بملكية مسار السكربت. */
+export type TypstPdfPaths = Omit<TypstPdfRuntimePaths, "script">;
 
-/** Not wired into BillingModule until deployment/crash and performance gates pass. */
+/** محول متوافق يظل غير موصول حتى اجتياز بوابات التفعيل. */
 export class TypstInvoicePdfRenderer implements InvoicePdfModelRenderer {
-  private readonly process = new MemoryPdfProcess();
+  private readonly renderer: RuntimeRenderer;
 
-  constructor(private readonly paths: TypstPdfPaths) {
-    if (Object.values(paths).some((path) => !isAbsolute(path))) {
-      throw new PdfProcessError("pdf_render_failed");
-    }
+  /** ينشئ المصير بمسارات التطبيق الموثوقة. */
+  constructor(paths: TypstPdfPaths) {
+    this.renderer = new RuntimeRenderer({
+      ...paths,
+      script: fileURLToPath(new URL("../../../../assets/invoice-pdf/render.mjs", import.meta.url)),
+    });
   }
 
+  /** يحمل الشعار بعد حجز السعة وينقل ملكية تنظيفه للمصير. */
   async render(
     model: InvoicePdfModel,
     loadLogo?: () => Promise<Buffer | null>,
   ): Promise<Uint8Array> {
-    // Linux process-group cleanup is required for the complete native pipeline.
-    if (process.platform !== "linux") throw new PdfProcessError("pdf_render_failed");
-    assertPdfDumpPolicy();
-    const script = fileURLToPath(
-      new URL("../../../../assets/invoice-pdf/render.mjs", import.meta.url),
-    );
-    return this.process.runPrepared(async () => {
+    return this.renderer.render(model, async () => {
       const bytes = await loadLogo?.();
-      const logo = bytes ? await pdfLogoFile(bytes) : undefined;
-      try {
-        return {
-          binary: process.execPath,
-          args: [
-            script,
-            JSON.stringify({
-              ...this.paths,
-              ...(logo ? { root: logo.root, logoFile: logo.name } : {}),
-            }),
-          ],
-          input: Buffer.from(JSON.stringify(model)),
-          ...(logo ? { dispose: logo.dispose } : {}),
-        };
-      } catch (error) {
-        await logo?.dispose();
-        throw error;
-      }
+      return bytes ? pdfLogoFile(bytes) : undefined;
     });
   }
 }
