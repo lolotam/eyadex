@@ -77,6 +77,7 @@ jobs:
           PDF_PROOF_OUTPUT: ${{ runner.temp }}/eyadex-pdf-ledger
         run: |
           docker exec "$PDF_PROOF_CONTAINER" createdb -U eyadex_owner -T eyadex "$PDF_PROOF_DATABASE"
+          docker exec -i "$PDF_PROOF_CONTAINER" psql -U eyadex_owner -d "$PDF_PROOF_DATABASE" -v ON_ERROR_STOP=1 < db/sql/0022_revoke_temporary.sql
           python3 db/tests/pdf-ledger-proof.py
           python3 db/tests/pdf-ledger-integrity.py
           python3 db/tests/pdf-ledger-transitions.py

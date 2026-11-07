@@ -152,7 +152,7 @@ GRANT UPDATE (state,writer_stopped_at,cleanup_due_at,deleted_at,terminal_at,upda
   ON invoice_pdf_upload_attempts TO eyadex_app;
 GRANT UPDATE (state,deleted_at) ON invoice_pdf_artifacts TO eyadex_app;
 -- Direct DELETE is denied to all login runtime roles.
--- No changed dispatcher/platform grants. All runtime transitions use app + withTenant.
+-- Dispatcher can invoke only the tenant-scoped retention function below; no table access.
 
 -- App has no membership in this NOLOGIN infrastructure role.
 DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='eyadex_pdf_capacity') THEN CREATE ROLE eyadex_pdf_capacity NOLOGIN NOBYPASSRLS; END IF; END $$;
@@ -250,7 +250,7 @@ BEGIN
 END $$;
 ALTER FUNCTION purge_invoice_pdf_evidence() OWNER TO eyadex_pdf_retention;
 REVOKE ALL ON FUNCTION purge_invoice_pdf_evidence() FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION purge_invoice_pdf_evidence() TO eyadex_app;
+GRANT EXECUTE ON FUNCTION purge_invoice_pdf_evidence() TO eyadex_dispatcher;
 
 CREATE FUNCTION invoice_pdf_upload_guard() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog AS $$
@@ -258,7 +258,7 @@ BEGIN
   IF TG_OP='INSERT' AND NOT EXISTS (SELECT 1 FROM public.invoice_pdf_jobs j
     WHERE j.clinic_id=NEW.clinic_id AND j.id=NEW.job_id AND j.status='running'
     AND j.attempt=NEW.attempt AND j.fence=NEW.fence AND j.lease_until>clock_timestamp()
-    AND j.deadline_at>=NEW.upload_deadline_at FOR UPDATE) THEN RAISE EXCEPTION 'pdf_upload_fence'; END IF;
+    AND j.deadline_at>=NEW.upload_deadline_at AND j.lease_until>=NEW.upload_deadline_at FOR UPDATE) THEN RAISE EXCEPTION 'pdf_upload_fence'; END IF;
   IF TG_OP='INSERT' AND NEW.state<>'allocated' THEN RAISE EXCEPTION 'pdf_upload_initial'; END IF;
   RETURN NEW;
 END $$;

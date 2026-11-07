@@ -28,11 +28,17 @@ def proof():
       'clinic/{p.uid(103)}/invoice-pdfs/{job}/{upload}',now()+interval '20 seconds',now(),now())"""
     p.run(p.scoped(102,allocate),ok=False)
     p.run(p.scoped(103,allocate.replace(",1,1,'allocated'",",1,2,'allocated'")),ok=False)
+    beyond_lease = allocate.replace("interval '20 seconds'", "interval '40 seconds'")
+    result = p.run(p.scoped(103,beyond_lease),ok=False)
+    assert 'pdf_upload_fence' in result.stderr, result.stderr
     p.run(p.scoped(103,allocate))
     p.run(p.scoped(103,f"UPDATE invoice_pdf_upload_attempts SET fence=2 WHERE id='{upload}'"),ok=False)
     p.run(p.scoped(103,f"UPDATE invoice_pdf_upload_attempts SET state='deleted',deleted_at=now() WHERE id='{upload}'"),ok=False)
     p.run(p.scoped(103,f"UPDATE invoice_pdf_upload_attempts SET state='unknown',terminal_at=now()-interval '8 days' WHERE id='{upload}'"))
-    p.run(p.scoped(103,'SELECT purge_invoice_pdf_evidence()'))
+    for role in ['eyadex_app','eyadex_platform','eyadex_auth']:
+        result = p.run(p.scoped(103,'SELECT purge_invoice_pdf_evidence()'),role,False)
+        assert 'permission denied' in result.stderr, result.stderr
+    p.run(p.scoped(103,'SELECT purge_invoice_pdf_evidence()'),'eyadex_dispatcher')
     assert p.run(p.scoped(103,f"SELECT count(*) FROM invoice_pdf_upload_attempts WHERE id='{upload}'")).stdout.strip().endswith('1')
     p.run(p.scoped(102,f"""INSERT INTO invoice_pdf_artifacts
       (clinic_id,id,job_id,upload_id,state,cipher_key_version,byte_length,published_at,expires_at)

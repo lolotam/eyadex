@@ -138,3 +138,12 @@ the matching job so cancellation and upload admission serialize. A new real-conn
 race test verifies blocking and revalidation after cancellation. Both regressions
 were demonstrated against the pre-fix schema. The SQL isolation entry point now
 also probes cross-clinic updates and inserts for all three PDF tables.
+
+Follow-up review: upload allocation now also requires its deadline to fit the job's
+current lease. Retention execution belongs only to `eyadex_dispatcher`, matching
+CLAUDE's role boundary; application/platform/auth callers are rejected. Both issues
+were reproduced on the prior schema, then the integrity and cancellation-race
+proofs passed on the corrected fresh baseline. Creating a database with TEMPLATE
+copies objects but not database ACLs: the proof clone now explicitly reapplies
+0022's TEMPORARY revocation. The local clone's initial TEMP test failure is retained;
+it is not treated as a product pass.
