@@ -30,7 +30,7 @@ try {
         "docker",
         [
           "exec",
-          "eyadex-pdf-ledger-5e3991ef",
+          process.env.PDF_PROOF_CONTAINER ?? "eyadex-pdf-ledger-5e3991ef",
           "psql",
           "-XAt",
           "-U",

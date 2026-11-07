@@ -106,3 +106,35 @@ explicit follow-up implementation contracts, not behaviors claimed by these sche
 
 No enqueue, poller, SDK, runtime binding, UI, shared migration, deployment or activation.
 All native performance/crash/logo/staging/review/migration/release HOLD gates remain independent.
+
+## Manager review correction (2026-11-07)
+
+The first PR database job failed at `branch-contact.sql`: its old table-level
+UPDATE assertion conflicted with deliberately column-scoped grants. The test now
+checks every previously writable column and rejects direct revision-counter writes.
+The full baseline SQL sweep also exposed the missing non-partial invoice foreign-key
+index; the migration and Drizzle mirror now include it.
+
+CI now runs the admission and real LOGIN-role proofs on a separate freshly migrated
+clone, exports their JSON evidence, and compares the complete live catalog to the
+Drizzle mirrors. Admission failures must identify the quota constraint, not an
+unrelated connection or SQL error. The existing rollback-only RLS entry point is
+split into relative includes below 300 lines and covers all three tenant PDF tables
+for clinic reads and platform denial; Python covers the write/fence negatives.
+
+Manager validation: corrected migration runner on a fresh isolated database PASS;
+all baseline SQL probes PASS after corrections; revised RLS entry point PASS;
+real-role admission/integrity proofs and 65-table comparison PASS; DB package
+TypeScript and lint PASS. The initial local harness used the manager checkout's
+pre-ledger baseline, and stdin could not resolve relative SQL includes; the corrected
+runs used this task's migration and file-based entry points. Those harness failures
+and the initial CI failure are retained in local evidence. URL-based API/worker/DB
+suites remain CI gates, not locally claimed results. No shared migration or release.
+
+The final review also exposed two state-integrity defects: deleted storage records
+could be revived, and upload admission did not lock the running job while validating
+its fence. A terminal deletion trigger now protects both ledgers; admission locks
+the matching job so cancellation and upload admission serialize. A new real-connection
+race test verifies blocking and revalidation after cancellation. Both regressions
+were demonstrated against the pre-fix schema. The SQL isolation entry point now
+also probes cross-clinic updates and inserts for all three PDF tables.

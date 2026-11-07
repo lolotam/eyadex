@@ -6,8 +6,8 @@ import subprocess
 import uuid
 import os
 
-CONTAINER = 'eyadex-pdf-ledger-5e3991ef'
-OUT = Path('F:/Dev/Temp/eyadex-pdf-ledger-5e3991ef')
+CONTAINER = os.environ.get('PDF_PROOF_CONTAINER', 'eyadex-pdf-ledger-5e3991ef')
+OUT = Path(os.environ.get('PDF_PROOF_OUTPUT', 'F:/Dev/Temp/eyadex-pdf-ledger-5e3991ef'))
 DATABASE = os.environ.get('PDF_PROOF_DATABASE', 'eyadex_verified')
 results = []
 
@@ -15,7 +15,7 @@ results = []
 def run(sql, role='eyadex_app', ok=True):
     p = subprocess.run(['docker', 'exec', '-i', CONTAINER, 'psql', '-XAt',
                         '-U', role, '-d', DATABASE, '-v', 'ON_ERROR_STOP=1'],
-                       input=sql, text=True, capture_output=True, timeout=90)
+                       input=sql, text=True, encoding="utf-8", capture_output=True, timeout=90)
     results.append(dict(role=role, sql=sql, exit=p.returncode, stdout=p.stdout, stderr=p.stderr))
     if ok is not None:
         assert (p.returncode == 0) == ok, results[-1]
@@ -79,6 +79,8 @@ def proof():
     with concurrent.futures.ThreadPoolExecutor(max_workers=101) as pool:
         admissions = list(pool.map(lambda n: run(scoped(n, insert(n)), ok=None), range(1,102)))
     assert sum(p.returncode == 0 for p in admissions) == 100
+    assert all(p.returncode == 0 or "invoice_pdf_capacity_admitted_check" in p.stderr
+               for p in admissions), "non-quota global admission failure"
     assert count() == 100
     run(scoped(102, insert(102)), ok=False)
     # Release once; repeated terminal transition must not decrement again.
@@ -100,6 +102,8 @@ def proof():
     with concurrent.futures.ThreadPoolExecutor(max_workers=11) as pool:
         admissions = list(pool.map(lambda n: run(scoped(103, insert(103, (n-1)%10+1).replace("'v1:1:1:1'", f"'v{n}:1:1:1'")), ok=None), range(1,12)))
     assert sum(p.returncode == 0 for p in admissions) == 10
+    assert all(p.returncode == 0 or "invoice_pdf_clinic_capacity" in p.stderr
+               for p in admissions), "non-quota clinic admission failure"
     assert count() == 10
     assert run(scoped(1, 'SELECT count(*) FROM invoice_pdf_jobs WHERE clinic_id=\''+uid(103)+'\'')).stdout.strip().endswith('0')
     run(scoped(103, 'DELETE FROM invoice_pdf_jobs'), ok=False)

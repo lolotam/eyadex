@@ -113,6 +113,7 @@ export const invoicePdfJobs = pg.pgTable(
       .uniqueIndex("invoice_pdf_clinic_capacity")
       .on(sql.raw("clinic_id, clinic_slot"))
       .where(sql.raw("clinic_slot IS NOT NULL")),
+    pg.index("invoice_pdf_invoice").on(sql.raw("clinic_id, invoice_id")),
     pg.index("invoice_pdf_due").on(sql.raw("clinic_id, status, next_attempt_at, created_at")),
     pg.index("invoice_pdf_cleanup").on(sql.raw("clinic_id, cleanup_due_at")),
   ],

@@ -72,6 +72,7 @@ CREATE UNIQUE INDEX invoice_pdf_clinic_capacity ON invoice_pdf_jobs(clinic_id,cl
 -- Terminal evidence never prevents a later authorized generation of the same current revision.
 CREATE UNIQUE INDEX invoice_pdf_current_generation ON invoice_pdf_jobs(clinic_id,invoice_id,invoice_version,render_revision)
   WHERE status IN ('queued','running','retry_wait','ready');
+CREATE INDEX invoice_pdf_invoice ON invoice_pdf_jobs(clinic_id,invoice_id);
 CREATE INDEX invoice_pdf_due ON invoice_pdf_jobs(clinic_id,status,next_attempt_at,created_at);
 CREATE INDEX invoice_pdf_cleanup ON invoice_pdf_jobs(clinic_id,cleanup_due_at);
 
@@ -257,7 +258,7 @@ BEGIN
   IF TG_OP='INSERT' AND NOT EXISTS (SELECT 1 FROM public.invoice_pdf_jobs j
     WHERE j.clinic_id=NEW.clinic_id AND j.id=NEW.job_id AND j.status='running'
     AND j.attempt=NEW.attempt AND j.fence=NEW.fence AND j.lease_until>clock_timestamp()
-    AND j.deadline_at>=NEW.upload_deadline_at) THEN RAISE EXCEPTION 'pdf_upload_fence'; END IF;
+    AND j.deadline_at>=NEW.upload_deadline_at FOR UPDATE) THEN RAISE EXCEPTION 'pdf_upload_fence'; END IF;
   IF TG_OP='INSERT' AND NEW.state<>'allocated' THEN RAISE EXCEPTION 'pdf_upload_initial'; END IF;
   RETURN NEW;
 END $$;
@@ -265,7 +266,20 @@ REVOKE ALL ON FUNCTION invoice_pdf_upload_guard() FROM PUBLIC;
 CREATE TRIGGER invoice_pdf_upload_guard BEFORE INSERT ON invoice_pdf_upload_attempts
 FOR EACH ROW EXECUTE FUNCTION invoice_pdf_upload_guard();
 
--- Preserve existing writable columns, excluding the new server-maintained counter.
+-- Deletion evidence is terminal for both storage ledgers.
+CREATE FUNCTION invoice_pdf_deleted_guard() RETURNS trigger
+LANGUAGE plpgsql SET search_path = pg_catalog AS $$
+BEGIN
+  IF OLD.state='deleted' AND NEW IS DISTINCT FROM OLD THEN RAISE EXCEPTION 'pdf_deleted_terminal'; END IF;
+  RETURN NEW;
+END $$;
+REVOKE ALL ON FUNCTION invoice_pdf_deleted_guard() FROM PUBLIC;
+CREATE TRIGGER invoice_pdf_upload_deleted BEFORE UPDATE ON invoice_pdf_upload_attempts
+FOR EACH ROW EXECUTE FUNCTION invoice_pdf_deleted_guard();
+CREATE TRIGGER invoice_pdf_artifact_deleted BEFORE UPDATE ON invoice_pdf_artifacts
+FOR EACH ROW EXECUTE FUNCTION invoice_pdf_deleted_guard();
+
+
 DO $$
 DECLARE grant_row record; writable text;
 BEGIN
