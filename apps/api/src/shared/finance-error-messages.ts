@@ -2,6 +2,10 @@ import type { FINANCE_F2_ERROR_CODES, FINANCE_F3_ERROR_CODES } from "@eyadex/con
 
 /** Finance and PDF messages, without growing the shared API catalogue beyond its file limit. */
 export const FINANCE_ERROR_MESSAGES = {
+  pdf_pending: {
+    message_ar: "ملف PDF قيد التجهيز؛ حاول بعد لحظات.",
+    message_en: "The PDF is being prepared; try again shortly.",
+  },
   pdf_busy: {
     message_ar: "إنشاء PDF مشغول حاليًا؛ حاول بعد لحظات.",
     message_en: "PDF generation is busy; try again shortly.",
@@ -71,6 +75,7 @@ export const FINANCE_ERROR_MESSAGES = {
 } satisfies Record<
   | (typeof FINANCE_F2_ERROR_CODES)[number]
   | (typeof FINANCE_F3_ERROR_CODES)[number]
+  | "pdf_pending"
   | "pdf_busy"
   | "pdf_render_failed",
   { message_ar: string; message_en: string }

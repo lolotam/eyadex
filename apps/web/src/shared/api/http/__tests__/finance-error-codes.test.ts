@@ -51,14 +51,14 @@ describe("the F3 export codes over HTTP", () => {
 });
 
 describe("PDF refusals over the download route", () => {
-  it.each(["pdf_busy", "pdf_render_failed"])(
+  it.each(["pdf_pending", "pdf_busy", "pdf_render_failed"])(
     "retains %s and both translated messages",
     async (code) => {
       const h = clientWith((call) =>
         call.url.startsWith("/api/v1/me")
           ? { body: me }
           : {
-              status: 503,
+              status: code === "pdf_pending" ? 409 : 503,
               body: { code, message_ar: "رفض", message_en: "Refused" },
             },
       );

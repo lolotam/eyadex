@@ -89,6 +89,7 @@ const STATUS: Partial<Record<ApiErrorCode, number>> = {
   cash_drawer_out_of_range: 409,
   report_range_too_long: 400,
   export_busy: 429,
+  pdf_pending: 409,
   pdf_busy: 503,
   pdf_render_failed: 503,
   patient_inactive: 400,
@@ -129,6 +130,7 @@ const RULE_ONLY: ReadonlySet<ApiErrorCode> = new Set<ApiErrorCode>([
   "cash_drawer_out_of_range",
   "report_range_too_long",
   "export_busy",
+  "pdf_pending",
   "pdf_busy",
   "pdf_render_failed",
   "visit_empty",
@@ -150,7 +152,8 @@ export class ApiError extends Error {
     super(API_ERROR_MESSAGES[code].message_en);
     this.name = "ApiError";
     this.code = code;
-    this.details = details;
+    // Pending exposes no job identity, storage key or worker metadata.
+    this.details = code === "pdf_pending" ? undefined : details;
   }
 
   get status(): number {

@@ -43,7 +43,12 @@ export function errorFromResponse(status: number, body: unknown): ApiError {
   }
   const code = webErrorCodeSchema.safeParse(envelope.data.code);
   if (code.success)
-    return new ApiError(code.data, undefined, flattenDetails(envelope.data.details));
+    return new ApiError(
+      code.data,
+      undefined,
+      // Pending has no public job identity or worker metadata.
+      code.data === "pdf_pending" ? {} : flattenDetails(envelope.data.details),
+    );
   // A code the web does not catalogue (e.g. WhatsApp's `unavailable`, the F3 report codes) stays
   // readable under `details.code`.
   return new ApiError("unknown", undefined, {
