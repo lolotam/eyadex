@@ -14,7 +14,11 @@ BEGIN
     RAISE EXCEPTION 'BRANCH-CONTACT: address/phone missing or not nullable text';
   END IF;
   IF NOT has_table_privilege('eyadex_app', 'branches', 'INSERT')
-     OR NOT has_table_privilege('eyadex_app', 'branches', 'UPDATE') THEN
+     OR EXISTS (SELECT 1 FROM information_schema.columns
+       WHERE table_schema='public' AND table_name='branches'
+         AND column_name <> 'pdf_display_revision'
+         AND NOT has_column_privilege('eyadex_app', 'branches', column_name, 'UPDATE'))
+     OR has_column_privilege('eyadex_app', 'branches', 'pdf_display_revision', 'UPDATE') THEN
     RAISE EXCEPTION 'BRANCH-CONTACT: eyadex_app cannot write branches';
   END IF;
   IF has_table_privilege('eyadex_app', 'branches', 'DELETE') THEN

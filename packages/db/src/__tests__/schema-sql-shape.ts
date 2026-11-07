@@ -29,6 +29,8 @@ export const sqlTypeOf = (type: string): string =>
     ? "time without time zone"
     : /^char\(\d+\)$/.test(type)
       ? "character"
-      : type.endsWith("[]")
-        ? "ARRAY"
-        : type;
+      : /^varchar\(\d+\)$/.test(type)
+        ? "character varying"
+        : type.endsWith("[]")
+          ? "ARRAY"
+          : type;

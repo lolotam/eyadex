@@ -70,6 +70,12 @@ jobs:
           done
       - name: Apply the SQL baseline (db/migrate.sh)
         run: sh db/migrate.sh
+      - name: PDF ledger isolation and admission proof
+        env:
+          PDF_PROOF_CONTAINER: ${{ job.services.postgres.id }}
+          PDF_PROOF_DATABASE: eyadex_pdf_proof
+          PDF_PROOF_OUTPUT: ${{ runner.temp }}/eyadex-pdf-ledger
+        run: bash db/tests/pdf-ledger-ci.sh
       - name: Migration status is clean
         run: sh db/migrate.sh --status
       - name: RLS + grant negative isolation tests
@@ -97,6 +103,19 @@ jobs:
       - run: pnpm install --frozen-lockfile
       # apps/api test:db imports its workspace dependencies from dist (observability, contracts, ids…).
       - run: pnpm --filter @eyadex/db... --filter @eyadex/auth... --filter "@eyadex/api^..." --filter "@eyadex/worker..." build
+      - name: PDF ledger live catalog matches every table mirror
+        working-directory: packages/db
+        env:
+          PDF_PROOF_CONTAINER: ${{ job.services.postgres.id }}
+          PDF_PROOF_DATABASE: eyadex_pdf_proof
+        run: node pdf-ledger-catalog.mjs
+      - name: Preserve PDF ledger proof results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pdf-ledger-proof
+          path: ${{ runner.temp }}/eyadex-pdf-ledger
+          retention-days: 7
       - name: Tenant wrapper database tests (@eyadex/db)
         run: pnpm --filter @eyadex/db test:db
         env:

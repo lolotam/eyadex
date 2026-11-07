@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
   check,
   foreignKey,
@@ -22,6 +23,9 @@ export const branches = pgTable(
   {
     clinicId: uuid("clinic_id").notNull(),
     id: uuid("id").notNull(),
+    pdfDisplayRevision: bigint("pdf_display_revision", { mode: "bigint" })
+      .notNull()
+      .default(sql.raw("1")),
     nameAr: text("name_ar").notNull(),
     nameEn: text("name_en").notNull(),
     isActive: boolean("is_active").notNull(),
@@ -33,6 +37,7 @@ export const branches = pgTable(
     invoicePrefix: text("invoice_prefix"),
   },
   (t) => [
+    check("branches_pdf_display_revision_check", sql.raw("(pdf_display_revision > 0)")),
     primaryKey({ name: "branches_pkey", columns: [t.clinicId, t.id] }),
     foreignKey({
       name: "branches_clinic_id_fkey",
