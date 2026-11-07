@@ -3,6 +3,7 @@ import { branchOptions, getPayment, invoicePayments, listPayments } from "./mock
 import { applyCredit, recordPayment } from "./mock-payment-writes";
 import { getRefund, listRefunds } from "./mock-refund-reads";
 import { recordRefund } from "./mock-refund-writes";
+import { receiptPdf } from "./mock-receipt-pdf";
 import { delay, getState, persist } from "./mock-store";
 
 /** Saves after a write that succeeded; a refused write leaves the stored state as it was. */
@@ -23,6 +24,7 @@ export function createMockPayments(): PaymentsApi {
       write(() => applyCredit(getState(), p, id, input, key, new Date())),
     listPayments: async (p, q) => (await delay(), listPayments(getState(), p, q)),
     getPayment: async (p, id) => (await delay(), getPayment(getState(), p, id)),
+    pdf: async (p, id) => (await delay(), receiptPdf(p, id)),
     refund: (p, id, input, key) =>
       write(() => recordRefund(getState(), p, id, input, key, new Date())),
     listRefunds: async (p, q) => (await delay(), listRefunds(getState(), p, q)),

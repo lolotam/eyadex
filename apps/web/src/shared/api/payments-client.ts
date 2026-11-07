@@ -46,6 +46,8 @@ export interface PaymentsApi {
   ): Promise<CreditApplication>;
   listPayments(persona: Persona, query: Partial<PaymentListQuery>): Promise<PaymentList>;
   getPayment(persona: Persona, paymentId: string): Promise<Payment>;
+  /** The original payment receipt; requires live `view:payments` reach, including after rendering. */
+  pdf(persona: Persona, paymentId: string): Promise<Blob>;
   /**
    * F2 card 2: money out of an invoice, from one of its payments or from the patient's credit; needs
    * `create:refunds` reaching the invoice's branch. A retry with the same key replays the first refund.
