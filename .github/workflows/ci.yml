@@ -166,6 +166,10 @@ jobs:
           docker run --rm --network none --read-only \
             --mount "type=bind,source=$PWD/docker/tests,target=/check,readonly" \
             eyadex-api:ci /usr/local/bin/node --test /check/pdf-fonts.test.mjs
+            docker run --rm --network none --read-only --cap-drop ALL \
+              --security-opt no-new-privileges \
+              --mount "type=bind,source=$PWD,target=/workspace,readonly" \
+              eyadex-api:ci /usr/local/bin/node --test --test-concurrency=1 /workspace/docker/tests/pdf-verify.test.mjs
           docker run --rm --network none --read-only --cap-drop ALL \
             --security-opt no-new-privileges \
             --mount "type=bind,source=$PWD/docker/tests,target=/check,readonly" \
@@ -251,6 +255,16 @@ jobs:
             --entrypoint node eyadex-pdf-reproduction:ci \
             --experimental-transform-types --test \
             /workspace/apps/api/src/modules/billing/__tests__/pdf-process-linux.test.mjs
+      - name: Verify directional layout without grid structural overhead
+        run: |
+          # Match the runner that owns the bind-mounted evidence directory.
+          docker run --rm --init --network none --read-only --cap-drop ALL \
+            --user "$(id -u):$(id -g)" \
+            --security-opt no-new-privileges --ulimit core=0:0 \
+            --mount "type=bind,source=$PWD,target=/workspace,readonly" \
+            --mount "type=bind,source=$RUNNER_TEMP/eyadex-pdf-reproduction,target=/out" \
+            --entrypoint node eyadex-pdf-reproduction:ci \
+            /workspace/docker/tests/pdf-layout-regression.mjs
       - name: Preserve synthetic research evidence
         if: always()
         uses: actions/upload-artifact@v4

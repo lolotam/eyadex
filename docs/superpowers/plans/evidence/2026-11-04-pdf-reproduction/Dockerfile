@@ -19,7 +19,7 @@ RUN mkdir /fonts && \
 RUN curl -fsSL https://github.com/typst/typst/releases/download/v0.15.1/typst-x86_64-unknown-linux-musl.tar.xz -o /tmp/typst.tar.xz && \
     echo 'a6d077d0a95eed5a2eba715b2dae06be954f624ccbf85758a03f389ded33118c  /tmp/typst.tar.xz' | sha256sum -c - && \
     tar -xJf /tmp/typst.tar.xz -C /opt
-COPY ${PROBE}/qpdf-memory.cc ./
+COPY apps/api/assets/invoice-pdf/qpdf-memory.cc ./
 RUN g++ -O2 -std=c++17 qpdf-memory.cc -lqpdf -o /usr/local/bin/qpdf-memory
 COPY ${PROBE}/*.mjs ./
 COPY docs/superpowers/plans/evidence/2026-11-04-pdf-corpus.json ./corpus.json

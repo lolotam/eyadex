@@ -111,7 +111,7 @@ export function invoiceSource(model) {
     if rows.len()>0 {
       let width=calc.max(..rows.map(row=>row.width))
       box(width:width,stack(dir:ttb,spacing:0.4em,..rows.map(row=>
-        align(if lang=="ar" {right} else {left},grid(columns:(auto,)*row.cells.len(),column-gutter:gap,..row.cells)))))
+        align(if lang=="ar" {right} else {left},stack(dir:if lang=="ar" {rtl} else {ltr},spacing:gap,..row.cells)))))
     }
   })))
 }
