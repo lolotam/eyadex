@@ -101,6 +101,9 @@ export const enPayments = {
       patientSearchError: "Could not search patients",
       detailTitle: "Receipt {number}",
       back: "Back to payments",
+      pdf: "Download receipt PDF",
+      pdfPreparing: "Preparing the receipt…",
+      pdfRetry: "Retry receipt PDF",
     },
   },
 } as const;
