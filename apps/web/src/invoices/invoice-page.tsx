@@ -42,7 +42,7 @@ type Props = {
 export function InvoicePage(props: Props) {
   return (
     <RequirePermission resource="invoices">
-      <InvoiceContent {...props} />
+      <InvoiceContent key={props.invoiceId} {...props} />
     </RequirePermission>
   );
 }
