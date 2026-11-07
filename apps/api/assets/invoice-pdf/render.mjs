@@ -72,7 +72,7 @@ try {
   if (Buffer.byteLength(corrected) > 32 * 1024 * 1024) throw new Error();
   const final = run(config.qpdf, ["from-json"], corrected, 5 * 1024 * 1024);
   if (final.subarray(0, 5).toString("ascii") !== "%PDF-") throw new Error();
-  const checked = JSON.parse(run(config.qpdf, ["to-json"], final, 32 * 1024 * 1024));
+  const checked = JSON.parse(run(config.qpdf, ["verify"], final, 32 * 1024 * 1024));
   if (orderedPages(checked).length !== pageCount) throw new Error();
   process.stdout.write(final);
 } catch {
