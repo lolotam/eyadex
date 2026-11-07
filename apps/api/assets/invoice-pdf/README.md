@@ -7,9 +7,12 @@ text, serializes through the memory bridge, and rechecks the final page count.
 Its native tool paths are trusted deployment configuration, never request data.
 
 The layout and binder originate in the repository's synthetic invoice proof.
-`provenance.json` records the original source hashes. Runtime adaptations add
-the saved invoice-level discount and both void-date languages. The source proof
-is retained independently; production code does not import from `docs/`.
+`provenance.json` records the original source hashes at `sourceCommit` under
+`sha256`. Its separate `runtimeDerivatives` section records the current runtime
+template hash, its source file and the adaptations: saved invoice-level discount,
+bilingual void dates, separate discount reasons and direction-aware word stacks.
+The source proof is retained independently; production code does not import
+from `docs/`.
 Each line discount reason is a separate field with its own text direction in
 both descriptions; it is never concatenated into the description's language run.
 

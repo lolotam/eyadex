@@ -10,6 +10,18 @@
     "artifacts.mjs": "80c18789db04714d911b4da891e2aebbda3a1e5e7367bcf01f1fe48368031c47",
     "glyph-text.mjs": "99ba2125d3cb1892c0f9ddc9b115085c02e8a5ba02df4638d314a3985c096da0",
     "text-operands.mjs": "fdfd320858896fd62a7d79d4259389a61a5ab17ccacdfdae6802c31a87c27e65",
-    "template.mjs": "e497f80b7df2a3e5aecb8b42bf14ef2f741610351bf3164f127f0fbfa1802a2f"
+    "template.mjs": "7824f8dac67c8849a9a3acf8dcfaa7ae924f23a9f4d8959d6652839b3afdcfac"
+  },
+  "runtimeDerivatives": {
+    "template.mjs": {
+      "path": "apps/api/assets/invoice-pdf/template.mjs",
+      "sha256": "e497f80b7df2a3e5aecb8b42bf14ef2f741610351bf3164f127f0fbfa1802a2f",
+      "derivedFrom": "template.mjs",
+      "adaptations": [
+        "Saved invoice-level discount and bilingual void dates",
+        "Separate direction-aware line discount reason fields",
+        "Direction-aware word stacks preserving extraction links"
+      ]
+    }
   }
 }
