@@ -69,7 +69,13 @@ export async function openHarness(
   mountPlatform = false,
   deps: Pick<
     AppDependencies,
-    "blobStore" | "evolutionApi" | "metaApi" | "invoicePdf" | "invoicePdfModel" | "financeExports"
+    | "blobStore"
+    | "evolutionApi"
+    | "metaApi"
+    | "invoicePdf"
+    | "invoicePdfModel"
+    | "financeExports"
+    | "receiptPdf"
   > = {},
 ): Promise<Harness> {
   Object.assign(process.env, {
