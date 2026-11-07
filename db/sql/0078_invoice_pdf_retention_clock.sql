@@ -32,3 +32,31 @@ CREATE TRIGGER invoice_pdf_upload_clock BEFORE INSERT OR UPDATE ON invoice_pdf_u
 FOR EACH ROW EXECUTE FUNCTION invoice_pdf_evidence_clock();
 CREATE TRIGGER invoice_pdf_artifact_clock BEFORE INSERT OR UPDATE ON invoice_pdf_artifacts
 FOR EACH ROW EXECUTE FUNCTION invoice_pdf_evidence_clock();
+
+-- Publication and cleanup serialize through the same upload row.
+CREATE FUNCTION invoice_pdf_artifact_upload_guard() RETURNS trigger
+LANGUAGE plpgsql SET search_path = pg_catalog AS $$
+BEGIN
+  PERFORM 1 FROM public.invoice_pdf_upload_attempts u
+    WHERE u.clinic_id=NEW.clinic_id AND u.job_id=NEW.job_id AND u.id=NEW.upload_id
+      AND u.state NOT IN ('deleting','deleted') FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'pdf_artifact_upload'; END IF;
+  RETURN NEW;
+END $$;
+REVOKE ALL ON FUNCTION invoice_pdf_artifact_upload_guard() FROM PUBLIC;
+CREATE TRIGGER invoice_pdf_artifact_upload_guard BEFORE INSERT ON invoice_pdf_artifacts
+FOR EACH ROW EXECUTE FUNCTION invoice_pdf_artifact_upload_guard();
+
+CREATE FUNCTION invoice_pdf_upload_cleanup_guard() RETURNS trigger
+LANGUAGE plpgsql SET search_path = pg_catalog AS $$
+BEGIN
+  IF NEW.state IN ('deleting','deleted') AND EXISTS
+    (SELECT 1 FROM public.invoice_pdf_artifacts a
+     WHERE a.clinic_id=NEW.clinic_id AND a.upload_id=NEW.id AND a.state='ready') THEN
+    RAISE EXCEPTION 'pdf_upload_live_artifact';
+  END IF;
+  RETURN NEW;
+END $$;
+REVOKE ALL ON FUNCTION invoice_pdf_upload_cleanup_guard() FROM PUBLIC;
+CREATE TRIGGER invoice_pdf_upload_cleanup_guard BEFORE UPDATE OF state ON invoice_pdf_upload_attempts
+FOR EACH ROW EXECUTE FUNCTION invoice_pdf_upload_cleanup_guard();

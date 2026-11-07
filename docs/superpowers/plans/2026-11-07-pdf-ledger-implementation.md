@@ -170,3 +170,12 @@ backdate a row and have the dispatcher purge it before seven days. The previous
 schema reproduces the backdating failure; regression tests reject both terminal-age
 and deletion-age backdating and keep a freshly cancelled job through a dispatcher
 purge. Both migrations remain local-only candidates requiring shared-migration approval.
+
+Artifact lifecycle review: migration 0078 now locks the referenced upload before
+artifact insertion and rejects deleting/deleted uploads. The inverse cleanup guard
+rejects moving an upload toward deletion while a ready artifact still exists. The
+regression test verifies cleanup must follow artifact retirement, concurrent insertion
+waits for a cleanup transition, and insertion after deletion is refused. Existing
+positional clinic/branch/patient fixture inserts remained valid: all 30 SQL files
+passed unchanged except the explicit PDF guard-aware negative test. No production
+readiness or complete publication/currentness contract is claimed.

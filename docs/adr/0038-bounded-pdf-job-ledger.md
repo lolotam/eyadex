@@ -30,7 +30,9 @@ or granting the API direct deletion rights.
   a deferred over-capacity transaction cannot commit.
 - Lock the running job during upload allocation. Verify attempt, fence, unexpired
   lease, and upload deadline bounded by lease and execution deadline. Deleted storage
-  evidence is terminal. Publication/currentness and storage reconciliation remain
+  evidence is terminal. Artifact insertion locks its upload and rejects deleting or
+  deleted attempts; upload cleanup rejects an existing ready artifact. Both paths
+  serialize on the upload row. Publication/currentness and storage reconciliation remain
   separate, unimplemented release gates.
 - Assign the tenant-scoped SECURITY DEFINER purge to NOLOGIN, NOBYPASSRLS
   `eyadex_pdf_retention`, with a fixed search path and forced RLS. Only

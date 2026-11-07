@@ -25,5 +25,6 @@ BEGIN
       VALUES(b,gen_random_uuid(),'00000000-0000-7000-8000-0000000007b1',
         '00000000-0000-7000-8000-0000000007b2','ready',1,1,now(),now()+interval '24 hours');
     RAISE EXCEPTION 'PDF write isolation: inserted an artifact for another clinic';
-  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+    WHEN raise_exception THEN IF SQLERRM <> 'pdf_artifact_upload' THEN RAISE; END IF; END;
 END $$;
