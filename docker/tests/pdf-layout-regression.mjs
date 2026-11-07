@@ -1,7 +1,7 @@
 // Local synthetic 60s-per-process layout proof; production remains at 5s.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { writeFileSync } from "node:fs";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { createCanvas, loadImage } from "/probe/node_modules/@napi-rs/canvas/index.js";
 import { fixtures } from "/probe/invoice/fixtures.mjs";
 import { invoiceSource } from "/workspace/apps/api/assets/invoice-pdf/template.mjs";
@@ -28,6 +28,8 @@ const variants = [
   source.replace(stack, "grid(columns:(auto,)*row.cells.len(),column-gutter:gap,..row.cells)"),
   source,
 ];
+// Keep this run separate from the historical proof artifacts in the same mount.
+const outputDir = mkdtempSync("/out/layout-");
 const annotationSets = [];
 let pages = 0;
 const sizes = [];
@@ -47,7 +49,7 @@ for (let n = 0; n < variants.length; n++) {
   if (n === 1) assert(raw.length < sizes[0] * 0.9, "grid structural overhead returned");
   annotationSets.push(ann);
   sizes.push(raw.length);
-  writeFileSync(`/out/variant-${n}.pdf`, raw);
+  writeFileSync(`${outputDir}/variant-${n}.pdf`, raw);
 }
 assert.deepEqual(annotationSets[0], annotationSets[1], "word instance coordinates changed");
 let checks = 0;
@@ -56,7 +58,7 @@ for (const dpi of [96, 144])
     if (dpi === 144 && page > 1) continue;
     const pixels = [];
     for (let n = 0; n < 2; n++) {
-      const prefix = `/out/variant-${n}-${page}-${dpi}`;
+      const prefix = `${outputDir}/variant-${n}-${page}-${dpi}`;
       child("/usr/local/bin/pdftoppm", [
         "-f",
         String(page),
@@ -66,7 +68,7 @@ for (const dpi of [96, 144])
         String(dpi),
         "-singlefile",
         "-png",
-        `/out/variant-${n}.pdf`,
+        `${outputDir}/variant-${n}.pdf`,
         prefix,
       ]);
       const img = await loadImage(prefix + ".png");
