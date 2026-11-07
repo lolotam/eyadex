@@ -126,6 +126,8 @@ export const arFinance: Strings<typeof enFinance> = {
       voidBanner: "فاتورة ملغاة",
       voidedOn: "أُلغيت في {date}: {reason}",
       pdf: "PDF / طباعة",
+      pdfPreparing: "جارٍ تجهيز ملف PDF…",
+      pdfRetry: "إعادة محاولة فتح PDF",
       pdfError: "تعذّر فتح ملف PDF",
       edit: "تعديل",
       void: "إلغاء الفاتورة",
