@@ -62,12 +62,14 @@ expects seekable input; writing a patient PDF to disk to satisfy it would violat
 
 ## Pure model ownership (P2b)
 
-`packages/invoice-pdf` owns the existing pure invoice model builder, header/model types and
-deterministic formatting. It depends only on `@eyadex/contracts`; it imports no API code and
-performs no database/network access, Node child processes or side effects. Tenant reads,
-authorization and composition of the invoice, header and allowed patient display name remain
-in the API. The old billing domain module is a compatibility re-export, including the header
-type used by receipts. This extraction changes no fields, errors, arithmetic or native templates.
+The root `@eyadex/invoice-pdf` entrypoint owns the pure invoice model builder, header/model
+types and deterministic formatting. It depends only on contracts and never loads process or
+filesystem modules. The explicit `@eyadex/invoice-pdf/runtime` subpath owns the existing bounded
+subprocess mechanics, process-group cleanup and dump-policy refusal. Neither imports API code.
+Tenant reads, authorization, input composition, logo validation and temporary-logo ownership,
+the Typst adapter and native/template assets remain in the API. Old API model/process paths
+are compatibility re-exports, preserving `PdfProcessError` and `PdfCleanupError` identity.
+This extraction changes no limits, admission, cleanup, failure semantics, fields or arithmetic.
 
 The API dependency closure includes this internal package under `eyadex-runtime`; existing
 Docker workspace build/deploy discovery includes it without new COPY rules. No worker wiring

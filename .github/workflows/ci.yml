@@ -234,6 +234,15 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.5.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @eyadex/invoice-pdf... build
       - name: Build the isolated PDF research image
         run: docker build -f docs/superpowers/plans/evidence/2026-11-04-pdf-reproduction/Dockerfile -t eyadex-pdf-reproduction:ci .
       - name: Reproduce both fonts, extraction, pixels and the unsupported marked name
@@ -244,12 +253,14 @@ jobs:
             eyadex-pdf-reproduction:ci
       - name: Verify the memory-only renderer and Linux process cleanup
         run: |
+          mkdir -p node_modules/@eyadex/invoice-pdf
           docker run --rm --init --network none --read-only --cap-drop ALL \
             --security-opt no-new-privileges --ulimit core=0:0 \
             --tmpfs /tmp --tmpfs /pdf-root:ro,size=1m \
             --mount "type=bind,source=$PWD,target=/workspace,readonly" \
+            --mount "type=bind,source=$PWD/packages/invoice-pdf,target=/workspace/node_modules/@eyadex/invoice-pdf,readonly" \
             --entrypoint node eyadex-pdf-reproduction:ci \
-            --experimental-transform-types --test \
+            --conditions=eyadex-runtime --experimental-transform-types --test \
             /workspace/apps/api/src/modules/billing/__tests__/pdf-process-linux.test.mjs
       - name: Preserve synthetic research evidence
         if: always()

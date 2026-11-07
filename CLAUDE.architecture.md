@@ -94,10 +94,13 @@ db/sql + db/migrate.sh  PostgreSQL 18, forced RLS: the only way to change a data
 The workspace is pnpm + Turborepo (`pnpm-workspace.yaml`, `turbo.json`); `pnpm typecheck`,
 `pnpm lint`, `pnpm test` and `pnpm build` run the pipeline across every package.
 
-The internal `@eyadex/invoice-pdf` package depends only on contracts. It has no API imports,
-database or network access, Node child processes, native assets or side effects. The API retains
-tenant reads, authorization and model input composition; its billing domain entrypoint re-exports
-the package for existing invoice and receipt consumers. The worker is not wired to it in this slice.
+The root `@eyadex/invoice-pdf` entrypoint owns only the pure model and depends on contracts.
+It never loads Node process or filesystem modules. The explicit `@eyadex/invoice-pdf/runtime`
+subpath owns bounded subprocess execution, process-group cleanup and dump-policy checks.
+Neither entrypoint imports API code. The API retains tenant reads, authorization, model input
+composition, logo validation/temporary-file ownership, the Typst adapter and native assets.
+Its old model and process modules remain compatibility re-exports with identical class identity.
+The worker is not wired to either entrypoint in this slice.
 
 ### 2.1 Backend module shape — identical in every module
 
