@@ -35,6 +35,7 @@ def proof():
     p.run(p.scoped(103,f"UPDATE invoice_pdf_upload_attempts SET fence=2 WHERE id='{upload}'"),ok=False)
     p.run(p.scoped(103,f"UPDATE invoice_pdf_upload_attempts SET state='deleted',deleted_at=now() WHERE id='{upload}'"),ok=False)
     p.run(p.scoped(103,f"UPDATE invoice_pdf_upload_attempts SET state='unknown',terminal_at=now()-interval '8 days' WHERE id='{upload}'"))
+    assert p.run(p.scoped(103,f"SELECT terminal_at > now()-interval '1 minute' FROM invoice_pdf_upload_attempts WHERE id='{upload}'")).stdout.strip().endswith('t')
     for role in ['eyadex_app','eyadex_platform','eyadex_auth']:
         result = p.run(p.scoped(103,'SELECT purge_invoice_pdf_evidence()'),role,False)
         assert 'permission denied' in result.stderr, result.stderr
@@ -48,6 +49,12 @@ def proof():
     p.run(p.scoped(103,p.insert(103)))
     p.run(p.scoped(103,"UPDATE invoice_pdf_jobs SET status='cancelled',clinic_slot=NULL WHERE status='queued'"))
     assert p.count() == 0
+    recent = str(uuid.uuid4())
+    p.run(p.scoped(103,p.insert(103,job=recent)))
+    p.run(p.scoped(103,f"UPDATE invoice_pdf_jobs SET status='cancelled',clinic_slot=NULL,updated_at=now()-interval '8 days' WHERE id='{recent}'"))
+    p.run(p.scoped(103,'SELECT purge_invoice_pdf_evidence()'),'eyadex_dispatcher')
+    assert p.run(p.scoped(103,f"SELECT count(*) FROM invoice_pdf_jobs WHERE id='{recent}'")).stdout.strip().endswith('1')
+    assert p.run(p.scoped(103,f"SELECT updated_at > now()-interval '1 minute' FROM invoice_pdf_jobs WHERE id='{recent}'")).stdout.strip().endswith('t')
     print('PASS: all-role write denials, upload fence, cross-clinic artifact FK, unknown retention, regeneration')
 
 

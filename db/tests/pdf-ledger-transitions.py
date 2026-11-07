@@ -30,7 +30,8 @@ def deletion():
       VALUES ('{p.uid(103)}','{upload}','{job}','{upload}','ready',1,1,now(),now()+interval '24 hours')"""))
     for table, extra, live in [('invoice_pdf_upload_attempts', ',writer_stopped_at=now()', 'published'),
                                ('invoice_pdf_artifacts', '', 'ready')]:
-        p.run(p.scoped(103, f"UPDATE {table} SET state='deleted',deleted_at=now(){extra} WHERE id='{upload}'"))
+        p.run(p.scoped(103, f"UPDATE {table} SET state='deleted',deleted_at=now()-interval '8 days'{extra} WHERE id='{upload}'"))
+        assert p.run(p.scoped(103, f"SELECT deleted_at > now()-interval '1 minute' FROM {table} WHERE id='{upload}'")).stdout.strip().endswith('t')
         result = p.run(p.scoped(103, f"UPDATE {table} SET state='{live}' WHERE id='{upload}'"), ok=False)
         assert 'pdf_deleted_terminal' in result.stderr, result.stderr
         assert p.run(p.scoped(103, f"SELECT state FROM {table} WHERE id='{upload}'")).stdout.strip().endswith('deleted')

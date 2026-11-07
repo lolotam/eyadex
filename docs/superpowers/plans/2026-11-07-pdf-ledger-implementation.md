@@ -163,3 +163,10 @@ requires the entire RLS suite to finish independently and roll back; a deferred
 A local attempt to reuse the offset fixtures for the ordinary proof exposed a test
 seed range issue; seed now inserts related rows only for its requested range. The
 failed attempt is retained; final regression runs use fresh databases.
+
+Migration 0078 closes the remaining retention-age input boundary: server triggers
+stamp job update age, first upload terminal age, and deletion age. The API cannot
+backdate a row and have the dispatcher purge it before seven days. The previous
+schema reproduces the backdating failure; regression tests reject both terminal-age
+and deletion-age backdating and keep a freshly cancelled job through a dispatcher
+purge. Both migrations remain local-only candidates requiring shared-migration approval.

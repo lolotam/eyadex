@@ -2,7 +2,7 @@
 
 Status: accepted for local implementation and review only; release remains HOLD.
 Date: 2026-11-07
-Related: ADR-0022 (retention), ADR-0037 (renderer); migration 0077.
+Related: ADR-0022 (retention), ADR-0037 (renderer); migrations 0077-0078.
 
 ## Context
 
@@ -37,6 +37,8 @@ or granting the API direct deletion rights.
   `eyadex_dispatcher` can execute it; runtime roles receive no direct DELETE.
   Unknown/published objects are ineligible. Deleted evidence and terminal unreferenced
   jobs retain the approved seven-day window, with batches of at most 100 deletions.
+  Server triggers stamp job updates, upload terminal age and evidence deletion age;
+  caller-supplied backdating cannot shorten the retention period.
 - Match partial tenant-leading indexes to purge cutoff and ordering columns. Use
   stable statement timestamps for indexable cutoff bounds. Retain separate scheduling
   indexes for later worker cleanup.
