@@ -40,6 +40,7 @@ export function createHttpPayments({ transport }: HttpContext): PaymentsApi {
       });
       return answer.payment;
     },
+    pdf: (_persona, paymentId) => transport.download(`/v1/payments/${id(paymentId)}/pdf`),
     refund: (_persona, invoiceId, input, idempotencyKey) =>
       transport.send("POST", `/v1/invoices/${id(invoiceId)}/refunds`, {
         schema: refundWriteResponseSchema,

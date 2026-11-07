@@ -184,6 +184,7 @@ export const CLINIC_AUDIT_ACTIONS = [
   "invoice.link_opened",
   // Finance F2 (spec §4.6): money in, patient credit, and the clinic's payment methods.
   "payment.recorded",
+  "payment.pdf_opened",
   "credit.applied",
   "credit.released",
   "payment_methods.changed",

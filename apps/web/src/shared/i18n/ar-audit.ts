@@ -148,7 +148,7 @@ export const arAudit = {
         pdf_opened: "فتح الفاتورة PDF",
         link_opened: "فتح المراجع رابط الفاتورة",
       },
-      payment: { recorded: "تسجيل دفعة" },
+      payment: { recorded: "تسجيل دفعة", pdf_opened: "فتح الإيصال PDF" },
       credit: { applied: "استخدام رصيد المراجع", released: "تحويل مبلغ لرصيد المراجع" },
       payment_methods: { changed: "تعديل طرق الدفع" },
       refund: { recorded: "تسجيل استرداد" },

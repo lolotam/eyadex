@@ -2,6 +2,7 @@ import type { IdGenerator } from "@eyadex/ids";
 import type {
   InvoicePdfRenderer,
   InvoicePdfModelRenderer,
+  ReceiptPdfRenderer,
   ReportExportRuntime,
 } from "./modules/billing/index.ts";
 import type { WhatsappDependencies } from "./app-whatsapp.ts";
@@ -50,4 +51,6 @@ export interface AppDependencies extends WhatsappDependencies {
   readonly invoicePdf?: InvoicePdfRenderer;
   /** Test-only model renderer: exercises real invoice/header/patient loading; default remains off. */
   readonly invoicePdfModel?: InvoicePdfModelRenderer;
+  /** Test-only receipt renderer; the default remains unavailable. */
+  readonly receiptPdf?: ReceiptPdfRenderer;
 }
