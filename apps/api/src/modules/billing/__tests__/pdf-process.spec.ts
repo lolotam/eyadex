@@ -1,4 +1,18 @@
 import { describe, expect, it } from "vitest";
+import * as runtime from "@eyadex/invoice-pdf/runtime";
+import { PdfCleanupError } from "../rendering/pdf-process.ts";
+import { pdfProcessGroupGone } from "../rendering/pdf-process-group.ts";
+import { assertPdfDumpPolicy } from "../rendering/pdf-dump-policy.ts";
+
+it("shares runtime exports and error identity through every API facade", () => {
+  expect(MemoryPdfProcess).toBe(runtime.MemoryPdfProcess);
+  expect(PdfProcessError).toBe(runtime.PdfProcessError);
+  expect(PdfCleanupError).toBe(runtime.PdfCleanupError);
+  expect(new PdfCleanupError()).toBeInstanceOf(runtime.PdfProcessError);
+  expect(pdfProcessGroupGone).toBe(runtime.pdfProcessGroupGone);
+  expect(pdfDumpPolicyAllows).toBe(runtime.pdfDumpPolicyAllows);
+  expect(assertPdfDumpPolicy).toBe(runtime.assertPdfDumpPolicy);
+});
 import { MemoryPdfProcess, PdfProcessError } from "../rendering/pdf-process.ts";
 import { pdfDumpPolicyAllows } from "../rendering/pdf-dump-policy.ts";
 

@@ -3,12 +3,17 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Pure allowlisted invoice PDF model and deterministic formatting; no I/O.",
+  "description": "Pure invoice PDF model with an explicit bounded Node runtime subpath.",
   "exports": {
     ".": {
       "types": "./src/index.ts",
       "eyadex-runtime": "./dist/index.js",
       "default": "./src/index.ts"
+    },
+    "./runtime": {
+      "types": "./src/runtime/index.ts",
+      "eyadex-runtime": "./dist/runtime/index.js",
+      "default": "./src/runtime/index.ts"
     }
   },
   "scripts": {
