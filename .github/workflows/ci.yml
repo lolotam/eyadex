@@ -249,7 +249,7 @@ jobs:
             --tmpfs /tmp --tmpfs /pdf-root:ro,size=1m \
             --mount "type=bind,source=$PWD,target=/workspace,readonly" \
             --entrypoint node eyadex-pdf-reproduction:ci \
-            --experimental-transform-types --test \
+            --experimental-transform-types --test --test-concurrency=1 \
             /workspace/apps/api/src/modules/billing/__tests__/pdf-process-linux.test.mjs \
             /workspace/apps/api/src/modules/billing/__tests__/receipt-pdf-linux.test.mjs
       - name: Preserve synthetic research evidence
