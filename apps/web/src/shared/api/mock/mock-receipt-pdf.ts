@@ -26,13 +26,15 @@ export async function receiptPdf(
   id: string,
   render: (payment: Payment) => Blob | Promise<Blob> = renderReceiptPdf,
 ): Promise<Blob> {
-  requirePayments(getState(), persona, "view");
+  const initial = requirePayments(getState(), persona, "view");
+  // A role persona may resolve to a different account later; retain the original membership.
+  const caller = { ...persona, memberId: initial.member.id };
   parse(z.string().uuid(), id);
-  const payment = getPayment(getState(), persona, id);
+  const payment = getPayment(getState(), caller, id);
   const file = await render(payment);
   const current = getState();
-  getPayment(current, persona, id);
-  const actor = requirePayments(current, persona, "view");
+  getPayment(current, caller, id);
+  const actor = requirePayments(current, caller, "view");
   writeClinicAudit(current, {
     clinicId: actor.clinic.id,
     actorName: actor.actorName,

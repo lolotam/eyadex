@@ -158,4 +158,22 @@ describe("receipt PDF mock parity", () => {
     expect(audit()).toHaveLength(0);
     expect(paymentState(getState()).payments).toHaveLength(1);
   });
+
+  it("does not replace a deactivated role-based caller with another active member", async () => {
+    const { payment } = await paid();
+    const { role, member } = roleOf("receptionist");
+    role.permissions = ["view:payments:clinic"];
+    getState().members.push({
+      ...member,
+      id: crypto.randomUUID(),
+      userId: crypto.randomUUID(),
+      fullName: "Alternate test member",
+    });
+    const result = receiptPdf(as("receptionist"), payment.id, async () => {
+      member.status = "deactivated";
+      return new Blob(["%PDF"], { type: "application/pdf" });
+    });
+    expect(await refusal(result)).toBe("account_disabled");
+    expect(audit()).toHaveLength(0);
+  });
 });
