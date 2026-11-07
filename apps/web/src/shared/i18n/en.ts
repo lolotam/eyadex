@@ -1,4 +1,4 @@
-import { enFinance, enReportExportErrors } from "./en-finance";
+import { enFinance, enFinanceErrors } from "./en-finance";
 import { enPayments } from "./en-payments";
 import { enCashClosings } from "./en-cash-closings";
 import { enReportExports } from "./en-report-exports";
@@ -187,40 +187,6 @@ export const en = {
     validation: "Some fields are invalid",
     last_active_platform_account: "The last active platform account cannot be deactivated",
     unknown: "Something went wrong",
-    // Finance F1 (spec §3.3).
-    price_missing: "This service has no price; set it in the services settings first",
-    invoice_prefix_missing: "Set this branch's invoice prefix before issuing its first invoice",
-    invoice_prefix_locked: "The invoice prefix cannot change after the branch's first invoice",
-    invoice_prefix_taken: "Another branch of the clinic uses or used this prefix",
-    invoice_already_exists: "An invoice already exists for this appointment or visit",
-    invoice_void: "This invoice is void and cannot be changed",
-    appointment_not_billable:
-      "A no-show or cancelled appointment has no invoice of its own; issue a manual invoice",
-    currency_locked: "The currency cannot change once a price or an invoice exists",
-    currency_unsupported: "This currency is not supported",
-    discount_exceeds_total: "The discount is larger than the invoice amount",
-    discount_reason_required: "Write the reason for the discount",
-    precondition_required: "Reload the invoice, then try again",
-    version_conflict: "Someone else just changed this invoice; reload it and try again",
-    send_request_conflict: "This send request was already used for another invoice or channel",
-    invoice_link_expired: "This invoice link is no longer valid; ask the clinic for a new one",
-    // Finance F2 (spec §4.6, §7); the web catalogue carries these codes, so they reach the UI as themselves.
-    payment_method_disabled: "This payment method is turned off in the clinic settings.",
-    payment_exceeds_balance: "The amount is more than the invoice still owes.",
-    invoice_settled: "The invoice is already fully paid.",
-    credit_insufficient: "The patient's credit is less than the amount.",
-    refund_exceeds_available: "The amount is more than can be refunded.",
-    payment_methods_empty: "At least one payment method must stay on.",
-    cash_drawer_changed: "Cash moved since the preview. Review the closing again.",
-    invoice_paid_changed:
-      "The paid amount on this invoice changed since you last read it; check the movements and try again.",
-    cash_closing_exists: "This branch's cash is already closed for today.",
-    closing_note_required: "Write a note when there is a difference.",
-    cash_drawer_out_of_range:
-      "The period's net cash is beyond the allowed limit, so the drawer cannot be closed",
-    ...enReportExportErrors,
-    pdf_pending: "The PDF is being prepared; try again shortly.",
-    pdf_busy: "PDF generation is busy; try again shortly.",
-    pdf_render_failed: "The PDF could not be generated; try again.",
+    ...enFinanceErrors,
   },
 } as const;
