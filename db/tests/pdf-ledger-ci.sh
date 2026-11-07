@@ -12,6 +12,7 @@ python3 db/tests/pdf-ledger-proof.py
 python3 db/tests/pdf-ledger-integrity.py
 python3 db/tests/pdf-ledger-transitions.py
 python3 db/tests/pdf-ledger-lifecycle.py
+python3 db/tests/pdf-ledger-clock-races.py
 docker exec "$PDF_PROOF_CONTAINER" createdb -U eyadex_owner -T eyadex eyadex_pdf_rollback
 docker exec -i "$PDF_PROOF_CONTAINER" psql -U eyadex_owner -d eyadex_pdf_rollback -v ON_ERROR_STOP=1 < db/sql/0022_revoke_temporary.sql
 PDF_PROOF_DATABASE=eyadex_pdf_rollback python3 db/tests/pdf-ledger-rollback.py

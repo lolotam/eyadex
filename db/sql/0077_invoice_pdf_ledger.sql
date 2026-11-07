@@ -214,6 +214,7 @@ BEGIN
     END IF;
     IF OLD.status IN ('ready','failed','cancelled','superseded','expired')
       AND NEW.status IN ('queued','running','retry_wait') THEN RAISE EXCEPTION 'pdf_terminal'; END IF;
+    IF OLD.status='running' AND NEW.status='running' AND OLD.lease_until<=clock_timestamp() THEN RAISE EXCEPTION 'pdf_lease_expired'; END IF;
     IF NEW.status='running' AND (NEW.deadline_at<=clock_timestamp() OR NEW.lease_until<=clock_timestamp()) THEN RAISE EXCEPTION 'pdf_deadline'; END IF;
     IF NEW.status = 'running' AND OLD.status <> 'running' THEN
       IF NEW.deadline_at > clock_timestamp()+interval '60 seconds' THEN RAISE EXCEPTION 'pdf_deadline'; END IF;

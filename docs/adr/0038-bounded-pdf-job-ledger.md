@@ -36,8 +36,10 @@ or granting the API direct deletion rights.
   deleted attempts; upload cleanup rejects an existing ready artifact. Both paths
   serialize on the upload row. Deleting records cannot return to a live state; expired
   or deleting artifacts cannot return to ready. Artifact publication and its 24-hour
-  expiry are stamped by the server. Claims reject past deadlines; allocation checks
-  expiry after acquiring the job lock. Publication/currentness and storage reconciliation remain
+  expiry are stamped from the current clock after upload serialization. Stored
+  retention ages also use the current clock after row locks; purge cutoffs alone use
+  a stable statement clock. Claims reject past deadlines; allocation checks
+  expiry after acquiring the job lock. Expired old leases cannot be renewed. Publication/currentness and storage reconciliation remain
   separate, unimplemented release gates.
 - Assign the tenant-scoped SECURITY DEFINER purge to NOLOGIN, NOBYPASSRLS
   `eyadex_pdf_retention`, with a fixed search path and forced RLS. Only
@@ -66,3 +68,12 @@ shared migration or production change.
 CI covers real LOGIN-role negatives, admission concurrency, rollback under a locked
 full counter, and all table mirrors. Cloned databases reapply 0022's database-level
 TEMPORARY revocation because template cloning does not preserve database ACLs.
+
+## Release boundary
+
+This draft remains unmerged while its shared-migration HOLD is active. `db/sql` is
+where project rules require reviewed forward-only candidates; their presence is not
+authorization to apply them. Per CLAUDE section 5.1, production migrations are run
+manually by the orchestrator, never by application startup. Any shared baseline run
+containing 0077-0078 requires the owner's separate decision; later dependent releases
+must remain blocked until that decision. This ADR does not grant it.

@@ -91,6 +91,7 @@ def expired_after_lock():
         if holder.poll() is None:
             holder.stdin.write('ROLLBACK;\n\\q\n');holder.stdin.flush();holder.wait(timeout=10)
         pool.shutdown(wait=True)
+    reject(f"UPDATE invoice_pdf_jobs SET lease_until=now()+interval '3 seconds' WHERE id='{job}'", 'pdf_lease_expired')
     release(job)
 
 

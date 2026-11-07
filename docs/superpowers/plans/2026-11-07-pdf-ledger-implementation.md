@@ -195,3 +195,15 @@ uses upload locking. Artifact insertion stamps publication time and derives its
 Claims reject expired leases/deadlines, and upload allocation checks its expiry only
 after locking the job. Regressions cover expired claims, expired upload deadlines,
 and a lease expiring while blocked behind an unchanged row lock.
+
+Serialization follow-up: artifact publication is stamped with the current clock
+only after obtaining the upload lock. Stored update/deletion/terminal ages likewise
+use the current clock; stable statement time remains only in purge cutoff queries.
+Outer purge predicates recheck state, age and child absence after lock waits. Old
+expired leases cannot be extended. New two-connection tests cover delayed publication
+and a retention candidate refreshed while deletion waits.
+
+The baseline-placement review remains an explicit release HOLD, not a code change
+that authorizes a shared migration. Project rules require numbered SQL in this PR;
+production execution remains a separate manual owner-approved action. This stack is
+kept draft/unmerged, including any dependent release, until those gates are satisfied.
