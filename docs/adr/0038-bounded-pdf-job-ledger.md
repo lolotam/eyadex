@@ -21,7 +21,9 @@ or granting the API direct deletion rights.
   tenant index starts with `clinic_id`; no global document index is introduced.
 - Serialize global admission through a count-only infrastructure row. Its SECURITY
   DEFINER trigger belongs to NOLOGIN, NOBYPASSRLS `eyadex_pdf_capacity`. Runtime roles
-  cannot directly access the row. A unique tenant-leading index enforces ten slots.
+  cannot directly access the row. Reusing either private role fails closed for LOGIN,
+  SUPERUSER, BYPASSRLS, CREATEDB, CREATEROLE, REPLICATION or any role membership.
+  A unique tenant-leading index enforces ten slots.
 - Enforce capacity transactionally. The constraint trigger is initially immediate,
   preserving normal admission. Explicit deferral postpones enforcement until commit;
   committing over capacity still fails atomically. The rollback-only isolation suite

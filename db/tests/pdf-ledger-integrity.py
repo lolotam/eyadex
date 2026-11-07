@@ -13,7 +13,7 @@ def proof():
     tables = ['invoice_pdf_jobs','invoice_pdf_upload_attempts','invoice_pdf_artifacts']
     assert p.run("SELECT count(*) FROM pg_class WHERE relname IN ('invoice_pdf_jobs','invoice_pdf_upload_attempts','invoice_pdf_artifacts') AND relrowsecurity AND relforcerowsecurity", 'eyadex_owner').stdout.strip() == '3'
     assert p.run("SELECT count(*) FROM pg_index i JOIN pg_class t ON t.oid=i.indrelid JOIN pg_attribute a ON a.attrelid=t.oid AND a.attnum=i.indkey[0] WHERE t.relname IN ('invoice_pdf_jobs','invoice_pdf_upload_attempts','invoice_pdf_artifacts') AND a.attname<>'clinic_id'", 'eyadex_owner').stdout.strip() == '0'
-    assert p.run("SELECT count(*) FROM pg_roles WHERE rolname IN ('eyadex_pdf_capacity','eyadex_pdf_retention') AND NOT rolcanlogin AND NOT rolbypassrls AND NOT rolsuper", 'eyadex_owner').stdout.strip() == '2'
+    assert p.run("SELECT count(*) FROM pg_roles WHERE rolname IN ('eyadex_pdf_capacity','eyadex_pdf_retention') AND NOT rolcanlogin AND NOT rolbypassrls AND NOT rolsuper AND NOT rolcreatedb AND NOT rolcreaterole AND NOT rolreplication AND NOT EXISTS (SELECT FROM pg_auth_members m WHERE m.roleid=pg_roles.oid OR m.member=pg_roles.oid)", 'eyadex_owner').stdout.strip() == '2'
     for table in tables:
         assert p.run(f'SELECT count(*) FROM {table}').stdout.strip() == '0'
         for role in ['eyadex_platform','eyadex_auth','eyadex_dispatcher']:

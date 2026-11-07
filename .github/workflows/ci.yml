@@ -75,15 +75,7 @@ jobs:
           PDF_PROOF_CONTAINER: ${{ job.services.postgres.id }}
           PDF_PROOF_DATABASE: eyadex_pdf_proof
           PDF_PROOF_OUTPUT: ${{ runner.temp }}/eyadex-pdf-ledger
-        run: |
-          docker exec "$PDF_PROOF_CONTAINER" createdb -U eyadex_owner -T eyadex "$PDF_PROOF_DATABASE"
-          docker exec -i "$PDF_PROOF_CONTAINER" psql -U eyadex_owner -d "$PDF_PROOF_DATABASE" -v ON_ERROR_STOP=1 < db/sql/0022_revoke_temporary.sql
-          python3 db/tests/pdf-ledger-proof.py
-          python3 db/tests/pdf-ledger-integrity.py
-          python3 db/tests/pdf-ledger-transitions.py
-          docker exec "$PDF_PROOF_CONTAINER" createdb -U eyadex_owner -T eyadex eyadex_pdf_rollback
-          docker exec -i "$PDF_PROOF_CONTAINER" psql -U eyadex_owner -d eyadex_pdf_rollback -v ON_ERROR_STOP=1 < db/sql/0022_revoke_temporary.sql
-          PDF_PROOF_DATABASE=eyadex_pdf_rollback python3 db/tests/pdf-ledger-rollback.py
+        run: bash db/tests/pdf-ledger-ci.sh
       - name: Migration status is clean
         run: sh db/migrate.sh --status
       - name: RLS + grant negative isolation tests

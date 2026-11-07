@@ -179,3 +179,11 @@ waits for a cleanup transition, and insertion after deletion is refused. Existin
 positional clinic/branch/patient fixture inserts remained valid: all 30 SQL files
 passed unchanged except the explicit PDF guard-aware negative test. No production
 readiness or complete publication/currentness contract is claimed.
+
+Private-role reuse now validates attributes and membership before granting access or
+function ownership. Unsafe LOGIN/SUPERUSER/BYPASSRLS/CREATEDB/CREATEROLE/REPLICATION
+or incoming/outgoing membership fails the migration rather than altering an existing
+cluster role. Retention setup moved coherently to 0078 to keep both migration files
+below 300 lines. An explicitly isolated-cluster CI proof exercises sixteen unsafe
+role configurations and safe pre-existing roles through the actual migration SQL;
+normal production SQL tests never alter role attributes to simulate attacks.
