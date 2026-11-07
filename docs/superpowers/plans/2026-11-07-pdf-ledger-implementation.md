@@ -187,3 +187,11 @@ cluster role. Retention setup moved coherently to 0078 to keep both migration fi
 below 300 lines. An explicitly isolated-cluster CI proof exercises sixteen unsafe
 role configurations and safe pre-existing roles through the actual migration SQL;
 normal production SQL tests never alter role attributes to simulate attacks.
+
+Lifecycle review follow-up: deleting uploads can only remain deleting or become
+deleted; retired artifacts cannot become ready again. Any ready-state update also
+uses upload locking. Artifact insertion stamps publication time and derives its
+24-hour expiry on the server, rejecting caller back/future dating by replacement.
+Claims reject expired leases/deadlines, and upload allocation checks its expiry only
+after locking the job. Regressions cover expired claims, expired upload deadlines,
+and a lease expiring while blocked behind an unchanged row lock.

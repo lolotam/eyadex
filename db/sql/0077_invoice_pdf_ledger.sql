@@ -214,6 +214,7 @@ BEGIN
     END IF;
     IF OLD.status IN ('ready','failed','cancelled','superseded','expired')
       AND NEW.status IN ('queued','running','retry_wait') THEN RAISE EXCEPTION 'pdf_terminal'; END IF;
+    IF NEW.status='running' AND (NEW.deadline_at<=clock_timestamp() OR NEW.lease_until<=clock_timestamp()) THEN RAISE EXCEPTION 'pdf_deadline'; END IF;
     IF NEW.status = 'running' AND OLD.status <> 'running' THEN
       IF NEW.deadline_at > clock_timestamp()+interval '60 seconds' THEN RAISE EXCEPTION 'pdf_deadline'; END IF;
       IF OLD.status NOT IN ('queued','retry_wait') OR NEW.attempt <> OLD.attempt+1 OR NEW.fence <> OLD.fence+1 THEN
@@ -236,12 +237,16 @@ FOR EACH ROW EXECUTE FUNCTION invoice_pdf_job_guard();
 
 CREATE FUNCTION invoice_pdf_upload_guard() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog AS $$
+DECLARE job public.invoice_pdf_jobs%ROWTYPE;
 BEGIN
-  IF TG_OP='INSERT' AND NOT EXISTS (SELECT 1 FROM public.invoice_pdf_jobs j
-    WHERE j.clinic_id=NEW.clinic_id AND j.id=NEW.job_id AND j.status='running'
-    AND j.attempt=NEW.attempt AND j.fence=NEW.fence AND j.lease_until>clock_timestamp()
-    AND j.deadline_at>=NEW.upload_deadline_at AND j.lease_until>=NEW.upload_deadline_at FOR UPDATE) THEN RAISE EXCEPTION 'pdf_upload_fence'; END IF;
-  IF TG_OP='INSERT' AND NEW.state<>'allocated' THEN RAISE EXCEPTION 'pdf_upload_initial'; END IF;
+  SELECT * INTO job FROM public.invoice_pdf_jobs
+    WHERE clinic_id=NEW.clinic_id AND id=NEW.job_id FOR UPDATE;
+  IF NOT FOUND OR job.status<>'running' OR job.attempt<>NEW.attempt OR job.fence<>NEW.fence
+    OR job.lease_until<=clock_timestamp() OR NEW.upload_deadline_at<=clock_timestamp()
+    OR job.deadline_at<NEW.upload_deadline_at OR job.lease_until<NEW.upload_deadline_at THEN
+    RAISE EXCEPTION 'pdf_upload_fence';
+  END IF;
+  IF NEW.state<>'allocated' THEN RAISE EXCEPTION 'pdf_upload_initial'; END IF;
   RETURN NEW;
 END $$;
 REVOKE ALL ON FUNCTION invoice_pdf_upload_guard() FROM PUBLIC;

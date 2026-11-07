@@ -58,6 +58,9 @@ CREATE FUNCTION invoice_pdf_evidence_clock() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog AS $$
 BEGIN
   IF TG_OP='UPDATE' AND OLD.state='deleted' THEN RETURN NEW; END IF;
+  IF TG_OP='INSERT' AND TG_TABLE_NAME='invoice_pdf_artifacts' THEN
+    NEW.published_at := statement_timestamp(); NEW.expires_at := NEW.published_at + interval '24 hours';
+  END IF;
   IF TG_OP='INSERT' THEN NEW.deleted_at := NULL;
   ELSIF NEW.state='deleted' THEN NEW.deleted_at := statement_timestamp();
   ELSE NEW.deleted_at := OLD.deleted_at; END IF;
@@ -81,6 +84,7 @@ FOR EACH ROW EXECUTE FUNCTION invoice_pdf_evidence_clock();
 CREATE FUNCTION invoice_pdf_artifact_upload_guard() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog AS $$
 BEGIN
+  IF TG_OP='UPDATE' AND NEW.state<>'ready' THEN RETURN NEW; END IF;
   PERFORM 1 FROM public.invoice_pdf_upload_attempts u
     WHERE u.clinic_id=NEW.clinic_id AND u.job_id=NEW.job_id AND u.id=NEW.upload_id
       AND u.state NOT IN ('deleting','deleted') FOR UPDATE;
@@ -88,7 +92,7 @@ BEGIN
   RETURN NEW;
 END $$;
 REVOKE ALL ON FUNCTION invoice_pdf_artifact_upload_guard() FROM PUBLIC;
-CREATE TRIGGER invoice_pdf_artifact_upload_guard BEFORE INSERT ON invoice_pdf_artifacts
+CREATE TRIGGER invoice_pdf_artifact_upload_guard BEFORE INSERT OR UPDATE OF state ON invoice_pdf_artifacts
 FOR EACH ROW EXECUTE FUNCTION invoice_pdf_artifact_upload_guard();
 
 CREATE FUNCTION invoice_pdf_upload_cleanup_guard() RETURNS trigger
@@ -104,3 +108,24 @@ END $$;
 REVOKE ALL ON FUNCTION invoice_pdf_upload_cleanup_guard() FROM PUBLIC;
 CREATE TRIGGER invoice_pdf_upload_cleanup_guard BEFORE UPDATE OF state ON invoice_pdf_upload_attempts
 FOR EACH ROW EXECUTE FUNCTION invoice_pdf_upload_cleanup_guard();
+
+-- Cleanup and retired artifacts cannot become live again.
+CREATE FUNCTION invoice_pdf_lifecycle_guard() RETURNS trigger
+LANGUAGE plpgsql SET search_path = pg_catalog AS $$
+BEGIN
+  IF TG_OP='INSERT' THEN
+    IF TG_TABLE_NAME='invoice_pdf_artifacts' AND NEW.state<>'ready' THEN RAISE EXCEPTION 'pdf_artifact_initial'; END IF;
+  ELSIF OLD.state='deleting' AND NEW.state NOT IN ('deleting','deleted') THEN
+    RAISE EXCEPTION 'pdf_cleanup_terminal';
+  ELSIF TG_TABLE_NAME='invoice_pdf_artifacts' AND NEW.state='ready' AND OLD.state<>'ready' THEN
+    RAISE EXCEPTION 'pdf_artifact_terminal';
+  ELSIF TG_TABLE_NAME='invoice_pdf_upload_attempts' AND OLD.state='published'
+    AND NEW.state NOT IN ('published','deleting','deleted') THEN RAISE EXCEPTION 'pdf_upload_terminal';
+  END IF;
+  RETURN NEW;
+END $$;
+REVOKE ALL ON FUNCTION invoice_pdf_lifecycle_guard() FROM PUBLIC;
+CREATE TRIGGER invoice_pdf_artifact_lifecycle BEFORE INSERT OR UPDATE OF state ON invoice_pdf_artifacts
+FOR EACH ROW EXECUTE FUNCTION invoice_pdf_lifecycle_guard();
+CREATE TRIGGER invoice_pdf_upload_lifecycle BEFORE UPDATE OF state ON invoice_pdf_upload_attempts
+FOR EACH ROW EXECUTE FUNCTION invoice_pdf_lifecycle_guard();
