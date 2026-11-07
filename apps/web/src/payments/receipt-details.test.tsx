@@ -3,13 +3,18 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { I18nProvider } from "@/shared/i18n/i18n-provider";
 import { ReceiptDetails } from "./receipt-details";
 
-const h = vi.hoisted(() => ({ refetch: vi.fn() }));
+const h = vi.hoisted(() => ({ refetch: vi.fn(), permissions: [] as string[] }));
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children }: { children: React.ReactNode }) => <a>{children}</a>,
 }));
 vi.mock("@/shared/persona/persona-provider", () => ({
-  useSession: () => ({ session: { permissions: [], allBranches: false, branchIds: [] } }),
+  useSession: () => ({
+    session: { permissions: h.permissions, allBranches: false, branchIds: [] },
+  }),
+}));
+vi.mock("./receipt-pdf-action", () => ({
+  ReceiptPdfAction: ({ paymentId }: { paymentId: string }) => <button>{`PDF ${paymentId}`}</button>,
 }));
 vi.mock("./receipt-queries", async (real) => ({
   ...(await real<typeof import("./receipt-queries")>()),
@@ -36,7 +41,10 @@ vi.mock("./receipt-queries", async (real) => ({
   }),
 }));
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  h.permissions = [];
+});
 
 describe("the receipt page", () => {
   it("shows a branch-options failure with a working retry, not «—»", () => {
@@ -48,5 +56,25 @@ describe("the receipt page", () => {
     expect(screen.getByText("تعذر تحميل الفروع")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "حاول مرة أخرى" }));
     expect(h.refetch).toHaveBeenCalled();
+  });
+
+  it("shows the PDF action for payment-view permission", () => {
+    h.permissions = ["view:payments:clinic"];
+    render(
+      <I18nProvider manageDocument={false}>
+        <ReceiptDetails paymentId="x" />
+      </I18nProvider>,
+    );
+    expect(screen.getByRole("button", { name: /PDF 00000000/ })).toBeTruthy();
+  });
+
+  it("does not substitute invoice permission for payment reach", () => {
+    h.permissions = ["view:invoices:clinic", "view:payments:branch"];
+    render(
+      <I18nProvider manageDocument={false}>
+        <ReceiptDetails paymentId="x" />
+      </I18nProvider>,
+    );
+    expect(screen.queryByRole("button", { name: /PDF 00000000/ })).toBeNull();
   });
 });
