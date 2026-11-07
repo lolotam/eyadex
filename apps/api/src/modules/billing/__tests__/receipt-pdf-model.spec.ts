@@ -153,10 +153,17 @@ describe("receipt PDF model", () => {
     { amountMinor: "0" },
     { amountMinor: "-1" },
     { amountMinor: "invalid" },
+    { amountMinor: "+1" },
+    { amountMinor: " 1" },
+    { amountMinor: "01" },
+    { amountMinor: "9223372036854775808" },
     { currencyExponent: 2 },
     { businessDate: "2026-02-30" },
     { businessDate: "2026-1-2" },
     { receivedAt: "invalid" },
+    { receivedAt: "2026-02-01" },
+    { receivedAt: "2026-02-30T00:00:00Z" },
+    { receivedAt: "2026-02-29T00:00:00Z" },
   ])("sanitizes invalid stored amount/date facts: %j", (invalid) => {
     expect(() => receiptPdfModel({ ...payment, ...invalid }, header, display)).toThrow(
       "pdf_model_invalid",
@@ -171,4 +178,11 @@ describe("receipt PDF model", () => {
       receiptPdfModel(payment, { ...header, timezone: "INVALID-ZONE" }, display),
     ).toThrow("pdf_model_invalid");
   });
+
+  it.each(["2024-02-29T12:30Z", "2024-02-29T12:30:00.123456Z"])(
+    "preserves accepted UTC timestamp shapes: %s",
+    (receivedAt) => {
+      expect(receiptPdfModel({ ...payment, receivedAt }, header, display).time).toBe("15:30");
+    },
+  );
 });

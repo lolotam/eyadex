@@ -1,6 +1,10 @@
-import type { Payment } from "@eyadex/contracts/finance";
+import { paymentSchema, type Payment } from "@eyadex/contracts/finance";
 import { instantToWall } from "@eyadex/contracts/clinic-time";
-import { formatMinor, SUPPORTED_CURRENCIES } from "@eyadex/contracts/money";
+import {
+  formatMinor,
+  positiveMinorAmountSchema,
+  SUPPORTED_CURRENCIES,
+} from "@eyadex/contracts/money";
 import type { InvoicePdfHeader } from "./invoice-pdf-model.ts";
 
 /** بيانات الدفعة المالية المحفوظة فقط؛ لا يحتاج النموذج أي معرّف داخلي. */
@@ -67,7 +71,8 @@ export function receiptPdfModel(
       payment.currencyExponent !== SUPPORTED_CURRENCIES[payment.currency] ||
       !methods[payment.method] ||
       !/^\d{4}-\d{2}-\d{2}$/.test(payment.businessDate) ||
-      BigInt(payment.amountMinor) <= 0n
+      !positiveMinorAmountSchema.safeParse(payment.amountMinor).success ||
+      !paymentSchema.shape.receivedAt.safeParse(payment.receivedAt).success
     ) {
       throw new Error("pdf_model_invalid");
     }
