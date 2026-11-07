@@ -1,4 +1,4 @@
-import type { enFinance, enReportExportErrors } from "./en-finance";
+import type { enFinance, enFinanceErrors, enReportExportErrors } from "./en-finance";
 
 type Strings<T> = { [K in keyof T]: T[K] extends string ? string : Strings<T[K]> };
 
@@ -159,4 +159,41 @@ export const arFinance: Strings<typeof enFinance> = {
       totalsError: "تعذّر تحميل الإجماليات",
     },
   },
+};
+
+export const arFinanceErrors: Strings<typeof enFinanceErrors> = {
+  // Finance F1 (spec §3.3).
+  price_missing: "لا يوجد سعر لهذه الخدمة؛ أضف السعر من إعدادات الخدمات أولًا",
+  invoice_prefix_missing: "حدد بادئة الفواتير لهذا الفرع قبل إصدار أول فاتورة",
+  invoice_prefix_locked: "لا يمكن تغيير بادئة الفواتير بعد إصدار أول فاتورة في الفرع",
+  invoice_prefix_taken: "هذه البادئة مستخدمة لفرع آخر في العيادة",
+  invoice_already_exists: "يوجد بالفعل فاتورة لهذا الموعد أو لهذه الزيارة",
+  invoice_void: "هذه الفاتورة ملغاة ولا يمكن تعديلها",
+  appointment_not_billable:
+    "لا يمكن إصدار فاتورة من موعد لم يحضره المراجع أو أُلغي؛ أصدر فاتورة يدوية عند الحاجة",
+  currency_locked: "لا يمكن تغيير العملة بعد تسعير خدمة أو إصدار فاتورة",
+  currency_unsupported: "هذه العملة غير مدعومة",
+  discount_exceeds_total: "الخصم أكبر من قيمة الفاتورة",
+  discount_reason_required: "اكتب سبب الخصم",
+  precondition_required: "أعد تحميل الفاتورة ثم أعد المحاولة",
+  version_conflict: "عدّل شخص آخر هذه الفاتورة للتو؛ أعد تحميلها ثم أعد المحاولة",
+  send_request_conflict: "طلب الإرسال هذا مستخدم لفاتورة أو قناة أخرى",
+  invoice_link_expired: "رابط الفاتورة غير صالح أو انتهت صلاحيته؛ اطلب رابطاً جديداً من العيادة",
+  // Finance F2 (spec §4.6, §7); the web catalogue carries these codes, so they reach the UI as themselves.
+  payment_method_disabled: "طريقة الدفع هذه موقوفة في إعدادات العيادة.",
+  payment_exceeds_balance: "المبلغ أكبر من المتبقي على الفاتورة.",
+  invoice_settled: "الفاتورة مدفوعة بالكامل.",
+  credit_insufficient: "رصيد المراجع أقل من المبلغ المطلوب.",
+  refund_exceeds_available: "المبلغ أكبر من المتاح للاسترداد.",
+  payment_methods_empty: "يجب أن تبقى طريقة دفع واحدة على الأقل مفعّلة.",
+  cash_drawer_changed: "توجد حركة نقدية جديدة منذ المعاينة. راجع الإقفال مرة أخرى.",
+  invoice_paid_changed:
+    "المبلغ المدفوع على هذه الفاتورة تغيّر بعد آخر قراءة لها؛ راجع الحركات ثم أعد المحاولة",
+  cash_closing_exists: "تم إقفال صندوق هذا الفرع اليوم.",
+  closing_note_required: "اكتب ملاحظة عند وجود فرق.",
+  cash_drawer_out_of_range: "صافي النقد في هذه الفترة يتجاوز الحد المسموح، ولا يمكن إقفال الصندوق",
+  ...arReportExportErrors,
+  pdf_pending: "ملف PDF قيد التجهيز؛ حاول بعد لحظات.",
+  pdf_busy: "إنشاء PDF مشغول حاليًا؛ حاول بعد لحظات.",
+  pdf_render_failed: "تعذّر إنشاء ملف PDF؛ حاول مرة تانية.",
 };
