@@ -260,8 +260,9 @@ jobs:
             --mount "type=bind,source=$PWD,target=/workspace,readonly" \
             --mount "type=bind,source=$PWD/packages/invoice-pdf,target=/workspace/node_modules/@eyadex/invoice-pdf,readonly" \
             --entrypoint node eyadex-pdf-reproduction:ci \
-            --conditions=eyadex-runtime --experimental-transform-types --test \
-            /workspace/apps/api/src/modules/billing/__tests__/pdf-process-linux.test.mjs
+            --conditions=eyadex-runtime --experimental-transform-types --test --test-concurrency=1 \
+            /workspace/apps/api/src/modules/billing/__tests__/pdf-process-linux.test.mjs \
+            /workspace/apps/api/src/modules/billing/__tests__/typst-runtime-linux.test.mjs
       - name: Preserve synthetic research evidence
         if: always()
         uses: actions/upload-artifact@v4
