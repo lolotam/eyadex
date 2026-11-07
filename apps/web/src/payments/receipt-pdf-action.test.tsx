@@ -1,5 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { useLayoutEffect } from "react";
 import { ApiError } from "@/shared/api/api-error";
 import { I18nProvider } from "@/shared/i18n/i18n-provider";
 import { ReceiptPdfAction } from "./receipt-pdf-action";
@@ -95,6 +96,32 @@ describe("receipt PDF action", () => {
     fireEvent.click(screen.getByRole("button"));
     page.unmount();
     expect(h.close).toHaveBeenCalledWith(tab);
+    await act(async () => task.resolve(file));
+    expect(h.show).not.toHaveBeenCalled();
+  });
+
+  it("closes the pending tab during commit, before parent layout effects run", async () => {
+    const task = deferred();
+    h.pdf.mockReturnValue(task.promise);
+    let closedDuringCommit = false;
+    function CommitProbe({ visible }: { visible: boolean }) {
+      useLayoutEffect(() => {
+        if (!visible) closedDuringCommit = h.close.mock.calls.some(([value]) => value === tab);
+      }, [visible]);
+      return visible ? <ReceiptPdfAction paymentId="receipt-a" /> : null;
+    }
+    const page = render(
+      <I18nProvider manageDocument={false}>
+        <CommitProbe visible />
+      </I18nProvider>,
+    );
+    fireEvent.click(screen.getByRole("button"));
+    page.rerender(
+      <I18nProvider manageDocument={false}>
+        <CommitProbe visible={false} />
+      </I18nProvider>,
+    );
+    expect(closedDuringCommit).toBe(true);
     await act(async () => task.resolve(file));
     expect(h.show).not.toHaveBeenCalled();
   });

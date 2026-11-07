@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useLayoutEffect, useId, useRef, useState } from "react";
 import { FileDown, LoaderCircle } from "lucide-react";
 import type { WebErrorCode } from "@eyadex/contracts/common";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ export function ReceiptPdfAction({ paymentId }: { paymentId: string }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<WebErrorCode | null>(null);
   const active = useRef<{ tab: Window | null } | null>(null);
-  useEffect(() => {
+  useLayoutEffect(() => {
     setPending(false);
     setError(null);
     return () => {
