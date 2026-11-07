@@ -48,3 +48,8 @@ export {
 } from "./finance-reports.ts";
 
 export { financeReportExportPatients } from "./finance-export-patients.ts";
+
+export { invoicePdfJobs } from "./invoice-pdf-jobs.ts";
+export { invoicePdfUploadAttempts } from "./invoice-pdf-upload-attempts.ts";
+export { invoicePdfArtifacts } from "./invoice-pdf-artifacts.ts";
+export { invoicePdfCapacity } from "./invoice-pdf-capacity.ts";

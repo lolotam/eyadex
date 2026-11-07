@@ -24,6 +24,9 @@ export const clinics = pgTable(
   "clinics",
   {
     id: uuid("id").primaryKey(),
+    pdfDisplayRevision: bigint("pdf_display_revision", { mode: "bigint" })
+      .notNull()
+      .default(sql.raw("1")),
     slug: text("slug").notNull(),
     nameAr: text("name_ar").notNull(),
     nameEn: text("name_en").notNull(),
@@ -48,6 +51,7 @@ export const clinics = pgTable(
     logoBlobKey: text("logo_blob_key"),
   },
   (t) => [
+    check("clinics_pdf_display_revision_check", sql.raw("(pdf_display_revision > 0)")),
     unique("clinics_slug_key").on(t.slug),
     index("clinics_status_expires_idx").on(t.status, t.expiresAt),
     index("clinics_created_at_id_idx").on(t.createdAt, t.id),

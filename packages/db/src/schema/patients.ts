@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
   check,
   date,
@@ -26,6 +27,9 @@ export const patients = pgTable(
   {
     clinicId: uuid("clinic_id").notNull(),
     id: uuid("id").notNull(),
+    pdfDisplayRevision: bigint("pdf_display_revision", { mode: "bigint" })
+      .notNull()
+      .default(sql.raw("1")),
     fileNumber: text("file_number").notNull(),
     fullName: text("full_name").notNull(),
     phone: text("phone").notNull(),
@@ -44,6 +48,7 @@ export const patients = pgTable(
     notificationsOptOut: boolean("notifications_opt_out").notNull().default(false),
   },
   (t) => [
+    check("patients_pdf_display_revision_check", sql.raw("(pdf_display_revision > 0)")),
     primaryKey({ name: "patients_pkey", columns: [t.clinicId, t.id] }),
     unique("patients_clinic_id_file_number_key").on(t.clinicId, t.fileNumber),
     unique("patients_clinic_id_phone_key").on(t.clinicId, t.phone),
