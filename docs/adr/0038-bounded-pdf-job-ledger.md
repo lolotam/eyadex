@@ -69,7 +69,40 @@ CI covers real LOGIN-role negatives, admission concurrency, rollback under a loc
 full counter, and all table mirrors. Cloned databases reapply 0022's database-level
 TEMPORARY revocation because template cloning does not preserve database ACLs.
 
-## Release boundary
+## P3b: disabled current-version admission
+
+`RequestInvoicePdf.request` is an internal, unregistered composition seam. It receives
+an existing trusted `withTenant` transaction and reloads membership, subscription,
+feature and permission facts before invoice visibility. It locks the patient before
+the invoice, then reads the patient display revision and locks branch then clinic
+display revisions through owner-provided ports. Renderer revision is deployment
+configuration, never a request field. The job identity uses the current invoice
+version and all four renderer/display revisions. It emits neither an outbox event
+nor a successful-open audit and changes no public response or production binding.
+
+Call it before acquiring locks later than its source locks. A caller that already
+owns the patient/invoice locks can compose it into the same business transaction.
+A per-clinic admission advisory lock follows those source locks and serializes slot
+selection. Identical current work is reused; obsolete live work becomes superseded,
+loses its lease/slot and advances its fence. Evidence remains. Expired ready jobs do
+not satisfy a request. No deferred-intent backlog is written.
+
+Insertion uses awaited guarded `Tx.transaction` savepoints. Only the exact global
+capacity CHECK or clinic slot unique constraint becomes `saturated`; the caller's
+invoice transaction remains usable. Other faults propagate through the existing
+database sanitizer, now exported for this internal boundary. Generation dedup is
+decided under source/admission locks, not by swallowing arbitrary unique violations.
+The job row is the durable admission record. Existing database capacity triggers
+remain authoritative; no migration changes are part of P3b.
+
+The executable runtime proof uses the compiled implementation, actual LOGIN
+`eyadex_app` wrapper, identity access adapter and owner revision adapters. CI runs
+it in a separately cloned baseline database. It covers concurrent identical requests,
+real permission/tenant negatives, revision invalidation, stale-running fencing,
+rollback, both limits, invoice commit on saturation and sanitized unrelated faults.
+All existing worker, storage, staging, migration and release HOLDs remain.
+
+## Release boundary (unchanged)
 
 This draft remains unmerged while its shared-migration HOLD is active. `db/sql` is
 where project rules require reviewed forward-only candidates; their presence is not

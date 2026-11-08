@@ -2,6 +2,8 @@
 // branches and clinics for the invoice prefix and the currency; patients, appointments, visits and members
 // come through its ports, bound in billing.module.ts to the adapters their owners export from index.ts.
 export const BILLING_RELATIONS = [
+  "invoice_pdf_jobs",
+  "generate_series",
   "clinic_services",
   "service_provider_prices",
   "invoices",
