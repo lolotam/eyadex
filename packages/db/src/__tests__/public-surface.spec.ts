@@ -1,17 +1,23 @@
 import { describe, expect, it } from "vitest";
 
 import * as db from "../index.ts";
+import { asDatabaseError } from "../database-error.ts";
 
 describe("@eyadex/db public surface", () => {
-  it("offers the two factories, the three error types and the sql tag — no raw client, no Drizzle instance", () => {
+  it("offers factories, error types, the sanitizer and sql without exposing a raw client", () => {
     expect(Object.keys(db).sort()).toEqual([
       "DatabaseError",
       "ForbiddenStatementError",
       "TenantContextViolationError",
+      "asDatabaseError",
       "createDatabase",
       "createDispatcherOutbox",
       "sql",
     ]);
+  });
+
+  it("exports the canonical error sanitizer for guarded savepoint callers", () => {
+    expect(db.asDatabaseError).toBe(asDatabaseError);
   });
 
   it("gives the dispatcher a claim, a fixed purge, ping and close only — no general transaction", () => {
