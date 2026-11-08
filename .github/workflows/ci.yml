@@ -103,6 +103,15 @@ jobs:
       - run: pnpm install --frozen-lockfile
       # apps/api test:db imports its workspace dependencies from dist (observability, contracts, ids…).
       - run: pnpm --filter @eyadex/db... --filter @eyadex/auth... --filter "@eyadex/api^..." --filter "@eyadex/worker..." build
+      - name: Disabled PDF admission against actual runtime role
+        run: |
+          pnpm --filter @eyadex/api build
+          createdb -T eyadex eyadex_pdf_admission
+          PGDATABASE=eyadex_pdf_admission psql -v ON_ERROR_STOP=1 -f db/sql/0022_revoke_temporary.sql
+          node --conditions=eyadex-runtime --test --test-force-exit apps/api/src/modules/billing/__tests__/pdf-admission-runtime.test.mjs
+        env:
+          EYADEX_TEST_OWNER_URL: postgres://eyadex_owner:ci-only-owner@localhost:5432/eyadex_pdf_admission
+          EYADEX_TEST_APP_URL: postgres://eyadex_app:ci-only-app@localhost:5432/eyadex_pdf_admission
       - name: PDF ledger live catalog matches every table mirror
         working-directory: packages/db
         env:
