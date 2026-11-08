@@ -80,3 +80,4 @@ export {
   type ClinicSettingsActor,
   type ClinicSettingsChangesDeps,
 } from "./use-cases/clinic-settings-changes/clinic-settings-changes.ts";
+export { PgPdfHeaderRevisions } from "./persistence/pg-pdf-header-revisions.ts";

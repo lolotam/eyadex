@@ -6,3 +6,4 @@ export { PgBookingPatients, type BookingPatientRow } from "./persistence/pg-book
 export { PgMedicalPatients, type MedicalPatientRow } from "./persistence/pg-medical-patients.ts";
 // The billing module's `BillingPatientReader` adapter, bound in billing.module.ts (finance spec §8).
 export { PgBillingPatients } from "./persistence/pg-billing-patients.ts";
+export { PgPdfPatientRevision } from "./persistence/pg-pdf-patient-revision.ts";

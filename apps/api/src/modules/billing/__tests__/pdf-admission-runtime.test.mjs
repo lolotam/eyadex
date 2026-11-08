@@ -6,10 +6,12 @@ import { sql, DatabaseError } from "@eyadex/db";
 import { fixture } from "./pdf-admission-fixtures.mjs";
 import { admitPdf } from "../../../../dist/modules/billing/persistence/pg-pdf-admission.js";
 import { RequestInvoicePdf } from "../../../../dist/modules/billing/use-cases/request-invoice-pdf/request-invoice-pdf.js";
-import { PgBillingPatients } from "../../../../dist/modules/patients/persistence/pg-billing-patients.js";
-import { PgPdfPatientRevision } from "../../../../dist/modules/patients/persistence/pg-pdf-patient-revision.js";
-import { PgPdfHeaderRevisions } from "../../../../dist/modules/tenancy/persistence/pg-pdf-header-revisions.js";
-import { PgBillingExportAccess } from "../../../../dist/modules/identity/persistence/pg-billing-export-access.js";
+import {
+  PgBillingPatients,
+  PgPdfPatientRevision,
+} from "../../../../dist/modules/patients/index.js";
+import { PgPdfHeaderRevisions } from "../../../../dist/modules/tenancy/index.js";
+import { PgBillingExportAccess } from "../../../../dist/modules/identity/index.js";
 
 test("actual guarded admission: identity, isolation, coalescing, saturation and rollback", async () => {
   const { owner, db, clinics } = await fixture();
