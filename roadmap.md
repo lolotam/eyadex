@@ -125,16 +125,16 @@
 - [x] F2 slice 3: settlement domain (PR #94)
 - [x] F2 slice 4: payments and credit API (PR #95)
 - [x] F2 slice 5: refunds, cash closings, receipt, platform totals v2 (API) (PR #99; the receipt PDF is deferred with 8g, below)
-- [ ] F2 slice 6: web (Lovable) — in progress
+- [x] F2 slice 6: web (Lovable)
   - [x] Card 1a: payments, patient credit, settlement on invoices, payment methods (mock = API)
   - [x] Card 1b: receipts list and receipt page, «المدفوعات» tab, receipt link in the success toast
   - [x] Card 2a: refunds (dialog, movements, refunds list), finance strip as nav, platform collected/refunded
   - [x] Card 2b: the cash closing (preview, close dialog, history, detail, menu entry) — in review as a PR to main; the create-only role seeing no branches is accepted (owner decision 2026-10-23)
 - [x] Invoice line price fills from the service price (doctor price first; owner decision 2026-10-24)
 - [ ] F2: the receipt PDF — deferred with 8g
-- [ ] F3: reports (outline, `finance-design.md` §5)
+- [x] F3: reports (outline, `finance-design.md` §5)
   - [x] Slice 3 card B: web `reports` client (HTTP + mock R1–R10), slice 2b stored fields in the mock, `report_range_too_long` in the web catalogue
-  - [ ] Slice 5: the report screens
+  - [x] Slice 5: the report screens (R1–R10, cards 1–7)
 - [ ] F4: online payment and insurance (outline, `finance-design.md` §6)
 
 ## Finance F3 — report screens
@@ -143,5 +143,18 @@
 - [x] Card 2: PR #141 follow-ups (A1–A4) + R9 «سجل إقفال الصندوق»
 - [x] Card 3: #143 (download hook commit-only identity) + R3 «الإيراد حسب الخدمة» + R4 «الإيراد حسب الدكتور» (table only)
 - [x] Card 4: R5 «المبالغ المستحقة» (cursor pages, age-bucket cards)
-- [ ] Card 5: R6 «أرصدة المراجعين» (built; one R5 test line waits for the owner's OK)
-- [ ] Cards 6–7: R7, R8 and R10 screens (waiting for the owner's next card)
+- [x] Card 5: R6 «أرصدة المراجعين»
+- [x] Card 6: R7 «المستردات» + R8 «الخصومات» (PR #147)
+- [x] Card 7: R10 «ملخص فواتيري»
+
+## Production launch (plan 2026-11-12)
+
+- [ ] Owner/orchestrator: confirm current `main` hash and the launch-handoff list
+- [ ] Web: invoice and receipt PDF buttons — waits on slice 8g (orchestrator)
+- [ ] Web: Zod 4 compatibility (`visits/use-list-flush.ts`, `new-clinic-finance.ts`) and remaining lint warnings — waits on owner go
+- [ ] Web: accessibility and print pass on finance screens — waits on owner go
+- [ ] Orchestrator: CSV/XLSX export on the real server (storage, expiry, isolation tests)
+- [ ] Orchestrator: backups with a tested restore, error monitoring, real email/WhatsApp delivery
+- [ ] Release gates on Node 24 / pnpm 12.5.1 and staging check for every persona (ar/en, 1440/390, print)
+- [ ] R9 read-only check on the first clinic with real closings (no seeded data)
+- [ ] Owner: launch go/no-go
