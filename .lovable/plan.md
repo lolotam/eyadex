@@ -1,23 +1,31 @@
-# Handoff acknowledgement — late SA approval reconciliation (no implementation)
+# Production readiness plan — remaining tasks
 
-This is an acknowledgement only. No code, commits, data, deploys or rebuilds.
+Scope: what is left between today's state (F1, F2, F3 screens R1–R10 merged) and a production launch. Items are grouped by owner, because Lovable may only change `apps/web`. Each web item is one small slice, planned and approved separately before execution.
 
-## Recorded state (as given by the owner)
+## Phase 1 — Confirm the starting point (read-only, no code)
+1. Owner/orchestrator confirms current `main` hash and the open launch-handoff list.
+2. Refresh `roadmap.md` so completed F2/F3 cards are marked done and only real open items remain (Lovable, roadmap only).
 
-- Card 2 / PR #142: merged as `22ddeb34` from corrected head `94f5a937` (original requested head `6d8819f0`). The original findings (branch-options failure, oversized test, A→B→A token, i18n placeholder) were fixed in the corrected head.
-- Card 3 / PR #144: merged as `ea02b7f4` (head `dafb6ea1`). R3/R4 are tables only, gated by `report_analytics` plus covering `view:invoices`. The tax row comes last under its own heading, money stays in exact minor units and totals come from the response. The #143 follow-up (abandoned-render scope / live snapshot) was finished inside #144.
-- Both merges are already ancestors of `lovable` and `staging`. Nothing will be rolled back or built again.
+## Phase 2 — Remaining web work (Lovable, one slice each)
+1. Invoice and receipt PDF on the web side: open/download buttons, `window.open` before any `await`, object URLs revoked, clear bilingual message while the API answers 503. Starts only after the orchestrator wires plan Task 8g.
+2. Web cleanup from review follow-ups: Zod 4 compatibility for `visits/use-list-flush.ts` and `new-clinic-finance.ts` (planned earlier, not executed); fix the remaining lint warnings.
+3. Final accessibility and print pass on finance screens (keyboard, RTL, clamped text prints whole).
 
-## Open handoff item (not closable from here)
+## Phase 3 — Backend activation (orchestrator, not Lovable)
+1. Wire PDF generation (Task 8g) and the patient link.
+2. CSV/XLSX export on the real server: private storage, permissions, download, expiry and deletion, isolation tests.
+3. Medical file: load the `ICD-10-CM` catalogue; update permissions for existing clinics (new SQL file).
+4. Operations: backups plus a tested restore, error monitoring, real email and WhatsApp delivery.
 
-- Real R9 rows still need a read-only check on production. It can only happen once the first clinic with genuine closings is available through an authorized clinic-scoped session.
-- Fields to check: day, branch, expected, counted, signed difference with shortage/overage text, nullable closed-by, note, closing-link permissions, and totals.
-- Ruled out: staging test data, seeded or backdated closings, grants, invitations, and any writes.
-- Empty staging and mock tests do not close this item. I claim no authority over production or PDF activation.
+## Phase 4 — Release verification
+1. Gates on the required engines (Node 24+, pnpm 12.5.1): typecheck, lint, tests, node-server build.
+2. Staging check against the real API for every persona, Arabic and English, 1440px and 390px, plus print.
+3. R9 read-only check on the first clinic with real closings (no seeded data, no writes).
+4. Launch go/no-go by the owner.
 
-## Mismatch check
+## Out of scope for launch
+F4 (online payment, insurance), per-clinic public page, specialty sections, AI assistant.
 
-- I can't confirm any of these commit hashes from here. This sandbox has no GitHub remote, so the ancestry is taken as stated by the owner.
-- Nothing I know from this conversation contradicts the stated state.
-
-No action follows approval.
+## Open questions for the owner
+- Should the PDF slice wait for Task 8g, or start now against the 503 state?
+- Which Phase 2 slice goes first?
