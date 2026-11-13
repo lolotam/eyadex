@@ -1,6 +1,6 @@
 import { useContext } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useApi } from "@/shared/api/api-context";
+import { useApi } from "@/shared/api/api-provider";
 import {
   PersonaContext,
   SESSION_KEY,

@@ -48,4 +48,4 @@ F4 (online payment, insurance and booking deposits), per-clinic public pages and
 
 ## Next executable web step
 
-No unblocked web card remains before the PDF sync: Card 2c and Card 1 both wait for the excluded invoice/receipt files to merge. Card 2b's direct typecheck, formatting, focused tests and browser report check pass; the required-engine gates still belong to the orchestrator. This plan neither lifts the PDF HOLD nor authorizes deployment.
+No unblocked web card remains before the PDF sync: Card 2c and Card 1 both wait for the excluded invoice/receipt files to merge. Card 2b's direct typecheck, formatting, 35 focused tests and browser report check pass. The one permitted full-suite run exposed a `useSession` mock-entry-point regression, then reached the 300-second tool timeout without a final summary. Keeping `useSession` on the public API-hook entry point fixed it; the two affected booking files passed six tests. The full suite was not rerun. The required-engine gates still belong to the orchestrator. This plan neither lifts the PDF HOLD nor authorizes deployment.
