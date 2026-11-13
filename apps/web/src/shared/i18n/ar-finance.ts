@@ -129,8 +129,6 @@ export const arFinance: Strings<typeof enFinance> = {
       pdfPreparing: "جارٍ تجهيز ملف PDF…",
       pdfRetry: "إعادة محاولة فتح PDF",
       pdfError: "تعذّر فتح ملف PDF",
-      pdfUnavailable: "ملف PDF غير متاح حاليًا",
-      pdfUnavailableHint: "إنشاء ملفات PDF للفواتير غير متاح على الخادم الآن. حاول لاحقًا.",
       edit: "تعديل",
       void: "إلغاء الفاتورة",
       voidTitle: "إلغاء الفاتورة {number}",

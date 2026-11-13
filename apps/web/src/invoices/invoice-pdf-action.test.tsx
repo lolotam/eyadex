@@ -2,9 +2,10 @@ import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { WebErrorCode } from "@eyadex/contracts/common";
 import { ApiError } from "@/shared/api/api-error";
 import { I18nProvider, useI18n } from "@/shared/i18n/i18n-provider";
-import { InvoicePdfAction, type InvoicePdfFailure } from "./invoice-pdf-action";
+import { InvoicePdfAction } from "./invoice-pdf-action";
 
 // The ApiClient is the network boundary; keep the download/tab helpers real.
 const api = vi.hoisted(() => ({ pdf: vi.fn<() => Promise<Blob>>() }));
@@ -32,7 +33,7 @@ const messages = {
 const blob = new Blob(["%PDF-synthetic"], { type: "application/pdf" });
 
 function Feedback() {
-  const [error, setError] = useState<InvoicePdfFailure | null>(null);
+  const [error, setError] = useState<WebErrorCode | null>(null);
   const { tDynamic, setLang } = useI18n();
   return (
     <>

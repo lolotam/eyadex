@@ -127,9 +127,6 @@ export const enFinance = {
       pdfPreparing: "Preparing PDF…",
       pdfRetry: "Retry opening PDF",
       pdfError: "The PDF could not be opened",
-      pdfUnavailable: "PDF isn't available right now",
-      pdfUnavailableHint:
-        "Invoice PDFs can't be created on the server at the moment. Try again later.",
       edit: "Edit",
       void: "Void",
       voidTitle: "Void invoice {number}",
