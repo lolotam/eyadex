@@ -3,15 +3,18 @@ import { useMutation } from "@tanstack/react-query";
 import { FileDown, LoaderCircle } from "lucide-react";
 import type { WebErrorCode } from "@eyadex/contracts/common";
 import { Button } from "@/components/ui/button";
-import { errorCodeOf } from "@/shared/api/api-error";
+import { errorCodeOf, isServiceUnavailable } from "@/shared/api/api-error";
 import { useApi } from "@/shared/api/api-provider";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { usePersona } from "@/shared/persona/persona-provider";
 import { closePdfTab, openPdfTab, showPdf } from "./invoice-pdf-tab";
 
+/** `unavailable` = the server answered 503 (no renderer yet or a down dependency), not a failed file. */
+export type InvoicePdfFailure = WebErrorCode | "unavailable";
+
 type Props = {
   invoiceId: string;
-  onErrorChange: (code: WebErrorCode | null) => void;
+  onErrorChange: (failure: InvoicePdfFailure | null) => void;
 };
 
 /** The synchronous download contract: pending work stays visible and retries are explicit. */
@@ -44,7 +47,8 @@ export function InvoicePdfAction({ invoiceId, onErrorChange }: Props) {
     onError: (error, tab) => {
       closePdfTab(tab);
       pendingTab.current = null;
-      if (mounted.current) onErrorChange(errorCodeOf(error));
+      if (mounted.current)
+        onErrorChange(isServiceUnavailable(error) ? "unavailable" : errorCodeOf(error));
     },
     onSettled: () => {
       inFlight.current = false;
@@ -56,6 +60,7 @@ export function InvoicePdfAction({ invoiceId, onErrorChange }: Props) {
       <Button
         variant="outline"
         size="sm"
+        className="max-sm:min-h-11"
         disabled={pdf.isPending}
         aria-busy={pdf.isPending}
         aria-describedby={pdf.isPending ? statusId : undefined}
@@ -75,16 +80,15 @@ export function InvoicePdfAction({ invoiceId, onErrorChange }: Props) {
         )}
         {t(pdf.isError ? "finance.detail.pdfRetry" : "finance.detail.pdf")}
       </Button>
-      {pdf.isPending && (
-        <span
-          id={statusId}
-          role="status"
-          aria-live="polite"
-          className="text-sm text-muted-foreground"
-        >
-          {t("finance.detail.pdfPreparing")}
-        </span>
-      )}
+      {/* Always mounted: a live region created together with its text is often not announced. */}
+      <span
+        id={statusId}
+        role="status"
+        aria-live="polite"
+        className="text-sm text-muted-foreground"
+      >
+        {pdf.isPending ? t("finance.detail.pdfPreparing") : ""}
+      </span>
     </>
   );
 }

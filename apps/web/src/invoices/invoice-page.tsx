@@ -1,11 +1,10 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
-import { AlertCircle, ArrowLeft, Ban, Pencil, Send } from "lucide-react";
+import { AlertCircle, ArrowLeft, Ban, Info, Pencil, Send } from "lucide-react";
 import { toast } from "sonner";
 import { formatMinor } from "@eyadex/contracts/money";
 import type { Invoice } from "@eyadex/contracts/finance";
-import type { WebErrorCode } from "@eyadex/contracts/common";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -27,7 +26,7 @@ import { StatusPanel } from "@/shared/shell/status-panel";
 import { InvoiceForm } from "./invoice-form";
 import { valuesFromInvoice } from "./invoice-form-draft";
 import { useInvoice, useRefreshInvoices } from "./invoice-queries";
-import { InvoicePdfAction } from "./invoice-pdf-action";
+import { InvoicePdfAction, type InvoicePdfFailure } from "./invoice-pdf-action";
 import { InvoicePatientName } from "./invoice-patient-name";
 import { InvoiceStatusBadge } from "./invoice-status-badge";
 import { InvoiceTotalsPanel } from "./invoice-totals-panel";
@@ -60,7 +59,7 @@ function InvoiceContent({ invoiceId, paymentPanel }: Props) {
   // Likewise the invoice the void dialog was opened on (see InvoiceVoidDialog).
   const [voiding, setVoiding] = useState<Invoice | null>(null);
   // The PDF may be unavailable (503 until the server renderer ships): shown in place, page stays usable.
-  const [pdfError, setPdfError] = useState<WebErrorCode | null>(null);
+  const [pdfError, setPdfError] = useState<InvoicePdfFailure | null>(null);
   // One id per press: a retry after a failure reuses it, a confirmed send makes the next press a new one.
   const [sendIds, setSendIds] = useState(() => ({
     email: crypto.randomUUID(),
@@ -99,7 +98,7 @@ function InvoiceContent({ invoiceId, paymentPanel }: Props) {
     <div className="max-w-3xl">
       <Link
         to="/clinic/invoices"
-        className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        className="mb-3 inline-flex items-center gap-1 text-sm max-sm:min-h-11 text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="size-4 rtl:rotate-180" />
         {t("finance.detail.back")}
@@ -118,7 +117,12 @@ function InvoiceContent({ invoiceId, paymentPanel }: Props) {
             {live && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" disabled={send.isPending}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="max-sm:min-h-11"
+                    disabled={send.isPending}
+                  >
                     <Send className="size-4" />
                     {t("finance.detail.send")}
                   </Button>
@@ -134,13 +138,23 @@ function InvoiceContent({ invoiceId, paymentPanel }: Props) {
               </DropdownMenu>
             )}
             {live && mayAt("update", "invoices") && (
-              <Button variant="outline" size="sm" onClick={() => setEditing(inv)}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="max-sm:min-h-11"
+                onClick={() => setEditing(inv)}
+              >
                 <Pencil className="size-4" />
                 {t("finance.detail.edit")}
               </Button>
             )}
             {live && mayAt("deactivate", "invoices") && (
-              <Button variant="outline" size="sm" onClick={() => setVoiding(inv)}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="max-sm:min-h-11"
+                onClick={() => setVoiding(inv)}
+              >
                 <Ban className="size-4" />
                 {t("finance.detail.void")}
               </Button>
@@ -148,12 +162,24 @@ function InvoiceContent({ invoiceId, paymentPanel }: Props) {
           </div>
         }
       />
-      {pdfError && (
+      {pdfError === "unavailable" && (
+        <p
+          role="alert"
+          className="mb-4 flex items-start gap-2 rounded-md border bg-muted p-3 text-sm"
+        >
+          <Info className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <span>
+            <span className="font-medium">{t("finance.detail.pdfUnavailable")}</span> —{" "}
+            {t("finance.detail.pdfUnavailableHint")}
+          </span>
+        </p>
+      )}
+      {pdfError && pdfError !== "unavailable" && (
         <p
           role="alert"
           className="mb-4 flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm"
         >
-          <AlertCircle className="mt-0.5 size-4 shrink-0" />
+          <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
           <span>
             <span className="font-medium">{t("finance.detail.pdfError")}</span> —{" "}
             {tDynamic(`errors.${pdfError}`)}

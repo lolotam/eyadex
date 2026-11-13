@@ -35,6 +35,12 @@ export function flattenDetails(details: unknown): Record<string, string | number
  * translations) still falls back to `unknown` with the raw code readable under `details.code`.
  */
 export function errorFromResponse(status: number, body: unknown): ApiError {
+  const error = errorOfBody(status, body);
+  error.httpStatus = status;
+  return error;
+}
+
+function errorOfBody(status: number, body: unknown): ApiError {
   const envelope = envelopeSchema.safeParse(body);
   if (!envelope.success) {
     if (status === 401) return new ApiError("unauthorized");

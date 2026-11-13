@@ -3,6 +3,8 @@ import { FINANCE_F2_ERROR_CODES, type WebErrorCode } from "@eyadex/contracts/com
 export class ApiError extends Error {
   readonly code: WebErrorCode;
   readonly details: Readonly<Record<string, string | number>>;
+  /** The HTTP status when the error came from a response (HTTP adapter only; the mock leaves it unset). */
+  httpStatus: number | undefined = undefined;
 
   constructor(
     code: WebErrorCode,
@@ -18,6 +20,14 @@ export class ApiError extends Error {
 
 export function errorCodeOf(error: unknown): WebErrorCode {
   return error instanceof ApiError ? error.code : "unknown";
+}
+
+/**
+ * The server answered 503 with no catalogued code: a dependency is not available right now (the
+ * invoice PDF renderer until plan Task 8g, or a down dependency). The code alone cannot say which.
+ */
+export function isServiceUnavailable(error: unknown): boolean {
+  return error instanceof ApiError && error.code === "unknown" && error.httpStatus === 503;
 }
 
 /**
