@@ -116,6 +116,7 @@ export function apiModule(
               deps.invoicePdf,
               deps.financeExports,
               deps.invoicePdfModel,
+              deps.receiptPdf,
             ),
             whatsappModule(deps),
             ClinicAuditModule,

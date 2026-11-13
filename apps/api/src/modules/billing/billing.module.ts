@@ -28,6 +28,9 @@ import {
   type Clock,
 } from "../tenancy/index.ts";
 import { InvoicePdfController } from "./http/invoice-pdf.controller.ts";
+import { ReceiptPdfController } from "./http/receipt-pdf.controller.ts";
+import type { ReceiptPdfRenderer } from "./ports/receipt-pdf.ts";
+import { receiptPdfProvider } from "./receipt-pdf-provider.ts";
 import { FinanceReportsController } from "./http/finance-reports.controller.ts";
 import { ReportBranchOptionsController } from "./http/report-branch-options.controller.ts";
 import type { BillingReportStaff } from "./ports/billing-report-staff.ts";
@@ -121,6 +124,7 @@ export class BillingModule {
     invoicePdf?: InvoicePdfRenderer,
     exports?: ReportExportRuntime,
     modelPdf?: InvoicePdfModelRenderer,
+    receiptPdf?: ReceiptPdfRenderer,
   ): DynamicModule {
     // One renderer for the invoice page and the patient's link (spec §3.3, §8 rule 16).
     const blobs = blobStore ?? blobStoreFromEnv(process.env);
@@ -132,6 +136,7 @@ export class BillingModule {
         InvoicesController,
         InvoiceSendController,
         InvoicePdfController,
+        ReceiptPdfController,
         PublicInvoiceController,
         SettingsController,
         PaymentsController,
@@ -142,6 +147,7 @@ export class BillingModule {
         ...(exports === undefined ? [] : [ReportExportsController]),
       ],
       providers: [
+        receiptPdfProvider(patients, new PgBillingExportAccess(), receiptPdf),
         {
           provide: PDF_RENDERER,
           inject: [DATABASE],
