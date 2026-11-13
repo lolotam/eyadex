@@ -68,3 +68,22 @@ execution, core limits, one synthetic PDF, its page count and embedded fonts.
 Its font check requires nonempty Type3 glyph programs as well as embedded Amiri
 files; missing faces, duplicated names or shared font programs do not pass. Nine negative/positive unit cases cover
 the font-check boundary.
+
+## Invoice binding
+
+`InvoicePdfDocument` loads the clinic/branch header through the tenancy-owned
+port, finance branding through billing, and only the patient's display name
+through the patient port. The transaction closes before model rendering.
+`AppDependencies.invoicePdfModel` is a test-only injection path; no environment
+flag enables it and the normal API still uses `UnavailableInvoicePdf`.
+
+Logo retrieval is deferred until an execution slot is acquired. The permitted
+PNG/JPEG bytes alone go into a private temporary directory, passed as Typst's
+root; model and PDF bytes remain on pipes. Cleanup removes the known logo file
+and directory, without recursive deletion. Preparation and native execution
+share the five-second budget. A late preparation result is cleaned and the
+renderer refuses further admission when resource cleanup is unconfirmed.
+
+The API returns `pdf_busy` or `pdf_render_failed` as typed 503 errors. Only
+`pdf_busy` adds `Retry-After: 2`. The existing post-render version, permission
+and public-link checks still decide delivery and audit insertion.

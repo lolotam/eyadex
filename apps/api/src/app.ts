@@ -111,7 +111,12 @@ export function apiModule(
             PatientsModule,
             AppointmentsModule,
             MedicalModule.forRoot(deps.blobStore),
-            BillingModule.forRoot(deps.blobStore, deps.invoicePdf, deps.financeExports),
+            BillingModule.forRoot(
+              deps.blobStore,
+              deps.invoicePdf,
+              deps.financeExports,
+              deps.invoicePdfModel,
+            ),
             whatsappModule(deps),
             ClinicAuditModule,
           ]

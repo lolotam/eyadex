@@ -50,6 +50,27 @@ describe("the F3 export codes over HTTP", () => {
   });
 });
 
+describe("PDF refusals over the download route", () => {
+  it.each(["pdf_busy", "pdf_render_failed"])(
+    "retains %s and both translated messages",
+    async (code) => {
+      const h = clientWith((call) =>
+        call.url.startsWith("/api/v1/me")
+          ? { body: me }
+          : {
+              status: 503,
+              body: { code, message_ar: "رفض", message_en: "Refused" },
+            },
+      );
+      const error = await h.api.finance.pdf(P, INVOICE).catch((value: unknown) => value);
+      expect(error).toBeInstanceOf(ApiError);
+      expect((error as ApiError).code).toBe(code);
+      expect(lookup(ar, `errors.${code}`)).not.toBeNull();
+      expect(lookup(en, `errors.${code}`)).not.toBeNull();
+    },
+  );
+});
+
 describe("the on-screen report code", () => {
   it("reads report_range_too_long as its own code, with a message in ar and en", async () => {
     expect(FINANCE_F3_ERROR_CODES).toContain("report_range_too_long");

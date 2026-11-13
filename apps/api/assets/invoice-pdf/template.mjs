@@ -62,9 +62,11 @@ export function invoiceSource(model) {
         `#grid(columns:(1fr,1fr),align(left)[#${field(en, "en")}],align(right)[#${field(ar, "ar")}])`,
     )
     .join("\n");
-  const logo = model.logoBytes
-    ? `#image(bytes(${JSON.stringify(model.logoBytes).replaceAll("[", "(").replaceAll("]", ")")}),width:20mm,height:10mm,fit:"contain")`
-    : "";
+  const logo = model.logoFile
+    ? `#image(${JSON.stringify(model.logoFile)},width:40mm,height:20mm,fit:"contain")`
+    : model.logoBytes
+      ? `#image(bytes(${JSON.stringify(model.logoBytes).replaceAll("[", "(").replaceAll("]", ")")}),width:20mm,height:10mm,fit:"contain")`
+      : "";
   const source = `#let field(parts,lang,weight,limitCap)=context {
   text(lang:lang,dir:if lang=="ar" {rtl} else {ltr},weight:weight,box(layout(size=>{
     let gap=measure(h(0.25em)).width
