@@ -116,26 +116,28 @@
 
 ## Post-MVP phase 4 — finance (`docs/specs/finance-design.md`)
 
-- [x] F1: service and per-doctor prices, invoices and lines, gap-free numbers per branch and year, void, send by email or WhatsApp (the send queue and the link token storage; the PDF the link opens is deferred with 8g, so the link answers 503 until then), platform revenue totals only (ADR-0033, SQL 0060–0063, PR #78)
+- [x] F1: service and per-doctor prices, invoices and lines, gap-free numbers per branch and year, void, send by email or WhatsApp (send queue and link token storage), platform revenue totals only (ADR-0033, SQL 0060–0063, PR #78); PDF delivery status is tracked below
 - [x] F1 follow-ups: backend and web (PR #84), the invoice list names each patient (PR #85), review follow-ups (PR #87)
-- [ ] F1: the invoice PDF (slice 8g, `docs/specs/finance-f1-pdf-design.md`) — deferred to the project end by the owner
+- [ ] F1: invoice PDF delivery — renderer and proofs merged (#156–#161); delivery stack (#162–#171, including the existing web button in #168) and worker (#172–#178) are in review on HOLD, pending the owner's separate decision (owner handoff, 2026-11-13; not independently verified locally)
 - [x] F2 design: manual payments, credit, refunds and cash closing, with ADR-0034 (PR #89)
 - [x] F2 slice 1: contracts (PR #90)
 - [x] F2 slice 2: payments SQL, RLS and negative tests (SQL 0064–0067, PR #92; applied on staging and production 2026-10-20)
 - [x] F2 slice 3: settlement domain (PR #94)
 - [x] F2 slice 4: payments and credit API (PR #95)
-- [x] F2 slice 5: refunds, cash closings, receipt, platform totals v2 (API) (PR #99; the receipt PDF is deferred with 8g, below)
-- [x] F2 slice 6: web (Lovable) — cards merged; receipt PDF remains separately deferred below
+- [x] F2 slice 5: refunds, cash closings, receipt, platform totals v2 (API) (PR #99); receipt PDF delivery status is tracked below
+- [x] F2 slice 6: web (Lovable) — cards merged
   - [x] Card 1a: payments, patient credit, settlement on invoices, payment methods (mock = API)
   - [x] Card 1b: receipts list and receipt page, «المدفوعات» tab, receipt link in the success toast
   - [x] Card 2a: refunds (dialog, movements, refunds list), finance strip as nav, platform collected/refunded
   - [x] Card 2b: the cash closing (preview, close dialog, history, detail, menu entry), PR #119 merged; the create-only role seeing no branches is accepted (owner decision 2026-10-23)
 - [x] Invoice line price fills from the service price (doctor price first; owner decision 2026-10-24)
-- [ ] F2: the receipt PDF — deferred with 8g
+- [ ] F2: receipt PDF delivery — renderer and proofs merged (#156–#161); delivery stack (#162–#171, including the existing web button in #171) and worker (#172–#178) are in review on HOLD, pending the owner's separate decision (owner handoff, 2026-11-13; not independently verified locally)
 - [x] F3: reports implementation (API #126, exports #128/#136/#138, report screens #141–#148); final launch acceptance remains open in the plan below
   - [x] Slice 3 card B: web `reports` client (HTTP + mock R1–R10), slice 2b stored fields in the mock, `report_range_too_long` in the web catalogue
   - [x] Slice 5: the report screens R1–R10 (cards below)
-- [ ] F4: online payment and insurance (outline, `finance-design.md` §6)
+  - [x] CSV/XLSX export opened on production on 2026-11-02 and the first real export was verified (owner handoff, 2026-11-13; not independently verified locally)
+  - [ ] Owner: check an XLSX export and real report rows; not a web task
+- [ ] F4: online payment and insurance (outline, `finance-design.md` §6) — outside launch scope
 
 ## Finance F3 — report screens
 
@@ -146,6 +148,22 @@
 - [x] Card 5: R6 «أرصدة المراجعين» (PR #146; date-test follow-up merged in #149)
 - [x] Cards 6–7: R7/R8 (PR #147) and R10 (PR #148); totals helper follow-up merged in #150
 
-## Production launch closure — 2026-11-03
+## Production launch (reconciled with the owner handoff, 2026-11-13)
 
 - [ ] Execute the consolidated [production launch plan](docs/superpowers/plans/2026-11-03-production-launch.md): F3 acceptance, invoice/receipt PDF, medical readiness, full clinic journey and production gates. Merged screens do not imply final acceptance.
+- [x] Card 0: reconcile the roadmap and readiness plan with the owner-uploaded handoff; production and PR states above remain attributed to that handoff, not independent verification
+- [x] Branch sync: merge `origin/main` (`3c08265e`) and `origin/feat/f3-export-web` into `lovable` with a merge commit, without rewriting history
+- [x] Web Card 2a: confirmed `visits/use-list-flush.ts` and `shared/api/new-clinic-finance.ts` already use the compatibility APIs; separated the badge/button/toggle/navigation/form non-component exports and the encounter-slots provider, clearing six lint warnings without behaviour changes
+- [x] Web Card 2b: split the API and persona providers from their contexts/hooks, changed only the 13 API and four persona provider import sites, and removed the sidebar's unused public hook export; four warnings cleared without changing hook consumers or behaviour
+- [ ] Web Card 2c: one i18n provider warning remains; its split also touches `invoice-page.test.tsx` and `receipt-details.test.tsx`, which stay excluded until the PDF delivery stack syncs. The 743-line sidebar keeps its existing primitive structure and needs no warning-driven rewrite
+- [ ] Web Card 1: accessibility and print pass on finance screens after the PDF delivery stack merges and is synced; do not rebuild the existing PDF buttons
+- [ ] Owner: separately decide whether to lift the PDF HOLD; orchestrator then merges #162–#171 in order after staging checks and a backup
+- [ ] Orchestrator: PDF worker pipeline #172–#178 and its remaining worker, storage and activation slices after the HOLD lift and gates
+- [ ] Owner/orchestrator: F3 inputs — taxed R3/R4 row, production permission smoke, owner XLSX/real-rows checks, disposition of expanded data gaps, and final F3 receipt
+- [ ] Orchestrator: confirm and complete the ICD-10-CM load and `medical-release-catch-up.sql` on staging and production
+- [ ] Orchestrator: backups with a tested restore, error monitoring, real email/WhatsApp delivery
+- [ ] Release gates on Node 24 / pnpm 12.5.1 and staging check for every persona (ar/en, 1440/390, print)
+- [ ] R9 read-only check on the first clinic with real closings (no seeded data)
+- [ ] Owner: launch go/no-go
+
+Out of launch scope: F4, per-clinic public pages and landing-page builder, specialty sections, and AI. Each needs its own specification and owner decisions before implementation.

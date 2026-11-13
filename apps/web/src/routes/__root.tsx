@@ -14,10 +14,10 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
-import { ApiProvider } from "@/shared/api/api-provider";
+import { ApiProvider } from "@/shared/api/api-client-provider";
 import { I18nProvider } from "@/shared/i18n/i18n-provider";
 import { LocalizedPageHead } from "@/shared/seo/localized-page-head";
-import { PersonaProvider } from "@/shared/persona/persona-provider";
+import { PersonaProvider } from "@/shared/persona/persona-session-provider";
 import { marketingLang } from "@/marketing/i18n";
 
 function NotFoundComponent() {

@@ -1,12 +1,6 @@
 import type { Control, FieldPath, FieldValues } from "react-hook-form";
-import {
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  useFormField,
-} from "@/components/ui/form";
+import { FormControl, FormDescription, FormField, FormItem, FormLabel } from "@/components/ui/form";
+import { useFormField } from "@/components/ui/form-context";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import {
