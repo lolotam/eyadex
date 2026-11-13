@@ -219,5 +219,7 @@ export const en = {
     cash_drawer_out_of_range:
       "The period's net cash is beyond the allowed limit, so the drawer cannot be closed",
     ...enReportExportErrors,
+    pdf_busy: "PDF generation is busy; try again shortly.",
+    pdf_render_failed: "The PDF could not be generated; try again.",
   },
 } as const;

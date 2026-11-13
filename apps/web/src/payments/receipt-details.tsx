@@ -12,6 +12,7 @@ import { PageHeader } from "@/shared/shell/page-header";
 import { StatusPanel } from "@/shared/shell/status-panel";
 import { branchNameIn, useReceiptBranches, useReceipt } from "./receipt-queries";
 import { ReceiptRow as Row } from "./receipt-row";
+import { ReceiptPdfAction } from "./receipt-pdf-action";
 
 /** The receipt's fields; a failed branch-names read shows its own retry, never a silent «—». */
 export function ReceiptDetails({ paymentId }: { paymentId: string }) {
@@ -44,7 +45,14 @@ export function ReceiptDetails({ paymentId }: { paymentId: string }) {
     <div className="max-w-2xl">
       <PageHeader
         title={t("payments.receipts.detailTitle", { number: p.receiptNumber })}
-        actions={back}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            {session && canAtBranch(session, "view", "payments", p.branchId) && (
+              <ReceiptPdfAction key={p.id} paymentId={p.id} />
+            )}
+            {back}
+          </div>
+        }
       />
       <dl className="rounded-lg border bg-card px-4">
         <Row label={t("payments.receipts.number")}>

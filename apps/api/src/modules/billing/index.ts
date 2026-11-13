@@ -5,3 +5,5 @@ export type { ReportExportRuntime } from "./report-export-providers.ts";
 export { registerLogoUploads } from "./http/logo-upload.ts";
 // The server PDF renderer port: tests bind a fake through AppDependencies until plan Task 8g lands one.
 export type { InvoicePdfRenderer } from "./ports/invoice-pdf.ts";
+export type { InvoicePdfModelRenderer } from "./ports/invoice-pdf-model.ts";
+export type { ReceiptPdfRenderer } from "./ports/receipt-pdf.ts";

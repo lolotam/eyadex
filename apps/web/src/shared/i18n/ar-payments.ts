@@ -103,6 +103,9 @@ export const arPayments: Strings<typeof enPayments> = {
       patientSearchError: "تعذر البحث عن المراجعين",
       detailTitle: "إيصال {number}",
       back: "العودة إلى المدفوعات",
+      pdf: "تنزيل الإيصال PDF",
+      pdfPreparing: "جارٍ تجهيز الإيصال…",
+      pdfRetry: "إعادة محاولة تنزيل الإيصال",
     },
   },
 };

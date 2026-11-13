@@ -1,0 +1,140 @@
+# Invoice renderer implementation slices
+
+Status: implementation in progress. Scope follows the owner's renderer request,
+`finance-f1-pdf-design.md` and ADR-0037. This record is not release authority.
+
+## 1. Delivery decision transaction
+
+- Revalidate the invoice version and status after rendering under `FOR SHARE`.
+- On the public path, lock the original link after the invoice and validate its
+  identity, token hash, clinic/invoice binding, revocation and fresh expiry.
+- A public link refusal takes precedence over a version conflict. Neither
+  refusal returns bytes or writes an open audit event.
+- Preserve authenticated reach checks and existing PDF response headers.
+- Verify with real isolated PostgreSQL tests, including edits, revocation,
+  expiry and lock serialization. Rendering must hold no database lock.
+
+## 2. Allowlisted model and bounded renderer
+
+- Build the documented view model from stored amounts and permitted display
+  fields. Patient display name is the only patient field.
+- Move the verified layout/correction into runtime-owned code; production must
+  not import research files or depend on the Python verification toolchain.
+- Add pinned Typst/Amiri/qpdf assets and a killable memory-only bridge.
+- Enforce two execution slots, two-second queue wait, five-second shared
+  execution deadline, output limits, EPIPE handling and child cleanup.
+- Prove timeout, failure and concurrency behavior with synthetic processes.
+  Verify actual rendering/extraction and pixel equivalence independently.
+
+## 3. Integration and release evidence
+
+- Wire the renderer only after the applicable execution/crash-protection gates.
+- Measure the complete 50-line path on staging: the documented p95 threshold
+  decides synchronous API versus a separately reviewed worker slice.
+- Preserve the existing five-second limit; a slow local proof is not a waiver.
+- Receipt and web integration follow the stable invoice API. Staging/deployment
+  actions and production enablement remain subject to the owner's direct gates.
+
+Each slice gets its own reviewable PR, exact-head CI, and applicable staging
+evidence. The synthetic outline proof merged in PR #161 does not by itself
+activate PDF rendering or satisfy production acceptance.
+
+## First-slice local verification
+
+The public-link and invoice-send database suites passed 23 tests on isolated
+PostgreSQL 18 and Redis 8. Four focused regressions failed against the preceding
+invoice/public-link use cases: edited public PDF, edited authenticated PDF,
+permission loss during rendering, and serialization behind link revocation.
+Candidate sources were restored and typechecking passed. The API linter passed.
+No SQL migration or live-environment data change is part of this slice.
+
+Review round 1 added inactive-role and role-plus-disabled-module regressions.
+The two suites now pass 25 tests; both new cases fail against the preceding
+role check. Role refusal follows the subscription and module decisions, and
+expiry rules live in the billing domain. Port methods carry Arabic JSDoc.
+
+## Second-slice model checkpoint
+
+The unwired `invoicePdfModel` builds an explicit text-only allowlist from the
+stored invoice, permitted header fields and the separately supplied patient
+display name. It carries no internal IDs or patient contact fields. Stored
+minor amounts are formatted without recalculating totals; a saved percentage
+discount stays a percentage and a saved fixed discount stays an amount.
+Dates use the clinic timezone and the same long-date locales as prescription
+printing. The model retains complete descriptions, reasons and void facts.
+
+Fourteen focused unit cases cover currency exponents, exact large amounts,
+timezone date rollover, allowlisting, complete 50-line content, tax visibility,
+void data, and invalid-input refusals. Typecheck, lint and formatting pass.
+Database/header loading, logo transport, template adaptation and the bounded
+process runner are not yet connected. `UnavailableInvoicePdf` remains active;
+this checkpoint neither enables PDF responses nor clears the staging gate.
+
+## Third-slice bounded runtime checkpoint
+
+The unwired Typst adapter now launches a memory-only child pipeline with two
+slots, two-second queue expiry and a shared five-second execution deadline.
+It refuses oversized input/output and unsafe core-dump policy. The child uses
+the runtime-owned layout and binder, qpdf's memory bridge, and a final page-count
+check. No production imports point into the research directory.
+
+Fifteen unit cases passed for the process/policy boundary. Ten Linux cases
+passed with the existing pinned research toolchain: timeout cleanup, early
+bridge-exit descendant cleanup, and E1/E2/void extraction through pdf.js and
+pdftotext. The review's early-exit cleanup defect was reproduced before fixing
+it; the missing Arabic void date was added to the runtime layout.
+The next review also required kernel confirmation before capacity reuse. Two
+new regressions fail against the earlier source and pass with bounded cleanup
+confirmation and fail-closed admission when cleanup cannot be confirmed.
+Waiting admission is capped at two requests and serialization occurs after
+slot acquisition. Stored discount reasons appear in both language sections.
+The maximum-field Linux case uses the contract's 200-character descriptions
+and 300-character reasons and checks complete extraction and A4 text bounds;
+the model's older 500-word copy test is not a permitted renderer input fixture.
+The maximum-field cases now cover both Arabic and Latin strings and assert
+every maximum field with both extractors. Separate reason fields preserve
+Arabic RTL and English LTR word positions in both language sections; the old
+concatenated Arabic-reason layout fails the visual-order regression.
+
+A full 50-line void render succeeded once near the execution limit and hit the
+five-second deadline in another run. The small correctness fixtures in CI do
+not stand in for the maximum-content performance gate. This host also has a
+piped WSL crash collector, which the production adapter correctly refuses.
+The pinned tools/fonts still need production-image packaging, header/logo
+loading and final wiring are pending, and staging measurements must determine
+API-versus-worker placement before activation. The timeout remains five seconds.
+
+## Fourth-slice image checkpoint
+
+The API image packages checksum-verified Typst 0.15.1 and qpdf 12.3.2, vendored
+Amiri 1.002, the memory bridge, and required licenses. Its runtime starts under
+tini and an inherited zero-core-limit launcher. The package allowlist excludes
+TypeScript and native build sources from the runtime bundle.
+
+Local final-image verification passed: the packaged synthetic PDF render,
+font hashes/embedding, licenses, non-root execution and zero core limits; the
+default API command also booted and answered health and the unknown-host auth
+check. The image test is part of CI. No live environment was changed.
+Header/patient/logo loading and final renderer wiring remain pending, together
+with host crash-capture proof and staging performance/authorization gates.
+
+## Fifth-slice invoice binding checkpoint
+
+The existing authenticated and public PDF routes can now exercise the real
+invoice/header/patient-name binding through a test-only model-renderer injection.
+Tenancy owns the clinic/branch query, billing owns its branding fields, and the
+patient port returns the display name only. No transaction spans rendering.
+
+The native adapter supports a private per-render PNG/JPEG logo file, created
+after slot admission and removed after process cleanup. Preparation consumes
+the same five-second execution allowance. A stalled preparation or failed
+resource cleanup closes further admission; late resources are cleaned when
+available. Typed PDF failure codes and bilingual client messages are present.
+
+Local verification covers 10 binding database cases plus the existing 25
+invoice/link cases, 23 process/logo unit cases and 14 architecture checks,
+27 HTTP error-catalogue cases, and 11 Linux/native rendering cases. The API
+build and API/web type checks pass. No default renderer activation or live
+environment change is included. Host crash-capture verification, staging
+performance/authorization evidence and the API-versus-worker decision remain
+required before a real-data rollout; receipt and UI work follow that contract.

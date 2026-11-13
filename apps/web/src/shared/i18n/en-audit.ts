@@ -148,7 +148,7 @@ export const enAudit = {
         pdf_opened: "Invoice PDF opened",
         link_opened: "Patient opened the invoice link",
       },
-      payment: { recorded: "Payment recorded" },
+      payment: { recorded: "Payment recorded", pdf_opened: "Receipt PDF opened" },
       credit: { applied: "Patient credit applied", released: "Moved to patient credit" },
       payment_methods: { changed: "Payment methods changed" },
       refund: { recorded: "Refund recorded" },

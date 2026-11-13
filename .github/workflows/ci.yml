@@ -154,6 +154,22 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build the API image
         run: docker build -f apps/api/Dockerfile -t eyadex-api:ci .
+      - name: Reject unsupported PDF toolchain architecture
+        run: |
+          if docker build --network=none --target pdf-tools --build-arg TARGETARCH=arm64 \
+            -f apps/api/Dockerfile . > "$RUNNER_TEMP/pdf-unsupported-arch.log" 2>&1; then
+            exit 1
+          fi
+          grep -q invoice_pdf_unsupported_architecture "$RUNNER_TEMP/pdf-unsupported-arch.log"
+      - name: Verify packaged PDF tools without network or writable document storage
+        run: |
+          docker run --rm --network none --read-only \
+            --mount "type=bind,source=$PWD/docker/tests,target=/check,readonly" \
+            eyadex-api:ci /usr/local/bin/node --test /check/pdf-fonts.test.mjs
+          docker run --rm --network none --read-only --cap-drop ALL \
+            --security-opt no-new-privileges \
+            --mount "type=bind,source=$PWD/docker/tests,target=/check,readonly" \
+            eyadex-api:ci /usr/local/bin/node --conditions=eyadex-runtime /check/pdf-toolchain.mjs
       # The image's own CMD must boot: health answers, the auth handler is mounted, and the running process
       # is the non-root user. No database or Redis is needed for that — postgres.js and the auth pools are
       # lazy, and Redis failures only matter on rate-limited routes — so the URLs point nowhere.
@@ -226,6 +242,15 @@ jobs:
           docker run --rm --network none --read-only --ulimit core=0 \
             --mount "type=bind,source=$RUNNER_TEMP/eyadex-pdf-reproduction,target=/out" \
             eyadex-pdf-reproduction:ci
+      - name: Verify the memory-only renderer and Linux process cleanup
+        run: |
+          docker run --rm --init --network none --read-only --cap-drop ALL \
+            --security-opt no-new-privileges --ulimit core=0:0 \
+            --tmpfs /tmp --tmpfs /pdf-root:ro,size=1m \
+            --mount "type=bind,source=$PWD,target=/workspace,readonly" \
+            --entrypoint node eyadex-pdf-reproduction:ci \
+            --experimental-transform-types --test \
+            /workspace/apps/api/src/modules/billing/__tests__/pdf-process-linux.test.mjs
       - name: Preserve synthetic research evidence
         if: always()
         uses: actions/upload-artifact@v4

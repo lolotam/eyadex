@@ -294,5 +294,7 @@ export const ar: Dictionary = {
     cash_drawer_out_of_range:
       "صافي النقد في هذه الفترة يتجاوز الحد المسموح، ولا يمكن إقفال الصندوق",
     ...arReportExportErrors,
+    pdf_busy: "إنشاء PDF مشغول حاليًا؛ حاول بعد لحظات.",
+    pdf_render_failed: "تعذّر إنشاء ملف PDF؛ حاول مرة تانية.",
   },
 };
