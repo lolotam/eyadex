@@ -19,6 +19,11 @@ export function assertEmbeddedPdfFonts(document) {
     return typeof data === "string" && data.length > 0;
   };
   assert(amiri.every((o) => stream(o.value["/FontFile2"] ?? o.value["/FontFile3"])));
+  const refs = amiri.map((o) => o.value["/FontFile2"] ?? o.value["/FontFile3"]);
+  assert.notEqual(refs[0], refs[1], "Amiri faces share one font object");
+  const programs = refs.map((ref) => Buffer.from(objects["obj:" + ref].stream.data, "base64"));
+  assert(programs.every((program) => program.length > 0));
+  assert(!programs[0].equals(programs[1]), "Amiri faces share identical font programs");
   // Type3 fonts carry their glyph programs in CharProcs rather than FontFile2.
   const type3 = Object.values(objects).filter((o) => o.value?.["/Subtype"] === "/Type3");
   assert(type3.length > 0, "missing Type3 glyph fonts");
