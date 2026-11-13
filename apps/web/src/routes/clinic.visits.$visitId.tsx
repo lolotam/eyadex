@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { INVOICE_ENCOUNTER_SLOTS } from "@/invoices/invoice-encounter-slots";
-import { EncounterSlotsProvider } from "@/shared/shell/encounter-slots";
+import { EncounterSlotsProvider } from "@/shared/shell/encounter-slots-provider";
 import { pageHead } from "@/shared/seo/page-head";
 import { VisitPage } from "@/visits/visit-page";
 

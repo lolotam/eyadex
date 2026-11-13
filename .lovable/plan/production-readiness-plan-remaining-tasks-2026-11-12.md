@@ -14,9 +14,10 @@ Production and pull-request states taken from that handoff are attributed here; 
 
 ### Card 2 — cleanup
 
-1. Check `visits/use-list-flush.ts` and `shared/api/new-clinic-finance.ts`; change only legacy Zod APIs that still remain, and report files already clean.
-2. Fix the remaining `apps/web` lint warnings, including `shared/shell/encounter-slots.tsx`, without disabling rules or changing behaviour.
-3. Keep tests green; any changed behaviour requires a focused test.
+1. Card 2a completed: `visits/use-list-flush.ts` and `shared/api/new-clinic-finance.ts` already use the compatibility APIs and needed no change.
+2. Card 2a separated the badge/button/toggle/navigation/form non-component exports and the encounter-slots provider, clearing six warnings without disabling rules or changing behaviour. Existing import paths remain in place except for the provider's two composing routes and the small set of variant/hook consumers.
+3. Card 2b remains: five warnings in the API, i18n and persona providers and the sidebar primitive. These need a bounded follow-up because the providers have hundreds of hook import sites and the sidebar is already 744 lines; no broad import rewrite or sidebar refactor belongs in Card 2a.
+4. Keep tests green; any changed behaviour requires a focused test.
 
 ### Card 1 — finance accessibility and print
 
@@ -46,4 +47,4 @@ F4 (online payment, insurance and booking deposits), per-clinic public pages and
 
 ## Next executable web step
 
-Card 2 cleanup. Card 1 remains scheduled after the PDF merge and branch sync; this plan neither lifts the PDF HOLD nor authorizes deployment.
+Card 2b provider/sidebar cleanup, planned and reviewed as its own bounded slice. Card 1 remains scheduled after the PDF merge and branch sync; this plan neither lifts the PDF HOLD nor authorizes deployment.
