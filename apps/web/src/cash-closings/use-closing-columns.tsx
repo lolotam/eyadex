@@ -65,11 +65,16 @@ export function useClosingColumns(branches: readonly BranchOption[] | undefined)
       {
         id: "note",
         header: t("cashClosings.note"),
-        cell: ({ row }) => (
-          <span className="block max-w-56 truncate text-start" title={row.original.note ?? ""}>
-            {row.original.note ?? "—"}
-          </span>
-        ),
+        cell: ({ row }) =>
+          row.original.note ? (
+            <details className="group max-w-56 text-start">
+              <summary className="cursor-pointer truncate rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-open:whitespace-pre-line group-open:break-words print:whitespace-pre-line print:break-words">
+                {row.original.note}
+              </summary>
+            </details>
+          ) : (
+            "—"
+          ),
       },
     ],
     [t, pick, formatDate, branches],
