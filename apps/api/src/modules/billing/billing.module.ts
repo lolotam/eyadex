@@ -197,7 +197,14 @@ export class BillingModule {
           provide: INVOICE_PDFS,
           inject: [DATABASE, CLOCK],
           useFactory: (db: Database, clock: Clock) =>
-            new InvoicePdfs({ db, clock, ids: systemUuidV7(), patients, pdf }),
+            new InvoicePdfs({
+              db,
+              clock,
+              ids: systemUuidV7(),
+              patients,
+              pdf,
+              access: new PgBillingExportAccess(),
+            }),
         },
         {
           provide: PUBLIC_INVOICE_LINKS,

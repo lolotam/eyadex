@@ -34,18 +34,29 @@ export async function shareInvoice(
   tx: Tx,
   clinicId: string,
   id: string,
-): Promise<{ patientId: string; branchId: string; status: Invoice["status"] } | null> {
+): Promise<{
+  patientId: string;
+  branchId: string;
+  status: Invoice["status"];
+  version: number;
+} | null> {
   const [row] = await tx.execute<{
     patient_id: string;
     branch_id: string;
     status: Invoice["status"];
+    version: number;
   }>(
-    sql`SELECT patient_id, branch_id, status FROM invoices
+    sql`SELECT patient_id, branch_id, status, version FROM invoices
         WHERE clinic_id = ${clinicId} AND id = ${id} FOR SHARE`,
   );
   return row === undefined
     ? null
-    : { patientId: row.patient_id, branchId: row.branch_id, status: row.status };
+    : {
+        patientId: row.patient_id,
+        branchId: row.branch_id,
+        status: row.status,
+        version: row.version,
+      };
 }
 
 /** The invoice row locked FOR UPDATE; its status and version are judged only after this. */
