@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it } from "vitest";
-import { ApiProvider } from "@/shared/api/api-client-provider";
+import { ApiProvider } from "@/shared/api/api-provider";
 import { as } from "@/shared/api/mock/mock-test-kit";
 import { I18nProvider } from "@/shared/i18n/i18n-provider";
 import { PersonaContext } from "@/shared/persona/persona-context";
