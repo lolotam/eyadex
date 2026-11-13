@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, Vault } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,12 @@ export function ClosingsContent() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [closing, setClosing] = useState(false);
+  // The dialog unmounts on close (fresh count every time), so focus is handed back by hand.
+  const closeButton = useRef<HTMLButtonElement>(null);
+  const setDialog = (next: boolean) => {
+    setClosing(next);
+    if (!next) requestAnimationFrame(() => closeButton.current?.focus());
+  };
   const list = useClosingList({
     limit: PAGE_SIZE,
     ...(pages.cursor ? { cursor: pages.cursor } : {}),
@@ -55,7 +61,7 @@ export function ClosingsContent() {
         subtitle={t("cashClosings.subtitle")}
         actions={
           mayClose && closable.length > 0 ? (
-            <Button onClick={() => setClosing(true)}>
+            <Button ref={closeButton} onClick={() => setClosing(true)}>
               <Vault className="size-4" />
               {t("cashClosings.close")}
             </Button>
@@ -125,7 +131,7 @@ export function ClosingsContent() {
       {closing && (
         <CloseDialog
           open
-          onOpenChange={setClosing}
+          onOpenChange={setDialog}
           branches={closable}
           onShowClosed={(branch, day) =>
             filtered(() => {
