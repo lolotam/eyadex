@@ -116,26 +116,28 @@
 
 ## Post-MVP phase 4 — finance (`docs/specs/finance-design.md`)
 
-- [x] F1: service and per-doctor prices, invoices and lines, gap-free numbers per branch and year, void, send by email or WhatsApp (the send queue and the link token storage; the PDF the link opens is deferred with 8g, so the link answers 503 until then), platform revenue totals only (ADR-0033, SQL 0060–0063, PR #78)
+- [x] F1: service and per-doctor prices, invoices and lines, gap-free numbers per branch and year, void, send by email or WhatsApp (send queue and link token storage), platform revenue totals only (ADR-0033, SQL 0060–0063, PR #78); PDF delivery status is tracked below
 - [x] F1 follow-ups: backend and web (PR #84), the invoice list names each patient (PR #85), review follow-ups (PR #87)
-- [ ] F1: the invoice PDF (slice 8g, `docs/specs/finance-f1-pdf-design.md`) — deferred to the project end by the owner
+- [ ] F1: invoice PDF delivery — renderer and proofs merged (#156–#161); delivery stack (#162–#171, including the existing web button in #168) and worker (#172–#178) are in review on HOLD, pending the owner's separate decision (owner handoff, 2026-11-13; not independently verified locally)
 - [x] F2 design: manual payments, credit, refunds and cash closing, with ADR-0034 (PR #89)
 - [x] F2 slice 1: contracts (PR #90)
 - [x] F2 slice 2: payments SQL, RLS and negative tests (SQL 0064–0067, PR #92; applied on staging and production 2026-10-20)
 - [x] F2 slice 3: settlement domain (PR #94)
 - [x] F2 slice 4: payments and credit API (PR #95)
-- [x] F2 slice 5: refunds, cash closings, receipt, platform totals v2 (API) (PR #99; the receipt PDF is deferred with 8g, below)
+- [x] F2 slice 5: refunds, cash closings, receipt, platform totals v2 (API) (PR #99); receipt PDF delivery status is tracked below
 - [x] F2 slice 6: web (Lovable)
   - [x] Card 1a: payments, patient credit, settlement on invoices, payment methods (mock = API)
   - [x] Card 1b: receipts list and receipt page, «المدفوعات» tab, receipt link in the success toast
   - [x] Card 2a: refunds (dialog, movements, refunds list), finance strip as nav, platform collected/refunded
   - [x] Card 2b: the cash closing (preview, close dialog, history, detail, menu entry) — in review as a PR to main; the create-only role seeing no branches is accepted (owner decision 2026-10-23)
 - [x] Invoice line price fills from the service price (doctor price first; owner decision 2026-10-24)
-- [ ] F2: the receipt PDF — deferred with 8g
+- [ ] F2: receipt PDF delivery — renderer and proofs merged (#156–#161); delivery stack (#162–#171, including the existing web button in #171) and worker (#172–#178) are in review on HOLD, pending the owner's separate decision (owner handoff, 2026-11-13; not independently verified locally)
 - [x] F3: reports (outline, `finance-design.md` §5)
   - [x] Slice 3 card B: web `reports` client (HTTP + mock R1–R10), slice 2b stored fields in the mock, `report_range_too_long` in the web catalogue
   - [x] Slice 5: the report screens (R1–R10, cards 1–7)
-- [ ] F4: online payment and insurance (outline, `finance-design.md` §6)
+  - [x] CSV/XLSX export opened on production on 2026-11-02 and the first real export was verified (owner handoff, 2026-11-13; not independently verified locally)
+  - [ ] Owner: check an XLSX export and real report rows; not a web task
+- [ ] F4: online payment and insurance (outline, `finance-design.md` §6) — outside launch scope
 
 ## Finance F3 — report screens
 
@@ -147,15 +149,19 @@
 - [x] Card 6: R7 «المستردات» + R8 «الخصومات» (PR #147)
 - [x] Card 7: R10 «ملخص فواتيري»
 
-## Production launch (plan 2026-11-12)
+## Production launch (reconciled with the owner handoff, 2026-11-13)
 
-- [ ] Reconcile the owner-uploaded draft handoff (2026-11-13): owner chose main sync by orchestrator → Card 0 docs sync → Card 2 cleanup → Card 1 accessibility/print after PDF merges and branch sync. Blocked on orchestrator sync and separate card execution authorization. Uploaded production/PR statuses remain attributed and unverified locally; no PDF rebuild or HOLD lift.
-- [ ] Owner/orchestrator: confirm current `main` hash and the launch-handoff list
-- [ ] Web: invoice and receipt PDF buttons — waits on slice 8g (orchestrator)
-- [ ] Web: Zod 4 compatibility (`visits/use-list-flush.ts`, `new-clinic-finance.ts`) and remaining lint warnings — waits on owner go
-- [ ] Web: accessibility and print pass on finance screens — waits on owner go
-- [ ] Orchestrator: CSV/XLSX export on the real server (storage, expiry, isolation tests)
+- [x] Card 0: reconcile the roadmap and readiness plan with the owner-uploaded handoff; production and PR states above remain attributed to that handoff, not independent verification
+- [x] Local branch check: `origin/main` (`fb569ccf`) is an ancestor of `feat/f3-export-web`; no local content merge is needed (GitHub's current branch state is not independently verified)
+- [ ] Web Card 2: confirm the two named Zod 4 files are clean and fix remaining lint warnings without behaviour changes
+- [ ] Web Card 1: accessibility and print pass on finance screens after the PDF delivery stack merges and is synced; do not rebuild the existing PDF buttons
+- [ ] Owner: separately decide whether to lift the PDF HOLD; orchestrator then merges #162–#171 in order after staging checks and a backup
+- [ ] Orchestrator: PDF worker pipeline #172–#178 and its remaining worker, storage and activation slices after the HOLD lift and gates
+- [ ] Owner/orchestrator: F3 inputs — taxed R3/R4 row, production permission smoke, owner XLSX/real-rows checks, disposition of expanded data gaps, and final F3 receipt
+- [ ] Orchestrator: confirm and complete the ICD-10-CM load and `medical-release-catch-up.sql` on staging and production
 - [ ] Orchestrator: backups with a tested restore, error monitoring, real email/WhatsApp delivery
 - [ ] Release gates on Node 24 / pnpm 12.5.1 and staging check for every persona (ar/en, 1440/390, print)
 - [ ] R9 read-only check on the first clinic with real closings (no seeded data)
 - [ ] Owner: launch go/no-go
+
+Out of launch scope: F4, per-clinic public pages and landing-page builder, specialty sections, and AI. Each needs its own specification and owner decisions before implementation.
