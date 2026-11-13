@@ -13,7 +13,7 @@ const link = "whitespace-nowrap font-medium text-primary underline-offset-4 hove
 
 /**
  * Refund number, business day, patient name (plain text, no file open), branch, invoice (a link only where
- * the caller may view invoices at that branch), method, amount, reason (truncated, full text on hover).
+ * the caller may view invoices at that branch), method, amount, reason (truncated, full text on tap or keyboard).
  */
 export function useRefundColumns(branches: readonly BranchOption[] | undefined) {
   const { t, pick, formatDate } = useI18n();
@@ -85,9 +85,11 @@ export function useRefundColumns(branches: readonly BranchOption[] | undefined) 
         id: "reason",
         header: t("payments.refunds.reason"),
         cell: ({ row }) => (
-          <span className="block max-w-56 truncate text-start" title={row.original.reason}>
-            {row.original.reason}
-          </span>
+          <details className="group max-w-56 text-start">
+            <summary className="cursor-pointer truncate rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-open:whitespace-pre-line group-open:break-words print:whitespace-pre-line print:break-words">
+              {row.original.reason}
+            </summary>
+          </details>
         ),
       },
     ],

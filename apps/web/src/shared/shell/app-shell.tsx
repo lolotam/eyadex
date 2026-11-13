@@ -23,7 +23,7 @@ export function AppShell({ areaLabel, subtitle, items, children }: Props) {
   const { t, dir } = useI18n();
   const [open, setOpen] = useState(false);
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-dvh bg-background">
       <aside className="hidden w-60 shrink-0 flex-col border-e border-sidebar-border bg-sidebar md:flex">
         <Brand areaLabel={areaLabel} subtitle={subtitle} />
         <div className="px-3 py-4">
@@ -34,7 +34,12 @@ export function AppShell({ areaLabel, subtitle, items, children }: Props) {
         <header className="sticky top-0 z-10 flex h-16 items-center gap-2 border-b bg-card/95 px-4 backdrop-blur md:px-6">
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden" aria-label={t("nav.menu")}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="min-h-11 min-w-11 md:hidden"
+                aria-label={t("nav.menu")}
+              >
                 <Menu className="size-5" />
               </Button>
             </SheetTrigger>
