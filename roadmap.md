@@ -149,6 +149,7 @@
 
 ## Production launch (plan 2026-11-12)
 
+- [ ] Reconcile the owner-uploaded draft handoff (2026-11-13): approve Card 1 exclusions/order; orchestrator merges main first, then authorize Card 0 docs sync. Uploaded production/PR statuses remain attributed and unverified locally; no PDF rebuild or HOLD lift.
 - [ ] Owner/orchestrator: confirm current `main` hash and the launch-handoff list
 - [ ] Web: invoice and receipt PDF buttons — waits on slice 8g (orchestrator)
 - [ ] Web: Zod 4 compatibility (`visits/use-list-flush.ts`, `new-clinic-finance.ts`) and remaining lint warnings — waits on owner go
