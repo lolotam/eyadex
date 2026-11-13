@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
 import { vi } from "vitest";
 import type { Persona } from "@eyadex/contracts/session";
-import { ApiProvider } from "@/shared/api/api-provider";
+import { ApiProvider } from "@/shared/api/api-client-provider";
 import { api } from "@/shared/api/mock/mock-test-kit";
 import { I18nProvider } from "@/shared/i18n/i18n-provider";
 import { PersonaContext } from "@/shared/persona/persona-context";

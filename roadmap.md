@@ -154,7 +154,8 @@
 - [x] Card 0: reconcile the roadmap and readiness plan with the owner-uploaded handoff; production and PR states above remain attributed to that handoff, not independent verification
 - [x] Local branch check: `origin/main` (`fb569ccf`) is an ancestor of `feat/f3-export-web`; no local content merge is needed (GitHub's current branch state is not independently verified)
 - [x] Web Card 2a: confirmed `visits/use-list-flush.ts` and `shared/api/new-clinic-finance.ts` already use the compatibility APIs; separated the badge/button/toggle/navigation/form non-component exports and the encounter-slots provider, clearing six lint warnings without behaviour changes
-- [ ] Web Card 2b: five warnings remain in the API, i18n and persona providers and the oversized sidebar primitive; split them in a bounded follow-up rather than touching hundreds of import sites or the 744-line sidebar in this slice
+- [x] Web Card 2b: split the API and persona providers from their contexts/hooks, changed only the 13 API and four persona provider import sites, and removed the sidebar's unused public hook export; four warnings cleared without changing hook consumers or behaviour
+- [ ] Web Card 2c: one i18n provider warning remains; its split also touches `invoice-page.test.tsx` and `receipt-details.test.tsx`, which stay excluded until the PDF delivery stack syncs. The 743-line sidebar keeps its existing primitive structure and needs no warning-driven rewrite
 - [ ] Web Card 1: accessibility and print pass on finance screens after the PDF delivery stack merges and is synced; do not rebuild the existing PDF buttons
 - [ ] Owner: separately decide whether to lift the PDF HOLD; orchestrator then merges #162–#171 in order after staging checks and a backup
 - [ ] Orchestrator: PDF worker pipeline #172–#178 and its remaining worker, storage and activation slices after the HOLD lift and gates

@@ -16,8 +16,9 @@ Production and pull-request states taken from that handoff are attributed here; 
 
 1. Card 2a completed: `visits/use-list-flush.ts` and `shared/api/new-clinic-finance.ts` already use the compatibility APIs and needed no change.
 2. Card 2a separated the badge/button/toggle/navigation/form non-component exports and the encounter-slots provider, clearing six warnings without disabling rules or changing behaviour. Existing import paths remain in place except for the provider's two composing routes and the small set of variant/hook consumers.
-3. Card 2b remains: five warnings in the API, i18n and persona providers and the sidebar primitive. These need a bounded follow-up because the providers have hundreds of hook import sites and the sidebar is already 744 lines; no broad import rewrite or sidebar refactor belongs in Card 2a.
-4. Keep tests green; any changed behaviour requires a focused test.
+3. Card 2b completed its bounded part: the API and persona providers are separate from their contexts/hooks, only the 13 API and four persona provider import sites changed, and the sidebar's unused public hook export is gone. Four warnings cleared; no hook consumer or behaviour changed.
+4. Card 2c remains: one i18n provider warning. Splitting it also changes `invoice-page.test.tsx` and `receipt-details.test.tsx`, both excluded until the PDF delivery stack syncs, so it moves with that synced review. The sidebar is now 743 lines but has no lint warning; a structural shadcn rewrite is not part of this cleanup.
+5. Keep tests green; any changed behaviour requires a focused test.
 
 ### Card 1 — finance accessibility and print
 
@@ -47,4 +48,4 @@ F4 (online payment, insurance and booking deposits), per-clinic public pages and
 
 ## Next executable web step
 
-Card 2b provider/sidebar cleanup, planned and reviewed as its own bounded slice. Card 1 remains scheduled after the PDF merge and branch sync; this plan neither lifts the PDF HOLD nor authorizes deployment.
+No unblocked web card remains before the PDF sync: Card 2c and Card 1 both wait for the excluded invoice/receipt files to merge. Card 2b's direct typecheck, formatting, focused tests and browser report check pass; the required-engine gates still belong to the orchestrator. This plan neither lifts the PDF HOLD nor authorizes deployment.
