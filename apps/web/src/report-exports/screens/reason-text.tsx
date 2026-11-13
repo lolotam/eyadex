@@ -31,7 +31,7 @@ export function ReasonText({ reason }: { reason: string }) {
         aria-expanded={open}
         aria-controls={id}
         onClick={() => setOpen((v) => !v)}
-        className="text-xs text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring print:hidden"
+        className="inline-flex min-h-11 items-center text-xs text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring print:hidden"
       >
         {open ? t("financeReports.adjustments.less") : t("financeReports.adjustments.more")}
       </button>
