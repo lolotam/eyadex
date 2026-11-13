@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppointmentDay } from "@eyadex/contracts/appointments";
 import type { Persona } from "@eyadex/contracts/session";
-import { ApiProvider } from "@/shared/api/api-client-provider";
+import { ApiProvider } from "@/shared/api/api-provider";
 import { api, as, resetMockData } from "@/shared/api/mock/mock-test-kit";
 import { ar } from "@/shared/i18n/ar";
 import { I18nProvider } from "@/shared/i18n/i18n-provider";
