@@ -11,6 +11,7 @@ const OTHER = "00000000-0000-7000-8000-0000000000b2";
 const state = vi.hoisted(() => ({
   invoice: null as unknown,
   voided: [] as number[],
+  pdfFails: false,
 }));
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children }: { children: React.ReactNode }) => <a href="#invoices">{children}</a>,
@@ -18,7 +19,10 @@ vi.mock("@tanstack/react-router", () => ({
 vi.mock("@/shared/api/api-provider", () => ({
   useApi: () => ({
     finance: {
-      pdf: async () => new Blob(["%PDF"], { type: "application/pdf" }),
+      pdf: async () => {
+        if (state.pdfFails) throw new Error("synthetic PDF failure");
+        return new Blob(["%PDF"], { type: "application/pdf" });
+      },
       // The void dialog reads the invoice again before it voids it (issue #107).
       getInvoice: async () => state.invoice,
       voidInvoice: async (_p: unknown, _id: string, version: number) => {
@@ -78,10 +82,10 @@ const invoiceAt = (branchId: string): Invoice => ({
   version: 1,
 });
 
-const page = () => (
+const page = (invoiceId = "00000000-0000-7000-8000-000000000001") => (
   <QueryClientProvider client={new QueryClient()}>
     <I18nProvider manageDocument={false}>
-      <InvoicePage invoiceId="00000000-0000-7000-8000-000000000001" />
+      <InvoicePage invoiceId={invoiceId} />
     </I18nProvider>
   </QueryClientProvider>
 );
@@ -140,6 +144,23 @@ describe("the void dialog", () => {
 
 // PR #78 review: every PDF press made an object URL that lived as long as the tab.
 describe("the PDF button", () => {
+  it("clears the previous PDF error when navigating to another invoice", async () => {
+    const opened = vi.spyOn(window, "open").mockReturnValue(null);
+    state.pdfFails = true;
+    try {
+      const view = show(OWN);
+      fireEvent.click(screen.getByRole("button", { name: "PDF / طباعة" }));
+      expect(await screen.findByRole("alert")).toBeTruthy();
+      const nextId = "00000000-0000-7000-8000-000000000002";
+      state.invoice = { ...invoiceAt(OWN), id: nextId };
+      view.rerender(page(nextId));
+      expect(screen.queryByRole("alert")).toBeNull();
+    } finally {
+      state.pdfFails = false;
+      opened.mockRestore();
+    }
+  });
+
   it("opens the tab inside the click, points it at the file, then revokes the URL", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const made = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:invoice");

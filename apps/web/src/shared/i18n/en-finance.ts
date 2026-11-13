@@ -124,6 +124,8 @@ export const enFinance = {
       voidBanner: "Void invoice",
       voidedOn: "Voided on {date}: {reason}",
       pdf: "PDF / Print",
+      pdfPreparing: "Preparing PDF…",
+      pdfRetry: "Retry opening PDF",
       pdfError: "The PDF could not be opened",
       edit: "Edit",
       void: "Void",
