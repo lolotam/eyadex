@@ -126,6 +126,10 @@ retry count, terminal shape and 30/120-second schedule. Real PostgreSQL tests co
 competing claims and recovery, cross-clinic denial, lock-wait expiry, rollback, stale
 identities, exhaustion and terminal outcomes as the actual `eyadex_app` LOGIN role.
 
+The admission counter is global and never rolls back, so the real PostgreSQL tests release
+the capacity they consume: the synthetic tenant rows are cancelled before each test and
+after the suite, instead of relying on a manual reset of a shared database.
+
 Publication/currentness, producers, polling, model loading, rendering, storage,
 encryption, cleanup execution, HTTP responses and activation remain unimplemented and
 under their existing HOLDs. No migration, worker registration or deployment is included.

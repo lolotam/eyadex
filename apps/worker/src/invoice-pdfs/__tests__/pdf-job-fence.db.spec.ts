@@ -1,11 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createDatabase, type Database } from "@eyadex/db";
 
 import type { PdfFailureCode } from "../domain/pdf-job-failure.ts";
 import type { LeasedPdfJob, PdfJobFence } from "../ports/pdf-job-store.ts";
 import { PgPdfJobStore } from "../persistence/pg-pdf-job-store.ts";
 import {
+  cancelSyntheticActiveJobs,
   holdJobLock,
   insertJob,
   readJob,
@@ -28,8 +29,11 @@ beforeAll(() => {
   store = new PgPdfJobStore(app, ids);
 });
 
+beforeEach(cancelSyntheticActiveJobs);
+
 afterAll(async () => {
   clearWriteBlocks();
+  cancelSyntheticActiveJobs();
   await app.close();
 });
 

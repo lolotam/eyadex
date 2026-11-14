@@ -22,6 +22,20 @@ export function owner(query: string): string {
   }).trim();
 }
 
+/**
+ * يلغي مهام الـPDF النشطة لعيّنات هذه الاختبارات.
+ * سعة الـPDF العالمية (100 مهمة) عدّاد واحد على مستوى القاعدة، وصفوف عيّنات الاختبار
+ * لا تُلفَّ في معاملة، فبدون هذا التنظيف تتراكم بين الاختبارات حتى يمتلئ العدّاد
+ * ويبدأ الاختبار في الفشل بسبب مهمة سليمة من اختبار سابق.
+ */
+export function cancelSyntheticActiveJobs(): void {
+  owner(`UPDATE invoice_pdf_jobs AS j SET status='cancelled',lease_token=NULL,lease_until=NULL,
+    deadline_at=NULL,next_attempt_at=NULL,clinic_slot=NULL,cleanup_due_at=clock_timestamp(),
+    error_code='cancelled'
+    FROM clinics AS c WHERE c.id=j.clinic_id AND c.slug LIKE 'p4a-%'
+      AND j.status IN ('queued','running','retry_wait')`);
+}
+
 function ownerJson<T>(query: string): T {
   return JSON.parse(owner(`SELECT coalesce(json_agg(r), '[]') FROM (${query}) r`) || "[]") as T;
 }
