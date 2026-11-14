@@ -72,6 +72,13 @@ export const arPayments: Strings<typeof enPayments> = {
       done: "تم الاسترداد",
     },
     views: { label: "سجلات المدفوعات", receipts: "الإيصالات", refunds: "الاستردادات" },
+    print: {
+      action: "طباعة القائمة",
+      summary: "ملخص الطباعة",
+      visibleOnly: "تُطبع النتائج الظاهرة في هذه الصفحة فقط.",
+      filters: "الفلاتر المطبّقة",
+      noFilters: "لا توجد فلاتر مطبّقة",
+    },
     refunds: {
       number: "الاسترداد",
       reason: "السبب",
