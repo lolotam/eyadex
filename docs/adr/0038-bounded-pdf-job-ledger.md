@@ -102,6 +102,34 @@ real permission/tenant negatives, revision invalidation, stale-running fencing,
 rollback, both limits, invoice commit on saturation and sanitized unrelated faults.
 All existing worker, storage, staging, migration and release HOLDs remain.
 
+## P4a: disabled worker lease lifecycle
+
+`PgPdfJobStore` implements an unregistered worker-side claim, heartbeat and failure
+boundary without changing the ledgers or any production composition. `claimNext`
+recovers at most twenty expired running rows per tenant transaction, then claims the
+oldest due queued/retry job with `FOR UPDATE SKIP LOCKED` and compare-and-swap writes.
+Every decision rereads the clock after acquiring its row lock and repeats the live or
+due predicate in the mutation. A no-candidate answer commits completed recovery; a
+selected-claim miss rolls the whole transaction back, while a recovery miss propagates.
+
+Claims install a generated lease UUID and a sixty-second lease/deadline, incrementing
+both attempt and fence. Expired running work cannot renew directly: it becomes
+`retry_wait` with the original transient code and a 30- or 120-second delay, or `failed`
+after the third attempt. Retry retains the original clinic slot; terminal outcomes
+release it and all lease/scheduling fields. `cancelled` remains distinct from `failed`.
+
+Heartbeat and failure writes require the complete clinic/job/attempt/fence/token identity
+and live lease and deadline. Heartbeat is capped by the existing deadline. Failure uses
+the pure three-attempt/two-retry policy. Zero-row writes roll back and are reread in a
+new tenant transaction; `own_success` requires the exact persisted attempt/fence, error,
+retry count, terminal shape and 30/120-second schedule. Real PostgreSQL tests cover
+competing claims and recovery, cross-clinic denial, lock-wait expiry, rollback, stale
+identities, exhaustion and terminal outcomes as the actual `eyadex_app` LOGIN role.
+
+Publication/currentness, producers, polling, model loading, rendering, storage,
+encryption, cleanup execution, HTTP responses and activation remain unimplemented and
+under their existing HOLDs. No migration, worker registration or deployment is included.
+
 ## Release boundary (unchanged)
 
 This draft remains unmerged while its shared-migration HOLD is active. `db/sql` is
