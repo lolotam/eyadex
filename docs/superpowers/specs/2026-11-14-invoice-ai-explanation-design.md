@@ -75,7 +75,7 @@ Response uses HTTP 202 for a new request and HTTP 200 for an idempotent replay:
 - `language`: exactly `ar` or `en`.
 - The route declares `@Require("view:invoices:own")` and `@RequiresFeature("finance")`.
 - The use case calls `InvoiceReads.get()` before admission. An inaccessible invoice answers `not_found` exactly as the normal invoice read.
-- The idempotency ledger is the existing clinic-scoped ledger. The same key and same normalized body replay the first request id; the same key with a changed body is a conflict. A failed admission leaves no claimed key.
+- The idempotency ledger is the existing clinic-scoped ledger. While its entry remains within the existing 30-day retention period, the same key and same normalized body replay the first request id; the same key with a changed body is a conflict. A failed admission leaves no claimed key. Replay is not promised after the ledger purge; clients use a fresh key for any later/new request, and an expired request cannot be recreated with the old key.
 - One queued/running request per membership is allowed. Another returns `ai_busy`. A dedicated Redis limiter allows at most five new requests per membership in ten minutes and fails closed as the existing limiter rules require; exceeding it returns `ai_rate_limited`.
 - The request row and `finance.invoice_explanation_requested` outbox event are written in one tenant transaction. The event payload contains only `requestId`; the outbox already carries `clinicId`.
 
@@ -132,6 +132,7 @@ Build a fresh explicit DTO from the authorized invoice. Never serialize the whol
 Included:
 
 - Requested language and the staff member's question.
+- Invoice `status` (`issued` or `void`) so a void invoice is never described as payable; void reason remains excluded.
 - Each active line's description in the requested language with a fallback to the other description, quantity, unit price, line discount kind/value and line total, all as exact minor-unit strings.
 - Invoice-level discount kind/value, tax rate in basis points, subtotal, discount, tax and total; for issued invoices with settlement, paid and owed amounts.
 - Currency code and exponent.
@@ -143,7 +144,7 @@ Excluded:
 - Discount reasons, void reason, clinical content, attachments, contact details, payment/refund reasons and free-form audit data.
 - Any database row, request headers, environment values or gateway credentials.
 
-The prompt instructs the model to use only the supplied figures, not to recalculate or invent discounts/taxes/payments, and to say when the supplied data is insufficient. The server constructs the prompt; the client never supplies invoice lines or totals.
+The prompt instructs the model to use only the supplied figures, not to recalculate or invent discounts/taxes/payments, to state explicitly when `status = void` that the invoice is cancelled and no payment is due, and to say when the supplied data is insufficient. The server constructs the prompt; the client never supplies invoice lines or totals.
 
 ## AI Gateway adapter and configuration
 
