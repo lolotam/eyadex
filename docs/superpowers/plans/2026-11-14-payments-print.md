@@ -19,6 +19,7 @@ Read `AGENTS.md`, `CLAUDE.md`, `CLAUDE.architecture.md`, `apps/web/AGENTS.md`, `
 | Files | Responsibility / disposition |
 | --- | --- |
 | `apps/web/src/payments/collect-payment-print-pages.ts`, `apps/web/src/payments/collect-payment-print-pages.test.ts` | New cursor collector and deterministic collection tests. |
+| `apps/web/src/payments/payment-calendar-date.ts`, `apps/web/src/payments/payment-calendar-date.test.ts` | New timezone-independent formatter for date-only business dates and date filters. |
 | `apps/web/src/payments/use-payment-list-print.ts`, `apps/web/src/payments/use-payment-list-print.test.tsx` | New transient operation, synchronous duplicate lock, committed invalidation and post-render print request. |
 | `apps/web/src/payments/payment-print-summary.tsx` | Rework checkpoint summary; localized timestamp, remove `visibleOnly`. Absent on baseline; preserve this checkpoint filename. |
 | `apps/web/src/payments/payment-print-document.tsx`, `apps/web/src/payments/payment-print-document.test.tsx` | New portal, plain business table and DOM/locale tests. |
@@ -194,6 +195,8 @@ export function usePaymentListPrint<T>(key: string, read: PrintPageReader<T>, en
 
 **Files:** rework/create `apps/web/src/payments/payment-print-summary.tsx`; create `apps/web/src/payments/payment-print-document.tsx` and `apps/web/src/payments/payment-print-document.test.tsx`; modify `apps/web/src/shared/i18n/ar-payments.ts` and `apps/web/src/shared/i18n/en-payments.ts`.
 
+- [ ] **Pin calendar dates before writing the document.** Create `payment-calendar-date.test.ts` with `expect(formatPaymentCalendarDate("2026-11-01", "en")).toBe("1 Nov 2026")` and the Arabic equivalent, and run it with `TZ=America/New_York` as well as the default environment. Create `payment-calendar-date.ts` with `export function formatPaymentCalendarDate(value: string, lang: "ar" | "en"): string { const parsed = new Date(`${value}T00:00:00.000Z`); if (Number.isNaN(parsed.getTime())) throw new RangeError("Invalid payment calendar date"); return new Intl.DateTimeFormat(lang === "ar" ? "ar-KW" : "en-GB", { dateStyle: "medium", timeZone: "UTC" }).format(parsed); }`. The explicit UTC zone prevents a date-only business day from shifting in a browser west of UTC. Run `pnpm --filter @eyadex/web test src/payments/payment-calendar-date.test.ts`; expected green on both runs.
+
 - [ ] **Write a failing document test.** In `payment-print-document.test.tsx`, import `render, cleanup` from Testing Library, `afterEach, expect, it` from Vitest, `I18nProvider`, and `PaymentPrintDocument`. Use a complete synthetic receipt fixture copied from the existing `base`/`rows[0]` in `receipts-content.test.tsx`, and a complete synthetic refund from `refunds-content.test.tsx`; define them locally as `Payment` and `Refund` imported from contracts. No actual patient data. Assert the refund's entire long reason, invoice number and amount are present as text, and no navigation/control nodes exist:
 
 ```tsx
@@ -225,11 +228,12 @@ import type { BranchOption } from "@eyadex/contracts/users";
 import { formatMinor } from "@eyadex/contracts/money";
 import { useI18n } from "@/shared/i18n/i18n-provider";
 import { branchNameIn } from "./receipt-queries";
+import { formatPaymentCalendarDate } from "./payment-calendar-date";
 import { PaymentPrintSummary, type PrintFilter } from "./payment-print-summary";
 import "./payments-print.css";
 type Props = { branches: readonly BranchOption[] | undefined; filters: PrintFilter[]; printedAt: string; zone: string } & ({ view: "receipts"; rows: Payment[] } | { view: "refunds"; rows: Refund[] });
 export function PaymentPrintDocument(props: Props) {
-  const { t, pick, formatDate, lang, dir } = useI18n();
+  const { t, pick, lang, dir } = useI18n();
   if (typeof document === "undefined") return null;
   const title = t(`payments.views.${props.view}`);
   const headers = [props.view === "receipts" ? t("payments.receipts.number") : t("payments.refunds.number"), t("payments.receipts.date"), t("payments.receipts.patient"), t("payments.receipts.branch"), t("payments.receipts.invoice"), t("payments.receipts.method"), t("payments.receipts.amount"), ...(props.view === "refunds" ? [t("payments.refunds.reason")] : [])];
@@ -238,7 +242,7 @@ export function PaymentPrintDocument(props: Props) {
     <table><caption>{title}</caption><thead><tr>{headers.map((label) => <th scope="col" key={label}>{label}</th>)}</tr></thead>
       <tbody>{props.rows.map((row) => <tr key={row.id}>
         <td dir="ltr">{"receiptNumber" in row ? row.receiptNumber : row.refundNumber}</td>
-        <td>{formatDate(row.businessDate)}</td><td>{row.patientName}</td>
+        <td>{formatPaymentCalendarDate(row.businessDate, lang)}</td><td>{row.patientName}</td>
         <td>{branchNameIn(props.branches, row.branchId, pick)}</td><td dir="ltr">{row.invoiceNumber}</td>
         <td>{t(`payments.method.${row.method}`)}</td><td dir="ltr" className="text-end tabular-nums">{`${formatMinor(row.amountMinor, row.currencyExponent)} ${row.currency}`}</td>
         {"reason" in row ? <td>{row.reason}</td> : null}
@@ -297,7 +301,7 @@ const list = useReceiptList({ ...filters, limit: PAGE_SIZE, ...(!searchChanged &
 ```
 
 - [ ] **Invalidate synchronously on edits and keep the print identity independent of screen pagination.** In both existing `filtered` handlers insert `printing.invalidate()` before `apply(); pages.reset();`. For the receipt number use `onChange={(e) => { printing.invalidate(); setNumber(e.target.value); }}`; disable Print while `searchPending` so the new raw number cannot print with the old 300ms-debounced search. Refund identity uses `"refunds"` and omits `number`. Permission loss removes the patient filter from requests and summary immediately, as existing code already does; the identity invalidates its earlier document. Retain `view === "receipts" ? <ReceiptsContent /> : <RefundsContent />` so inactive lists unmount; remove the checkpoint's parent direct-print action and parent `data-payments-print` marker.
-- [ ] **Reuse the checkpoint's `printFilters` construction**, using `branchNameIn`, translated payment method, permitted `patient.label`, `formatDate(from)`/`formatDate(to)`, and `searched` for receipts only. Import `formatDate` from the existing `useI18n()` return. Add this list-local control/document block; import `Printer` from lucide and `Button`/`errorKeyOf` through their existing paths. The on-screen list and pager stay mounted and usable; no print fetching populates their query cache.
+- [ ] **Reuse the checkpoint's `printFilters` construction**, using `branchNameIn`, translated payment method, permitted `patient.label`, `formatPaymentCalendarDate(from, lang)`/`formatPaymentCalendarDate(to, lang)`, and `searched` for receipts only. Import the UTC calendar-date helper from `payment-calendar-date.ts` and `lang` from the existing `useI18n()` return; do not pass date-only values through the browser-timezone `formatDate`. Add this list-local control/document block; import `Printer` from lucide and `Button`/`errorKeyOf` through their existing paths. The on-screen list and pager stay mounted and usable; no print fetching populates their query cache.
 
 ```tsx
 <div className="mb-4 flex flex-wrap items-center gap-2 print:hidden" aria-busy={printing.busy}>
@@ -318,7 +322,7 @@ const list = useReceiptList({ ...filters, limit: PAGE_SIZE, ...(!searchChanged &
 - [ ] **Add a later-page error/retry test for each list.** Use a first page with rows and a cursor, then `mockRejectedValueOnce(new ApiError("forbidden"))`; import `ApiError` from `@/shared/api/api-error`. Assert a translated alert, no document and no print; click `common.tryAgain`, serve every page afresh and assert one print containing only the retry rows. Assert the retry's first query has no cursor. Do not auto-retry the failed page or print partial data.
 - [ ] **Test every invalidation input separately:** branch, method, patient, from, to, receipt number before debounce settles, tab change, language change, persona/clinic change and loss of `view:patients`/`view:payments`. Assert no stale dialog and a fresh next run. For a completed document invalidate before its queued frame; after print returns but before `afterprint`, edit filters and assert the portal disappears. Test screen cursor navigation does not change the filter snapshot or start collection at the visible cursor.
 - [ ] **Test payload parity and permission omissions.** With patient permission, all print pages have identical branch/method/patient/date/receipt-number filters except `cursor`; without it, neither patient filter metadata nor `patientId` is sent. Refunds never send `receiptNumber`. Row patient names already returned by authorized payments remain printable even when patient-file lookup permission is absent. No new permission is invented.
-- [ ] **Test empty/loading/double-click/cancel and display parity.** Empty terminal collection shows `payments.print.empty`, retains the interactive state and opens no print dialog. During loading Print is disabled and announces preparation; filters and screen pager still work. Compare all print cells to the list's existing localized business values, with full refund reasons and own-currency `formatMinor` values. Verify both locale dictionaries lack `visibleOnly`.
+- [ ] **Test empty/loading/double-click/cancel and display parity.** Empty terminal collection shows `payments.print.empty`, retains the interactive state and opens no print dialog. During loading Print is disabled and announces preparation; filters and screen pager still work. Compare all print cells to the list's existing localized business values, with full refund reasons and own-currency `formatMinor` values. Run the calendar-date test under `TZ=America/New_York` and assert a `2026-11-01` business date/filter still prints 1 November, not 31 October. Verify both locale dictionaries lack `visibleOnly`.
 - [ ] **Run:** `pnpm --filter @eyadex/web test src/payments src/shared/area-boundaries.test.ts src/shared/api/http/__tests__/payment-routes.test.ts src/shared/api/http/__tests__/refund-routes.test.ts`. Expected green, including existing payment/refund mock permission and reach tests; no business-area import violations. These are final acceptance tests, not a claim of backend snapshot isolation: rows come from successive authorized list requests, as approved, with no new bulk endpoint.
 
 ## Task 8: Browser print acceptance and final local gates
@@ -339,3 +343,13 @@ const list = useReceiptList({ ...filters, limit: PAGE_SIZE, ...(!searchChanged &
 - [ ] **Promote only the reviewed, green candidate under the existing staging gate.** In the orchestrator's reviewed checkout run `git fetch origin staging`, `git merge-base --is-ancestor origin/staging HEAD` (expected exit 0), then `git push origin HEAD:refs/heads/staging`. Expected fast-forward; stop on divergent staging history, never force it for this task. Verify staging web/API/worker run the exact candidate SHA and are healthy; run `sh docker/smoke-test.sh staging-app.eyadex.com staging-platform.eyadex.com` (expected all checks pass). Any SSH-Musalam-2 access must use the currently discovered Waleed MCP Hub tools and `hub://guide`; do not use standalone SSH or bypass a denial.
 - [ ] **Check real HTTP behavior on `https://staging-app.eyadex.com/clinic/payments`.** Use an authorized staging session and synthetic data. For both receipts/refunds with more than 20 matches, inspect that the first `GET /api/v1/payments` or `GET /api/v1/refunds` has no cursor and each subsequent request preserves filters, then verify the last matching row in print preview. Exercise branch restriction, absent patient lookup, receipt-number debounce, empty results, a deliberately failed later read via browser request interception, full retry, tab/filter invalidation and cancel/reprint. Repeat print-media inspection in both languages and both widths. Health checks alone do not pass this gate; if insufficient staging fixtures/access prevent it, report the precise blocker without claiming acceptance.
 - [ ] **Land only after current-head CI, required reviews and staging pass.** Orchestrator handles findings under the three-round rule, merges with a merge commit, preserves Lovable synchronization, and checks the automatic production deployment and `sh docker/smoke-test.sh app.eyadex.com platform.eyadex.com`. Expected healthy production and unchanged unrelated print paths; any candidate change requires revalidation on that new head. Update `roadmap.md` and applicable PRD delivery status only in the separately authorized delivery phase. Send the owning orchestrator completion/blocker receipt with task/PR, exact head, actual results, remaining work and recommended next action.
+
+## Independent plan review — round 1
+
+OpenCode Zai GLM 5.3 was selected, but two `delegate_task` attempts failed with `parent_not_active` after the provider handoff. MergePilot (`openai:gpt-6.1-sol`) reviewed head `c8fc23b3434c26c2d7f4ef7b9f691c5163779191` as the disclosed independent substitute. Codex completed the same head with no major issues. No review files were modified by the bots.
+
+| # | Finding | Sev | Verdict | Reason |
+|---|---------|-----|---------|--------|
+| 1 | Business dates used the browser timezone | P2 | accept | Replaced browser-local formatting for date-only values with `formatPaymentCalendarDate`, using explicit UTC, and added a `TZ=America/New_York` regression check for rows and filters. |
+
+No other actionable finding was returned. Implementation may proceed on the corrected plan; runtime code and acceptance evidence are still required.
