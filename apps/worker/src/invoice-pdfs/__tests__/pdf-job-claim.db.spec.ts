@@ -29,7 +29,13 @@ beforeAll(() => {
   storeB = new PgPdfJobStore(app, ids);
 });
 
-beforeEach(cancelSyntheticActiveJobs);
+// A run that died mid-test can leave a write-block trigger installed in the shared database,
+// and that trigger matches the rows the cleanup cancels. Drop the leftovers first, so the
+// capacity is released even after an aborted run.
+beforeEach(() => {
+  clearWriteBlocks();
+  cancelSyntheticActiveJobs();
+});
 
 afterAll(async () => {
   clearWriteBlocks();
