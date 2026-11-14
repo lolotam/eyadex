@@ -48,9 +48,9 @@ describe("FieldCipher", () => {
   it("NEGATIVE: refuses a tampered body or tag and another master key", () => {
     const c = v1();
     const sealed = c.seal(A, ref, "x");
-    expect(() =>
-      c.open(A, ref, withPart(sealed, 3, Buffer.from("y").toString("base64url"))),
-    ).toThrow();
+    const body = Buffer.from(sealed.split(".")[3]!, "base64url");
+    body[0] = body[0]! ^ 1;
+    expect(() => c.open(A, ref, withPart(sealed, 3, body.toString("base64url")))).toThrow();
     const tag = Buffer.from(sealed.split(".")[4]!, "base64url");
     tag[0] = tag[0]! ^ 1;
     expect(() => c.open(A, ref, withPart(sealed, 4, tag.toString("base64url")))).toThrow();
