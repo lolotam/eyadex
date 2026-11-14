@@ -110,6 +110,20 @@ export function expireJob(
   );
 }
 
+export function setLeaseWindow(
+  clinicId: string,
+  jobId: string,
+  leaseSeconds: number,
+  deadlineSeconds: number,
+): void {
+  rewriteGuarded(
+    clinicId,
+    jobId,
+    `lease_until=clock_timestamp()+(${leaseSeconds}*interval '1 second'),
+      deadline_at=clock_timestamp()+(${deadlineSeconds}*interval '1 second')`,
+  );
+}
+
 export function retryWaitJob(
   clinicId: string,
   jobId: string,
@@ -150,20 +164,6 @@ export function readJob(clinicId: string, jobId: string): JobRow {
 
 export function secondsFromDbNow(iso: string): number {
   return Number(owner(`SELECT extract(epoch FROM (${q(iso)}::timestamptz-clock_timestamp()))`));
-}
-
-export function installClaimBlock(mode: "miss" | "error"): void {
-  const action = mode === "miss" ? "RETURN NULL" : "RAISE EXCEPTION 'pdf_test_claim_error'";
-  owner(`CREATE OR REPLACE FUNCTION p4a_test_claim_block() RETURNS trigger LANGUAGE plpgsql AS $$
-    BEGIN IF NEW.status='running' AND OLD.status<>'running' THEN ${action}; END IF; RETURN NEW; END $$;
-    DROP TRIGGER IF EXISTS p4a_test_claim_block ON invoice_pdf_jobs;
-    CREATE TRIGGER p4a_test_claim_block BEFORE UPDATE ON invoice_pdf_jobs
-      FOR EACH ROW EXECUTE FUNCTION p4a_test_claim_block()`);
-}
-
-export function clearClaimBlock(): void {
-  owner(`DROP TRIGGER IF EXISTS p4a_test_claim_block ON invoice_pdf_jobs;
-    DROP FUNCTION IF EXISTS p4a_test_claim_block()`);
 }
 
 export interface LockHold {

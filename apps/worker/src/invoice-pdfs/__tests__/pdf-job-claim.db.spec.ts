@@ -5,11 +5,9 @@ import { createDatabase, sql, type Database } from "@eyadex/db";
 import type { LeasedPdfJob, PdfClaim } from "../ports/pdf-job-store.ts";
 import { PgPdfJobStore } from "../persistence/pg-pdf-job-store.ts";
 import {
-  clearClaimBlock,
   expireJob,
   holdJobLock,
   insertJob,
-  installClaimBlock,
   readJob,
   retryWaitJob,
   secondsFromDbNow,
@@ -17,6 +15,7 @@ import {
   urls,
   type World,
 } from "./pdf-job-fixtures.ts";
+import { clearWriteBlocks, installWriteBlock } from "./pdf-job-write-blocks.ts";
 
 let app: Database;
 let storeA: PgPdfJobStore;
@@ -30,7 +29,7 @@ beforeAll(() => {
 });
 
 afterAll(async () => {
-  clearClaimBlock();
+  clearWriteBlocks();
   await app.close();
 });
 
@@ -134,6 +133,7 @@ describe("PDF oldest-due claim", () => {
   ])("recovers expired attempt $attempt and commits an empty claim", async (example) => {
     const world = seedWorld();
     const jobId = insertJob(world);
+    const originalSlot = readJob(world.clinicId, jobId).clinic_slot;
     expireJob(world.clinicId, jobId, example.attempt, example.retries);
     await expect(storeA.claimNext(world.clinicId)).resolves.toEqual({ kind: "empty" });
     const row = readJob(world.clinicId, jobId);
@@ -148,7 +148,7 @@ describe("PDF oldest-due claim", () => {
       error_code: "lease_expired",
     });
     if (example.slot === null) expect(row.clinic_slot).toBeNull();
-    else expect(row.clinic_slot).not.toBeNull();
+    else expect(row.clinic_slot).toBe(originalSlot);
     if (example.delay === null) {
       expect(row.next_attempt_at).toBeNull();
       expect(row.cleanup_due_at).not.toBeNull();
@@ -198,7 +198,7 @@ describe("PDF oldest-due claim", () => {
     const expired = insertJob(world, { createdSecondsAgo: 120 });
     const queued = insertJob(world, { createdSecondsAgo: 60 });
     expireJob(world.clinicId, expired, 1, 0);
-    installClaimBlock("miss");
+    installWriteBlock("claim");
     try {
       await expect(storeA.claimNext(world.clinicId)).resolves.toEqual({ kind: "empty" });
       expect(readJob(world.clinicId, expired)).toMatchObject({ status: "running", retry_count: 0 });
@@ -208,7 +208,41 @@ describe("PDF oldest-due claim", () => {
         fence: "0",
       });
     } finally {
-      clearClaimBlock();
+      clearWriteBlocks();
+    }
+  });
+
+  it("recovers all ten expired jobs allowed by per-clinic capacity", async () => {
+    const world = seedWorld();
+    const jobs = Array.from({ length: 10 }, () => insertJob(world));
+    const originalSlots = new Map(
+      jobs.map((jobId) => [jobId, readJob(world.clinicId, jobId).clinic_slot]),
+    );
+    for (const jobId of jobs) expireJob(world.clinicId, jobId, 1, 0);
+    await expect(storeA.claimNext(world.clinicId)).resolves.toEqual({ kind: "empty" });
+    for (const jobId of jobs) {
+      expect(readJob(world.clinicId, jobId)).toMatchObject({
+        status: "retry_wait",
+        retry_count: 1,
+        clinic_slot: originalSlots.get(jobId),
+      });
+    }
+  });
+
+  it("propagates a recovery miss and rolls back recovery and claim", async () => {
+    const world = seedWorld();
+    const expired = insertJob(world, { createdSecondsAgo: 120 });
+    const queued = insertJob(world, { createdSecondsAgo: 60 });
+    expireJob(world.clinicId, expired, 1, 0);
+    installWriteBlock("recovery");
+    try {
+      await expect(storeA.claimNext(world.clinicId)).rejects.toMatchObject({
+        name: "PdfRecoveryMiss",
+      });
+      expect(readJob(world.clinicId, expired)).toMatchObject({ status: "running", retry_count: 0 });
+      expect(readJob(world.clinicId, queued)).toMatchObject({ status: "queued", attempt: 0 });
+    } finally {
+      clearWriteBlocks();
     }
   });
 
@@ -217,7 +251,7 @@ describe("PDF oldest-due claim", () => {
     const expired = insertJob(world, { createdSecondsAgo: 120 });
     const queued = insertJob(world, { createdSecondsAgo: 60 });
     expireJob(world.clinicId, expired, 1, 0);
-    installClaimBlock("error");
+    installWriteBlock("claim", "error");
     try {
       await expect(storeA.claimNext(world.clinicId)).rejects.toMatchObject({
         name: "DatabaseError",
@@ -229,7 +263,7 @@ describe("PDF oldest-due claim", () => {
         fence: "0",
       });
     } finally {
-      clearClaimBlock();
+      clearWriteBlocks();
     }
   });
 });

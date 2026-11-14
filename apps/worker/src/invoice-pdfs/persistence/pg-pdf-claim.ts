@@ -5,6 +5,13 @@ import type { LeasedPdfJob, PdfClaim } from "../ports/pdf-job-store.ts";
 
 class PdfClaimMiss extends Error {}
 
+class PdfRecoveryMiss extends Error {
+  constructor() {
+    super("PDF recovery update missed");
+    this.name = "PdfRecoveryMiss";
+  }
+}
+
 interface JobRow {
   readonly id: string;
   readonly invoice_id: string;
@@ -15,6 +22,9 @@ interface JobRow {
   readonly retry_count: number | string;
   readonly fence: string;
   readonly lease_token: string | null;
+  readonly lease_until: string | null;
+  readonly deadline_at: string | null;
+  readonly next_attempt_at: string | null;
   readonly clinic_slot: number | null;
 }
 
@@ -24,7 +34,7 @@ interface LeaseRow extends JobRow {
 }
 
 const JOB_COLUMNS = sql`id,invoice_id,invoice_version,render_revision,status,attempt,retry_count,fence,
-  lease_token,clinic_slot`;
+  lease_token,lease_until::text,deadline_at::text,next_attempt_at::text,clinic_slot`;
 
 export async function claimPdfJob(
   db: Database,
@@ -42,6 +52,10 @@ export async function claimPdfJob(
       const [current] = await tx.execute<JobRow>(sql`SELECT ${JOB_COLUMNS} FROM invoice_pdf_jobs
         WHERE clinic_id=${clinicId} AND id=${selected.id}`);
       if (!current) throw new PdfClaimMiss();
+      const [fresh] = await tx.execute<{ due: boolean }>(sql`SELECT (status='queued'
+        OR (status='retry_wait' AND next_attempt_at<=clock_timestamp())) AS due
+        FROM invoice_pdf_jobs WHERE clinic_id=${clinicId} AND id=${selected.id}`);
+      if (!fresh?.due) throw new PdfClaimMiss();
       const leaseToken = ids.newId();
       const updated = await tx.execute<LeaseRow>(sql`
         WITH tick AS (SELECT clock_timestamp()+interval '60 seconds' AS until)
@@ -71,7 +85,11 @@ async function recoverExpiredJobs(tx: Tx, clinicId: string): Promise<void> {
   for (const candidate of expired) {
     const [current] = await tx.execute<JobRow>(sql`SELECT ${JOB_COLUMNS} FROM invoice_pdf_jobs
       WHERE clinic_id=${clinicId} AND id=${candidate.id}`);
-    if (!current) throw new PdfClaimMiss();
+    if (!current) throw new PdfRecoveryMiss();
+    const [fresh] = await tx.execute<{ expired: boolean }>(sql`SELECT (status='running'
+      AND lease_until<=clock_timestamp()) AS expired FROM invoice_pdf_jobs
+      WHERE clinic_id=${clinicId} AND id=${candidate.id}`);
+    if (!fresh?.expired) throw new PdfRecoveryMiss();
     const outcome = pdfFailureOutcome("lease_expired", {
       attempt: Number(current.attempt),
       retryCount: Number(current.retry_count),
@@ -90,7 +108,7 @@ async function recoverExpiredJobs(tx: Tx, clinicId: string): Promise<void> {
         AND attempt=${current.attempt} AND fence=${current.fence} AND lease_token=${current.lease_token}
         AND lease_until<=clock_timestamp()
       RETURNING id`);
-    if (updated.length !== 1) throw new PdfClaimMiss();
+    if (updated.length !== 1) throw new PdfRecoveryMiss();
   }
 }
 
