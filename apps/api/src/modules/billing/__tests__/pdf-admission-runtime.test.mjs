@@ -217,6 +217,15 @@ test("actual guarded admission: identity, isolation, coalescing, saturation and 
       0,
     );
   } finally {
+    // The admission counter is one global row shared by every tenant and it never rolls
+    // back. Release the capacity this test consumed, so the next suite on the same
+    // database starts from an empty counter instead of a saturated one.
+    for (const clinic of clinics) {
+      await owner`UPDATE invoice_pdf_jobs SET status='cancelled',clinic_slot=NULL,lease_token=NULL,
+        lease_until=NULL,deadline_at=NULL,next_attempt_at=NULL,ready_until=NULL,
+        cleanup_due_at=clock_timestamp(),error_code='cancelled'
+        WHERE clinic_id=${clinic.id} AND status IN ('queued','running','retry_wait')`;
+    }
     await db.close();
     await owner.end();
   }

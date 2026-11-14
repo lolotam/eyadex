@@ -100,6 +100,8 @@ The executable runtime proof uses the compiled implementation, actual LOGIN
 it in a separately cloned baseline database. It covers concurrent identical requests,
 real permission/tenant negatives, revision invalidation, stale-running fencing,
 rollback, both limits, invoice commit on saturation and sanitized unrelated faults.
+It releases the global capacity it consumes when it ends, so a shared database keeps an
+empty counter for the next suite.
 All existing worker, storage, staging, migration and release HOLDs remain.
 
 ## P4a: disabled worker lease lifecycle
