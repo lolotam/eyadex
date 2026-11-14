@@ -70,6 +70,13 @@ export const enPayments = {
       done: "Refund recorded",
     },
     views: { label: "Payment records", receipts: "Receipts", refunds: "Refunds" },
+    print: {
+      action: "Print list",
+      summary: "Print summary",
+      visibleOnly: "Only the results visible on this page are printed.",
+      filters: "Applied filters",
+      noFilters: "No filters applied",
+    },
     refunds: {
       number: "Refund",
       reason: "Reason",

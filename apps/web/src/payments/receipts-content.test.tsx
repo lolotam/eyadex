@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Payment } from "@eyadex/contracts/finance";
 import { I18nProvider } from "@/shared/i18n/i18n-provider";
@@ -153,6 +153,24 @@ describe("the receipts list (card 1b)", () => {
     expect(screen.getByText("تعذر تحميل الفروع")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "حاول مرة أخرى" }));
     expect(h.refetch).toHaveBeenCalled();
+  });
+
+  it("summarizes the applied filters and the debounced receipt number for printing", async () => {
+    h.session.permissions = ["view:payments:clinic", "view:patients:clinic"];
+    show();
+    const summary = screen.getByRole("region", { name: "ملخص الطباعة" });
+    expect(summary.textContent).toContain("لا توجد فلاتر مطبّقة");
+    fireEvent.click(screen.getByText("patient-filter"));
+    fireEvent.change(screen.getByLabelText("من"), { target: { value: "2026-10-01" } });
+    fireEvent.change(screen.getByLabelText("إلى"), { target: { value: "2026-10-31" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "رقم الإيصال" }), {
+      target: { value: "R-9" },
+    });
+    await waitFor(() => expect(summary.textContent).toContain("رقم الإيصال:R-9"));
+    expect(summary.textContent).toContain("المراجع:x");
+    expect(summary.textContent).toContain("من:2026-10-01");
+    expect(summary.textContent).toContain("إلى:2026-10-31");
+    expect(summary.textContent).not.toContain("لا توجد فلاتر مطبّقة");
   });
 
   it("disables both pager buttons while placeholder data shows", () => {

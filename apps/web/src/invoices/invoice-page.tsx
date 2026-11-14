@@ -99,7 +99,7 @@ function InvoiceContent({ invoiceId, paymentPanel }: Props) {
     <div className="max-w-3xl">
       <Link
         to="/clinic/invoices"
-        className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        className="mb-3 inline-flex items-center gap-1 text-sm max-sm:min-h-11 text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="size-4 rtl:rotate-180" />
         {t("finance.detail.back")}
@@ -118,7 +118,12 @@ function InvoiceContent({ invoiceId, paymentPanel }: Props) {
             {live && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" disabled={send.isPending}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="max-sm:min-h-11"
+                    disabled={send.isPending}
+                  >
                     <Send className="size-4" />
                     {t("finance.detail.send")}
                   </Button>
@@ -134,13 +139,23 @@ function InvoiceContent({ invoiceId, paymentPanel }: Props) {
               </DropdownMenu>
             )}
             {live && mayAt("update", "invoices") && (
-              <Button variant="outline" size="sm" onClick={() => setEditing(inv)}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="max-sm:min-h-11"
+                onClick={() => setEditing(inv)}
+              >
                 <Pencil className="size-4" />
                 {t("finance.detail.edit")}
               </Button>
             )}
             {live && mayAt("deactivate", "invoices") && (
-              <Button variant="outline" size="sm" onClick={() => setVoiding(inv)}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="max-sm:min-h-11"
+                onClick={() => setVoiding(inv)}
+              >
                 <Ban className="size-4" />
                 {t("finance.detail.void")}
               </Button>
@@ -153,7 +168,7 @@ function InvoiceContent({ invoiceId, paymentPanel }: Props) {
           role="alert"
           className="mb-4 flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm"
         >
-          <AlertCircle className="mt-0.5 size-4 shrink-0" />
+          <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
           <span>
             <span className="font-medium">{t("finance.detail.pdfError")}</span> —{" "}
             {tDynamic(`errors.${pdfError}`)}

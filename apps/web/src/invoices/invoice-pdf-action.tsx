@@ -56,6 +56,7 @@ export function InvoicePdfAction({ invoiceId, onErrorChange }: Props) {
       <Button
         variant="outline"
         size="sm"
+        className="max-sm:min-h-11"
         disabled={pdf.isPending}
         aria-busy={pdf.isPending}
         aria-describedby={pdf.isPending ? statusId : undefined}
@@ -75,16 +76,15 @@ export function InvoicePdfAction({ invoiceId, onErrorChange }: Props) {
         )}
         {t(pdf.isError ? "finance.detail.pdfRetry" : "finance.detail.pdf")}
       </Button>
-      {pdf.isPending && (
-        <span
-          id={statusId}
-          role="status"
-          aria-live="polite"
-          className="text-sm text-muted-foreground"
-        >
-          {t("finance.detail.pdfPreparing")}
-        </span>
-      )}
+      {/* Always mounted: a live region created together with its text is often not announced. */}
+      <span
+        id={statusId}
+        role="status"
+        aria-live="polite"
+        className="text-sm text-muted-foreground"
+      >
+        {pdf.isPending ? t("finance.detail.pdfPreparing") : ""}
+      </span>
     </>
   );
 }
