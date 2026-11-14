@@ -18,13 +18,20 @@ interface FenceRow {
   readonly lease_until: string | null;
   readonly deadline_at: string | null;
   readonly next_attempt_at: string | null;
+  readonly updated_at: string;
   readonly clinic_slot: number | null;
   readonly cleanup_due_at: string | null;
   readonly error_code: string | null;
+  readonly delay_30_matches: boolean | null;
+  readonly delay_120_matches: boolean | null;
 }
 
 const FENCE_COLUMNS = sql`status,attempt,retry_count,fence,lease_token,lease_until::text,
-  deadline_at::text,next_attempt_at::text,clinic_slot,cleanup_due_at::text,error_code`;
+  deadline_at::text,next_attempt_at::text,updated_at::text,clinic_slot,cleanup_due_at::text,error_code,
+  abs(extract(epoch FROM (next_attempt_at-(updated_at+interval '30 seconds'))))<0.001
+    AS delay_30_matches,
+  abs(extract(epoch FROM (next_attempt_at-(updated_at+interval '120 seconds'))))<0.001
+    AS delay_120_matches`;
 
 export async function heartbeatPdfJob(db: Database, fence: PdfJobFence): Promise<PdfFenceAnswer> {
   try {
@@ -140,7 +147,18 @@ function matchesOutcome(row: FenceRow, outcome: PdfFailureOutcome): boolean {
     return false;
   }
   if (outcome.status === "retry_wait") {
-    return row.next_attempt_at !== null && row.clinic_slot !== null && row.cleanup_due_at === null;
+    const delayMatches =
+      outcome.delaySeconds === 30
+        ? row.delay_30_matches
+        : outcome.delaySeconds === 120
+          ? row.delay_120_matches
+          : false;
+    return (
+      row.next_attempt_at !== null &&
+      delayMatches === true &&
+      row.clinic_slot !== null &&
+      row.cleanup_due_at === null
+    );
   }
   return row.next_attempt_at === null && row.clinic_slot === null && row.cleanup_due_at !== null;
 }

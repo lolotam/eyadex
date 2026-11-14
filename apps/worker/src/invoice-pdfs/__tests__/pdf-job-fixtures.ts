@@ -124,6 +124,10 @@ export function setLeaseWindow(
   );
 }
 
+export function setRetryDelay(clinicId: string, jobId: string, seconds: number): void {
+  rewriteGuarded(clinicId, jobId, `next_attempt_at=updated_at+(${seconds}*interval '1 second')`);
+}
+
 export function retryWaitJob(
   clinicId: string,
   jobId: string,

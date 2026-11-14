@@ -13,6 +13,7 @@ import {
   secondsFromDbNow,
   seedWorld,
   setLeaseWindow,
+  setRetryDelay,
   urls,
   type World,
 } from "./pdf-job-fixtures.ts";
@@ -219,6 +220,27 @@ describe("PDF live-fenced heartbeat and failure", () => {
     });
     expect(readJob(world.clinicId, jobId)).toEqual(persisted);
     await expect(store.recordFailure(fenceOf(lease), "db_unavailable")).resolves.toEqual({
+      kind: "lost_lease",
+    });
+  });
+
+  it("rejects own_success when the persisted retry delay is wrong", async () => {
+    const world = seedWorld();
+    const jobId = insertJob(world);
+    const lease = await claim(world, jobId);
+    await store.recordFailure(fenceOf(lease), "store_unavailable");
+    const expected = readJob(world.clinicId, jobId);
+    setRetryDelay(world.clinicId, jobId, 120);
+    const wrongDelay = readJob(world.clinicId, jobId);
+    expect(wrongDelay).toMatchObject({
+      status: expected.status,
+      attempt: expected.attempt,
+      fence: expected.fence,
+      retry_count: expected.retry_count,
+      error_code: expected.error_code,
+    });
+    expect(wrongDelay.next_attempt_at).not.toBe(expected.next_attempt_at);
+    await expect(store.recordFailure(fenceOf(lease), "store_unavailable")).resolves.toEqual({
       kind: "lost_lease",
     });
   });
