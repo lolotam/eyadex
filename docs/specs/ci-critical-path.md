@@ -131,11 +131,11 @@ ledger proof would leave the gate.
 [44210085436](https://github.com/lolotam/eyadex/actions/runs/44210085436) — `chore/ci-critical-path`,
 `attempt=1`, `success`, same runner class and cache conditions as the baseline.
 
-| | Baseline median | After rollout, run 1 | Change |
-|---|---|---|---|
-| Wall to the required gate | 977 s (16.3 m) | **468 s (7.8 m)** | **−509 s (−52 %)** |
-| Runner minutes (job sum) | 31.6 | **35.7** | +4.1 (+13 %) |
-| Longest job | `db` 973 s | `images / pdf-reproduction` 392 s | the gate is no longer bound by the database suites |
+|                           | Baseline median | After rollout, run 1              | Change                                             |
+| ------------------------- | --------------- | --------------------------------- | -------------------------------------------------- |
+| Wall to the required gate | 977 s (16.3 m)  | **468 s (7.8 m)**                 | **−509 s (−52 %)**                                 |
+| Runner minutes (job sum)  | 31.6            | **35.7**                          | +4.1 (+13 %)                                       |
+| Longest job               | `db` 973 s      | `images / pdf-reproduction` 392 s | the gate is no longer bound by the database suites |
 
 Per job: `verify` 301 s (unchanged work), `build` 35 s (extracted from it), `db / schema` 139 s,
 `db / packages` 73 s, `db / api (1/2)` 359 s, `db / api (2/2)` 306 s, `db / worker` 219 s,
