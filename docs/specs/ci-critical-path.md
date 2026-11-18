@@ -133,24 +133,36 @@ ledger proof would leave the gate.
   sample it has and the limits of the comparison.
 - **Tracker:** the follow-up is on `roadmap.md` with its due date and owner.
 
-### After-rollout sample 1 of 5
+### After-rollout samples (2 of 5 so far)
 
-[44210085436](https://github.com/lolotam/eyadex/actions/runs/44210085436) — `chore/ci-critical-path`,
-`attempt=1`, `success`, same runner class and cache conditions as the baseline.
+Both are successful first-attempt pull-request runs of the new workflow, same runner class and
+cache conditions as the baseline.
 
-|                           | Baseline median | After rollout, run 1              | Change                                             |
-| ------------------------- | --------------- | --------------------------------- | -------------------------------------------------- |
-| Wall to the required gate | 977 s (16.3 m)  | **468 s (7.8 m)**                 | **−509 s (−52 %)**                                 |
-| Runner minutes (job sum)  | 31.6            | **35.7**                          | +4.1 (+13 %)                                       |
-| Longest job               | `db` 973 s      | `images / pdf-reproduction` 392 s | the gate is no longer bound by the database suites |
+| Run                                                                       | Head       | Wall to the required gate | Runner minutes | Longest job                       |
+| ------------------------------------------------------------------------- | ---------- | ------------------------- | -------------- | --------------------------------- |
+| [44210085436](https://github.com/lolotam/eyadex/actions/runs/44210085436) | `84086edb` | 468 s (7.8 m)             | 35.7           | `images / pdf-reproduction` 392 s |
+| [44212249671](https://github.com/lolotam/eyadex/actions/runs/44212249671) | `fa82a1bc` | 564 s (9.4 m)             | 39.4           | `images / pdf-reproduction` 492 s |
 
-Per job: `verify` 301 s (unchanged work), `build` 35 s (extracted from it), `db / schema` 139 s,
-`db / packages` 73 s, `db / api (1/2)` 359 s, `db / api (2/2)` 306 s, `db / worker` 219 s,
-`images / api` 265 s, `images / worker` 52 s, `images / pdf-reproduction` 392 s. All ten jobs and
-both Socket checks were green on the first attempt; no retry, no timeout and no observed runner
-pressure.
+Baseline medians: 977 s (16.3 m) and 31.6 runner minutes. The two samples sit at 468 s and 564 s
+against a 977 s baseline — a 52 % and a 42 % reduction — and the gate is no longer bound by the
+database suites in either of them. All ten jobs and both Socket checks were green on the first
+attempt in both runs; no retry, no timeout and no observed runner pressure.
 
-One run is not a median. The remaining four samples, and the two-week recheck, decide the reported
+Two things explain the spread between the two samples, and both belong in the report rather than
+in a rounded number:
+
+- **The PDF research image build is the variable.** It took 392 s in one run and 492 s in the other
+  (it compiles native tools and unpacks fonts from the network). It is now the bound of the gate,
+  so its variance is the gate's variance.
+- **The two-build cap costs the third build's queue time.** With `max-parallel: 2` the worker image
+  (49 s) waits for the long research build instead of running beside it. That is the owner's cap,
+  applied on purpose: it halves the concurrent runner usage at the cost of roughly that build's
+  duration on the gate.
+
+A third run on the branch (`44211386201`) was cancelled by the `concurrency` group when a newer
+commit was pushed, so it is excluded from the sample rather than counted as a fast run.
+
+Two samples are not a median. The remaining three, and the two-week recheck, decide the reported
 figures.
 
 ## 7. Why the change is a separate PR
