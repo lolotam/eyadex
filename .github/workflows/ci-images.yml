@@ -22,7 +22,7 @@ jobs:
       matrix:
         target: [api, worker, pdf-reproduction]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       # The API's production image (apps/api/Dockerfile) must keep building, and must answer its health
       # check as the non-root user — the same image Dokploy deploys (ADR-0007).
@@ -128,7 +128,7 @@ jobs:
             /workspace/apps/api/src/modules/billing/__tests__/receipt-pdf-linux.test.mjs
       - name: Preserve synthetic research evidence
         if: always() && matrix.target == 'pdf-reproduction'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: synthetic-pdf-reproduction
           path: ${{ runner.temp }}/eyadex-pdf-reproduction

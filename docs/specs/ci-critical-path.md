@@ -63,6 +63,13 @@ than convenience.
 - **The workflow files stay under the 300-line limit.** The entry workflow keeps `verify` and
   `build`; the database shards live in `ci-db.yml` and the image targets in `ci-images.yml`, both
   called as reusable workflows (`workflow_call`) from the entry file.
+- **The actions are pinned to immutable commits.** `actions/checkout`, `actions/setup-node`,
+  `actions/upload-artifact` and `pnpm/action-setup` now resolve to the exact release commits their
+  `v4` tags pointed at (checkout v4.4.0, setup-node v4.4.0, upload-artifact v4.6.2, pnpm/action-setup
+  v4.3.0), with the version kept in a comment. The repository already pins its packages, its pnpm
+  version and its container images by digest; the actions were the last mutable reference.
+- **The job token stays read-only.** The workflow only reads the repository and publishes build
+  artifacts, so `permissions: contents: read` is declared instead of the default broad token.
 
 Expected effect: the `db` group's longest job drops from ~16 m to ~5 m, and the gate is then bound
 by `images / pdf-reproduction` (~7.2 m). Runner minutes rise by roughly 12 % because every shard

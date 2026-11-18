@@ -42,6 +42,10 @@
 >   keeps the mock. Follow-up to PR #81.
 > - **V1.7 (2026-10-18)** — §2.1 step 3: every slice is tried on staging against the real API before
 >   it merges; the mock adapter stays (owner decision, EY-1.3 item 5). Steps are in the loop skill.
+> - **V1.8 (2026-11-18)** — §10: the owner's standing CI rule applies (recorded in `AGENTS.md` →
+>   "Standing CI rule"): the node-server build starts as its own job once the install finishes,
+>   the database suites run as isolated shards, and the image builds run two at a time. All four
+>   CI outcomes stay required and the order inside the `verify` job is unchanged.
 
 ## 0.1 Talking to the owner (binding, owner rule 2026-10-13)
 
@@ -252,7 +256,10 @@ Banned folder names anywhere: `utils/` · `helpers/` · `common/` · `misc/` · 
 ## 10. Git & delivery
 
 - Conventional commits (`feat(users): …`). One slice per PR.
-- CI order: typecheck → lint → test → build (node-server preset).
+- CI order: typecheck → lint → test → build (node-server preset). All four outcomes stay
+  required; since the owner's standing CI rule (2026-11-18, `AGENTS.md` → "Standing CI rule"),
+  the node-server build runs as its own job that starts once the install finishes, and the
+  database suites run as isolated shards. The order above is the order inside the `verify` job.
 - Deploy: Dokploy on the shared server, Traefik + Let's Encrypt, auto-deploy from `main`
   using the root `Dockerfile` (`NITRO_PRESET=node-server`). Postgres and Redis are Dokploy
   services on `dokploy-network`, never exposed publicly.
