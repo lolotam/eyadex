@@ -22,6 +22,27 @@ Read these files fully, in this order, before any task or any review:
 
 The names say "CLAUDE", but the rules apply to every agent equally.
 
+## Standing CI rule (owner, 2026-11-18)
+
+Waleed's standing CI rule applies to this project's CI. Inspect the real workflow and its critical
+path first; measure the wall-clock to the required gate, the aggregate runner minutes, the failures
+and retries, and any observed resource pressure.
+
+- Start independent builds and browser checks as soon as their real prerequisites finish.
+- Split slow independent test suites into isolated shards, preserving the same coverage and the
+  failure propagation.
+- Where several Docker targets exist, reuse the shared stage and run at most two builds in parallel
+  after checking the runner memory.
+- Evaluate a main-only staging image build on its own: document the pre-merge coverage it would
+  lose and obtain the project's applicable approval before moving that check.
+- Keep every required outcome in the final merge gate, and keep the release, deployment, security
+  and freeze controls as they are.
+- Land workflow changes in a dedicated reviewed CI pull request, separate from product work.
+- Record why a technique does not apply.
+
+The baseline, the rollout and the two-week recheck are tracked in
+[docs/specs/ci-critical-path.md](docs/specs/ci-critical-path.md).
+
 ## Review guidelines
 
 When reviewing a pull request, report only real defects, ranked by severity. Check first:
