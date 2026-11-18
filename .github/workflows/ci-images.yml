@@ -7,6 +7,10 @@ name: CI images
 on:
   workflow_call:
 
+# The called jobs only read the repository; the token stays read-only.
+permissions:
+  contents: read
+
 jobs:
   images:
     name: ${{ matrix.target }}

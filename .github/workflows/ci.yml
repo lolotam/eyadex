@@ -9,6 +9,11 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# The workflow only reads the repository and publishes build artifacts, so the job token stays
+# read-only instead of the default broad permissions.
+permissions:
+  contents: read
+
 jobs:
   # Typecheck, lint and the unit suites. The package tests already parallelize their files; avoid
   # competing Vitest pools starving I/O, so the suites stay sequential inside this job.

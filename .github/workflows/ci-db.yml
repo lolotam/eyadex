@@ -7,6 +7,10 @@ name: CI database gate
 on:
   workflow_call:
 
+# The called jobs only read the repository; the token stays read-only.
+permissions:
+  contents: read
+
 jobs:
   # The schema half: the baseline, the negative isolation proofs and the backfill scripts. It needs
   # no workspace install and no Redis, so it starts and finishes first.
