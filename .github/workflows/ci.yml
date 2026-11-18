@@ -9,16 +9,23 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# The workflow only reads the repository and publishes build artifacts, so the job token stays
+# read-only instead of the default broad permissions.
+permissions:
+  contents: read
+
 jobs:
+  # Typecheck, lint and the unit suites. The package tests already parallelize their files; avoid
+  # competing Vitest pools starving I/O, so the suites stay sequential inside this job.
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
         with:
           version: 12.5.1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
           cache: pnpm
@@ -28,234 +35,34 @@ jobs:
       - name: Lint
         run: pnpm lint
       - name: Test
-        # Each package already parallelizes its files; avoid competing Vitest pools starving I/O.
         run: pnpm exec turbo run test --concurrency=1
+
+  # The deployed artifact build. Its only real prerequisite is the install, so it starts on its own
+  # runner instead of waiting behind the unit suites. The preset is the one Dokploy builds.
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+        with:
+          version: 12.5.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
       - name: Build (node-server, as deployed by Dokploy)
         run: pnpm build:all
         env:
           NITRO_PRESET: node-server
 
+  # The database gate: the schema proofs and the runtime suites are independent, so they run as
+  # isolated shards instead of one long job.
   db:
-    runs-on: ubuntu-latest
-    # Sequential migration/API/worker/auth suites exceed 15 minutes on hosted runners.
-    timeout-minutes: 30
-    services:
-      postgres:
-        image: postgres:18-alpine
-        env:
-          POSTGRES_DB: eyadex
-          POSTGRES_USER: eyadex_owner
-          POSTGRES_PASSWORD: ci-only-owner
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd "pg_isready -U eyadex_owner -d eyadex"
-          --health-interval 5s --health-timeout 5s --health-retries 10
-      redis:
-        image: redis:8-alpine
-        ports: ["6379:6379"]
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s --health-timeout 5s --health-retries 10
-    env:
-      PGHOST: localhost
-      PGUSER: eyadex_owner
-      PGPASSWORD: ci-only-owner
-      PGDATABASE: eyadex
-    steps:
-      - uses: actions/checkout@v4
-      - name: Create runtime roles (PRD 4.5)
-        run: |
-          for r in app auth platform dispatcher; do
-            psql -v ON_ERROR_STOP=1 -qc "CREATE ROLE eyadex_$r LOGIN NOBYPASSRLS PASSWORD 'ci-only-$r'"
-          done
-      - name: Apply the SQL baseline (db/migrate.sh)
-        run: sh db/migrate.sh
-      - name: Migration status is clean
-        run: sh db/migrate.sh --status
-      - name: RLS + grant negative isolation tests
-        run: for f in db/tests/*.sql; do echo "$f"; psql -v ON_ERROR_STOP=1 -q -f "$f"; done
-      - name: Migration runner self-test
-        run: sh db/tests/migrate-runner.sh
-      - name: Platform team backfill (0037) holds each email, fails on a clinic hold
-        run: sh db/tests/platform-backfill.sh
-      - name: Admin key backfill (0042) reaches locked admin roles only
-        run: sh db/tests/admin-keys-backfill.sh
-      - name: Medical release (0050) upgrades system roles only, matches the catch-up
-        run: sh db/tests/medical-release-backfill.sh
-      - name: Finance release catch-up (0063) is the migration's role statement
-        run: sh db/tests/finance-release-catch-up.sh
-      # @eyadex/db runs against the same database this job just migrated. The passwords are the
-      # ci-only-* ones the runtime roles were created with above; the owner URL is for the fixtures
-      # and the assertions only — the owner role never reaches the application (CLAUDE.md §5).
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 12.5.1
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      # apps/api test:db imports its workspace dependencies from dist (observability, contracts, ids…).
-      - run: pnpm --filter @eyadex/db... --filter @eyadex/auth... --filter "@eyadex/api^..." --filter "@eyadex/worker..." build
-      - name: Tenant wrapper database tests (@eyadex/db)
-        run: pnpm --filter @eyadex/db test:db
-        env:
-          EYADEX_TEST_OWNER_URL: postgres://eyadex_owner:ci-only-owner@localhost:5432/eyadex
-          EYADEX_TEST_APP_URL: postgres://eyadex_app:ci-only-app@localhost:5432/eyadex
-          EYADEX_TEST_PLATFORM_URL: postgres://eyadex_platform:ci-only-platform@localhost:5432/eyadex
-      # The attachments' S3 store (spec §6, docs/specs/medical-blob-runbook.md). Not a `services:` entry:
-      # the image's default command does not start a server and service containers take no command. MinIO
-      # publishes source only now, so the image is the pgsty community build, pinned by tag and digest. The
-      # ci-only-* credentials exist only inside this job's throwaway container.
-      - name: Start MinIO and create the test bucket
-        run: |
-          docker run -d --name minio -p 127.0.0.1:9000:9000 \
-            -e MINIO_ROOT_USER=ci-only-minio -e MINIO_ROOT_PASSWORD=ci-only-minio-pass \
-            "$MINIO_IMAGE" server /data
-          for i in $(seq 1 30); do curl -sf http://127.0.0.1:9000/minio/health/ready && break; sleep 1; done
-          curl -sf http://127.0.0.1:9000/minio/health/ready
-          # The image carries the mc client: the bucket is created from inside the same container.
-          docker exec -e MC_HOST_ci=http://ci-only-minio:ci-only-minio-pass@127.0.0.1:9000 \
-            minio mc mb ci/eyadex-medical-ci
-        env:
-          MINIO_IMAGE: pgsty/minio:RELEASE.2026-08-04T00-00-00Z@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372
-      - name: API database tests — tenancy, identity, auth over HTTP, the S3 blob store (@eyadex/api)
-        run: pnpm --filter @eyadex/api test:db
-        env:
-          EYADEX_TEST_OWNER_URL: postgres://eyadex_owner:ci-only-owner@localhost:5432/eyadex
-          EYADEX_TEST_APP_URL: postgres://eyadex_app:ci-only-app@localhost:5432/eyadex
-          EYADEX_TEST_AUTH_URL: postgres://eyadex_auth:ci-only-auth@localhost:5432/eyadex
-          EYADEX_TEST_PLATFORM_URL: postgres://eyadex_platform:ci-only-platform@localhost:5432/eyadex
-          # The export flow forks a separate worker using its own dispatcher role.
-          EYADEX_TEST_DISPATCHER_URL: postgres://eyadex_dispatcher:ci-only-dispatcher@localhost:5432/eyadex
-          EYADEX_TEST_REDIS_URL: redis://localhost:6379/0
-          MEDICAL_BLOB_S3_TEST_ENDPOINT: http://127.0.0.1:9000
-          MEDICAL_BLOB_S3_TEST_BUCKET: eyadex-medical-ci
-          MEDICAL_BLOB_S3_TEST_ACCESS_KEY: ci-only-minio
-          MEDICAL_BLOB_S3_TEST_SECRET_KEY: ci-only-minio-pass
-      - name: Worker dispatcher database tests (@eyadex/worker)
-        run: pnpm --filter @eyadex/worker test:db
-        env:
-          EYADEX_TEST_OWNER_URL: postgres://eyadex_owner:ci-only-owner@localhost:5432/eyadex
-          EYADEX_TEST_APP_URL: postgres://eyadex_app:ci-only-app@localhost:5432/eyadex
-          EYADEX_TEST_DISPATCHER_URL: postgres://eyadex_dispatcher:ci-only-dispatcher@localhost:5432/eyadex
-          EYADEX_TEST_PLATFORM_URL: postgres://eyadex_platform:ci-only-platform@localhost:5432/eyadex
-      - name: Better Auth database tests (@eyadex/auth)
-        run: pnpm --filter @eyadex/auth test:db
-        env:
-          EYADEX_TEST_OWNER_URL: postgres://eyadex_owner:ci-only-owner@localhost:5432/eyadex
-          EYADEX_TEST_AUTH_URL: postgres://eyadex_auth:ci-only-auth@localhost:5432/eyadex
+    uses: ./.github/workflows/ci-db.yml
 
-  # The API's production image (apps/api/Dockerfile) must keep building, and must answer its health
-  # check as the non-root user — the same image Dokploy deploys (ADR-0007).
-  api-image:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build the API image
-        run: docker build -f apps/api/Dockerfile -t eyadex-api:ci .
-      - name: Reject unsupported PDF toolchain architecture
-        run: |
-          if docker build --network=none --target pdf-tools --build-arg TARGETARCH=arm64 \
-            -f apps/api/Dockerfile . > "$RUNNER_TEMP/pdf-unsupported-arch.log" 2>&1; then
-            exit 1
-          fi
-          grep -q invoice_pdf_unsupported_architecture "$RUNNER_TEMP/pdf-unsupported-arch.log"
-      - name: Verify packaged PDF tools without network or writable document storage
-        run: |
-          docker run --rm --network none --read-only \
-            --mount "type=bind,source=$PWD/docker/tests,target=/check,readonly" \
-            eyadex-api:ci /usr/local/bin/node --test /check/pdf-fonts.test.mjs
-          docker run --rm --network none --read-only --cap-drop ALL \
-            --security-opt no-new-privileges \
-            --mount "type=bind,source=$PWD/docker/tests,target=/check,readonly" \
-            eyadex-api:ci /usr/local/bin/node --conditions=eyadex-runtime /check/pdf-toolchain.mjs
-      # The image's own CMD must boot: health answers, the auth handler is mounted, and the running process
-      # is the non-root user. No database or Redis is needed for that — postgres.js and the auth pools are
-      # lazy, and Redis failures only matter on rate-limited routes — so the URLs point nowhere.
-      - name: Boot the image and probe it
-        run: |
-          docker run -d --name api -p 127.0.0.1:3000:3000 \
-            -e DATABASE_URL=postgres://eyadex_app:ci@127.0.0.1:1/eyadex \
-            -e AUTH_DATABASE_URL=postgres://eyadex_auth:ci@127.0.0.1:1/eyadex \
-            -e BETTER_AUTH_SECRET="$(openssl rand -hex 32)" -e REDIS_URL=redis://127.0.0.1:1/0 \
-            -e PLATFORM_DATABASE_URL=postgres://eyadex_platform:ci@127.0.0.1:1/eyadex \
-            -e OUTBOX_SEAL_KEY="$(openssl rand -base64 32)" -e MAIL_PROVIDER_SEAL_KEY="$(openssl rand -base64 32)" \
-            -e MEDICAL_MASTER_KEY_V1="$(openssl rand -base64 32)" -e MEDICAL_INDEX_KEY="$(openssl rand -base64 32)" \
-            -e MEDICAL_KEY_VERSION=1 \
-            -e APP_URL=https://app.eyadex.test -e PLATFORM_URL=https://platform.eyadex.test \
-            eyadex-api:ci
-          for i in $(seq 1 30); do curl -sf http://127.0.0.1:3000/v1/health && break; sleep 1; done
-          test "$(curl -s http://127.0.0.1:3000/v1/health)" = '{"status":"ok"}'
-          # Unknown host on the auth handler → 404 envelope: the Better Auth bundle loaded.
-          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:3000/auth/sign-in/email)" = "404"
-          test "$(docker exec api whoami)" = "eyadex"
-      - name: API container log
-        if: always()
-        run: docker logs api || true
-
-  # The worker's production image (apps/worker/Dockerfile, ADR-0015) must build, boot its own CMD as the
-  # non-root user, report readiness honestly, and stop cleanly. Both pools are lazy, so the URLs point nowhere.
-  worker-image:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build the worker image
-        run: docker build -f apps/worker/Dockerfile -t eyadex-worker:ci .
-      - name: Boot the image and probe it
-        run: |
-          docker run -d --name worker -p 127.0.0.1:3002:3002 \
-            -e DATABASE_URL=postgres://eyadex_app:ci@127.0.0.1:1/eyadex \
-            -e DISPATCHER_DATABASE_URL=postgres://eyadex_dispatcher:ci@127.0.0.1:1/eyadex \
-            -e OUTBOX_SEAL_KEY="$(openssl rand -base64 32)" -e MAIL_PROVIDER_SEAL_KEY="$(openssl rand -base64 32)" \
-            -e PLATFORM_DATABASE_URL=postgres://eyadex_platform:ci@127.0.0.1:1/eyadex \
-            -e APP_URL=https://app.eyadex.test -e PLATFORM_URL=https://platform.eyadex.test \
-            -e RESEND_API_KEY=re_ci_dummy \
-            -e MAIL_FROM="Eyadex CI <ci@eyadex.test>" \
-            eyadex-worker:ci
-          for i in $(seq 1 30); do curl -sf http://127.0.0.1:3002/health && break; sleep 1; done
-          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3002/health)" = "200"
-          # The pools cannot connect: readiness must say so instead of answering 200.
-          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3002/health/ready)" = "503"
-          test "$(docker exec worker whoami)" = "eyadex"
-          # The clean shutdown path (useProcessExit) exits 0 well inside the 45 s watchdog.
-          docker stop -t 60 worker
-          test "$(docker inspect -f '{{.State.ExitCode}}' worker)" = "0"
-          # No secret value in the log.
-          if docker logs worker 2>&1 | grep -q re_ci_dummy; then echo "secret in worker log"; exit 1; fi
-      - name: Worker container log
-        if: always()
-        run: docker logs worker || true
-
-  # Reproduces a bounded synthetic extraction result AND a required unsupported-text case.
-  # A green job is not invoice-PDF acceptance: results.json retains fullInvoiceAcceptance=false.
-  pdf-reproduction:
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build the isolated PDF research image
-        run: docker build -f docs/superpowers/plans/evidence/2026-11-04-pdf-reproduction/Dockerfile -t eyadex-pdf-reproduction:ci .
-      - name: Reproduce both fonts, extraction, pixels and the unsupported marked name
-        run: |
-          mkdir -p "$RUNNER_TEMP/eyadex-pdf-reproduction"
-          docker run --rm --network none --read-only --ulimit core=0 \
-            --mount "type=bind,source=$RUNNER_TEMP/eyadex-pdf-reproduction,target=/out" \
-            eyadex-pdf-reproduction:ci
-      - name: Verify the memory-only renderers and Linux process cleanup
-        run: |
-          docker run --rm --init --network none --read-only --cap-drop ALL \
-            --security-opt no-new-privileges --ulimit core=0:0 \
-            --tmpfs /tmp --tmpfs /pdf-root:ro,size=1m \
-            --mount "type=bind,source=$PWD,target=/workspace,readonly" \
-            --entrypoint node eyadex-pdf-reproduction:ci \
-            --experimental-transform-types --test --test-concurrency=1 \
-            /workspace/apps/api/src/modules/billing/__tests__/pdf-process-linux.test.mjs \
-            /workspace/apps/api/src/modules/billing/__tests__/receipt-pdf-linux.test.mjs
-      - name: Preserve synthetic research evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: synthetic-pdf-reproduction
-          path: ${{ runner.temp }}/eyadex-pdf-reproduction
-          retention-days: 7
+  # The production and research images. At most two builds run at a time: each build compiles
+  # native code and unpacks fonts, and the hosted runner has 16 GB of memory.
+  images:
+    uses: ./.github/workflows/ci-images.yml

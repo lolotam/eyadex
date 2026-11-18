@@ -1,0 +1,135 @@
+name: CI images
+
+# Called by ci.yml. The three image targets keep their own steps and their own runner. At most two
+# builds run at a time: each build compiles native code and unpacks fonts, and the hosted runner has
+# 16 GB of memory. fail-fast is off so every target reports its own result.
+
+on:
+  workflow_call:
+
+# The called jobs only read the repository; the token stays read-only.
+permissions:
+  contents: read
+
+jobs:
+  images:
+    name: ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        target: [api, worker, pdf-reproduction]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      # The API's production image (apps/api/Dockerfile) must keep building, and must answer its health
+      # check as the non-root user — the same image Dokploy deploys (ADR-0007).
+      - name: Build the API image
+        if: matrix.target == 'api'
+        run: docker build -f apps/api/Dockerfile -t eyadex-api:ci .
+      - name: Reject unsupported PDF toolchain architecture
+        if: matrix.target == 'api'
+        run: |
+          if docker build --network=none --target pdf-tools --build-arg TARGETARCH=arm64 \
+            -f apps/api/Dockerfile . > "$RUNNER_TEMP/pdf-unsupported-arch.log" 2>&1; then
+            exit 1
+          fi
+          grep -q invoice_pdf_unsupported_architecture "$RUNNER_TEMP/pdf-unsupported-arch.log"
+      - name: Verify packaged PDF tools without network or writable document storage
+        if: matrix.target == 'api'
+        run: |
+          docker run --rm --network none --read-only \
+            --mount "type=bind,source=$PWD/docker/tests,target=/check,readonly" \
+            eyadex-api:ci /usr/local/bin/node --test /check/pdf-fonts.test.mjs
+          docker run --rm --network none --read-only --cap-drop ALL \
+            --security-opt no-new-privileges \
+            --mount "type=bind,source=$PWD/docker/tests,target=/check,readonly" \
+            eyadex-api:ci /usr/local/bin/node --conditions=eyadex-runtime /check/pdf-toolchain.mjs
+      # The image's own CMD must boot: health answers, the auth handler is mounted, and the running process
+      # is the non-root user. No database or Redis is needed for that — postgres.js and the auth pools are
+      # lazy, and Redis failures only matter on rate-limited routes — so the URLs point nowhere.
+      - name: Boot the image and probe it
+        if: matrix.target == 'api'
+        run: |
+          docker run -d --name api -p 127.0.0.1:3000:3000 \
+            -e DATABASE_URL=postgres://eyadex_app:ci@127.0.0.1:1/eyadex \
+            -e AUTH_DATABASE_URL=postgres://eyadex_auth:ci@127.0.0.1:1/eyadex \
+            -e BETTER_AUTH_SECRET="$(openssl rand -hex 32)" -e REDIS_URL=redis://127.0.0.1:1/0 \
+            -e PLATFORM_DATABASE_URL=postgres://eyadex_platform:ci@127.0.0.1:1/eyadex \
+            -e OUTBOX_SEAL_KEY="$(openssl rand -base64 32)" -e MAIL_PROVIDER_SEAL_KEY="$(openssl rand -base64 32)" \
+            -e MEDICAL_MASTER_KEY_V1="$(openssl rand -base64 32)" -e MEDICAL_INDEX_KEY="$(openssl rand -base64 32)" \
+            -e MEDICAL_KEY_VERSION=1 \
+            -e APP_URL=https://app.eyadex.test -e PLATFORM_URL=https://platform.eyadex.test \
+            eyadex-api:ci
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:3000/v1/health && break; sleep 1; done
+          test "$(curl -s http://127.0.0.1:3000/v1/health)" = '{"status":"ok"}'
+          # Unknown host on the auth handler → 404 envelope: the Better Auth bundle loaded.
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:3000/auth/sign-in/email)" = "404"
+          test "$(docker exec api whoami)" = "eyadex"
+      - name: API container log
+        if: always() && matrix.target == 'api'
+        run: docker logs api || true
+
+      # The worker's production image (apps/worker/Dockerfile, ADR-0015) must build, boot its own CMD as the
+      # non-root user, report readiness honestly, and stop cleanly. Both pools are lazy, so the URLs point nowhere.
+      - name: Build the worker image
+        if: matrix.target == 'worker'
+        run: docker build -f apps/worker/Dockerfile -t eyadex-worker:ci .
+      - name: Boot the image and probe it
+        if: matrix.target == 'worker'
+        run: |
+          docker run -d --name worker -p 127.0.0.1:3002:3002 \
+            -e DATABASE_URL=postgres://eyadex_app:ci@127.0.0.1:1/eyadex \
+            -e DISPATCHER_DATABASE_URL=postgres://eyadex_dispatcher:ci@127.0.0.1:1/eyadex \
+            -e OUTBOX_SEAL_KEY="$(openssl rand -base64 32)" -e MAIL_PROVIDER_SEAL_KEY="$(openssl rand -base64 32)" \
+            -e PLATFORM_DATABASE_URL=postgres://eyadex_platform:ci@127.0.0.1:1/eyadex \
+            -e APP_URL=https://app.eyadex.test -e PLATFORM_URL=https://platform.eyadex.test \
+            -e RESEND_API_KEY=re_ci_dummy \
+            -e MAIL_FROM="Eyadex CI <ci@eyadex.test>" \
+            eyadex-worker:ci
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:3002/health && break; sleep 1; done
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3002/health)" = "200"
+          # The pools cannot connect: readiness must say so instead of answering 200.
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3002/health/ready)" = "503"
+          test "$(docker exec worker whoami)" = "eyadex"
+          # The clean shutdown path (useProcessExit) exits 0 well inside the 45 s watchdog.
+          docker stop -t 60 worker
+          test "$(docker inspect -f '{{.State.ExitCode}}' worker)" = "0"
+          # No secret value in the log.
+          if docker logs worker 2>&1 | grep -q re_ci_dummy; then echo "secret in worker log"; exit 1; fi
+      - name: Worker container log
+        if: always() && matrix.target == 'worker'
+        run: docker logs worker || true
+
+      # Reproduces a bounded synthetic extraction result AND a required unsupported-text case.
+      # A green job is not invoice-PDF acceptance: results.json retains fullInvoiceAcceptance=false.
+      - name: Build the isolated PDF research image
+        if: matrix.target == 'pdf-reproduction'
+        run: docker build -f docs/superpowers/plans/evidence/2026-11-04-pdf-reproduction/Dockerfile -t eyadex-pdf-reproduction:ci .
+      - name: Reproduce both fonts, extraction, pixels and the unsupported marked name
+        if: matrix.target == 'pdf-reproduction'
+        run: |
+          mkdir -p "$RUNNER_TEMP/eyadex-pdf-reproduction"
+          docker run --rm --network none --read-only --ulimit core=0 \
+            --mount "type=bind,source=$RUNNER_TEMP/eyadex-pdf-reproduction,target=/out" \
+            eyadex-pdf-reproduction:ci
+      - name: Verify the memory-only renderers and Linux process cleanup
+        if: matrix.target == 'pdf-reproduction'
+        run: |
+          docker run --rm --init --network none --read-only --cap-drop ALL \
+            --security-opt no-new-privileges --ulimit core=0:0 \
+            --tmpfs /tmp --tmpfs /pdf-root:ro,size=1m \
+            --mount "type=bind,source=$PWD,target=/workspace,readonly" \
+            --entrypoint node eyadex-pdf-reproduction:ci \
+            --experimental-transform-types --test --test-concurrency=1 \
+            /workspace/apps/api/src/modules/billing/__tests__/pdf-process-linux.test.mjs \
+            /workspace/apps/api/src/modules/billing/__tests__/receipt-pdf-linux.test.mjs
+      - name: Preserve synthetic research evidence
+        if: always() && matrix.target == 'pdf-reproduction'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: synthetic-pdf-reproduction
+          path: ${{ runner.temp }}/eyadex-pdf-reproduction
+          retention-days: 7

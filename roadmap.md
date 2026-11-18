@@ -168,3 +168,10 @@
 - [ ] Owner: launch go/no-go
 
 Out of launch scope: F4, per-clinic public pages and landing-page builder, specialty sections, and AI. Each needs its own specification and owner decisions before implementation.
+
+## CI critical path (owner standing rule, 2026-11-18)
+
+- [x] Rule recorded in `AGENTS.md` → "Standing CI rule"; the analysis, the applied techniques and the ones that do not apply are in [docs/specs/ci-critical-path.md](docs/specs/ci-critical-path.md)
+- [x] Baseline measured: five comparable successful first-attempt code-PR runs — median wall to the required gate 16.3 min, median runner minutes 31.6, `db` the critical path in all five
+- [x] Rollout: the `db` job split into `db / schema`, `db / packages`, `db / api (1/2)`, `db / api (2/2)` and `db / worker`; the artifact build split out of `verify`; the three image builds capped at two in parallel — in a dedicated reviewed CI PR, separate from the PDF ledger stack
+- [ ] Orchestrator: collect five after-rollout runs and recheck on 2026-12-02, then give Waleed the single before/after report (sample sizes, medians, absolute and percentage change, runner-minute cost, failures and retries, resource pressure) — due 2026-12-02, owner: orchestrator

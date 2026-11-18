@@ -68,7 +68,7 @@ The owner set this loop on 2026-10-06 and tightened it on 2026-10-17 (small slic
    - the staging check passed on the current head (step 4), unless the PR is docs-only or test-only;
    - no blocking finding is open (non-blocking ones are answered on their threads and listed under **Follow-ups**);
    - every bot inline comment is answered;
-   - CI (`verify`, `db`, `api-image`, `worker-image`) and both Socket checks are green;
+   - CI (`verify`, `build`, `db / schema`, `db / packages`, `db / api (1/2)`, `db / api (2/2)`, `db / worker`, `images / api`, `images / worker`, `images / pdf-reproduction`) and both Socket checks are green;
    - the PR is mergeable.
 
    A clean bill from every bot is not required: new non-blocking findings on the last round do not hold the merge.
