@@ -46,23 +46,28 @@ than convenience.
   (`pnpm build:all`, `NITRO_PRESET=node-server`) needed only the install, so it moved out of
   `verify` into its own `build` job that starts immediately. `verify` keeps the `verify` check name
   and still covers typecheck, lint and the unit suites.
-- **Slow independent suites are split into isolated shards.** `db` becomes four jobs: `db-schema`
+- **Slow independent suites are split into isolated shards.** `db` becomes four jobs: `db / schema`
   (baseline, negative isolation proofs, runner self-test, backfills — no install, no Redis),
-  `db-packages` (`@eyadex/db` + `@eyandex/auth`), `db-api` (the API suite split by file into
-  `1/2` and `2/2`, each shard on its own fresh database with its own MinIO), and `db-worker` (the
+  `db / packages` (`@eyadex/db` + `@eyandex/auth`), `db / api` (the API suite split by file into
+  `1/2` and `2/2`, each shard on its own fresh database with its own MinIO), and `db / worker` (the
   worker suite on its own database). Coverage is unchanged — the same suites, distributed — and a
-  failing shard fails only itself (`fail-fast: false`).
+  failing shard fails only itself (`fail-fast: false`). The split was verified locally against a
+  real PostgreSQL 18: shard `1/2` ran 66 files and shard `2/2` ran 65 files, 1 113 tests in total,
+  the same files as the whole suite.
 - **At most two image builds at a time.** The three image jobs became one `images` matrix
   (`api`, `worker`, `pdf-reproduction`) with `max-parallel: 2` and `fail-fast: false`. Runner
   memory was checked first: the hosted runner has 16 GB and each image build compiles native code
   (`g++`, `cmake`) and unpacks fonts; two concurrent builds stay well inside the budget, three
   would double the peak. Because each matrix entry gets its own runner, the cap limits concurrent
   runner usage, not per-runner memory.
+- **The workflow files stay under the 300-line limit.** The entry workflow keeps `verify` and
+  `build`; the database shards live in `ci-db.yml` and the image targets in `ci-images.yml`, both
+  called as reusable workflows (`workflow_call`) from the entry file.
 
 Expected effect: the `db` group's longest job drops from ~16 m to ~5 m, and the gate is then bound
-by `pdf-reproduction` (~7.2 m). Runner minutes rise by roughly 12 % because every shard repeats the
-baseline apply, the install and the workspace build — the trade-off is recorded here and in the
-before/after report, not hidden.
+by `images / pdf-reproduction` (~7.2 m). Runner minutes rise by roughly 12 % because every shard
+repeats the baseline apply, the install and the workspace build — the trade-off is recorded here and
+in the before/after report, not hidden.
 
 ## 4. Techniques evaluated and not applied, with the reason
 
@@ -91,14 +96,20 @@ before/after report, not hidden.
 ## 5. The merge gate after the change
 
 Every outcome the workflow produced before is still produced, and the gate names all of them:
-`verify`, `build`, `db-schema`, `db-packages`, `db-api (1/2)`, `db-api (2/2)`, `db-worker`,
-`images (api)`, `images (worker)`, `images (pdf-reproduction)`, plus both Socket checks. The
+`verify`, `build`, `db / schema`, `db / packages`, `db / api (1/2)`, `db / api (2/2)`, `db / worker`,
+`images / api`, `images / worker`, `images / pdf-reproduction`, plus both Socket checks. The
 delivery-loop skill's gate list is updated to match. No release, deployment, security or freeze
 control changed; the workflow still runs on `pull_request` and on `push` to `main`.
 
+The repository has no branch protection and no ruleset (`repos/lolotam/eyadex/branches/main/protection`
+answers "Branch not protected", and `repos/lolotam/eyadex/rulesets` is empty), so no external
+required-check context is stranded by the renamed jobs; the gate lives in the delivery-loop skill
+and in this record.
+
 Stack note: the PDF ledger stack (PR177 → PR178 → PR187) also edits `ci.yml` to add the PDF ledger
 proof steps to the old `db` job. When that stack lands on `main` it must merge this branch and move
-those steps into `db-schema`; otherwise the ledger proof would be lost from the gate.
+those steps into `ci-db.yml`'s `schema` job (and the invoice-pdf build into `ci-images.yml`), or the
+ledger proof would leave the gate.
 
 ## 6. Measurement plan
 
