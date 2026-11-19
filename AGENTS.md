@@ -19,8 +19,30 @@ Read these files fully, in this order, before any task or any review:
 2. [`CLAUDE.architecture.md`](./CLAUDE.architecture.md) — where code goes and what it may import
 3. [`docs/PRD-Eyadex-MVP.md`](./docs/PRD-Eyadex-MVP.md) — product scope, user stories, decisions
 4. [`.lovable/plan/marketing-landing.md`](./.lovable/plan/marketing-landing.md) — marketing site spec
+5. [`docs/specs/delivery-tiers.md`](./docs/specs/delivery-tiers.md) — delivery tiers (Light / Medium /
+   Heavy), the lane order and the delivery-loop steps each tier replaces
 
 The names say "CLAUDE", but the rules apply to every agent equally.
+
+## Delivery tiers (Light / Medium / Heavy Implementation Pipeline)
+
+Owner standing rule, 2026-11-19 (PosPay PP-195): the tier of a task decides its implementer lane,
+its review depth and its deploy path; every other rule in `CLAUDE.md` applies unless a tier replaces one.
+Production, the server, secrets and every HOLD stay the owner's. Full rule: [`docs/specs/delivery-tiers.md`](./docs/specs/delivery-tiers.md).
+
+- **Tier card before every new task** (side tasks and follow-ups too): one Arabic AskUserQuestion
+  card to the owner — 3 options, the first «(المقترح)», with the tier, the recommendation, a reason
+  and an exception option; start only after the answer; tier + exception go in the brief and the
+  PR body; fix rounds need no card.
+- **LIGHT** — docs, specs, plans, ADRs, roadmap/status, i18n, small CSS/UI (≤ ~150 lines); never
+  money, permissions/auth, DB/migrations, API, a new dependency. Merge on green CI, no bot wait,
+  no staging deploy of its own.
+- **MEDIUM** — max 3 review rounds (skip a bot stuck > 1h), CI green on the exact head, daily staging.
+- **HEAVY** — migrations, money, permissions/auth, security, long jobs; the owner's card approves the
+  merge for migration/money/permissions, other Heavy work merges by the manager after every gate;
+  staging alone right after it, DB snapshot first (keep the receipt).
+- **Implementer fallback** — Light: manager → Claude Sonnet; Medium/Heavy: Kimi → MiniMax → Grok → Claude Sonnet (high effort).
+- **Plan summary after every merge** — «ما تم» / «الباقي» / «التوصية»; every report ends with «المطلوب منك»، «الخطوة الجاية اللي أنصح بيها»، «ملاحظة».
 
 ## Review guidelines
 

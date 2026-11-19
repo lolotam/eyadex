@@ -42,6 +42,7 @@
 >   keeps the mock. Follow-up to PR #81.
 > - **V1.7 (2026-10-18)** — §2.1 step 3: every slice is tried on staging against the real API before
 >   it merges; the mock adapter stays (owner decision, EY-1.3 item 5). Steps are in the loop skill.
+> - **V1.9 (2026-11-19)** — §2.2 adds the delivery tiers (Light/Medium/Heavy, owner rule PP-195).
 
 ## 0.1 Talking to the owner (binding, owner rule 2026-10-13)
 
@@ -111,6 +112,26 @@ never import an adapter, so switching between mock and HTTP requires no screen c
    sync), then fast-forward `lovable` to `main`.
 5. `main` auto-deploys to Dokploy (eyadex.com, app., platform.).
 
+### 2.2 Delivery tiers (Light / Medium / Heavy Implementation Pipeline)
+
+Owner standing rule, 2026-11-19 (PosPay PP-195): the tier of a task decides its implementer lane,
+its review depth and its deploy path; every other rule in `CLAUDE.md` applies unless a tier replaces one.
+Production, the server, secrets and every HOLD stay the owner's. Full rule: [`docs/specs/delivery-tiers.md`](./docs/specs/delivery-tiers.md).
+
+- **Tier card before every new task** (side tasks and follow-ups too): one Arabic AskUserQuestion
+  card to the owner — 3 options, the first «(المقترح)», with the tier, the recommendation, a reason
+  and an exception option; start only after the answer; tier + exception go in the brief and the
+  PR body; fix rounds need no card.
+- **LIGHT** — docs, specs, plans, ADRs, roadmap/status, i18n, small CSS/UI (≤ ~150 lines); never
+  money, permissions/auth, DB/migrations, API, a new dependency. Merge on green CI, no bot wait,
+  no staging deploy of its own.
+- **MEDIUM** — max 3 review rounds (skip a bot stuck > 1h), CI green on the exact head, daily staging.
+- **HEAVY** — migrations, money, permissions/auth, security, long jobs; the owner's card approves the
+  merge for migration/money/permissions, other Heavy work merges by the manager after every gate;
+  staging alone right after it, DB snapshot first (keep the receipt).
+- **Implementer fallback** — Light: manager → Claude Sonnet; Medium/Heavy: Kimi → MiniMax → Grok → Claude Sonnet (high effort).
+- **Plan summary after every merge** — «ما تم» / «الباقي» / «التوصية»; every report ends with «المطلوب منك»، «الخطوة الجاية اللي أنصح بيها»، «ملاحظة».
+
 ## 3. Repo layout (pnpm + Turborepo workspace — do not invent new top-level folders)
 
 ```
@@ -125,7 +146,7 @@ packages/db/        the only path to PostgreSQL: withTenant/withNewTenant/withNo
 packages/auth/       Better Auth config + two-factor: the ONLY place sessions and passwords are handled (@eyadex/auth)
 packages/secrets/    the outbox seal, the field cipher and the civil ID blind index, ADR-0028 (@eyadex/secrets)
 db/sql/              SQL baseline applied to production; the only way to change a database (ADR-0024)
-docs/                PRD, ADRs, specs
+docs/                PRD, ADRs, specs, the owner-decisions log
 docker/              compose init scripts (postgres roles)
 .lovable/            Lovable project metadata + plan specs for the whole repo
 package.json         workspace root: turbo scripts, engines
