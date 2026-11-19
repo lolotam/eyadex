@@ -106,7 +106,7 @@ describe("invoice PDF feedback", () => {
       expect(api.pdf).toHaveBeenCalledTimes(1);
       await act(async () => request.resolve(blob));
       await waitFor(() => expect(windowTab.location.href).toBe("blob:synthetic-pdf"));
-      expect(screen.queryByRole("status")).toBeNull();
+      expect(screen.getByRole("status")).toHaveTextContent("");
       expect(button).toBeEnabled();
     },
   );

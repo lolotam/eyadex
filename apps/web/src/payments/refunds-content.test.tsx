@@ -96,6 +96,20 @@ describe("the refunds list (card 2a §3)", () => {
     expect(h.queries.at(-1)?.["patientId"]).toBe("p1");
   });
 
+  it("summarizes the applied filters for the printed list", () => {
+    h.session.permissions = ["view:payments:clinic", "view:patients:clinic"];
+    show();
+    const summary = screen.getByRole("region", { name: "ملخص الطباعة" });
+    expect(summary.textContent).toContain("لا توجد فلاتر مطبّقة");
+    fireEvent.click(screen.getByText("patient-filter"));
+    fireEvent.change(screen.getByLabelText("من"), { target: { value: "2026-10-01" } });
+    fireEvent.change(screen.getByLabelText("إلى"), { target: { value: "2026-10-31" } });
+    expect(summary.textContent).toContain("المراجع:x");
+    expect(summary.textContent).toContain("من:2026-10-01");
+    expect(summary.textContent).toContain("إلى:2026-10-31");
+    expect(summary.textContent).not.toContain("لا توجد فلاتر مطبّقة");
+  });
+
   it("disables both pager buttons while placeholder data shows", () => {
     h.list = {
       data: { items: [row], total: 40, nextCursor: "abc" },

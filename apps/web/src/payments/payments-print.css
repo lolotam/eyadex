@@ -1,0 +1,41 @@
+/* The active payments list prints with its applied filters; navigation and controls stay on screen. */
+@media print {
+  [data-payments-print],
+  [data-payments-print] * {
+    visibility: visible;
+  }
+  body:has([data-payments-print]) aside,
+  body:has([data-payments-print]) header {
+    display: none !important;
+  }
+  [data-payments-print] {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-start: 0;
+    width: 100%;
+    max-width: none !important;
+  }
+  [data-payments-print] form {
+    display: none !important;
+  }
+  [data-payments-print] .payments-print-scroll {
+    overflow: visible !important;
+  }
+  [data-payments-print] .payments-print-table {
+    width: 100%;
+    min-width: 0 !important;
+  }
+  [data-payments-print] table {
+    font-size: 10px;
+  }
+  [data-payments-print] thead {
+    display: table-header-group;
+  }
+  [data-payments-print] tr {
+    break-inside: avoid;
+  }
+  [data-payments-print] a {
+    color: inherit;
+    text-decoration: none;
+  }
+}

@@ -13,8 +13,9 @@ import { CursorPager } from "@/shared/table/cursor-pager";
 import { DataTable } from "@/shared/table/data-table";
 import { FilterSelect } from "@/shared/table/filter-select";
 import { useCursorPages } from "@/shared/table/use-cursor-pages";
+import { PaymentPrintSummary } from "./payment-print-summary";
 import { ReceiptPatientPicker } from "./receipt-patient-picker";
-import { useReceiptBranches, useReceiptList } from "./receipt-queries";
+import { branchNameIn, useReceiptBranches, useReceiptList } from "./receipt-queries";
 import { useReceiptColumns } from "./use-receipt-columns";
 
 const PAGE_SIZE = 20;
@@ -62,9 +63,29 @@ export function ReceiptsContent() {
     pages.reset();
   };
   const items = list.data?.items ?? [];
+  const printFilters = [
+    ...(branchId
+      ? [
+          {
+            label: t("payments.receipts.branch"),
+            value: branchNameIn(branches.data, branchId, pick),
+          },
+        ]
+      : []),
+    ...(method
+      ? [{ label: t("payments.receipts.method"), value: tDynamic(`payments.method.${method}`) }]
+      : []),
+    ...(seesPatients && patient
+      ? [{ label: t("payments.receipts.patient"), value: patient.label }]
+      : []),
+    ...(from ? [{ label: t("payments.receipts.from"), value: from }] : []),
+    ...(to ? [{ label: t("payments.receipts.to"), value: to }] : []),
+    ...(searched ? [{ label: t("payments.receipts.searchNumber"), value: searched }] : []),
+  ];
   return (
     <div>
-      <div className="mb-4 grid gap-2 rounded-lg border bg-card p-3 sm:grid-cols-2 lg:grid-cols-6">
+      <PaymentPrintSummary title={t("payments.views.receipts")} filters={printFilters} />
+      <div className="mb-4 grid gap-2 rounded-lg border bg-card p-3 print:hidden sm:grid-cols-2 lg:grid-cols-6">
         <FilterSelect
           label={t("payments.receipts.branch")}
           value={branchId}
@@ -110,7 +131,7 @@ export function ReceiptsContent() {
         />
       </div>
       {branches.isError && (
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-destructive/40 px-3 py-2 text-sm text-destructive">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-destructive/40 px-3 py-2 text-sm text-destructive print:hidden">
           <span>{t("payments.receipts.branchesError")}</span>
           <Button size="sm" variant="outline" onClick={() => void branches.refetch()}>
             {t("common.tryAgain")}
@@ -131,20 +152,22 @@ export function ReceiptsContent() {
           body={t("payments.receipts.emptyBody")}
         />
       ) : (
-        <div className="overflow-x-auto">
-          <div className="min-w-[640px]">
+        <div className="payments-print-scroll overflow-x-auto">
+          <div className="payments-print-table min-w-[640px]">
             <DataTable columns={columns} data={items} isLoading={list.isLoading} />
           </div>
         </div>
       )}
-      <CursorPager
-        count={items.length}
-        total={list.data?.total ?? 0}
-        canPrevious={!searchPending && !list.isPlaceholderData && pages.canPrevious}
-        canNext={!searchPending && !list.isPlaceholderData && Boolean(list.data?.nextCursor)}
-        onPrevious={pages.previous}
-        onNext={() => pages.next(list.data?.nextCursor ?? null)}
-      />
+      <div className="print:hidden">
+        <CursorPager
+          count={items.length}
+          total={list.data?.total ?? 0}
+          canPrevious={!searchPending && !list.isPlaceholderData && pages.canPrevious}
+          canNext={!searchPending && !list.isPlaceholderData && Boolean(list.data?.nextCursor)}
+          onPrevious={pages.previous}
+          onNext={() => pages.next(list.data?.nextCursor ?? null)}
+        />
+      </div>
     </div>
   );
 }

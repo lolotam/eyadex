@@ -40,7 +40,10 @@ export function useRefundColumns(branches: readonly BranchOption[] | undefined) 
         id: "patient",
         header: t("payments.receipts.patient"),
         cell: ({ row }) => (
-          <span className="block max-w-48 truncate text-start" title={row.original.patientName}>
+          <span
+            className="block max-w-48 truncate text-start print:max-w-none print:overflow-visible print:whitespace-normal"
+            title={row.original.patientName}
+          >
             {row.original.patientName}
           </span>
         ),
