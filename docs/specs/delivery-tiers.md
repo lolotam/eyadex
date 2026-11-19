@@ -57,6 +57,13 @@ jobs.
 - Staging deploy alone, right after the merge.
 - With a migration: take a DB snapshot first and keep the receipt.
 
+That split is the owner's rule as written (PosPay PP-195): "A PR with migration, money or
+permissions/auth merges ONLY after Waleed's card approval (after all gates). Other Heavy work:
+manager merges after all gates." The card is therefore required for migration, money and
+permissions/auth only; a security-only or long-running-job PR is merged by the manager after every
+gate. Tightening that — for example requiring the card for every Heavy PR — is the owner's call,
+not an agent's.
+
 ## 3. Implementer fallback (fixed order)
 
 Use only the lanes this project has, and keep the order:
@@ -89,17 +96,16 @@ in sync. Every report ends with exactly these headings: «المطلوب منك�
 
 ## 5. What each tier replaces in the delivery loop (`CLAUDE.md` §2.1)
 
-| Gate (§2.1)                                         | LIGHT                                       | MEDIUM         | HEAVY                                           |
-| --------------------------------------------------- | ------------------------------------------- | -------------- | ----------------------------------------------- |
-| Review bots (Codex, MergePilot, CodeRabbit, Socket) | not awaited, not a gate                     | up to 3 rounds | full review, under the round cap                |
-| Local review and CI on the exact head               | green CI is enough                          | required       | required                                        |
-| Staging trial before the merge                      | skipped                                     | skipped        | skipped                                         |
-| Staging deploy                                      | none of its own; ships with the next deploy | daily batches  | alone, right after the merge                    |
-| Owner card before the merge                         | not needed                                  | not needed     | required for migration, money, permissions/auth |
-
-Everything else in the delivery loop stays as written: the slice review (typecheck, lint, tests,
-node-server build, real-Chrome checks in Arabic and English at 1440px and 390px for every
-persona), the merge commit, the fast-forward of `lovable`, and the auto-deploy from `main`.
+| Gate (§2.1)                                                                                      | LIGHT                                       | MEDIUM         | HEAVY                                                                          |
+| ------------------------------------------------------------------------------------------------ | ------------------------------------------- | -------------- | ------------------------------------------------------------------------------ |
+| Review bots (Codex, MergePilot, CodeRabbit, Socket)                                              | not awaited, not a gate                     | up to 3 rounds | full review, under the round cap                                               |
+| Local review and CI on the exact head                                                            | green CI is enough                          | required       | required                                                                       |
+| Staging trial before the merge                                                                   | skipped                                     | skipped        | skipped                                                                        |
+| Staging deploy                                                                                   | none of its own; ships with the next deploy | daily batches  | alone, right after the merge                                                   |
+| Owner card before the merge                                                                      | not needed                                  | not needed     | required for migration, money, permissions/auth; other Heavy work: the manager |
+| Everything else in the delivery loop stays as written: the slice review (typecheck, lint, tests, |
+| node-server build, real-Chrome checks in Arabic and English at 1440px and 390px for every        |
+| persona), the merge commit, the fast-forward of `lovable`, and the auto-deploy from `main`.      |
 
 ## 6. What the tiers never change
 

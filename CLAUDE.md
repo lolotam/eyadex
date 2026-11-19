@@ -126,10 +126,10 @@ Production, the server, secrets and every HOLD stay the owner's. Full rule: [`do
   money, permissions/auth, DB/migrations, API, a new dependency. Merge on green CI, no bot wait,
   no staging deploy of its own.
 - **MEDIUM** — max 3 review rounds (skip a bot stuck > 1h), CI green on the exact head, daily staging.
-- **HEAVY** — migrations, money, permissions/auth, security, long jobs; the owner's card approves
-  the merge after every gate, staging alone right after it, DB snapshot first (keep the receipt).
-- **Implementer fallback** — Light: manager → Claude Sonnet; Medium and Heavy: Kimi → MiniMax →
-  Grok → Claude Sonnet (Heavy at high effort); after 2 failures move to the next lane, no asking.
+- **HEAVY** — migrations, money, permissions/auth, security, long jobs; the owner's card approves the
+  merge for migration/money/permissions, other Heavy work merges by the manager after every gate;
+  staging alone right after it, DB snapshot first (keep the receipt).
+- **Implementer fallback** — Light: manager → Claude Sonnet; Medium/Heavy: Kimi → MiniMax → Grok → Claude Sonnet (high effort).
 - **Plan summary after every merge** — «ما تم» / «الباقي» / «التوصية»; every report ends with «المطلوب منك»، «الخطوة الجاية اللي أنصح بيها»، «ملاحظة».
 
 ## 3. Repo layout (pnpm + Turborepo workspace — do not invent new top-level folders)
